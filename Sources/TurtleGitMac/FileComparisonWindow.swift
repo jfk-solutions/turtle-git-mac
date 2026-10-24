@@ -7,6 +7,18 @@ private extension FileComparisonDocument {
     func exchangingSides() -> Self { replacingPane(base:true,content:destination).replacingPane(base:false,content:base) }
 }
 
+/// SwiftUI can reset a hosting window's minimum during lazy view attachment.
+/// This editor owns its minimum independently of the current pane content.
+@MainActor private final class FileComparisonHostingController: NSHostingController<FileComparisonDialog> {
+    override func viewDidLayout() { super.viewDidLayout(); preserveMinimum() }
+    override func viewDidAppear() { super.viewDidAppear(); preserveMinimum() }
+    private func preserveMinimum() {
+        guard let window = view.window else { return }
+        let minimum = NSSize(width: 800, height: 440)
+        if window.contentMinSize != minimum { window.contentMinSize = minimum }
+    }
+}
+
 @MainActor class FileComparisonNativeWindow: NSWindow, ImageComparisonKeyRouting {
     weak var imageKeyModel: ImageComparisonViewModel?
     var imageKeyOwner: UUID?
@@ -160,8 +172,10 @@ private extension FileComparisonDocument {
         let path = model.path
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
+        let host = FileComparisonHostingController(rootView: FileComparisonDialog(model: model))
+        host.sizingOptions = []
+        window.contentViewController = host
         window.contentMinSize = NSSize(width: 800, height: 440)
-        window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
         super.init(window: window); TurtleGitHelp.attach(window, topic: .compare); window.model = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
         model.externalDidOpen = { [weak window] in window?.close() }
         window.setContentSize(NSSize(width: 1120, height: 720))
@@ -171,6 +185,7 @@ private extension FileComparisonDocument {
         installExternalReload(window)
 
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
+        window.contentMinSize = NSSize(width: 800, height: 440)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !preparingReplacement, editorOpenWorkflow == nil else { return false }
@@ -218,6 +233,7 @@ private extension FileComparisonDocument {
         if let retainedImageModel { return retainedImageModel }
         let image = ImageComparisonViewModel(presentation: imagePresentation)
         image.commandsAllowed = { [weak self] in self?.imageCommandsAllowed == true }
+        image.observeCommandOwner(objectWillChange.eraseToAnyPublisher())
         image.reloadImages = { [weak self] in if self?.imageCommandsAllowed == true { self?.load() } }
         retainedImageModel = image; return image
     }

@@ -298,7 +298,10 @@ See [optional libgit2 transport](LIBGIT2-TRANSPORT.md).
 
 Choose a configured Remote or an Arbitrary URL. Remote Branch narrows the request;
 the browse button selects a remote branch. Manage Remotes opens the repository's
-remote settings. Authentication uses the configured SSH/credential workflow.
+remote settings. Returning reloads remote names, the current tracked/submodule
+branch defaults and tag/prune hints. Unrelated operation options and explicit
+tag/prune overrides remain. Authentication uses the configured SSH/credential
+workflow.
 
 Select Remote Ref keeps the captured Remote in a selectable read-only field.
 Choose a listed branch or type its exact name. F5 without modifiers reloads the
@@ -538,6 +541,12 @@ Rebase prepares commits relative to the selected branch/upstream and optional
 onto target. Review the plan and each row action before starting. Edit, squash,
 skip and conflict handling can change the resulting history. Cherry Pick uses a
 related replay plan over the selected commits.
+
+Before replay, **Refresh** or unmodified **F5** reloads the current HEAD branch,
+reference choices and a fresh plan. Successful refresh resets added commits,
+manual order and row actions to source defaults; cancellation or failure keeps
+the accepted draft. During conflict recovery it refreshes recovery state. See
+[reference refresh](REFERENCE-REFRESH-PARITY.md) for phase rules.
 
 **Add** opens a multiple-selection Log. Accepted commits appear above the current
 list and can repeat earlier commits. You can build an editable draft before branch

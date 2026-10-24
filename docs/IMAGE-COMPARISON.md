@@ -23,9 +23,13 @@ these same controls:
   decoded color depth.
 - **Overlay images** puts both versions in one pane. Move the vertical slider
   on the left to blend between them in 17 positions: top shows the first
-  image, bottom the second. The button above it changes a nonzero blend to
-  zero, then switches back to one. Control-Shift-wheel adjusts the blend.
-  Overlay keeps image positions linked. Turn it off to return to two panes.
+  image, bottom the second. The slider follows the pane height; hover over it
+  to read the current percentage. Click the button above it to change a nonzero
+  blend to zero, then switch back to one. Double-click that button to alternate
+  between the images once per second; its pressed appearance shows automatic
+  blinking. A single click stops blinking and applies the normal endpoint toggle.
+  Control-Shift-wheel adjusts the blend. Overlay keeps image positions linked.
+  Turn it off to return to two panes.
 - With overlay enabled, turn **Blend alpha** off for XOR comparison. Identical
   areas appear white and changed pixels appear in color. Turn it back on to
   restore the alpha slider.
@@ -43,8 +47,11 @@ Multi-image files have Previous/Next buttons and an image counter beneath the
 pane header. Navigation stops at the first or last image. GIF frames and TIFF
 pages offer Play/Stop; ICO variants offer navigation only. Linked panes receive
 the same player commands, while each file uses its own playback timing. Turn
-linking off to operate panes independently. Turning overlay on stops playback.
-Conflict panes have independent player controls; Select copies the complete
+linking off to operate panes independently. Turning overlay on stops playback
+and hides frame/player controls until you return to separate panes. XOR mode
+hides the alpha controls and stops automatic blinking. Replacing images, opening
+a child sheet or closing the viewer stops its display timers; they do not resume
+silently after dismissal. Conflict panes have independent player controls; Select copies the complete
 original file, including all frames. See [frame/page parity](IMAGE-FRAMES-PARITY.md).
 
 This portion of the port is still being completed. Broader image controls and

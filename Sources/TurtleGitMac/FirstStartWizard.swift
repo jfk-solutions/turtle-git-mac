@@ -22,6 +22,24 @@ import TurtleGitCore
     private(set) var keyGenerationController: SSHKeyGenerationWindowController?
     @Published var error: String?
     let git: GeneralGitSettingsModel
+    enum SSHChoice: String { case automatic, custom }
+    @Published private(set) var ssh: SSHClientPreferences
+    @Published private(set) var sshChoice: SSHChoice
+    @Published private(set) var sshVersion = ""
+    @Published private(set) var checkingSSH = false
+    @Published private(set) var cancellingSSH = false
+    @Published private(set) var selectingSSH = false
+    private var savedSSH: SSHClientPreferences
+    private var customSSH: SSHClientPreferences
+    private var sshPanel: NSOpenPanel?
+    private var sshChoiceID: UUID?
+    private var sshCheckToken: OperationCancellation?
+    var presentSSHPanel: (NSOpenPanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { $0.beginSheetModal(for: $1, completionHandler: $2) }
+    var selectedSSHURL: (NSOpenPanel) -> URL? = { $0.url }
+    var bookmarkSSH: (URL) throws -> Data = { try $0.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) }
+    var readSSHVersion: (SSHClientPreferences, OperationCancellation) async throws -> String = { value, token in
+        try await Task.detached { try value.version(cancellation: token) }.value
+    }
     private let preferences: UserDefaults
     private let makeRepository: (URL, OperationCancellation) async throws -> GitRepository
     private var task: Task<Void, Never>?
@@ -34,10 +52,14 @@ import TurtleGitCore
         try token.check(); return try GitRepository(root: TurtleGitTemporaryStorage.root, executable: engine)
     }) {
         self.preferences = preferences; self.makeRepository = makeRepository; git = GeneralGitSettingsModel(preferences: preferences)
+        let currentSSH = SSHClientPreferences.load(from: preferences)
+        savedSSH = currentSSH; customSSH = currentSSH
+        ssh = GitRuntime.isAppStoreBuild ? SSHClientPreferences() : currentSSH
+        sshChoice = GitRuntime.isAppStoreBuild || currentSSH.path.isEmpty ? .automatic : .custom
         gitTransitions=Publishers.CombineLatest3(git.$busy,git.$selecting,git.$confirmingUpdates).dropFirst().sink { [weak self] _ in self?.formRevision=UUID() }
     }
-    var canNavigate: Bool { !busy && !git.busy && !git.selecting && !git.confirmingUpdates && !hasCredentialSheet && !retired && !finished }
-    var canCancel: Bool { !writing && !hasCredentialSheet && !git.selecting && !git.confirmingUpdates && !retired && !finished }
+    var canNavigate: Bool { !busy && !git.busy && !git.selecting && !git.confirmingUpdates && !hasCredentialSheet && !checkingSSH && !selectingSSH && !retired && !finished }
+    var canCancel: Bool { !writing && !hasCredentialSheet && !git.selecting && !git.confirmingUpdates && !selectingSSH && !retired && !finished }
     struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let page:Page}
     var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision,page:page)}
     private func accepts(_ context:FormContext)->Bool {canNavigate && context==formContext}
@@ -79,6 +101,76 @@ import TurtleGitCore
     func configureCredentials(context:FormContext) {guard accepts(context) else{return};configureCredentials()}
     func focusAllowed(page:Page,generation:UUID)->Bool {canNavigate && self.page==page && pageGeneration==generation}
 
+    var canEditSSH: Bool { canNavigate && page == .authentication && !GitRuntime.isAppStoreBuild }
+    func sshChoiceBinding(context: FormContext) -> Binding<SSHChoice> {
+        Binding(get: { self.sshChoice }, set: { self.chooseSSH($0, context: context) })
+    }
+    func chooseSSH(_ choice: SSHChoice, context: FormContext) {
+        guard accepts(context), canEditSSH else { return }
+        if sshChoice == .custom { customSSH = ssh }
+        sshChoice = choice; ssh = choice == .automatic ? SSHClientPreferences() : customSSH
+        sshVersion = ""; error = nil; formRevision = UUID()
+    }
+    func sshPathBinding(context: FormContext) -> Binding<String> {
+        Binding(get: { self.ssh.path }, set: { self.editSSHPath($0, context: context) })
+    }
+    func editSSHPath(_ value: String, context: FormContext) {
+        guard accepts(context), canEditSSH, sshChoice == .custom else { return }
+        ssh.path = value; ssh.bookmark = nil; customSSH = ssh; sshVersion = ""; error = nil
+    }
+    private func checkedSSH(_ value: SSHClientPreferences, choice: SSHChoice, token: OperationCancellation) async throws -> String {
+        try token.check()
+        if choice == .custom, value.path.isEmpty { throw NetworkSettingsFailure.ssh }
+        let version = try await readSSHVersion(value, token)
+        try token.check(); return version
+    }
+    func checkSSH(context: FormContext) {
+        guard accepts(context), canEditSSH, let window, window.attachedSheet == nil, NSApp.modalWindow == nil else { return }
+        let submitted = ssh, choice = sshChoice, token = OperationCancellation(), pageVisit = pageGeneration
+        sshCheckToken = token; checkingSSH = true; cancellingSSH = false; formRevision = UUID(); error = nil
+        Self.activeWrites += 1
+        Task { [self] in
+            defer { Self.activeWrites -= 1; if sshCheckToken === token { sshCheckToken = nil; checkingSSH = false; cancellingSSH = false; formRevision = UUID() } }
+            do {
+                let version = try await checkedSSH(submitted, choice: choice, token: token)
+                guard !retired, page == .authentication, pageGeneration == pageVisit, self.window === window, ssh == submitted, sshChoice == choice else { return }
+                sshVersion = version
+            } catch { if !retired, !token.isCancelled, pageGeneration == pageVisit, self.window === window, ssh == submitted, sshChoice == choice { self.error = error.localizedDescription } }
+        }
+    }
+    func cancelSSHCheck() {
+        guard !retired, checkingSSH, !cancellingSSH else { return }
+        cancellingSSH = true; sshCheckToken?.cancel()
+    }
+    func browseSSH(context: FormContext) {
+        guard accepts(context), canEditSSH, sshChoice == .custom, sshPanel == nil,
+              let window, window.attachedSheet == nil, NSApp.modalWindow == nil else { return }
+        let chooser = NSOpenPanel(), request = UUID(), submitted = ssh, visit = pageGeneration
+        chooser.canChooseFiles = true; chooser.canChooseDirectories = false
+        chooser.title = "Choose OpenSSH client"; chooser.prompt = "Select SSH"
+        chooser.directoryURL = URL(fileURLWithPath: ssh.path.isEmpty ? "/usr/bin" : (ssh.path as NSString).deletingLastPathComponent)
+        chooser.alphaValue = window.alphaValue; chooser.appearance = window.appearance
+        sshPanel = chooser; sshChoiceID = request; selectingSSH = true; formRevision = UUID(); Self.activeWrites += 1
+        presentSSHPanel(chooser, window) { [weak self, weak chooser] response in
+            guard let self, let chooser, self.sshPanel === chooser, self.sshChoiceID == request else { return }
+            self.sshPanel = nil; self.sshChoiceID = nil
+            SettingsLifecycleSheetDrain.close([chooser]) { [self] in
+                Self.activeWrites -= 1
+                guard !self.retired else { return }
+                self.selectingSSH = false; self.formRevision = UUID()
+                guard self.page == .authentication, self.pageGeneration == visit, self.window === window, self.ssh == submitted,
+                      self.sshChoice == .custom, response == .OK, let file = self.selectedSSHURL(chooser) else { return }
+                do {
+                    var directory: ObjCBool = false
+                    guard file.isFileURL, FileManager.default.fileExists(atPath: file.path, isDirectory: &directory), !directory.boolValue,
+                          FileManager.default.isExecutableFile(atPath: file.path) else { throw NetworkSettingsFailure.ssh }
+                    var selected = submitted; selected.bookmark = try self.bookmarkSSH(file); selected.path = file.path
+                    self.ssh = selected; self.customSSH = selected; self.sshVersion = ""; self.error = nil
+                } catch { self.error = error.localizedDescription }
+            }
+        }
+    }
+
     private var repository: GitRepository?
     private var panel: NSOpenPanel?
     private var permissionReply: ((Bool) -> Void)?
@@ -111,7 +203,11 @@ import TurtleGitCore
         }
     }
     func retire() {
-        guard !retired else { return }; retired = true; token?.cancel(); task?.cancel(); git.suspend()
+        guard !retired else { return }; retired = true; token?.cancel(); task?.cancel(); sshCheckToken?.cancel(); git.suspend()
+        if let chooser = sshPanel {
+            sshPanel = nil; sshChoiceID = nil
+            SettingsLifecycleSheetDrain.close([chooser]) { Self.activeWrites -= 1 }
+        }
         credentialController?.model.deactivate(); credentialController?.window?.close(); credentialController = nil; hasCredentialSheet = false
         keyGenerationController?.model.retire(); keyGenerationController?.window?.close(); keyGenerationController = nil
         if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
@@ -189,6 +285,7 @@ import TurtleGitCore
         if page == .welcome { page = .git; return }
         let current = page, submittedName = name, submittedEmail = email, submittedHelper = helper
         let skipIdentity = skipUser, skipCredentials = skipHelper || advanced, token = OperationCancellation()
+        let submittedSSH = ssh, submittedSSHChoice = sshChoice
         self.token = token; busy = true; Self.activeWrites += 1
         task = Task {
             defer { busy = false; writing = false; self.token = nil; task = nil; Self.activeWrites -= 1 }
@@ -214,6 +311,16 @@ import TurtleGitCore
                     guard !retired else { return }; page = .authentication
                 } else {
                     guard let repository else { return }
+                    // Source saves the SSH choice before attempting credential-helper writes.
+                    // Validate only a changed choice: existing custom clients remain repairable
+                    // from Network settings and are never replaced by opening this wizard.
+                    if !GitRuntime.isAppStoreBuild, submittedSSH != savedSSH {
+                        let version = try await checkedSSH(submittedSSH, choice: submittedSSHChoice, token: token)
+                        try token.check(); guard !retired, ssh == submittedSSH, sshChoice == submittedSSHChoice else { return }
+                        writing = true; try submittedSSH.save(to: preferences); savedSSH = submittedSSH; sshVersion = version; writing = false
+                    } else if !GitRuntime.isAppStoreBuild, submittedSSHChoice == .custom, submittedSSH.path.isEmpty {
+                        throw NetworkSettingsFailure.ssh
+                    }
                     if !skipCredentials {
                         writing = true
                         try await repository.saveFirstStartCredentialHelper(submittedHelper)
@@ -310,9 +417,20 @@ private struct FirstStartWizardDialog: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("TurtleGit uses OpenSSH and honors your SSH config, agent and repository command overrides. Configure each remote’s key file in Remote settings.").fixedSize(horizontal: false, vertical: true)
                             HStack {
-                                Picker("SSH client:", selection: .constant("openssh")) { Text("OpenSSH").tag("openssh") }
+                                Picker("SSH client:", selection: model.sshChoiceBinding(context: context)) {
+                                    Text("Automatic OpenSSH").tag(FirstStartWizardModel.SSHChoice.automatic)
+                                    Text("Custom OpenSSH").tag(FirstStartWizardModel.SSHChoice.custom)
+                                }.disabled(GitRuntime.isAppStoreBuild).accessibilityIdentifier("FirstStart.SSHChoice")
                                 Button("Generate SSH key…") {model.generateSSHKey(context:context)}
                             }
+                            if model.sshChoice == .custom {
+                                HStack {
+                                    TextField("SSH client", text: model.sshPathBinding(context: context)).accessibilityIdentifier("FirstStart.SSHPath")
+                                    Button("Browse…") { model.browseSSH(context: context) }
+                                }
+                            }
+                            HStack { Text(model.sshVersion).textSelection(.enabled); Spacer(); Button("Check now") { model.checkSSH(context: context) }.disabled(GitRuntime.isAppStoreBuild) }
+                            if GitRuntime.isAppStoreBuild { Text("Git and OpenSSH are included in this App Store build.").font(.caption) }
                         }.padding(8)
                     }
                     Button("OpenSSH setup and FAQ") {TurtleGitHelp.show(.ssh)}.buttonStyle(.link)
@@ -330,6 +448,7 @@ private struct FirstStartWizardDialog: View {
                     }
                 }
             }.frame(maxWidth:.infinity,alignment:.leading)}.disabled(blocked)
+            if model.checkingSSH { Button(model.cancellingSSH ? "Cancelling check…" : "Cancel check", action: model.cancelSSHCheck).disabled(model.cancellingSSH) }
             if git.checking {Button(git.cancellingCheck ? "Cancelling check…":"Cancel check",action:model.cancelGitCheck).disabled(git.cancellingCheck)}
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack {

@@ -213,3 +213,14 @@ actual return, cancels on forced close and rejects late configuration. Owning
 preferences persist the completion flag. [Batch evidence](qa/utility-commands-2026-10-18.json)
 records actual checks; physical input/rendered fidelity, real scope/credential
 interaction and signed Store acceptance remain open.
+
+## Configured SSH client setup — October 24, 2026
+
+Authentication now presents the actual native Automatic/custom SSH preference,
+including an existing custom path. It supports owned executable Browse, real
+cancellable Check, captured bookmarks and source-ordered SSH-before-HTTP Finish.
+HTTP Don't store preserves its source-specific scope. App Store setup remains
+bundled Automatic and preserves ignored custom preferences. See
+[SSH setup continuation](FIRST-START-SSH-PARITY.md) for exact source behavior,
+save/failure/retirement semantics and pending grouped verification. This supersedes
+the earlier fixed-OpenSSH picker limitation; Windows PuTTY remains adapted.

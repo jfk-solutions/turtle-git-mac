@@ -351,7 +351,7 @@ struct CommitPushContinuation {
                    PushSubmodules.allCases.indices.contains(stored.intValue) { snapshot.submodules = PushSubmodules.allCases[stored.intValue] }
                 let defaults = try await repository.pushDefaults(source: snapshot.source, cancellation: token)
                 snapshot.remote = defaults.remote; snapshot.destination = defaults.destination; snapshot.setUpstream = defaults.setUpstream
-                if snapshot.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), names.contains(saved) { snapshot.remote = saved }
+                if snapshot.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), names.contains(where:{GitReferenceName.equal($0,saved)}) { snapshot.remote = saved }
                 try token.check(); guard !invalidated, metadataToken === token else { return }
                 remotes = names; references = refs; options = snapshot; localBranch = defaults.localBranch
                 sshSettings.load(preferences, key: key + ".autoload")
@@ -381,8 +381,8 @@ struct CommitPushContinuation {
                 let defaults = try await repository.pushDefaults(source: snapshot.source, cancellation: token)
                 try token.check(); guard !invalidated, metadataToken === token else { return }
                 remotes = names; references = refs; localBranch = defaults.localBranch
-                if !snapshot.arbitraryURL, !names.contains(snapshot.remote) {
-                    options.remote = names.contains(defaults.remote) ? defaults.remote : names.first ?? ""
+                if !snapshot.arbitraryURL, !names.contains(where:{GitReferenceName.equal($0,snapshot.remote)}) {
+                    options.remote = names.contains(where:{GitReferenceName.equal($0,defaults.remote)}) ? defaults.remote : names.first ?? ""
                 }
                 if names.count < 2 { options.allRemotes = false }
                 metadataLoaded = true; retryRemoteCatalog = false; adjustSettings()

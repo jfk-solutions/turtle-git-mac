@@ -30,7 +30,27 @@ final class GitCommandPresentationTests: XCTestCase {
     func testRealFetchAndRebaseHonorCapturedVerbosityWithoutChangingHeadOrIndex() async throws {
         let (root, _, _, consumer, _) = try await FetchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let helper = root.appendingPathComponent("record-git"), record = root.appendingPathComponent("arguments")
-        let script = "#!/bin/sh\nif [ \"$4\" = fetch ]; then printf '%s\\000' \"$@\" > " + quoted(record.path) + "; fi\nexec " + quoted(consumer.executable.path) + " \"$@\"\n"
+        let script = #"""
+        #!/bin/sh
+        # Global invocation options can precede the Git subcommand. Inspect a
+        # function-local argv so the original NUL-delimited capture and exec
+        # receive every repository, configuration and transport argument.
+        inspect_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --literal-pathspecs|--no-literal-pathspecs) shift ;;
+              -C|-c) shift 2 ;;
+              *) break ;;
+            esac
+          done
+          command_name="${1-}"
+        }
+        inspect_command "$@"
+        if [ "$command_name" = fetch ]; then
+          printf '%s\000' "$@" > \#(quoted(record.path))
+        fi
+        exec \#(quoted(consumer.executable.path)) "$@"
+        """#
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
         let repo = GitRepository(root: consumer.root, executable: helper)
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: consumer.root.appendingPathComponent(".git/index"))

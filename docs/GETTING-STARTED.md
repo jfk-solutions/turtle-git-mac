@@ -5,6 +5,26 @@ history in the development app. The complete port and manual remain in progress.
 For build and signing instructions, start with the [project README](../README.md)
 and [distribution guide](DISTRIBUTION.md).
 
+## Set up Git and authentication
+
+Open **First Start Wizard…** from the application menu, or re-run it from
+General settings. Choose the interface language, Git engine, identity and
+authentication settings in order. Git and identity choices save when their
+steps succeed; cancelling a later step keeps those earlier choices.
+
+On Authentication, **Automatic OpenSSH** uses the normal SSH configuration.
+Choose **Custom OpenSSH** to enter or browse for another OpenSSH executable.
+**Check now** reads its version without saving the choice; **Cancel check**
+stops a pending check. Finish saves a changed SSH choice before applying the
+HTTP credential-helper choice. If that later step fails, the accepted SSH
+choice remains saved so you can correct the helper and retry. **Don't store**
+for HTTP credentials does not discard the SSH choice.
+
+An App Store build uses its included Git and OpenSSH, with custom executable
+selection disabled. Existing custom-client preferences remain available to a
+regular development build. See the [SSH setup source comparison](FIRST-START-SSH-PARITY.md)
+for the current implementation and acceptance limits.
+
 ## Open, clone or create
 
 Use **Open Repository…** (Command-O) to select an existing repository folder.

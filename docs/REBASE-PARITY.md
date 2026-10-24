@@ -677,11 +677,13 @@ editor cannot apply a command to a later replay occurrence.
 A current source review found one outstanding dialog-wide refresh behavior.
 Pinned `RebaseDlg.cpp:874–878` routes F5 to `Refresh()`; its implementation at
 `2737–2755` refreshes conflicts during recovery, or both reference choices and
-the replay plan in the initial branch-selection phase. Native Rebase currently
-has recovery-only Refresh State and no dialog-wide F5 route. The initial
-reference/plan refresh, selection/draft preservation and cancellation/owner gates
-remain to be implemented together. This is a behavior gap, not a new completed
-batch or a claim that every other Rebase behavior is certified.
+the replay plan in the initial branch-selection phase. Native implementation now includes phase-aware owned F5 and idle catalog/plan
+refresh in the connected [reference-refresh family](REFERENCE-REFRESH-PARITY.md).
+The pinned source reselects current HEAD and rebuilds fresh default actions/order;
+it does not preserve edited Add/order/action drafts after successful refresh.
+Cancellation/failure retain the previously accepted native snapshot. The family
+document records validation scope separately; this is not a claim that every
+other Rebase behavior is certified.
 
 Earlier remaining-work notes about bulk/structural actions, Split, Add, footer
 actions and conflict/empty recovery are superseded by the later family sections

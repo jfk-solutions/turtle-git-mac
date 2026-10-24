@@ -6,6 +6,19 @@ import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+/// RebaseDlg's unmodified F5 is scoped to its owning dialog, including field editors.
+@MainActor final class RebaseNativeWindow:NSWindow {
+    var refreshAction:()->Void = {}
+    var keyOwnerQuery:(NSWindow)->Bool = {$0.isKeyWindow}
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if event.keyCode==96,event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty,
+           event.window === self,keyOwnerQuery(self),attachedSheet==nil,NSApp.modalWindow==nil {
+            refreshAction();return true
+        }
+        return super.performKeyEquivalent(with:event)
+    }
+}
+
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
     let model: RebaseWindowModel
     private var retiredBatchChildren:[()->Bool]=[]
@@ -181,10 +194,11 @@ import TurtleGitCore
 
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = RebaseWindowModel(repository: repository, access: access, messageDefaults: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let window = RebaseNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Rebase", preferences: preferences); window.contentMinSize = NSSize(width: 930, height: 600); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: RebaseDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
         super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width:1040,height:720)); window.center(); model.close = { [weak window] in window?.close() }
+        window.refreshAction = { [weak model] in model?.refreshFromSourceCommand() }
         model.onFindRevision = { [weak self] in self?.showRevisionFind() }
         model.onRefreshRevisionFind = { [weak self] in self?.revisionFind?.loadReferences() }
         model.onFindAvailability = { [weak self] in self?.revisionFind?.updateAvailability(); self?.containingWindows.values.forEach { $0.updateAvailability() } }
@@ -466,6 +480,7 @@ import TurtleGitCore
         return true
     }
     func windowWillClose(_ notification: Notification) {
+        (window as? RebaseNativeWindow)?.refreshAction = {}
         if let child=logPicker {retiredBatchChildren.append{child.model.pendingHistoryLoads>0 || child.window?.sheetParent != nil}}
         if let child=referencePicker {retiredBatchChildren.append{child.model.pendingReferenceReads>0 || child.window?.sheetParent != nil}}
         if let child=splitCommitPicker {retiredBatchChildren.append{child.model.attemptWorkPending || child.window?.sheetParent != nil}}
@@ -716,20 +731,24 @@ struct RebaseReferenceRequest {
     var readAddedPlan: ((RebasePlan, [String], OperationCancellation) async throws -> RebasePlan)?
     var readMainlineChoices: ((LogEntry, OperationCancellation) async throws -> [LogParentChoice])?
     var cancelMainlineQuestion: () -> Void = {}
+    private var referenceRefreshCancellation:OperationCancellation?
+    private var referenceRefreshGeneration=UUID()
+    @Published private(set) var refreshingReferences=false
+    var readRefreshReferences:((OperationCancellation)async throws->[CheckoutReference])?
     private var planSignature: Data?
     @Published private(set) var loadingPlan = false
     @Published private(set) var cancellingPreparation = false
     static private(set) var activePreparationReads = 0
     var readPlan: ((RebaseOptions, OperationCancellation) async throws -> RebasePlan)?
     var validateOnto: (String, String, String, OperationCancellation) async throws -> String?
-    var hasCancellablePreparation: Bool { messageSelectionCancellation != nil || actionEditCancellation != nil || insertionCancellation != nil || mainlineCancellation != nil || revisionFiles.hasOwnedPreparation || conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
+    var hasCancellablePreparation: Bool { referenceRefreshCancellation != nil || messageSelectionCancellation != nil || actionEditCancellation != nil || insertionCancellation != nil || mainlineCancellation != nil || revisionFiles.hasOwnedPreparation || conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
     @discardableResult func cancelPreparation() -> Bool {
         if revertingConflictFiles {cancelConflictRevert();return true}
         if presentingConflictFileDialog {cancelConflictFileDialog();return true}
         guard hasCancellablePreparation else { return false }
         revisionFiles.cancelEmbeddedPreparation()
         messageSelectionCancellation?.cancel()
-        cancellingPreparation = true; actionEditCancellation?.cancel(); insertionCancellation?.cancel(); mainlineCancellation?.cancel(); if preparingMainline || editingPendingActions { cancelMainlineQuestion() };pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
+        cancellingPreparation = true; referenceRefreshCancellation?.cancel(); actionEditCancellation?.cancel(); insertionCancellation?.cancel(); mainlineCancellation?.cancel(); if preparingMainline || editingPendingActions { cancelMainlineQuestion() };pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
     }
     struct FormContext: Equatable {
         let owner: ObjectIdentifier; let controls: UUID; let generation: Int
@@ -881,7 +900,7 @@ struct RebaseReferenceRequest {
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true; replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
         guard !retired, pendingConfirmation == nil, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
@@ -2069,6 +2088,70 @@ struct RebaseReferenceRequest {
             catch { if !retired, !token.isCancelled, request == detailGeneration { self.error = error.localizedDescription } }
         }
     }
+    /// Source Refresh changes conflicts only during conflict recovery, and both
+    /// branch choices and the pending plan during ordinary branch selection.
+    // fileRecovery can remain true for an accepted occurrence even after an
+    // Edit/Split/message phase change. Source F5 is limited to actual conflict
+    // recovery, not every phase that owns a recovery-shaped file list.
+    var sourceRefreshesConflicts:Bool {active && fileRecovery && state?.needsFileRecovery==true}
+    var canRefreshDialog:Bool {
+        !retired && !revisionMenuLog.confirmingQuit && !containingReferenceBlocked && !revisionFindBlocked && !revisionHistoryBlocked &&
+        confirmation==nil && pendingConfirmation==nil && !hasReplayQuestion && !confirmingReplayCancellation &&
+        pickingReference==nil && !pickingCommits && !selectingSplit && !revisionFiles.busy &&
+        revisionMenuLog.window?.attachedSheet==nil && NSApp.modalWindow==nil &&
+        (!busy || refreshingReferences) && (sourceRefreshesConflicts || !active && !finished && !isCherryPick)
+    }
+    func refreshFromSourceCommand() {
+        guard canRefreshDialog else{return}
+        if sourceRefreshesConflicts {refreshState();return}
+        referenceRefreshCancellation?.cancel();planCancellation?.cancel();detailCancellation?.cancel()
+        planGeneration += 1;detailGeneration += 1;loadingPlan=false;planSignature=nil
+        let token=OperationCancellation(),request=UUID(),originalIntent=referenceIntent
+        var snapshot=options;if !ontoEnabled {snapshot.onto=""}
+        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        referenceRefreshCancellation=token;referenceRefreshGeneration=request;refreshingReferences=true;busy=true;cancellingPreparation=false;error=nil
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
+        Task { [self,access] in
+            defer {
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access) {}
+                if referenceRefreshCancellation === token {
+                    referenceRefreshCancellation=nil;refreshingReferences=false;cancellingPreparation=false
+                    if !retired {busy=false;refreshColumnMetadata(force:true);onRefreshRevisionFind();loadPendingHandoff()}
+                }
+            }
+            do {
+                try requireAccess()
+                let catalog:[CheckoutReference]
+                if let readRefreshReferences {catalog=try await readRefreshReferences(token)}
+                else {catalog=try await repository.checkoutReferences(includeFetchHead:true,cancellation:token)}
+                try token.check()
+                let current=try await repository.run(["-c","core.precomposeunicode=false","symbolic-ref","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:token)
+                if current.exitCode==0 {snapshot.branch=current.text.trimmingCharacters(in:.newlines)}
+                else {snapshot.branch=try await repository.run(["rev-parse","--verify","HEAD"],cancellation:token).text.trimmingCharacters(in:.newlines)}
+                if snapshot.upstream.isEmpty {
+                    let defaults=try await repository.pullDefaults(cancellation:token)
+                    let tracked="refs/remotes/"+defaults.trackedRemote+"/"+defaults.trackedBranch
+                    if !defaults.trackedRemote.isEmpty,!defaults.trackedBranch.isEmpty,catalog.contains(where:{GitReferenceName.equal($0.name,tracked)}) {snapshot.upstream=tracked}
+                }
+                var refreshed:RebasePlan?
+                if !snapshot.branch.isEmpty && !snapshot.upstream.isEmpty {
+                    do {refreshed=try await readPlanValue(snapshot,token,repository:repository)}
+                    catch RebaseFailure.revision { /* Keep editable unknown references and disable Start. */ }
+                }
+                // LoadBranchInfo selects current HEAD; FetchLogList rebuilds
+                // source order and default Pick/patch-equivalent Skip actions.
+                // User Add/order/action edits belong to the old plan, not refs.
+                let tooltips:[String:String]
+                if let refreshed {tooltips=try await readReferenceTooltips(refreshed,repository:repository,cancellation:token)} else {tooltips=[:]}
+                try token.check()
+                guard !retired,referenceRefreshCancellation === token,referenceRefreshGeneration==request,
+                      !revisionMenuLog.confirmingQuit,revisionMenuLog.window?.attachedSheet==nil,NSApp.modalWindow==nil,
+                      referenceIntent==originalIntent else{return}
+                references=catalog;options=snapshot;plan=refreshed;referenceTooltips=tooltips;draftEntries=[]
+                selection=Set(entries.first.map{[$0.id]} ?? []);selectCommit()
+            } catch {if !retired,referenceRefreshCancellation === token,!token.isCancelled {self.error=error.localizedDescription}}
+        }
+    }
     func refreshState() {
         guard !retired,pickingReference == nil,!selectingSplit,!pickingCommits else {return}
         if busy || revisionFiles.busy || pendingConfirmation != nil {pendingSessionRefresh=true;return}
@@ -2563,6 +2646,7 @@ struct RebaseDialog: View {
                 if model.state?.canSplit == true {Toggle("Edit/Split commit",isOn:model.splitBinding(context)).disabled(!model.canSplit || model.state?.split != nil)}
                 Button(model.primaryActionTitle) { model.primary(context) }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
                 Button("Abort") { model.abort(context) }.keyboardShortcut(.cancelAction).help(model.active ? "Recover to the status before rebase":"Close this dialog")
+                Button{model.refreshFromSourceCommand()}label:{CommandLabel(title:"Refresh",icon:.refresh)}.disabled(!model.canRefreshDialog).accessibilityIdentifier("rebase-refresh")
                 Button("Help") { TurtleGitHelp.show(model.isCherryPick ? .cherryPick : .rebase) }
             }
         }.padding(12).disabled(model.busy || model.selectingSplit || model.pickingReference != nil)
@@ -2572,7 +2656,7 @@ struct RebaseDialog: View {
             } else if model.revisionFiles.busy {
                 HStack {ProgressView().controlSize(.small);Text(model.revisionFiles.fileActionTitle.isEmpty ? "Preparing revision files…":model.revisionFiles.fileActionTitle).font(.caption);Spacer();Button("Cancel"){model.revisionFiles.cancelEmbeddedPreparation()}}.padding(12).background(.regularMaterial)
             } else if model.hasCancellablePreparation {
-                HStack { ProgressView().controlSize(.small); Text(model.preparingMessageSelection ? "Preparing commit selection…":model.addingCommits ? "Adding selected commits…":model.preparingMainline ? "Preparing merge parents…":model.revertingConflictFiles ? "Reverting selected files…":model.editingPendingActions ? "Updating pending replay actions…":model.refreshingSession ? "Refreshing replay state…":model.preparingConflictFiles ? "Preparing file action…":model.preparingConflictDiff ? "Preparing conflict comparison…":model.loadingPlan ? "Preparing commit plan…" : "Reading references…").font(.caption); Button(model.cancellingPreparation ? "Cancelling…" : "Cancel") { model.cancelPreparation() }.disabled(model.cancellingPreparation) }.padding(12)
+                HStack { ProgressView().controlSize(.small); Text(model.preparingMessageSelection ? "Preparing commit selection…":model.addingCommits ? "Adding selected commits…":model.preparingMainline ? "Preparing merge parents…":model.revertingConflictFiles ? "Reverting selected files…":model.editingPendingActions ? "Updating pending replay actions…":model.refreshingSession ? "Refreshing replay state…":model.refreshingReferences ? "Refreshing references…":model.preparingConflictFiles ? "Preparing file action…":model.preparingConflictDiff ? "Preparing conflict comparison…":model.loadingPlan ? "Preparing commit plan…" : "Reading references…").font(.caption); Button(model.cancellingPreparation ? "Cancelling…" : "Cancel") { model.cancelPreparation() }.disabled(model.cancellingPreparation) }.padding(12)
             }
         }
         .modifier(RebaseRevisionMenuPresentation(log: model.revisionMenuLog))

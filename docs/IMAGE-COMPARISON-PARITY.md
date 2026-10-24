@@ -300,3 +300,14 @@ first-file/permission/lifetime/Reload/conflict selection checks and retained
 pointer/frame/Open behavior. Actual Finder drag gestures and sandbox-issued drop
 grants, native error/panel/VoiceOver layout, all provider formats and signed
 App Store acceptance remain open. No full image tool/application parity is claimed.
+
+
+## Automatic overlay inspection — October 24, 2026
+
+The connected [overlay inspection family](IMAGE-OVERLAY-INSPECTION-PARITY.md) adds
+the pinned one-second alpha-button blink, ordinary-click stop/toggle distinction,
+a pane-height native alpha channel with live percentage help, and the source
+overlay gate for frame/player controls. Display timer ownership now follows
+modal sheets, input replacement, view removal, close and application termination.
+The dated family document distinguishes Windows behavior from explicit native
+retirement adaptations and records the pending grouped checkpoint.

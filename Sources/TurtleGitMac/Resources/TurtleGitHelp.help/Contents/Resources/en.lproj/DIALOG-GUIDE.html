@@ -248,7 +248,10 @@ Clone checkout files, with captured-range Log actions and completed-file command
 See <a href="LIBGIT2-TRANSPORT.html">optional libgit2 transport</a>.</p>
 <p>Choose a configured Remote or an Arbitrary URL. Remote Branch narrows the request;
 the browse button selects a remote branch. Manage Remotes opens the repository's
-remote settings. Authentication uses the configured SSH/credential workflow.</p>
+remote settings. Returning reloads remote names, the current tracked/submodule
+branch defaults and tag/prune hints. Unrelated operation options and explicit
+tag/prune overrides remain. Authentication uses the configured SSH/credential
+workflow.</p>
 <p>Select Remote Ref keeps the captured Remote in a selectable read-only field.
 Choose a listed branch or type its exact name. F5 without modifiers reloads the
 list and selects its first entry; an empty list disables OK. Loading and error
@@ -445,6 +448,11 @@ uses the same retained payloads, with normal Undo/Redo and encoding controls.</p
 onto target. Review the plan and each row action before starting. Edit, squash,
 skip and conflict handling can change the resulting history. Cherry Pick uses a
 related replay plan over the selected commits.</p>
+<p>Before replay, <strong>Refresh</strong> or unmodified <strong>F5</strong> reloads the current HEAD branch,
+reference choices and a fresh plan. Successful refresh resets added commits,
+manual order and row actions to source defaults; cancellation or failure keeps
+the accepted draft. During conflict recovery it refreshes recovery state. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REFERENCE-REFRESH-PARITY.html">reference refresh</a> for phase rules.</p>
 <p><strong>Add</strong> opens a multiple-selection Log. Accepted commits appear above the current
 list and can repeat earlier commits. You can build an editable draft before branch
 and upstream are valid. Cancel during Add keeps the previous complete plan or

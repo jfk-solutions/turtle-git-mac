@@ -1,0 +1,311 @@
+{
+  "date": "2026-10-24",
+  "baseline": "4366c6e92c4dd2a74bc1fa319be10ab7641ff66b",
+  "status": "scoped-validation-complete",
+  "scope": [
+    "Rebase source-phase Refresh/F5 and atomic current-HEAD plan rebuild",
+    "Fetch/Pull owned remote-manager return and exact remote defaults/validation",
+    "First Start custom OpenSSH choice, inspection, bookmark and source save order",
+    "Image automatic alpha inspection, scalable slider and overlay player gates"
+  ],
+  "production_inputs": {
+    "Sources/TurtleGitCore/Fetch.swift": "c7ecd984abf0698d56dbaec03f0f7c8f03c5a22241f67614ea93f82f90d9c5ef",
+    "Sources/TurtleGitCore/Push.swift": "5fa15f5bf23d14fc518541ed12cb38971593a53d28e8a013c4ae1169a33c46a9",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "c7033de3f5b88bada6b144606e4b1b2bef3b92a93cfe658ebbf17db549a2c242",
+    "Sources/TurtleGitMac/FetchWindow.swift": "398e842e727c10da9f64b89cf7d247d6f22ec8e8a5d7a73d829814ad0a3b2e64",
+    "Sources/TurtleGitMac/PushWindow.swift": "e10f7b19af0494ffc6a2b6595ae01f0783a21e2e1c8cced214860c9792dff906",
+    "Sources/TurtleGitMac/FirstStartWizard.swift": "bc10772339e6a13435bcb21d126e29e784eec306477a65e832c3f7550362b537",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "03ffebcc6ef194568bad4aae7c06eac152a45417096a6f194559bdd12970a6a0",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "5730efb122eec92b2bad686dbdf64088b25e31048fc0ed52143f01d9d2e01c81"
+  },
+  "core": {
+    "distinct_methods_passed": 7,
+    "groups": [
+      "GitCommandPresentationTests (4)",
+      "FirstStartSSHPolicyTests (2)",
+      "ReferenceRefreshTests (1)"
+    ],
+    "logs": [
+      "build/qa/reference-ssh-overlay-core-2026-10-24.log",
+      "build/qa/reference-ssh-overlay-core-repair1-2026-10-24.log",
+      "build/qa/reference-refresh-core-repair2-2026-10-24.log",
+      "build/qa/reference-refresh-core-repair3-2026-10-24.log"
+    ],
+    "repairs": [
+      "Initial test wrapper raw multiline string was missing its closing #; compilation failed before any methods executed",
+      "Next group: 6 passed, reference setup failed because Git normalized NFD remote add; fixture raw argv now consistently disables precomposeunicode",
+      "Focused reference method: removed remote also removed branch.merge; fixture now restores both stale raw remote and original merge; final focused method passes"
+    ]
+  },
+  "app": {
+    "initial_exit_code": 65,
+    "repair": "SSH chooser nested callback required explicit self property captures",
+    "final_exit_code": 0,
+    "logs": [
+      "build/qa/reference-ssh-overlay-app-2026-10-24.log",
+      "build/qa/reference-ssh-overlay-app-repair1-2026-10-24.log"
+    ],
+    "final_contradictory_exit_zero_diagnostics": 11,
+    "image_availability_repair": {
+      "exit_code": 0,
+      "log": "build/qa/image-overlay-availability-app-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 1,
+      "cause": "Actual native alpha control remained disabled although all dynamic guards recovered after owner busy cleared",
+      "change": "Pass owner command availability explicitly into ImageComparisonDialog, propagating SwiftUI environment/native enabled state without polling or a subscription task",
+      "scope": "Only affected native image checks repeated; SSH/reference and Core passes retained",
+      "outcome": "Outer snapshot input did not resolve native enabled state; removed from final source"
+    },
+    "image_control_repair": {
+      "exit_code": 0,
+      "log": "build/qa/image-overlay-controls-app-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 1,
+      "change": "Carry explicit availability through both native alpha representables so changes affect SwiftUI value diff and native enabled-state update; retain environment and live-owner action guards",
+      "outcome": "Explicit native snapshot fields did not resolve the publication issue; removed from final source"
+    },
+    "owner_publication_repair": {
+      "exit_code": 0,
+      "log": "build/qa/image-overlay-owner-publication-app-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 2,
+      "change": "Weak owned Combine subscription forwards parent changes on main scheduler after assignment; retirement cancels it. Superseded snapshot experiments removed."
+    },
+    "minimum_repair": {
+      "exit_code": 0,
+      "log": "build/qa/image-overlay-minimum-app-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 1,
+      "change": "Disable automatic NSHostingController sizing and apply explicit800\u00d7440 content minimum after installing host; native fixture asserts actual minimum after loading",
+      "outcome": "Disabling sizingOptions alone did not preserve the minimum; supplemented by owned lifecycle enforcement"
+    },
+    "minimum_lifecycle_repair": {
+      "exit_code": 0,
+      "log": "build/qa/image-overlay-minimum-lifecycle-app-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 10,
+      "change": "Private comparison hosting controller preserves800\u00d7440 on layout/appearance callbacks, only on inequality; actual minimum verified after load and resize"
+    }
+  },
+  "native": {
+    "ssh": {
+      "case_engine_pairs_passed": 6,
+      "cases": [
+        "choices",
+        "picker",
+        "lifetime"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/first-start-ssh-native-2026-10-24.log",
+      "receiver_pids_independently_absent": [
+        75986,
+        76030,
+        76068,
+        76142,
+        76177,
+        76200
+      ],
+      "captures_inspected": [
+        "build/qa/first-start-ssh-captures-2026-10-24/first-start-ssh-light.png",
+        "build/qa/first-start-ssh-captures-2026-10-24/first-start-ssh-dark.png"
+      ]
+    },
+    "reference_refresh": {
+      "status": "scoped-pass",
+      "case_engine_pairs_passed": 6,
+      "cases": [
+        "rebase",
+        "metadata",
+        "lifetime"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "logs": [
+        "build/qa/reference-refresh-native-2026-10-24.log",
+        "build/qa/reference-refresh-native-repair1-2026-10-24.log",
+        "build/qa/reference-refresh-native-repair2-2026-10-24.log",
+        "build/qa/reference-refresh-native-repair3-2026-10-24.log"
+      ],
+      "receiver_pids_independently_absent": [
+        76480,
+        76705,
+        76920,
+        77138,
+        77346,
+        77915,
+        78330
+      ],
+      "repairs": [
+        "Initial fixture @main attribute order rejected by receiver entry parser; reordered attributes without modifying shared receiver",
+        "Next fixture compile selected async beginSheet overload; explicit completionHandler nil selects intended API",
+        "Four Rebase/metadata pairs passed; lifetime/system failed because fixture did not acknowledge expected real error sheet before next F5. Actual native OK and sheet release added; only lifetime pair rerun and passed"
+      ],
+      "production_changed_during_native_repairs": false
+    },
+    "image_overlay": {
+      "status": "scoped-pass",
+      "attempted_receiver_pids_independently_absent": [
+        76411,
+        77555,
+        77825,
+        78999,
+        79327,
+        79542,
+        80078,
+        80244,
+        80331,
+        80644
+      ],
+      "attempts": [
+        {
+          "phase": "fixture compile",
+          "log": "build/qa/image-overlay-native-2026-10-24.log",
+          "failure": "Wrong application delegate class name; no receiver ran"
+        },
+        {
+          "phase": "overlay/system",
+          "pid": 76411,
+          "log": "build/qa/image-overlay-native-2026-10-24-repair1.log",
+          "failure": "Pure RGB endpoint assumption ignored actual GIF/native display color profile; replaced with independent displayed source controls and strict per-channel equality"
+        },
+        {
+          "phase": "overlay/system",
+          "pid": 77555,
+          "log": "build/qa/image-overlay-native-2026-10-24-repair2.log",
+          "failure": "Actual native alpha button stayed disabled after owner busy cleared"
+        },
+        {
+          "phase": "diagnostic overlay/system",
+          "pid": 77825,
+          "log": "build/qa/image-overlay-native-2026-10-24-diagnostic.log",
+          "failure": "All logical guards recovered but native isEnabled stayed false; confirmed production publication problem"
+        },
+        {
+          "phase": "first availability repair",
+          "pid": 78999,
+          "log": "build/qa/image-overlay-native-2026-10-24-availability-repair.log",
+          "failure": "Passing availability only to outer dialog did not refresh same-model native representable; explicit native representable input added"
+        },
+        {
+          "phase": "explicit alpha input repair",
+          "pid": 79327,
+          "log": "build/qa/image-overlay-native-2026-10-24-controls-system.log",
+          "failure": "Native button still stale; logical/model and explicit-input guesses did not resolve native publication"
+        },
+        {
+          "phase": "diagnostic independent publication",
+          "pid": 79542,
+          "log": "build/qa/image-overlay-native-2026-10-24-publish-diagnostic.log",
+          "failure": "Original readiness assertion retained failure; distinct image-model alpha publication restored same native target/action control, proving owner publication must be forwarded"
+        },
+        {
+          "phase": "owner-publication repair overlay/system",
+          "pid": 80078,
+          "log": "build/qa/image-overlay-native-2026-10-24-owner-system.log",
+          "failure": "Owner controls recovered, then minimum-size capture lacked colored pixels"
+        },
+        {
+          "phase": "raw minimum capture diagnosis",
+          "pid": 80244,
+          "failure": "WindowServer raw PNG exposed actual minimum overwritten to66\u00d7142 by automatic hosting sizing; severely cropped66px window, not blank decode"
+        },
+        {
+          "phase": "explicit intended-size diagnostic",
+          "pid": 80331,
+          "result": "Behavior and intended800\u00d7440 light/dark captures passed; this predates actual-minimum controller correction and is not final minimum acceptance"
+        },
+        {
+          "phase": "automatic-sizing disabled minimum",
+          "pid": 80644,
+          "log": "build/qa/image-overlay-native-2026-10-24-minimum-owned.log",
+          "failure": "Actual minimum still cleared to0\u00d70 during hosting attachment; private layout/appearance lifecycle controller now reapplies explicit minimum on inequality"
+        }
+      ],
+      "case_engine_pairs_passed": 8,
+      "cases": [
+        "overlay",
+        "frames",
+        "toolbar",
+        "pointer"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "final_logs": [
+        "build/qa/image-overlay-native-2026-10-24-lifecycle-minimum.log",
+        "build/qa/image-overlay-native-2026-10-24-bundled.log",
+        "build/qa/image-overlay-native-2026-10-24-retained.log"
+      ],
+      "final_receiver_pids_independently_absent": [
+        81041,
+        81077,
+        81134,
+        81204,
+        81290,
+        81292,
+        81368,
+        81449
+      ],
+      "captures_inspected": [
+        "build/qa/image-overlay-captures/image-overlay-inspection-light.png",
+        "build/qa/image-overlay-captures/image-overlay-inspection-dark.png"
+      ],
+      "visual_scope": "Actual800\u00d7440 minimum overlay content, full source toolbar/slider/image/footer; inactive native toolbar appearance; other retained toolbar/selection captures inspected by implementing agent"
+    }
+  },
+  "hosted": {
+    "previous_failure": {
+      "run": 40108225286,
+      "job": 120915233944,
+      "sha": "8f28db9f",
+      "core_methods": 2725,
+      "skipped": 2,
+      "failures": 1,
+      "cause": "GitCommandPresentation wrapper assumed fetch at fixed argv position; global -c moved it, so arguments capture was absent",
+      "repair": "Parse global options using function-local shell argv; retain original NUL capture/exec, verbosity/progress and HEAD/index assertions",
+      "local_recheck": "All four GitCommandPresentationTests pass"
+    },
+    "current_main_macos": {
+      "run": 40116391496,
+      "sha": "4366c6e9",
+      "observed": "pending"
+    },
+    "current_main_pages": {
+      "run": 40116391491,
+      "sha": "4366c6e9",
+      "observed": "success"
+    }
+  },
+  "remaining": [
+    "Complete current hosted Core/native integration",
+    "Physical keyboard/mouse/VoiceOver and Finder behavior on installed current signed build",
+    "Minimum-OS/Intel and App Store signed execution/export",
+    "Source-complete acceptance of every dialog and exceptional transport/configuration case"
+  ],
+  "validation_summary": {
+    "distinct_core_methods_passed": 7,
+    "native_case_engine_pairs_passed": 20,
+    "current_complete_hosted_pass": false
+  },
+  "documentation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1317
+    },
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 78
+    },
+    "site_documents": 440,
+    "unresolved_fragments": 0,
+    "site_tests_passed": 2,
+    "search_checks": "passed",
+    "workflow_yaml": "parsed2jobs; new SSH/reference receivers registered, overlay runs in existing image family step"
+  },
+  "protected_work_unchanged": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

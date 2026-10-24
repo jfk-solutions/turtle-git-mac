@@ -22,9 +22,13 @@ image to pan, or use the scrollbars or trackpad.</li>
 decoded color depth.</li>
 <li><strong>Overlay images</strong> puts both versions in one pane. Move the vertical slider
 on the left to blend between them in 17 positions: top shows the first
-image, bottom the second. The button above it changes a nonzero blend to
-zero, then switches back to one. Control-Shift-wheel adjusts the blend.
-Overlay keeps image positions linked. Turn it off to return to two panes.</li>
+image, bottom the second. The slider follows the pane height; hover over it
+to read the current percentage. Click the button above it to change a nonzero
+blend to zero, then switch back to one. Double-click that button to alternate
+between the images once per second; its pressed appearance shows automatic
+blinking. A single click stops blinking and applies the normal endpoint toggle.
+Control-Shift-wheel adjusts the blend. Overlay keeps image positions linked.
+Turn it off to return to two panes.</li>
 <li>With overlay enabled, turn <strong>Blend alpha</strong> off for XOR comparison. Identical
 areas appear white and changed pixels appear in color. Turn it back on to
 restore the alpha slider.</li>
@@ -40,8 +44,11 @@ The viewer follows the app’s light/dark appearance.</p>
 pane header. Navigation stops at the first or last image. GIF frames and TIFF
 pages offer Play/Stop; ICO variants offer navigation only. Linked panes receive
 the same player commands, while each file uses its own playback timing. Turn
-linking off to operate panes independently. Turning overlay on stops playback.
-Conflict panes have independent player controls; Select copies the complete
+linking off to operate panes independently. Turning overlay on stops playback
+and hides frame/player controls until you return to separate panes. XOR mode
+hides the alpha controls and stops automatic blinking. Replacing images, opening
+a child sheet or closing the viewer stops its display timers; they do not resume
+silently after dismissal. Conflict panes have independent player controls; Select copies the complete
 original file, including all frames. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-FRAMES-PARITY.html">frame/page parity</a>.</p>
 <p>This portion of the port is still being completed. Broader image controls and
 format-specific behavior still need porting. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-COMPARISON-PARITY.html">image comparison parity</a> for

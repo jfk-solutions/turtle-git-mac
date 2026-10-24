@@ -14,6 +14,9 @@ public struct FetchOptions: Sendable {
     public init() {}
 }
 public struct FetchDefaults: Sendable {
+    /// Raw branch.remote before catalog validation; a missing configured remote
+    /// must not be confused with an unconfigured branch during dialog refresh.
+    public let trackedRemote: String
     public let remote: String
     public let branch: String
     public let tags: String
@@ -131,7 +134,7 @@ extension GitRepository {
     public func fetchDefaults(remote selected: String? = nil, cancellation: OperationCancellation? = nil) throws -> FetchDefaults {
         let names = try remoteNames(cancellation: cancellation), current = try branch(cancellation: cancellation)
         let tracked = current.isEmpty ? "" : try fetchConfig("branch." + current + ".remote", cancellation: cancellation)
-        let remote = selected ?? (names.contains(tracked) ? tracked : (names.count == 1 ? names[0] : ""))
+        let remote = selected ?? (names.contains(where:{GitReferenceName.equal($0,tracked)}) ? tracked : (names.count == 1 ? names[0] : ""))
         let merge = current.isEmpty ? "" : try fetchConfig("branch." + current + ".merge", cancellation: cancellation)
         let submoduleBranch: String
         do { submoduleBranch = merge.isEmpty ? try fetchSubmoduleBranch(cancellation: cancellation) : "" }
@@ -139,7 +142,7 @@ extension GitRepository {
         let branchName = merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : (merge.isEmpty ? (submoduleBranch.isEmpty ? current : submoduleBranch) : merge)
         let tagopt = try fetchConfig("remote." + remote + ".tagopt", cancellation: cancellation)
         let remotePrune = try fetchConfig("remote." + remote + ".prune", cancellation: cancellation)
-        return FetchDefaults(remote: remote, branch: branchName, tags: tagopt == "--no-tags" ? "None" : tagopt == "--tags" ? "All" : "Reachable",
+        return FetchDefaults(trackedRemote: tracked, remote: remote, branch: branchName, tags: tagopt == "--no-tags" ? "None" : tagopt == "--tags" ? "All" : "Reachable",
                              prune: remotePrune.isEmpty ? try fetchConfig("fetch.prune", cancellation: cancellation) : remotePrune,
                              shallow: try run(["rev-parse", "--is-shallow-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true",
                              bare: try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true")
@@ -178,7 +181,7 @@ extension GitRepository {
         let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         let names = try remoteNames(cancellation: cancellation)
-        guard !(options.allRemotes && options.arbitraryURL), options.allRemotes ? !names.isEmpty : (!options.remote.isEmpty && !options.remote.contains("\0") && (options.arbitraryURL || names.contains(options.remote))) else { throw FetchFailure.remote }
+        guard !(options.allRemotes && options.arbitraryURL), options.allRemotes ? !names.isEmpty : (!options.remote.isEmpty && !options.remote.contains("\0") && (options.arbitraryURL || names.contains(where:{GitReferenceName.equal($0,options.remote)}))) else { throw FetchFailure.remote }
         if let depth = options.depth, depth <= 0 { throw FetchFailure.depth }
         let branch = options.branch.trimmingCharacters(in: .whitespacesAndNewlines)
         let useBranch = !options.allRemotes && (options.arbitraryURL || !options.namedRemoteFetchAll) && !branch.isEmpty

@@ -6,9 +6,18 @@ import TurtleGitCore
 @MainActor final class ImageComparisonViewModel: ObservableObject {
     let presentation: ImageWindowPresentation
     private var presentationObserver: AnyCancellable?
+    private var commandOwnerObservation: AnyCancellable?
     init(presentation: ImageWindowPresentation? = nil) {
         self.presentation = presentation ?? ImageWindowPresentation()
         presentationObserver = self.presentation.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+    /// The owner publishes before its @Published fields change. Deliver on the
+    /// main scheduler afterward so closure-backed command gates are current when
+    /// SwiftUI refreshes native controls, without mutating alpha or polling.
+    func observeCommandOwner(_ changes:AnyPublisher<Void,Never>) {
+        commandOwnerObservation=changes.receive(on:DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { guard let self,!self.retired else{return};self.objectWillChange.send() }
+        }
     }
     @Published var nativeToolbarInstalled = false
     var commandsAllowed: () -> Bool = { true }
@@ -45,7 +54,7 @@ import TurtleGitCore
             dropError = ImageFileComparisonFailure.filePermissionRequired.localizedDescription;return false
         }
         let token = OperationCancellation(),generation = UUID(),read = readDroppedFile,decode=decodeDroppedImage
-        dropCancellation = token;dropGeneration = generation;receivingDrop = true;dropError = nil;stopAllPlayback()
+        dropCancellation = token;dropGeneration = generation;receivingDrop = true;dropError = nil;stopImageTimers()
         Self.activeFileReads += 1
         Task { [self] in
             defer {
@@ -56,7 +65,7 @@ import TurtleGitCore
                 let content = try await read(url,token);try token.check()
                 let decoded=try await decode(content.bytes,token);try token.check()
                 guard !retired,dropGeneration == generation,commandsAllowed() else { return }
-                stopAllPlayback();imageOffsets = [:]
+                stopImageTimers();imageOffsets = [:]
                 droppedFiles[base] = content;dropPermissions[base] = permission
                 sources[base] = decoded;currentImages[base] = sources[base]
                 frameErrors[base] = nil
@@ -69,11 +78,11 @@ import TurtleGitCore
     func cancelDrop() {
         dropCancellation?.cancel();dropCancellation = nil;dropGeneration = UUID();receivingDrop = false
     }
-    func retire() { guard !retired else {return};retired = true;cancelDrop();stopAllPlayback();dropPermissions = [:] }
+    func retire() { guard !retired else {return};retired = true;commandOwnerObservation=nil;cancelDrop();detachTimerWindow();dropPermissions = [:] }
 
     var reloadImages: () -> Void = {}
-    @Published var overlay = false { didSet { if oldValue != overlay { imageOffsets = [:] }; if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
-    @Published var blendAlpha = true
+    @Published var overlay = false { didSet { if oldValue != overlay { imageOffsets = [:]; stopAlphaBlink() }; if overlay { stopAllPlayback(); linked = true; alpha = 0.5 } } }
+    @Published var blendAlpha = true { didSet { if !blendAlpha { stopAlphaBlink() } } }
     @Published var vertical = false
     @Published var linked = true
     @Published var showInfo = false
@@ -87,6 +96,62 @@ import TurtleGitCore
     private var sources: [Bool: ComparisonImage] = [:]
     private var playback: [Bool: Task<Void,Never>] = [:]
     private var playbackGeneration: [Bool: UUID] = [:]
+    @Published private(set) var alphaBlinking = false
+    static private(set) var activeBlinkTimers = 0
+    private var alphaBlinkTask: Task<Void,Never>?
+    private var alphaBlinkGeneration = UUID()
+    private weak var timerWindow: NSWindow?
+    private var timerObservations: [NSObjectProtocol] = []
+    var frameControlsAllowed: Bool { interactionAllowed && !overlay }
+    var alphaControlAllowed: Bool {
+        guard interactionAllowed,overlay,blendAlpha,let window=timerWindow,window.attachedSheet==nil,
+              let owner=window as? ImageComparisonKeyRouting,!owner.imageKeysRetired,owner.imageKeyModel === self else{return false}
+        return true
+    }
+    var alphaPercentageTooltip: String { String(format: NSLocalizedString("%i%% alpha", comment: "Image blend tooltip"), Int(alpha * 100)) }
+    var alphaButtonTooltip: String { String(format: NSLocalizedString("%i%% alpha\nclick to toggle alpha\ndouble click to automatically toggle alpha", comment: "Image blend button tooltip"), Int(alpha * 100)) }
+    func alphaControlAllowed(in window: NSWindow?) -> Bool { alphaControlAllowed && window != nil && window === timerWindow }
+    func attachTimerWindow(_ window: NSWindow) {
+        guard !retired, timerWindow !== window else { return }
+        detachTimerWindow();timerWindow = window
+        for name in [NSWindow.willBeginSheetNotification, NSWindow.willCloseNotification] {
+            timerObservations.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { if name == NSWindow.willCloseNotification {self?.detachTimerWindow()} else {self?.stopImageTimers()} }
+            })
+        }
+        timerObservations.append(NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: NSApp, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.detachTimerWindow() }
+        })
+    }
+    func detachTimerWindow() {
+        stopImageTimers();timerWindow = nil
+        for observer in timerObservations { NotificationCenter.default.removeObserver(observer) };timerObservations.removeAll()
+    }
+    func alphaButtonPressed(doubleClick: Bool, in window: NSWindow?) {
+        guard alphaControlAllowed(in:window) else { return }
+        if doubleClick { startAlphaBlink() }
+        else { stopAlphaBlink();toggleAlpha() }
+    }
+    private func startAlphaBlink() {
+        guard alphaControlAllowed else { return }
+        stopAlphaBlink();alphaBlinking = true
+        let generation = UUID();alphaBlinkGeneration = generation
+        Self.activeBlinkTimers += 1
+        alphaBlinkTask = Task { [weak self] in
+            defer { Self.activeBlinkTimers -= 1 }
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
+                guard let self, self.alphaBlinkGeneration == generation else { return }
+                guard self.alphaControlAllowed else { self.stopAlphaBlink();return }
+                self.toggleAlpha()
+            }
+        }
+    }
+    func stopAlphaBlink() {
+        alphaBlinkGeneration = UUID();alphaBlinkTask?.cancel();alphaBlinkTask = nil
+        if alphaBlinking { alphaBlinking = false }
+    }
+    func stopImageTimers() { stopAlphaBlink();stopAllPlayback() }
     func currentImage(base: Bool) -> ComparisonImage? { currentImages[base] }
     func information(base:Bool,bytes:Int) -> [String] {
         var lines = ["File size: \(droppedFiles[base]?.bytes.count ?? bytes) bytes"]
@@ -104,7 +169,7 @@ import TurtleGitCore
         guard !retired,force || configuredInputs[true] != base?.id || configuredInputs[false] != destination?.id else { return }
         configuredInputs = [:];configuredInputs[true] = base?.id;configuredInputs[false] = destination?.id
         cancelDrop();droppedFiles = [:];dropPermissions = [:];dropError = nil
-        stopAllPlayback(); frameErrors = [:]; imageOffsets = [:]
+        stopImageTimers(); frameErrors = [:]; imageOffsets = [:]
         sources = [:]; sources[true] = base; sources[false] = destination; currentImages = sources
         configure(base: base?.size ?? .zero, destination: destination?.size ?? .zero)
     }
@@ -120,21 +185,21 @@ import TurtleGitCore
         return true
     }
     func stepImage(base: Bool, forward: Bool) {
-        guard interactionAllowed else {return}
+        guard frameControlsAllowed else {return}
         for side in linked ? [base,!base] : [base] {
             guard let image = currentImages[side] else { continue }
             setImage(ImageComparisonFrames.next(image.frameIndex, count: image.frameCount, forward: forward), base: side)
         }
     }
     func togglePlayback(base: Bool) {
-        guard interactionAllowed else {return}
+        guard frameControlsAllowed else {return}
         let start = !playing.contains(base)
         for side in linked ? [base,!base] : [base] {
             if start { startPlayback(base: side) } else { stopPlayback(base: side) }
         }
     }
     private func startPlayback(base: Bool) {
-        guard currentImages[base]?.canAnimate == true else { return }
+        guard frameControlsAllowed, currentImages[base]?.canAnimate == true else { return }
         stopPlayback(base: base)
         let generation = UUID(); playbackGeneration[base] = generation; playing.insert(base)
         playback[base] = Task { [weak self] in
@@ -148,6 +213,7 @@ import TurtleGitCore
         }
     }
     private func animationTick(base: Bool, generation: UUID) -> UInt64? {
+        guard frameControlsAllowed else { stopPlayback(base:base);return nil }
         guard playbackGeneration[base] == generation, playing.contains(base), let image = currentImages[base],
               setImage(ImageComparisonFrames.next(image.frameIndex, count: image.frameCount, forward: true, wrapping: true), base: base),
               let current = currentImages[base] else { return nil }
@@ -157,7 +223,7 @@ import TurtleGitCore
         playbackGeneration[base] = nil; playback.removeValue(forKey: base)?.cancel(); playing.remove(base)
     }
     func stopAllPlayback() { for side in [true,false] { stopPlayback(base: side) } }
-    deinit { for task in playback.values { task.cancel() } }
+    deinit { alphaBlinkTask?.cancel();for task in playback.values { task.cancel() };for observer in timerObservations { NotificationCenter.default.removeObserver(observer) } }
     private var viewports: [Bool: CGSize] = [:]
     var fitWidths: Bool { sizing.widths }
     var fitHeights: Bool { sizing.heights }
@@ -395,12 +461,11 @@ import TurtleGitCore
             }
             if model.overlay {
                 HStack(spacing: 0) {
-                    if model.blendAlpha { VStack {
-                        tool("Toggle blend", .imageAlphaToggle) { model.toggleAlpha() }
-                        ImageAlphaSlider(value: $model.alpha).frame(width: 28, height: 180)
-                        Text("\(Int(model.alpha * 100))%").font(.caption)
-                        Spacer()
-                    }.padding(.vertical, 12).frame(width: 52) }
+                    if model.blendAlpha { VStack(spacing: 4) {
+                        ImageAlphaButton(model:model).frame(width:28,height:28)
+                        ImageAlphaSlider(model:model).frame(width:28).frame(minHeight:60,maxHeight:.infinity)
+                        Text("\(Int(model.alpha * 100))%").font(.caption).accessibilityHidden(true)
+                    }.padding(.vertical, 8).frame(width:52).frame(maxHeight:.infinity) }
                     pane(base: true)
                 }
             } else if model.vertical { VSplitView { pane(base: true); pane(base: false) } }
@@ -409,25 +474,65 @@ import TurtleGitCore
             HStack { Text(model.fit ? "Fit in window" : "Zoom: \(Int(model.zoom * 100))%"); Spacer(); Text("Read-only image comparison") }.font(.caption).padding(8)
         }.background(Color(nsColor: .windowBackgroundColor)).disabled(!model.interactionAllowed)
         .background(ImageComparisonKeyBridge(model: model).frame(width: 0,height: 0))
-        .onDisappear { model.stopAllPlayback() }
+        .onDisappear { model.stopImageTimers() }
     }
 }
 
+private struct ImageAlphaButton: NSViewRepresentable {
+    @ObservedObject var model:ImageComparisonViewModel
+    func makeCoordinator() -> Coordinator { Coordinator(model) }
+    func makeNSView(context:Context) -> ImageComparisonAlphaButton {
+        let button=ImageComparisonAlphaButton(image:MenuIcon.imageAlphaToggle.image(size:20) ?? NSImage(),target:context.coordinator,action:#selector(Coordinator.press(_:)))
+        button.setButtonType(.pushOnPushOff);button.bezelStyle = .texturedRounded;button.imagePosition = .imageOnly
+        button.setAccessibilityLabel("Toggle blend")
+        button.doubleClick = { [weak coordinator=context.coordinator,weak button] in if let button {coordinator?.press(button,doubleClick:true)} }
+        return button
+    }
+    func updateNSView(_ button:ImageComparisonAlphaButton,context:Context) {
+        context.coordinator.model=model;button.toolTip=model.alphaButtonTooltip
+        button.isEnabled=context.environment.isEnabled && model.alphaControlAllowed
+        button.state=model.alphaBlinking ? .on:.off;button.highlight(model.alphaBlinking)
+        button.setAccessibilityValue(model.alphaBlinking ? "On":"Off")
+    }
+    static func dismantleNSView(_ button:ImageComparisonAlphaButton,coordinator:Coordinator) {
+        coordinator.model?.stopAlphaBlink();coordinator.model=nil;button.doubleClick=nil;button.target=nil;button.action=nil;button.isEnabled=false
+    }
+    @MainActor final class Coordinator:NSObject {
+        weak var model:ImageComparisonViewModel?
+        init(_ model:ImageComparisonViewModel){self.model=model}
+        @objc func press(_ button:NSButton){press(button,doubleClick:false)}
+        func press(_ button:NSButton,doubleClick:Bool){model?.alphaButtonPressed(doubleClick:doubleClick,in:button.window)}
+    }
+}
+/// Native BS_NOTIFY-like click distinction: the first ordinary click toggles;
+/// its second mouse-down starts automatic blinking without another immediate
+/// endpoint change. Retained targets still validate the exact owning window.
+final class ImageComparisonAlphaButton:NSButton {
+    var doubleClick:(()->Void)?
+    override func mouseDown(with event:NSEvent) {
+        guard isEnabled else{return}
+        if event.clickCount>=2 {doubleClick?()} else {super.mouseDown(with:event)}
+    }
+}
 private struct ImageAlphaSlider: NSViewRepresentable {
-    @Binding var value: Double
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    @ObservedObject var model:ImageComparisonViewModel
+    func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSSlider {
-        let slider = ImageComparisonAlphaSlider(value: 1 - value, minValue: 0, maxValue: 1, target: context.coordinator, action: #selector(Coordinator.changed(_:)))
+        let slider = ImageComparisonAlphaSlider(value: 1 - model.alpha, minValue: 0, maxValue: 1, target: context.coordinator, action: #selector(Coordinator.changed(_:)))
         (slider.cell as? NSSliderCell)?.isVertical = true
         slider.numberOfTickMarks = 17; slider.allowsTickMarkValuesOnly = true
         slider.setAccessibilityLabel("Image blend alpha"); slider.isContinuous = true
         return slider
     }
-    func updateNSView(_ slider: NSSlider, context: Context) { context.coordinator.parent = self; slider.doubleValue = 1 - value }
-    final class Coordinator: NSObject {
-        var parent: ImageAlphaSlider
-        init(_ parent: ImageAlphaSlider) { self.parent = parent }
-        @objc func changed(_ slider: NSSlider) { parent.value = ImageComparisonBlend.sliderValue(1 - slider.doubleValue) }
+    func updateNSView(_ slider: NSSlider, context: Context) {
+        context.coordinator.model=model;slider.doubleValue=1-model.alpha;slider.toolTip=model.alphaPercentageTooltip
+        slider.isEnabled=context.environment.isEnabled && model.alphaControlAllowed
+    }
+    static func dismantleNSView(_ slider:NSSlider,coordinator:Coordinator){coordinator.model=nil;slider.target=nil;slider.action=nil;slider.isEnabled=false}
+    @MainActor final class Coordinator: NSObject {
+        weak var model:ImageComparisonViewModel?
+        init(_ model:ImageComparisonViewModel){self.model=model}
+        @objc func changed(_ slider:NSSlider){guard let model,model.alphaControlAllowed(in:slider.window) else{return};model.alpha=ImageComparisonBlend.sliderValue(1-slider.doubleValue);slider.toolTip=model.alphaPercentageTooltip}
     }
 }
 
@@ -632,10 +737,10 @@ private final class ImageComparisonKeyView: NSView {
         if target.imageKeyOwner == keyOwnerID, target.imageKeyModel === model { return }
         retire()
         target.imageKeyOwner = keyOwnerID; target.imageKeyModel = model; owner = target
-        if let window { model?.presentation.attach(window) }
+        if let window { model?.presentation.attach(window);model?.attachTimerWindow(window) }
     }
     func retire() {
-        if owner?.imageKeyOwner == keyOwnerID { model?.presentation.retire(); owner?.imageKeyModel = nil; owner?.imageKeyOwner = nil }
+        if owner?.imageKeyOwner == keyOwnerID { model?.detachTimerWindow();model?.presentation.retire(); owner?.imageKeyModel = nil; owner?.imageKeyOwner = nil }
         owner = nil
     }
 }
@@ -675,7 +780,7 @@ struct ImageFrameControls: View {
     let base: Bool
     let label: String
     var body: some View {
-        if let image = model.currentImage(base: base), image.frameCount > 1 {
+        if !model.overlay, let image = model.currentImage(base: base), image.frameCount > 1 {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     ImageFrameButton(title: "Previous image (" + label + ")", icon: .imagePrevious) { model.stepImage(base: base, forward: false) }.frame(width: 22,height: 22)
@@ -686,7 +791,7 @@ struct ImageFrameControls: View {
                     Spacer(); Text("\(image.frameIndex + 1) of \(image.frameCount)").font(.caption).accessibilityLabel(label + " image \(image.frameIndex + 1) of \(image.frameCount)"); Spacer()
                 }
                 if let error = model.frameErrors[base] { Text(error).font(.caption).foregroundStyle(.red) }
-            }.padding(.horizontal,7).padding(.vertical,3).background(Color(nsColor: .controlBackgroundColor)).disabled(!model.interactionAllowed)
+            }.padding(.horizontal,7).padding(.vertical,3).background(Color(nsColor: .controlBackgroundColor)).disabled(!model.frameControlsAllowed)
         }
     }
 }
@@ -704,10 +809,11 @@ private struct ImageFrameButton: NSViewRepresentable {
         context.coordinator.action = action; button.image = icon.image(); button.toolTip = title
         button.setAccessibilityLabel(title); button.isEnabled = context.environment.isEnabled
     }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator){coordinator.action=nil;button.target=nil;button.action=nil;button.isEnabled=false}
     final class Coordinator: NSObject {
-        var action: () -> Void
+        var action: (() -> Void)?
         init(action: @escaping () -> Void) { self.action = action }
-        @objc func press(_ sender: NSButton) { action() }
+        @objc func press(_ sender: NSButton) { action?() }
     }
 }
 

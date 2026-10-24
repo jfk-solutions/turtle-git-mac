@@ -28,7 +28,7 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(isPull ? "Pull" : "Fetch")", preferences: preferences); window.contentMinSize = NSSize(width: 660, height: 440); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: FetchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
-        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width:700,height:480)); window.center()
+        super.init(window: window); model.window=window; window.delegate = self; window.setContentSize(NSSize(width:700,height:480)); window.center()
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
         model.close = { [weak self] in guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.browsing, !self.model.preparingRemote, self.model.progress == nil, self.model.fetchProgress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] progress in
@@ -134,6 +134,7 @@ import TurtleGitCore
         if let child=progressController {serviceDrainChecks.append{child.model.pendingOperations>0 || child.window?.sheetParent != nil}}
         if let child=fetchProgressController {serviceDrainChecks.append{child.model.pendingOperations>0 || child.notificationFiles.busy || child.window?.sheetParent != nil}}
         NotificationCenter.default.removeObserver(self); remotePickerRequest = nil; remotePickerCompletion = nil; remotePickerFocus = nil
+        if let child=model.remoteManagerModel {serviceDrainChecks.append{child.hasPendingWork}}
         model.invalidate(); remoteReferenceController?.close(); remoteReferenceController = nil
         let fetch = fetchProgressController; fetchProgressController = nil; fetch?.close()
         let pull = progressController; progressController = nil; pull?.close()
@@ -160,6 +161,13 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
+    weak var window:NSWindow?
+    struct RemoteManagerReceipt:Equatable {let id:UUID,owner:ObjectIdentifier,window:ObjectIdentifier?,draft:[GitReferenceName]}
+    private(set) var remoteManagerReceipt:RemoteManagerReceipt?
+    private(set) var remoteManagerModel:RemoteSettingsWindowModel?
+    private weak var remoteManagerWindow:NSWindow?
+    private var retryManagerReceipt:RemoteManagerReceipt?
+    var readRefreshDefaults:((OperationCancellation)async throws->([String],FetchDefaults))?
     @Published var urls: [String] = []
     @Published var branchHistory: [String] = []
     @Published private(set) var formRevision = UUID()
@@ -207,14 +215,14 @@ import TurtleGitCore
     private var loadPresetAllRemotes: Bool?
     func retryPreparation() {
         guard !closed, !confirmingQuit, !busy, !preparing else { return }
-        if !metadataLoaded { load(remote: loadPresetRemote, allRemotes: loadPresetAllRemotes) } else { remoteChanged() }
+        if let receipt=retryManagerReceipt {refreshAfterRemoteManager(receipt)} else if !metadataLoaded { load(remote: loadPresetRemote, allRemotes: loadPresetAllRemotes) } else { remoteChanged() }
     }
     private var invalidated = false
     private var completedPresentation = false
     var closed: Bool { invalidated }
-    var operationActive: Bool { confirmingQuit || preparationNeedsRetry || busy || preparingRemote || browsing || progress != nil || fetchProgress != nil }
+    var operationActive: Bool { remoteManagerModel != nil || confirmingQuit || preparationNeedsRetry || busy || preparingRemote || browsing || progress != nil || fetchProgress != nil }
     func invalidate() {
-        invalidated = true; formRevision = UUID(); generation += 1; metadataToken?.cancel(); metadataToken = nil; remoteToken?.cancel(); remoteToken = nil
+        invalidated = true; remoteManagerReceipt=nil;retryManagerReceipt=nil;remoteManagerModel?.invalidate();remoteManagerModel=nil;remoteManagerWindow=nil;formRevision = UUID(); generation += 1; metadataToken?.cancel(); metadataToken = nil; remoteToken?.cancel(); remoteToken = nil
         remoteSettings.invalidate(); preparingRemote = false; becameIdle = {}; close = {}
         fetchProgress?.invalidate(); fetchProgress = nil; progress?.invalidate(); progress = nil; busy = false; browsing = false; managing = false
     }
@@ -267,23 +275,28 @@ import TurtleGitCore
                 let names = try await repository.remoteNames(cancellation: token)
                 let defaults = try await repository.fetchDefaults(cancellation: token)
                 let pullDefaults = try await repository.pullDefaults(cancellation: token)
-                var snapshot = FetchOptions(); snapshot.remote = defaults.remote
+                var snapshot = FetchOptions()
+                snapshot.remote = defaults.trackedRemote.isEmpty ? (preferences.string(forKey:key+".remote") ?? ""):defaults.trackedRemote
+                let matched=names.contains(where:{GitReferenceName.equal($0,snapshot.remote)})
+                snapshot.allRemotes = !isPull && names.count>1 && !matched
+                if !matched {snapshot.remote=names.first ?? ""}
                 let history = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: true)
                 snapshot.branch = defaults.branch.isEmpty ? history.first ?? "" : defaults.branch
-                snapshot.allRemotes = !isPull && defaults.remote.isEmpty && names.count > 1
-                if isPull && snapshot.remote.isEmpty { snapshot.remote = names.first ?? "" }
                 snapshot.namedRemoteFetchAll = preferences.object(forKey: "NamedRemoteFetchAll") as? Bool ?? true
-                if let saved = preferences.string(forKey: key + ".remote"), names.contains(saved), defaults.remote.isEmpty { snapshot.remote = saved; snapshot.allRemotes = false }
                 var tags = defaults.tags, prune = defaults.prune, targetURL = ""
                 var rebase = !defaults.bare && !snapshot.allRemotes && (isPull && pullDefaults.rebase || preferences.bool(forKey: key + ".rebase"))
                 if let presetRemote, !presetRemote.isEmpty {
-                    if names.contains(presetRemote) {
+                    if names.contains(where:{GitReferenceName.equal($0,presetRemote)}) {
                         snapshot.remote = presetRemote; snapshot.arbitraryURL = false; snapshot.allRemotes = false
                         let preset = try await repository.fetchDefaults(remote: presetRemote, cancellation: token)
                         tags = preset.tags; prune = preset.prune
                     } else { snapshot.arbitraryURL = true; snapshot.allRemotes = false; targetURL = presetRemote; rebase = false }
                 }
                 if !isPull, let presetAllRemotes { snapshot.allRemotes = presetAllRemotes; if presetAllRemotes { snapshot.arbitraryURL = false; rebase = false } }
+                if snapshot.allRemotes {tags="";prune=""}
+                else if !snapshot.arbitraryURL,!snapshot.remote.isEmpty,!GitReferenceName.equal(snapshot.remote,defaults.remote) {
+                    let selected=try await repository.fetchDefaults(remote:snapshot.remote,cancellation:token);tags=selected.tags;prune=selected.prune
+                }
                 try token.check(); guard !invalidated, metadataToken === token else { return }
                 remotes = names; options = snapshot; url = targetURL
                 urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
@@ -336,7 +349,35 @@ import TurtleGitCore
         guard accepts(context) else{return}
         if arbitrary {selectArbitraryURL()} else {options.arbitraryURL=false;launchRebase=rebaseRequired;remoteChanged()}
     }
-    func manage(_ context: FormContext) {guard accepts(context) else{return};managing=true}
+    func manage(_ context: FormContext) {
+        guard accepts(context),window?.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+        let receipt=RemoteManagerReceipt(id:UUID(),owner:ObjectIdentifier(self),window:window.map(ObjectIdentifier.init),draft:submissionIdentity)
+        let child=RemoteSettingsWindowModel(repository:repository,access:access,preferences:preferences,noFetch:true)
+        remoteManagerReceipt=receipt;remoteManagerModel=child
+        child.close={ [weak self] in self?.closeRemoteManager(receipt) };managing=true
+    }
+    func remoteManagerAttached(_ receipt:RemoteManagerReceipt,_ child:NSWindow) {
+        guard !closed,remoteManagerReceipt==receipt,child !== window else{return};remoteManagerWindow=child
+    }
+    func closeRemoteManager(_ receipt:RemoteManagerReceipt) {
+        guard !closed,remoteManagerReceipt==receipt else{return};managing=false
+    }
+    func remoteManagerReturned(_ receipt:RemoteManagerReceipt) {
+        guard !closed,remoteManagerReceipt==receipt,let child=remoteManagerModel else{return}
+        // The actual embedded child supplies this captured receipt after retiring
+        // its native controls. Wait only for that child's workers/sheet ownership.
+        let childWindow=remoteManagerWindow
+        pendingOperations += 1
+        Task { [self,child,childWindow,access] in
+            defer{pendingOperations -= 1;withExtendedLifetime(access){}}
+            while child.hasPendingWork || childWindow.map({$0.sheetParent != nil || window?.attachedSheet === $0})==true {if closed {return};try? await Task.sleep(nanoseconds:5_000_000)}
+            guard !closed,remoteManagerReceipt==receipt,remoteManagerModel === child else{return}
+            remoteManagerModel=nil;remoteManagerReceipt=nil;remoteManagerWindow=nil
+            guard receipt.owner==ObjectIdentifier(self),receipt.window==window.map(ObjectIdentifier.init),receipt.draft==submissionIdentity,
+                  !confirmingQuit,!busy,!browsing,progress==nil,fetchProgress==nil,NSApp.modalWindow==nil else{return}
+            refreshAfterRemoteManager(receipt)
+        }
+    }
     func browse(_ context: FormContext) {guard accepts(context),canChooseBranch else{return};browse()}
     func deleteHistory(url: Bool, at index: Int, context: FormContext, entries: [String]) {
         guard accepts(context), url ? options.arbitraryURL : canChooseBranch else{return}
@@ -393,10 +434,47 @@ import TurtleGitCore
         guard !invalidated, !operationActive, !currentRemoteDestination.isEmpty, let onBrowseRemote else { return }
         browsing = true; onBrowseRemote(currentRemoteDestination)
     }
-    func reloadRemotes() {
-        remotes = remoteSettings.remotes
-        if !remotes.contains(options.remote) { options.remote = remotes.first ?? "" }
-        remoteChanged()
+    private func refreshAfterRemoteManager(_ receipt:RemoteManagerReceipt) {
+        guard !closed,!confirmingQuit,!busy,!preparing,!browsing,!managing,progress==nil,fetchProgress==nil,
+              receipt.owner==ObjectIdentifier(self),receipt.window==window.map(ObjectIdentifier.init),receipt.draft==submissionIdentity,
+              window?.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+        formRevision=UUID();let token=OperationCancellation();metadataToken=token;busy=true;error=nil;preparationNeedsRetry=false;retryManagerReceipt=receipt
+        Self.activePreparationReads += 1;pendingOperations += 1
+        Task { [self,access] in
+            defer {
+                Self.activePreparationReads -= 1;pendingOperations -= 1;withExtendedLifetime(access){}
+                if metadataToken === token {metadataToken=nil;busy=false;if !closed {becameIdle()}}
+            }
+            do {
+                try validateRepositoryAccess()
+                let names:[String],defaults:FetchDefaults
+                if let readRefreshDefaults {(names,defaults)=try await readRefreshDefaults(token)}
+                else {names=try await repository.remoteNames(cancellation:token);defaults=try await repository.fetchDefaults(cancellation:token)}
+                let saved=preferences.string(forKey:key+".remote") ?? ""
+                var selected=defaults.trackedRemote.isEmpty ? saved:defaults.trackedRemote
+                if let preset=loadPresetRemote,!preset.isEmpty,!options.arbitraryURL {selected=preset}
+                let matched=names.contains(where:{GitReferenceName.equal($0,selected)})
+                if !matched {selected=names.first ?? ""}
+                var all = !isPull && names.count>1 && !matched
+                if let preset=loadPresetAllRemotes,!isPull {all=preset && names.count>1}
+                let selectedDefaults:FetchDefaults
+                if options.arbitraryURL || all || selected.isEmpty || GitReferenceName.equal(selected,defaults.remote) {selectedDefaults=defaults}
+                else {selectedDefaults=try await repository.fetchDefaults(remote:selected,cancellation:token)}
+                try token.check()
+                guard !closed,metadataToken === token,receipt.draft==submissionIdentity,!confirmingQuit,
+                      receipt.window==window.map(ObjectIdentifier.init),window?.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+                remotes=names;remoteSettings.remotes=names
+                if !options.arbitraryURL {options.remote=selected;options.allRemotes=all}
+                // PullFetchDlg::Refresh inserts the newly read HEAD/tracking or
+                // registered .gitmodules branch, without resetting other options.
+                options.branch=defaults.branch
+                if !defaults.branch.isEmpty {selectBranch(defaults.branch,atFront:true)}
+                tagsDefault=options.allRemotes ? "":selectedDefaults.tags;pruneDefault=options.allRemotes ? "":selectedDefaults.prune
+                retryManagerReceipt=nil;preparationNeedsRetry=false
+            } catch {
+                if !closed,metadataToken === token {preparationNeedsRetry=true;if !token.isCancelled {self.error=error.localizedDescription}}
+            }
+        }
     }
     func cancel() {
         guard !invalidated else { return }
@@ -514,7 +592,35 @@ private struct FetchDialog: View {
             HStack { if model.busy || model.preparingRemote { ProgressView().controlSize(.small) }; if model.preparationNeedsRetry { Button("Retry loading", action: model.retryPreparation).disabled(model.busy || model.preparing) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.operationActive); Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel); Button("Help") { TurtleGitHelp.show(model.isPull ? .pull : .fetch) } }
         }.padding(16)
         .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { !model.closed && model.progress == nil && model.fetchProgress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
-        .sheet(isPresented: $model.managing, onDismiss: { model.reloadRemotes() }) { PushRemoteSettings(onClose: { model.managing = false }, model: model.remoteSettings) }
+        .sheet(isPresented:$model.managing) {
+            if let child=model.remoteManagerModel,let receipt=model.remoteManagerReceipt {
+                FetchRemoteManagerPage(owner:model,settings:child,receipt:receipt).frame(minWidth:730,minHeight:440)
+            }
+        }
+    }
+}
+/// Keep the embedded manager's actual window under its parent's appearance
+/// and visibility, including invisible receivers. Its retirement callback owns
+/// the exact child receipt rather than a later SwiftUI onDismiss projection.
+private struct FetchRemoteManagerPage:NSViewRepresentable {
+    let owner:FetchWindowModel,settings:RemoteSettingsWindowModel,receipt:FetchWindowModel.RemoteManagerReceipt
+    func makeNSView(context:Context)->Container {
+        let view=Container(settings:settings,owner:owner.window,onAttach:{owner.remoteManagerAttached(receipt,$0)})
+        view.child.onRetired={owner.remoteManagerReturned(receipt)};settings.load();return view
+    }
+    func updateNSView(_ view:Container,context:Context){view.child.render()}
+    static func dismantleNSView(_ view:Container,coordinator:()){view.child.retire()}
+    final class Container:NSView {
+        let child:RemoteSettingsNativeView
+        weak var owner:NSWindow?
+        let onAttach:(NSWindow)->Void
+        init(settings:RemoteSettingsWindowModel,owner:NSWindow?,onAttach:@escaping(NSWindow)->Void) {
+            self.owner=owner;self.onAttach=onAttach;child=RemoteSettingsNativeView(model:settings)
+            super.init(frame:.init(x:0,y:0,width:730,height:440))
+            child.frame=bounds;child.autoresizingMask=[.width,.height];addSubview(child)
+        }
+        override func viewDidMoveToWindow(){super.viewDidMoveToWindow();guard let window,let owner,window !== owner else{return};window.isReleasedWhenClosed=false;window.alphaValue=owner.alphaValue;window.appearance=owner.appearance;onAttach(window)}
+        required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
     }
 }
 struct FetchOverrideCheckbox: NSViewRepresentable {

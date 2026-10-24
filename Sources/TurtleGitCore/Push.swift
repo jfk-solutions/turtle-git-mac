@@ -90,7 +90,7 @@ extension GitRepository {
         var remote = try branch.map { try configuration("branch." + $0 + ".pushRemote") } ?? ""
         if remote.isEmpty { remote = try configuration("remote.pushDefault") }
         if remote.isEmpty, let branch { remote = try configuration("branch." + branch + ".remote") }
-        if !names.contains(remote) { remote = names.count == 1 ? names[0] : "" }
+        if !names.contains(where:{GitReferenceName.equal($0,remote)}) { remote = names.count == 1 ? names[0] : "" }
         let destination = try branch.map { try configuration("branch." + $0 + ".pushbranch") } ?? ""
         var merge = try branch.map { try configuration("branch." + $0 + ".merge") } ?? ""
         if merge.hasPrefix("refs/heads/") { merge = String(merge.dropFirst(11)) }
@@ -152,7 +152,7 @@ extension GitRepository {
         let names = try remoteNames(cancellation: cancellation), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
         let destination = options.destination.trimmingCharacters(in: .whitespacesAndNewlines)
         let remotes = options.allRemotes ? names : [options.remote]
-        guard !remotes.isEmpty, remotes.allSatisfy({ !$0.isEmpty && !$0.contains("\0") }), options.arbitraryURL || remotes.allSatisfy(names.contains) else { throw PushValidationFailure.remote }
+        guard !remotes.isEmpty, remotes.allSatisfy({ !$0.isEmpty && !$0.contains("\0") }), options.arbitraryURL || remotes.allSatisfy({remote in names.contains(where:{GitReferenceName.equal($0,remote)})}) else { throw PushValidationFailure.remote }
         guard !(options.force && options.forceWithLease), !(options.includeTags && options.forceWithLease), !(options.arbitraryURL && options.allRemotes) else { throw PushValidationFailure.combination }
         guard !options.pushOption.contains("\0"), !options.pushOption.contains("\n") else { throw PushValidationFailure.pushOption }
         if !options.allBranches, !source.isEmpty {
