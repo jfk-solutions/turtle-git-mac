@@ -766,6 +766,21 @@ Diff Viewer select built-in or external tools. Saved Data clears only the chosen
 category. See [Saved Data](SAVED-DATA.md), [SSH authentication](SSH-AUTHENTICATION.md),
 [Git authentication](GIT-AUTHENTICATION.md) and [Privacy](PRIVACY.md).
 
+### External tool configuration
+
+Diff Viewer, Merge Tool and Unified Diff Viewer let you choose a built-in viewer
+or an external application. Browse changes the current draft; Apply saves it and
+Cancel keeps the previously saved choice. Alternative Editor retains its custom
+application when you temporarily choose TextEdit.
+
+Advanced Diff/Merge rules match filenames and extensions case-insensitively while
+preserving their Unicode spelling. Names that look alike can therefore have
+separate rules. Editing or removing one rule keeps the other rules intact.
+Executable paths and argument templates are saved as entered. Restore Defaults
+replaces shipped adapter rules while retaining your other associations. See the
+[tool configuration comparison](LITERAL-TOOL-CONFIGURATION-PARITY.md) for matching
+precedence and current acceptance limits.
+
 ### Hook Scripts
 
 Settings → Hook Scripts lists hook type, path, command, Wait and Show. Check a

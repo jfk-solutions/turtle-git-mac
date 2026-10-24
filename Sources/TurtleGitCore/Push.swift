@@ -72,7 +72,10 @@ extension GitRepository {
         if pushURL.isEmpty { if !pushConfig("remote." + name + ".pushurl").isEmpty { _ = try pushCommand(["config", "--local", "--unset-all", "remote." + name + ".pushurl"]) } }
         else { _ = try pushCommand(["config", "--local", "remote." + name + ".pushurl", pushURL]) }
     }
-    public func remoteNames(cancellation: OperationCancellation? = nil) throws -> [String] { try pushCommand(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init) }
+    public func remoteNames(cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
+        if let names=try masterRemoteNames(cancellation:cancellation){return names}
+        return try pushCommand(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init) }
     private func pushConfig(_ key: String) -> String { ((try? pushCommand(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
     public func pushDefaults(source: String, cancellation: OperationCancellation? = nil) throws -> PushDefaults {
         func optionalRead(_ arguments: [String]) throws -> GitResult? {

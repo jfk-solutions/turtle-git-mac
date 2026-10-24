@@ -94,6 +94,16 @@ clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the [pen scope](METAFILE-PEN-PARITY.md).
 
+Embedded EMF+ images and texture/pen brushes also accept compressed GIF and TIFF,
+alongside PNG and JPEG/EXIF. TIFF displays its first page. Timed or NETSCAPE-loop
+GIFs display their first frame; untimed GIFs without a loop block display their
+final composite, including transparent delta frames. Embedded images remain
+static, and JPEG/TIFF orientation metadata does not rotate the recorded image.
+Classic WMF/EMF JPEG/PNG stretched transfers retain recorded crop, reflection and
+clipping through a bounded native decoding profile. See the
+[compressed raster scope](METAFILE-COMPRESSED-RASTER-PARITY.md) for Windows
+reference evidence, decoder limits and display-driver differences.
+
 Classic pattern brushes include serialized monochrome WMF brushes and EMF
 monochrome/DIB brush records. Monochrome patterns follow the drawing's current
 text and background colors; colored DIB patterns retain their supplied colors.

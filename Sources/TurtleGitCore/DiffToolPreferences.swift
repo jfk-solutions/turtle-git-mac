@@ -45,6 +45,10 @@ public struct DiffToolProgram: Codable, Equatable, Sendable {
     public var bookmark: Data?
     public var builtIn: BuiltInDiffTool?
     public init() {}
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.enabled == rhs.enabled && lhs.applicationPath.utf8.elementsEqual(rhs.applicationPath.utf8) &&
+        lhs.arguments.utf8.elementsEqual(rhs.arguments.utf8) && lhs.bookmark == rhs.bookmark && lhs.builtIn == rhs.builtIn
+    }
     public var displayName: String { builtIn?.title ?? applicationPath }
     public var isApplicationBundle: Bool { (applicationPath as NSString).pathExtension.lowercased() == "app" }
     public var valid: Bool {
@@ -96,6 +100,12 @@ public struct DiffToolAssociation: Codable, Equatable, Identifiable, Sendable {
     public static func normalized(_ pattern: String) -> String {
         String(pattern.trimmingCharacters(in: .whitespacesAndNewlines).drop(while: { $0 == "*" })).lowercased()
     }
+    /// Source lowercases association keys, without merging Unicode spellings.
+    public static func identity(_ pattern: String) -> Data { Data(normalized(pattern).utf8) }
+    public var patternIdentity: Data { Self.identity(pattern) }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id && lhs.pattern.utf8.elementsEqual(rhs.pattern.utf8) && lhs.program == rhs.program
+    }
     public var normalizedPattern: String { Self.normalized(pattern) }
     public var valid: Bool { !normalizedPattern.isEmpty && !normalizedPattern.contains("/") && !normalizedPattern.contains("\0") && program.valid }
 }
@@ -109,7 +119,7 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
     public var program = DiffToolProgram()
     public var associations: [DiffToolAssociation] = []
     public init() {}
-    public var valid: Bool { program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
+    public var valid: Bool { program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.patternIdentity)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: "TurtleGit.DiffTools") else { var value = Self(); value.restoreBundledAssociations(); return value }
         guard let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
@@ -124,9 +134,9 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
     public mutating func restoreBundledAssociations() {
         for tool in BuiltInDiffTool.allCases {
             for pattern in tool.extensions {
-                var value = associations.first { $0.normalizedPattern == pattern } ?? DiffToolAssociation()
+                var value = associations.first { $0.patternIdentity == DiffToolAssociation.identity(pattern) } ?? DiffToolAssociation()
                 value.pattern = pattern; value.program = DiffToolProgram(); value.program.enabled = true; value.program.builtIn = tool
-                associations.removeAll { $0.normalizedPattern == pattern }; associations.append(value)
+                associations.removeAll { $0.patternIdentity == DiffToolAssociation.identity(pattern) }; associations.append(value)
             }
         }
     }
@@ -136,7 +146,7 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
         let baseName = (base as NSString).lastPathComponent.lowercased()
         let ext = (filename as NSString).pathExtension
         let candidates = [filename, baseName] + (ext.isEmpty ? [] : ["." + ext])
-        let association = candidates.compactMap { name in associations.first { $0.normalizedPattern == name } }.first
+        let association = candidates.compactMap { name in associations.first { $0.patternIdentity == Data(name.utf8) } }.first
         // Source built-in image comparison precedes the default text diff tool.
         if association == nil, DiffToolSelection.imageExtensions.contains(ext) { return alternate ? .merge : .image }
         let found = association?.program ?? program
@@ -160,7 +170,7 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
         (program.enabled && program.builtIn == nil && !program.isApplicationBundle) || associations.contains { $0.program.enabled && $0.program.builtIn == nil && !$0.program.isApplicationBundle }
     }
     public static func supports(_ tool: BuiltInDiffTool?) -> Bool { tool == nil || tool == .wordDocument || tool == .libreOfficeDocument }
-    public var valid: Bool { Self.supports(program.builtIn) && associations.allSatisfy { Self.supports($0.program.builtIn) } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.normalizedPattern)).count == associations.count }
+    public var valid: Bool { Self.supports(program.builtIn) && associations.allSatisfy { Self.supports($0.program.builtIn) } && program.valid && associations.allSatisfy(\.valid) && Set(associations.map(\.patternIdentity)).count == associations.count }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         guard let data = defaults.data(forKey: "TurtleGit.MergeTools") else { var value=Self(); value.restoreBundledAssociations(); return value }
         guard let value = try? JSONDecoder().decode(Self.self, from:data) else { return Self() }
@@ -168,9 +178,9 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
     }
     public mutating func restoreBundledAssociations() {
         for (pattern, tool) in [(".doc", BuiltInDiffTool.wordDocument), (".docx", .wordDocument), (".docm", .wordDocument), (".odt", .libreOfficeDocument), (".ods", .libreOfficeDocument), (".sxw", .libreOfficeDocument)] {
-            var value=associations.first { $0.normalizedPattern == pattern } ?? DiffToolAssociation()
+            var value=associations.first { $0.patternIdentity == DiffToolAssociation.identity(pattern) } ?? DiffToolAssociation()
             value.pattern=pattern; value.program=DiffToolProgram(); value.program.enabled=true; value.program.builtIn = tool
-            associations.removeAll { $0.normalizedPattern == pattern }; associations.append(value)
+            associations.removeAll { $0.patternIdentity == DiffToolAssociation.identity(pattern) }; associations.append(value)
         }
     }
     public func save(to defaults: UserDefaults = .standard) throws {
@@ -180,7 +190,7 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
     public func selected(path: String, alternate: Bool = false) throws -> DiffToolProgram? {
         let name = (path as NSString).lastPathComponent.lowercased(), ext = (path as NSString).pathExtension.lowercased()
         let keys = ["." + name] + (ext.isEmpty ? [] : ["." + ext])
-        let found = keys.compactMap { key in associations.first { $0.normalizedPattern == key } }.first?.program ?? program
+        let found = keys.compactMap { key in associations.first { $0.patternIdentity == Data(key.utf8) } }.first?.program ?? program
         guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
         var result = found; result.enabled = true
         guard result.valid, Self.supports(result.builtIn) else { throw DiffToolFailure.application }; return result

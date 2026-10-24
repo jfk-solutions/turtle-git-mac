@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,526 @@
+@@ -0,0 +1,524 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -412,9 +412,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +        let width=i32(data,8),height=i32(data,12);const stride=i32(data,16),pixelFormat=u32(data,20),bitmapType=u32(data,24);let href;
 +        if(bitmapType===0) href=rawBitmap(data,28,width,height,stride,pixelFormat);
 +        else if(bitmapType===1) {
-+          const bytes=data.slice(28),png=bytes.length>=8&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10;
-+          const jpeg=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
-+          if(!png&&!jpeg)fail('unsupported compressed EMF+ bitmap');
++          const bytes=require('./turtleGitCompressed')(data.slice(28));if(!bytes)fail('invalid compressed image container');
 +          const image=__turtleCompressedImage(bytes);href=image.href;width=image.width;height=image.height;
 +        } else fail('invalid EMF+ bitmap compression');
 +        if(typeof href!=='string'||!/^data:image\/png;base64,|^data:image\/jpeg;base64,/.test(href))fail('invalid native bitmap result');
@@ -1044,7 +1042,7 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 --- /dev/null
 +++ b/src/turtleGitPaint.js
-@@ -0,0 +1,361 @@
+@@ -0,0 +1,359 @@
 +// TurtleGit EMF+ gradient, hatch and bitmap texture painting. MIT, see repository LICENSE.
 +// Canonical hatch cell data is isolated in LGPL-2.1-or-later turtleGitHatch.js.
 +// Geometry remains in local drawing coordinates; the record's world/page/device
@@ -1164,10 +1162,8 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    if(bitmapType===0) {
 +      href=rawBitmap(data,offset+28,width,height,stride,pixelFormat);
 +    } else if(bitmapType===1) {
-+      const bytes=data.slice(offset+28),png=bytes.length>=8&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10;
-+      const jpeg=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
-+      if(!png&&!jpeg) fail('unsupported compressed texture bitmap');
-+      if(typeof globalThis.__turtleCompressedImage!=='function') fail('native compressed texture adapter unavailable');
++      const bytes=require('./turtleGitCompressed')(data.slice(offset+28));if(!bytes)fail('invalid compressed image container');
++          if(typeof globalThis.__turtleCompressedImage!=='function') fail('native compressed texture adapter unavailable');
 +      const image=globalThis.__turtleCompressedImage(bytes);href=image.href;width=image.width;height=image.height;
 +    } else fail('invalid texture bitmap compression');
 +    if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width>32768||height>32768||width*height>16777216 || typeof href!=='string'||!href.startsWith('data:image/png;base64,')) fail('invalid native texture bitmap result');
@@ -1866,7 +1862,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,376 @@
+@@ -0,0 +1,392 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -1879,7 +1875,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  function bitmapBudget(d,n){d.ctx._turtleRasterDecoded=(d.ctx._turtleRasterDecoded||0)+n;if(d.ctx._turtleRasterDecoded>67108864)fail('aggregate raster bitmap budget exceeded');}
 +  // Packed DIB parsing is independent of the upstream placeholder-producing
 +  // decoder. Scanlines, palettes, masks and RLE commands must be complete.
-+  function decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d,alpha=false,monochrome=false,brushMode=0) {
++  function decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d,alpha=false,monochrome=false,brushMode=0,compressedCopy=false) {
 +    // Brush-only receipts retain palette references. Transfers keep their
 +    // existing eager RGB/mask rules; usage2 is limited to EMR_CREATEMONOBRUSH.
 +    need(bytes,bmi,cbBmi);need(bytes,bits,cbBits);if(bits<bmi+cbBmi&&bmi<bits+cbBits)fail('overlapping raster DIB information/pixels');if(cbBmi<12||(usage>1&&!(brushMode===2&&usage===2)))fail('invalid raster DIB information');
@@ -1888,7 +1884,23 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(header>cbBmi)fail('truncated raster DIB header');
 +    const width=core?word(bytes,bmi+4):i32(bytes,bmi+4),signedHeight=core?word(bytes,bmi+6):i32(bytes,bmi+8),height=Math.abs(signedHeight);
 +    const planes=word(bytes,bmi+(core?8:12)),depth=word(bytes,bmi+(core?10:14)),compression=core?0:u32(bytes,bmi+16);
-+    dimension(width,height);if(planes!==1||![1,4,8,16,24,32].includes(depth)||![0,1,2,3,6].includes(compression))fail('unsupported raster DIB format');
++    dimension(width,height);
++    if(compression===4||compression===5){
++      if(!compressedCopy||core||signedHeight<0||planes!==1||depth!==0||usage!==0||alpha||monochrome||brushMode)fail('compressed raster requires RGB SRCCOPY StretchDIB');
++      if(header===124&&(u32(bytes,bmi+112)||u32(bytes,bmi+116)))fail('external/profiled raster DIB is unsupported');
++      const size=u32(bytes,bmi+20);if(!size||size>cbBits||cbBits-size>3||bytes.slice(bits+size,bits+cbBits).some(v=>v))fail('invalid compressed raster byte count');
++      const raw=require('./turtleGitCompressed')(bytes.slice(bits,bits+size)),png=compression===5;if(!raw)fail('invalid compressed raster container');
++      if(png?!(raw[0]===137&&raw[1]===80&&raw[2]===78&&raw[3]===71):!(raw[0]===255&&raw[1]===216&&raw[2]===255))fail('compressed raster signature mismatch');
++      if(typeof __turtleCompressedClassicRaster!=='function')fail('native compressed raster adapter unavailable');
++      bitmapBudget(d,width*height);const decoded=__turtleCompressedClassicRaster(raw);
++      if(!decoded||decoded.width!==width||decoded.height!==height||typeof decoded.rgba!=='string')fail('compressed raster dimensions differ');
++      const encoded=decoded.rgba,alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',length=width*height*4;
++      if(encoded.length!==Math.ceil(length/3)*4)fail('invalid native compressed raster pixels');
++      const out=new Uint8ClampedArray(length),lookup=new Uint8Array(128);lookup.fill(255);for(let i=0;i<alphabet.length;i++)lookup[alphabet.charCodeAt(i)]=i;let n=0;
++      for(let p=0;p<encoded.length;p+=4){const ca=encoded.charCodeAt(p),cb=encoded.charCodeAt(p+1),cc=encoded.charCodeAt(p+2),ce=encoded.charCodeAt(p+3);if((ca|cb|cc|ce)>127)fail('invalid native compressed raster encoding');const a=lookup[ca],b=lookup[cb],c=cc===61?0:lookup[cc],e=ce===61?0:lookup[ce];if(a===255||b===255||c===255||e===255)fail('invalid native compressed raster encoding');const v=a*262144+b*4096+c*64+e;out[n++]=v>>>16&255;if(n<length)out[n++]=v>>>8&255;if(n<length)out[n++]=v&255;}
++      return{width,height,data:out,bottomUp:signedHeight>0};
++    }
++    if(planes!==1||![1,4,8,16,24,32].includes(depth)||![0,1,2,3,6].includes(compression))fail('unsupported raster DIB format');
 +    if((compression===1&&depth!==8)||(compression===2&&depth!==4)||([3,6].includes(compression)&&![16,32].includes(depth))||(signedHeight<0&&[1,2].includes(compression)))fail('invalid raster DIB compression');
 +    if(alpha&&(depth!==32||compression!==0))fail('AlphaBlend per-pixel source requires 32-bit BI_RGB');
 +    if(monochrome&&(depth!==1||compression!==0))fail('transfer mask must be monochrome BI_RGB');
@@ -1938,11 +1950,11 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    let href;if(!brushMode){href=d.ctx._pngBase64({width,height,data:out});if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('raster DIB encoding failed');}
 +    return{width,height,data:out,href,bottomUp:signedHeight>0,monochromePattern:mono,palettePattern:!!brushMode&&usage===1&&depth<=8};
 +  }
-+  decodeDib.packed=function(bytes,offset,usage,d,brush=false){
++  decodeDib.packed=function(bytes,offset,usage,d,brush=false,compressedCopy=false){
 +    need(bytes,offset,12);const header=u32(bytes,offset),core=header===12;if(!core&&header<40)fail('unsupported packed raster DIB');need(bytes,offset,header);
-+    const depth=word(bytes,offset+(core?10:14)),compression=core?0:u32(bytes,offset+16),count=depth<=8?((core?0:u32(bytes,offset+32))||2**depth):0;
++    const depth=word(bytes,offset+(core?10:14)),compression=core?0:u32(bytes,offset+16),count=depth>0&&depth<=8?((core?0:u32(bytes,offset+32))||2**depth):0;
 +    const size=header+(header===40&&[3,6].includes(compression)?(compression===6?16:12):0)+count*(usage===1?2:core?3:4);
-+    return decodeDib(bytes,offset,size,offset+size,bytes.length-offset-size,usage,d,false,false,brush?1:0);
++    return decodeDib(bytes,offset,size,offset+size,bytes.length-offset-size,usage,d,false,false,brush?1:0,compressedCopy);
 +  };
 +  decodeDib.brush=(bytes,bmi,cbBmi,bits,cbBits,usage,d,mono=false)=>decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d,false,false,mono?2:1);
 +  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
@@ -2199,7 +2211,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if([76,77,81].includes(type)){
 +      const stretchDib=type===81;need(data,0,stretchDib?72:type===77?100:92);const op=truth(u32(data,stretchDib?60:32));
 +      const bmi=u32(data,stretchDib?40:76),cbBmi=u32(data,stretchDib?44:80),bits=u32(data,stretchDib?48:84),cbBits=u32(data,stretchDib?52:88),usage=u32(data,stretchDib?56:72);
-+      let dib=null;if(bmi||cbBmi||bits||cbBits){if(!bmi||!cbBmi||!bits||!cbBits||bmi<(stretchDib?80:type===77?108:100)||bits<(stretchDib?80:type===77?108:100))fail('incomplete EMF raster DIB');dib=decodeDib(data,bmi-8,cbBmi,bits-8,cbBits,usage,this);}
++      let dib=null;if(bmi||cbBmi||bits||cbBits){if(!bmi||!cbBmi||!bits||!cbBits||bmi<(stretchDib?80:type===77?108:100)||bits<(stretchDib?80:type===77?108:100))fail('incomplete EMF raster DIB');dib=decodeDib(data,bmi-8,cbBmi,bits-8,cbBits,usage,this,false,false,0,stretchDib&&op===0xcc&&usage===0);}
 +      let sx=i32(data,stretchDib?24:36),sy=i32(data,stretchDib?28:40),sw=i32(data,stretchDib?32:type===77?92:24),sh=i32(data,stretchDib?36:type===77?96:28);
 +      if(stretchDib&&dib&&dib.bottomUp)sy=dib.height-sy-sh;
 +      // Source-independent ROPs have no source DC operand. MS-EMF permits
@@ -2233,7 +2245,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(type===0x922||type===0xb23)fail('device-dependent WMF bitmap layout is unsupported');
 +    if([0x940,0xb41,0xf43].includes(type)){
 +      const offset=type===0x940?16:type===0xb41?20:22;need(data,0,offset);const op=truth(u32(data,0)),usage=type===0xf43?word(data,4):0;
-+      const dib=data.length>offset?decodeDib.packed(data,offset,usage,this):null;
++      const dib=data.length>offset?decodeDib.packed(data,offset,usage,this,false,type===0xf43&&op===0xcc&&usage===0):null;
 +      const sx=short(data,type===0x940?6:type===0xb41?10:12);let sy=short(data,type===0x940?4:type===0xb41?8:10);const sw=short(data,type===0x940?10:type===0xb41?6:8),sh=short(data,type===0x940?8:type===0xb41?4:6);
 +      if(type===0xf43&&dib&&dib.bottomUp)sy=dib.height-sy-sh;
 +      transfer(this,op,short(data,offset-2),short(data,offset-4),short(data,offset-6),short(data,offset-8),dib,sx,sy,sw,sh);return;
@@ -3193,3 +3205,50 @@ diff --git a/src/utils/surface.js b/src/utils/surface.js
      ctx.fillStyle = color;
      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
      console.log('Canvas cleared');
+diff --git a/src/turtleGitCompressed.js b/src/turtleGitCompressed.js
+--- /dev/null
++++ b/src/turtleGitCompressed.js
+@@ -0,0 +1,43 @@
++// Original bounded compressed-container envelope reader. MIT.
++// Only the serialized container plus at most three zero alignment bytes is valid.
++module.exports=function(bytes){
++  const n=bytes.length;if(n<8)return null;let end=0,work=0;
++  const fits=(p,k)=>Number.isSafeInteger(p)&&Number.isSafeInteger(k)&&p>=0&&k>=0&&p<=n-k;
++  const finish=p=>p<=n&&n-p<=3&&!bytes.slice(p).some(v=>v)?bytes.slice(0,p):null;
++  const be16=p=>bytes[p]*256+bytes[p+1],be32=p=>bytes[p]*16777216+bytes[p+1]*65536+bytes[p+2]*256+bytes[p+3];
++  if(bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10){
++    let p=8;while(fits(p,12)&&++work<=65536){const size=be32(p);if(!fits(p+12,size))return null;const kind=String.fromCharCode(...bytes.slice(p+4,p+8));p+=size+12;if(kind==='IEND')return size===0?finish(p):null;}return null;
++  }
++  if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255){
++    let p=2,entropy=false;
++    while(p<n&&++work<=1048576){
++      if(entropy){while(p<n&&bytes[p]!==255)p++;if(p>=n)return null;}
++      if(bytes[p++]!==255)return null;while(p<n&&bytes[p]===255)p++;if(p>=n)return null;const marker=bytes[p++];
++      if(entropy&&(marker===0||marker>=208&&marker<=215))continue;
++      if(marker===217)return finish(p);
++      if(marker===0||marker===216)return null;
++      if(marker===1){entropy=false;continue;}
++      if(!fits(p,2))return null;const size=be16(p);if(size<2||!fits(p,size))return null;p+=size;entropy=marker===218;
++    }return null;
++  }
++  if(bytes[0]===71&&bytes[1]===73&&bytes[2]===70&&bytes[3]===56&&(bytes[4]===55||bytes[4]===57)&&bytes[5]===97){
++    if(!fits(0,13))return null;let p=13+((bytes[10]&128)?3*(2**((bytes[10]&7)+1)):0),frames=0;
++    const blocks=()=>{while(fits(p,1)&&++work<=1048576){const k=bytes[p++];if(!k)return true;if(!fits(p,k))return false;p+=k;}return false;};
++    while(fits(p,1)&&++work<=1048576){const kind=bytes[p++];if(kind===59)return frames?finish(p):null;if(kind===33){if(!fits(p,1))return null;p++;if(!blocks())return null;}else if(kind===44){if(!fits(p,9)||++frames>512)return null;const flags=bytes[p+8];p+=9+((flags&128)?3*(2**((flags&7)+1)):0);if(!fits(p,1)||bytes[p]<2||bytes[p]>8)return null;p++;if(!blocks())return null;}else return null;}return null;
++  }
++  const little=bytes[0]===73&&bytes[1]===73,big=bytes[0]===77&&bytes[1]===77;
++  if(little||big){
++    const u16=p=>little?bytes[p]+bytes[p+1]*256:be16(p),u32=p=>little?bytes[p]+bytes[p+1]*256+bytes[p+2]*65536+bytes[p+3]*16777216:be32(p);
++    if(u16(2)!==42)return null;let high=8,entries=0;const queue=[u32(4)],seen=new Set(),sizes={1:1,2:1,3:2,4:4,5:8,6:1,7:1,8:2,9:4,10:8,11:4,12:8,13:4,16:8,17:8,18:8};
++    const values=(p,type,count)=>{const result=[];if(count>65536||![3,4,13].includes(type))return null;for(let i=0;i<count;i++)result.push(type===3?u16(p+i*2):u32(p+i*4));return result;};
++    while(queue.length){const at=queue.pop();if(!at)continue;if(seen.has(at)||seen.size>=2048||!fits(at,2))return null;seen.add(at);const count=u16(at);if((entries+=count)>65536||!fits(at+2,count*12+4))return null;high=Math.max(high,at+2+count*12+4);let offsets=null,lengths=null,jpegOffset=null,jpegSize=null;
++      for(let i=0;i<count;i++){const p=at+2+i*12,tag=u16(p),type=u16(p+2),count=u32(p+4),size=sizes[type];if(!size||!Number.isSafeInteger(count*size))return null;const length=count*size,where=length<=4?p+8:u32(p+8);if(!fits(where,length))return null;high=Math.max(high,where+length);
++        if([273,279,324,325,513,514,330,34665,34853,40965].includes(tag)){const list=values(where,type,count);if(!list)return null;if(tag===273||tag===324)offsets=list;else if(tag===279||tag===325)lengths=list;else if(tag===513)jpegOffset=list[0];else if(tag===514)jpegSize=list[0];else queue.push(...list);}
++      }
++      if(offsets||lengths){if(!offsets||!lengths||offsets.length!==lengths.length)return null;for(let i=0;i<offsets.length;i++){if(!fits(offsets[i],lengths[i]))return null;high=Math.max(high,offsets[i]+lengths[i]);}}
++      if(jpegOffset!==null||jpegSize!==null){if(jpegOffset===null||jpegSize===null||!fits(jpegOffset,jpegSize))return null;high=Math.max(high,jpegOffset+jpegSize);}
++      queue.push(u32(at+2+count*12));
++    }return seen.size?finish(high):null;
++  }
++  return null;
++};

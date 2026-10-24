@@ -8,6 +8,9 @@ public struct AlternativeEditorPreferences: Equatable, Sendable {
     public init(custom: Bool = false, applicationPath: String = "", bookmark: Data? = nil) {
         self.custom = custom; self.applicationPath = applicationPath; self.bookmark = bookmark
     }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.custom == rhs.custom && lhs.applicationPath.utf8.elementsEqual(rhs.applicationPath.utf8) && lhs.bookmark == rhs.bookmark
+    }
     public var customApplication: URL? {
         guard custom, !applicationPath.isEmpty else { return nil }
         return URL(fileURLWithPath: applicationPath, isDirectory: program.isApplicationBundle)

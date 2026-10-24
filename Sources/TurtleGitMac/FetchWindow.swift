@@ -264,6 +264,7 @@ import TurtleGitCore
         guard !invalidated, !confirmingQuit, !busy, !preparingRemote, !browsing, progress == nil, fetchProgress == nil else { return }; formRevision = UUID(); busy = true; error = nil; preparationNeedsRetry = false
         loadPresetRemote = presetRemote; loadPresetAllRemotes = presetAllRemotes
         let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1; pendingOperations += 1
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task { [self, access] in
             defer {
                 Self.activePreparationReads -= 1; pendingOperations -= 1
@@ -440,6 +441,7 @@ import TurtleGitCore
               window?.attachedSheet==nil,NSApp.modalWindow==nil else{return}
         formRevision=UUID();let token=OperationCancellation();metadataToken=token;busy=true;error=nil;preparationNeedsRetry=false;retryManagerReceipt=receipt
         Self.activePreparationReads += 1;pendingOperations += 1
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task { [self,access] in
             defer {
                 Self.activePreparationReads -= 1;pendingOperations -= 1;withExtendedLifetime(access){}

@@ -98,7 +98,7 @@ struct UnifiedDiffViewerSettings: View {
                         PathEntryField(text:Binding(get:{draft.applicationPath},set:{draft.applicationPath=$0;draft.bookmark=nil}),label:"Unified Diff program",preferences:preferences,mayEdit:{draft.enabled && !chooser.selecting}).frame(height:24)
                         Button("Browse…", action: browse)
                     }.disabled(!draft.enabled)
-                    HStack {Text("Arguments:").frame(width:120,alignment:.leading);TextField("",text:$draft.arguments).accessibilityLabel("Unified Diff arguments").accessibilityIdentifier("UnifiedDiff.ViewerArguments")}.disabled(!draft.enabled)
+                    HStack {Text("Arguments:").frame(width:120,alignment:.leading);ToolLiteralTextField(text:$draft.arguments,label:"Unified Diff arguments",mayEdit:{draft.enabled && !chooser.selecting}).frame(height:24).accessibilityIdentifier("UnifiedDiff.ViewerArguments")}.disabled(!draft.enabled)
                     Text("Use %1 for the patch and %title for its title. The patch is appended when %1 is absent. Leave arguments empty to open a document in an app bundle. Quotes group an argument; filenames and titles are substituted afterward.").font(.caption).foregroundStyle(.secondary)
                     if !draft.valid { Text(draft.argumentsValid ? "Choose an application bundle or executable using its full path." : "Finish the quote or escape in the arguments.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)

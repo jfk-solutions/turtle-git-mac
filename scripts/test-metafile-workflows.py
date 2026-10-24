@@ -7,6 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 CASES = {
+    'compressed-raster': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'embedded-metafiles': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'drawing-state': ('metafile-drawing-state-native-2026-10-23.swift', 'MetafileDrawingStateVerification'),
     'classic-patternbrushes': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
@@ -39,7 +40,7 @@ for filename in dict.fromkeys(filename for filename, _ in CASES.values()):
     if not path.is_file() or path.read_text() != contents:
         path.write_text(contents)
     fixtures.append(path)
-dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('embeddedMetafiles:true' if case == 'embedded-metafiles' else 'classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
+dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('compressedRaster:true' if case == 'compressed-raster' else 'embeddedMetafiles:true' if case == 'embedded-metafiles' else 'classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
 main = generated/'MetafileWorkflowMain.swift'
 main_contents = '''import AppKit
 import ObjectiveC
@@ -82,7 +83,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             private_home=directory/'home';private_home.mkdir(mode=0o700)
             environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            if case in ['embedded-metafiles','drawing-state','consumers','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            if case in ['compressed-raster','embedded-metafiles','drawing-state','consumers','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             environment.pop('TURTLEGIT_DRAWING_STATE_CAPTURES', None)
             if args.capture_dir and case == 'drawing-state' and index == 0:
                 args.capture_dir.resolve().mkdir(parents=True, exist_ok=True)

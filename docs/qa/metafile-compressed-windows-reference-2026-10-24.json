@@ -1,0 +1,951 @@
+{
+  "date": "2026-10-24",
+  "status": "bounded-Windows-reference",
+  "repository": "jfk-solutions/turtle-git-mac",
+  "branch": "codex/metafile-rendering-oracle",
+  "runs": [
+    {
+      "commit": "c0559dd0",
+      "run": 40121117470,
+      "job": 120952645131,
+      "cases": 15,
+      "outcome": "Probe exposed authored unaligned EmfPlusObject DataSize; GIF/JPEG records did not paint. New fixtures corrected, no production rendering pass inferred."
+    },
+    {
+      "commit": "abebb72f",
+      "run": 40121636918,
+      "job": 120954280970,
+      "cases": 24
+    },
+    {
+      "commit": "dec2e168",
+      "run": 40121915174,
+      "job": 120955135237,
+      "cases": 10
+    }
+  ],
+  "platform": "Microsoft Windows NT 10.0.20348.0",
+  "method": "Original synthetic compressed EMF+/WMF/EMF and independent raw Image.FromFile controls rendered through Windows System.Drawing/GDI+ onto 64x64 96dpi ARGB bitmaps. Samples are straight ARGB. Native recorder outputs retained in job logs.",
+  "observations": {
+    "gif_animated": "Any positive frame delay or NETSCAPE looping makes the tested two-frame files animated (FrameCount2); embedded metafile draws first frame.",
+    "gif_static": "No delay and no loop yields one GDI+ static image containing the final composition, including transparent delta overlay, rather than frame zero.",
+    "tiff": "Two-page TIFF uses the first page; tested orientation6 is not applied.",
+    "jpeg_exif": "Tested JPEG EXIF orientation6 is not applied.",
+    "classic": "All four valid compressed classic JPEG/PNG StretchDIB probes remained transparent on this Windows bitmap playback device. Specification-supported macOS decoding is not certified identical Windows driver behavior."
+  },
+  "full_grid_equalities": {
+    "gif_alpha_vs_raw_control": true,
+    "tiff_alpha_vs_raw_control": true,
+    "tiff_pages_vs_single": true,
+    "tiff_orientation6_vs_plain": true,
+    "jpeg_exif6_vs_plain": true
+  },
+  "cases": [
+    {
+      "name": "compressed-raster-control-image-gif-alpha.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-control-image-tiff-alpha.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00807F"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-exif-orientation6.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFE0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF01"
+        ],
+        [
+          17,
+          49,
+          "FF0000FE"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF01"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-alpha.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-two-frames.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FF0000FF"
+        ],
+        [
+          49,
+          17,
+          "FF0000FF"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FF0000FF"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-jpeg.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFE0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF01"
+        ],
+        [
+          17,
+          49,
+          "FF0000FE"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF01"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-tiff-alpha.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00807F"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-tiff-orientation6.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-tiff-two-pages.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-tiff.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-stretch-jpeg-emf.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "00000000"
+        ],
+        [
+          49,
+          17,
+          "00000000"
+        ],
+        [
+          17,
+          49,
+          "00000000"
+        ],
+        [
+          49,
+          49,
+          "00000000"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-stretch-jpeg-wmf.wmf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "00000000"
+        ],
+        [
+          49,
+          17,
+          "00000000"
+        ],
+        [
+          17,
+          49,
+          "00000000"
+        ],
+        [
+          49,
+          49,
+          "00000000"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-stretch-png-emf.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "00000000"
+        ],
+        [
+          49,
+          17,
+          "00000000"
+        ],
+        [
+          17,
+          49,
+          "00000000"
+        ],
+        [
+          49,
+          49,
+          "00000000"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-stretch-png-wmf.wmf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "00000000"
+        ],
+        [
+          49,
+          17,
+          "00000000"
+        ],
+        [
+          17,
+          49,
+          "00000000"
+        ],
+        [
+          49,
+          49,
+          "00000000"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-exif-orientation6.jpg",
+      "frame_counts": [
+        1
+      ],
+      "orientation": 6,
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFE0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF01"
+        ],
+        [
+          17,
+          49,
+          "FF0000FE"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF01"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-alpha.gif",
+      "frame_counts": [
+        1
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-two-frames.gif",
+      "frame_counts": [
+        1
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FF0000FF"
+        ],
+        [
+          49,
+          17,
+          "FF0000FF"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FF0000FF"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif.gif",
+      "frame_counts": [
+        1
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-jpeg.jpg",
+      "frame_counts": [
+        1
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFE0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF01"
+        ],
+        [
+          17,
+          49,
+          "FF0000FE"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF01"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-tiff-alpha.tiff",
+      "frame_counts": [
+        1
+      ],
+      "orientation": 1,
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00807F"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-tiff-orientation6.tiff",
+      "frame_counts": [
+        1
+      ],
+      "orientation": 6,
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-tiff-two-pages.tiff",
+      "frame_counts": [
+        2
+      ],
+      "orientation": 1,
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-tiff.tiff",
+      "frame_counts": [
+        1
+      ],
+      "orientation": 1,
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-two-frames-delay0-loop.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-two-frames-delay10-loop.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-two-frames-delay10-noloop.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-two-frames-delta-loop.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "compressed-raster-image-gif-two-frames-delta-noloop.emf",
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-two-frames-delay0-loop.gif",
+      "frame_counts": [
+        2
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-two-frames-delay10-loop.gif",
+      "frame_counts": [
+        2
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-two-frames-delay10-noloop.gif",
+      "frame_counts": [
+        2
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-two-frames-delta-loop.gif",
+      "frame_counts": [
+        2
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FFFF0000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    },
+    {
+      "name": "raw-compressed-raster-source-gif-two-frames-delta-noloop.gif",
+      "frame_counts": [
+        1
+      ],
+      "quadrants": [
+        [
+          17,
+          17,
+          "FF9F6000"
+        ],
+        [
+          49,
+          17,
+          "FF00FF00"
+        ],
+        [
+          17,
+          49,
+          "FF0000FF"
+        ],
+        [
+          49,
+          49,
+          "FFFFFF00"
+        ]
+      ]
+    }
+  ],
+  "local_full_samples": [
+    "build/qa/windows-compressed-raster-reference-2026-10-24/samples-1.json",
+    "build/qa/windows-compressed-raster-reference-2026-10-24/samples-2.json",
+    "build/qa/windows-compressed-raster-reference-2026-10-24/samples-3.json"
+  ],
+  "limits": [
+    "This does not certify every compressed format, GIF extension/disposal mode, printer/display driver or native signed app consumer.",
+    "macOS implementation/build/Core/native validation is recorded separately."
+  ]
+}

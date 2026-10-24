@@ -310,3 +310,13 @@ reviewed full-window light/dark captures.
 [Presentation comment and thread review](PRESENTATION-COMMENTS-PARITY.md) records classic and modern comment decisions, authors, anchors and coherent editable export.
 
 [Embedded metafile images and textures](METAFILE-EMBEDDED-IMAGE-PARITY.md) records nested WMF/EMF/EMF+ playback, affine placement and Windows-reference limits.
+
+[External tool configuration](LITERAL-TOOL-CONFIGURATION-PARITY.md) covers literal
+commands, association routing and owned native settings editors/choosers.
+
+[Backend metadata reads](BACKEND-METADATA-PARITY.md) covers source-selected
+reference catalogs, labels, tag objects and batched History/Sync actions.
+
+[Compressed metafile rasters](METAFILE-COMPRESSED-RASTER-PARITY.md) records
+GIF/TIFF/EXIF image and brush playback, classic stretched transfers and Windows
+reference differences.

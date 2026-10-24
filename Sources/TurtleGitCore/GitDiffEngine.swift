@@ -90,6 +90,32 @@ extension GitRepository {
         _ = try run(["turtlegit-history-diff"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:input,retainStandardOutput:false,consumeOutput:{chunk in if case .stdout=chunk.stream{try decoder.append(chunk.data)}},executorOverride:executor)
         try cancellation?.check();return try decoder.finish()
     }
+    /// One process for a bounded page; each existing per-revision transaction
+    /// must complete before the next header is accepted. No partial page escapes.
+    func historyDiffBatch(revisions:[String],backend:GitLibGit2Configuration,cancellation:OperationCancellation?) throws -> [GitHistoryDiffResult] {
+        guard !revisions.isEmpty,revisions.count<=128,revisions.allSatisfy({GitHistoryDiffDecoder.oid($0,length:$0.utf8.count,zero:false)}),let executor=try backend.executor(for:.logListDiff) else{throw GitDiffEngineFailure.request}
+        let input=try JSONSerialization.data(withJSONObject:["version":1,"revisions":revisions,"simple":false,"threshold":diffDetection.percentage],options:.sortedKeys)
+        var pending=Data(),results=[GitHistoryDiffResult](),decoder=GitHistoryDiffDecoder(revision:revisions[0],simple:false),total=0
+        _ = try run(["turtlegit-history-diff-batch"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:input,retainStandardOutput:false,consumeOutput:{chunk in
+            guard case .stdout=chunk.stream else{return}
+            guard chunk.data.count<=64*1024*1024-total else{throw GitDiffEngineFailure.budget};total+=chunk.data.count;pending.append(chunk.data)
+            while let end=pending.firstIndex(of:10) {
+                try cancellation?.check()
+                let line=Data(pending[...end]);pending.removeSubrange(...end)
+                guard results.count<revisions.count else{throw GitDiffEngineFailure.metadata}
+                try decoder.append(line)
+                let payload=line.dropLast().dropFirst(GitHistoryDiffDecoder.prefix.count)
+                guard let bytes=Data(base64Encoded:Data(payload)),let object=try JSONSerialization.jsonObject(with:bytes) as? [String:Any] else{throw GitDiffEngineFailure.metadata}
+                if object["kind"] as? String == "end" {
+                    results.append(try decoder.finish())
+                    if results.count<revisions.count {decoder=GitHistoryDiffDecoder(revision:revisions[results.count],simple:false)}
+                }
+            }
+            guard pending.count<=2*1024*1024 else{throw GitDiffEngineFailure.budget}
+        },executorOverride:executor)
+        guard pending.isEmpty,results.count==revisions.count else{throw GitDiffEngineFailure.metadata}
+        try cancellation?.check();return results
+    }
     /// Only callers presenting a source unified patch use this entry point.
     /// Index-only staging previews retain their existing CLI implementation;
     /// source GetUnifiedDiff has no index endpoint.

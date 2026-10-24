@@ -8,6 +8,7 @@ public enum GitLocalReferenceEngineFailure: LocalizedError {
 }
 struct GitLocalReferenceRecord: Sendable {
     let name: String, oid: String, objectType: String
+    let peeledOID:String?
     let symbolicTarget: String?, upstream: String?, subject: String
     let authorName: String, authorEmail: String, committerName: String, committerEmail: String
     let authorTime: Int64?, committerTime: Int64?
@@ -15,6 +16,7 @@ struct GitLocalReferenceRecord: Sendable {
 struct GitLocalReferenceReply: Sendable {
     let references: [GitLocalReferenceRecord]
     let names: [String]
+    let choices:[CheckoutReference]
     let deleted: (name:String,oid:String,symbolicTarget:String?)?
 }
 enum GitLocalReferenceProtocol {
@@ -29,7 +31,7 @@ enum GitLocalReferenceProtocol {
     static func decode(_ bytes:Data,operation:String,cancellation:OperationCancellation?=nil) throws -> GitLocalReferenceReply {
         guard bytes.count <= 64*1024*1024,bytes.last == 10 else { throw GitLocalReferenceEngineFailure.output }
         let lines=bytes.split(separator:10,omittingEmptySubsequences:false)
-        var references=[GitLocalReferenceRecord](),names=[String](),deleted:(String,String,String?)?,seen=Set<Data>(),started=false,ended=false,count=0
+        var choices=[CheckoutReference](),references=[GitLocalReferenceRecord](),names=[String](),deleted:(String,String,String?)?,seen=Set<Data>(),started=false,ended=false,count=0
         func string(_ obj:[String:Any],_ key:String) throws -> String {
             guard let value=obj[key] as? String,value.utf8.count<=1024*1024,!value.utf8.contains(0) else { throw GitLocalReferenceEngineFailure.output };return value
         }
@@ -51,13 +53,19 @@ enum GitLocalReferenceProtocol {
             case "reference":
                 guard started,operation=="inventory",count<100000 else { throw GitLocalReferenceEngineFailure.output }
                 let allowed:Set<String>=["kind","name","oid","objectType","symbolicTarget","upstream","subject","authorName","authorEmail","authorTime","committerName","committerEmail","committerTime"]
-                guard Set(obj.keys)==allowed else {throw GitLocalReferenceEngineFailure.output}
+                guard Set(obj.keys)==allowed || Set(obj.keys)==allowed.union(["peeledOID"]) else {throw GitLocalReferenceEngineFailure.output}
                 let name=try string(obj,"name"),oid=try string(obj,"oid"),type=try string(obj,"objectType"),symbolic=try optional(obj,"symbolicTarget"),upstream=try optional(obj,"upstream")
                 guard validName(name),validOID(oid),["commit","tag","tree","blob"].contains(type),symbolic.map(validName) ?? true,upstream.map({$0.isEmpty || validName($0)}) ?? true,seen.insert(Data(name.utf8)).inserted else {throw GitLocalReferenceEngineFailure.output}
-                references.append(.init(name:name,oid:oid,objectType:type,symbolicTarget:symbolic,upstream:upstream,subject:try string(obj,"subject"),authorName:try string(obj,"authorName"),authorEmail:try string(obj,"authorEmail"),committerName:try string(obj,"committerName"),committerEmail:try string(obj,"committerEmail"),authorTime:try time(obj,"authorTime"),committerTime:try time(obj,"committerTime")));count+=1
+                let peeled=try optional(obj,"peeledOID");guard peeled.map(validOID) ?? true else{throw GitLocalReferenceEngineFailure.output}
+                references.append(.init(name:name,oid:oid,objectType:type,peeledOID:peeled,symbolicTarget:symbolic,upstream:upstream,subject:try string(obj,"subject"),authorName:try string(obj,"authorName"),authorEmail:try string(obj,"authorEmail"),committerName:try string(obj,"committerName"),committerEmail:try string(obj,"committerEmail"),authorTime:try time(obj,"authorTime"),committerTime:try time(obj,"committerTime")));count+=1
+            case "choice":
+                guard started,operation=="choices",Set(obj.keys)==["kind","name","symbolicTarget"],count<100000 else{throw GitLocalReferenceEngineFailure.output}
+                let name=try string(obj,"name"),symbolic=try optional(obj,"symbolicTarget")
+                guard validName(name),symbolic.map(validName) ?? true,seen.insert(Data(name.utf8)).inserted else{throw GitLocalReferenceEngineFailure.output}
+                choices.append(.init(name:name,symbolicTarget:symbolic));count+=1
             case "contains":
-                guard started,["contains","names"].contains(operation),Set(obj.keys)==["kind","name"],count<100000 else {throw GitLocalReferenceEngineFailure.output}
-                let name=try string(obj,"name");guard validName(name),seen.insert(Data(name.utf8)).inserted else {throw GitLocalReferenceEngineFailure.output};names.append(name);count+=1
+                guard started,["contains","names","remotes"].contains(operation),Set(obj.keys)==["kind","name"],count<100000 else {throw GitLocalReferenceEngineFailure.output}
+                let name=try string(obj,"name");guard (operation=="remotes" ? !name.isEmpty : validName(name)),seen.insert(Data(name.utf8)).inserted else {throw GitLocalReferenceEngineFailure.output};names.append(name);count+=1
             case "deleted":
                 guard started,operation=="delete",count==0,Set(obj.keys)==["kind","name","oid","symbolicTarget"] else {throw GitLocalReferenceEngineFailure.output}
                 let name=try string(obj,"name"),oid=try string(obj,"oid"),symbolic=try optional(obj,"symbolicTarget")
@@ -68,7 +76,7 @@ enum GitLocalReferenceProtocol {
             }
         }
         guard started,ended else {throw GitLocalReferenceEngineFailure.output};try cancellation?.check()
-        return .init(references:references,names:names,deleted:deleted)
+        return .init(references:references,names:names,choices:choices,deleted:deleted)
     }
 }
 
@@ -85,6 +93,17 @@ extension GitRepository {
             }
         },executorOverride:executor)
         return try GitLocalReferenceProtocol.decode(output,operation:operation,cancellation:cancellation)
+    }
+    /// GetBranchList/GetTagList/GetRemoteList/GetMapHashToFriendName use the
+    /// master setting independently of the Reference Browser's command mask.
+    func masterReferenceBackend() -> GitLibGit2Configuration? {
+        let selected=libgit2Configuration ?? .load()
+        return selected.enabled ? .init(enabled:true,mask:GitLibGit2Operation.forEachRef.mask,helperURL:selected.helperURL) : nil
+    }
+    func masterRemoteNames(cancellation:OperationCancellation?) throws -> [String]? {
+        guard let backend=masterReferenceBackend() else{return nil}
+        let names=try localReferenceReply(verb:"turtlegit-configured-remotes",operation:"remotes",request:["version":1],backend:backend,command:.forEachRef,cancellation:cancellation).names
+        return names.sorted {let order=$0.localizedStandardCompare($1);return order == .orderedSame ? $0.utf8.lexicographicallyPrecedes($1.utf8) : order == .orderedAscending}
     }
     public func localReferenceBackendIdentity(cancellation:OperationCancellation?=nil,backend:GitLibGit2Configuration?=nil) throws -> String {
         try cancellation?.check();let selected=backend ?? libgit2Configuration ?? .load()

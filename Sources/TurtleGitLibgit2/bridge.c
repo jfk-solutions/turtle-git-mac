@@ -610,17 +610,18 @@ int tg_history_diff(const char *path,const char *revision,int simple,unsigned in
 
 /* Local reference reads use their pinned source command gates in Core. These
  * callbacks retain literal names before resolving a symbolic reference. */
-static int local_reference_row(context *ctx,git_repository *repo,git_reference *raw,int metadata){
- git_reference *ref=NULL;git_object *object=NULL;git_buf upstream=GIT_BUF_INIT;int result=0;
+static int local_reference_row(context *ctx,git_repository *repo,git_reference *raw,int metadata,int skip_unresolved_remote){
+ git_reference *ref=NULL;git_object *object=NULL,*peeled=NULL;git_buf upstream=GIT_BUF_INIT;int result=0;
  const char *name=git_reference_name(raw),*symbolic=git_reference_symbolic_target(raw);
- if((result=git_reference_resolve(&ref,raw))<0)goto done;
+ if((result=git_reference_resolve(&ref,raw))<0){if(skip_unresolved_remote&&git_reference_is_remote(raw)&&git_reference_type(raw)==GIT_REFERENCE_SYMBOLIC){git_error_clear();result=0;}goto done;}
  const git_oid *oid=git_reference_target(ref);char hex[GIT_OID_SHA1_HEXSIZE+1];
  if(!oid){result=-1;git_error_set_str(GIT_ERROR_REFERENCE,"Reference has no object ID");goto done;}
- git_oid_tostr(hex,sizeof(hex),oid);
+ git_oid_tostr(hex,sizeof(hex),oid);char peeled_hex[GIT_OID_SHA1_HEXSIZE+1];
  tg_local_reference row={0};row.name=name;row.oid=hex;row.symbolic_target=symbolic;row.object_type="";row.subject="";row.author_name="";row.author_email="";row.committer_name="";row.committer_email="";
  if(metadata){
-  if((result=git_object_lookup(&object,repo,oid,GIT_OBJECT_ANY))<0)goto done;
+  if((result=git_object_lookup(&object,repo,oid,GIT_OBJECT_ANY))<0){if(skip_unresolved_remote&&git_reference_is_remote(raw)&&git_reference_type(raw)==GIT_REFERENCE_SYMBOLIC){git_error_clear();result=0;}goto done;}
   row.object_type=git_object_type2string(git_object_type(object));
+  if(git_object_type(object)==GIT_OBJECT_TAG){if((result=git_object_peel(&peeled,object,GIT_OBJECT_ANY))<0)goto done;git_oid_tostr(peeled_hex,sizeof(peeled_hex),git_object_id(peeled));row.peeled_oid=peeled_hex;}
   const git_signature *author=NULL,*committer=NULL;
   if(git_object_type(object)==GIT_OBJECT_TAG && git_reference_is_tag(ref)){
    git_tag *tag=(git_tag *)object;const char *message=git_tag_message(tag);row.subject=message?message:"";author=committer=git_tag_tagger(tag);
@@ -637,7 +638,7 @@ static int local_reference_row(context *ctx,git_repository *repo,git_reference *
  }
  if(stopped(ctx)){result=GIT_EUSER;goto done;}
  if(ctx->callbacks->local_reference)result=ctx->callbacks->local_reference(&row,ctx->callbacks->payload);
- done:git_buf_dispose(&upstream);git_object_free(object);git_reference_free(ref);return result;
+ done:git_buf_dispose(&upstream);git_object_free(peeled);git_object_free(object);git_reference_free(ref);return result;
 }
 int tg_local_references(const char *path,int scope,tg_callbacks *callbacks){
  git_repository *repo=NULL;git_reference_iterator *iterator=NULL;git_reference *ref=NULL;int result=0;size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
@@ -645,8 +646,8 @@ int tg_local_references(const char *path,int scope,tg_callbacks *callbacks){
  while((result=git_reference_next(&ref,iterator))==0){
   if(stopped(&ctx)){result=GIT_EUSER;goto done;}
   if(++count>100000){git_error_set_str(GIT_ERROR_REFERENCE,"Reference inventory exceeds bounds");result=-1;goto done;}
-  const char *name=git_reference_name(ref);int included=scope==0||(scope==1&&!strncmp(name,"refs/heads/",11))||(scope==2&&(!strncmp(name,"refs/heads/",11)||!strncmp(name,"refs/tags/",10)))||(scope==3&&strncmp(name,"refs/tags/",10))||(scope==4&&!strncmp(name,"refs/remotes/",13));
-  result=included?local_reference_row(&ctx,repo,ref,1):0;git_reference_free(ref);ref=NULL;if(result<0)goto done;
+  const char *name=git_reference_name(ref);int included=scope==0||scope==5||(scope==1&&!strncmp(name,"refs/heads/",11))||(scope==2&&(!strncmp(name,"refs/heads/",11)||!strncmp(name,"refs/tags/",10)))||(scope==3&&strncmp(name,"refs/tags/",10))||(scope==4&&!strncmp(name,"refs/remotes/",13));
+  result=included?local_reference_row(&ctx,repo,ref,1,scope==5):0;git_reference_free(ref);ref=NULL;if(result<0)goto done;
  }
  if(result==GIT_ITEROVER)result=0;
  done:git_reference_free(ref);git_reference_iterator_free(iterator);git_repository_free(repo);return result;
@@ -665,7 +666,7 @@ int tg_containing_references(const char *path,const char *hash,int tags,int loca
     git_object *peeled=NULL;if(git_object_peel(&peeled,object,GIT_OBJECT_ANY)==0){git_object_free(object);object=peeled;oid=git_object_id(object);}else{git_error_clear();oid=NULL;}
    }else git_error_clear();
    if(oid && (git_oid_equal(oid,&wanted)||git_graph_descendant_of(repo,oid,&wanted)==1)){
-    result=local_reference_row(&ctx,repo,raw,0);if(result<0)goto done;
+    result=local_reference_row(&ctx,repo,raw,0,0);if(result<0)goto done;
    }
   }
   /* The source skips unresolved/tag-peeling/graph failures per reference. */
@@ -991,4 +992,37 @@ int tg_finder_status(const char *path,int full,int case_sensitive,uint32_t limit
  if(index_path){int exists=lstat(index_path,&index_after)==0;if(exists!=had_index||(exists&&!finder_same_stat(&index_before,&index_after))){git_error_set_str(GIT_ERROR_INDEX,"Finder index changed during collection; retry required");result=-1;goto done;}}
  if(full){git_object *current=NULL;result=git_revparse_single(&current,repo,"HEAD^{tree}");if(!head&&(result==GIT_ENOTFOUND||result==GIT_EUNBORNBRANCH)){git_error_clear();result=0;}else if(result==0&&(!head||!git_oid_equal(git_object_id(head),git_object_id(current)))){git_error_set_str(GIT_ERROR_REFERENCE,"Finder HEAD changed during collection; retry required");result=-1;}git_object_free(current);}
  done:free(index_path);if(root>=0)close(root);git_object_free(head);git_index_free(index);git_repository_free(repo);active_context=NULL;return result;
+}
+
+/* Master-switch metadata endpoints retain literal configured names and object bytes. */
+int tg_configured_remotes(const char *path,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_strarray names={0};int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_remote_list(&names,repo))<0)goto done;
+ if(names.count>100000){git_error_set_str(GIT_ERROR_CONFIG,"Remote inventory exceeds bounds");result=-1;goto done;}
+ for(size_t i=0;i<names.count;i++){if(stopped(&ctx)){result=GIT_EUSER;goto done;}tg_local_reference row={0};row.name=names.strings[i];if(callbacks->local_reference&&(result=callbacks->local_reference(&row,callbacks->payload))<0)goto done;}
+ done:git_strarray_dispose(&names);git_repository_free(repo);return result;
+}
+int tg_tag_object(const char *path,const char *hash,int framed,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_odb *odb=NULL;git_odb_object *object=NULL;git_oid oid;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if((result=git_oid_fromstr(&oid,hash))<0||(result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_repository_odb(&odb,repo))<0||(result=git_odb_read(&object,odb,&oid))<0)goto done;
+ if(git_odb_object_type(object)!=GIT_OBJECT_TAG||git_odb_object_size(object)>67108864){git_error_set_str(GIT_ERROR_OBJECT,"Invalid or oversized tag object");result=-1;goto done;}
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}if(callbacks->result){
+  if(framed){char header[128];int length=snprintf(header,sizeof(header),"%s tag %zu\n",hash,git_odb_object_size(object));callbacks->result(header,(size_t)length,callbacks->payload);}
+  callbacks->result(git_odb_object_data(object),git_odb_object_size(object),callbacks->payload);
+  if(framed)callbacks->result("\n",1,callbacks->payload);
+ }
+ done:git_odb_object_free(object);git_odb_free(odb);git_repository_free(repo);return result;
+}
+
+int tg_checkout_references(const char *path,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_reference_iterator *iterator=NULL;git_reference *ref=NULL;int result=0;size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_reference_iterator_new(&iterator,repo))<0)goto done;
+ while((result=git_reference_next(&ref,iterator))==0){
+  if(stopped(&ctx)||++count>100000){result=GIT_EUSER;goto done;}
+  tg_local_reference row={0};row.name=git_reference_name(ref);row.symbolic_target=git_reference_symbolic_target(ref);
+  if(callbacks->local_reference&&(result=callbacks->local_reference(&row,callbacks->payload))<0)goto done;
+  git_reference_free(ref);ref=NULL;
+ }
+ if(result==GIT_ITEROVER)result=0;
+ done:git_reference_free(ref);git_reference_iterator_free(iterator);git_repository_free(repo);return result;
 }

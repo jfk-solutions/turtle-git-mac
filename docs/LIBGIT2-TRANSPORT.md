@@ -21,6 +21,17 @@ that is missing reports an error; it does not silently change the selected engin
 The backend choice is captured when an operation starts, so editing Settings
 cannot change an operation already waiting for a folder, key or credential.
 
+Branch, tag and configured-remote choices, History reference labels and annotated
+tag information follow the master **UseLibgit2** switch independently of the
+per-command mask. Disabling individual command bits therefore does not force
+those metadata lists to Git. Reference Browser retains its separate ForeachRef
+choice. Log action columns, path/action filtering, Synchronization action columns
+and combined changed-file reads follow LogListDiff bit `0x8000`, using bounded
+batches. Accepted reads keep their captured preference store even if Settings
+changes while they are pending. These are metadata reads; ordinary Push transport
+keeps its existing Git command. See the
+[backend metadata source comparison](BACKEND-METADATA-PARITY.md).
+
 Unified patch display uses Diff bit `0x10`; historical changed-file lists and
 history file searches use LogListDiff bit `0x8000`. Both are off in the source
 default mask. Selected unified output includes source full statistics and patch

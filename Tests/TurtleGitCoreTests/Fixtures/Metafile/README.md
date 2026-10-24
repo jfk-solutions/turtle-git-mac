@@ -472,3 +472,27 @@ unchanged. Invalid child/header/type/size/reference, recursion and playback-coun
 samples must fail the whole outer image. See
 [embedded image parity](../../../../docs/METAFILE-EMBEDDED-IMAGE-PARITY.md) for
 source contracts, bounds and the pending grouped checkpoint.
+
+
+## Compressed raster sources
+
+`generate-compressed-raster.py` authors 110 accepted EMF/WMF payloads and 21
+malformed/budget refusals, plus 14 original GIF/TIFF/JPEG source containers.
+Previous 1,334 EMF/WMF/PNG payloads remain byte-identical. EMF+ Object DataSize
+includes its DWORD alignment padding, including compressed streams with an odd
+length. GIF/TIFF images and texture/pen brushes compare with independent raw BGRA
+controls. Crop, affine/mirrored placement, clip, wrap, image attributes, partial
+alpha and SourceCopy retain the same consumers as other bitmap images.
+
+GIF controls distinguish timed/NETSCAPE-loop animation (default first frame) from
+an untimed nonlooping sequence (static final composite), with transparent delta
+rectangles preserving the earlier canvas. TIFF defaults to its first page.
+TIFF/JPEG orientation6 metadata is intentionally ignored as observed in Windows
+GDI+ serialized playback. The raw source containers accompany the records so the
+reference decoder can independently distinguish a valid codec from a record
+framing error. Classic compressed JPEG/PNG stretched transfers retain RGB-only,
+SRCCOPY and opaque-color semantics. Wrong compression tags/codec payloads,
+indexed usage, noncopy ROPs, negative compressed DIB height, corrupt containers,
+trailing junk, frame/dimension limits and aggregate expansion must fail the whole
+conversion. See [compressed raster parity](../../../../docs/METAFILE-COMPRESSED-RASTER-PARITY.md)
+for Windows observations and remaining platform limits.

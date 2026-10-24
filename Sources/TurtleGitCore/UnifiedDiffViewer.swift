@@ -65,6 +65,10 @@ public struct UnifiedDiffViewerPreferences: Equatable, Sendable {
     public init(enabled: Bool = false, applicationPath: String = "", bookmark: Data? = nil, arguments: String = "") {
         self.enabled = enabled; self.applicationPath = applicationPath; self.bookmark = bookmark; self.arguments = arguments
     }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.enabled == rhs.enabled && lhs.applicationPath.utf8.elementsEqual(rhs.applicationPath.utf8) &&
+        lhs.arguments.utf8.elementsEqual(rhs.arguments.utf8) && lhs.bookmark == rhs.bookmark
+    }
     public var program: DiffToolProgram {
         var value = DiffToolProgram(); value.enabled = true; value.applicationPath = applicationPath; value.bookmark = bookmark; value.arguments = arguments; return value
     }

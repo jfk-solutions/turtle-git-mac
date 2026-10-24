@@ -10,6 +10,38 @@ import AppKit
 private let inputLimit = 64 * 1024 * 1024
 private let outputLimit = 128 * 1024 * 1024
 private enum ConversionError: Error { case invalid(String) }
+/// GDI+ exposes timed/looping GIFs as animation (default frame zero), but
+/// flattens an untimed, nonlooping sequence to its final composited canvas.
+/// ImageIO clamps zero delays and supplies a default LoopCount, so classify
+/// the original control/application records instead of those normalized values.
+private func compressedGIFIsAnimated(_ bytes:Data)throws->Bool {
+    func need(_ p:Int,_ n:Int)throws {guard p>=0,n>=0,p<=bytes.count-n else{throw ConversionError.invalid("Truncated compressed GIF control data")}}
+    try need(0,13)
+    var p=13+((bytes[10]&128) != 0 ? 3*(1 << (Int(bytes[10]&7)+1)):0),animated=false,steps=0
+    func subblocks(_ inspect:((Data)->Void)? = nil)throws {
+        while true {try need(p,1);let count=Int(bytes[p]);p += 1;if count==0{return};try need(p,count);inspect?(bytes.subdata(in:p..<p+count));p += count;steps += 1;guard steps<=1_048_576 else{throw ConversionError.invalid("Compressed GIF control budget exceeded")}}
+    }
+    while true {
+        try need(p,1);let kind=bytes[p];p += 1;steps += 1
+        guard steps<=1_048_576 else{throw ConversionError.invalid("Compressed GIF control budget exceeded")}
+        if kind==59{return animated}
+        if kind==33 {
+            try need(p,1);let label=bytes[p];p += 1
+            if label==249 {
+                try need(p,6);guard bytes[p]==4,bytes[p+5]==0 else{throw ConversionError.invalid("Invalid compressed GIF graphics control")}
+                if bytes[p+2] != 0 || bytes[p+3] != 0 {animated=true};p += 6
+            } else if label==255 {
+                try need(p,1);let count=Int(bytes[p]);p += 1;try need(p,count)
+                let identifier=String(data:bytes.subdata(in:p..<p+count),encoding:.ascii);p += count
+                try subblocks { block in if identifier=="NETSCAPE2.0",block.count==3,block[0]==1{animated=true} }
+            } else {try subblocks()}
+        } else if kind==44 {
+            try need(p,9);let flags=bytes[p+8];p += 9+((flags&128) != 0 ? 3*(1 << (Int(flags&7)+1)):0)
+            try need(p,1);p += 1;try subblocks()
+        } else {throw ConversionError.invalid("Invalid compressed GIF record")}
+    }
+}
+
 /// Classic direct bitmap copies use RGB, independently of a compressed PNG's
 /// alpha. Preserve the decoded channel samples before any drawing/compositing;
 /// flattening over white would invent colors. Premultiplied transparent sources
@@ -1776,22 +1808,49 @@ private func run() throws {
         guard CGImageDestinationFinalize(destination), output.length <= outputLimit / 2 else { nativeError("Metafile bitmap output exceeds limit"); return "" }
         return "data:image/png;base64," + (output as Data).base64EncodedString()
     }
-    func compressedImage(_ value:JSValue,classicOpaque:Bool)->NSDictionary {
+    func compressedImage(_ value:JSValue,classicOpaque:Bool,raster:Bool=false)->NSDictionary {
         guard let raw = data(value), raw.count >= 8,
-              raw.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) || raw.starts(with: [255, 216, 255]),
+              raw.count <= inputLimit,
               let source = CGImageSourceCreateWithData(raw as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
-              CGImageSourceGetCount(source) == 1,
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let kind = CGImageSourceGetType(source) as String?,
+              [UTType.png.identifier,UTType.jpeg.identifier,UTType.gif.identifier,UTType.tiff.identifier].contains(kind),
+              (!classicOpaque || kind == UTType.png.identifier || kind == UTType.jpeg.identifier),
+              CGImageSourceGetStatus(source) == .statusComplete,
+              CGImageSourceGetCount(source) >= 1,CGImageSourceGetCount(source) <= 512,
+              (CGImageSourceGetCount(source) == 1 || !classicOpaque && [UTType.tiff.identifier,UTType.gif.identifier].contains(kind)) else {
+            nativeError("Invalid or oversized compressed metafile image");return [:]
+        }
+        let frames=CGImageSourceGetCount(source),selectedFrame:Int
+        do {if kind == UTType.gif.identifier {let animated=try compressedGIFIsAnimated(raw);selectedFrame=animated ? 0:frames-1}else{selectedFrame=0}}
+        catch {nativeError("Invalid compressed GIF frame controls");return [:]}
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, selectedFrame, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
               let height = properties[kCGImagePropertyPixelHeight] as? Int,
-              width > 0, height > 0, width <= 32768, height <= 32768, width <= 16777216 / height,
-              let decoded = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: !classicOpaque] as CFDictionary) else {
+              width > 0, height > 0, width <= 32768, height <= 32768, width <= 16777216 / height else {
             nativeError("Invalid or oversized compressed metafile image"); return [:]
+        }
+        let pixels = width * height,dependencies=kind == UTType.gif.identifier && selectedFrame>0 ? frames:1
+        guard pixels <= (67108864-decodedBitmapPixels)/dependencies else {nativeError("Metafile bitmap expansion budget exceeded");return [:]}
+        decodedBitmapPixels += pixels*dependencies
+        // ImageIO returns the complete logical GIF canvas at the chosen index,
+        // including preceding delta rectangles, transparency and disposal.
+        guard let decoded = CGImageSourceCreateImageAtIndex(source, selectedFrame, [kCGImageSourceShouldCacheImmediately: !classicOpaque] as CFDictionary),CGImageSourceGetStatusAtIndex(source,selectedFrame) == .statusComplete,decoded.width == width,decoded.height == height else {
+            nativeError("Invalid compressed metafile image pixels");return [:]
         }
         let image:CGImage
         do {image=classicOpaque ? try classicOpaqueCompressedImage(decoded):decoded}
         catch ConversionError.invalid(let message) {nativeError(message);return [:]}
         catch {nativeError("Cannot preserve classic compressed image colors");return [:]}
+        if raster {
+            var rgba = Data(count: pixels * 4)
+            let prepared = rgba.withUnsafeMutableBytes { storage -> Bool in
+                guard let space=CGColorSpace(name:CGColorSpace.sRGB),let canvas=CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.noneSkipLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{return false}
+                canvas.interpolationQuality = .none;canvas.draw(image,in:CGRect(x:0,y:0,width:width,height:height));return true
+            }
+            guard prepared else {nativeError("Cannot prepare compressed raster pixels");return [:]}
+            for offset in stride(from:3,to:rgba.count,by:4){rgba[offset]=255}
+            return ["rgba":rgba.base64EncodedString(),"width":width,"height":height]
+        }
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil) else {
             nativeError("Cannot encode compressed metafile image"); return [:]
@@ -1806,6 +1865,8 @@ private func run() throws {
     let compressedClassic:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:true)}
     context.setObject(compressed, forKeyedSubscript: "__turtleCompressedImage" as NSString)
     context.setObject(compressedClassic,forKeyedSubscript:"__turtleCompressedClassicImage" as NSString)
+    let compressedRaster:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:true,raster:true)}
+    context.setObject(compressedRaster,forKeyedSubscript:"__turtleCompressedClassicRaster" as NSString)
     context.setObject(decode, forKeyedSubscript: "__turtleDecode" as NSString)
     context.setObject(base64, forKeyedSubscript: "__turtleBase64" as NSString)
     context.setObject(measure, forKeyedSubscript: "__turtleMeasureText" as NSString)

@@ -12,6 +12,9 @@ extension GitRepository {
     /// GetMapHashToFriendName's CLI route uses show-ref -d. Unlike older Git's
     /// for-each-ref *objectname, this peels nested tags all the way to the target.
     func historyReferenceObjects(cancellation: OperationCancellation?) throws -> [HistoryReferenceObject] {
+        if let backend=masterReferenceBackend() {
+            return try localReferenceCatalog(scope:"labels",backend:backend,cancellation:cancellation).map {HistoryReferenceObject(name:$0.name,object:$0.oid,peeled:$0.peeledOID)}
+        }
         let arguments = ["show-ref", "--dereference"]
         let result = try run(arguments, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: 0...1, cancellation: cancellation)
         var objects: [(String, String)] = []

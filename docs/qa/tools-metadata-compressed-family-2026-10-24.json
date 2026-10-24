@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-24",
+  "baseline": "5aa3c08523044f37eb1c757db1b9cbafb27ba2f3",
+  "status": "scoped-validation-complete",
+  "scope": [
+    "External Diff/Merge/Alternative/Unified tool configuration, exact persisted values and native chooser ownership",
+    "Master-selected branch/tag/remote catalogs, history labels/tag bytes and bounded bit15 action metadata",
+    "Compressed GIF/TIFF/JPEG/PNG metafile images and brushes, classic stretched transfers and owned native consumers"
+  ],
+  "production_inputs": {
+    "Sources/TurtleGitCore/AlternativeEditorPreferences.swift": "dda08c1ad1e23139de5de7267d656985c447c37ccb0d17621cd9ff69c1fe2a9e",
+    "Sources/TurtleGitCore/Checkout.swift": "5420db8b3447a0c3d76d443ef87247e02e3e6b22a785195797dd6ddf8b594b2e",
+    "Sources/TurtleGitCore/CommitHistory.swift": "8d9777aa4ca10932b366c4cedff77c1c44ba8a4a86e4f23d734da52ab117a891",
+    "Sources/TurtleGitCore/DiffToolPreferences.swift": "71693a34f1428c9e2f27d67a81c0bfa49b3afb370e15888af13808f93915ab55",
+    "Sources/TurtleGitCore/GitDiffEngine.swift": "e92ef2faedeb71cec5076fb2038473db1adad86ca65b5b367ddae3e9c6e5c359",
+    "Sources/TurtleGitCore/GitLocalReferenceEngine.swift": "a72896a162adcd6feb7ff23160de03630bcfd37ccb22a3a4f7d3b44c9c09de85",
+    "Sources/TurtleGitCore/HistoryMetadataBatch.swift": "52c84fb5b0c7de381ad7510d5816cf67bea2fa1954d3bb3db35c98227af54151",
+    "Sources/TurtleGitCore/Push.swift": "0dd36006b61f1d12683fcefe39188c9b0ea6fe408f799ac9e964c5407867310b",
+    "Sources/TurtleGitCore/UnifiedDiffViewer.swift": "536ce1d9357cbfdd05edcd80ce8cc56107b63d66dd56f1a78c85885e95bf9d7a",
+    "Sources/TurtleGitLibgit2/bridge.c": "b2e50ceb7d8496d2c8402b8b74c9b1da43723766152a59892d8dbf39042d1597",
+    "Sources/TurtleGitLibgit2/bridge.h": "8be8592c5c4587bd90acc45b3619408c9980c8b9279fb39d900565cc1063bfec",
+    "Sources/TurtleGitLibgit2/main.swift": "21b0ca57071d80cb9d2b7dc8782d48cb384a23a08f064176b6fb906729541e44",
+    "Sources/TurtleGitMac/AlternativeEditorSettings.swift": "407625b21103c3c50481c219ef30247e83a51cef72d98bf1c73c81b958d4343b",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "b3ad793292784b127eb02a99860ff1b476b34011341bf7eeb7a05637f4bba290",
+    "Sources/TurtleGitMac/FetchWindow.swift": "fd6fc1f066c05d83d62a14bd73901c2ffd0be5cb0159334edf7f3ba7a134ea88",
+    "Sources/TurtleGitMac/PushWindow.swift": "6d641c0a6808d77b234970f0b47aa3048fee2859b38ff8d990cf344973d82a04",
+    "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift": "fa07bcf42513c82eaf7ddc68509d40eb7ea470c8c613fb399e753a59fec60be1",
+    "Sources/TurtleGitMetafile/main.swift": "e7b944bbdf8a779ab673eb1cabdd5de8b33236a2a10e05b0da8ef7d0fe107096"
+  },
+  "core": {
+    "distinct_methods_passed": 70,
+    "initial_methods": 70,
+    "initial_failed_methods": 2,
+    "initial_assertion_failures": 3,
+    "focused_repair_methods_passed": 2,
+    "logs": [
+      "build/qa/tools-metadata-compressed-core-2026-10-24.log",
+      "build/qa/tools-metadata-core-repair-2026-10-24.log"
+    ],
+    "repairs": [
+      "Compare source action enum R with CLI R100 by semantic action plus exact new/old paths and action-column classification; retained individual helper full-field assertions",
+      "Explicit CLI engine for existing CLI wrapper command-count oracle; selected helper tag bytes and batching covered separately"
+    ]
+  },
+  "runtimes": {
+    "libgit2_build_exit": 0,
+    "libgit2_both_architectures_exit": 0,
+    "metafile_build_exit": 0,
+    "metafile_both_architectures_exit": 0,
+    "logs": [
+      "build/qa/backend-metadata-runtime-2026-10-24.log",
+      "build/qa/backend-metadata-runtime-validation-2026-10-24.log",
+      "build/qa/compressed-raster-runtime-2026-10-24.log",
+      "build/qa/compressed-raster-runtime-validation-2026-10-24.log"
+    ],
+    "embedded_original_hashes_match_prepared_helpers": true
+  },
+  "app": {
+    "initial_exit": 65,
+    "repair": "Explicit self captures in nested chooser completion",
+    "repair_exit": 0,
+    "repair_exit_zero_diagnostics": 10,
+    "logs": [
+      "build/qa/tools-metadata-compressed-app-2026-10-24.log",
+      "build/qa/tools-metadata-compressed-app-repair-2026-10-24.log"
+    ],
+    "subsequent_native_repair": "Real AppKit editor proved SwiftUI canonical String edit suppression; native byte-exact field repair compiled and affected forms passed",
+    "native_input_repair": {
+      "exit_code": 0,
+      "log": "build/qa/literal-tools-native-input-app-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 2,
+      "change": "Native byte-exact tool text fields replace SwiftUI canonical-coalescing String fields; existing exact path-completion controls retained"
+    }
+  },
+  "native": {
+    "backend_metadata": {
+      "case_engine_pairs_passed": 4,
+      "log": "build/qa/backend-metadata-native-2026-10-24.log",
+      "receiver_pids": [
+        90865,
+        90916,
+        90965,
+        90989
+      ],
+      "independently_absent": true,
+      "owned_helper_cleanup_needed": false
+    },
+    "literal_tools": {
+      "initial_forms_receiver": 90750,
+      "real_editor_forms_receiver": 91298,
+      "both_independently_absent": true,
+      "logs": [
+        "build/qa/literal-tools-native-2026-10-24.log",
+        "build/qa/literal-tools-native-repair1-2026-10-24.log"
+      ],
+      "status": "passed-after-production-and-fixture-repairs",
+      "passed_cases": [
+        "forms",
+        "associations",
+        "chooser"
+      ],
+      "receiver_pids": [
+        92322,
+        92332,
+        92335
+      ],
+      "input_repair_log": "build/qa/literal-tools-native-input-2026-10-24.log",
+      "chooser_failure": "Offscreen SDK has no NSButton or SwiftUI virtual AX projection; keyboard policy excludes buttons from nextValidKeyView. Final fixture uses actual installed control geometry, hit-test and owned-window mouseDown/up, retaining sheet/grant/cancellation assertions",
+      "chooser_pass_receiver": 93083,
+      "chooser_pass_log": "build/qa/literal-tools-chooser-repair6-2026-10-24.log",
+      "diagnostic_receivers": [
+        92508,
+        92639,
+        92792,
+        92887,
+        92953
+      ],
+      "diagnostic_logs": [
+        "build/qa/literal-tools-chooser-repair1-2026-10-24.log",
+        "build/qa/literal-tools-chooser-repair2-2026-10-24.log",
+        "build/qa/literal-tools-chooser-repair3-2026-10-24.log",
+        "build/qa/literal-tools-chooser-repair4-2026-10-24.log",
+        "build/qa/literal-tools-chooser-repair5-2026-10-24.log"
+      ]
+    },
+    "compressed_raster": {
+      "initial_receiver": 91082,
+      "failure": "Fixture searched compressed image filenames for the historical word plus; explicit format witnesses repair preserves conflict assertions",
+      "status": "passed-after-fixture-repair",
+      "case_engine_pairs_passed": 2,
+      "receiver_pids": [
+        91437,
+        91655
+      ],
+      "independently_absent": true,
+      "repair_log": "build/qa/compressed-raster-native-2026-10-24-repair1.log"
+    }
+  },
+  "windows_reference": "metafile-compressed-windows-reference-2026-10-24.json",
+  "remaining": [
+    "General revision/branch-tag existence/submodule-object selected backend parity; unconditional notes backend compatibility",
+    "Complete source dialog/layout/behavior certification",
+    "Current hosted full integration pass",
+    "Installed signed Finder physical overlays/context menus and grants",
+    "Minimum supported macOS/Intel, physical input and accessibility acceptance",
+    "Signed distribution/App Store readiness and actual submission"
+  ],
+  "ownership": {
+    "attempted_receivers": [
+      90750,
+      91298,
+      92322,
+      92332,
+      92335,
+      92508,
+      92639,
+      92792,
+      92887,
+      92953,
+      93083,
+      90865,
+      90916,
+      90965,
+      90989,
+      91082,
+      91437,
+      91655
+    ],
+    "independently_absent": true,
+    "survivors": [],
+    "unrelated_user_apps_terminated": false
+  },
+  "metafile_existing_payloads": {
+    "tracked": 1334,
+    "changed": 0,
+    "new_accepted_metafiles": 110,
+    "new_refusals": 21,
+    "new_raw_sources": 14
+  },
+  "documentation": {
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 78,
+      "regenerated_before_app_build": true,
+      "final_check_exit": 0
+    },
+    "localization": {
+      "languages": 38,
+      "keys": 1317,
+      "check_exit": 0
+    },
+    "site": {
+      "documents": 443,
+      "unresolved_fragments": [],
+      "log": "build/qa/tools-metadata-site-final-2026-10-24.log"
+    },
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_static_controls": 85,
+      "certified_complete": 0,
+      "feature_completion_percentage": false
+    }
+  },
+  "hosted_snapshot": {
+    "macos_run": 40116391496,
+    "head": "4366c6e9",
+    "status": "in_progress",
+    "observed_step": "Git integration tests",
+    "latest_main_run": 40120330813,
+    "latest_main_head": "5aa3c085",
+    "latest_main_status": "pending",
+    "latest_pages_run": 40120330890,
+    "latest_pages_conclusion": "success",
+    "current_batch_hosted_acceptance": "not established"
+  }
+}

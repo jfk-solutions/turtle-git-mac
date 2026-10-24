@@ -187,7 +187,10 @@ final class HistoryMetadataBatchTests:XCTestCase {
 
         """.write(to:wrapper,atomically:true,encoding:.utf8)
         try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
-        let measured=GitRepository(root:root,executable:wrapper)
+        // This is the CLI batch/command-count oracle. Master-selected tag
+        // metadata now has its own helper byte/peeling assertions in the backend
+        // metadata family, rather than passing through this Git executable.
+        let measured=GitRepository(root:root,executable:wrapper,libgit2Configuration:.init(enabled:false))
         var options=HistoryOptions();options.limit = -1;options.searchFields = .notes;options.search="AfterMarker"
         let result=try await measured.history(options:options)
         XCTAssertEqual(result.map(\.hash),[hashes[0]])

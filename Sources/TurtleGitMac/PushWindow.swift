@@ -331,6 +331,7 @@ struct CommitPushContinuation {
         sourceToken?.cancel(); generation += 1
         busy = true; error = nil; preparationNeedsRetry = false
         let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1; pendingOperations += 1
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task { [self, access] in
             defer {
                 Self.activePreparationReads -= 1; pendingOperations -= 1
@@ -368,6 +369,7 @@ struct CommitPushContinuation {
         let snapshot = options, token = OperationCancellation()
         metadataToken = token; busy = true; error = nil; preparationNeedsRetry = false; retryRemoteCatalog = true
         Self.activePreparationReads += 1; pendingOperations += 1
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task { [self, access] in
             defer {
                 Self.activePreparationReads -= 1; pendingOperations -= 1

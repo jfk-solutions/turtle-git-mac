@@ -52,11 +52,12 @@ struct AlternativeEditorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
     private let preferences: UserDefaults
-    @State private var chooser = ToolApplicationChooser()
+    @StateObject private var chooser = ToolApplicationChooser()
     @State private var draft: AlternativeEditorPreferences
     @State private var saved: AlternativeEditorPreferences
-    init(preferences: UserDefaults = .standard) {
+    init(preferences: UserDefaults = .standard, chooser:ToolApplicationChooser? = nil) {
         self.preferences = preferences
+        _chooser=StateObject(wrappedValue:chooser ?? ToolApplicationChooser())
         let value = AlternativeEditorPreferences.load(from:preferences)
         _draft = State(initialValue:value); _saved = State(initialValue:value)
     }
@@ -70,10 +71,10 @@ struct AlternativeEditorSettings: View {
                         Text("Custom").tag(true)
                     }.pickerStyle(.radioGroup).labelsHidden()
                     HStack {
-                        TextField("Editor application", text: Binding(get: { draft.applicationPath }, set: {
-                            guard $0 != draft.applicationPath else { return }
+                        ToolLiteralTextField(text: Binding(get: { draft.applicationPath }, set: {
+                            guard !$0.utf8.elementsEqual(draft.applicationPath.utf8) else { return }
                             draft.applicationPath = $0; draft.bookmark = nil
-                        }))
+                        }),label:"Editor application",placeholder:"Editor application",mayEdit:{draft.custom && !chooser.selecting}).frame(height:24)
                         Button("Browse…", action: browse)
                     }.disabled(!draft.custom)
                     if !draft.valid { Text("Choose an application bundle or executable using its full path.").font(.caption).foregroundStyle(.red) }
@@ -87,7 +88,7 @@ struct AlternativeEditorSettings: View {
                 Button("Cancel") { draft = saved; chooser.window?.performClose(nil) }
                 Button("Apply") { draft.save(to:preferences); saved = draft }.disabled(!draft.valid || draft == saved)
             } }
-        }.padding(20).background(ToolChooserProbe(chooser:chooser).frame(width:0,height:0)).onDisappear { chooser.cancel() }.onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved } }
+        }.padding(20).disabled(chooser.selecting).background(ToolChooserProbe(chooser:chooser).frame(width:0,height:0)).onDisappear { chooser.cancel() }.onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved } }
             .settingsParticipant("alternativeEditor", page: .alternativeEditor, value: draft,
                 modified: { draft != saved }, validate: { draft.valid ? nil : "Choose an editor application or executable." },
                 apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
@@ -96,6 +97,7 @@ struct AlternativeEditorSettings: View {
             } message: { Text(error ?? "") }
     }
     private func browse() {
-        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 }, allowExecutables: true)
+        let captured=draft
+        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 }, allowExecutables: true,currentPath:captured.applicationPath,isCurrent:{draft == captured && draft.custom})
     }
 }

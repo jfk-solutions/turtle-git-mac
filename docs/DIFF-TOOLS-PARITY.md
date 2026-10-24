@@ -481,3 +481,14 @@ caller/window retirement and contextual Help. Windows COM shape-level revision
 review has no Mac API and remains explicit outstanding work. The dated family
 evidence records the executed checkpoint and limits; this is not a complete
 PowerPoint or application parity claim.
+
+## Literal configuration and native ownership — October 24, 2026
+
+Diff/Merge filename and extension rules now distinguish literal Unicode spellings
+while retaining case normalization, source lookup order and disabled/Shift policy.
+Executable/argument drafts, Alternative Editor and the connected Unified Diff
+viewer retain exact bytes through Settings Apply/Cancel. Advanced child results
+and native application choosers capture their parent/draft and drain actual sheet
+ownership before publication. See [literal tool configuration](LITERAL-TOOL-CONFIGURATION-PARITY.md)
+for source anchors, implementation and pending grouped validation. This supersedes
+canonical-string association matching; full physical/signed acceptance remains open.

@@ -4,53 +4,145 @@ import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+/// SwiftUI's String TextField coordinator coalesces canonically equivalent
+/// edits before forwarding them to a binding. Tool commands and rule keys need
+/// the actual editor bytes, including a change only in Unicode spelling.
+struct ToolLiteralTextField:NSViewRepresentable {
+    @Binding var text:String
+    let label:String
+    var placeholder=""
+    var mayEdit:()->Bool={true}
+    @Environment(\.isEnabled) private var enabled
+    init(text:Binding<String>,label:String,placeholder:String="",mayEdit:@escaping ()->Bool={true}) {
+        _text=text;self.label=label;self.placeholder=placeholder;self.mayEdit=mayEdit
+    }
+    func makeCoordinator()->Coordinator{Coordinator()}
+    func makeNSView(context:Context)->Field {
+        let field=Field();field.cell=Cell(textCell:"")
+        field.isBezeled=true;field.bezelStyle = .roundedBezel
+        field.isEditable=true;field.isSelectable=true;field.drawsBackground=true
+        field.font = .systemFont(ofSize:NSFont.systemFontSize)
+        field.cell?.usesSingleLineMode=true;field.cell?.isScrollable=true
+        field.setContentHuggingPriority(.defaultLow,for:.horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        field.delegate=context.coordinator;field.coordinator=context.coordinator
+        context.coordinator.field=field;return field
+    }
+    func updateNSView(_ field:Field,context:Context) {
+        let coordinator=context.coordinator
+        coordinator.changed={text=$0};coordinator.current={text};coordinator.mayEdit=mayEdit
+        field.setAccessibilityLabel(label);field.placeholderString=placeholder
+        field.isEnabled=enabled && !coordinator.retired
+        if !field.stringValue.utf8.elementsEqual(text.utf8){field.stringValue=text}
+    }
+    static func dismantleNSView(_ field:Field,coordinator:Coordinator){coordinator.retire();field.delegate=nil;field.isEnabled=false}
+    @MainActor final class Field:NSTextField {
+        weak var coordinator:Coordinator?
+        override func viewDidMoveToWindow(){super.viewDidMoveToWindow();coordinator?.attach(window)}
+    }
+    @MainActor final class Cell:NSTextFieldCell {
+        private let editor=Editor()
+        override func fieldEditor(for controlView:NSView)->NSTextView? {
+            editor.owner=(controlView as? Field)?.coordinator
+            editor.isFieldEditor=true;editor.isRichText=false;editor.allowsUndo=true
+            return editor
+        }
+    }
+    @MainActor final class Editor:NSTextView {
+        weak var owner:Coordinator?
+        override func becomeFirstResponder()->Bool {
+            isAutomaticQuoteSubstitutionEnabled=false;isAutomaticDashSubstitutionEnabled=false
+            isAutomaticTextReplacementEnabled=false;isAutomaticSpellingCorrectionEnabled=false
+            isAutomaticTextCompletionEnabled=false;smartInsertDeleteEnabled=false
+            return super.becomeFirstResponder()
+        }
+        override func didChangeText(){super.didChangeText();owner?.publish(self)}
+    }
+    @MainActor final class Coordinator:NSObject,NSTextFieldDelegate {
+        weak var field:Field?
+        private weak var originalWindow:NSWindow?
+        private var bound=false,observation:NSObjectProtocol?
+        private(set) var retired=false
+        var changed:(String)->Void={_ in},current:()->String={""},mayEdit:()->Bool={true}
+        func attach(_ window:NSWindow?) {
+            guard !retired else{return}
+            if bound,window !== originalWindow{retire();return}
+            guard let window,!bound else{return}
+            bound=true;originalWindow=window
+            observation=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.retire()}}
+        }
+        func retire(){retired=true;changed={_ in};current={""};mayEdit={false};if let observation{NotificationCenter.default.removeObserver(observation)};observation=nil}
+        deinit{if let observation{NotificationCenter.default.removeObserver(observation)}}
+        private var available:Bool{!retired && mayEdit() && field?.isEnabled==true && originalWindow != nil && field?.window === originalWindow && originalWindow?.attachedSheet==nil && NSApp.modalWindow==nil}
+        func publish(_ editor:NSTextView) {
+            guard available,field?.currentEditor() === editor,!editor.hasMarkedText(),!current().utf8.elementsEqual(editor.string.utf8) else{return}
+            changed(editor.string)
+        }
+        func controlTextDidChange(_ notification:Notification){guard let sender=notification.object as? NSTextField,sender === field,let editor=field?.currentEditor() as? NSTextView else{return};publish(editor)}
+    }
+}
+
 @MainActor final class ToolApplicationChooser: ObservableObject {
     static private(set) var activeChoosers=0
     @Published private(set) var selecting=false
     weak var window:NSWindow? {
         didSet {
             guard oldValue !== window else {return}
-            cancel()
+            cancel();ownerGeneration=UUID();ownerClosed=false
             if let observation {NotificationCenter.default.removeObserver(observation)}
             observation=nil
-            if let window {observation=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.cancel()} }}
+            if let window {observation=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.ownerClosed=true;self?.ownerGeneration=UUID();self?.cancel()} }}
         }
     }
     private var panel:NSOpenPanel?
     private var observation:NSObjectProtocol?
+    private var ownerGeneration=UUID()
+    private var ownerClosed=false
     var present:((NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
     var selectedURL:(NSOpenPanel)->URL? = {$0.url}
     var bookmark:(URL)throws->Data = {try $0.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
     deinit {if let observation {NotificationCenter.default.removeObserver(observation)}}
+    private func release(_ chooser:NSOpenPanel, completion:@escaping ()->Void = {}) {
+        let finished = { [self] in
+            Self.activeChoosers -= 1
+            selecting=false
+            completion()
+        }
+        if chooser.sheetParent == nil && !chooser.isVisible { finished() }
+        else { SettingsLifecycleSheetDrain.close([chooser],completion:finished) }
+    }
     func cancel() {
-        guard let panel else {return}
-        self.panel=nil;selecting=false;Self.activeChoosers -= 1
-        (panel.sheetParent ?? window)?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)
+        guard let panel else{return}
+        self.panel=nil
+        release(panel)
     }
     func choose(_ completion:@escaping (URL,Data)->Void,failure:@escaping (String)->Void,allowExecutables:Bool = false,currentPath:String = "",isCurrent:@escaping ()->Bool = {true}) {
-        guard let window,panel == nil,window.attachedSheet == nil,isCurrent() else {return}
+        guard let window,!ownerClosed,!selecting,panel == nil,window.attachedSheet == nil,NSApp.modalWindow == nil,isCurrent() else{return}
+        let owner=ownerGeneration
         let chooser=NSOpenPanel();chooser.allowedContentTypes=allowExecutables ? []:[.applicationBundle];chooser.allowsOtherFileTypes=allowExecutables
         chooser.canChooseDirectories=false;chooser.allowsMultipleSelection=false;chooser.treatsFilePackagesAsDirectories=false
         chooser.title=allowExecutables ? "Select tool application or executable":"Select tool application";chooser.prompt="Select"
-        // Source Browse starts from an existing configured program, otherwise Applications.
         let configured=URL(fileURLWithPath:currentPath)
         if currentPath.hasPrefix("/"),FileManager.default.fileExists(atPath:currentPath) {chooser.directoryURL=configured.deletingLastPathComponent()}
         else {chooser.directoryURL=URL(fileURLWithPath:"/Applications")}
+        chooser.alphaValue=window.alphaValue;chooser.appearance=window.appearance
         panel=chooser;selecting=true;Self.activeChoosers += 1
         let reply:(NSApplication.ModalResponse)->Void = { [weak self,weak window] response in
-            guard let self,self.panel === chooser else {return}
-            self.panel=nil;self.selecting=false;Self.activeChoosers -= 1
-            guard response == .OK,self.window === window,window != nil,isCurrent(),let application=self.selectedURL(chooser) else {return}
-            do {
-                let resolved=application.resolvingSymlinksInPath()
-                let properties=try resolved.resourceValues(forKeys:[.isDirectoryKey,.isRegularFileKey])
-                let app=application.pathExtension.lowercased() == "app" && properties.isDirectory == true
-                let executable=properties.isRegularFile == true && FileManager.default.isExecutableFile(atPath:resolved.path)
-                guard app || allowExecutables && executable else {throw DiffToolFailure.application}
-                let bookmark=try self.bookmark(application)
-                guard isCurrent(),self.window === window else {return}
-                completion(application,bookmark)
-            } catch {if isCurrent(),self.window === window {failure(error.localizedDescription)}}
+            guard let self,self.panel === chooser else{return}
+            self.panel=nil
+            self.release(chooser) { [self,weak window] in
+                guard response == .OK,!self.ownerClosed,self.ownerGeneration==owner,self.window === window,window != nil,NSApp.modalWindow == nil,isCurrent(),let application=self.selectedURL(chooser) else{return}
+                do {
+                    let resolved=application.resolvingSymlinksInPath()
+                    let properties=try resolved.resourceValues(forKeys:[.isDirectoryKey,.isRegularFileKey])
+                    let app=application.pathExtension.lowercased() == "app" && properties.isDirectory == true
+                    let executable=properties.isRegularFile == true && FileManager.default.isExecutableFile(atPath:resolved.path)
+                    guard app || allowExecutables && executable else {throw DiffToolFailure.application}
+                    let bookmark=try self.bookmark(application)
+                    guard !self.ownerClosed,self.ownerGeneration==owner,isCurrent(),self.window === window else{return}
+                    completion(application,bookmark)
+                } catch {if !self.ownerClosed,self.ownerGeneration==owner,isCurrent(),self.window === window {failure(error.localizedDescription)}}
+            }
         }
         if let present {present(chooser,window,reply)} else {chooser.beginSheetModal(for:window,completionHandler:reply)}
     }
@@ -96,7 +188,7 @@ struct DiffProgramForm: View {
                     chooser.choose({application,bookmark in program.applicationPath=application.path;program.bookmark=bookmark},failure:{error=$0},allowExecutables:true,currentPath:captured.applicationPath,isCurrent:{program == captured && program.enabled && program.builtIn == nil})
                 }
             }.disabled(!program.enabled || program.builtIn != nil)
-            HStack {Text("Arguments:").frame(width:120,alignment:.leading);TextField("",text:$program.arguments).accessibilityLabel(tool+" arguments")}.disabled(!program.enabled || program.builtIn != nil)
+            HStack {Text("Arguments:").frame(width:120,alignment:.leading);ToolLiteralTextField(text:$program.arguments,label:tool+" arguments",mayEdit:{program.enabled && program.builtIn == nil && !chooser.selecting}).frame(height:24)}.disabled(!program.enabled || program.builtIn != nil)
             if !program.valid { Text(DiffToolFailure.application.localizedDescription).foregroundStyle(.red) }
             if let error { Text(error).foregroundStyle(.red) }
         }.disabled(chooser.selecting).background(ToolChooserProbe(chooser: chooser).frame(width: 0, height: 0)).onDisappear { chooser.cancel() }
@@ -108,6 +200,11 @@ struct DiffProgramForm: View {
     private var saved: Value
     private let valid: (Value) -> Bool
     private let persist: (Value) throws -> Void
+    private(set) var presentationGeneration=UUID()
+    private var presented=false
+    func activatePresentation(){presentationGeneration=UUID();presented=true}
+    func suspendPresentation(){presentationGeneration=UUID();presented=false}
+    func acceptsPresentation(_ receipt:UUID?)->Bool {presented && receipt==presentationGeneration}
     init(_ value: Value, valid: @escaping (Value) -> Bool, persist: @escaping (Value) throws -> Void) {
         self.value = value; saved = value; self.valid = valid; self.persist = persist
     }
@@ -126,6 +223,8 @@ struct DiffToolSettings: View {
     private let preferences: UserDefaults
     @StateObject private var model: ToolSettingsDraft<DiffToolPreferences>
     @State private var advanced = false
+    @State private var advancedReceipt:UUID?
+    @State private var advancedAssociations:[DiffToolAssociation]=[]
     init(preferences: UserDefaults = .standard) {
         self.preferences = preferences
         _model = StateObject(wrappedValue: ToolSettingsDraft(DiffToolPreferences.load(from: preferences), valid: { $0.valid }, persist: { try $0.save(to: preferences) }))
@@ -137,7 +236,7 @@ struct DiffToolSettings: View {
                 GroupBox("Configure the program used for comparing different revisions of files") {
                     VStack(alignment: .leading, spacing: 10) {
                         DiffProgramForm(program: $model.value.program,preferences:preferences)
-                        HStack {Text("Specify alternate diff programs based on file extension.").font(.caption).foregroundStyle(.secondary);Spacer(); Button("Advanced…") { advanced = true } }
+                        HStack {Text("Specify alternate diff programs based on file extension.").font(.caption).foregroundStyle(.secondary);Spacer(); Button("Advanced…") { advancedReceipt=model.presentationGeneration;advancedAssociations=model.value.associations;advanced = true } }
                     }.padding(8)
                 }
                 Text("Arguments: %base, %mine, %bname, %yname, %bpath, %ypath, %brev, %yrev and %wtroot. Quote arguments containing spaces. Hold Shift when opening a comparison to reverse the internal/external choice.").font(.caption).foregroundStyle(.secondary)
@@ -146,7 +245,15 @@ struct DiffToolSettings: View {
             }.padding(20)
         }
         .settingsParticipant("diff", page: .diff, value: model.value, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel)
-        .sheet(isPresented: $advanced) { DiffToolAssociations(associations: model.value.associations,preferences:preferences) { value in if let value { model.value.associations = value }; advanced = false } }
+        .onAppear {model.activatePresentation()}.onDisappear {model.suspendPresentation()}
+        .sheet(isPresented: $advanced) {
+            let receipt=advancedReceipt
+            DiffToolAssociations(associations:advancedAssociations,preferences:preferences) { value in
+                guard advancedReceipt==receipt,model.acceptsPresentation(receipt) else{return}
+                if let value,model.value.associations==advancedAssociations {model.value.associations=value}
+                advanced=false
+            }
+        }
     }
 }
 @MainActor final class ToolAssociationsModel: ObservableObject {
@@ -157,11 +264,16 @@ struct DiffToolSettings: View {
     @Published private(set) var focusRequest=UUID()
     let tool: String
     let preferences:UserDefaults
+    private(set) var retired=false
+    func retire(){retired=true}
     init(associations: [DiffToolAssociation], tool: String,preferences:UserDefaults = .standard) { draft = associations; self.tool = tool;self.preferences=preferences }
-    var rows: [DiffToolAssociation] { draft.sorted { $0.normalizedPattern.localizedStandardCompare($1.normalizedPattern) == .orderedAscending } }
-    var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count && (tool != "merge" || draft.allSatisfy { MergeToolPreferences.supports($0.program.builtIn) }) }
+    var rows: [DiffToolAssociation] { draft.sorted {
+        let order=$0.normalizedPattern.localizedStandardCompare($1.normalizedPattern)
+        return order == .orderedSame ? $0.patternIdentity.lexicographicallyPrecedes($1.patternIdentity) : order == .orderedAscending
+    } }
+    var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.patternIdentity)).count == draft.count && (tool != "merge" || draft.allSatisfy { MergeToolPreferences.supports($0.program.builtIn) }) }
     func restoreDefaults() {
-        guard editing == nil else { return }
+        guard !retired,editing == nil else { return }
         if tool == "merge" {
             var value=MergeToolPreferences(); value.associations=draft; value.restoreBundledAssociations(); draft=value.associations
             selected=draft.first { $0.normalizedPattern == ".docx" }?.id
@@ -171,24 +283,24 @@ struct DiffToolSettings: View {
         }
     }
     func add() {
-        guard editing == nil else { return }
+        guard !retired,editing == nil else { return }
         var entry = DiffToolAssociation()
         if tool == "merge" { entry.program.arguments = "%base %theirs %mine %merged" }
         editorIdentity=UUID();editing = entry
     }
-    func edit() { guard editing == nil else { return };editorIdentity=UUID(); editing = draft.first { $0.id == selected } }
+    func edit() { guard !retired,editing == nil else { return };editorIdentity=UUID(); editing = draft.first { $0.id == selected } }
     func accept(_ value: DiffToolAssociation?,for identity:UUID? = nil) {
-        guard let original=editing,identity == nil || identity == editorIdentity else {return}
+        guard !retired,let original=editing,identity == nil || identity == editorIdentity else {return}
         defer { editing = nil }
         defer {focusRequest=UUID()}
         guard var value, value.id == original.id, value.valid,tool != "merge" || MergeToolPreferences.supports(value.program.builtIn),
-              !draft.contains(where: { $0.id != value.id && $0.normalizedPattern == value.normalizedPattern }) else { return }
+              !draft.contains(where: { $0.id != value.id && $0.patternIdentity == value.patternIdentity }) else { return }
         value.pattern = value.normalizedPattern
         if let index = draft.firstIndex(where: { $0.id == value.id }) { draft[index] = value } else { draft.append(value) }
         selected = value.id
     }
     func remove() {
-        guard editing == nil, let selected, let index = rows.firstIndex(where: { $0.id == selected }) else { return }
+        guard !retired,editing == nil, let selected, let index = rows.firstIndex(where: { $0.id == selected }) else { return }
         let ordered = rows; draft.removeAll { $0.id == selected }
         let survivors = ordered.filter { $0.id != selected }
         self.selected = survivors.isEmpty ? nil : survivors[min(index, survivors.count - 1)].id
@@ -224,7 +336,7 @@ struct DiffToolAssociations: View {
                 Spacer();Button("Cancel") {completed(nil)}.keyboardShortcut(.cancelAction)
                 Button("OK") {completed(model.draft)}.keyboardShortcut(.defaultAction).disabled(!model.valid)
             }.disabled(model.editing != nil)
-        }.padding(20).frame(width: 720)
+        }.padding(20).frame(width: 720).onDisappear {model.retire()}
         .sheet(item: $model.editing) { entry in
             let identity=model.editorIdentity
             DiffToolAssociationEditor(entry: entry, existing: model.draft, tool: model.tool, completed: {model.accept($0,for:identity)})
@@ -327,11 +439,11 @@ struct DiffToolAssociationEditor: View {
     let tool: String
     let completed: (DiffToolAssociation?) -> Void
     init(entry: DiffToolAssociation, existing: [DiffToolAssociation], tool: String, completed: @escaping (DiffToolAssociation?) -> Void) { _draft = State(initialValue: entry); self.existing = existing; self.completed = completed; self.tool = tool }
-    private var valid: Bool { draft.valid && (tool != "merge" || MergeToolPreferences.supports(draft.program.builtIn)) && !existing.contains { $0.id != draft.id && $0.normalizedPattern == draft.normalizedPattern } }
+    private var valid: Bool { draft.valid && (tool != "merge" || MergeToolPreferences.supports(draft.program.builtIn)) && !existing.contains { $0.id != draft.id && $0.patternIdentity == draft.patternIdentity } }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text((existing.contains { $0.id == draft.id } ? "Edit " : "Add ") + tool + " tool").font(.headline)
-            HStack {Text("Extension:").frame(width:120,alignment:.leading);TextField("",text:$draft.pattern).accessibilityLabel("Tool extension or filename")}
+            HStack {Text("Extension:").frame(width:120,alignment:.leading);ToolLiteralTextField(text:$draft.pattern,label:"Tool extension or filename").frame(height:24)}
             DiffProgramForm(program: $draft.program, tool: tool)
             if tool == "merge" { Text("Use .swift for an extension, or .filename for an exact filename.").font(.caption) }
             if !valid { Text("Choose a unique extension (such as .swift) or filename, and a valid program.").font(.caption).foregroundStyle(.red) }
@@ -596,6 +708,8 @@ struct MergeToolSettings: View {
     private let preferences:UserDefaults
     @StateObject private var model: ToolSettingsDraft<MergeToolPreferences>
     @State private var advanced = false
+    @State private var advancedReceipt:UUID?
+    @State private var advancedAssociations:[DiffToolAssociation]=[]
     init(preferences: UserDefaults = .standard) {
         self.preferences=preferences
         _model = StateObject(wrappedValue: ToolSettingsDraft(MergeToolPreferences.load(from: preferences), valid: { $0.valid }, persist: { try $0.save(to: preferences) }))
@@ -609,7 +723,7 @@ struct MergeToolSettings: View {
                     Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled && !model.value.associations.contains { $0.program.enabled }).onChange(of: model.value.blockWhileMerging) { if !$0 { model.value.trustExitCode = false } }
                     Toggle("Trust the exit code", isOn: $model.value.trustExitCode).disabled(!model.value.trustExitCode && (!model.value.blockWhileMerging || !model.value.supportsTrustedExit))
                     Text("Executable tools report an exit code. Trust resolves only exit code zero; otherwise blocking mode asks whether to mark the result resolved. App bundles use that question. Word merging has no trusted exit status; save the reviewed document as the original conflicting file before marking it resolved.").font(.caption).foregroundStyle(.secondary)
-                    HStack {Text("Specify alternate merge programs based on file extension.").font(.caption).foregroundStyle(.secondary);Spacer(); Button("Advanced…") { advanced = true } }
+                    HStack {Text("Specify alternate merge programs based on file extension.").font(.caption).foregroundStyle(.secondary);Spacer(); Button("Advanced…") { advancedReceipt=model.presentationGeneration;advancedAssociations=model.value.associations;advanced = true } }
                 }.padding(8)
             }
             Text("Arguments: %base, %theirs, %mine, %merged, %bname, %tname, %yname, %mname and %wtroot. Hold Shift when opening a conflict to reverse the internal/external choice.").font(.caption).foregroundStyle(.secondary)
@@ -617,7 +731,15 @@ struct MergeToolSettings: View {
             Spacer()
         }.padding(20)
         .settingsParticipant("mergeTool", page: .mergeTool, value: model.value, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel)
-        .sheet(isPresented: $advanced) { DiffToolAssociations(associations: model.value.associations, tool: "merge",preferences:preferences) { value in if let value { model.value.associations = value }; advanced = false } }
+        .onAppear {model.activatePresentation()}.onDisappear {model.suspendPresentation()}
+        .sheet(isPresented: $advanced) {
+            let receipt=advancedReceipt
+            DiffToolAssociations(associations:advancedAssociations,tool:"merge",preferences:preferences) { value in
+                guard advancedReceipt==receipt,model.acceptsPresentation(receipt) else{return}
+                if let value,model.value.associations==advancedAssociations {model.value.associations=value}
+                advanced=false
+            }
+        }
     }
 }
 

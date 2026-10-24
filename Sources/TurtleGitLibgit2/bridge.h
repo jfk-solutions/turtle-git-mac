@@ -18,7 +18,7 @@ typedef struct {const char *path;const char *old_path;const char *parent_hash;co
 typedef int (*tg_history_header_cb)(const char *,const char *const *,size_t,void *);
 typedef int (*tg_history_cb)(const tg_history_delta *,void *);
 typedef void (*tg_url_cb)(const char *,void *);
-typedef struct {const char *name,*oid,*symbolic_target,*object_type,*subject,*author_name,*author_email,*committer_name,*committer_email,*upstream;int64_t author_time,committer_time;int has_author,has_committer;} tg_local_reference;
+typedef struct {const char *name,*oid,*symbolic_target,*object_type,*subject,*author_name,*author_email,*committer_name,*committer_email,*upstream,*peeled_oid;int64_t author_time,committer_time;int has_author,has_committer;} tg_local_reference;
 typedef int (*tg_local_reference_cb)(const tg_local_reference *,void *);
 typedef struct {int number;uint32_t mode;const char *oid;} tg_inspection_stage;
 typedef struct {int kind,value;const char *path,*base;const tg_inspection_stage *stages;size_t stage_count;} tg_inspection;
@@ -27,6 +27,9 @@ typedef struct {int object_type;const char *oid,*tree;const char *const *parents
 typedef int (*tg_single_commit_cb)(const tg_single_commit *,void *);
 typedef int (*tg_finder_cb)(const char *,int,int,int,void *);
 typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;tg_reset_file_cb reset_file;tg_reset_progress_cb reset_progress;tg_history_cb history_delta;tg_history_header_cb history_header;tg_local_reference_cb local_reference;tg_inspection_cb inspection;tg_single_commit_cb single_commit;tg_finder_cb finder_status;} tg_callbacks;
+int tg_checkout_references(const char *repository,tg_callbacks *callbacks);
+int tg_configured_remotes(const char *repository,tg_callbacks *callbacks);
+int tg_tag_object(const char *repository,const char *oid,int framed,tg_callbacks *callbacks);
 int tg_local_references(const char *repository,int scope,tg_callbacks *callbacks);
 int tg_local_reference_names(const char *repository,tg_callbacks *callbacks);
 int tg_containing_references(const char *repository,const char *oid,int tags,int local,int remote,tg_callbacks *callbacks);

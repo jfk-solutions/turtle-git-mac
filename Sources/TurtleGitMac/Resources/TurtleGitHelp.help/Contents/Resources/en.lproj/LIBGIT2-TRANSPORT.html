@@ -19,6 +19,16 @@ A requested engine
 that is missing reports an error; it does not silently change the selected engine.
 The backend choice is captured when an operation starts, so editing Settings
 cannot change an operation already waiting for a folder, key or credential.</p>
+<p>Branch, tag and configured-remote choices, History reference labels and annotated
+tag information follow the master <strong>UseLibgit2</strong> switch independently of the
+per-command mask. Disabling individual command bits therefore does not force
+those metadata lists to Git. Reference Browser retains its separate ForeachRef
+choice. Log action columns, path/action filtering, Synchronization action columns
+and combined changed-file reads follow LogListDiff bit <code>0x8000</code>, using bounded
+batches. Accepted reads keep their captured preference store even if Settings
+changes while they are pending. These are metadata reads; ordinary Push transport
+keeps its existing Git command. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/BACKEND-METADATA-PARITY.html">backend metadata source comparison</a>.</p>
 <p>Unified patch display uses Diff bit <code>0x10</code>; historical changed-file lists and
 history file searches use LogListDiff bit <code>0x8000</code>. Both are off in the source
 default mask. Selected unified output includes source full statistics and patch

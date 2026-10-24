@@ -69,6 +69,19 @@ extension GitRepository {
     /// A bounded stdin walk preserves every captured parent, including root and octopus commits.
     public func revisionChanges(in entries:[LogEntry],cancellation:OperationCancellation?=nil) throws -> [String:[CommitFile]] {
         try cancellation?.check();var result:[String:[CommitFile]]=[:]
+        let selected=libgit2Configuration ?? .load()
+        if selected.requests(.logListDiff) {
+            guard entries.allSatisfy({HistoryMetadataProtocol.objectID($0.hash) && $0.parents.allSatisfy(HistoryMetadataProtocol.objectID)}) else{throw HistoryMetadataFailure.input}
+            for start in stride(from:0,to:entries.count,by:128) {
+                let batch=Array(entries[start..<min(start+128,entries.count)])
+                let replies=try historyDiffBatch(revisions:batch.map{$0.hash.lowercased()},backend:selected,cancellation:cancellation)
+                for (entry,reply) in zip(batch,replies) {
+                    guard reply.parents==entry.parents.map({$0.lowercased()}) else{throw GitDiffEngineFailure.metadata}
+                    result[entry.hash]=reply.groups.flatMap{$0}
+                }
+            }
+            try cancellation?.check();return result
+        }
         for start in stride(from:0,to:entries.count,by:128) {
             let batch=Array(entries[start..<min(start+128,entries.count)])
             guard batch.allSatisfy({ HistoryMetadataProtocol.objectID($0.hash) && $0.parents.allSatisfy(HistoryMetadataProtocol.objectID) }) else { throw HistoryMetadataFailure.input }
@@ -97,10 +110,24 @@ extension GitRepository {
     func historyTagObjects(_ hashes:[String],cancellation:OperationCancellation?) throws -> [String:String] {
         guard hashes.allSatisfy(HistoryMetadataProtocol.objectID) else { throw HistoryMetadataFailure.input }
         var result:[String:String]=[:]
+        let master=masterReferenceBackend()
         for start in stride(from:0,to:hashes.count,by:128) {
             let batch=Array(hashes[start..<min(start+128,hashes.count)])
-            let data=try run(["cat-file","--batch"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:Data((batch.joined(separator:"\n")+"\n").utf8)).stdout
-            for (hash,payload) in try HistoryMetadataProtocol.objects(data,expected:batch,type:"tag") {
+            let objects:[String:Data]
+            if let backend=master {
+                let executor=try backend.runtimeExecutor()
+                let request=try JSONSerialization.data(withJSONObject:["version":1,"oids":batch.map{$0.lowercased()}])
+                var bytes=Data()
+                _ = try run(["turtlegit-tag-objects"],cancellation:cancellation,input:request,retainStandardOutput:false,consumeOutput:{chunk in
+                    if case .stdout=chunk.stream {guard chunk.data.count<=64*1024*1024-bytes.count else{throw GitLocalReferenceEngineFailure.output};bytes.append(chunk.data)}
+                },executorOverride:executor)
+                objects=try HistoryMetadataProtocol.objects(bytes,expected:batch,type:"tag")
+
+            } else {
+                let data=try run(["cat-file","--batch"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:Data((batch.joined(separator:"\n")+"\n").utf8)).stdout
+                objects=try HistoryMetadataProtocol.objects(data,expected:batch,type:"tag")
+            }
+            for (hash,payload) in objects {
                 var value=String(decoding:payload,as:UTF8.self)
                 if value.hasPrefix("object "),let newline=value.firstIndex(of:"\n") {
                     value=String(value[value.index(after:newline)...]);if value.hasPrefix("type commit\n") { value.removeFirst("type commit\n".count) }

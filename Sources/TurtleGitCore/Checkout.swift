@@ -72,14 +72,19 @@ public enum CheckoutFailure: LocalizedError {
 
 extension GitRepository {
     public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, localBranchesFirst: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
+        var result:[CheckoutReference]
+        if let backend=masterReferenceBackend() {
+            result=try localReferenceReply(verb:"turtlegit-checkout-refs",operation:"choices",request:["version":1],backend:backend,command:.forEachRef,cancellation:cancellation).choices.filter {includeAll || $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/remotes/") || $0.name.hasPrefix("refs/tags/")}
+        } else {
         let bytes = try checkoutCommand(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
-        var result: [CheckoutReference] = []
+        result = []
         var i = 0
         while i + 1 < fields.count {
             let name = fields[i].hasPrefix("\n") ? String(fields[i].dropFirst()) : fields[i]
             if !name.isEmpty { result.append(CheckoutReference(name: name, symbolicTarget: fields[i+1].isEmpty ? nil : fields[i+1])) }
             i += 2
+        }
         }
         if includeFetchHead {
             // Exactly one for-merge FETCH_HEAD, matching GetBranchList's choice.
