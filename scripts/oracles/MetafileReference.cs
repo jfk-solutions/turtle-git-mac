@@ -10,13 +10,16 @@ public static class MetafileReference {
     Directory.CreateDirectory(output);
     var json = new StringBuilder("{\"platform\":\"" + Environment.OSVersion.ToString() + "\",\"cases\":[");
     bool first = true;
-    foreach (var path in Directory.GetFiles(input, "embedded-*.emf")) {
-      if (Path.GetFileName(path).StartsWith("embedded-refused-")) continue;
+    foreach (var path in Directory.GetFiles(input, "compressed-raster-*")) {
+      var extension=Path.GetExtension(path).ToLowerInvariant();
+      if(extension!=".emf" && extension!=".wmf") continue;
+      if(Path.GetFileName(path).StartsWith("compressed-raster-refused-")) continue;
       if (!first) json.Append(","); first=false;
       json.Append("{\"name\":\"").Append(Path.GetFileName(path)).Append("\"");
       try {
         using (var image = new Metafile(path))
         using (var bitmap = new Bitmap(64,64,PixelFormat.Format32bppArgb)) {
+          json.Append(",\"metafileSize\":[").Append(image.Width).Append(",").Append(image.Height).Append("]");
           bitmap.SetResolution(96,96);
           using (var g = Graphics.FromImage(bitmap)) {
             g.Clear(Color.Transparent);
@@ -45,7 +48,9 @@ public static class MetafileReference {
       }
       json.Append("}");
     }
-    NativeTexture(input,output);
+    // This run is limited to the compressed-source questions; earlier embedded
+    // texture/reference evidence is retained in its own completed run.
+    if(first) throw new InvalidOperationException("No original compressed-raster metafiles selected");
     json.Append("]}");
     File.WriteAllText(Path.Combine(output,"samples.json"),json.ToString());
   }
