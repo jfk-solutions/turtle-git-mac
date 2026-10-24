@@ -53,7 +53,7 @@ The separately refreshed October 19 Apple Development candidate at
 `bfa1fafe` inputs. Its peer signatures/groups, eight universal components,
 205-item runtime layout, branding, complete seal and selected sandboxed-parent
 Git/Lexilla/Metafile/App Group probes passed. Its 6,302-member inventory remained
-unchanged. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#current-signed-runtime-checkpoint)
+unchanged. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#october-19-signed-runtime-checkpoint-historical)
 and [dated evidence](qa/signed-metafile-2026-10-19.json). That older candidate is
 not this unsigned archive and was not refreshed by the October 23 delivery batch.
 The [October 18 preview/archive record](qa/distribution-16380893-2026-10-18.json)
@@ -64,6 +64,32 @@ was pending at the October 23 observation while the older cb676f1a run was activ
 checks do not establish a complete hosted pass. [Current blockers](RELEASE-BLOCKERS.md)
 retain earlier failed assertions, local repairs and the remaining signed,
 installed and full-port acceptance work separately.
+
+## October 24 signed development candidate
+
+The local Apple Development candidate at
+`build/signed-development/Build/Products/AppStore/TurtleGitMac.app` now uses
+measured `9a8e37ce` inputs, version `0.1.0`, build `2`. App, Finder extension and
+cache service identities agree. Its eight application components are universal,
+its runtime layout contains 206 code items, and its complete 6,356-member bundle
+inventory remained unchanged through the signed checks.
+
+Six disposable sandbox processes passed App Group writer/reader, denied
+nonmember, history/Notes, selected metafile and cleanup checks. The history check
+uses actual packaged Git and libgit2 to preserve typed references and historical
+Browser/gitlink content, and save exact large and empty Notes with configured
+signatures. All owned receivers and observed helpers were reaped; the installed
+app and Finder extension were left untouched. See the
+[dated checkpoint](qa/signed-history-family-2026-10-24.json).
+
+The record keeps the dirty build-input signature and the later external
+validation-runner correction separate; every other measured input and the probe
+source remained unchanged. Five contradictory exit-zero compiler diagnostics
+remain recorded despite the build's successful exit. No Core suite or native
+editor group was repeated for this sandbox-only checkpoint. The October 23 ZIP
+and unsigned archive above remain separate older artifacts. This check does not
+establish installed shipping-GUI/Finder acceptance, external repository grants,
+distribution signing, archive export or App Store submission.
 
 ## Build channels
 

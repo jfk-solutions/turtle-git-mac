@@ -1,0 +1,360 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-signed-validation-complete",
+  "base_commit": "9a8e37ced99cea280257f68c1bcd78171c6dcd10",
+  "scope": [
+    "Universal AppStore Apple Development candidate with the current history and Notes implementation",
+    "Actual packaged inherited-sandbox Git and LibGit2 execution through public Core APIs in a private App Group repository",
+    "Retained writer, independent reader, denied nonmember, selected metafile and cleanup modes plus the new history mode",
+    "Disposable signed QA clones, private UUID-owned data and exact helper process/group ownership"
+  ],
+  "build": {
+    "status": "passed",
+    "exit": 0,
+    "log": "build/qa/signed-history-build-2026-10-24.log",
+    "scheme": "TurtleGitAppStore",
+    "configuration": "AppStore",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "team": "A49SCA5S8K",
+    "signing": "Installed Apple Development identity and existing profiles; no provisioning updates requested",
+    "measured_inputs": "build/qa/signed-history-inputs-2026-10-24.json",
+    "measured_inputs_sha256": "41f1554f59013a473e77ddbc752674295d4da2bb513ec93a19e71bec0a4683c3",
+    "dirty_inputs": true,
+    "source_inputs": "Every measured input other than the explicitly corrected external signed-runtime test runner is unchanged; the original build signature is preserved.",
+    "contradictory_failed_with_exit_code_zero_diagnostics": 5,
+    "validation_inputs_sha256": "e4735155295148a04755512405d46c47820fa4e3b8d8d8722f7b97c1ad3bbcf5",
+    "external_validation_harness_delta": {
+      "scripts/test-signed-finder-runtime.py": {
+        "build": {
+          "kind": "file",
+          "sha256": "0e61d8abe08d0cc1e272c5d3930ccf4259431e680f7fa30b791d2a9d48c29aee",
+          "mode": "0o644"
+        },
+        "validation": {
+          "kind": "file",
+          "sha256": "b156e2c2b3245fabfecb563c6cab344fe8812833ea536e9cbffc985075fe5737",
+          "mode": "0o644"
+        }
+      }
+    }
+  },
+  "probe": {
+    "status": "passed",
+    "script": "scripts/test-signed-finder-runtime.py",
+    "new_mode": "history UUID TEAM",
+    "completed_cases": [
+      {
+        "mode": "writer",
+        "passed": true
+      },
+      {
+        "mode": "reader",
+        "passed": true
+      },
+      {
+        "mode": "denied",
+        "passed": true
+      },
+      {
+        "mode": "history",
+        "passed": true
+      },
+      {
+        "mode": "metafile",
+        "passed": true
+      },
+      {
+        "mode": "cleanup",
+        "passed": true
+      }
+    ],
+    "receiver_pids": [
+      38102,
+      38120,
+      38121,
+      38126,
+      38250,
+      38306
+    ],
+    "helper_pids": [
+      38206,
+      38254,
+      38275
+    ],
+    "cleanup": "All six receivers and all three observed helper PIDs independently absent; observed helper process groups drained without forced cleanup. Private group fixture and exact disposable clone folder removed.",
+    "pre_execution_fixture_correction": {
+      "status": "authored-before-first-runtime-check",
+      "actual_failed_test": false,
+      "changed_path": "scripts/test-signed-finder-runtime.py",
+      "reason": "The initial observer required every Git descendant to lead its own process group, but a legitimate Git maintenance child can share its request group.",
+      "retained_assertions": [
+        "PID/PPID/PGID and helper-role recording",
+        "Direct LibGit2 and Metafile processes must lead their own process groups",
+        "All observed Git/LibGit2/Metafile PIDs and owned groups must drain"
+      ],
+      "production_changed": false,
+      "app_rebuild_required": false
+    },
+    "source": "docs/qa/signed-finder-runtime-probe-2026-10-17.swift",
+    "source_sha256": "7a733436b5b4ee67966b67616615f842f7c6c5d6296c72f6399c93607656d88a",
+    "build_time_runner_sha256": "0e61d8abe08d0cc1e272c5d3930ccf4259431e680f7fa30b791d2a9d48c29aee",
+    "validation_time_runner_sha256": "b156e2c2b3245fabfecb563c6cab344fe8812833ea536e9cbffc985075fe5737",
+    "runner_provenance_scope": "Only this external Python runner differs from the frozen build measurement; the unchanged Swift probe digest and original app build signature are retained.",
+    "exit": 0,
+    "log": "build/qa/signed-history-runtime-2026-10-24.log",
+    "record": "build/qa/signed-history-runtime-2026-10-24.json",
+    "mode_count": 6,
+    "runtime_failed_cases": 0,
+    "runtime_repeated_cases": 0,
+    "actual_peer_signatures": 3,
+    "history": {
+      "browser_pinned": true,
+      "config_unchanged": true,
+      "configured_signature": true,
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-f7vx9ylp/Allowed.app/Contents/Helpers/Git/bin/git",
+      "gitlink_oid": "bc2e41a3bbbc9fc6a7f2b14f4a1e4c406fa3d4e9",
+      "head": "18976119e5ad2959fbf2327074c0eb5e98dfcfdf",
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "libgit2": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-f7vx9ylp/Allowed.app/Contents/MacOS/TurtleGitRuntime-LibGit2-95620795c68a-turtlegit-libgit2",
+      "literal_references_distinct": true,
+      "notes_empty": true,
+      "notes_engine": "libgit2",
+      "notes_ref": "refs/notes/signed-qa",
+      "notes_sha256": "68fcf7abb7d8663e01528f6d1d00106989f4007ef0096ac794b661c707c407bc",
+      "notes_utf8_bytes": 1416000,
+      "raw_tag_oid": "9cabae2400edd7dd8c44427c3502ce76e2ef5cfe",
+      "tree": "6b6cf8b113333e463832c5c37fae8e806148157e",
+      "working_unchanged": true
+    },
+    "history_children": {
+      "observed_helper_processes": 1,
+      "owned_helper_pids": [
+        38206
+      ],
+      "owned_helper_groups": [
+        38206
+      ],
+      "observed_helper_roles": {
+        "libgit2": 1,
+        "git": 0
+      },
+      "own_process_group_required_roles": [
+        "libgit2"
+      ],
+      "observed_processes": [
+        {
+          "pid": 38206,
+          "ppid": 38126,
+          "pgid": 38206,
+          "roles": [
+            "libgit2"
+          ]
+        }
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "metafile_children": {
+      "observed_helper_processes": 2,
+      "owned_helper_pids": [
+        38254,
+        38275
+      ],
+      "owned_helper_groups": [
+        38254,
+        38275
+      ],
+      "observed_helper_roles": {
+        "metafile": 2
+      },
+      "own_process_group_required_roles": [
+        "metafile"
+      ],
+      "observed_processes": [
+        {
+          "pid": 38254,
+          "ppid": 38250,
+          "pgid": 38254,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38275,
+          "ppid": 38250,
+          "pgid": 38275,
+          "roles": [
+            "metafile"
+          ]
+        }
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "packaged_runtime_execution": {
+      "git": "Actual packaged Git commands completed through signed parent; zero Git PIDs were sampled by the history observer",
+      "lexilla": true,
+      "libgit2": true,
+      "metafile": true
+    },
+    "metafile_scope": {
+      "rendered_images": 8,
+      "malformed_cases_refused": 1,
+      "deadline_after_actual_spawn": true,
+      "original_fixture_files_unchanged": true
+    },
+    "case_names": [
+      "writer",
+      "reader",
+      "denied",
+      "metafile",
+      "history",
+      "cleanup"
+    ],
+    "history_assertions": [
+      "Typed commit/tree/annotated-tag metadata and exact packed NFC/NFD reference identities",
+      "Browser pinned historical listing/file bytes and typed gitlink metadata",
+      "Unconditional SHA-1 Notes helper with the master preference disabled",
+      "Configured Notes ref/signature despite author/committer and Notes environment overrides",
+      "Approximately one MiB of exact Unicode/LF note content followed by an empty association",
+      "HEAD/index/config/worktree byte preservation",
+      "Actual default packaged runtime paths and observed inherited-sandbox helper PIDs/groups"
+    ]
+  },
+  "static": {
+    "status": "passed",
+    "exit": 0,
+    "log": "build/qa/signed-history-static-2026-10-24.log",
+    "record": "build/qa/signed-history-static-2026-10-24.json",
+    "actual_signatures": "Deep/strict seals and owned component team/signature checks passed",
+    "runtime_entitlements_and_layout": "LibGit2/Metafile structural and inherited-signature checks passed; separate actual signed-parent execution passed in the runtime checkpoint.",
+    "identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "2",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "2"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "2"
+        }
+      }
+    },
+    "owned_universal_components": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "owned_universal_component_count": 8,
+    "runtime_code_items": 206,
+    "candidate_before_inventory_members": 6356,
+    "candidate_before_inventory_sha256": "9ee2c35ade45fd73f5f9cdedb8740dd5e3709875e0769de265dd29edd426253e",
+    "candidate_after_inventory": "Unchanged: final checkpoint compared all 6356 members with the original signed inventory",
+    "validation_input_comparison": "Every measured input other than the explicitly corrected external signed-runtime test runner is unchanged; the original build signature is preserved.",
+    "other_scope": [
+      "Branding and identity audit passed",
+      "Cache service packaging audit passed; no registration or actual XPC claim"
+    ]
+  },
+  "ownership_boundaries": {
+    "shipping_gui_launched": false,
+    "outside_file_grants": false,
+    "finder_activation": "not performed",
+    "service_registration": "not performed",
+    "actual_cache_xpc": "not performed",
+    "installed_finder_pid": 57078,
+    "installed_finder_pid_action": "Preserved through the checkpoint; final record independently confirms PID 57078 remains",
+    "applications_installation": "Existing /Applications app remains untouched",
+    "candidate_mutation_by_probe": "Final full inventory comparison confirms shipping candidate unchanged; only disposable clones executed"
+  },
+  "historical_evidence": {
+    "previous_signed_runtime_record": "docs/qa/signed-metafile-2026-10-19.json",
+    "scope_note": "October 19 remains historical evidence for its own recorded source and corpus; it does not certify this candidate."
+  },
+  "remaining": [
+    "This is selected Apple Silicon sandbox execution and static universal packaging, not physical Intel or complete installed Finder acceptance",
+    "Current installed Finder/XPC/native history-editor workflows with external bookmark grants",
+    "Physical Intel/minimum macOS, complete hosted CI and broader compatibility acceptance",
+    "App Store distribution signing/export is not established; no App Store submission performed."
+  ],
+  "final_checkpoint": {
+    "status": "passed",
+    "exit": 0,
+    "log": "build/qa/signed-history-final-2026-10-24.log",
+    "record": "build/qa/signed-history-final-2026-10-24.json",
+    "shipping_bundle_unchanged": true,
+    "bundle_inventory_members": 6356,
+    "all_other_measured_inputs_unchanged": true,
+    "external_runner_only_delta": [
+      "scripts/test-signed-finder-runtime.py"
+    ],
+    "validation_inputs_sha256": "e4735155295148a04755512405d46c47820fa4e3b8d8d8722f7b97c1ad3bbcf5",
+    "qa_probe_unchanged": true,
+    "receiver_pids": [
+      38102,
+      38120,
+      38121,
+      38126,
+      38250,
+      38306
+    ],
+    "helper_pids": [
+      38206,
+      38254,
+      38275
+    ],
+    "all_pids_independently_absent": true,
+    "private_group_fixture_removed": true,
+    "disposable_clone_folder": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-f7vx9ylp",
+    "disposable_clones_removed": true,
+    "installed_finder_pid_preserved": 57078,
+    "initial_postcheck_failure": "A broad signed-finder-* glob also matched historical report files; the corrected check verifies only the exact clone folder from this run. No runtime case failed or reran."
+  },
+  "documentation_checkpoint": {
+    "site_documents": 446,
+    "unresolved_fragments": 0,
+    "site_log": "build/qa/signed-history-site-2026-10-24.log",
+    "dialog_coverage_log": "build/qa/signed-history-dialog-coverage-2026-10-24.log",
+    "scope": "No UI labels or bundled Help guides changed. The unchanged production Core/native editor suites were not repeated; actual public Core APIs were exercised inside the signed sandbox."
+  }
+}

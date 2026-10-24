@@ -83,6 +83,87 @@ import TurtleGitCore
         }
         return results
     }
+    /// Actual public history consumers inside the inherited App Store sandbox.
+    /// The only writable location is the existing per-run App Group UUID folder.
+    static func history(_ folder:URL)async throws->[String:Any] {
+        let root=folder.appendingPathComponent("history-repository",isDirectory:true)
+        try require(!FileManager.default.fileExists(atPath:root.path),"Signed history fixture already exists")
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        let bundle=Bundle.main.bundleURL.resolvingSymlinksInPath(),git=try GitRuntime.executable(bundle:.main,appStore:true)
+        let helper=Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/LibGit2/bin/turtlegit-libgit2").resolvingSymlinksInPath()
+        try require(git.resolvingSymlinksInPath().path.hasPrefix(bundle.path+"/Contents/") && helper.deletingLastPathComponent()==bundle.appendingPathComponent("Contents/MacOS") && FileManager.default.isExecutableFile(atPath:helper.path),"History runtimes escaped the signed package")
+        // No executor or helper URL injection: these APIs must discover the same
+        // packaged runtime used by the shipping app and its inherited children.
+        let selected=GitLibGit2Configuration(enabled:true,mask:0)
+        let repository=GitRepository(root:root,executable:git,askpass:nil,libgit2Configuration:selected)
+        _=try await repository.run(["init","--template=","--object-format=sha1","--initial-branch=main"])
+        for(key,value)in[("user.name","Signed Notes Author"),("user.email","signed-notes@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false"),("tag.gpgsign","false"),("core.precomposeunicode","true"),("core.notesRef","refs/notes/signed-qa")] {_=try await repository.run(["config",key,value])}
+        let file=root.appendingPathComponent("file.txt"),nested=root.appendingPathComponent("nested/value.txt")
+        try FileManager.default.createDirectory(at:nested.deletingLastPathComponent(),withIntermediateDirectories:true)
+        try Data("first\n".utf8).write(to:file);try Data("literal nested bytes\n".utf8).write(to:nested)
+        try await repository.stage(["file.txt","nested/value.txt"])
+        _=try await repository.run(["commit","-m","Signed history base"])
+        let old=try await repository.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        try Data("second\n".utf8).write(to:file)
+        _=try await repository.run(["update-index","--add","--cacheinfo","160000,"+old+",module"])
+        try await repository.stage(["file.txt"]);_=try await repository.run(["commit","-m","Signed history with gitlink"])
+        let head=try await repository.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _=try await repository.run(["tag","--annotate","--message","Signed historical tag","signed-release",head])
+        let rawTag=try await repository.run(["rev-parse","refs/tags/signed-release"]).text.trimmingCharacters(in:.newlines)
+        let nfc="refs/heads/caf\u{e9}",nfd="refs/heads/cafe\u{301}"
+        // Packed refs preserve two distinct Git identities even where loose
+        // filesystem names would share macOS canonical normalization.
+        try Data(("# pack-refs with: peeled fully-peeled sorted\n"+old+" "+nfd+"\n"+head+" "+nfc+"\n").utf8).write(to:root.appendingPathComponent(".git/packed-refs"))
+        let raw=try await repository.revisionLookup("refs/tags/signed-release",requirement:.existingObject)
+        let commit=try await repository.revisionLookup("refs/tags/signed-release",requirement:.commit)
+        let tree=try await repository.revisionLookup("refs/tags/signed-release",requirement:.tree)
+        let composed=try await repository.revisionLookup(nfc,requirement:.commit),decomposed=try await repository.revisionLookup(nfd,requirement:.commit)
+        let hasComposed=try await repository.referenceExists(nfc),hasDecomposed=try await repository.referenceExists(nfd)
+        try require(raw.objectID==rawTag && rawTag != head && commit.objectID==head && tree.objectID != nil,"Signed typed tag/commit/tree resolution changed identity")
+        try require(composed.objectID==head && decomposed.objectID==old && hasComposed && hasDecomposed,"Signed typed exact references collapsed canonical names")
+        let snapshot=try await repository.browseRepository(revision:"refs/tags/signed-release")
+        let directory=try await repository.browseRepositoryDirectory(snapshot,directory:"nested")
+        guard let entry=directory.entries.first(where:{RepositoryBrowserPathIdentity.equal($0.path,"nested/value.txt")}) else{throw Failure(description:"Signed Browser lost nested entry")}
+        let content=try await repository.repositoryBrowserFile(directory,entry:entry)
+        try require(snapshot.objectID==head && snapshot.treeID==tree.objectID && content.bytes==Data("literal nested bytes\n".utf8),"Signed Browser lost pinned tree/content")
+        let gitlink=try await repository.historicalGitlink(path:"module",revision:head,commitOnly:true)
+        try require(gitlink == .gitlink(old),"Signed typed historical gitlink changed metadata")
+        let beforeHead=try Data(contentsOf:root.appendingPathComponent(".git/HEAD")),beforeIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),beforeConfig=try Data(contentsOf:root.appendingPathComponent(".git/config"))
+        let beforeFile=try Data(contentsOf:file),beforeNested=try Data(contentsOf:nested)
+        let keys=["GIT_NOTES_REF","GIT_AUTHOR_NAME","GIT_AUTHOR_EMAIL","GIT_COMMITTER_NAME","GIT_COMMITTER_EMAIL"]
+        let original=Dictionary(uniqueKeysWithValues:keys.map{key in (key,ProcessInfo.processInfo.environment[key])})
+        defer{for key in keys{if let value=original[key] ?? nil{setenv(key,value,1)}else{unsetenv(key)}}}
+        setenv("GIT_NOTES_REF","refs/notes/environment-ignored",1)
+        setenv("GIT_AUTHOR_NAME","Environment Author",1);setenv("GIT_AUTHOR_EMAIL","environment-author@example.invalid",1)
+        setenv("GIT_COMMITTER_NAME","Environment Committer",1);setenv("GIT_COMMITTER_EMAIL","environment-committer@example.invalid",1)
+        // Notes are unconditional libgit2 consumers, independent of this mask.
+        let notes=GitRepository(root:root,executable:git,askpass:nil,libgit2Configuration:.init(enabled:false,mask:0))
+        let accepted=try await notes.editableCommitNote(revision:head)
+        try require(accepted.engine == .libgit2 && GitReferenceName.equal(accepted.notesRef,"refs/notes/signed-qa"),"Signed Notes used the master toggle or environment notes ref")
+        _=try await repository.run(["config","core.notesRef","refs/notes/later-configuration"])
+        let text=String(repeating:"Signed sandbox note caf\u{e9} / cafe\u{301} — exact UTF-8 and LF.\n",count:24_000)
+        let expected=Data(text.utf8);try require(expected.count>=1_000_000,"Signed Notes payload does not cover large real wire data")
+        let saved=try await notes.saveCommitNote(accepted,text:text)
+        try require(saved.utf8.elementsEqual(text.utf8),"Signed Notes readback changed exact text")
+        _=try await repository.run(["config","core.notesRef","refs/notes/signed-qa"])
+        let readback=try await notes.editableCommitNote(revision:head)
+        try require(Data(readback.text.utf8)==expected && GitReferenceName.equal(readback.notesRef,accepted.notesRef),"Signed captured Notes ref/text changed")
+        let empty=try await notes.saveCommitNote(readback,text:"")
+        let reread=try await notes.editableCommitNote(revision:head)
+        let emptyListing=try await repository.run(["notes","--ref=refs/notes/signed-qa","list",head]).text.trimmingCharacters(in:.newlines)
+        let emptyBlob=try await repository.run(["cat-file","blob",emptyListing]).stdout
+        try require(empty.isEmpty && reread.text.isEmpty && emptyListing=="e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" && emptyBlob.isEmpty,"Signed empty note save did not retain an actual empty note blob")
+        let signature=try await repository.run(["show","-s","--format=%an%x00%ae%x00%cn%x00%ce","refs/notes/signed-qa"]).stdout
+        let signatureOK=signature==Data("Signed Notes Author\0signed-notes@example.invalid\0Signed Notes Author\0signed-notes@example.invalid\n".utf8)
+        try require(signatureOK,"Signed Notes ignored configured default signature")
+        let ignored=try await repository.referenceExists("refs/notes/environment-ignored"),later=try await repository.referenceExists("refs/notes/later-configuration")
+        try require(!ignored && !later,"Signed Notes wrote an uncaptured/environment ref")
+        let finalHead=try await repository.revisionLookup("HEAD",requirement:.commit)
+        let headOK=try Data(contentsOf:root.appendingPathComponent(".git/HEAD"))==beforeHead && finalHead.objectID==head,indexOK=try Data(contentsOf:root.appendingPathComponent(".git/index"))==beforeIndex,configOK=try Data(contentsOf:root.appendingPathComponent(".git/config"))==beforeConfig
+        let fileOK=try Data(contentsOf:file)==beforeFile,nestedOK=try Data(contentsOf:nested)==beforeNested
+        try require(headOK && indexOK && configOK && fileOK && nestedOK,"Signed history/Notes touched unrelated repository state")
+        return ["git":git.path,"libgit2":helper.path,"head":head,"tree":tree.objectID!,"raw_tag_oid":rawTag,"literal_references_distinct":true,"browser_pinned":true,"gitlink_oid":old,"notes_engine":accepted.engine!.rawValue,"notes_ref":accepted.notesRef,"notes_utf8_bytes":expected.count,"notes_sha256":digest(expected),"notes_empty":true,"configured_signature":signatureOK,"head_unchanged":headOK,"index_unchanged":indexOK,"config_unchanged":configOK,"working_unchanged":fileOK && nestedOK]
+    }
     static func main() async throws {
         let args=CommandLine.arguments
         guard args.count>=4, let uuid=UUID(uuidString:args[2]), let expected=FinderIntegration.groupIdentifier(team:args[3]) else { throw Failure(description:"Invalid signed QA request") }
@@ -133,6 +214,9 @@ import TurtleGitCore
             let value=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:snapshotURL))
             try require(value.roots.contains(root.path) && value.states[file.path] == .modified,"Independent signed reader lost published status")
             try require(try Data(contentsOf:file)==Data("modified\n".utf8),"Independent signed reader lost group-file access")
+        } else if mode=="history" {
+            guard args.count==4 else{throw Failure(description:"Unexpected signed history arguments")}
+            details["history"]=try await history(folder);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false
         } else if mode=="metafile" {
             guard args.count==5 else {throw Failure(description:"Missing captured metafile payload")}
             details["images"]=try await metafiles(args[4]);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false

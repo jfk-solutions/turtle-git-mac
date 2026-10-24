@@ -124,7 +124,7 @@ the shipping main GUI, register a service/extension, export or submit an archive
 or certify external folder grants and every signed workflow.
 
 
-## Current signed runtime checkpoint
+## October 19 signed runtime checkpoint (historical)
 
 The [October 19 checkpoint](qa/signed-metafile-2026-10-19.json) replaces the local
 development-signed candidate at the same path with measured inputs based on
@@ -150,3 +150,64 @@ the older installed Finder checkpoint, launch the shipping GUI, certify physical
 Intel/minimum macOS or every graphics format, or establish distribution signing,
 licensing clearance and App Store acceptance. The older Release preview and
 unsigned archive are unchanged.
+
+
+## October 24 history and Notes signed checkpoint
+
+The [October 24 receipt](qa/signed-history-family-2026-10-24.json) records a new
+universal AppStore Apple Development candidate based on `9a8e37ce`, using team
+`A49SCA5S8K`, the installed identity and existing profiles. No provisioning update,
+archive export or submission was requested. The build exited successfully; its
+five contradictory “failed with exit code 0” diagnostics remain recorded.
+
+Static checks passed deep/strict seals, identity/branding, cache packaging, all
+eight universal owned app components and 206 runtime code items. App, Finder and
+cache peers retain version 0.1.0/build 2 and the same team-qualified App Group.
+Packaged LibGit2 and Metafile helpers passed their actual same-team,
+inherited-sandbox and resolved-layout checks. The original measured build-input
+signature remains intact. A pre-execution correction changed only the external
+runner: a legitimate Git maintenance child can share the request's process group,
+so group-leader requirements apply to direct LibGit2/Metafile helpers rather than
+every Git descendant. All other measured inputs and the Swift probe were
+explicitly unchanged; the app was not rebuilt from that revised test harness.
+
+All six signed modes passed on their first execution: writer, independent reader,
+denied nonmember, history, metafile and cleanup. They used disposable same-team
+signed clones and one private UUID directory in the authorized App Group, with no
+external file grants, injected executors, user preferences or windows. The
+shipping GUI was not launched and no Finder/service job was registered.
+
+The new `history UUID TEAM` mode used the actual packaged Git and default LibGit2
+runtime through public Core APIs. It verified typed commit/tree/raw annotated-tag
+identities, distinct packed NFC/NFD reference spellings, pinned Browser listing
+and file bytes, and historical gitlink metadata. Unconditional SHA-1 Notes ran
+with the master preference disabled, used the configured notes ref and signature
+despite environment overrides, round-tripped 1,416,000 exact Unicode/LF UTF-8 bytes,
+and then retained an empty note association. HEAD, index, configuration and
+working bytes remained unchanged. The retained metafile mode rendered eight
+selected images, refused one malformed image and exercised a deadline after
+actual helper spawn; original corpus bytes were unchanged.
+
+Six probe receivers and three observed helper PIDs were reaped and independently
+absent. The observer captured one LibGit2 process and two Metafile processes,
+including their PPID/PGID/role receipts; their owned groups drained without forced
+cleanup. Actual Git commands completed, although the history observer sampled no
+Git PID. The private group fixture and exact disposable clone directory were
+removed. An initial postcheck used an overbroad `signed-finder-*` glob that also
+matched two historical report files; checking this run's exact clone folder
+passed. No runtime case failed or reran, and no app rebuild was needed.
+
+The final checkpoint confirmed all 6,356 shipping-bundle inventory members were
+unchanged, along with the measured validation-input signature and documented
+external-runner-only delta. The existing `/Applications` app was untouched and
+user-installed Finder PID 57078 was preserved. The October 19 receipt above
+remains historical evidence for its own source revision.
+
+This establishes selected actual sandbox execution on Apple Silicon and static
+universal packaging. It does not renew installed Finder/XPC delivery, prove the
+native Notes editor/Settings workflow under external bookmark grants, or certify
+live badges, context-menu delivery, background registration, Keychain/SSH/network
+transport, physical Intel/minimum macOS behavior or every current metafile case.
+The private App Group repository does not establish permission for arbitrary user
+repositories. Distribution export and submission remain separate from this
+Apple Development build and scoped probe.

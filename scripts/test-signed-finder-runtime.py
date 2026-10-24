@@ -2,7 +2,7 @@
 """Exercise actual sandboxed App Group sharing and packaged Git with an installed signing identity.
 Clones are run directly, with unique QA bundle IDs; no launch/Finder service is registered.
 """
-import argparse,base64,hashlib,json,os,platform,plistlib,re,signal,subprocess,tempfile,threading,time,uuid
+import argparse,base64,hashlib,json,os,platform,plistlib,re,signal,subprocess,sys,tempfile,threading,time,uuid
 from pathlib import Path
 from finder_group_identity import app_group,mach_service,query_mach_service
 from native_receiver import run_receiver,signal_receiver_group
@@ -34,10 +34,11 @@ def metafile_request():
     if len(payload)>192*1024:raise ValueError('Signed metafile payload exceeds bounded argv transport')
     return payload,originals
 
-class MetafileChildren:
+class OwnedRuntimeChildren:
     """Observe/retire only the unique disposable clone's actual helper path."""
-    def __init__(self,executable):
-        self.executables={str(executable),str(executable.resolve(strict=True))};self.seen={};self.errors=[];self.stop=threading.Event()
+    def __init__(self,executables,required):
+        self.executables={name:{str(path),str(path.resolve(strict=True))} for name,path in executables.items()}
+        self.required=set(required);self.own_group_roles=set(executables)&{'libgit2','metafile'};self.seen={};self.errors=[];self.stop=threading.Event()
         self.worker=threading.Thread(target=self.observe,daemon=True)
     def scan(self):
         result=subprocess.run(['/bin/ps','-axo','pid=,ppid=,pgid=,stat=,command='],capture_output=True,text=True,check=True,timeout=5)
@@ -47,7 +48,8 @@ class MetafileChildren:
             if len(fields)!=5:continue
             pid,parent,group=map(int,fields[:3]);rows.append((pid,parent,group,fields[3],fields[4]))
         return rows
-    def owned(self,row):return any(row[4]==path or row[4].startswith(path+' ') for path in self.executables)
+    def roles(self,row):return [name for name,paths in self.executables.items() if any(row[4]==path or row[4].startswith(path+' ') for path in paths)]
+    def owned(self,row):return bool(self.roles(row))
     def observe(self):
         try:
             while not self.stop.is_set():
@@ -73,16 +75,24 @@ class MetafileChildren:
         while leftovers and time.monotonic()<deadline:
             leftovers=[row for row in self.scan() if self.owned(row) and not row[3].startswith('Z')]
             if leftovers:time.sleep(0.02)
-        if leftovers:raise RuntimeError('Owned signed metafile helper survived cleanup')
-        if kind is None:
-            if needed_cleanup:raise RuntimeError('Signed metafile helper outlived its parent request and required cleanup')
-            if self.errors:raise RuntimeError('Cannot verify helper process ownership: '+'; '.join(self.errors))
-            if not self.seen:raise RuntimeError('No actual packaged metafile helper execution was observed')
-            if any(row[0]!=row[2] for row in self.seen.values()):raise RuntimeError('Metafile helper did not own its process group')
-            if any(signal_receiver_group(row[2],0) for row in self.seen.values()):raise RuntimeError('Owned metafile helper process group did not drain')
-            if any(row[0] in self.seen for row in self.scan()):raise RuntimeError('Owned metafile helper PID did not drain')
+        groups_drained=not any(signal_receiver_group(row[2],0) for row in self.seen.values())
+        pids_drained=not any(row[0] in self.seen for row in self.scan())
         self.result={'observed_helper_processes':len(self.seen),'owned_helper_pids':[row[0] for row in self.seen.values()],
-                     'owned_helper_groups':[row[2] for row in self.seen.values()],'helper_processes_and_groups_drained':not leftovers}
+                     'owned_helper_groups':[row[2] for row in self.seen.values()],
+                     'observed_helper_roles':{name:sum(name in self.roles(row) for row in self.seen.values()) for name in self.executables},
+                     'own_process_group_required_roles':sorted(self.own_group_roles),
+                     'observed_processes':[{'pid':row[0],'ppid':row[1],'pgid':row[2],'roles':self.roles(row)} for row in self.seen.values()],
+                     'helper_processes_and_groups_drained':not leftovers and groups_drained and pids_drained,'forced_cleanup_needed':needed_cleanup,'observer_errors':self.errors}
+        if leftovers and kind is None:raise RuntimeError('Owned signed runtime helper survived cleanup')
+        if kind is None:
+            if needed_cleanup:raise RuntimeError('Signed runtime helper outlived its parent request and required cleanup')
+            if self.errors:raise RuntimeError('Cannot verify helper process ownership: '+'; '.join(self.errors))
+            if any(not any(name in self.roles(row) for row in self.seen.values()) for name in self.required):raise RuntimeError('No actual packaged helper execution observed for required roles: '+', '.join(sorted(self.required)))
+            # Git can start own-image maintenance children in its accepted
+            # request group. Direct libgit2/metafile helpers own their groups.
+            if any(row[0]!=row[2] and self.own_group_roles.intersection(self.roles(row)) for row in self.seen.values()):raise RuntimeError('Direct runtime helper did not own its process group')
+            if not groups_drained:raise RuntimeError('Owned runtime helper process group did not drain')
+            if not pids_drained:raise RuntimeError('Owned runtime helper PID did not drain')
 
 def signature(path):
     result=subprocess.run(['/usr/bin/codesign','-dv','--verbose=4',str(path)],capture_output=True,text=True,check=True)
@@ -121,58 +131,96 @@ def main():
     metafile_rights=entitlements(metafile)
     if signature(metafile)!=args.team or not all(metafile_rights.get(key) is True for key in ['com.apple.security.app-sandbox','com.apple.security.inherit']):
         raise ValueError('Packaged Metafile lacks same-team inherited sandbox signing')
+    libgit2_home=app/'Contents/Helpers/LibGit2';libgit2=(libgit2_home/'bin/turtlegit-libgit2').resolve(strict=True)
+    if libgit2.parent!=app/'Contents/MacOS':raise ValueError('Packaged LibGit2 escaped signed MacOS layout')
+    libgit2_rights=entitlements(libgit2)
+    if signature(libgit2)!=args.team or not all(libgit2_rights.get(key) is True for key in ['com.apple.security.app-sandbox','com.apple.security.inherit']):
+        raise ValueError('Packaged LibGit2 lacks same-team inherited sandbox signing')
     source=ROOT/'docs/qa/signed-finder-runtime-probe-2026-10-17.swift'
     products=app.parent
-    record={'team':args.team,'group':group,'app':str(app),'actual_peer_signatures':3,'packaged_git_inherits_sandbox':True,'packaged_metafile_inherits_sandbox':True,'cases':[],'finder_activation':'not performed','service_registration':'not performed'}
-    with tempfile.TemporaryDirectory(prefix='signed-finder-',dir=ROOT/'build/qa') as temporary:
-        folder=Path(temporary);binary=folder/'probe'
-        subprocess.run(['xcrun','swiftc','-parse-as-library','-swift-version','5','-target',platform.machine()+'-apple-macos13.0','-F',str(products),'-framework','TurtleGitCore','-Xlinker','-rpath','-Xlinker','@executable_path/../Frameworks',str(source),'-o',str(binary)],check=True)
-        clones=[]
-        for allowed in [True,False]:
-            clone=folder/('Allowed.app' if allowed else 'Denied.app')
-            subprocess.run(['/usr/bin/ditto',str(app),str(clone)],check=True)
-            # Only these disposable copies change; keep the shipping code/resources intact.
-            info_path=clone/'Contents/Info.plist';info=plistlib.loads(info_path.read_bytes())
-            info['CFBundleIdentifier']='org.turtlegit.macos.documentation-preview.signed-'+uuid.uuid4().hex
-            info['CFBundleName']='TurtleGit Signed Runtime QA'
-            for key in ['CFBundleURLTypes','CFBundleDocumentTypes','UTExportedTypeDeclarations','UTImportedTypeDeclarations']:info.pop(key,None)
-            info_path.write_bytes(plistlib.dumps(info))
-            subprocess.run(['/bin/cp',str(binary),str(clone/'Contents/MacOS'/info['CFBundleExecutable'])],check=True)
-            profile=clone/'Contents/embedded.provisionprofile'
-            if profile.exists():profile.unlink()
-            rights={'com.apple.security.app-sandbox':True}
-            if allowed:rights['com.apple.security.application-groups']=[group]
-            permissions=folder/('allowed.plist' if allowed else 'denied.plist');permissions.write_bytes(plistlib.dumps(rights))
-            subprocess.run(['/usr/bin/codesign','--force','--sign',args.identity,'--options','runtime','--timestamp=none','--entitlements',str(permissions),str(clone)],check=True)
-            subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict',str(clone)],check=True)
-            clones.append(clone/'Contents/MacOS'/info['CFBundleExecutable'])
-        environment=os.environ.copy();environment.update(GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
-        environment.pop('DYLD_FRAMEWORK_PATH',None);environment.pop('DYLD_LIBRARY_PATH',None)
-        identifier=str(uuid.uuid4());snapshot=None
-        def run(binary,mode,*extra):
-            result=run_receiver([str(binary),mode,identifier,args.team,*extra],cwd=ROOT,env=environment,capture_output=True,text=True,timeout=90)
-            print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
-            lines=[line for line in result.stdout.splitlines() if line.startswith('TURTLEGIT_SIGNED_QA ')]
-            if len(lines)!=1:raise ValueError('Signed probe did not complete')
-            value=json.loads(lines[0].split(' ',1)[1])
-            if value.get('passed') is not True:raise ValueError('Signed probe reported failure: '+mode)
-            record['cases'].append(value)
-            return value
-        try:
-            snapshot=run(clones[0],'writer')['snapshot']
-            record['packaged_lexilla_runs_from_sandbox']=True
-            run(clones[0],'reader')
-            run(clones[1],'denied',snapshot)
-            payload,originals=metafile_request()
-            with MetafileChildren(clones[0].parent.parent/'Helpers/Metafile/metafile-convert') as children:
-                run(clones[0],'metafile',payload)
-            record['metafile_children']=children.result;record['packaged_metafile_runs_from_sandbox']=True
-            for path,digest in originals.items():
-                if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:raise ValueError('Signed probe changed original metafile fixture: '+path.name)
-            record['metafile_fixture_files_unchanged']=True
-        finally:
-            run(clones[0],'cleanup')
-    args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(record,indent=2)+'\n')
+    record={'team':args.team,'group':group,'app':str(app),'actual_peer_signatures':3,'packaged_git_inherits_sandbox':True,'packaged_metafile_inherits_sandbox':True,'packaged_libgit2_inherits_sandbox':True,'cases':[],'finder_activation':'not performed','service_registration':'not performed'}
+    try:
+        with tempfile.TemporaryDirectory(prefix='signed-finder-',dir=ROOT/'build/qa') as temporary:
+            folder=Path(temporary);binary=folder/'probe'
+            subprocess.run(['xcrun','swiftc','-parse-as-library','-swift-version','5','-target',platform.machine()+'-apple-macos13.0','-F',str(products),'-framework','TurtleGitCore','-Xlinker','-rpath','-Xlinker','@executable_path/../Frameworks',str(source),'-o',str(binary)],check=True)
+            clones=[]
+            for allowed in [True,False]:
+                clone=folder/('Allowed.app' if allowed else 'Denied.app')
+                subprocess.run(['/usr/bin/ditto',str(app),str(clone)],check=True)
+                # Only these disposable copies change; keep the shipping code/resources intact.
+                info_path=clone/'Contents/Info.plist';info=plistlib.loads(info_path.read_bytes())
+                info['CFBundleIdentifier']='org.turtlegit.macos.documentation-preview.signed-'+uuid.uuid4().hex
+                info['CFBundleName']='TurtleGit Signed Runtime QA'
+                for key in ['CFBundleURLTypes','CFBundleDocumentTypes','UTExportedTypeDeclarations','UTImportedTypeDeclarations']:info.pop(key,None)
+                info_path.write_bytes(plistlib.dumps(info))
+                subprocess.run(['/bin/cp',str(binary),str(clone/'Contents/MacOS'/info['CFBundleExecutable'])],check=True)
+                profile=clone/'Contents/embedded.provisionprofile'
+                if profile.exists():profile.unlink()
+                rights={'com.apple.security.app-sandbox':True}
+                if allowed:rights['com.apple.security.application-groups']=[group]
+                permissions=folder/('allowed.plist' if allowed else 'denied.plist');permissions.write_bytes(plistlib.dumps(rights))
+                subprocess.run(['/usr/bin/codesign','--force','--sign',args.identity,'--options','runtime','--timestamp=none','--entitlements',str(permissions),str(clone)],check=True)
+                subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict',str(clone)],check=True)
+                clones.append(clone/'Contents/MacOS'/info['CFBundleExecutable'])
+            environment=os.environ.copy();environment.update(GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
+            environment.pop('DYLD_FRAMEWORK_PATH',None);environment.pop('DYLD_LIBRARY_PATH',None)
+            environment.pop('GIT_CONFIG_PARAMETERS',None)
+            for key in list(environment):
+                if key.startswith(('GIT_CONFIG_KEY_','GIT_CONFIG_VALUE_')):environment.pop(key)
+            identifier=str(uuid.uuid4());snapshot=None
+            def run(binary,mode,*extra):
+                result=run_receiver([str(binary),mode,identifier,args.team,*extra],cwd=ROOT,env=environment,capture_output=True,text=True,timeout=90)
+                print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
+                lines=[line for line in result.stdout.splitlines() if line.startswith('TURTLEGIT_SIGNED_QA ')]
+                if len(lines)!=1:raise ValueError('Signed probe did not complete')
+                value=json.loads(lines[0].split(' ',1)[1])
+                if value.get('passed') is not True:raise ValueError('Signed probe reported failure: '+mode)
+                record['cases'].append(value)
+                return value
+            try:
+                snapshot=run(clones[0],'writer')['snapshot']
+                record['packaged_lexilla_runs_from_sandbox']=True
+                run(clones[0],'reader')
+                run(clones[1],'denied',snapshot)
+                history_children=OwnedRuntimeChildren({'libgit2':clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2','git':clones[0].parent.parent/'Helpers/Git/bin/git'},required={'libgit2'})
+                try:
+                    with history_children:
+                        receipt=run(clones[0],'history')
+                        if receipt.get('outside_file_grants') is not False or receipt.get('shipping_gui_launched') is not False:raise ValueError('History probe escaped owned sandbox-only scope')
+                        history=receipt.get('history',{})
+                        for key in ['literal_references_distinct','browser_pinned','notes_empty','configured_signature','head_unchanged','index_unchanged','config_unchanged','working_unchanged']:
+                            if history.get(key) is not True:raise ValueError('History probe missing completed assertion: '+key)
+                        if history.get('notes_engine')!='libgit2' or history.get('notes_ref')!='refs/notes/signed-qa':raise ValueError('History probe did not use the source Notes engine/ref')
+                        if not isinstance(history.get('notes_utf8_bytes'),int) or history['notes_utf8_bytes']<1_000_000 or not re.fullmatch('[0-9a-f]{64}',history.get('notes_sha256','')):raise ValueError('History exact Notes payload receipt is incomplete')
+                        for key in ['head','tree','raw_tag_oid','gitlink_oid']:
+                            if not re.fullmatch('[0-9a-f]{40}',history.get(key,'')):raise ValueError('History object receipt is incomplete: '+key)
+                        for key,path in [('git',clones[0].parent.parent/'Helpers/Git/bin/git'),('libgit2',clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2')]:
+                            if Path(history.get(key,'')).resolve()!=path.resolve(strict=True):raise ValueError('History probe used an external runtime: '+key)
+                finally:
+                    if hasattr(history_children,'result'):record['history_children']=history_children.result
+                record['packaged_history_and_notes_run_from_sandbox']=True
+                payload,originals=metafile_request()
+                children=OwnedRuntimeChildren({'metafile':clones[0].parent.parent/'Helpers/Metafile/metafile-convert'},required={'metafile'})
+                try:
+                    with children:run(clones[0],'metafile',payload)
+                finally:
+                    if hasattr(children,'result'):record['metafile_children']=children.result
+                record['packaged_metafile_runs_from_sandbox']=True
+                for path,digest in originals.items():
+                    if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:raise ValueError('Signed probe changed original metafile fixture: '+path.name)
+                record['metafile_fixture_files_unchanged']=True
+            finally:
+                original_error=sys.exc_info()[1]
+                try:run(clones[0],'cleanup')
+                except BaseException as error:
+                    record['cleanup_error']=str(error)
+                    if original_error is None:raise
+        record['passed']=True
+    except BaseException as error:
+        record['passed']=False;record['failure']=str(error)
+        raise
+    finally:
+        args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(record,indent=2)+'\n')
     print('PASS signed App Group runtime: independent sandbox processes, actual packaged Git and a denied nonmember. No installed Finder activation.')
 
 if __name__=='__main__':main()
