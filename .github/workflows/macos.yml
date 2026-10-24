@@ -464,6 +464,8 @@ jobs:
         run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic EMF masked and transparent bitmap transfers
         run: python3 scripts/test-metafile-masked-transfers.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: EMF+ SourceCopy image and conflict workflows
+        run: python3 scripts/test-metafile-sourcecopy.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Metafile bounded raster regions and checkpoint ownership
         run: python3 scripts/test-metafile-raster-roi.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic metafile direct scanlines and gradient meshes

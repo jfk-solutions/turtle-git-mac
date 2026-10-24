@@ -99,7 +99,9 @@ useful three-format support, not complete GDI compatibility. Remaining
 unsupported features include DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md),
 file-format-only Left/Outset/Right pen alignment, alternate-format/terminal-server
-records and source-copy compositing. The [pen extension](METAFILE-PEN-PARITY.md)
+records. The [SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md) adds ordered alpha
+replacement, independent coverage and saved drawing state through native image
+consumers, with a separate grouped checkpoint. The [pen extension](METAFILE-PEN-PARITY.md)
 adds transformed nibs, compound bands, standard caps, joins, dash styles and
 Center/Inset positioning across the nine EMF+ stroke record families.
 The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers

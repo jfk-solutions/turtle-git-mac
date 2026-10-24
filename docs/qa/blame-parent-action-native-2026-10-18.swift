@@ -100,7 +100,12 @@ import TurtleGitCore
             child.picker?.close(); try await wait { child.picker == nil && !model.historyChildBlocked }; child.close()
             // Close during a held patch read cancels it but retains work until reply.
             model.readHistoryPatch = { _, token in patchToken = token; return try await withCheckedThrowingContinuation { heldPatch = $0 } }
+            // Blocking children retire previously captured menu receipts. A
+            // newly opened action captures authority after those children close.
             model.performHistoryParent(target, choices: choices, action: .unified)
+            try require(heldPatch == nil, "Stale pre-child history receipt regained authority")
+            guard let closingTarget = model.sourceParentTarget(second.hash) else { throw Failure(description: "Fresh post-child history target unavailable") }
+            model.performHistoryParent(closingTarget, choices: choices, action: .unified)
             try await wait { heldPatch != nil }
             owner.close()
             try require(patchToken?.isCancelled == true && BlameWindowModel.activeHistoryOperations > 0, "Retirement lost actual patch read ownership")

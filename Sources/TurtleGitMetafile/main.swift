@@ -292,13 +292,15 @@ private final class NativeRasterComposite {
         guard CGImageDestinationFinalize(encoder),encoded.length<=outputLimit/2 else{throw invalid("composite PNG output exceeds limit")}
         return "data:image/png;base64,"+(encoded as Data).base64EncodedString()
     }
-    /// Mask selection, RGB color-key copies and premultiplied source-over share
-    /// the same guarded SVG raster boundary and cumulative work limits as ROP3.
+    /// Mask selection, RGB color-key copies, premultiplied source-over and
+    /// EMF+ SourceCopy share one guarded raster boundary and cumulative budgets.
+    /// SourceCopy receives the paint and its independent opaque geometry; the
+    /// source already contains exactly one edge/clip-coverage application.
     func transfer(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ selection:JSValue,_ widthValue:Double,_ heightValue:Double,_ options:JSValue,_ request:JSValue)throws->NSObject {
         guard widthValue.isFinite,heightValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,
               widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,
               options.isObject,!options.isArray,let modeValue=options.forProperty("mode"),modeValue.isString,
-              let mode=modeValue.toString(),["mask","transparent","alpha"].contains(mode) else{throw invalid("invalid transfer dimensions or mode")}
+              let mode=modeValue.toString(),["mask","transparent","alpha","source-copy"].contains(mode) else{throw invalid("invalid transfer dimensions or mode")}
         func integer(_ name:String,_ maximum:Double)throws->Int {
             guard let value=options.forProperty(name),value.isNumber else{throw invalid("missing transfer "+name)}
             let number=value.toDouble()
@@ -407,7 +409,25 @@ private final class NativeRasterComposite {
                                   foreground:Int,background:Int,key:Int,constant:Int,
                                   perPixel:Bool)throws {
         for pixel in 0..<pixels {
-            let offset=pixel*4,c=Int(area[offset+3]);if c==0{continue}
+            let offset=pixel*4,c=Int(area[offset+3])
+            if mode == "source-copy" {
+                // Independent geometry carries edge/clip coverage even when
+                // the paint itself is fully transparent. The painted SVG has
+                // already applied that coverage to premultiplied RGBA; another
+                // multiplication would square antialiasing at every edge.
+                let alpha=Int(src[offset+3])
+                guard alpha<=c+2 else{throw invalid("SourceCopy paint escaped independent geometry")}
+                for channel in 0..<3 {
+                    guard Int(src[offset+channel])<=alpha else{throw invalid("SourceCopy source is not premultiplied")}
+                }
+                if c==0 {continue}
+                for channel in 0..<4 {
+                    let result=Int(src[offset+channel])+(Int(dst[offset+channel])*(255-c)+127)/255
+                    dst[offset+channel]=UInt8(min(255,result))
+                }
+                continue
+            }
+            if c==0{continue}
             func straight(_ bytes:UnsafeRawBufferPointer,_ channel:Int)throws->UInt8 {
                 let a=Int(bytes[offset+3]);guard a>0,a+2>=c else{throw invalid("transparent required transfer operand")}
                 return UInt8(min(255,(Int(bytes[offset+channel])*255+a/2)/a))

@@ -107,3 +107,21 @@ its scoped local evidence retained above. Native steps were skipped. The
 [e1407eff Pages run40000780395](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40000780395)
 succeeded; its macOS run was pending at this observation. A current full hosted
 pass remains open.
+
+The [cf76cccf macOS run40006368050](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40006368050)
+completed 2,683 Core methods with two skips and zero failures, then failed the
+connected history native Blame scenario at its held-reader action. The fixture
+reused an action receipt captured before child-window ownership changed; the
+focused repair preserves the stale-action refusal and captures a fresh receipt
+for the close/cancellation check. Its focused native checks pass with system and bundled Git, as recorded in the
+[SourceCopy batch checkpoint](qa/metafile-source-copy-2026-10-24.json). The
+[Pages run40006368047](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40006368047)
+succeeded. Full current hosted native integration remains open.
+
+The [EMF+ SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md) now preserves
+transparent replacement through ordered paints, independent geometry and saved
+drawing state. Its [dated checkpoint](qa/metafile-source-copy-2026-10-24.json)
+records 19 distinct relevant Core methods cumulatively passing, universal helper
+reconstruction, current Debug/embedded validation and four native Compare/conflict
+case/engine pairs. Full Windows rendering identity, remaining metafile records,
+physical Finder and current signed distribution acceptance remain open.

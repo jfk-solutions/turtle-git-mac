@@ -80,5 +80,17 @@
     ],
     "limits": "8-bit macOS display profile, not Windows GDI+ 13-bit LockBits/HDR/color-management identity",
     "third_party_code_copied": false
+  },
+  "emf_plus_source_copy": {
+    "specification": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/cbfc8c78-778d-466e-a52a-a82f8ce6cfee",
+    "clear_reference": {
+      "project": "Wine",
+      "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+      "path": "dlls/gdiplus/graphics.c",
+      "symbol": "GdipGraphicsClear"
+    },
+    "scope": "Ordered individual EMF+ paints with independent geometry, SourceCopy/SourceOver saved graphics state and Clear replacement",
+    "display_profile": "Premultiplied eight-bit sRGB source replacement; source already contains edge/clip coverage; destination retained outside independent coverage",
+    "limits": "Existing raster checkpoint authority, cumulative pixel/work/markup/memory and output budgets remain enforced"
   }
 }

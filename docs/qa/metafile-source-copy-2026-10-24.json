@@ -1,0 +1,188 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-grouped-checkpoint-passed-after-recorded-focused-repairs",
+  "scope": [
+    "EMF+ SourceCopy state, ordered paint receipts and independent geometric coverage for shapes/pens/text/images/brushes",
+    "Transparent replacement, single edge/clip coverage application and native checkpoint ownership",
+    "Save/Restore/container/GetDC lifecycle and compositing-independent Clear",
+    "Existing actual Compare/drop/conflict consumers with reconstructed universal helper"
+  ],
+  "baseline": {
+    "initial_head": "cf76cccfb7d402425d610e490b0f81ccd976c611",
+    "unrelated_interface_options_committed_externally": "c09c6544",
+    "initial_unrelated_work_snapshot": "build/qa/metafile-source-copy-worktree-baseline-2026-10-24.json",
+    "note": "Existing interface-options work was preserved and independently committed during implementation; this batch does not claim or restage it."
+  },
+  "hosted_observation": {
+    "commit": "cf76cccf",
+    "macos_run": 40006368050,
+    "job": 120633888900,
+    "conclusion": "failure",
+    "core_methods": 2683,
+    "core_skips": 2,
+    "core_failures": 0,
+    "native_failure": "Connected history reference workflows: Blame parent family timeout at104",
+    "pages_run": 40006368047,
+    "pages_conclusion": "success"
+  },
+  "ci_repair": {
+    "file": "docs/qa/blame-parent-action-native-2026-10-18.swift",
+    "diagnosis": "Fixture reused a history action captured before blocking child ownership changed; current epoch checks correctly refuse it. No production availability or receipt guard relaxed.",
+    "change": "Assert stale pre-child action is refused, capture a fresh post-child action, then retain original held-reader close/cancellation/drain assertions.",
+    "validation": "Focused Blame scenario passes system and bundled Git; no complete hosted rerun claimed."
+  },
+  "validation": {
+    "runtime": {
+      "initial_build_exit_code": 0,
+      "initial_all_architecture_audit_exit_code": 0,
+      "logs": [
+        "build/qa/metafile-source-copy-runtime-2026-10-24.log",
+        "build/qa/metafile-source-copy-runtime-audit-2026-10-24.log"
+      ],
+      "repair_build": {
+        "exit_code": 0,
+        "log": "build/qa/metafile-source-copy-runtime-repair1-2026-10-24.log",
+        "architecture_probes": "build/qa/metafile-source-copy-current-architecture-probes-2026-10-24.json",
+        "actual_cli_probes": 6,
+        "architectures": [
+          "arm64",
+          "x86_64"
+        ]
+      },
+      "embedded_identity": {
+        "renderer_sha256": "da03b6fab5400cc8bfb8779f6df95a444eb4cc7c7009b7c2b0fe46f5bd9fcc32",
+        "source_sha256_matches": true,
+        "unsigned_binary_receipt_matches": true,
+        "note": "Embedded binary has an ad-hoc seal and distinct binary digest; strict signature/source reconstruction validator passed."
+      }
+    },
+    "core": {
+      "initial_methods": 19,
+      "passed_methods": 16,
+      "failed_methods": 3,
+      "scalar_assertion_failures": 38743,
+      "log": "build/qa/metafile-source-copy-core-2026-10-24.log",
+      "diagnosis": [
+        "Isolated SourceOver controls inherited renderer opaque white canvas, producing most scalar failures. Fixed by explicit transparent Clear, preserving assertions.",
+        "Invalid missing brush was accepted by upstream fallback; production now validates referenced brush ids/types and refuses them.",
+        "Isolated EMF controls were reimported as ordinary SVG, selecting high interpolation instead of production original-metafile device-pixel rendering. The fixture now exercises ComparisonImage(original EMF bytes); pixel assertions and tolerances are retained."
+      ],
+      "diagnostic_probes": "build/qa/metafile-source-copy-isolated-oracle-2026-10-24.json",
+      "repair1": {
+        "methods": 8,
+        "passed": 7,
+        "failed": 1,
+        "scalar_assertion_failures": 11331,
+        "log": "build/qa/metafile-source-copy-core-repair1-2026-10-24.log"
+      },
+      "repair2": {
+        "methods": 7,
+        "passed": 7,
+        "failed": 0,
+        "log": "build/qa/metafile-source-copy-core-repair2-2026-10-24.log"
+      },
+      "current_result": "All 19 distinct relevant Core methods pass cumulatively on the repaired renderer. Seven new methods rerun after original-byte fixture repair; affected legacy brush/glyph checks passed in repair1."
+    },
+    "app": {
+      "initial_exit_code": 65,
+      "log": "build/qa/metafile-source-copy-app-2026-10-24.log",
+      "failure": "Missing P4MergePane during concurrently edited interface source; no SourceCopy app source change required",
+      "external_thread": "Add merge and commit options (01a15f43-f280-75e3-8e10-c49e6a78cfc0), observed active; missing type subsequently appeared while work continues",
+      "status": "passed on coherent shared source snapshot; unrelated merge changes preserved",
+      "exit_code": 0,
+      "retry_log": "build/qa/metafile-source-copy-app-repair1-2026-10-24.log",
+      "source_changed_during_build": false,
+      "generic_exit_zero_diagnostics": 0,
+      "embedded_audit_exit_code": 0,
+      "embedded_audit_log": "build/qa/metafile-source-copy-embedded-audit-2026-10-24.log"
+    },
+    "native": {
+      "sourcecopy_pairs": 4,
+      "sourcecopy_passed": 4,
+      "sourcecopy_log": "build/qa/metafile-source-copy-native-2026-10-24.log",
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "consumers",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "consumers",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "conflict",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "conflict",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "focused_blame_pairs": 2,
+      "focused_blame_passed": 2,
+      "blame_log": "build/qa/metafile-source-copy-ci-blame-2026-10-24.log",
+      "owned_receiver_pids": [
+        23436,
+        23474,
+        23518,
+        23630,
+        23789,
+        23903
+      ],
+      "independently_still_running": [],
+      "warnings": [
+        "Two NSSplitView inconsistent zero-size arranged-frame diagnostics occurred during Blame receivers; functional assertions passed. Physical layout acceptance remains separate."
+      ]
+    },
+    "resources": {
+      "localization_check": {
+        "languages": 38,
+        "keys": 1317,
+        "exit_code": 0
+      },
+      "help_check": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3788578,
+        "exit_code": 0
+      },
+      "dialog_coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_control_reviews": 85,
+        "certified_complete": 0,
+        "note": "Audit coverage counts are not feature completion percentages."
+      },
+      "site_build": {
+        "documents": 430,
+        "unresolved_fragments": 0,
+        "log": "build/qa/metafile-source-copy-site-2026-10-24.log"
+      },
+      "site_checks": {
+        "python_tests": 2,
+        "python_exit_code": 0,
+        "javascript_exit_code": 0,
+        "logs": [
+          "build/qa/metafile-source-copy-site-check-2026-10-24.log",
+          "build/qa/metafile-source-copy-site-search-2026-10-24.log"
+        ]
+      }
+    }
+  },
+  "limits": [
+    "No complete Windows/GDI pixel, font or hardware rendering identity claim",
+    "Bounded accepted paint formats retain explicit unsupported and malformed refusals",
+    "Physical image-window interaction, signed deployment and complete current hosted native integration remain separate",
+    "No whole-port completion claim"
+  ]
+}
