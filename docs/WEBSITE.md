@@ -5,8 +5,10 @@ Published site: https://jfk-solutions.github.io/turtle-git-mac/
 The first deployment succeeded on 2026-10-03 after enabling the repository’s
 GitHub Actions publishing source. Repository name: `jfk-solutions/turtle-git-mac`.
 
-The GitHub Pages site includes the screenshot gallery and generated documentation
-pages, with local search and navigation. Markdown under `docs/` remains the source.
+The GitHub Pages site has a compact product homepage and a linked user manual,
+with local search and navigation. The homepage uses a neutral blue/gray palette,
+one history screenshot and planned Mac App Store availability. It has no download
+links. Markdown under `docs/` remains the manual source.
 Build it in a private Python environment:
 
 ```sh

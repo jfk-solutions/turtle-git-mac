@@ -5,6 +5,20 @@ review directly from a terminal. The waiting wrapper is
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/scripts/turtlegit-merge"><code>scripts/turtlegit-merge</code></a>. By default it uses
 <code>/Applications/TurtleGit for Mac.app</code>; set <code>TURTLEGIT_APP</code> to another app bundle,
 or <code>TURTLEGIT_MERGE_EXECUTABLE</code> to a development executable.</p>
+<h2 id="choose-a-comparison-interface">Choose a comparison interface</h2>
+<p>The <strong>Interface</strong> selector in text comparison and conflict windows offers
+<strong>Classic</strong> (the default) or <strong>P4Merge-style</strong>. The choice is shared and saved
+for later diff/merge windows. Both interfaces use the same comparison, editing,
+Undo/Redo, source-choice and save operations.</p>
+<p>The alternative two-file view connects changed blocks with curved colored bands.
+Three-way merge places <strong>Theirs</strong>, the editable <strong>Merged</strong> result, and <strong>Mine</strong>
+side by side, with connection bands between them. <strong>Show Base</strong> adds the common
+ancestor above the editors. The bands follow actual editor glyph positions when
+scrolling and wrapping; they are decorative and do not intercept selection.
+This is a TurtleGit interface inspired by P4Merge, not the Perforce application.
+When manual edits no longer have a precise aligned source/result projection,
+merge connectors are hidden until an exact mapping is available; the result
+remains editable and all classic conflict actions remain available.</p>
 <p>Use the wrapper's absolute path in your Git configuration. For example, after
 placing it at <code>~/bin/turtlegit-merge</code>:</p>
 <pre><code class="language-sh">git config --global diff.tool turtlegit

@@ -929,6 +929,21 @@ private enum MergeSourceSide {
         if locatorPreferences.visible != value.visible { lineDiffBarVisible = showLineDiffBar }
         locatorPreferences = value; value.save(to: comparisonDefaults)
     }
+    func connectionEditors(mine: Bool) -> (NSScrollView?, NSScrollView?) {
+        let source = sourceScrolls.first { $0.key.hasPrefix(mine ? "Mine" : "Theirs") }?.value.view
+        return mine ? (locatorResultScroll, source) : (source, locatorResultScroll)
+    }
+    var connectionBlocks: [Range<Int>] {
+        guard let rows = sourceComparison?.rows, alignedResultProjection != nil else { return [] }
+        var ranges: [Range<Int>] = [], start: Int?
+        for index in rows.indices {
+            let changed = !rows[index].theirs.state.isUnchanged || !rows[index].mine.state.isUnchanged
+            if changed && start == nil { start = index }
+            if !changed, let first = start { ranges.append(first..<index); start = nil }
+        }
+        if let start { ranges.append(start..<rows.count) }
+        return ranges
+    }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll;schedulePanePresentation() }
     func registerBasePresentation(_ scroll:NSScrollView) {basePresentationScroll=scroll;schedulePanePresentation()}
     func invalidateLineRulers() {
@@ -1990,6 +2005,11 @@ enum MergePalette {
 
 private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
+    @AppStorage("TurtleGit.Comparison.CurvedInterface") private var curvedInterface = false
+    init(model: TextConflictWindowModel) {
+        self.model = model
+        _curvedInterface = AppStorage(wrappedValue: false, "TurtleGit.Comparison.CurvedInterface", store: model.comparisonDefaults)
+    }
     func pane(_ title: String, text: String, caption: String? = nil, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let cells = editable ? model.alignedResultProjection?.cells : cells
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
@@ -2061,6 +2081,9 @@ private struct TextConflictDialog: View {
             HStack {
                 MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible, lineDiffBar:model.showLineDiffBar, applyLineDiffBar:model.setLineDiffBar, lineNumbers:model.showLineNumbers, applyLineNumbers:model.setLineNumbers)
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)
+                Picker("Interface", selection: $curvedInterface) {
+                    Text("Classic").tag(false); Text("P4Merge-style").tag(true)
+                }.frame(width: 230)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -2082,6 +2105,18 @@ private struct TextConflictDialog: View {
                                         enabled: !model.busy && !model.confirmingQuit, navigate: model.scrollLocator)
                             .frame(width: 44).help("Theirs, merged result, and Mine overview; click or drag to scroll")
                     }
+                    if curvedInterface {
+                        VSplitView {
+                            if model.showBase { pane("Base", text: document.base) }
+                            HStack(spacing: 0) {
+                                pane("Theirs", text: document.theirs, caption: model.sourceCaption(mine: false), cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
+                                CurvedDiffConnections(editors: { model.connectionEditors(mine: false) }, blocks: model.connectionBlocks).frame(width: 44)
+                                pane("Merged · \(model.resultPath)", text: model.result, editable: true)
+                                CurvedDiffConnections(editors: { model.connectionEditors(mine: true) }, blocks: model.connectionBlocks).frame(width: 44)
+                                pane("Mine", text: document.mine, caption: model.sourceCaption(mine: true), cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
+                            }
+                        }
+                    } else {
                     VSplitView {
                     HSplitView {
                         pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, caption: model.sourceCaption(mine: false), cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
@@ -2089,6 +2124,7 @@ private struct TextConflictDialog: View {
                         if model.showBase { pane("Base", text: document.base) }
                     }
                     pane("Merged · \(model.resultPath)", text: model.result, editable: true)
+                    }
                     }
                 }
                 if model.lineDiffBarVisible {

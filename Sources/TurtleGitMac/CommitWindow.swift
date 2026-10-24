@@ -237,7 +237,12 @@ import TurtleGitCore
         }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
-        model.refreshPartial = { [weak self] in self?.reloadPartial() }
+        model.refreshPartial = { [weak self] in
+            guard let self else { return }; if self.model.gitGuiInterface { self.model.refreshGuiPatch() } else { self.reloadPartial() }
+        }
+        model.interfaceChanged = { [weak self] in
+            guard let self else { return }; self.commandMenu?.remove(); if !self.model.gitGuiInterface { self.commandMenu?.install() }
+        }
         model.closePartial = { [weak self] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil else { return }
             self.partial?.close()
@@ -647,7 +652,7 @@ import TurtleGitCore
         child.alphaValue=window.alphaValue;child.appearance=window.appearance;window.beginSheet(child)
     }
     private func showPartial(staged: Bool, readOnly: Bool = false) {
-        guard canReuse,!model.confirmingQuit,let window,window.attachedSheet==nil,partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return }
+        guard canReuse,!model.gitGuiInterface,!model.confirmingQuit,let window,window.attachedSheet==nil,partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return }
         if let partial, partial.model.readOnly == readOnly, partial.model.staged == staged { partial.close(); return }
         let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access, preferences: preferences)
         partial = controller
@@ -728,7 +733,7 @@ import TurtleGitCore
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) {guard canReuse else{return};commandMenu?.install();showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
+    func windowDidBecomeKey(_ notification: Notification) {guard canReuse else{return};if !model.gitGuiInterface {commandMenu?.install()};showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -746,6 +751,35 @@ import TurtleGitCore
     @Published var comparisonBase: String?
     @Published var stagedStatistics: GitPathMap<CommitFile> = [:]
     @Published var unstagedStatistics: GitPathMap<CommitFile> = [:]
+    @Published private(set) var gitGuiInterface = false
+    @Published private(set) var guiStaged = false
+    @Published private(set) var guiPatch: PatchWindowModel?
+    var interfaceChanged: () -> Void = {}
+    func setCommitInterface(_ gui: Bool) {
+        guard !inputsBlocked, messageFocusAvailable, loadedPreferences, gui != gitGuiInterface, guiPatch?.busy != true else { return }
+        closePartial(); guiPatch?.retire(); guiPatch = nil
+        gitGuiInterface = gui; dialogDefaults.set(gui, forKey: "TurtleGit.Commit.GitGuiInterface")
+        stagingEnabled = gui || (persistedStaging ?? false); appliedStagingMode = stagingEnabled
+        selection = []; interfaceChanged(); reload()
+    }
+    func selectGuiFiles(_ paths: Set<String>, staged: Bool) {
+        guard gitGuiInterface, !inputsBlocked, guiPatch?.busy != true else { return }
+        guiStaged = staged; stagedDiff = staged; selection = GitPathSet(paths)
+        refreshGuiPatch()
+    }
+    func refreshGuiPatch() {
+        guard gitGuiInterface, messageFocusAvailable, guiPatch?.applyingChanges != true else { return }
+        if guiPatch == nil {
+            let patch = PatchWindowModel(repository: repository, access: access, appearancePreferences: dialogDefaults)
+            patch.externalAvailability = { [weak self] in self?.gitGuiInterface == true && self?.messageFocusAvailable == true && self?.inputsBlocked == false }
+            patch.onApplying = { [weak self] value in self?.busy = value }
+            patch.onSettled = { [weak self] _ in self?.refreshStagingState() }
+            guiPatch = patch
+        }
+        guiPatch?.base = comparisonBase
+        let available = guiStaged ? stagedEntries : unstagedEntries
+        guiPatch?.reload(paths: available.filter { selection.contains($0.id) }.map(\.path), staged: guiStaged)
+    }
     @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } } }
     @Published var viewingPatch = false
     var readCommitIdentity:((OperationCancellation)async throws->ReplayUserIdentity)?
@@ -1202,7 +1236,7 @@ import TurtleGitCore
     @Published var busy = false {didSet{if busy != oldValue{retireFormReceipts()}}}
     @Published var confirmingQuit = false {didSet{
         guard confirmingQuit != oldValue else{return}
-        retireFormReceipts();metadataEpoch=UUID()
+        retireFormReceipts();metadataEpoch=UUID(); guiPatch?.confirmingQuit = confirmingQuit
         if confirmingQuit {
             if loadingAmendMessage {amendMessageReadFailed=true}
             authorCancellation?.cancel();dateCancellation?.cancel();amendCancellation?.cancel();importedMessageCancellation?.cancel()
@@ -1241,6 +1275,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
+        gitGuiInterface = dialogDefaults.bool(forKey: "TurtleGit.Commit.GitGuiInterface")
         templateFileAccess = CommitTemplateFileAccess(preferences: dialogDefaults)
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
         queryHistoryIssue = { try await repository.issueFieldValue(properties: $0, message: $1, cancellation: $2) }
@@ -1929,7 +1964,7 @@ import TurtleGitCore
                 // No suspension until every field and dependent command target
                 // belongs to the same accepted read. Native row settlement follows.
                 if let preferences {
-                    persistedStaging=preferences.staging;stagingEnabled=preferences.staging;appliedStagingMode=preferences.staging;stagingHintPending=preferences.staging;loadedPreferences=true
+                    persistedStaging=preferences.staging;stagingEnabled=gitGuiInterface || preferences.staging;appliedStagingMode=stagingEnabled;stagingHintPending=preferences.staging && !gitGuiInterface;loadedPreferences=true
                 }
                 operation=nextOperation;if nextOperation != nil {createBranch=false}
                 amend=nextAmend;amendDiffToLastCommit=nextAmendDiff
@@ -1982,7 +2017,7 @@ import TurtleGitCore
                 if !warnings.isEmpty {reloadError=warnings.joined(separator:"\n\n");self.error=reloadError}
                 else if self.error == reloadError {self.error=nil;reloadError=nil}
                 refreshPartial();prepareMessageCompletions(force:true)
-                if preferences?.showPatch == true {if stagingEnabled {showPartial(false)} else {showViewPatch()}}
+                if !gitGuiInterface, preferences?.showPatch == true {if stagingEnabled {showPartial(false)} else {showViewPatch()}}
                 if !position.remember {selection=[]}
                 await fileListRefresh.restore(position,ids:visibleFileRowIDs);try token.check()
                 unversionedPromptPending=visibleEntries.isEmpty && hasHiddenUnversionedFiles && operation != .merge
@@ -2260,6 +2295,7 @@ import TurtleGitCore
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        guiPatch?.retire(); guiPatch = nil
         pendingRecommitSession=false;resetMetadataTransitions=[:]
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
@@ -2976,6 +3012,10 @@ struct CommitDialog: View {
     var body: some View {
         let receipt=model.formReceipt
         return VStack(alignment: .leading, spacing: 10) {
+            Picker("Commit window", selection: Binding(get: { model.gitGuiInterface }, set: { model.setCommitInterface($0) })) {
+                Text("Classic").tag(false); Text("Git Gui-style staging").tag(true)
+            }.pickerStyle(.segmented).frame(maxWidth: 420).disabled(model.inputsBlocked || model.guiPatch?.busy == true)
+            if model.gitGuiInterface { guiWorkspace } else {
             Group {
                 CommitDestinationLayout {
                     HStack(spacing:8) {
@@ -3025,6 +3065,7 @@ struct CommitDialog: View {
                     }
                 }
             }.disabled(model.inputsBlocked)
+            }
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     Toggle("Show Whole Project", isOn:formBinding(.wholeProject,\.showWholeProject)).disabled(!model.canChangeFormOption(.wholeProject))
@@ -3058,6 +3099,60 @@ struct CommitDialog: View {
         } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.creatingChangelist) { CreateChangelistSheet(model: model) }
 
+    }
+    private var guiWorkspace: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Commit to: " + (model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch)).font(.headline)
+                Spacer()
+                Button("Refresh") { model.reload() }.disabled(model.inputsBlocked)
+            }
+            HSplitView {
+                VSplitView {
+                    guiFiles(staged: false)
+                    guiFiles(staged: true)
+                }.frame(minWidth: 230, idealWidth: 300)
+                VStack(alignment: .leading, spacing: 8) {
+                    if let patch = model.guiPatch { GuiCommitPatch(model: patch) }
+                    else { Text("Select a file to review its changes.").frame(maxWidth: .infinity, maxHeight: .infinity) }
+                    GroupBox("Commit message") {
+                        CommitMessageEditor(model: model).frame(minHeight: 110, idealHeight: 150)
+                    }
+                    HStack {
+                        Toggle("Amend Last Commit", isOn: formBinding(.amend, \.amend)).toggleStyle(.checkbox)
+                            .disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.amendChanged() }
+                        Spacer(); CommitMessagePositionIndicator(model: model)
+                    }
+                }.frame(minWidth: 450)
+            }
+        }
+    }
+    private func guiFiles(staged: Bool) -> some View {
+        let entries = staged ? model.stagedEntries : model.unstagedEntries
+        let selection = Binding<Set<String>>(get: {
+            model.guiStaged == staged ? Set(model.selection.map { $0 }) : []
+        }, set: { model.selectGuiFiles($0, staged: staged) })
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(staged ? "Staged changes" : "Unstaged changes").font(.headline)
+                Text("\(entries.count)").foregroundStyle(.secondary)
+                Spacer()
+            }
+            List(entries, id: \.id, selection: selection) { entry in
+                HStack {
+                    Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16)
+                    Text(verbatim: entry.path).lineLimit(1).truncationMode(.middle).help(entry.path)
+                }.tag(entry.id)
+            }.listStyle(.inset).frame(minHeight: 100)
+            HStack {
+                Button { model.moveToStage(model.selection, staged: !staged) } label: {
+                    CommandLabel(title: staged ? "Unstage files" : "Stage files", icon: staged ? .revert : .add)
+                }.disabled(model.inputsBlocked || model.guiStaged != staged || model.selection.isEmpty)
+                if !staged {
+                    Toggle("Unversioned", isOn: formBinding(.unversioned, \.showUnversioned)).toggleStyle(.checkbox).disabled(model.inputsBlocked)
+                }
+            }
+        }.padding(6)
     }
     private func formBinding(_ option:CommitWindowModel.FormOption,_ keyPath:ReferenceWritableKeyPath<CommitWindowModel,Bool>)->Binding<Bool> {
         let receipt=model.formReceipt
@@ -3690,7 +3785,7 @@ private struct CommitProgressDialog: View {
         observations.append(owner.model.objectWillChange.sink { [weak self] _ in self?.schedule() })
         observations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.schedule(retiring:false) })
     }
-    private var active:Bool {!retired && owner?.model.messageFocusAvailable==true && keyWindow() === owner?.window}
+    private var active:Bool {!retired && owner?.model.gitGuiInterface == false && owner?.model.messageFocusAvailable==true && keyWindow() === owner?.window}
     private var ready:Bool {active && owner?.commandsAvailable==true}
     private func schedule(retiring:Bool=true) {
         guard !retired else{return}
@@ -3902,6 +3997,23 @@ private struct CommitProgressDialog: View {
         case .focusIssue,.issues:return .settingsIssueTracker
         case .none:return .revert
         default:return .add
+        }
+    }
+}
+
+/// Only the essential staging actions are exposed in the alternative workspace.
+private struct GuiCommitPatch: View {
+    @ObservedObject var model: PatchWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(model.staged ? "HEAD → Index" : "Index → Working tree").font(.headline)
+                Spacer()
+                Button(model.staged ? "Unstage lines" : "Stage lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
+                Button(model.staged ? "Unstage chunks" : "Stage chunks") { model.apply(entireHunks: true) }.disabled(!model.canApplyHunks)
+            }
+            PatchDialog(model: model)
+            Text(model.information).font(.caption).foregroundStyle(.secondary)
         }
     }
 }

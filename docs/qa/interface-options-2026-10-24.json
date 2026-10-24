@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-24",
+  "scope": "Optional Classic/P4Merge-style text comparison and merge, Classic/Git Gui-style commit workspace, compact homepage and README",
+  "validation": {
+    "xcode_debug_build": {
+      "exit_code": 0,
+      "log": "build/interface-options-build.log",
+      "limitations": "Unsigned local Debug build; Xcode emitted existing simulator and compiler diagnostic warnings."
+    },
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'CommitPatchTests|MergeSourceComparisonTests|MergeSourceBlockEditTests'",
+      "tests": 25,
+      "failures": 0
+    },
+    "native": {
+      "command": "python3 scripts/test-interface-options-native.py",
+      "result": "passed",
+      "coverage": [
+        "Classic defaults and saved interface choices",
+        "line staging and chunk unstaging against private Git index",
+        "working file and commit draft preservation",
+        "mixed staged/unstaged file lists",
+        "parent operation gating and embedded patch retirement",
+        "two-file and three-way connector layout and bitmap rendering",
+        "classic comparison restoration without result mutation",
+        "owned window and worker cleanup"
+      ],
+      "ownership": "Private temporary repositories and preferences; prohibited activation, invisible offscreen windows; receiver process group reaped."
+    },
+    "website": {
+      "build": "passed, no unresolved fragments",
+      "document_checks": "2 passed",
+      "visual": "Homepage reviewed in background browser; preview build/qa/interface-options-homepage.png; test tab and server closed."
+    },
+    "generated_resources": [
+      "localizations --write and --check passed",
+      "bundled help regenerated and --check passed",
+      "dialog coverage reconciled",
+      "git diff --check passed"
+    ]
+  },
+  "remaining": [
+    "Merge connectors require an exact aligned result projection; arbitrary rewrites can hide connectors.",
+    "Physical keyboard, VoiceOver, multi-display and signed App Store acceptance remain open.",
+    "No complete upstream parity or full hosted CI claim.",
+    "Website changes have not been published."
+  ]
+}

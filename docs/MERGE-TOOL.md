@@ -6,6 +6,23 @@ review directly from a terminal. The waiting wrapper is
 `/Applications/TurtleGit for Mac.app`; set `TURTLEGIT_APP` to another app bundle,
 or `TURTLEGIT_MERGE_EXECUTABLE` to a development executable.
 
+## Choose a comparison interface
+
+The **Interface** selector in text comparison and conflict windows offers
+**Classic** (the default) or **P4Merge-style**. The choice is shared and saved
+for later diff/merge windows. Both interfaces use the same comparison, editing,
+Undo/Redo, source-choice and save operations.
+
+The alternative two-file view connects changed blocks with curved colored bands.
+Three-way merge places **Theirs**, the editable **Merged** result, and **Mine**
+side by side, with connection bands between them. **Show Base** adds the common
+ancestor above the editors. The bands follow actual editor glyph positions when
+scrolling and wrapping; they are decorative and do not intercept selection.
+This is a TurtleGit interface inspired by P4Merge, not the Perforce application.
+When manual edits no longer have a precise aligned source/result projection,
+merge connectors are hidden until an exact mapping is available; the result
+remains editable and all classic conflict actions remain available.
+
 Use the wrapper's absolute path in your Git configuration. For example, after
 placing it at `~/bin/turtlegit-merge`:
 

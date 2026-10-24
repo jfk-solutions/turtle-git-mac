@@ -38,6 +38,21 @@ and <strong>Message only</strong>. The commit choice offers <strong>Commit</stro
 <strong>Commit &amp; Push</strong>. Options have eligibility rules; inspect the enabled controls
 and result before continuing. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-PARITY.html">Commit parity</a> records their
 source comparisons, verification and remaining work.</p>
+<h2 id="choose-a-commit-window">Choose a commit window</h2>
+<p>The <strong>Commit window</strong> selector offers <strong>Classic</strong> and <strong>Git Gui-style staging</strong>.
+Classic remains the default. The choice is saved for subsequent Commit windows.
+The staging workspace shows unstaged files above staged files on the left, with
+an embedded patch and commit message on the right. Select a file in either list
+to review that side of the index. A partially staged file appears in both lists.
+Use <strong>Stage files</strong> or <strong>Unstage files</strong> for whole-file changes. Select changed
+lines in the patch, then use <strong>Stage lines</strong> or <strong>Stage chunks</strong>; the staged view
+offers the corresponding Unstage actions. The working file is preserved.</p>
+<p>The alternative workspace commits the Git index, including staged changes outside
+the displayed scope. It shares the classic commit checks and progress workflow.
+It exposes the essential staging, message and Amend controls without duplicating
+Git Gui's menus. Switch back to Classic for author/date, branch and issue-provider
+controls. Changing the interface preserves the message and index; switching back
+restores the repository's classic staging preference.</p>
 <h2 id="use-the-staging-area">Use the staging area</h2>
 <p>Enable <strong>Staging support (EXPERIMENTAL)</strong> to use the Git index. The same file list
 shows unstaged, staged and mixed checkbox states. Mixed means that a file has

@@ -48,6 +48,24 @@ and **Message only**. The commit choice offers **Commit**, **ReCommit** and
 and result before continuing. [Commit parity](COMMIT-PARITY.md) records their
 source comparisons, verification and remaining work.
 
+## Choose a commit window
+
+The **Commit window** selector offers **Classic** and **Git Gui-style staging**.
+Classic remains the default. The choice is saved for subsequent Commit windows.
+The staging workspace shows unstaged files above staged files on the left, with
+an embedded patch and commit message on the right. Select a file in either list
+to review that side of the index. A partially staged file appears in both lists.
+Use **Stage files** or **Unstage files** for whole-file changes. Select changed
+lines in the patch, then use **Stage lines** or **Stage chunks**; the staged view
+offers the corresponding Unstage actions. The working file is preserved.
+
+The alternative workspace commits the Git index, including staged changes outside
+the displayed scope. It shares the classic commit checks and progress workflow.
+It exposes the essential staging, message and Amend controls without duplicating
+Git Gui's menus. Switch back to Classic for author/date, branch and issue-provider
+controls. Changing the interface preserves the message and index; switching back
+restores the repository's classic staging preference.
+
 ## Use the staging area
 
 Enable **Staging support (EXPERIMENTAL)** to use the Git index. The same file list

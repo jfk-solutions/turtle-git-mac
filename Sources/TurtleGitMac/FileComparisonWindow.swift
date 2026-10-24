@@ -1461,6 +1461,7 @@ private extension FileComparisonDocument {
     }
     var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
+    func connectionEditors() -> (NSScrollView?, NSScrollView?) { (scrolls[true], scrolls[false]) }
     private var viewportNavigation: [Bool: () -> Void] = [:]
     func registerViewportNavigation(base: Bool, scroll: NSScrollView, action: @escaping () -> Void) {
         guard !retired, scrolls[base] === scroll else { return }
@@ -2240,6 +2241,11 @@ struct FileComparisonPane: View {
 }
 private struct FileComparisonDialog: View {
     @ObservedObject var model: FileComparisonWindowModel
+    @AppStorage("TurtleGit.Comparison.CurvedInterface") private var curvedInterface = false
+    init(model: FileComparisonWindowModel) {
+        self.model = model
+        _curvedInterface = AppStorage(wrappedValue: false, "TurtleGit.Comparison.CurvedInterface", store: model.comparisonDefaults)
+    }
     private func pane(base: Bool) -> some View { FileComparisonPane(model: model, base: base) }
     var body: some View {
         Group {
@@ -2268,6 +2274,9 @@ private struct FileComparisonDialog: View {
             }.padding(10).disabled(model.busy || model.confirmingQuit)
             }
             HStack {
+                Picker("Interface", selection: $curvedInterface) {
+                    Text("Classic").tag(false); Text("P4Merge-style").tag(true)
+                }.frame(width: 230).disabled(model.busy || model.confirmingQuit)
                 Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit)
                 Spacer()
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.singleFileMode || model.filtering || model.alignment == nil)
@@ -2314,7 +2323,13 @@ private struct FileComparisonDialog: View {
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
                 if !model.singleFileMode && !model.onePaneActive {
-                    MergeComparisonSplit(model: model)
+                    if curvedInterface {
+                        HStack(spacing: 0) {
+                            pane(base: true)
+                            CurvedDiffConnections(editors: model.connectionEditors, blocks: model.alignment?.differences ?? []).frame(width: 52)
+                            pane(base: false)
+                        }
+                    } else { MergeComparisonSplit(model: model) }
                 } else { pane(base:false) }
             }
             if model.showLineDiffBar && !model.singleFileMode && !model.onePaneActive {

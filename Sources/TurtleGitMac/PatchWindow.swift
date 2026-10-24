@@ -182,6 +182,8 @@ import UniformTypeIdentifiers
     private var readCancellation: OperationCancellation?
     private var ownedReads = 0
     private var applying = false
+    var applyingChanges: Bool { applying }
+    var externalAvailability: () -> Bool = { true }
     private(set) var retired = false
     static private(set) var activeOperations = 0
     @Published private(set) var loading = false
@@ -263,7 +265,7 @@ import UniformTypeIdentifiers
         sourceAttached={false};sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
         requestReplacement = nil; requestReload = nil; documentChanged = {};editBuffer=nil
         saveDocument = {}; openDocument = {}; saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
-        findVisible = false
+        findVisible = false; externalAvailability = { false }
     }
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
@@ -291,8 +293,8 @@ import UniformTypeIdentifiers
         readOnly = true; document = GitPatch(text:source.displayText,displayLegacyEncoding:legacy); originalDiff = source
         savedText = document.text; savedDocument = source; editBuffer=allowsDocumentEditing ? UnifiedDiffEditBuffer(document:source):nil; documentDirty = false; documentResetRevision += 1; documentChanged()
     }
-    var canApplyLines: Bool { !retired && !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
-    var canApplyHunks: Bool { !retired && !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
+    var canApplyLines: Bool { !retired && !readOnly && !busy && !confirmingQuit && externalAvailability() && selectedLines.contains(where: { document.changedLine($0) }) }
+    var canApplyHunks: Bool { !retired && !readOnly && !busy && !confirmingQuit && externalAvailability() && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
     var information: String {
         if readOnly, let readOnlyInformation { return readOnlyInformation }
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
