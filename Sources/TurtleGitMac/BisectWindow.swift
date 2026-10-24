@@ -264,6 +264,12 @@ enum BisectQuestion {case stash,cancellation}
         },resultText:resultText,operation:operation)
     }
     let repository: GitRepository
+    private(set) var acceptedOperationRepository:GitRepository?
+    private func captureOperationRepository()->GitRepository {
+        let accepted=repository.capturingDiffBackend(preferences:preferences)
+        acceptedOperationRepository=accepted
+        return accepted
+    }
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     private(set) var draftRevision=UUID()
@@ -335,7 +341,7 @@ enum BisectQuestion {case stash,cancellation}
         if retired || self.token !== token || token.isCancelled { throw OperationCancellationFailure.cancelled }
     }
     func load(good presetGood: String? = nil, bad presetBad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, command: BisectCommandRequest? = nil, preserveStartDraft: Bool = false) {
-        guard !retired,!confirmingQuit, !hasPicker, !busy,!hasPendingWork else { return }; let token = begin()
+        guard !retired,!confirmingQuit, !hasPicker, !busy,!hasPendingWork else { return }; let repository=captureOperationRepository();let token = begin()
         Task {
             var selectedOperation = operation, selectedRevisions = revisions
             do {
@@ -380,6 +386,7 @@ enum BisectQuestion {case stash,cancellation}
         guard context == nil || context == formContext,canStart else { return }
         func normalized(_ value:String) -> String { let trimmed=value.trimmingCharacters(in:.whitespacesAndNewlines);return trimmed.hasPrefix("remotes/") ? String(trimmed.dropFirst(8)) : trimmed }
         let good=normalized(self.good),bad=normalized(self.bad)
+        let repository=captureOperationRepository()
         let token=begin(progress:true)
         Task {
             defer { finish() }
@@ -395,23 +402,23 @@ enum BisectQuestion {case stash,cancellation}
                     mutation(stash.mutation);try requireLive(token);changed(stash.stash.output)
                     result=try await stream(token:token,resultText:{$0.execution.output}) {[repository] emit in try await repository.startBisectWorkflow(good:good,bad:bad,cancellation:token,onOutput:emit)}
                 }
-                mutation(result.mutation);try await accept(result.execution, token: token)
-            } catch { await recover(error) }
+                mutation(result.mutation);try await accept(result.execution, token: token,repository:repository)
+            } catch { await recover(error,repository:repository) }
         }
     }
     func perform(_ operation: BisectOperation, revisions: [String] = []) {
-        guard canPerform(operation) else { return }; let token=begin(progress:true)
+        guard canPerform(operation) else { return };let repository=captureOperationRepository();let token=begin(progress:true)
         Task {
             defer { finish() }
             do {
                 try validateAccess()
                 let result=try await stream(token:token,resultText:{$0.execution.output}) {[repository] emit in try await repository.bisectWorkflow(operation,revisions:revisions,cancellation:token,onOutput:emit)}
-                mutation(result.mutation);try await accept(result.execution,token:token)
+                mutation(result.mutation);try await accept(result.execution,token:token,repository:repository)
             }
-            catch { await recover(error) }
+            catch { await recover(error,repository:repository) }
         }
     }
-    private func accept(_ result: BisectExecution, token: OperationCancellation) async throws {
+    private func accept(_ result: BisectExecution, token: OperationCancellation,repository:GitRepository) async throws {
         let metadata = try await repository.finderMetadata(cancellation: token)
         try requireLive(token)
         state = result.state; lastExitCode = result.exitCode
@@ -419,7 +426,7 @@ enum BisectQuestion {case stash,cancellation}
         onProgress(); changed(result.output)
         if result.exitCode != 0 { error = result.output.isEmpty ? "Bisect failed (\(result.exitCode))." : result.output }
     }
-    private func recover(_ reported:Error) async {
+    private func recover(_ reported:Error,repository:GitRepository) async {
         let failure:Error
         if let partial=reported as? BisectMutationFailure {mutation(partial.mutation);failure=partial.underlying} else {failure=reported}
         guard !retired else { return }

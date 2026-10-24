@@ -228,6 +228,11 @@ final class RepositoryBrowserTests: XCTestCase {
         try bytes.write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "first")
         let snapshot = try await repo.browseRepository(), entry = try XCTUnwrap(snapshot.entries.first)
         XCTAssertEqual(snapshot.objectID?.count, 64); XCTAssertEqual(entry.objectID.count, 64)
+        XCTAssertEqual(snapshot.acceptedBackend?.enabled,false,"SHA-256 Browser must explicitly retain its CLI engine extension")
+        let directory=try await repo.browseRepositoryDirectory(snapshot,directory:"")
+        XCTAssertEqual(directory.acceptedBackend?.enabled,false);XCTAssertEqual(directory.objectID,snapshot.objectID)
+        let pinned=try await repo.repositoryBrowserFile(directory,entry:entry)
+        XCTAssertEqual(pinned.bytes,bytes);XCTAssertEqual(pinned.revision,.revision(snapshot.objectID!))
         try Data("second".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "second")
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         try Data("local edits".utf8).write(to: root.appendingPathComponent(path))

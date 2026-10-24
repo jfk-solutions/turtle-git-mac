@@ -324,3 +324,7 @@ reference differences.
 [Revision and reference validation](REVISION-LOOKUP-PARITY.md) covers typed object
 resolution, exact branch/tag collisions and accepted backend ownership through
 creation, Switch, Push, Fetch and Synchronization continuations.
+
+[Historical navigation](HISTORICAL-NAVIGATION-PARITY.md) covers Browser revision
+and comparison targets, literal submodule pins, reference deletion receipts and
+owned Log/Rebase/Bisect handoffs.

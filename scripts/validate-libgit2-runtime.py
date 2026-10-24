@@ -57,6 +57,23 @@ def main():
                 assert revision_lookup(dict(operation='revision',revision='refs/heads/missing',requirement='commit'))==dict(operation='revision',oid=None,unbornHead=False)
                 for name,expected in [('refs/heads/main',True),('refs/heads/missing',False)]:
                     assert revision_lookup(dict(operation='reference',reference=name))==dict(operation='reference',exists=expected)
+                # Historical gitlink metadata is separate from an absent or
+                # ordinary entry. Exercise its actual bridge on both slices.
+                gitlink_tree=subprocess.check_output(['/usr/bin/git','-C',str(source),'mktree'],input=('160000 commit '+source_head+'\tmodule\n').encode(),env=env,stderr=subprocess.PIPE).decode().strip()
+                gitlink_commit=subprocess.check_output(['/usr/bin/git','-C',str(source),'commit-tree',gitlink_tree],input=b'historical gitlink\n',env=env,stderr=subprocess.PIPE).decode().strip()
+                def historical_gitlink(revision,path,commit_only):
+                    payload=dict(version=1,revision=revision,path=path,commitOnly=commit_only)
+                    result=subprocess.run(prefix+[str(binary),'-C',str(source),'turtlegit-historical-gitlink'],input=json.dumps(payload).encode(),env=env,capture_output=True,timeout=10)
+                    assert result.returncode==0,result.stderr.decode(errors='replace')
+                    marker=b'TurtleGit HistoricalGitlink v1:';lines=result.stdout.splitlines()
+                    assert len(lines)==1 and lines[0].startswith(marker),result.stdout
+                    encoded=lines[0][len(marker):];packet=base64.b64decode(encoded,validate=True)
+                    assert base64.b64encode(packet)==encoded
+                    return json.loads(packet)
+                for revision,commit_only in [(gitlink_tree,False),(gitlink_commit,True)]:
+                    assert historical_gitlink(revision,'module',commit_only)==dict(status='gitlink',oid=source_head)
+                    assert historical_gitlink(revision,'missing',commit_only)==dict(status='missing',oid=None)
+                assert historical_gitlink(source_head,'file',True)==dict(status='other',oid=None)
                 assert all((source/'.git'/name).read_bytes()==value for name,value in before_lookup.items())
                 original=global_config.read_bytes()
                 def notifications(data):

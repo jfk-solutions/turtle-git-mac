@@ -1,0 +1,203 @@
+{
+  "date": "2026-10-24",
+  "baseline": "b97ddfe2d5405e87d2f30fd095b1a89bf34cc1fd",
+  "status": "scoped-validation-complete",
+  "scope": [
+    "Initial static libgit2 Browser object/tree resolution and master-selected immutable navigation/mark targets",
+    "Typed historical gitlinks, source master-gated Log pins and generic absent comparison sides",
+    "Exact history-reference deletion and accepted actor retention through Log/Rebase and child-submodule handoffs",
+    "Native Bisect catalog/settings capture through Stash/retry/recovery while preserving source CLI mutations"
+  ],
+  "production_inputs": {
+    "Sources/TurtleGitCore/FinderStatusOperationLease.swift": "5f190b8a3734d4b22c831814d2ee02cc4b6ce9b4ca7b6b2be41f5edd78b658f6",
+    "Sources/TurtleGitCore/HistoryReferenceDeletion.swift": "393f290deeeb0e46ed29a83640e7f1e2b96c655130c9d04fb92220ecc93ec59e",
+    "Sources/TurtleGitCore/RepositoryBrowser.swift": "9dcc3db9cc4fdd671ca120c508dbcf3325e240f0e2dbb80dc3e1e9e1b9722d59",
+    "Sources/TurtleGitCore/SubmoduleComparison.swift": "eaed1226a2c98c031ff97b5b2a71ae438c50160640da80f34155ed5e3ec78eb3",
+    "Sources/TurtleGitLibgit2/bridge.c": "f6f11e435d3371885d67f7706c47660b1ea8fab963d81c32e708178fc89d286f",
+    "Sources/TurtleGitLibgit2/bridge.h": "999d30aa177b82966b5916d0196d08e1faeb1ef2641ec0cfc232fb66930df101",
+    "Sources/TurtleGitLibgit2/main.swift": "a46ba0bbaa9f85c3108fd3f2536a3cb1ad77b5a0967bd6ea4473425b5b8b8fdb",
+    "Sources/TurtleGitMac/BisectWindow.swift": "a8a9055633d6aa4253192026a8e40e22f248efabff4be977868001600492f054",
+    "Sources/TurtleGitMac/LogWindow.swift": "5664801dbaa88b13547e1066c011b57887b8508d2dc6423cf60b63981ac91f32",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "247126d307c53e6c8e393b8ee704470da59575816c5f5894bafaac8bc5127938",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "fa2840be9918cfc459bf4b113b4f52f160746b2f77601e38979beaa85314492e",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "4dfdb669370ffe3499bc1d687e9f6035a0e93ad5d1f53803e91eb3096808683e",
+    "Sources/TurtleGitCore/GitHistoricalLookup.swift": "4429f7a3fb94f35e44bdaffb2d96d915538af254fe51402c802f07cba3a2fa9e"
+  },
+  "runtimes": {
+    "build_exit": 0,
+    "both_architectures_exit": 0,
+    "logs": [
+      "build/qa/historical-navigation-runtime-2026-10-24.log",
+      "build/qa/historical-navigation-runtime-validation-2026-10-24.log"
+    ],
+    "new_historical_protocol_probes": [
+      "gitlink by tree and by commit",
+      "missing entry by tree and by commit",
+      "ordinary entry by commit",
+      "HEAD/index/config unchanged"
+    ],
+    "prepared_and_embedded_original_sha256": "9465dea9cbd119596931c1d95bd8a0cd686bf849548a037a3973293fd6a4b524"
+  },
+  "documentation": {
+    "help_documents": 58,
+    "help_topics": 51,
+    "help_files": 78,
+    "help_bytes": 3800385,
+    "localization_languages": 38,
+    "localization_keys": 1318,
+    "localization_write_exit": 0,
+    "initial_localization_check": "Required regeneration; new source token extracted by the catalog generator",
+    "localization_check_exit": 0,
+    "help_check_exit": 0,
+    "site_documents": 445,
+    "site_unresolved_fragments": [],
+    "site_log": "build/qa/historical-navigation-site-2026-10-24.log",
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85
+    },
+    "diff_check_exit": 0
+  },
+  "remaining": [
+    "Bounded CLI ls-tree inventories remain a documented implementation adaptation",
+    "Other master-selected revision callers and unconditional source Notes backend",
+    "Complete source dialog/layout/physical/VoiceOver acceptance",
+    "Complete hosted CI",
+    "Current installed signed Finder integration",
+    "Minimum macOS/physical Intel and signed App Store distribution export/submission"
+  ],
+  "core": {
+    "initial_methods": 77,
+    "initial_failed_methods": 4,
+    "initial_assertion_failures": 5,
+    "initial_unexpected_failures": 3,
+    "initial_methods_passed": 73,
+    "focused_recheck_methods_passed": 8,
+    "distinct_methods_passed_cumulatively": 77,
+    "logs": [
+      "build/qa/historical-navigation-core-2026-10-24.log",
+      "build/qa/historical-navigation-core-repair1-2026-10-24.log"
+    ],
+    "repairs": [
+      "Explicit repository-format election preserves preexisting SHA-256 Browser CLI extension; SHA-1 source static helper behavior and missing/malformed runtime failures retained",
+      "Live helper cancellation oracle accepts both OperationCancellationFailure and GitCommandCancellationFailure and retains token/marker/PID-reap assertions",
+      "Retained metadata cancellation wrapper explicitly selects CLI for its rev-parse/push/stash probes",
+      "Retained child ancestry stub intercepts only merge-base, delegates new revision/gitlink metadata to actual helper and preserves ancestry count/configuration assertions"
+    ],
+    "assertions_removed": false
+  },
+  "app": {
+    "attempts": [
+      {
+        "log": "build/qa/historical-navigation-app-2026-10-24.log",
+        "exit": 0,
+        "contradictory_exit_zero_diagnostics": 36,
+        "final": false
+      },
+      {
+        "log": "build/qa/historical-navigation-app-repair1-2026-10-24.log",
+        "exit": 0,
+        "contradictory_exit_zero_diagnostics": 1,
+        "final": true
+      }
+    ]
+  },
+  "native": {
+    "distinct_case_engine_pairs_passed_cumulatively": 12,
+    "new_family_pairs": 8,
+    "retained_browser_routes_pairs": 2,
+    "retained_browser_lifecycle_pairs": 2,
+    "logs": [
+      "build/qa/historical-navigation-native-2026-10-24.log",
+      "build/qa/historical-navigation-browser-retained-2026-10-24.log",
+      "build/qa/historical-navigation-browser-lifecycle-repair1-2026-10-24.log"
+    ],
+    "receiver_pids": [
+      21103,
+      21187,
+      21285,
+      21349,
+      21418,
+      21565,
+      21713,
+      21873,
+      22063,
+      22251,
+      22442,
+      22761,
+      23068
+    ],
+    "independently_absent": true,
+    "new_family_results": [
+      {
+        "case": "log",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "log",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "browser",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "browser",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "submodule",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "submodule",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "bisect",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "bisect",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "initial_retained_lifecycle_failure": {
+      "receiver_pid": 22442,
+      "failure": "Timed out waiting for the legacy command wrapper started marker at line 98; the exact held phase was not independently identified"
+    },
+    "fixture_repair": "Hold actual forced revision helper, then explicitly select CLI for retained ls-tree/cat-file/checkout boundaries. Preserve live parent/child PID, Quit fencing, closure, reaping, HEAD and index assertions. Only lifecycle rerun; routes retained.",
+    "post_pass_diagnostic_only_change": "Print held phase in retained fixture; not rerun because assertions/control flow/production unchanged",
+    "owned_helper_cleanup_needed_new_group": false
+  },
+  "final_verification_source_hashes": {
+    "docs/qa/historical-navigation-native-2026-10-24.swift": "ca9ebd9368fd06ca7ab879815b974fd108ba2957f9efaaa63d5e0d32856e9ae1",
+    "docs/qa/historical-bisect-native-2026-10-24.swift": "af109dee9502046fb91e8cd9aab7f4d744c562a081189f5bd17194766017ab18",
+    "docs/qa/browser-working-family-native-2026-10-19.swift": "309dfce6a9774aafa0a01b6ff33fd96ffcfdb3ccde161e072ade79ed321206a7",
+    "docs/qa/repository-browser-lifecycle-native-2026-10-13.swift": "379b3f634617d8608d71f7a91a09923f6f85b07684bbb133a3098a6985203a7a",
+    "Tests/TurtleGitCoreTests/HistoricalNavigationTests.swift": "5758a5c6abed45551e8d4bacad88adec13947ad751b03c5b7974bbd7d6ccf7e5",
+    "Tests/TurtleGitCoreTests/RepositoryBrowserTests.swift": "66d904a37d95f6417322d97cc2c9a7afb4b7ea7ea87d46286f54e4017336ad1c",
+    "Tests/TurtleGitCoreTests/HistoryReferenceDeletionTests.swift": "188e9b9891095eb367c8b6e5a260599106898a643b7c17639645a055d6035316",
+    "Tests/TurtleGitCoreTests/SubmoduleComparisonTests.swift": "97c549699d546eba41f58581197ccebd19d3804b8cbae0393d4cca224fe60cbf",
+    "scripts/test-historical-navigation.py": "689cb443f2a83f6c06d5355e1916c5396e70079a48f1ca025ee15396e7d1ea36"
+  }
+}

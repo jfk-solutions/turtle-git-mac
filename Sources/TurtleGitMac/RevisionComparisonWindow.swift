@@ -277,6 +277,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private(set) var historicalEditorSettings:AlternativeEditorPreferences?
     private var closeAfterFileAction=false
     private var actionGeneration=UUID()
+    private(set) var acceptedNavigationRepository:GitRepository?
     private let menuOwner=UUID()
     var close:()->Void = {}
     var cancelFilePicker:()->Void = {}
@@ -729,9 +730,11 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                 guard !closed,!token.isCancelled else { return }
                 do {
                     let child=try await repository.submoduleWorkingRepository(path:file.path,cancellation:token)
-                    let comparison=try await repository.submoduleComparison(path:file.path,from:snapshot.from == .emptyTree ? "" : snapshot.from == .workingTree ? "HEAD" : snapshot.from.label,to:snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,cancellation:token)
+                    let revision:String?
+                    if pin && snapshot.to != .workingTree && snapshot.to != .emptyTree && !file.action.hasPrefix("D") {revision=try await repository.submoduleLogRevision(path:file.path,revision:snapshot.to.label,cancellation:token)}else{revision=nil}
                     guard !closed,!token.isCancelled else { continue }
-                    onSubmoduleLog(child.root,pin && snapshot.to != .workingTree && !file.action.hasPrefix("D") ? comparison.to.revision : nil)
+                    acceptedNavigationRepository=child
+                    onSubmoduleLog(child.root,revision)
                 } catch {if !closed,!token.isCancelled {self.error=error.localizedDescription;return}}
             }
         }

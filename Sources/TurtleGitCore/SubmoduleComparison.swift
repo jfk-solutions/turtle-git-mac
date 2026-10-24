@@ -121,17 +121,12 @@ extension GitRepository {
         let location = try restoreLocation(path)
         let oldPath = fromPath ?? path
         _ = try restoreLocation(oldPath)
-        func gitlink(_ revision: String, path: String) throws -> String? {
-            if revision.isEmpty { return nil }
-            let tree = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{tree}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            let records = try run(["-c", "core.precomposeunicode=false", "ls-tree", "--full-tree", "-z", tree, "--", path], cancellation: cancellation).stdout.split(separator: 0)
-            for record in records {
-                let parts = record.split(separator: 9, maxSplits: 1)
-                guard parts.count == 2, GitReferenceName.equal(String(decoding: parts[1], as: UTF8.self), path) else { continue }
-                let header = String(decoding: parts[0], as: UTF8.self).split(separator: " ")
-                if header.count == 3 && header[0] == "160000" { return String(header[2]) }
+        func gitlink(_ revision:String,path:String)throws->String? {
+            guard !revision.isEmpty else{return nil}
+            switch try historicalGitlink(path:path,revision:revision,cancellation:cancellation,backend:selected) {
+            case .gitlink(let oid):return oid
+            case .missing,.other:return nil
             }
-            return nil
         }
         func workingGitlink() throws -> String? {
             var hash: String?

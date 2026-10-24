@@ -69,17 +69,21 @@ struct BrowserWorkingFamilyVerification {
         let externalPermission=RepositoryAccessLease(url:root,provider:BookmarkProvider())
         let first=try marks.remember(file:externalA,permission:externalPermission);try workspace.refreshWorkingComparisonMark()
         try require(model.comparisonMark?.workingAccess?.mark.id==first.id,"Existing Browser missed new working mark")
-        model.markForComparison(entry);let localMark=model.comparisonMark;try workspace.refreshWorkingComparisonMark()
+        model.markForComparison(entry)
+        try await wait("Historical Browser mark resolution did not settle"){!model.busy && model.comparisonMark?.workingAccess==nil && model.comparisonMark?.revision==pinned}
+        let localMark=model.comparisonMark;try workspace.refreshWorkingComparisonMark()
         try require(model.comparisonMark?.workingAccess==nil && model.comparisonMark?.revision==localMark?.revision,"Same working mark displaced newer local historical mark")
         let second=try marks.remember(file:externalB,permission:externalPermission);try workspace.refreshWorkingComparisonMark()
         try require(model.comparisonMark?.workingAccess?.mark.id==second.id,"Existing Browser missed replacement global mark")
         let stale=model.menuTarget([entry])!;_ = try marks.remember(file:externalA,permission:externalPermission);model.prepareComparisonMenu()
         try require(!model.acceptsComparisonMark(stale) && model.comparisonMark?.workingAccess?.file==externalA,"Actual menu refresh kept stale comparison-mark receipt")
         try marks.clear();try workspace.refreshWorkingComparisonMark();try require(model.comparisonMark==nil,"Global clear retained imported Browser mark")
-        model.markForComparison(entry);try workspace.refreshWorkingComparisonMark()
+        model.markForComparison(entry)
+        try await wait("Replacement historical Browser mark resolution did not settle"){!model.busy && model.comparisonMark?.workingAccess==nil && model.comparisonMark?.revision==pinned}
+        try workspace.refreshWorkingComparisonMark()
         try require(model.comparisonMark?.workingAccess==nil && model.comparisonMark?.revision==pinned,"Empty global refresh erased Browser historical mark")
         _ = try marks.remember(file:externalA,permission:externalPermission);try workspace.refreshWorkingComparisonMark();model.compareWithMarkedFile(entry)
-        try await wait("Actual marked comparison controller missing"){comparisons.count==2 && !workspace.busy && comparisons[1].model.document != nil}
+        try await wait("Actual marked comparison controller missing"){comparisons.count==2 && !model.busy && !workspace.busy && comparisons[1].model.document != nil}
         let marked=comparisons[1]
         try require(marked.model.comparisonDefaults===prefs && marked.model.openPermissions.contains{$0===permission} && marked.model.openPermissions.contains{$0.contains(externalA)} && marked.window?.appearance?.name==window.appearance?.name,"Marked compare lost captured preferences/permissions/appearance")
         try require(marked.model.document?.base.bytes==markedBytes && marked.model.document?.destination.bytes==historical && model.comparisonMark==nil && (try marks.snapshot())==nil,"Marked compare changed bytes or did not consume published mark")

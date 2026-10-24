@@ -44,6 +44,18 @@ instead of silently choosing Git. See the
 [revision lookup source comparison](REVISION-LOOKUP-PARITY.md) for raw source
 resolution, unborn HEAD and exact-name boundaries.
 
+For SHA-1 repositories, Repository Browser's initial object/tree read uses the
+helper unconditionally, matching the source's static repository lookup. The
+existing macOS SHA-256 Browser extension chooses Git explicitly from the stored
+object format; a failed selected helper never triggers that choice. Later comparison marks and file
+actions follow the master switch while keeping the displayed object fixed.
+Historical submodule Log pinning distinguishes an absent entry from an ordinary
+file and a gitlink; disabling the source master flag skips that pin lookup.
+Generic addition/deletion comparisons retain valid missing sides. History
+reference deletion retains its accepted engine through confirmation and stale
+identity checks. See [historical navigation](HISTORICAL-NAVIGATION-PARITY.md) for
+the source boundaries and remaining CLI tree-inventory adaptation.
+
 Unified patch display uses Diff bit `0x10`; historical changed-file lists and
 history file searches use LogListDiff bit `0x8000`. Both are off in the source
 default mask. Selected unified output includes source full statistics and patch

@@ -83,6 +83,10 @@ public struct RepositoryBrowserSnapshot: Sendable {
     public let directory: String
     public let bare: Bool
     public let entries: [RepositoryBrowserEntry]
+    public let acceptedBackend:GitLibGit2Configuration?
+    public init(root:URL,revision:String,objectID:String?,treeID:String?,directory:String,bare:Bool,entries:[RepositoryBrowserEntry],acceptedBackend:GitLibGit2Configuration?=nil) {
+        self.root=root;self.revision=revision;self.objectID=objectID;self.treeID=treeID;self.directory=directory;self.bare=bare;self.entries=entries;self.acceptedBackend=acceptedBackend
+    }
 }
 public enum RepositoryBrowserFailure: LocalizedError {
     case revision, directory, output, selection, transferLimit
@@ -148,28 +152,27 @@ extension GitRepository {
         }
         return names.sorted { $0.utf16.lexicographicallyPrecedes($1.utf16) }.first ?? snapshot.revision
     }
-    public func browseRepository(revision: String = "HEAD", directory: String = "", cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserSnapshot {
+    public func browseRepository(revision: String = "HEAD", directory: String = "", cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> RepositoryBrowserSnapshot {
         try cancellation?.check()
         guard RepositoryBrowserListing.validPath(directory, allowRoot: true) else { throw RepositoryBrowserFailure.directory }
         guard !revision.isEmpty, !revision.utf8.contains(0) else { throw RepositoryBrowserFailure.revision }
+        let selected=backend ?? libgit2Configuration ?? .load()
+        let initialReader=try repositoryBrowserReader(selected,initialization:true,cancellation:cancellation)
+        // SHA-1 keeps the user's master policy for later source-selected marks;
+        // SHA-256 records the declared CLI extension for every child receipt.
+        let accepted=initialReader.enabled ? selected:GitLibGit2Configuration(enabled:false,mask:selected.mask,helperURL:selected.helperURL)
         let bare = try isBare(cancellation: cancellation)
-        if revision == "HEAD", try run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 1 {
-            // An unborn symbolic HEAD has an empty browser, not an invalid-revision alert.
-            let ref = try run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 1 else { throw RepositoryBrowserFailure.revision }
-            return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: nil, treeID: nil, directory: "", bare: bare, entries: [])
-        }
-        let object = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--end-of-options", revision + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        let tree: String
-        do { tree = try run(["rev-parse", "--verify", "--end-of-options", object + "^{tree}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
-        catch { try cancellation?.check(); throw RepositoryBrowserFailure.revision }
-        return try browseRepositoryTree(revision: revision, objectID: object, treeID: tree, directory: directory, bare: bare, cancellation: cancellation)
+        let resolved=try repositoryBrowserRevision(revision,initialization:true,cancellation:cancellation,backend:accepted)
+        if resolved.unbornHead {return RepositoryBrowserSnapshot(root:root,revision:revision,objectID:nil,treeID:nil,directory:"",bare:bare,entries:[],acceptedBackend:accepted)}
+        guard let object=resolved.objectID,let tree=resolved.treeID else{throw RepositoryBrowserFailure.revision}
+        return try browseRepositoryTree(revision:revision,objectID:object,treeID:tree,directory:directory,bare:bare,cancellation:cancellation,backend:accepted)
     }
+
     public func browseRepositoryDirectory(_ snapshot: RepositoryBrowserSnapshot, directory: String, cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserSnapshot {
         try cancellation?.check()
         guard snapshot.root == root, RepositoryBrowserListing.validPath(directory, allowRoot: true),
               let tree = snapshot.treeID, let object = snapshot.objectID else { throw RepositoryBrowserFailure.directory }
-        return try browseRepositoryTree(revision: snapshot.revision, objectID: object, treeID: tree, directory: directory, bare: snapshot.bare, cancellation: cancellation)
+        return try browseRepositoryTree(revision: snapshot.revision, objectID: object, treeID: tree, directory: directory, bare: snapshot.bare, cancellation: cancellation,backend:snapshot.acceptedBackend ?? libgit2Configuration ?? .load())
     }
     /// Bounded metadata only, pinned to the displayed tree rather than a mutable
     /// symbolic revision. Callers may lower the entry ceiling for their workflow.
@@ -184,7 +187,10 @@ extension GitRepository {
         else {
             let listing=try browseRepositoryDirectory(snapshot,directory:directory,cancellation:cancellation)
             guard listing.treeID==tree else{throw RepositoryBrowserFailure.directory}
-            subtree=try run(["-c","core.precomposeUnicode=false","rev-parse","--verify","--end-of-options",tree+":"+directory],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+            let selected=snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
+            let reader=try repositoryBrowserReader(selected,initialization:true,cancellation:cancellation)
+            guard let value=try revisionLookup(tree+":"+directory,requirement:.tree,cancellation:cancellation,backend:reader).objectID else{throw RepositoryBrowserFailure.directory}
+            subtree=value
         }
         var bytes=Data(),records=0
         _=try run(["ls-tree","-r","-t","-l","-z",subtree,"--"],cancellation:cancellation,retainStandardOutput:false,consumeOutput:{chunk in
@@ -199,22 +205,19 @@ extension GitRepository {
         guard entries.allSatisfy({$0.path.split(separator:"/").count<=128}) else{throw RepositoryBrowserFailure.transferLimit}
         return entries
     }
-    private func browseRepositoryTree(revision: String, objectID: String, treeID: String, directory: String, bare: Bool, cancellation: OperationCancellation?) throws -> RepositoryBrowserSnapshot {
+    private func browseRepositoryTree(revision:String,objectID:String,treeID:String,directory:String,bare:Bool,cancellation:OperationCancellation?,backend:GitLibGit2Configuration)throws->RepositoryBrowserSnapshot {
         try cancellation?.check()
-        let subtree: String
-        do {
-            subtree = directory.isEmpty ? treeID : try run(["-c", "core.precomposeUnicode=false", "rev-parse", "--verify", "--end-of-options", treeID + ":" + directory], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            guard try run(["cat-file", "-t", subtree], cancellation: cancellation).text == "tree\n" else { throw RepositoryBrowserFailure.directory }
-        } catch { try cancellation?.check(); throw RepositoryBrowserFailure.directory }
-        let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"], cancellation: cancellation).stdout, directory: directory)
-        return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: objectID, treeID: treeID, directory: directory, bare: bare, entries: entries)
+        let reader=try repositoryBrowserReader(backend,initialization:true,cancellation:cancellation)
+        guard let subtree=try revisionLookup(directory.isEmpty ? treeID:treeID+":"+directory,requirement:.tree,cancellation:cancellation,backend:reader).objectID else{throw RepositoryBrowserFailure.directory}
+        let entries=try RepositoryBrowserListing.parse(run(["ls-tree","-z","-l",subtree,"--"],cancellation:cancellation).stdout,directory:directory)
+        return RepositoryBrowserSnapshot(root:root,revision:revision,objectID:objectID,treeID:treeID,directory:directory,bare:bare,entries:entries,acceptedBackend:backend)
     }
     /// Export a displayed item, or the displayed directory when entry is nil.
     /// Adapts RepositoryBrowser.cpp RecursivelyAdd and GitDataObject.cpp historical
     /// file contents (GPL-2.0-or-later). Gitlinks are skipped; symlinks are text.
     /// Copyright (C) 2016-2019, 2021-2023, 2025 TortoiseGit; 2007-2014 TortoiseSVN.
     public func exportRepositoryBrowser(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry? = nil, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> RepositoryBrowserExport {
-        let backend = backend ?? libgit2Configuration ?? .load()
+        let backend = backend ?? snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard snapshot.root == root, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
@@ -335,7 +338,7 @@ extension GitRepository {
         guard snapshot.root == root, !snapshot.bare, snapshot.entries.contains(entry),
               entry.kind == .submodule, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
         try validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
-        let result = try await submoduleComparison(path: entry.path, from: object, to: object, cancellation: cancellation)
+        let result = try await submoduleComparison(path: entry.path, from: object, to: object, cancellation: cancellation,backend:snapshot.acceptedBackend)
         guard result.from.revision == entry.objectID else { throw RepositoryBrowserFailure.selection }
         return result
     }
@@ -364,7 +367,7 @@ extension GitRepository {
     }
     public func materializedRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil,
                                                   backend: GitLibGit2Configuration? = nil) throws -> ComparisonFileContent {
-        let backend = backend ?? libgit2Configuration ?? .load()
+        let backend = backend ?? snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
         if entry.kind == .submodule { return try repositoryBrowserFile(snapshot, entry: entry, cancellation: token) }

@@ -222,6 +222,12 @@ reference name; its tooltip also shows the pinned object ID. Folder navigation
 and file actions continue to use that snapshot until you choose a revision or
 refresh. Selecting another revision retains the folder when it still exists.
 
+A tag can lead to a commit or a standalone tree. A tree can supply historical
+files, but has no commit history for Log or Blame. Mark for comparison keeps the
+displayed object even if its branch moves later. Submodule history uses the
+selected historical gitlink when pinning is enabled; an unavailable child commit
+is reported rather than replaced by the child's current checkout.
+
 Browse References lists branches, tags and remote-tracking references. Use the
 filter and selected reference for the offered actions. Picking a reference in a
 child dialog returns it to the caller; it does not itself check out that reference.
@@ -748,6 +754,9 @@ button keeps the applicable Submodule Update and Good/Bad/Skip/Reset choices
 in one menu. Submodule Update opens after the Bisect window closes. A failed or
 cancelled command can retain changes already made; inspect the refreshed repository
 state before deciding how to continue.
+If you accept Stash, that stash remains available after Bisect. A cancelled
+revision-list read starts no session; an interrupted operation may still require
+Reset. Returning to the form or starting a later action uses the current settings.
 
 ## Settings
 

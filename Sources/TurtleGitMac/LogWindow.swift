@@ -678,10 +678,11 @@ struct LogIntegrationPreparation {
         let merging = try await repository.logMergeActive(cancellation:cancellation)
         let rebasing = try await repository.rebaseState(cancellation:cancellation).active
         guard !merging, !rebasing else { throw LogIntegrationFailure.active }
-        guard try await repository.rebaseCommit("HEAD",cancellation:cancellation).hash != hash else { throw LogIntegrationFailure.head }
+        guard let head=try await repository.revisionLookup("HEAD",requirement:.commit,cancellation:cancellation).objectID else{throw GitHistoricalLookupFailure.revision}
+        guard head != hash else { throw LogIntegrationFailure.head }
         if let reference {
-            let resolved = try await repository.run(["rev-parse","--verify","--end-of-options",reference + "^{commit}"],successfulExitCodes:0...128,cancellation:cancellation)
-            guard resolved.exitCode == 0, resolved.text.trimmingCharacters(in:.newlines) == hash else { throw LogIntegrationFailure.stale }
+            let resolved = try await repository.revisionLookup(reference,requirement:.commit,cancellation:cancellation)
+            guard resolved.objectID == hash else { throw LogIntegrationFailure.stale }
         }
         try cancellation.check(); return revision
     }
@@ -1000,6 +1001,7 @@ struct LogCommandRequest: Identifiable {
     func requestBisect(_ command: LogBisectCommand) {
         guard canBisect(command) else { return }
         let chosen = revisions, selection = selected, request = generation, projection = historyProjectionEpoch, count = occurrenceSelectionCount
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         let cancellation = OperationCancellation(); bisectRead = cancellation
         busy = true; error = nil; Self.activeActionReads += 1
         Task {
@@ -1018,8 +1020,8 @@ struct LogCommandRequest: Identifiable {
                     // moved reference falls back to the selected commit.
                     func preset(_ entry: LogEntry) async throws -> String {
                         guard let ref = entry.references.first?.name else { return entry.hash }
-                        let result = try await repository.run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
-                        return result.exitCode == 0 && result.text.trimmingCharacters(in: .newlines) == entry.hash ? ref : entry.hash
+                        let result = try await repository.revisionLookup(ref,requirement:.commit,cancellation:cancellation)
+                        return result.objectID == entry.hash ? ref : entry.hash
                     }
                     let bad = try await preset(chosen[0]), good = try await preset(chosen[1])
                     handoff = LogBisectRequest(good: good, bad: bad, operation: nil, revisions: [])
@@ -1535,6 +1537,7 @@ struct LogCommandRequest: Identifiable {
         let branch = currentBranch.isEmpty ? "HEAD" : currentBranch
         return command == .merge ? "Merge to \"\(branch)\"…" : "Rebase \"\(branch)\" onto this…"
     }
+    private(set) var acceptedNavigationRepository:GitRepository?
     private var integrationCancellation:OperationCancellation?
     private var closeAfterIntegrationRead = false
     var readIntegration:((LogIntegrationPreparation,OperationCancellation) async throws -> String)?
@@ -1548,6 +1551,8 @@ struct LogCommandRequest: Identifiable {
         if let target { guard command == .merge, let reference = reference(for:target) else { return }; pointed = reference }
         else { pointed = nil }
         let preparation = LogIntegrationPreparation(command:command,entry:chosen,pointed:pointed)
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
+        acceptedNavigationRepository=repository
         let request = generation, selection = selected, token = OperationCancellation()
         integrationCancellation = token; closeAfterIntegrationRead = false
         busy = true; error = nil; Self.activeReferenceReads += 1
@@ -1565,7 +1570,7 @@ struct LogCommandRequest: Identifiable {
                 let destination:String
                 if let readIntegration { destination = try await readIntegration(preparation,token) }
                 else { destination = try await preparation.read(repository:repository,cancellation:token) }
-                guard !isInvalidated, request == generation, selected == selection, integrationCancellation === token, !token.isCancelled else { return }
+                guard !isInvalidated, !confirmingQuit, request == generation, selected == selection, integrationCancellation === token, !token.isCancelled else { return }
                 if let target, reference(for:target) == nil { throw LogIntegrationFailure.stale }
                 // Release this read before a child callback starts another owned
                 // load; the old defer must not clear that newer busy state.
@@ -2536,7 +2541,7 @@ struct LogCommandRequest: Identifiable {
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let snapshot = try await repository.prepareHistoryReferenceDeletion(target.name, cancellation: cancellation)
-                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+                    let resolved = try await repository.revisionLookup(snapshot.name,requirement:.commit,cancellation:cancellation).objectID
                     guard resolved == target.revisionHash else { throw HistoryReferenceDeletionFailure.changed }
                     choice = await confirmReferenceDeletion(snapshot)
                     guard choice != .abort, !isInvalidated, !cancellation.isCancelled, generation == request, revision?.hash == chosen.hash else { break }
@@ -2755,26 +2760,23 @@ struct LogCommandRequest: Identifiable {
             defer { Self.activeFileOpenReads -= 1; withExtendedLifetime(access) {}; if fileOpenRead === token { fileOpenRead=nil; busy = false } }
             do {
                 try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
-                let from: String, to: String?
                 if working {
                     guard let fresh = try await repository.workingTreeHistory(cancellation:token), fresh.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
-                    from = fresh.entry.parents.first ?? ""; to = nil
                 } else {
                     guard let revision else { throw RevisionComparisonFailure.selection }
                     let groups = try await repository.logFileGroups(in: revision,cancellation:token)
                     guard let group = groups.first(where: { $0.id == (file.parentIndex ?? 0) }), group.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
-                    from = file.action.hasPrefix("D") ? group.parent ?? "" : revision.hash
-                    to = revision.hash
                 }
-                let module = try await repository.submoduleComparison(path: file.path, from: from, to: to,cancellation:token)
-                guard let checkout = module.checkout else { throw LogSubmoduleHistoryFailure.uninitialized }
+                let child = try await repository.submoduleWorkingRepository(path:file.path,cancellation:token)
+                let checkout=child.root
                 try validateWorkingFileAccess(checkout)
                 let endRevision: String?
                 if !working && !file.action.hasPrefix("D") && pinRevision {
-                    guard module.to.available, let hash = module.to.revision else { throw LogSubmoduleHistoryFailure.unavailableRevision }
-                    endRevision = hash
+                    guard let revision else {throw RevisionComparisonFailure.selection}
+                    endRevision = try await repository.submoduleLogRevision(path:file.path,revision:revision.hash,cancellation:token)
                 } else { endRevision = nil }
                 guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!token.isCancelled else { return }
+                acceptedNavigationRepository=child
                 busy = false; onSubmoduleFileLog?(checkout, endRevision)
             } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!token.isCancelled { self.error = error.localizedDescription } }
         }

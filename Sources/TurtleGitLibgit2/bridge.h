@@ -27,6 +27,7 @@ typedef struct {int object_type;const char *oid,*tree;const char *const *parents
 typedef int (*tg_single_commit_cb)(const tg_single_commit *,void *);
 typedef int (*tg_finder_cb)(const char *,int,int,int,void *);
 typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;tg_reset_file_cb reset_file;tg_reset_progress_cb reset_progress;tg_history_cb history_delta;tg_history_header_cb history_header;tg_local_reference_cb local_reference;tg_inspection_cb inspection;tg_single_commit_cb single_commit;tg_finder_cb finder_status;} tg_callbacks;
+int tg_historical_gitlink(const char *repository,const char *revision,const char *path,int commit_only,tg_callbacks *callbacks);
 int tg_revision_lookup(const char *repository,const char *value,int requirement,int reference,tg_callbacks *callbacks);
 int tg_checkout_references(const char *repository,tg_callbacks *callbacks);
 int tg_configured_remotes(const char *repository,tg_callbacks *callbacks);

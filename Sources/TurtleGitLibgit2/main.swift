@@ -55,7 +55,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -107,7 +107,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
+        if command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -229,6 +229,17 @@ struct PrivateLocalReferenceRequest {
     }
 }
 
+struct PrivateHistoricalGitlinkRequest:Decodable {
+    let version:Int,revision:String,path:String,commitOnly:Bool
+    static func read()throws->Self {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65536),!part.isEmpty {guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Historical lookup exceeds bounds or was cancelled")};data.append(part)}
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(fields.keys)==["version","revision","path","commitOnly"] else{try refuse("Invalid historical lookup fields")}
+        let value=try JSONDecoder().decode(Self.self,from:data)
+        guard value.version==1,PrivateDiffRequest.fullOID(value.revision),!value.path.isEmpty,value.path.utf8.count<=1_048_576,!value.path.utf8.contains(0),!value.path.hasPrefix("/"),!value.path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0=="." || $0==".."}) else{try refuse("Invalid historical lookup input")}
+        return value
+    }
+}
 struct PrivateRevisionLookupRequest {
     let operation:String,value:String,requirement:Int32
     static func read()throws->Self {
@@ -575,6 +586,13 @@ final class CallbackContext{
         }
         try localReferenceRecord(["kind":"end","count":localReferenceCount])
     }
+    func historicalGitlink(_ pointer:UnsafePointer<tg_inspection>?)throws {
+        guard !cancelled(),let row=pointer?.pointee,row.kind==6,(0...2).contains(row.value) else{try refuse("Invalid historical lookup reply")}
+        let oid=try row.base.map{try notificationString($0)}
+        guard (row.value==2)==(oid != nil),oid.map(PrivateDiffRequest.fullOID) ?? true else{try refuse("Invalid historical gitlink object ID")}
+        let data=try JSONSerialization.data(withJSONObject:["status":["missing","other","gitlink"][Int(row.value)],"oid":oid.map{$0 as Any} ?? NSNull()],options:.sortedKeys)
+        try FileHandle.standardOutput.write(contentsOf:Data(("TurtleGit HistoricalGitlink v1:"+data.base64EncodedString()+"\n").utf8))
+    }
     func revisionLookup(_ pointer:UnsafePointer<tg_inspection>?)throws {
         guard !cancelled(),let row=pointer?.pointee else{try refuse("Missing revision reply")}
         let object:[String:Any]
@@ -852,8 +870,12 @@ func run()throws->Int32{
     let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
     let finderRequest=try args.command=="turtlegit-finder-status" ? PrivateFinderRequest.read():nil
     let singleCommitRequest=try args.command=="turtlegit-single-commit" ? PrivateSingleCommitRequest.read():nil
+    let historicalRequest=try args.command=="turtlegit-historical-gitlink" ? PrivateHistoricalGitlinkRequest.read():nil
     let revisionRequest=try args.command=="turtlegit-revision-lookup" ? PrivateRevisionLookupRequest.read():nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if historicalRequest != nil {
+        options.inspection={row,raw in do{try context(raw).historicalGitlink(row);return 0}catch{output("Historical lookup: "+error.localizedDescription+"\n");return -1}}
+    }
     if revisionRequest != nil {
         options.inspection={row,raw in do{try context(raw).revisionLookup(row);return 0}catch{output("Revision lookup: "+error.localizedDescription+"\n");return -1}}
     }
@@ -926,6 +948,7 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=historicalRequest{return tg_historical_gitlink(args.directory,request.revision,request.path,request.commitOnly ? 1:0,&options)}
         if let request=revisionRequest{return tg_revision_lookup(args.directory,request.value,request.requirement,request.operation=="reference" ? 1:0,&options)}
         if let request=finderRequest{return tg_finder_status(args.directory,request.full ? 1:0,request.caseSensitive ? 1:0,request.contentCheckLimitKiB,&options)}
         if let request=singleCommitRequest{return tg_read_single_commit(args.directory,request.revision,request.allowTree ? 1:0,&options)}

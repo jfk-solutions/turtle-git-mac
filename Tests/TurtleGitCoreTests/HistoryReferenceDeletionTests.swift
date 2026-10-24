@@ -109,7 +109,8 @@ final class HistoryReferenceDeletionTests: XCTestCase {
             exec \(quote(direct.executable.path)) "$@"
             """
             try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-            let repo = GitRepository(root: root, executable: helper), token = OperationCancellation()
+            // This wrapper deliberately holds the CLI rev-parse/push/stash boundary.
+            let repo = GitRepository(root: root, executable: helper,libgit2Configuration:.init(enabled:false)), token = OperationCancellation()
             let work = Task {
                 do {
                     if stage == "rev-parse" { _ = try await repo.prepareHistoryReferenceDeletion(snapshot.name, cancellation: token) }

@@ -2795,7 +2795,10 @@ private enum TransportBatchPresentationContext {
             guard let owner=log?.window else {return};self?.showGroupedHistoricalFiles(repository:repository,access:access,requests:requests,owner:owner)
         }
         log.onFileLog={ [weak self] path,hash in self?.showLog(repository:repository,access:access,paths:[path],endRevision:hash) }
-        log.onSubmoduleFileLog={ [weak self] checkout,hash in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:hash,selectedRevision:hash) }
+        log.onSubmoduleFileLog={ [weak self,weak log] checkout,hash in
+            let child=log?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            self?.showLog(repository:child,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:log?.colorPreferences)
+        }
         log.onBlame={ [weak self] path,hash in self?.showBlame(repository:repository,access:access,path:path,revision:hash) }
         log.onRevisionChanged={ [weak self] output in
             guard let self else {return}
@@ -2809,7 +2812,10 @@ private enum TransportBatchPresentationContext {
         model.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:preferences) }
-        model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
+        model.onSubmoduleLog={ [weak self,weak model] checkout,revision in
+            let child=model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences)
+        }
         model.onFilesChanged={ [weak self] in
             self?.refreshRepositoryLogs(repository.root);self?.refreshStatusWindows(repository.root);self?.commitWindows[repository.root.path]?.model.reload()
             if self?.root==repository.root {Task{await self?.refresh()}}
@@ -3454,7 +3460,11 @@ private enum TransportBatchPresentationContext {
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
         controller.model.onLog = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults, sourceWindow: controller.window)} }
         controller.model.onBlame = { [weak self] path, hash in show {self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults)} }
-        controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window, preferences: defaults)} }
+        controller.model.onCompare = { [weak self, weak controller] path, hash in
+            guard let controller, controller.model.active else { return }
+            let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
+            show {self?.showHistoricalFiles(repository:accepted,access:access,from:.revision(hash),to:.workingTree,paths:[path],owner:controller.window,preferences:defaults)}
+        }
         controller.model.onChanged = { [weak self] in
             guard let self else { return }
             self.refreshStatusWindows(repository.root)
@@ -3466,7 +3476,11 @@ private enum TransportBatchPresentationContext {
             return try? self.comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller, controller.model.active else { return }; show {self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window, preferences: defaults)} }
+        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in
+            guard let controller, controller.model.active else { return }
+            let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
+            show {self?.showPreparedFileComparison(repository:accepted,access:access,marked:marked,current:current,owner:controller.window,preferences:defaults)}
+        }
         controller.model.onSubmoduleUpdate = { [weak self, weak controller] path in
             guard let controller, controller.model.active else { return }
             self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],selected:[path],preferences:defaults,sourceWindow:controller.window)
@@ -3478,7 +3492,8 @@ private enum TransportBatchPresentationContext {
                 else { model.offerSubmoduleUpdate(entry) }
                 return
             }
-            let child=GitRepository(root:checkout,executable:repository.executable)
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
+            let child=GitRepository(root:checkout,executable:accepted.executable,askpass:accepted.askpass,diffDetection:accepted.diffDetection,libgit2Configuration:accepted.libgit2Configuration)
             if showLog { self.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
             else { self.showRepositoryBrowser(repository:child,access:access,revision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
         }
@@ -3653,9 +3668,9 @@ private enum TransportBatchPresentationContext {
         controller.model.onFileCompare = { [weak self, weak controller] from, to, paths in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths, owner: controller.window) }
         controller.model.onFileComparisons = { [weak self, weak controller] requests in guard let controller else { return }; self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests, owner: controller.window) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
-        controller.model.onSubmoduleFileLog = { [weak self] checkout, hash in
-            let child = GitRepository(root: checkout, executable: repository.executable)
-            self?.showLog(repository: child, access: access, paths: [], endRevision: hash)
+        controller.model.onSubmoduleFileLog = { [weak self,weak model=controller.model] checkout, hash in
+            let child = model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            self?.showLog(repository: child, access: access, paths: [], endRevision: hash,selectedRevision:hash,preferences:model?.colorPreferences)
         }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         controller.model.onRevisionChanged = { [weak self] output in
@@ -3882,9 +3897,13 @@ private enum TransportBatchPresentationContext {
     }
     func configureLogIntegration(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
         let preferences = log.colorPreferences
-        log.onMergeRevision = { [weak self] revision in self?.showMerge(repository:repository,access:access,revision:revision,preferences:preferences) }
-        log.onPreparedRebase = { [weak self] prepared in
-            self?.showRebase(repository:repository,access:access,upstream:prepared.canonicalRevision,fromLog:true,preferences:preferences)
+        log.onMergeRevision = { [weak self,weak log] revision in
+            let accepted=log?.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showMerge(repository:accepted,access:access,revision:revision,preferences:preferences)
+        }
+        log.onPreparedRebase = { [weak self,weak log] prepared in
+            let accepted=log?.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showRebase(repository:accepted,access:access,upstream:prepared.canonicalRevision,fromLog:true,preferences:preferences,acceptedRepository:accepted)
         }
     }
     private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
@@ -4055,7 +4074,10 @@ private enum TransportBatchPresentationContext {
         let revisionFiles=controller.model.revisionFiles
         revisionFiles.onFileLog={ [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision,preferences:inherited) }
         revisionFiles.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:inherited) }
-        revisionFiles.onSubmoduleLog={ [weak self] child,revision in self?.showLog(repository:GitRepository(root:child,executable:repository.executable),access:access,paths:[],endRevision:revision,preferences:inherited) }
+        revisionFiles.onSubmoduleLog={ [weak self,weak revisionFiles] checkout,revision in
+            let child=revisionFiles?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:inherited)
+        }
         revisionFiles.onSubmoduleCompare={ [weak self] path,oldPath,from,to in
             self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:from == .emptyTree ? "" : from.label,to:to == .workingTree ? nil : to == .emptyTree ? "":to.label,fromPath:oldPath,preferences:inherited)
         }

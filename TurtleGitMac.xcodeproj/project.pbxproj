@@ -117,6 +117,7 @@
 		32999DFDD4058AD782D22857 /* BlameSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */; };
 		331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A976676E04B6BC290F5465 /* LogGravatar.swift */; };
 		338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */; };
+		3469327F5AD6DD1225DE25F8 /* GitHistoricalLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5C3E4596D417B3719D0167 /* GitHistoricalLookup.swift */; };
 		353324EB31D26467D5923420 /* LibreOfficeComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */; };
 		35B8F6AE5F02550BD409D4A3 /* AppLanguagePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEFB92D8B0C07D46059189F0 /* AppLanguagePreferences.swift */; };
 		369DA51D3F695575992439FC /* WindowGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C0E5814B5E3AC88F6511F4 /* WindowGeometry.swift */; };
@@ -950,6 +951,7 @@
 		BAC8E604A6E8BFCD8E8E76D8 /* SourceMessageLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceMessageLinks.swift; sourceTree = "<group>"; };
 		BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreOfficeComparison.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
+		BD5C3E4596D417B3719D0167 /* GitHistoricalLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHistoricalLookup.swift; sourceTree = "<group>"; };
 		BE0E07642065156B7B7D1788 /* PrimaryCommandInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryCommandInvocation.swift; sourceTree = "<group>"; };
 		BE9DF5DEFC08DA3720B374B9 /* EnhancedMetafileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedMetafileWriter.swift; sourceTree = "<group>"; };
 		BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
@@ -1515,6 +1517,7 @@
 				B4DE08A2852733DA440A85CB /* GitCredentials.swift */,
 				D11FB71BB05B58ECF349B727 /* GitDaemon.swift */,
 				DA7659920C4236C2BDDFE7FC /* GitDiffEngine.swift */,
+				BD5C3E4596D417B3719D0167 /* GitHistoricalLookup.swift */,
 				9162AD3A361D9BBCBA036367 /* GitIdentityDisplay.swift */,
 				F551EF3478A65B697AC427F7 /* GitLibGit2.swift */,
 				CB2FFCE3F96744E4076184C2 /* GitLocalReferenceEngine.swift */,
@@ -2160,6 +2163,7 @@
 				D6F21D6B466FBBA5484A3C2F /* GitCredentials.swift in Sources */,
 				039C1C33E2239E40BD58E0B5 /* GitDaemon.swift in Sources */,
 				91035494CCDC3A8E494D50D6 /* GitDiffEngine.swift in Sources */,
+				3469327F5AD6DD1225DE25F8 /* GitHistoricalLookup.swift in Sources */,
 				474CDC2930F387A838093934 /* GitIdentityDisplay.swift in Sources */,
 				FFFC13889BFC170DAB41B92C /* GitLibGit2.swift in Sources */,
 				987D88DABF888F7C9D4E2EF2 /* GitLocalReferenceEngine.swift in Sources */,

@@ -346,7 +346,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let preferences:UserDefaults
     private(set) var materializationEditorSettings:AlternativeEditorPreferences?
     var captureMaterializationBackend:(()->GitLibGit2Configuration)?
-    func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:preferences)}
+    func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)}
     @Published private(set) var columns:RepositoryBrowserColumns
     private(set) var columnsRevision = 0
     static let dividerKey = "TurtleGit.RepositoryBrowser.Divider"
@@ -375,6 +375,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     var onLog: (String, String) -> Void = { _, _ in }
     var onBlame: (String, String) -> Void = { _, _ in }
+    private(set) var acceptedNavigationRepository:GitRepository?
     var onCompare: (String, String) -> Void = { _, _ in }
     var onSubmodule: (SubmoduleComparison, RepositoryBrowserEntry, Bool) -> Void = { _, _, _ in }
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
@@ -436,6 +437,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             return a == b ? lhs.utf8.lexicographicallyPrecedes(rhs.utf8) : a < b
         }
         let (request, cancellation) = startRequest()
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task { [self, repository, access] in
             defer { finishRequest(request); if active && generation == identity { busy = false }; withExtendedLifetime(access) {} }
             do {
@@ -600,6 +602,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         loadSubmodule(snapshot,entry:entry,showLog:true)
     }
     private func loadSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, showLog: Bool) {
+        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         let (request,cancellation) = startRequest(), identity = generation
         busy = true
         Task { [self,repository,access] in
@@ -608,6 +611,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 let module = try await repository.repositoryBrowserSubmodule(snapshot,entry:entry,cancellation:cancellation)
                 if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard active, generation == identity else { return }
+                acceptedNavigationRepository=repository
                 onSubmodule(module,entry,showLog)
             } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
@@ -657,12 +661,35 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func markForComparison(_ entry: RepositoryBrowserEntry) {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, let revision = snapshot.objectID,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
-        comparisonMark = PreparedFileComparisonMark(path: entry.path, revision: revision)
+        resolveNavigationRevision(revision) { [weak self] resolved in
+            self?.comparisonMark = PreparedFileComparisonMark(path:entry.path,revision:resolved)
+        }
     }
     func compareWithMarkedFile(_ entry: RepositoryBrowserEntry, capturedMark: PreparedFileComparisonMark? = nil) {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, let revision = snapshot.objectID, let comparisonMark = capturedMark ?? comparisonMark,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
-        onPreparedFileCompare?(comparisonMark, PreparedFileComparisonMark(path: entry.path, revision: revision))
+        let markIdentity=comparisonMarkRevision
+        resolveNavigationRevision(revision) { [weak self] resolved in
+            guard let self,self.comparisonMarkRevision==markIdentity else{return}
+            self.onPreparedFileCompare?(comparisonMark,PreparedFileComparisonMark(path:entry.path,revision:resolved))
+        }
+    }
+    /// Resolve the immutable displayed object, never a branch that may have moved
+    /// since ReadTree. Later commands use the owning dialog's accepted master policy.
+    private func resolveNavigationRevision(_ revision:String,completion:@escaping(String)->Void) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
+        let identity=generation,navigation=menuGeneration
+        let (request,cancellation)=startRequest();busy=true
+        Task { [self,repository,access] in
+            defer{finishRequest(request);if active,generation==identity{busy=false};withExtendedLifetime(access){}}
+            do {
+                try validateAccess()
+                let resolved=try await repository.repositoryBrowserRevision(revision,cancellation:cancellation)
+                guard let object=resolved.objectID else{throw RepositoryBrowserFailure.revision}
+                guard active,generation==identity,menuGeneration==navigation,!confirmingQuit,!cancellation.isCancelled else{return}
+                acceptedNavigationRepository=repository;completion(object)
+            }catch{if active,generation==identity,!cancellation.isCancelled{self.error=error.localizedDescription}}
+        }
     }
     struct MenuTarget {
         let owner: ObjectIdentifier
@@ -727,6 +754,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
               entry.kind != .directory, let revision = snapshot.objectID else { return }
         let identity=generation,navigation=menuGeneration,callback=onCompare
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let (request,cancellation)=startRequest();busy=true
         Task { [self,repository,access] in
             defer {finishRequest(request);if active,generation==identity {busy=false};withExtendedLifetime(access){}}
@@ -734,6 +762,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 try validateAccess()
                 try await repository.validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
                 guard active,generation==identity,menuGeneration==navigation,!cancellation.isCancelled else {return}
+                _ = try await repository.repositoryBrowserRevision(revision,cancellation:cancellation)
+                guard active,generation==identity,menuGeneration==navigation,!confirmingQuit,!cancellation.isCancelled else{return}
+                acceptedNavigationRepository=repository
                 callback(entry.path,revision)
             } catch {if active,generation==identity,!cancellation.isCancelled {self.error=error.localizedDescription}}
         }

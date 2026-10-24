@@ -65,9 +65,14 @@ import TurtleGitCore
         try require(childReply==1,"Captured unavailable child result")
         owner.close();try await wait { RepositoryBrowserWindowModel.activeOperations==0 }
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
-        for phase in ["rev-parse","ls-tree","cat-file","checkout"] {
+        // ReadTree now resolves through the forced source helper; the remaining
+        // phases deliberately exercise the CLI listing/materialization/writer.
+        prefs.set(false,forKey:"UseLibgit2")
+        for phase in ["turtlegit-revision-lookup","ls-tree","cat-file","checkout"] {
+            print("Browser owned read/write cancellation phase: " + phase)
             let helper=root.appendingPathComponent("slow-browser-"+phase),marker=URL(fileURLWithPath:helper.path+".started"),pause=URL(fileURLWithPath:helper.path+".pause")
-            let quoted="'"+repo.executable.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
+            let target = phase=="turtlegit-revision-lookup" ? URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2") : repo.executable
+            let quoted="'"+target.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
             let script="""
             #!/bin/sh
             task_match=false
@@ -86,7 +91,7 @@ import TurtleGitCore
             exec \(quoted) "$@"
             """
             try script.write(to:helper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-            let slow=GitRepository(root:root,executable:helper),host=RepositoryBrowserWindowController(repository:slow,access:nil,revision:pinned,preferences:prefs)
+            let slow=GitRepository(root:root,executable:phase=="turtlegit-revision-lookup" ? repo.executable:helper,libgit2Configuration:.init(enabled:false,helperURL:phase=="turtlegit-revision-lookup" ? helper:nil)),host=RepositoryBrowserWindowController(repository:slow,access:nil,revision:pinned,preferences:prefs)
             var replies=0;host.model.presentFile={ _,_ in replies += 1 };host.model.onChanged={ replies += 1 };host.model.showRevertResult={ _ in replies += 1 }
             do {
                 try await wait { !host.model.busy && host.model.snapshot != nil }
@@ -139,7 +144,10 @@ import TurtleGitCore
         let treeDocument = try await repo.comparisonFile(comparison,path:treeEntry.path)
         let treeSnapshot = try await repo.repositoryBrowserFile(treeModel.snapshot!,entry:treeEntry)
         try require(treeDocument.base.bytes == treeSnapshot.bytes,"Tree comparison changed historical bytes")
-        treeModel.markForComparison(treeEntry);treeModel.compareWithMarkedFile(treeEntry)
+        treeModel.markForComparison(treeEntry)
+        try await wait { !treeModel.busy && treeModel.comparisonMark?.revision == tree }
+        treeModel.compareWithMarkedFile(treeEntry)
+        try await wait { !treeModel.busy && markedHandoff != nil }
         try require(markedHandoff?.0.revision == tree && markedHandoff?.1.revision == tree,"Tree mark lost identity")
         let marked = try await repo.preparedPathComparison(from:.revision(markedHandoff!.0.revision),fromPath:markedHandoff!.0.path,to:.revision(markedHandoff!.1.revision),toPath:markedHandoff!.1.path)
         let markedDocument = try await repo.comparisonFile(marked,path:treeEntry.path)

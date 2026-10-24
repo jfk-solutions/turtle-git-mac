@@ -1050,3 +1050,18 @@ int tg_revision_lookup(const char *path,const char *value,int requirement,int re
  emit:if(stopped(&ctx)){result=GIT_EUSER;goto done;}if(callbacks->inspection)result=callbacks->inspection(&row,callbacks->payload);
  done:git_object_free(peeled);git_object_free(object);git_reference_free(ref);git_repository_free(repo);return result;
 }
+
+int tg_historical_gitlink(const char *path,const char *revision,const char *git_path,int commit_only,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_commit *commit=NULL;git_tree *tree=NULL;git_tree_entry *entry=NULL;git_oid oid;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};tg_inspection row={0};char hex[GIT_OID_SHA1_HEXSIZE+1];row.kind=6;
+ if((result=git_oid_fromstr(&oid,revision))<0||(result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0)goto done;
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if(commit_only){if((result=git_commit_lookup(&commit,repo,&oid))<0||(result=git_commit_tree(&tree,commit))<0)goto done;}
+ else if((result=git_tree_lookup(&tree,repo,&oid))<0)goto done;
+ result=git_tree_entry_bypath(&entry,tree,git_path);
+ if(result==GIT_ENOTFOUND){git_error_clear();result=0;row.value=0;}
+ else if(result<0)goto done;
+ else if(git_tree_entry_type(entry)!=GIT_OBJECT_COMMIT||git_tree_entry_filemode(entry)!=GIT_FILEMODE_COMMIT){row.value=1;}
+ else {row.value=2;git_oid_tostr(hex,sizeof(hex),git_tree_entry_id(entry));row.base=hex;}
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}if(callbacks->inspection)result=callbacks->inspection(&row,callbacks->payload);
+ done:git_tree_entry_free(entry);git_tree_free(tree);git_commit_free(commit);git_repository_free(repo);return result;
+}

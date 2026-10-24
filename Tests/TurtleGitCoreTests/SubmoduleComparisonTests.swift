@@ -29,7 +29,14 @@ final class SubmoduleComparisonTests: XCTestCase {
             wire.append(Data("TurtleGit Inspection v1:".utf8)); wire.append(try JSONSerialization.data(withJSONObject:value).base64EncodedData()); wire.append(10)
         }
         try wire.write(to:reply)
-        try Data("#!/bin/sh\nprintf '%s\\n' \"$@\" > '\(log.path)'\ncat '\(reply.path)'\n".utf8).write(to:helper)
+        let runtime=try GitLibGit2Configuration().runtimeExecutor()
+        func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        func ancestryScript(_ body:String)->Data {
+            Data(("#!/bin/sh\ncase \" $* \" in\n*\" turtlegit-merge-base \"*)\n"+body+"\n;;\n*) exec "+quote(runtime.path)+" \"$@\";;\nesac\n").utf8)
+        }
+        // Only the ancestry seam is canned; master-selected historical and
+        // revision metadata must still exercise the real matching helper.
+        try ancestryScript("printf '%s\\n' \"$@\" > "+quote(log.path)+"\ncat "+quote(reply.path)).write(to:helper)
         try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
         let config = GitLibGit2Configuration(enabled:true,mask:GitLibGit2Operation.mergeBase.mask,helperURL:helper)
         let captured = GitRepository(root:root,executable:parent.executable,askpass:parent.askpass,diffDetection:parent.diffDetection,libgit2Configuration:config)
@@ -47,7 +54,7 @@ final class SubmoduleComparisonTests: XCTestCase {
         XCTAssertEqual(prepared.repository.libgit2Configuration?.helperURL,helper)
         XCTAssertEqual(prepared.repository.libgit2Configuration?.mask,config.mask)
         // A selected helper failure is not converted into a timestamp classification.
-        try Data("#!/bin/sh\nexit 23\n".utf8).write(to:helper)
+        try ancestryScript("exit 23").write(to:helper)
         do { _ = try await captured.submoduleComparison(path:path); XCTFail("Selected ancestry failure was hidden") } catch is GitFailure {}
         let token = OperationCancellation(); token.cancel()
         do { _ = try await captured.submoduleComparison(path:path,cancellation:token); XCTFail("Cancellation was hidden") } catch is OperationCancellationFailure {}

@@ -9,8 +9,9 @@ public struct HistoryReferenceDeletion: Sendable {
     public let unmerged: Bool
     public let stashEntries: [ReferenceLogEntry]
     public let symbolicTarget: String?
-    public init(name:String,objectID:String,kind:Kind,unmerged:Bool,stashEntries:[ReferenceLogEntry],symbolicTarget:String?=nil) {
-        self.name=name;self.objectID=objectID;self.kind=kind;self.unmerged=unmerged;self.stashEntries=stashEntries;self.symbolicTarget=symbolicTarget
+    public let acceptedBackend:GitLibGit2Configuration?
+    public init(name:String,objectID:String,kind:Kind,unmerged:Bool,stashEntries:[ReferenceLogEntry],symbolicTarget:String?=nil,acceptedBackend:GitLibGit2Configuration?=nil) {
+        self.name=name;self.objectID=objectID;self.kind=kind;self.unmerged=unmerged;self.stashEntries=stashEntries;self.symbolicTarget=symbolicTarget;self.acceptedBackend=acceptedBackend
     }
     public var message: String {
         switch kind {
@@ -40,35 +41,38 @@ public enum HistoryReferenceDeletionFailure: LocalizedError {
 }
 extension GitRepository {
     public func prepareHistoryReferenceDeletion(_ name: String, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> HistoryReferenceDeletion {
+        let selected=backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         let name = GitReferenceName.removingSuffix("^{}", from: name) ?? name
         guard name.utf8.starts(with: "refs/".utf8) else { throw HistoryReferenceDeletionFailure.reference }
         do { _ = try referenceLogCommand(["check-ref-format", name], cancellation: token) }
         catch { try token.check(); throw HistoryReferenceDeletionFailure.reference }
-        let current = try? referenceLogCommand(["symbolic-ref", "--quiet", "HEAD"], cancellation: token).text.trimmingCharacters(in: .newlines)
+        let currentRead=try referenceLogCommand(["symbolic-ref","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:token)
+        let current=currentRead.exitCode==0 ? String(decoding:currentRead.stdout,as:UTF8.self).trimmingCharacters(in:.newlines):nil
         try token.check()
         guard current.map({ !GitReferenceName.equal($0, name) }) ?? true else { throw HistoryReferenceDeletionFailure.current }
-        let oid: String
-        do { oid = try referenceLogCommand(["rev-parse", "--verify", "--end-of-options", name], cancellation: token).text.trimmingCharacters(in: .newlines) }
-        catch { try token.check(); throw HistoryReferenceDeletionFailure.reference }
+        guard let oid=try revisionLookup(name,requirement:.existingObject,cancellation:token,backend:selected).objectID else{throw HistoryReferenceDeletionFailure.reference}
         let remote = name.utf8.starts(with: "refs/remotes/".utf8)
         let stash = name.utf8.starts(with: "refs/stash".utf8)
         let local = name.utf8.starts(with: "refs/heads/".utf8)
-        let merged = try !local || replayMergeBase(from:name,to:"HEAD",cancellation:token,backend:backend).fastForward
+        let merged = try !local || replayMergeBase(from:name,to:"HEAD",cancellation:token,backend:selected).fastForward
         try token.check()
-        return HistoryReferenceDeletion(name: name, objectID: oid, kind: remote ? .remote : stash ? .stash : .ordinary, unmerged: !merged, stashEntries: stash ? try referenceLog(name, cancellation: token) : [], symbolicTarget:try localReferenceSymbolicTarget(name,cancellation:token))
+        let symbolic=try referenceLogCommand(["symbolic-ref","--quiet","--no-recurse",name],successfulExitCodes:0...1,cancellation:token)
+        let target=symbolic.exitCode==0 ? String(decoding:symbolic.stdout,as:UTF8.self).trimmingCharacters(in:.newlines):nil
+        return HistoryReferenceDeletion(name:name,objectID:oid,kind:remote ? .remote:stash ? .stash:.ordinary,unmerged:!merged,stashEntries:stash ? try referenceLog(name,cancellation:token):[],symbolicTarget:target,acceptedBackend:selected)
     }
     /// The named reference still has to identify the captured RefLog event.
     /// Annotated tags compare their peeled commit but delete the tag object.
-    public func prepareReferenceLogReferenceDeletion(_ name: String, entry: ReferenceLogEntry, cancellation: OperationCancellation? = nil) throws -> HistoryReferenceDeletion {
-        _ = try referenceLogOperationEntries(snapshot: [entry], selected: [entry.id], cancellation: cancellation)
-        let snapshot = try prepareHistoryReferenceDeletion(name, cancellation: cancellation)
-        let resolved = try referenceLogCommand(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+    public func prepareReferenceLogReferenceDeletion(_ name: String, entry: ReferenceLogEntry, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> HistoryReferenceDeletion {
+        let selected=backend ?? libgit2Configuration ?? .load()
+        _ = try referenceLogOperationEntries(snapshot:[entry],selected:[entry.id],cancellation:cancellation)
+        let snapshot=try prepareHistoryReferenceDeletion(name,cancellation:cancellation,backend:selected)
+        let resolved=try revisionLookup(snapshot.name,requirement:.commit,cancellation:cancellation,backend:selected).objectID
         guard resolved == entry.hash else { throw HistoryReferenceDeletionFailure.changed }
         return snapshot
     }
     public func deleteHistoryReference(_ snapshot: HistoryReferenceDeletion, choice: HistoryReferenceDeleteChoice, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> String {
-        let selectedBackend = backend ?? libgit2Configuration ?? .load()
+        let selectedBackend = backend ?? snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard choice != .abort, snapshot.choices.contains(where: { $0.choice == choice }) else { throw HistoryReferenceDeletionFailure.choice }
         let fresh = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token,backend:selectedBackend)
