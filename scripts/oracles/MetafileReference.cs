@@ -11,6 +11,7 @@ public static class MetafileReference {
     var json = new StringBuilder("{\"platform\":\"" + Environment.OSVersion.ToString() + "\",\"cases\":[");
     bool first = true;
     foreach (var path in Directory.GetFiles(input, "compressed-raster-*")) {
+      if(!Variant(path))continue;
       var extension=Path.GetExtension(path).ToLowerInvariant();
       if(extension!=".emf" && extension!=".wmf") continue;
       if(Path.GetFileName(path).StartsWith("compressed-raster-refused-")) continue;
@@ -55,6 +56,7 @@ public static class MetafileReference {
     json.Append("]}");
     File.WriteAllText(Path.Combine(output,"samples.json"),json.ToString());
   }
+  private static bool Variant(string path) {var name=Path.GetFileName(path);return name.Contains("delay") || name.Contains("delta");}
   private static void Samples(StringBuilder json, Bitmap bitmap) {
     json.Append(",\"samples\":["); bool first=true;
     int[] positions={0,4,9,13,17,21,25,29,33,37,41,45,49,53,57,63};
@@ -69,6 +71,7 @@ public static class MetafileReference {
   }
   private static void RawImages(string input,string output,StringBuilder json,ref bool first) {
     foreach(var path in Directory.GetFiles(input,"compressed-raster-source-*")) {
+      if(!Variant(path))continue;
       if(!first)json.Append(",");first=false;
       json.Append("{\"name\":\"raw-").Append(Path.GetFileName(path)).Append("\"");
       try {
