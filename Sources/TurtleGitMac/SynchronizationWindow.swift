@@ -180,10 +180,13 @@ extension SynchronizationTagKind {
         ProgressActionLog.record(owner: self, repository: repository.root, output: output, cancelled: cancelled, failed: !success)
     }
     init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,backend:GitLibGit2Configuration? = nil) {
-        let capturedBackend=backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        let isCheckout:Bool;if case .checkout=operation {isCheckout=true}else{isCheckout=false}
+        let capturedBackend=(isCheckout ? repository.libgit2Configuration:nil) ?? backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
         self.backend = capturedBackend
         self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        self.repository = repository.capturingBackend(capturedBackend); self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
+        // A checkout receipt belongs to the exact actor captured by its parent
+        // transport attempt. Preserve that actor and its already frozen policy.
+        self.repository = isCheckout ? repository:repository.capturingBackend(capturedBackend); self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
         outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
     }
     func whenDrained(_ completion: @escaping () -> Void) { if working { drained.append(completion) } else { completion() } }
@@ -608,10 +611,10 @@ final class SynchronizationNativeWindow: NSWindow {
             let choice: SynchronizationTrackingChoice = response == .alertFirstButtonReturn ? .yes : response == .alertSecondButtonReturn ? .no : .cancel
             return SynchronizationTrackingAnswer(choice: choice, suppress: remember.state == .on)
         }
-        model.performCheckout = { [weak self] plan, token in
+        model.performCheckout = { [weak self] capturedRepository, plan, token in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
             return try await withCheckedThrowingContinuation { continuation in
-                let child = SynchronizationProgressController(repository: repository, operation: .checkout(plan), cancellation: token, preferences: preferences, access: self.model.access) { result in
+                let child = SynchronizationProgressController(repository: capturedRepository, operation: .checkout(plan), cancellation: token, preferences: preferences, access: self.model.access) { result in
                     switch result {
                     case .success(.checkout(let checkpoint)): continuation.resume(returning: checkpoint)
                     case .success: continuation.resume(throwing: SynchronizationFailure.invalidInput)
@@ -1265,7 +1268,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     var tagRows: [SynchronizationTagRow] { (tagSnapshot?.rows ?? []).filter { !hideEqualTags || $0.kind != .same } }
     var confirmCheckout: (String) async -> Bool = { _ in false }
     var askTracking: (String, String, String) async -> SynchronizationTrackingAnswer = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel) }
-    var performCheckout: ((SynchronizationTransportPlan, OperationCancellation) async throws -> SynchronizationPullCheckout)?
+    var performCheckout: ((GitRepository, SynchronizationTransportPlan, OperationCancellation) async throws -> SynchronizationPullCheckout)?
     var performFastForward: ((SynchronizationRebaseState, OperationCancellation) async -> Result<GitResult, Error>)?
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     var runRebase: (String, Bool, Bool) async throws -> Void = { _, _, _ in throw SynchronizationFailure.invalidInput }
@@ -2341,7 +2344,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                     if let branch = plan.checkoutBranch {
                         guard await confirmCheckout(branch), !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
                         guard let performCheckout else { throw SynchronizationFailure.invalidInput }
-                        checkout = try await performCheckout(plan, request)
+                        checkout = try await performCheckout(repository, plan, request)
                     } else { checkout = try await repository.synchronizationPullCheckout(plan, cancellation: request) }
                     guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
                 }
@@ -2356,11 +2359,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                             if answer.suppress { preferences.set(false, forKey: "AskSetTrackedBranch") }
                             guard answer.choice != .cancel, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
                             if answer.choice == .yes {
-                                var branch = destination
-                                if let short = GitReferenceName.removingPrefix("refs/heads/", from: branch) { branch = short }
-                                else if let short = GitReferenceName.removingPrefix("refs/", from: branch) { branch = short }
-                                _ = try await repository.run(["config", "--local", "branch." + options.localBranch + ".remote", options.remote], cancellation: request)
-                                _ = try await repository.run(["config", "--local", "branch." + options.localBranch + ".merge", "refs/heads/" + branch], cancellation: request)
+                                try await repository.setSynchronizationTracking(localBranch: options.localBranch, remote: options.remote, remoteBranch: destination, cancellation: request)
                             }
                         }
                     }

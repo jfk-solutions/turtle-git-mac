@@ -89,7 +89,35 @@ enum PrimaryCommitOptionsVerification {
         try await wait(owner.window,"Author option read did not settle"){model.setAuthor && !model.loadingAuthorIdentity}
         try await command(context,owner,"focusAuthor")
         guard let nativeAuthor=field(owner,"Commit author") else{throw Failure(description:"Actual author field missing")}
-        try require(nativeAuthor.currentEditor() != nil,"Native author focus command did not select actual field")
+        try await wait(owner.window,"Native author focus command did not select actual field") {
+            nativeAuthor.currentEditor()?.selectedRange==NSRange(location:0,length:nativeAuthor.stringValue.utf16.count)
+        }
+        // Reproduce model-ready/native-not-yet-editable delivery with the real
+        // installed field. Accepted focus must complete when that view is ready.
+        owner.window?.makeFirstResponder(nil);nativeAuthor.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Native readiness request was not retained")
+        nativeAuthor.isEditable=true
+        try await wait(owner.window,"Accepted author focus did not complete on native readiness") {
+            !owner.formFocusPending && nativeAuthor.currentEditor()?.selectedRange==NSRange(location:0,length:nativeAuthor.stringValue.utf16.count)
+        }
+        owner.window?.makeFirstResponder(nil);nativeAuthor.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Responder-change test did not defer focus")
+        guard let messageEditor=owner.messageEditor(),owner.window?.makeFirstResponder(messageEditor)==true else{throw Failure(description:"Actual message responder unavailable")}
+        try await wait(owner.window,"Another actual responder did not revoke pending focus"){!owner.formFocusPending}
+        try require(owner.window?.firstResponder === messageEditor,"Deferred field request stole later message focus")
+        owner.window?.makeFirstResponder(nil);nativeAuthor.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Revocation test did not defer actual native focus")
+        model.confirmingQuit=true
+        try await wait(owner.window,"Quit did not retire deferred form focus"){!owner.formFocusPending}
+        model.confirmingQuit=false;nativeAuthor.isEditable=true
+        try require(nativeAuthor.currentEditor()==nil,"Cancelled Quit revived an old focus command")
+        owner.window?.makeFirstResponder(nil);nativeAuthor.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Form-change test did not defer focus")
+        model.setFormOption(.author,value:false,receipt:model.formReceipt)
+        try await wait(owner.window,"Form change did not revoke accepted focus"){!owner.formFocusPending}
+        try require(nativeAuthor.currentEditor()==nil,"Changed author option accepted stale focus")
+        try await command(context,owner,"author")
+        try await wait(owner.window,"Author option did not restore native editing"){model.setAuthor && !model.loadingAuthorIdentity && nativeAuthor.isEditable}
         try await command(context,owner,"amend")
         try await wait(owner.window,"Amend metadata did not settle"){model.amend && !model.loadingAmendMessage && !model.loadingAuthorIdentity && !model.busy}
         let comparison=try await readyItem(context,owner,"amendComparison")
@@ -97,9 +125,15 @@ enum PrimaryCommitOptionsVerification {
         try await command(context,owner,"authorDate")
         try await wait(owner.window,"Amend author date did not settle"){model.setAuthorDate && !model.loadingAuthorDate}
         try await command(context,owner,"focusDate")
-        let datePicker=views(owner.window?.contentView).first{$0.identifier?.rawValue=="Commit author date"}
-        let responder=owner.window?.firstResponder as? NSView
-        try require(datePicker != nil && (responder === datePicker || responder?.isDescendant(of:datePicker!)==true),"Author date focus command lost actual date responder")
+        try await wait(owner.window,"Author date focus command lost actual date responder") {
+            guard let picker=views(owner.window?.contentView).first(where:{$0.identifier?.rawValue=="Commit author date"}),let responder=owner.window?.firstResponder as? NSView else{return false}
+            return responder===picker || responder.isDescendant(of:picker)
+        }
+        try await command(context,owner,"focusTime")
+        try await wait(owner.window,"Author time focus command lost actual time responder") {
+            guard let picker=views(owner.window?.contentView).first(where:{$0.identifier?.rawValue=="Commit author time"}),let responder=owner.window?.firstResponder as? NSView else{return false}
+            return responder===picker || responder.isDescendant(of:picker)
+        }
         try await command(context,owner,"resetDate")
         try require(model.resetAuthorDate && !model.nativeAuthorDateInputAvailable,"Reset did not disable date/time edits")
         _=try await readyItem(context,owner,"resetDate");try await command(context,owner,"resetDate")
@@ -126,7 +160,11 @@ enum PrimaryCommitOptionsVerification {
         currentBranch.stringValue="retargeted-owner"
         delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:currentBranch))
         try require(model.newBranch==previous,"Reparented branch field changed original owner draft")
-        foreign.close();owner.close()
+        foreign.close()
+        owner.window?.makeFirstResponder(nil);currentAuthor.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Closing-owner test did not defer focus")
+        owner.close()
+        try require(!owner.formFocusPending,"Closed Commit owner retained a focus request")
         delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:currentBranch))
         try require(model.newBranch==previous,"Retired branch delegate changed closed owner")
     }

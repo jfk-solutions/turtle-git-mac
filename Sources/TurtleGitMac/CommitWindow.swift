@@ -53,7 +53,7 @@ import TurtleGitCore
         guard canReuse else{return}
         super.showWindow(sender)
     }
-    func windowDidResignKey(_ notification:Notification) {commandMenu?.remove()}
+    func windowDidResignKey(_ notification:Notification) {cancelFormFocus();commandMenu?.remove()}
     var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && model.messageFocusAvailable}
     var refreshCommandAvailable:Bool {!closingCommit && !hasMessagePicker && model.canRefresh && window?.attachedSheet==nil}
     func messageEditor(in view:NSView? = nil)->CommitMessageTextView? {
@@ -70,17 +70,70 @@ import TurtleGitCore
         guard commandsAvailable,model.fileListAvailable,let window,let table=fileTable() else{return false}
         return window.makeFirstResponder(table)
     }
+    private var formFocusTask:Task<Void,Never>?
+    private var formFocusID=UUID()
+    var formFocusPending:Bool {formFocusTask != nil}
+    private func cancelFormFocus() {formFocusID=UUID();formFocusTask?.cancel();formFocusTask=nil}
+    /// Accept the command against its form, then wait for SwiftUI's native
+    /// attachment/editability update without carrying authority to a later form.
     @discardableResult func focusFormField(_ identifier:String)->Bool {
-        guard commandsAvailable,let window else{return false}
+        cancelFormFocus()
+        guard commandsAvailable,NSApp.modalWindow==nil,let window,window.isVisible,!window.isMiniaturized else{return false}
+        let receipt=model.formReceipt,id=formFocusID,initialResponder=window.firstResponder
+        guard formFocusAllowed(identifier),model.acceptsFormReceipt(receipt) else{return false}
+        guard let completed=attemptFormFocus(identifier,receipt:receipt,window:window,initialResponder:initialResponder) else{return false}
+        if completed {return true}
+        formFocusTask=Task { @MainActor [weak self,weak window,weak initialResponder] in
+            defer {if let self,self.formFocusID==id {self.formFocusTask=nil}}
+            for _ in 0..<300 {
+                do {
+                    guard let self,let window,!Task.isCancelled,self.formFocusID==id else{return}
+                    guard let completed=self.attemptFormFocus(identifier,receipt:receipt,window:window,initialResponder:initialResponder) else{return}
+                    if completed {return}
+                }
+                try? await Task.sleep(nanoseconds:10_000_000)
+            }
+        }
+        return true
+    }
+    private func formFocusAllowed(_ identifier:String)->Bool {
+        switch identifier {
+        case "Commit new branch":return model.nativeNewBranchInputAvailable
+        case "Commit author":return !model.loadingAuthorIdentity
+        case "Commit author date","Commit author time":return model.nativeAuthorDateInputAvailable
+        default:return false
+        }
+    }
+    /// nil revokes the request; false means the accepted native view is pending.
+    private func attemptFormFocus(_ identifier:String,receipt:CommitWindowModel.FormReceipt,window:NSWindow,initialResponder:NSResponder?)->Bool? {
+        guard self.window===window,window.isVisible,!window.isMiniaturized,NSApp.modalWindow==nil,commandsAvailable,model.acceptsFormReceipt(receipt),formFocusAllowed(identifier) else{return nil}
         func find(_ view:NSView)->NSView? {
             if view.identifier?.rawValue==identifier{return view}
             return view.subviews.compactMap{find($0)}.first
         }
-        guard let content=window.contentView,let field=find(content),!field.isHiddenOrHasHiddenAncestor,
+        guard let content=window.contentView else{return nil}
+        let field=find(content),responder=window.firstResponder
+        let ownsResponder:Bool
+        if let text=field as? NSTextField {ownsResponder=responder===text || responder===text.currentEditor()}
+        else if let field,let responder=responder as? NSView {ownsResponder=responder===field || responder.isDescendant(of:field)}
+        else {ownsResponder=false}
+        guard responder===initialResponder || responder===window || ownsResponder else{return nil}
+        guard let field,field.window===window,!field.isHiddenOrHasHiddenAncestor,
               (field as? NSControl)?.isEnabled != false else{return false}
+        if let text=field as? CommitOwnedTextField {
+            guard text.hasOriginalOwner else{return nil}
+            let expectsEditing=identifier=="Commit new branch" || model.setAuthor
+            guard text.isEditable==expectsEditing,text.isSelectable else{return false}
+            guard window.makeFirstResponder(text) else{return false}
+            text.selectText(nil)
+            guard let editor=text.currentEditor() else{return false}
+            editor.selectedRange=NSRange(location:0,length:text.stringValue.utf16.count)
+            return true
+        }
+        if let picker=field as? CommitOwnedDatePicker,!picker.hasOriginalOwner {return nil}
         guard window.makeFirstResponder(field) else{return false}
-        if let text=field as? NSTextField,let editor=text.currentEditor(){editor.selectedRange=NSRange(location:0,length:text.stringValue.utf16.count)}
-        return true
+        guard let responder=window.firstResponder as? NSView else{return false}
+        return responder===field || responder.isDescendant(of:field)
     }
     var onClosed: () -> Void = {}
     private(set) var partial: PatchWindowController?
@@ -595,6 +648,7 @@ import TurtleGitCore
         // Fence owner actions before dismissing any of those children, once.
         guard !closingCommit else{return}
         closingCommit = true
+        cancelFormFocus()
         if let pending=conflictQuestionState {settleConflictQuestion(pending,result:nil)}
         retireCommitIdentityChildren();retireDetachedChildren()
         commandMenu?.retire();visibilitySheetObservation=nil;finishUnversionedFilesPrompt()

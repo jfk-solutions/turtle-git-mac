@@ -3,6 +3,24 @@ import AppKit
 import TurtleGitCore
 
 @MainActor enum SyncInlineProgressVerification {
+    // Inspect function-local positional arguments; the eventual exec retains
+    // the original argv, including Git's invocation-only configuration.
+    static let inspectGitArguments = """
+    inspect_git_arguments() {
+      git_command=
+      git_root=
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          -C) [ "$#" -ge 2 ] || return; git_root=$2; shift 2 ;;
+          -c|--git-dir|--work-tree|--config-env) [ "$#" -ge 2 ] || return; shift 2 ;;
+          --) shift; git_command=${1-}; return ;;
+          -*) shift ;;
+          *) git_command=$1; return ;;
+        esac
+      done
+    }
+    inspect_git_arguments "$@"
+    """ + "\n"
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
     static func wait(line:Int = #line,_ ready:()->Bool)async throws {
@@ -45,14 +63,15 @@ import TurtleGitCore
         let script="""
         #!/bin/sh
         \(environment)
-        case "$4" in
+        \(inspectGitArguments)
+        case "$git_command" in
         fetch|stash|submodule)
-          if [ -f "$3/.git/inline-enabled" ]; then
+          if [ -f "$git_root/.git/inline-enabled" ]; then
             printf 'Receiving objects: 10%%\\rReceiving objects: 35%%\\r\\nUnicode '
             printf '\\351\\233'; /bin/sleep 0.03; printf '\\252\\n'
-            : > "$3/.git/inline-ready"
-            while [ ! -f "$3/.git/inline-release" ]; do /bin/sleep 0.02; done
-            if [ "$(cat "$3/.git/inline-mode")" = fail ]; then printf 'controlled inline failure\\n' >&2; exit 17; fi
+            : > "$git_root/.git/inline-ready"
+            while [ ! -f "$git_root/.git/inline-release" ]; do /bin/sleep 0.02; done
+            if [ "$(cat "$git_root/.git/inline-mode")" = fail ]; then printf 'controlled inline failure\\n' >&2; exit 17; fi
           fi
           ;;
         esac
@@ -133,7 +152,7 @@ import TurtleGitCore
             let forced=own();try await wait {!forced.model.busy}
             forced.model.localBranch="other";forced.model.remote="origin";forced.model.remoteBranch="main";forced.model.confirmCheckout={_ in true}
             var token:OperationCancellation?
-            forced.model.performCheckout={_,request in token=request;return try await withCheckedThrowingContinuation{heldCheckout=$0}}
+            forced.model.performCheckout={_,_,request in token=request;return try await withCheckedThrowingContinuation{heldCheckout=$0}}
             forced.model.fetch(.pull);try await wait {heldCheckout != nil}
             forced.close();let retiredOutput=forced.model.commandOutput
             try require(token?.isCancelled==true && SynchronizationWindowModel.activeInlineOperations>0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Forced close discarded noncooperative preparation/Quit fence")

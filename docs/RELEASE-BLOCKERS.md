@@ -136,3 +136,25 @@ records 51 distinct relevant Core methods cumulatively passing and six distinct
 native CLI case/engine pairs after recorded repairs. Selected-library lifecycle
 is covered by Core; native helper continuation, full hosted CI, physical Finder
 and signed distribution remain separate acceptance requirements.
+
+
+The [literal Sync reference and owned child family](SYNC-LITERAL-REFERENCE-PARITY.md)
+now preserves selected branch bytes through comparison, tracking, checkout,
+transport and Email endpoints. The actual checkout child and transport share the
+captured repository/backend, and the Sync-owned Stash child permits cancellation
+of pending result metadata while preserving completed Git effects. Its
+[dated checkpoint](qa/sync-literal-reference-family-2026-10-24.json) records 51
+distinct relevant Core methods cumulatively passing, six new native Sync
+case/engine pairs and focused retained Stash/progress/Submodule checks after
+recorded fixture and production repairs. Normalizing filesystems still constrain
+colliding loose refs; physical popup dispatch, signed deployment and complete
+source/layout acceptance remain open.
+
+The [95df5f46 macOS run40096089548](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40096089548)
+passed its build job but failed the primary Commit author focus assertion in its
+native job. The [Commit focus readiness family](COMMIT-FOCUS-READINESS-PARITY.md)
+now waits for actual attached/editable native controls with form/window and
+responder ownership. Its [local checkpoint](qa/commit-focus-readiness-family-2026-10-24.json)
+passes with both Git engines; hosted macOS 15.5/Swift 6.1.2 acceptance remains
+open. The [8f28db9f Pages run40108225312](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40108225312)
+succeeded; its macOS run was in progress at observation and predates these fixes.

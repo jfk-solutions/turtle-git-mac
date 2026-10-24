@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-validation-complete",
+  "baseline": "8f28db9f",
+  "scope": [
+    "Commit new-branch/author/date/time real native focus and select-all",
+    "Bounded form/window/response ownership during delayed native readiness",
+    "Superseding/Quit/option/foreign-responder/retired/hidden/modal refusal"
+  ],
+  "hosted_failure": {
+    "commit": "95df5f46",
+    "run": 40096089548,
+    "job": 120887303782,
+    "step": "Commit options, Log columns and Settings appearance",
+    "diagnostic": "92: Native author focus command did not select actual field",
+    "environment": "macOS 15.5 / Swift 6.1.2; current focused local pass is not a hosted rerun"
+  },
+  "production_inputs": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "8e20d72846db8f55b753e715e2a6ba09ea6ee60bc7ce5afbbfac072d8ed66c14"
+  },
+  "validation": {
+    "app": {
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 5,
+      "changed_sources": [],
+      "log": "build/qa/sync-commit-ownership-app-2026-10-24.log",
+      "source_snapshot": "build/qa/sync-commit-ownership-app-source-before-2026-10-24.json"
+    },
+    "native": {
+      "case": "primary parity commit",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "passed_pairs": 2,
+      "log": "build/qa/commit-focus-native-2026-10-24.log",
+      "receivers": [
+        59187,
+        59597
+      ],
+      "receiver_absence_verified": true
+    },
+    "core": "No Core production changed; no additional Core suite rerun",
+    "labels": "No literal UI label changes"
+  },
+  "limits": [
+    "Physical keyboard/VoiceOver and hosted older SDK acceptance remain open",
+    "No full Commit layout parity, current signed distribution or App Store readiness claim"
+  ]
+}

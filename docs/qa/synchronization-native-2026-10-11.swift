@@ -3,6 +3,24 @@ import Darwin
 import TurtleGitCore
 
 @main struct SynchronizationVerification {
+    // Inspect function-local positional arguments; the eventual exec retains
+    // the original argv, including Git's invocation-only configuration.
+    static let inspectGitArguments = """
+    inspect_git_arguments() {
+      git_command=
+      git_root=
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          -C) [ "$#" -ge 2 ] || return; git_root=$2; shift 2 ;;
+          -c|--git-dir|--work-tree|--config-env) [ "$#" -ge 2 ] || return; shift 2 ;;
+          --) shift; git_command=${1-}; return ;;
+          -*) shift ;;
+          *) git_command=$1; return ;;
+        esac
+      done
+    }
+    inspect_git_arguments "$@"
+    """ + "\n"
     @MainActor static func views(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(views) }
     @MainActor static func settle(_ condition: () -> Bool, line: UInt = #line) async throws {
         // Parent waits include Fetch, owned Rebase load/replay and result refresh.
@@ -139,7 +157,7 @@ import TurtleGitCore
         // real Git; cancellation must reap the owned child without moving refs.
         func quoted(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
         let marker = root.appendingPathComponent("qa-fetch-started"), wrapper = root.appendingPathComponent("qa-git")
-        let script = "#!/bin/sh\nif [ \"$4\" = fetch ]; then\n  echo 'Receiving objects: 1% (1/100)' >&2\n  touch " + quoted(marker.path) + "\n  while :; do sleep 1; done\nfi\nexec " + quoted(executable.path) + " \"$@\"\n"
+        let script = "#!/bin/sh\n" + inspectGitArguments + "if [ \"$git_command\" = fetch ]; then\n  echo 'Receiving objects: 1% (1/100)' >&2\n  touch " + quoted(marker.path) + "\n  while :; do sleep 1; done\nfi\nexec " + quoted(executable.path) + " \"$@\"\n"
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: wrapper.path)
         let blocked = SynchronizationWindowController(repository: GitRepository(root: root, executable: wrapper), access: nil, preferences: preferences)
         blocked.window!.alphaValue = 0; blocked.showWindow(nil)
@@ -202,9 +220,9 @@ import TurtleGitCore
         model.confirmCheckout = { branch in confirmations += 1; precondition(branch == "main"); return true }
         model.askTracking = { branch, remote, destination in questions += 1; precondition(checkoutCompleted && branch == "main" && remote == "origin" && destination == "main"); return SynchronizationTrackingAnswer(choice: .yes) }
         let presentCheckout = model.performCheckout!
-        model.performCheckout = { plan, token in
+        model.performCheckout = { capturedRepository, plan, token in
             precondition(plan.oldHead == baseline)
-            let result = try await presentCheckout(plan, token)
+            let result = try await presentCheckout(capturedRepository, plan, token)
             precondition(result.command != nil && owner.window?.attachedSheet == nil)
             checkoutCompleted = true; return result
         }
@@ -274,7 +292,7 @@ import TurtleGitCore
         precondition(finalFetchHead == fetchHead && finalWork == "dirty checkout work\n")
         let shim = directory.appendingPathComponent("qa-checkout-git"), marker = directory.appendingPathComponent("checkout-running")
         func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
-        let script = "#!/bin/sh\nif [ \"$4\" = switch ]; then\nprintf 'running\\n' > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
+        let script = "#!/bin/sh\n" + inspectGitArguments + "if [ \"$git_command\" = switch ]; then\nprintf 'running\\n' > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
         try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
         let blockedRepo = GitRepository(root: clientRoot, executable: shim)
         let blockedOwner = SynchronizationWindowController(repository: blockedRepo, access: nil, preferences: preferences)
@@ -419,7 +437,7 @@ import TurtleGitCore
         precondition(model.closed && !model.busy && model.commandOutput == closedOutput && owner.optionsController == nil && orphan.window?.sheetParent == nil && orphan.window?.isVisible == false)
         let shim = directory.appendingPathComponent("qa-shift-git"), marker = directory.appendingPathComponent("fetch-running")
         func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
-        let script = "#!/bin/sh\nif [ \"$4\" = fetch ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
+        let script = "#!/bin/sh\n" + inspectGitArguments + "if [ \"$git_command\" = fetch ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\nexec " + quote(git.path) + " \"$@\"\n"
         try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
         let blockedOwner = SynchronizationWindowController(repository: GitRepository(root: clientRoot, executable: shim), access: nil, preferences: preferences)
         blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
@@ -1228,8 +1246,12 @@ import TurtleGitCore
         blockedChild.model.save(); let blockedProgress = try await awaitStashProgress(blockedChild)
         try await settle { FileManager.default.fileExists(atPath:marker.path) && blockedChild.window!.attachedSheet != nil }
         let sheet = blockedChild.window!.attachedSheet!, childPID = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
-        blockedChild.close(); try await settle { kill(childPID,0) == -1 && errno == ESRCH && sheet.sheetParent == nil && !sheet.isVisible && blockedChild.window?.attachedSheet == nil }
-        precondition(!blockedProgress.busy && blockedProgress.result == nil && blockedProgress.output.isEmpty && childReplies == 0 && !sheet.isVisible && blockedChild.window!.attachedSheet == nil && blockedChild.model.progress == nil && !blockedChild.model.busy)
+        // Live command preambles remain visible after forced closure. Retire
+        // output publication, then await the actual worker as well as the sheet.
+        let frozenOutput=blockedProgress.output, frozenWork=blockedProgress.currentWork, frozenPercentage=blockedProgress.percentage, frozenCompletion=blockedProgress.completionRange
+        blockedChild.close(); try await settle { kill(childPID,0) == -1 && errno == ESRCH && sheet.sheetParent == nil && !sheet.isVisible && blockedChild.window?.attachedSheet == nil && !blockedProgress.hasPendingWork }
+        precondition(!blockedProgress.busy && blockedProgress.result == nil && blockedProgress.output == frozenOutput && blockedProgress.currentWork == frozenWork && blockedProgress.percentage == frozenPercentage && blockedProgress.completionRange == frozenCompletion && childReplies == 0 && !sheet.isVisible && blockedChild.window!.attachedSheet == nil && blockedChild.model.progress == nil && !blockedChild.model.busy,
+                     "Closed Stash changed its retained result: busy=\(blockedProgress.busy), pending=\(blockedProgress.hasPendingWork), result=\(blockedProgress.result != nil), replies=\(childReplies), output=\(blockedProgress.output.debugDescription)")
 
         for target in [1,2] {
             let referenceShim = directory.appendingPathComponent("reference-git-" + String(target)), referenceMarker = directory.appendingPathComponent("reference-pid-" + String(target)), counter = directory.appendingPathComponent("reference-count-" + String(target))
@@ -1250,8 +1272,12 @@ import TurtleGitCore
                 refChild.close(); try await settle { kill(referencePID,0) == -1 && errno == ESRCH && refChild.window?.attachedSheet == nil && refChild.model.progress == nil && StashWindowController.activeChildReleases == 0 }
                 precondition(!refProgress.busy && !refProgress.success && refProgress.result == nil && referenceReplies == 0 && refChild.window!.attachedSheet == nil && refChild.model.progress == nil)
             } else {
-                refProgress.cancel(); try await settle { !refProgress.busy && kill(referencePID,0) == -1 && errno == ESRCH }
-                precondition(refProgress.cancelled && !refProgress.success && refProgress.result == nil && refProgress.postActions.isEmpty && referenceReplies == 1)
+                try await settle { refProgress.commandFinished && refProgress.hasPendingWork }
+                precondition(refProgress.commandSucceeded && refProgress.busy && refProgress.canCancel && refProgress.result == nil)
+                let footer=(refProgress.output as NSString).substring(with:refProgress.completionRange!)
+                refProgress.cancel(); try await settle { !refProgress.busy && !refProgress.hasPendingWork && kill(referencePID,0) == -1 && errno == ESRCH }
+                precondition(refProgress.cancelled && !refProgress.success && refProgress.result == nil && refProgress.postActions.isEmpty && referenceReplies == 1 && refProgress.commandFinished && refProgress.commandSucceeded && refProgress.percentage == 100)
+                precondition((refProgress.output as NSString).substring(with:refProgress.completionRange!) == footer && refProgress.output.contains("Operation cancelled."),"Metadata cancellation rewrote successful Git completion or lost its separate diagnostic")
                 refProgress.close(); try await settle { !refChild.window!.isVisible && refChild.model.progress == nil }
             }
             let after = try await repo.run(["rev-parse","refs/stash"]).stdout
@@ -1262,10 +1288,47 @@ import TurtleGitCore
                 precondition(before != after && stashed == work)
             }
         }
+        // One held question cannot cross the Git-command/metadata boundary.
+        // The real save emits its immutable command receipt; only an injected
+        // continuation holds the final owned metadata reply for deterministic UI.
+        try Data("held phase cancellation\n".utf8).write(to:file)
+        preferences.set(true,forKey:"ConfirmKillProcess")
+        let phased=StashSaveProgressWindowModel(repository:repo,access:nil,options:StashSaveOptions(),followUp:StashSaveFollowUp(),preferences:preferences)
+        let phaseOwner=StashSaveProgressWindowController(model:phased)
+        phaseOwner.window?.alphaValue=0;phaseOwner.window?.setFrameOrigin(NSPoint(x:-30000,y:-30000));phaseOwner.window?.isReleasedWhenClosed=false
+        defer{phaseOwner.close();preferences.set(false,forKey:"ConfirmKillProcess")}
+        var beginCommand:CheckedContinuation<Void,Never>?,metadataReply:CheckedContinuation<StashSaveResult,Error>?,phaseToken:OperationCancellation?,answer:((Bool)->Void)?,phaseReplies=0
+        defer{beginCommand?.resume();metadataReply?.resume(throwing:OperationCancellationFailure.cancelled)}
+        phased.saveOperation={options,token,output,receipt in
+            phaseToken=token
+            await withCheckedContinuation{beginCommand=$0}
+            let saved=try await repo.saveStash(options,cancellation:token,onOutput:output,onCommand:{output(GitOutputChunk(stream:.stdout,data:$0.preamble))},onCommandFinished:receipt)
+            return try await withCheckedThrowingContinuation{metadataReply=$0;_ = saved}
+        }
+        phased.confirmCancellation={answer=$0};phased.onFinished={result,_ in precondition(result == nil);phaseReplies += 1}
+        phased.start();try await settle{beginCommand != nil}
+        phased.cancel();precondition(phased.confirmingCancellation && answer != nil && !phased.commandFinished)
+        let oldQuestion=answer;answer=nil;beginCommand?.resume();beginCommand=nil
+        try await settle{metadataReply != nil && phased.commandFinished}
+        let phaseFooter=(phased.output as NSString).substring(with:phased.completionRange!)
+        precondition(phased.commandSucceeded && phased.busy && phased.hasPendingWork && !phased.success && phased.postActions.isEmpty)
+        oldQuestion?(true);oldQuestion?(true)
+        precondition(phaseToken?.isCancelled == false && !phased.confirmingCancellation && phased.canCancel,"Late command-phase Yes cancelled later metadata")
+        phased.cancel();let metadataNo=answer;answer=nil;metadataNo?(false);metadataNo?(true)
+        precondition(phaseToken?.isCancelled == false && phased.canCancel,"Metadata No/duplicate answer changed ownership")
+        phased.cancel();let metadataYes=answer;answer=nil;metadataYes?(true);metadataYes?(false)
+        precondition(phaseToken?.isCancelled == true && phased.cancelling && !phased.canCancel && phased.hasPendingWork,"Fresh metadata Yes failed to cancel owned work")
+        metadataReply?.resume(throwing:OperationCancellationFailure.cancelled);metadataReply=nil
+        try await settle{!phased.busy && !phased.hasPendingWork}
+        precondition(phased.cancelled && !phased.success && phased.result == nil && phased.postActions.isEmpty && phased.commandFinished && phased.commandSucceeded && phased.percentage == 100 && phaseReplies == 1)
+        precondition((phased.output as NSString).substring(with:phased.completionRange!) == phaseFooter && phased.output.contains("Operation cancelled."),"Metadata reply changed settled Git footer or diagnostic")
+        phaseOwner.close();preferences.set(false,forKey:"ConfirmKillProcess")
         let failureShim = directory.appendingPathComponent("inspection-failure")
-        let failureScript = "#!/bin/sh\nfor argument; do\ncase \"$argument\" in\nstash) printf 'retained stash failure\\n'; exit 1;;\nstatus) printf 'inspection failure\\n' >&2; exit 2;;\nesac\ndone\nexec " + quote(git.path) + " \"$@\"\n"
+        let failureScript = "#!/bin/sh\nfor argument; do\ncase \"$argument\" in\nstash) printf 'retained stash failure\\n'; exit 1;;\nls-files) printf 'inspection failure\\n' >&2; exit 2;;\nesac\ndone\nexec " + quote(git.path) + " \"$@\"\n"
         try Data(failureScript.utf8).write(to:failureShim); try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:failureShim.path)
-        let failing = SynchronizationWindowModel(repository:GitRepository(root:directory,executable:failureShim),access:nil,preferences:preferences)
+        // Recovery now inspects conflicts through ls-files -u. Keep this
+        // wrapper-owned diagnostic boundary on the explicit CLI backend.
+        let failing = SynchronizationWindowModel(repository:GitRepository(root:directory,executable:failureShim,libgit2Configuration:.init(enabled:false)),access:nil,preferences:preferences)
         failing.stash(.apply,shift:false); try await settle { !failing.busy }
         precondition(failing.commandCompleted && !failing.commandSucceeded && failing.tab == 2 && failing.conflicts.isEmpty && failing.commandOutput.contains("retained stash failure") && failing.commandOutput.contains("Checking for conflicts failed:") && failing.commandOutput.contains("inspection failure"))
         failing.invalidate()

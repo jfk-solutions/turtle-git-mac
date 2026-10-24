@@ -70,22 +70,33 @@ public enum SynchronizationSubmoduleAction: Int, CaseIterable, Sendable {
 }
 
 extension GitRepository {
+    /// Reference spelling is independent of worktree filename precomposition.
+    /// Keep this invocation-only and retain the public command in failures.
+    private func synchronizationLiteralCommand(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0,
+        cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+        do { return try run(["-c", "core.precomposeunicode=false"] + arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput) }
+        catch let failure as GitFailure {
+            throw GitFailure(arguments: arguments, code: failure.code, message: failure.message, outputWasDelivered: failure.outputWasDelivered, standardError: failure.standardError)
+        }
+    }
+
     private func runSynchronizationCommand(_ arguments: [String], environmentOverrides: [String: String] = [:],
         literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation,
         onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, executorOverride: URL? = nil,
-        onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil, sourceFetch: Bool = false) throws -> GitResult {
+        onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil, sourceFetch: Bool = false, literalReferences: Bool = false) throws -> GitResult {
         try cancellation.check()
         let started = ProcessInfo.processInfo.systemUptime
+        let executionArguments = literalReferences ? ["-c", "core.precomposeunicode=false"] + arguments : arguments
         do {
             let result: GitResult
             if executorOverride != nil, onNotification != nil || sourceFetch {
                 // runTransfer drains verified result metadata (including a
                 // framing warning) before this subprocess completion receipt.
                 // Only the selected Fetch helper uses that private channel.
-                result = try runTransfer(arguments, environment: environmentOverrides, literalPathspecs: literalPathspecs,
+                result = try runTransfer(executionArguments, environment: environmentOverrides, literalPathspecs: literalPathspecs,
                     cancellation: cancellation, onOutput: onOutput, executor: executorOverride, onNotification: onNotification, sourceFetch: sourceFetch)
             } else {
-                result = try run(arguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
+                result = try run(executionArguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
                     successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput, executorOverride: executorOverride)
             }
             onCommandFinished?(.init(success: result.exitCode == 0, cancelled: false, exitCode: result.exitCode, started: started))
@@ -94,6 +105,9 @@ extension GitRepository {
             let cancelled = cancellation.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure
             let exitCode = (error as? GitFailure)?.code ?? (error as? GitCommandCancellationFailure)?.result.exitCode
             onCommandFinished?(.init(success: false, cancelled: cancelled, exitCode: exitCode, started: started))
+            if literalReferences, let failure = error as? GitFailure {
+                throw GitFailure(arguments: arguments, code: failure.code, message: failure.message, outputWasDelivered: failure.outputWasDelivered, standardError: failure.standardError)
+            }
             throw error
         }
     }
@@ -291,7 +305,7 @@ extension GitRepository {
                                             onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try validateSynchronizationRebaseState(state, cancellation: cancellation)
         guard state.canFastForward else { throw SynchronizationTransportFailure.fastForwardRequired }
-        return try run(["merge", "--ff-only", "--", state.target], cancellation: cancellation, onOutput: onOutput)
+        return try synchronizationLiteralCommand(["merge", "--ff-only", "--", state.target], cancellation: cancellation, onOutput: onOutput)
     }
     public func synchronizationReferenceSnapshot(cancellation: OperationCancellation? = nil) throws -> SynchronizationReferenceSnapshot {
         try cancellation?.check()
@@ -360,7 +374,7 @@ extension GitRepository {
     }
     private func synchronizationHash(_ revision: String, cancellation: OperationCancellation?) throws -> String? {
         guard !revision.contains("\0") else { throw SynchronizationFailure.invalidInput }
-        let result = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", revision + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let result = try synchronizationLiteralCommand(["rev-parse", "--verify", "--quiet", "--end-of-options", revision + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
         return result.exitCode == 0 ? String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
     }
     /// FixBranchName(FETCH_HEAD): exactly one for-merge line, not the first line
@@ -412,7 +426,7 @@ extension GitRepository {
             let rebaseBranch = checkout.map { target in catalog.localBranches.contains { GitReferenceName.equal($0, target) } ? target : "" } ?? catalog.currentBranch
             if !optionsOnly, !rebaseBranch.isEmpty {
                 func configuration(_ key: String) throws -> String? {
-                    let value = try run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+                    let value = try synchronizationLiteralCommand(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
                     return value.exitCode == 0 ? String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
                 }
                 let branchKey = "branch." + rebaseBranch + ".rebase"
@@ -422,7 +436,7 @@ extension GitRepository {
                 if rebase == "merges" { mode = .preserveMerges }
                 else {
                     do {
-                        let value = try run(["config", "--bool", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+                        let value = try synchronizationLiteralCommand(["config", "--bool", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
                         if String(decoding: value.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) == "true" { mode = .rebase }
                     } catch let error as GitFailure {
                         // Source GetBOOL leaves its zero default for a non-boolean
@@ -511,7 +525,7 @@ extension GitRepository {
               try synchronizationHash("HEAD", cancellation: token) == plan.oldHead,
               GitReferenceName.equal(try branch(cancellation: token), plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         guard plan.checkoutBranch == nil || checkoutAuthorized else { throw SynchronizationTransportFailure.checkoutNotAuthorized }
-        let command = try plan.checkoutArguments.map { try run($0, cancellation: token, onOutput: onOutput) }
+        let command = try plan.checkoutArguments.map { try synchronizationLiteralCommand($0, cancellation: token, onOutput: onOutput) }
         let head = try synchronizationHash("HEAD", cancellation: token)
         let branch = try self.branch(cancellation: token)
         try token.check()
@@ -548,7 +562,7 @@ extension GitRepository {
                   GitReferenceName.equal(try branch(cancellation: token), checkout?.readyBranch ?? plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         }
         if checkout == nil, let arguments = plan.checkoutArguments {
-            _ = try run(arguments, cancellation: token, onOutput: onOutput)
+            _ = try synchronizationLiteralCommand(arguments, cancellation: token, onOutput: onOutput)
         }
         let readyHead = plan.options.action == .pull ? try synchronizationHash("HEAD", cancellation: token) : nil
         let readyBranch = plan.options.action == .pull ? try branch(cancellation: token) : ""
@@ -580,7 +594,7 @@ extension GitRepository {
         try token.check()
         onCommandPresentation?(executor != nil && onNotification != nil ? .transferNotifications : .text)
         let result = try runSynchronizationCommand(arguments, environmentOverrides: session?.transportEnvironment ?? [:],
-            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor, onNotification: onNotification, sourceFetch: executor != nil)
+            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor, onNotification: onNotification, sourceFetch: executor != nil, literalReferences: true)
         var target: String?
         if let reference = execution.rebaseReference {
             do {
@@ -595,6 +609,19 @@ extension GitRepository {
         return SynchronizationTransportResult(command: result, rebaseTarget: target, rebaseMode: execution.rebaseMode, executedArguments: arguments)
     }
 
+    /// SyncDlg::AskSetTrackedBranch's approved sequential config writes. The
+    /// caller owns the question and captured selection; do not reinterpret the
+    /// local string or add branch-membership requirements absent from source.
+    public func setSynchronizationTracking(localBranch: String, remote: String, remoteBranch: String,
+                                           cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard ![localBranch, remote, remoteBranch].contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
+        var branch = GitReferenceName.removingPrefix("refs/heads/", from: remoteBranch) ?? GitReferenceName.removingPrefix("refs/", from: remoteBranch) ?? remoteBranch
+        while branch.last?.isWhitespace == true { branch.removeLast() }
+        _ = try synchronizationLiteralCommand(["config", "--local", "branch." + localBranch + ".remote", remote], cancellation: cancellation)
+        _ = try synchronizationLiteralCommand(["config", "--local", "branch." + localBranch + ".merge", "refs/heads/" + branch], cancellation: cancellation)
+    }
+
     public func synchronizationBranches(localBranch: String? = nil, cancellation: OperationCancellation? = nil) throws -> SynchronizationBranches {
         try cancellation?.check()
         guard localBranch?.contains("\0") != true else { throw SynchronizationFailure.invalidInput }
@@ -603,7 +630,7 @@ extension GitRepository {
         let current = try branch(cancellation: cancellation)
         let selected = localBranch ?? current
         func configuration(_ key: String) throws -> String {
-            let result = try run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+            let result = try synchronizationLiteralCommand(["config", "--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
             return result.exitCode == 0 ? String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : ""
         }
         let remote = selected.isEmpty ? "" : try configuration("branch." + selected + ".remote")
@@ -630,11 +657,11 @@ extension GitRepository {
         // Preserve the source's URL/path heuristic; it intentionally does not
         // contact the server to discover commits for a typed URL.
         if remote.contains("/") || remote.contains("\\") { return snapshot(.unknownURL) }
-        let remoteResult = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...1, cancellation: token)
+        let remoteResult = try synchronizationLiteralCommand(["rev-parse", "--verify", "--quiet", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...1, cancellation: token)
         guard remoteResult.exitCode == 0 else { return snapshot(.unknownRemoteBranch) }
         guard !localBranch.isEmpty else { throw SynchronizationFailure.invalidInput }
         let remoteHash = String(decoding: remoteResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
-        let localResult = try run(["rev-parse", "--verify", "--end-of-options", localBranch + "^{commit}"], cancellation: token)
+        let localResult = try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", localBranch + "^{commit}"], cancellation: token)
         let localHash = String(decoding: localResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         if localHash == remoteHash { return snapshot(.upToDate, local: localHash, tracking: remoteHash, base: localHash, fastForward: true) }
         let inspection = try replayMergeBase(from:remoteHash,to:localHash,cancellation:token)
@@ -664,7 +691,9 @@ extension GitRepository {
               ![localBranch, destination, branch].contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
         let local = localBranch == "FETCH_HEAD" ? try fetchHeadForMerge(cancellation: cancellation) : localBranch
         guard !local.isEmpty else { throw SynchronizationFailure.invalidInput }
-        return try formatPatch(selection: .range(from: destination + "/" + branch, to: local), to: root, cancellation: cancellation)
+        let from = try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", destination + "/" + branch + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let to = try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", local + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        return try formatPatch(selection: .range(from: from, to: to), to: root, cancellation: cancellation)
     }
 
     /// Incoming tabs compare the captured pre-operation revision with the actual
@@ -673,7 +702,7 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation()
         func resolve(_ revision: String) throws -> String {
             guard !revision.isEmpty, !revision.contains("\0") else { throw SynchronizationFailure.invalidInput }
-            return String(decoding: try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: token).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+            return String(decoding: try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: token).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         }
         var diffOptions = RevisionDiffOptions(); diffOptions.detectCopies = true
         let comparison = try revisionComparison(from: .revision(resolve(oldRevision)), to: .revision(resolve(newRevision)), options: diffOptions, cancellation: token)

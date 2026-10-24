@@ -323,3 +323,22 @@ VoiceOver and visual parity, unrelated external stash writers, crash recovery,
 full source geometry, signed grants/Finder/App Store acceptance and the whole port
 remain unverified. Apply/Pop's source spinner/questions are not converted to a
 Save-style footer.
+
+
+## Owned metadata cancellation (October 24, 2026)
+
+The [connected Sync ownership checkpoint](qa/sync-literal-reference-family-2026-10-24.json)
+includes the standalone Stash child reached from Sync. Cancel remains available
+while an owned post-save reference read is pending, even after the Git command
+has completed. The settled command receipt, completion range and 100-percent
+presentation remain intact; cancellation of its result inspection reports its
+own diagnostic, produces no result actions and does not claim to undo the saved
+stash.
+
+A cancellation question captures whether Git had already completed when the
+question opened. An answer from a previous command phase cannot cancel a later
+metadata phase. A new metadata question retains normal No/Yes behavior. Forced
+closure preserves the captured output and waits for actual worker and sheet
+drain before releasing the owner. These metadata reads are native continuation
+work beyond the source process boundary; their cancellation remains owned by the
+same operation.

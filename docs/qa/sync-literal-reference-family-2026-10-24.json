@@ -1,0 +1,237 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-validation-complete",
+  "baseline": "8f28db9f",
+  "scope": [
+    "Byte-exact Sync outgoing/incoming and immutable Email endpoints",
+    "Approved source tracking writes and branch-specific policy",
+    "Separate/direct checkout, CLI/helper transport and Rebase continuation",
+    "Native picker, captured form identity and held tracking cancellation/closure",
+    "Sync-owned Stash child command/metadata cancellation and one-shot phase confirmations"
+  ],
+  "validation": {
+    "core": {
+      "initial_methods": 51,
+      "initial_failures": 4,
+      "initial_unexpected": 1,
+      "log": "build/qa/sync-literal-core-2026-10-24.log",
+      "repairs": [
+        {
+          "cause": "Saved-policy fixture queried effective invocation override instead of local configuration",
+          "methods": 3,
+          "change": "Read config --local --get, retaining stored true assertion"
+        },
+        {
+          "cause": "Wildcard files-ref updates collide for equivalent-looking loose paths on normalizing macOS filesystem",
+          "methods": 1,
+          "change": "Configure narrow selected mapping before snapshot; retain packed sibling identity and actual configured-Pull omission"
+        }
+      ],
+      "repair_methods": 4,
+      "repair_failures": 0,
+      "repair_log": "build/qa/sync-literal-core-repair1-2026-10-24.log",
+      "distinct_methods_passing_cumulatively": 51,
+      "production_changes_after_checkpoint": [
+        "Native-only checkout actor, Stash metadata and Commit focus repairs. Core production unchanged."
+      ]
+    },
+    "app": {
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 2,
+      "changed_sources": [],
+      "log": "build/qa/sync-literal-app-2026-10-24.log",
+      "source_snapshot": "build/qa/sync-literal-app-source-before-2026-10-24.json",
+      "pull_repair_build": {
+        "exit_code": 0,
+        "generic_exit_zero_diagnostics": 2,
+        "changed_sources": [],
+        "log": "build/qa/sync-literal-app-repair1-2026-10-24.log"
+      },
+      "final_shared_build": {
+        "exit_code": 0,
+        "generic_exit_zero_diagnostics": 5,
+        "changed_sources": [],
+        "log": "build/qa/sync-commit-ownership-app-2026-10-24.log",
+        "source_snapshot": "build/qa/sync-commit-ownership-app-source-before-2026-10-24.json"
+      }
+    },
+    "native": {
+      "planned_new_pairs": 6,
+      "initial_log": "build/qa/sync-literal-native-2026-10-24.log",
+      "initial_results": [
+        {
+          "case": "push",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "passed": false
+        }
+      ],
+      "initial_receiver": 51988,
+      "initial_failure": "First Push/system fixture waited for NSPopUpButton; shipping SwiftUI Picker has no such AppKit control. Exact catalog and idle owner were present.",
+      "diagnostic_attempt": {
+        "log": "build/qa/sync-literal-native-diagnostic1-2026-10-24.log",
+        "receiver": 52863,
+        "result": "same timeout, phase pick.native inventory, exact two catalog names and no NSPopUpButton controls"
+      },
+      "repair": "Use shipping formString local-branch binding with tracking=true; preserve catalog, exact selected identity and actual outgoing/Push/Pull/config/lifetime assertions. No production change solely for fixture class expectations.",
+      "scope_limit": "Real hidden native window and shipping binding path; physical popup action is not covered.",
+      "repair1": {
+        "log": "build/qa/sync-literal-native-repair1-2026-10-24.log",
+        "receiver": 53043,
+        "failure": "Direct rev-parse of equivalent packed/loose remote name aliases the loose filesystem path; logical-name oracle corrected to exact raw for-each-ref enumeration, preserving selected and sibling expected object IDs."
+      },
+      "repair2_results": [
+        {
+          "case": "push",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "push",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pull",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "passed": false
+        }
+      ],
+      "repair2_log": "build/qa/sync-literal-native-repair2-2026-10-24.log",
+      "repair2_receivers": [
+        53420,
+        53717,
+        54014
+      ],
+      "production_failure": "Pull separate checkout used original repository while runTransport used captured backend repository; Core checkpoint identity guard rejected continuation.",
+      "production_repair": "Checkout callback carries exact captured repository; checkout progress preserves actor/backend instead of copying. Core identity guard unchanged.",
+      "repair3_results": [
+        {
+          "case": "pull",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pull",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "lifetime",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "lifetime",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "repair3_log": "build/qa/sync-literal-native-repair3-2026-10-24.log",
+      "distinct_new_pairs_passing_cumulatively": 6,
+      "retained_initial": {
+        "cases": [
+          "sync-inline",
+          "sync-retained"
+        ],
+        "git": "/usr/bin/git",
+        "returncode": 1,
+        "helper_cleanup_needed": false,
+        "log": "build/qa/sync-literal-retained-2026-10-24.log"
+      },
+      "retained_failure_1": "Stash forced-close fixture expected empty output; command preamble is retained. Capture/freeze output and wait actual worker drain, preserving result/reply/owner assertions.",
+      "retained_failure_2": {
+        "receiver": 56782,
+        "diagnostic": "Synchronization did not settle at fixture line 1275",
+        "cause": "Cancel was disabled during busy post-save reference metadata because commandFinished was true",
+        "repair": "Allow metadata Cancel, with command-finished phase and interaction-generation confirmation witness; preserve successful Git receipt/footer and no result actions."
+      },
+      "retained_final_stash": [
+        {
+          "cases": [
+            "stash-only"
+          ],
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/sync-stash-native-system-final-2026-10-24.log"
+        },
+        {
+          "cases": [
+            "stash-only"
+          ],
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/sync-stash-native-bundled-final-2026-10-24.log"
+        }
+      ],
+      "retained_remaining_submodules": {
+        "cases": [
+          "submodules-only"
+        ],
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "helper_cleanup_needed": false,
+        "log": "build/qa/sync-literal-retained-submodules-final-2026-10-24.log"
+      },
+      "retained_scope": "sync-inline passed with system Git. Original sync-retained completed transport then failed Stash; focused Stash passes both engines after fixture+production repairs, followed by its previously unexecuted Submodule remainder with system Git. No complete original receiver rerun or full hosted pass is claimed.",
+      "all_local_attempted_receivers": [
+        51988,
+        52863,
+        53043,
+        53420,
+        53717,
+        54014,
+        54483,
+        54724,
+        54962,
+        55339,
+        55737,
+        55961,
+        56782,
+        58440,
+        58842,
+        59187,
+        59597,
+        60116
+      ],
+      "receiver_absence_verified": true,
+      "owner_helpers_remaining_after_cleanup": 0
+    },
+    "hosted_observation": {
+      "prior_commit": "95df5f46",
+      "prior_run": 40096089548,
+      "prior_build_job": "success",
+      "prior_native_job": 120887303782,
+      "prior_native_result": "failure at primary Commit author focus assertion; addressed separately in Commit focus checkpoint",
+      "pages_commit": "8f28db9f",
+      "pages_run": 40108225312,
+      "pages_result": "success",
+      "current_macos_run": 40108225286,
+      "current_macos_status": "in_progress at observation; not this uncommitted batch"
+    }
+  },
+  "limits": [
+    "Mac filename normalization can prevent simultaneous loose updates of both canonically equivalent names; preserve actual Git diagnostics",
+    "No full hosted integration, current signed distribution or App Store release acceptance",
+    "No complete IDD_SYNC layout parity or physical Finder/keyboard/VoiceOver claim",
+    "Protected pre-existing reference work preserved"
+  ],
+  "initial_production_inputs": {
+    "Sources/TurtleGitCore/Synchronization.swift": "bf907d62accb38efe7699753c8dfc965839b9afb4b002b4790e1f391e4196b7e",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "4a3de9374eda4bf31f2b1a34bab68ab0a24b572a83499bf37aaa84ea2fa230dc"
+  },
+  "final_production_inputs": {
+    "Sources/TurtleGitCore/Synchronization.swift": "bf907d62accb38efe7699753c8dfc965839b9afb4b002b4790e1f391e4196b7e",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "b703f23fb47025672b6d1cee15e516d438e00b96a07ee02c06447447945cc8ac",
+    "Sources/TurtleGitMac/StashWindow.swift": "e65c41006b7daa4450d3a9119e7b80cbbe0c63fb6c10a1bf21b22922edfa31a8"
+  }
+}

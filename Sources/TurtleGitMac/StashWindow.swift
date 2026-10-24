@@ -331,7 +331,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var canCancel: Bool { busy && !commandFinished && !confirmingQuit && !invalidated && !cancelling && !confirmingCancellation }
+    var canCancel: Bool { busy && !confirmingQuit && !invalidated && !cancelling && !confirmingCancellation }
     @Published private(set) var result: StashSaveResult?
     @Published private(set) var postActions: [StashSavePostAction] = []
     var close: () -> Void = {}
@@ -342,12 +342,14 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
     func cancel() {
         guard canCancel else { return }
-        let generation=interactionGeneration
+        // A question belongs to the phase in which it opened. A late Yes
+        // must not move from the Git process to its later metadata inspection.
+        let generation=interactionGeneration,commandWasFinished=commandFinished
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true; var answered = false
             confirmCancellation { [weak self] accepted in
                 guard !answered, let self, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
-                if self.busy && !self.commandFinished && accepted && !self.confirmingQuit && self.interactionGeneration == generation { self.cancelling = true; self.cancellation.cancel() }
+                if self.busy && self.commandFinished == commandWasFinished && accepted && !self.confirmingQuit && self.interactionGeneration == generation { self.cancelling = true; self.cancellation.cancel() }
                 self.finishAutomaticClose()
             }
         } else { cancelling = true; cancellation.cancel() }

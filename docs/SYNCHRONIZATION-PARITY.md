@@ -1,5 +1,10 @@
 # Git Synchronization parity
 
+The [literal reference identity family](SYNC-LITERAL-REFERENCE-PARITY.md) connects
+selected branch bytes to outgoing comparisons, tracking configuration, checkout
+and transport when macOS Git filename precomposition is enabled. Its acceptance
+scope is recorded separately from full dialog parity.
+
 The [incoming/outgoing commit-list family](SYNC-COMMIT-LIST-PARITY.md) connects
 conditional SVN columns, source parsing, independent saved layouts, confirmed
 content-fit reset and configured font metrics. Native menus retain their selected

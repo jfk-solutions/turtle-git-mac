@@ -907,13 +907,15 @@ jobs:
       - name: Native Pull and Fetch clipboard input
         run: python3 scripts/test-fetch-clipboard.py
       - name: Synchronization comparisons and transport with bundled Git
-        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter 'SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'
+        run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter 'SynchronizationLiteralReferenceTests|SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'
       - name: Native Synchronization histories and revision lists
         run: |
           python3 scripts/test-synchronization-history.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
           python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization outgoing, Fetch transports and owner lifetime
         run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native Synchronization literal branch selection and transport
+        run: python3 scripts/test-sync-literal-reference.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Synchronization incoming and outgoing commit controls
         run: python3 scripts/test-sync-history-controls.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization incoming and outgoing file lists

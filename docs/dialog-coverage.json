@@ -3364,6 +3364,7 @@
         "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/SYNC-COMMIT-LIST-PARITY.md",
         "docs/SYNC-FILE-LIST-PARITY.md",
+        "docs/SYNC-LITERAL-REFERENCE-PARITY.md",
         "docs/SYNC-REFERENCE-RESULTS-PARITY.md",
         "docs/SYNCHRONIZATION-PARITY.md",
         "docs/UI-PARITY.md"
@@ -3386,6 +3387,7 @@
         "docs/qa/sync-conflict-files-2026-10-17.json",
         "docs/qa/sync-file-list-2026-10-20.json",
         "docs/qa/sync-history-controls-2026-10-21.json",
+        "docs/qa/sync-literal-reference-family-2026-10-24.json",
         "docs/qa/sync-recovery-2026-10-17.json",
         "docs/qa/sync-reference-results-2026-10-21.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
@@ -3707,6 +3709,7 @@
         "docs/qa/stash-restore-2026-10-08.json",
         "docs/qa/stash-save-progress-2026-10-08.json",
         "docs/qa/stash-submodule-workflows-2026-10-18.json",
+        "docs/qa/sync-literal-reference-family-2026-10-24.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
         "docs/qa/synchronization-stash-lifecycle-2026-10-11.json",
         "docs/qa/temporary-files-2026-10-08.json"

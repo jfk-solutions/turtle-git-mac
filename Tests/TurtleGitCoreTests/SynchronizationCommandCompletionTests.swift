@@ -29,25 +29,36 @@ final class SynchronizationCommandCompletionTests:XCTestCase {
         let script="""
         #!/bin/sh
         \(environment)
-        mode=$(cat "$3/.git/receipt-mode" 2>/dev/null)
-        case "$4" in
+        inspect_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --literal-pathspecs|--no-literal-pathspecs) shift ;;
+              -C) selected_root="$2"; shift 2 ;;
+              -c) shift 2 ;;
+              *) selected_command="$1"; break ;;
+            esac
+          done
+        }
+        inspect_command "$@"
+        mode=$(cat "$selected_root/.git/receipt-mode" 2>/dev/null)
+        case "$selected_command" in
         fetch|stash|submodule)
-          if [ "$mode" = "hold-$4" ]; then
-            : > "$3/.git/receipt-ready"
+          if [ "$mode" = "hold-$selected_command" ]; then
+            : > "$selected_root/.git/receipt-ready"
             while :; do /bin/sleep 0.02; done
           fi
-          if [ "$mode" = "fail-$4" ]; then
-            : > "$3/.git/receipt-done"; printf 'controlled command failure\\n' >&2; exit 17
+          if [ "$mode" = "fail-$selected_command" ]; then
+            : > "$selected_root/.git/receipt-done"; printf 'controlled command failure\\n' >&2; exit 17
           fi
           \(quote(git.path)) "$@"
           result=$?
-          : > "$3/.git/receipt-done"
+          : > "$selected_root/.git/receipt-done"
           exit "$result"
           ;;
         rev-parse|status|ls-files)
-          if [ -f "$3/.git/receipt-done" ]; then
-            if [ ! -f "$3/.git/receipt-seen" ]; then printf 'metadata preceded receipt\\n' >&2; exit 81; fi
-            : > "$3/.git/receipt-metadata"
+          if [ -f "$selected_root/.git/receipt-done" ]; then
+            if [ ! -f "$selected_root/.git/receipt-seen" ]; then printf 'metadata preceded receipt\\n' >&2; exit 81; fi
+            : > "$selected_root/.git/receipt-metadata"
             if [ "$mode" = fail-metadata ]; then printf 'controlled post-command metadata failure\\n' >&2; exit 82; fi
             /bin/sleep 0.2
           fi
