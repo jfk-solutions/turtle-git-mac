@@ -220,20 +220,34 @@ extension GitRepository {
     }
     public func stagingFiles(staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
-        let args = ["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout,
-                                raw: try run(args + ["--raw", "-z", "--"], cancellation: cancellation).stdout)
+        // Git's diff auto-refresh writes its index lock even with optional
+        // locks disabled. Display statistics must suppress that separate path.
+        let args = ["-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
+        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                statistics: try run(args + ["--numstat", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                raw: try run(args + ["--raw", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
+            // With auto-refresh disabled, name/raw output can retain an M row
+            // whose stat changed but contents did not. Numstat performs the
+            // content comparison: real binary/mode/gitlink changes still have
+            // a record (including -/- or 0/0); non-M actions remain untouched.
+            .filter { $0.action != "M" || $0.hasStatistics }
     }
 
     public func workingTreeFiles(amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
-        let head = (try? run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation)) != nil
+        let head = (try? run(["rev-parse", "--verify", "HEAD"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation)) != nil
         let base = amendToParent ? [try commitComparisonBase(amendToParent: true, cancellation: cancellation)] : head ? ["HEAD"] : ["--cached"]
-        let args = ["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + base
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"], cancellation: cancellation).stdout,
-                                raw: try run(args + ["--raw", "-z", "--"], cancellation: cancellation).stdout)
+        // Git's diff auto-refresh writes its index lock even with optional
+        // locks disabled. Display statistics must suppress that separate path.
+        let args = ["-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + base
+        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                statistics: try run(args + ["--numstat", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                raw: try run(args + ["--raw", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
+            // With auto-refresh disabled, name/raw output can retain an M row
+            // whose stat changed but contents did not. Numstat performs the
+            // content comparison: real binary/mode/gitlink changes still have
+            // a record (including -/- or 0/0); non-M actions remain untouched.
+            .filter { $0.action != "M" || $0.hasStatistics }
     }
 }
 

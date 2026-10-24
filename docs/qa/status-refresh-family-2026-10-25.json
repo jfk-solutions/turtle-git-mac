@@ -1,0 +1,337 @@
+{
+  "family": "Working Tree, Commit, Log and Finder automatic status reads and cancellation ownership",
+  "date": "2026-10-25",
+  "base_commit": "de7535613acaaec52e138dc3adeecc4ac65e9de7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "bounded_core_native_signed_static_and_focused_installed_acceptance_passed",
+  "scope": [
+    "Typed automatic versus explicit index-refresh Core status policy; existing boolean defaults preserved",
+    "Fresh read-only Working Tree and Commit display collection with optional index writes disabled, including name-status/numstat/raw working-tree and staging display diffs",
+    "Explicit Finder automatic policy and helper environment; existing C read-only algorithm unchanged",
+    "Busy Working Tree Cancel drops older passive reloads while retaining an accepted pending invocation scope and later external invalidations",
+    "Owned cancellation, atomic accepted snapshot, manual refresh freshness and retirement",
+    "Log working-tree history and selected-file patch read wrappers suppress diff auto-refresh without mutating repository configuration",
+    "Drop only M display rows without numstat path presence, retaining real binary, mode, gitlink, type and rename changes"
+  ],
+  "source_anchors": [
+    "TortoiseProc/ChangedDlg.cpp150\u2013172 RefreshGitIndex before status acquisition",
+    "TortoiseProc/ChangedDlg.cpp201\u2013218 busy OK/Cancel cancels without closing",
+    "TortoiseProc/CommitDlg.cpp1386 RefreshGitIndex"
+  ],
+  "source_adaptation": "Native live observer display reads omit optional index-stat writes; upstream explicitly refreshes the index. Native manual Refresh remains a fresh read, while Core explicit refreshIndex behavior remains available.",
+  "prior_installed_evidence": {
+    "record": "docs/qa/workspace-report-family-2026-10-25.json",
+    "refresh_close_observation": "Working Tree refresh could recur between close attempts; rapid primary Cancel and Command-W closed. Stale AX references complicated observation; no sole cause established.",
+    "raw_index_unchanged": false,
+    "baseline_index_sha256": "1dc9d64e2412a0729dc1b64da3bef8c667f735d9e1f14616ddd5c85b36d8ea7e",
+    "current_index_sha256": "e0b7f9450006a85c5d07c1de36c980bc6d23e69460bcb169167a3650778db0b4",
+    "staged_content_equals_unchanged_head": true,
+    "interpretation": "Optional metadata refresh is inferred, not proven; historical observations remain unchanged."
+  },
+  "authored_core_checks": {
+    "file": "Tests/TurtleGitCoreTests/AutomaticStatusReadTests.swift",
+    "methods": 4,
+    "witnesses": [
+      "Repeated automatic status/working-tree reads plus workingTreeFiles and staged/unstaged stagingFiles preserve index bytes/inode/mtime/ctime and still see external edit/deletion/new files",
+      "Real FSEvents barriers see no index/index.lock events for automatic reads; explicit stale-stat refresh changes index and emits a positive-control event",
+      "Finder full, shell and extended overlays preserve index and see later modifications",
+      "Pre-cancelled collection preserves index and leaves no lock"
+    ],
+    "positive_control_limit": "Explicit refresh case skips if caller GIT_OPTIONAL_LOCKS=0",
+    "executed": true
+  },
+  "native": {
+    "status": "six_distinct_pairs_cumulatively_pass",
+    "fixture": "docs/qa/status-refresh-native-2026-10-25.swift",
+    "runner": "scripts/test-status-refresh-family.py",
+    "cases": [
+      "monitor",
+      "cancel",
+      "scope"
+    ],
+    "planned_git_executables": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "planned_pairs": 6,
+    "witnesses": [
+      "Actual workspace/Working Tree monitor freshness, bounded quiescence and Commit reload without index metadata changes",
+      "Busy close cancels without automatic close or replaying pre-cancel passive requests; later refresh remains fresh",
+      "Accepted scope survives cancellation and declined Quit; retired held worker retains ownership until drain and cannot launch queued work"
+    ],
+    "windows": "private offscreen owned windows and sheets",
+    "executed": true,
+    "passed_pairs": 6,
+    "initial": {
+      "path": "build/qa/status-refresh-native-2026-10-25.log",
+      "sha256": "f4bbc45ecd9a9d0fdb49ddf3a559e2aebe41307238bd85e59c9f6dc5f357ff07",
+      "session": 59645,
+      "exit_code": 1,
+      "receiver_pid": 73918,
+      "failure": "Monitor system external-change wait at line109"
+    },
+    "diagnostic": {
+      "path": "build/qa/status-refresh-native-monitor-diagnostic-2026-10-25.log",
+      "sha256": "85e4f037e7b3e86fd7685f5e627673d19d30085192d6fcc90418325f52481246",
+      "session": 24674,
+      "exit_code": 1,
+      "receiver_pid": 74393,
+      "failure": "Same wait at line110; workspace external row fresh, fixture repository directory URL form mismatched"
+    },
+    "fixture_repair": "Explicit isDirectory:true matches production factory; original external freshness and ownership assertions retained; no production fix for fixture mismatch",
+    "passes": [
+      {
+        "path": "build/qa/status-refresh-native-monitor-repair-2026-10-25.log",
+        "sha256": "b47ee2e329288aca5a972b60ecd3eabb9bb191e626e2e9428cb6b26e0893fcc5",
+        "session": 15472,
+        "exit_code": 0,
+        "pairs": 1,
+        "receiver_pids": [
+          74625
+        ]
+      },
+      {
+        "path": "build/qa/status-refresh-native-cancel-scope-2026-10-25.log",
+        "sha256": "62c88658b28b4e73c72c35417ae9d791e1a393d5423fc7e1d99b6e01f6883a93",
+        "session": 12910,
+        "exit_code": 0,
+        "pairs": 4,
+        "receiver_pids": [
+          74847,
+          74907,
+          74981,
+          75035
+        ]
+      },
+      {
+        "path": "build/qa/status-refresh-native-monitor-bundled-2026-10-25.log",
+        "sha256": "71151cda8d364ad9199597cb4b7c0eb38123094d05f4389283e10782571d90d2",
+        "session": 64950,
+        "exit_code": 0,
+        "pairs": 1,
+        "receiver_pids": [
+          75127
+        ]
+      }
+    ],
+    "receiver_cleanup": {
+      "all_attempted_pids": [
+        73918,
+        74393,
+        74625,
+        74847,
+        74907,
+        74981,
+        75035,
+        75127
+      ],
+      "reaped": true,
+      "independently_absent": true,
+      "remaining_finder_pid": 67907,
+      "gui_or_cache_remaining": false
+    },
+    "diagnostics": [
+      "Reentrant NSTableView delegate warning in monitor/cancel cases remains open"
+    ],
+    "cache": "Shared receiver compilation reused; only changed QA sources recompiled",
+    "diagnostic_investigation": "Read-only possible origin: NativeListSelection rowViewForRow/didAdd configure synchronously requests table views/addSubview, selection invalidation enumerates rows. No stack establishes cause; no repair claimed."
+  },
+  "validation": {
+    "core": "8 distinct method/engine passes: system4 cumulative, bundled4 initial",
+    "app": "final Debug62883 exit0",
+    "native": "6 distinct case/engine pairs cumulatively pass",
+    "installed": "recoverable install28138exit0; focused physical acceptance passed",
+    "localization": "38 locales/1318 labels check passed",
+    "signed": "session82197 terminalexit0,3 contradictoryexit0 diagnostics retained",
+    "static": "session11133 terminalexit0",
+    "coverage_reconciliation": "PASS:130 dialogs/120 partial/10 pending/85 unmapped controls/0 certified; not feature completion percentage",
+    "site": "Final generation passed: 450 documents, zero unresolved fragments",
+    "physical_cleanup": "Timestamp restored, only fixture grant removed, unrelated Recent retained, owned GUI/cache/receivers absent; installedFinder77954 preserved"
+  },
+  "limits": [
+    "Functional passes retain earlier actual Core failures, native fixture failures and reentrant NSTableView warnings; clean runtime not claimed",
+    "Not complete upstream dialog parity or full hosted CI certification",
+    "Focused installed behavior passed without screenshots, appearance reacceptance or wider physical Finder-command tests",
+    "NSTableView reentrant delegate warnings, full hosted CI, App Store archive/export/submission and wider source parity remain open"
+  ],
+  "initial_checkpoint": {
+    "core": {
+      "path": "build/qa/status-refresh-core-system-2026-10-25.log",
+      "sha256": "476275dbaef0812c7a47685aa1655568080bef1045e4e2955eb0f1ded5cd0ba3",
+      "methods": 4,
+      "passed_methods": 2,
+      "failed_methods": 2,
+      "assertion_failures": 7,
+      "passed": [
+        "testCancelledAutomaticCollectionLeavesOriginalIndexAndNoLock",
+        "testFinderCollectorsRemainReadOnlyAndSeeLaterExternalChanges"
+      ],
+      "failed": [
+        "testAutomaticReadsEmitNoIndexEventsAndExplicitRefreshStillPublishesIndex",
+        "testAutomaticStatusAndWorkingTreeReadsPreserveIndexAndSeeExternalEdits"
+      ],
+      "observations": "Actual index/index.lock FSEvents and changed index bytes/inode/mtime/ctime despite OPTIONAL_LOCKS=0 on display diff reads."
+    },
+    "debug": {
+      "path": "build/qa/status-refresh-debug-build-2026-10-25.log",
+      "sha256": "4b5fab3f5212d7228f3f89045806d9c921ebae9af02c454d211ea06d1f191c51",
+      "session": 57974,
+      "exit_code": 0,
+      "source_state": "initial source before forthcoming diff.autoRefreshIndex repair",
+      "contradictory_exit_zero_diagnostics": 38,
+      "simulator_version_warning_retained": true
+    }
+  },
+  "focused_repair": {
+    "status": "frozen_system_cumulative_pass",
+    "cause": "Git builtin/diff.c refresh_index_quietly bypasses OPTIONAL_LOCKS; environment contract alone does not disable diff auto-refresh.",
+    "planned_change": "Command-local -c diff.autoRefreshIndex=false plus GIT_OPTIONAL_LOCKS=0 on connected display diff reads; repository config unchanged; preserve behavior assertions and explicit Core refresh positive control.",
+    "results": "All four distinct system methods cumulatively pass; prior failed attempts preserved",
+    "test_attribution": "Independent raw index witness after each actual display read; no assertions removed.",
+    "content_filter": "Only M lacking numstat path presence omitted; binary nil counts and zero-count changes retained",
+    "additional_log_paths": [
+      "workingTreeHistory",
+      "workingTreeFileDiffData"
+    ]
+  },
+  "hosted_status_at_checkpoint": {
+    "pages": {
+      "commit": "de7535613acaaec52e138dc3adeecc4ac65e9de7",
+      "run": 40139781184,
+      "status": "success"
+    },
+    "macos": {
+      "run": 40139781252,
+      "status": "in_progress"
+    },
+    "prior_macos": {
+      "run": 40132230473,
+      "status": "terminal_failure"
+    },
+    "full_current_ci_pass_claimed": false
+  },
+  "intermediate": {
+    "path": "build/qa/status-refresh-core-system-repair-2026-10-25.log",
+    "sha256": "0ce8444a8d598d3e4acdbb1955234f2435cc995f28b5950190ab59ef0e6144ce",
+    "session": null,
+    "methods": 2,
+    "passed_methods": 1,
+    "failed_methods": 1,
+    "cause": "Clean diff emptiness assertion failed with stat-only M; all index witnesses passed",
+    "original_assertions_retained": true
+  },
+  "focused": {
+    "path": "build/qa/status-refresh-core-system-content-repair-2026-10-25.log",
+    "sha256": "ef1bbee5bda521352f5962cceac73979d4e6771726404d22cb8010c7447f913b",
+    "session": 85933,
+    "exit_code": 0,
+    "methods": 1,
+    "passed_methods": 1,
+    "real_variants": [
+      "binary",
+      "chmod",
+      "type",
+      "dirty nested gitlink",
+      "staged rename"
+    ]
+  },
+  "debug_repair": {
+    "path": "build/qa/status-refresh-debug-repair-2026-10-25.log",
+    "sha256": "e06935cbb9a40761dcc539eae31ca933dec15b98298783c31804610b1ef5e642",
+    "session": 8726,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "debug_final": {
+    "path": "build/qa/status-refresh-debug-content-repair-2026-10-25.log",
+    "sha256": "bc14f04c5e8285ed2f83ed93f4852c15ac1a3f4e6df3a6b969240d6c956ed15b",
+    "session": 62883,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "bundled_core": {
+    "path": "build/qa/status-refresh-core-bundled-2026-10-25.log",
+    "sha256": "1121c18f8e4019a176870eef29b12effe66b7a2c727e464ed828d101e77bc1ed",
+    "session": 19707,
+    "exit_code": 0,
+    "methods": 4,
+    "passed_methods": 4
+  },
+  "signed_candidate": {
+    "session": 82197,
+    "status": "terminal_pass",
+    "base_commit": "de7535613acaaec52e138dc3adeecc4ac65e9de7",
+    "source_inputs_sha256": "f5a4d7afb2fe9575ae08eb1f1696d618a84d7901ba0ce15f9d64ed8d11e005b6",
+    "dirty_production_files": 8,
+    "protected_wip_preserved": true,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 3,
+    "path": "build/qa/status-refresh-signed-build-2026-10-25.log",
+    "sha256": "2b4a44023665c82d7fe13d753a01461092cba310ce39f812919f025e3cd8376c"
+  },
+  "static": {
+    "path": "build/qa/status-refresh-static-2026-10-25.json",
+    "sha256": "0da86e0ffd3f1eee76576b203d6ae8e694891f165b4be4e1eea1bda8e6a1f58c",
+    "session": 11133,
+    "exit_code": 0,
+    "universal_components": 8,
+    "runtime_code_items": 206,
+    "inventory_members": 6356,
+    "inventory_sha256": "f6d3f6cdbd7af92d8d560a9125aa75b3ebef74e46d5b53033eb5db6648056093",
+    "source_inputs_unchanged": true,
+    "source_inputs_sha256": "f5a4d7afb2fe9575ae08eb1f1696d618a84d7901ba0ce15f9d64ed8d11e005b6",
+    "identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "2",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "2"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "2"
+        }
+      }
+    },
+    "team": "A49SCA5S8K",
+    "group": "A49SCA5S8K.org.turtlegit.macos",
+    "functional_runtime_cases": 0,
+    "new_gui_before_install": 0
+  },
+  "installation": {
+    "session": 28138,
+    "exit_code": 0,
+    "record": "build/qa/status-refresh-install-2026-10-25.json",
+    "record_sha256": "f8c8a2c1bdd093df9882f742b32c3a24b1b2734bbe043959786b9173158fd6c2",
+    "inventory_members": 6356,
+    "matches_static_candidate": true,
+    "recoverable_backup": "build/qa/status-refresh-displaced-installed-2026-10-25",
+    "main_executable_sha256": "dd67f67fcff7aa2b52309906c69d99dccec62e7e5b73b1a9a05960a3b55aeb1b",
+    "finder_binary_changed": true,
+    "supported_registration": "Unregister candidate/backup, register installed extension and elect use; one elected installed entry",
+    "previous_finder_pid": 67907,
+    "previous_finder_retired_naturally": true,
+    "new_finder_pid": 77954,
+    "no_direct_finder_kill": true
+  },
+  "focused_installed": {
+    "record": "docs/qa/status-refresh-installed-2026-10-25.json",
+    "record_sha256": "b96eedf69c3a1358818f24ba682da04dc28fde7448a0759ae7639ad5f1e3f741",
+    "status": "passed",
+    "witnesses": [
+      "Unchanged tracked file stat made stale before launching actual installed app via Open Panel private fixture",
+      "Working Tree automatically reflected external edit then restore; idle OK closed once",
+      "Commit Git GUI staging displayed3unstaged files; manual Refresh then Cancel/Yes",
+      "Normal Command-Q and independent absence of owned GUI/cache/receivers",
+      "Raw index e0b7... unchanged with unchanged HEAD/config/all6working files",
+      "Timestamp restored, only fixture permission forgotten, unrelated Recent preserved, normal cleanup quit"
+    ],
+    "new_screenshots": 0,
+    "appearance_reacceptance": false,
+    "physical_finder_command_reacceptance": false
+  }
+}

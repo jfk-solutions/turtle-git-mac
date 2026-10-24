@@ -15,7 +15,9 @@ extension GitRepository {
     public func workingTreeFileDiffData(files: [CommitFile], cancellation: OperationCancellation? = nil) throws -> Data {
         guard !files.isEmpty, files.allSatisfy({ $0.action != "?" }) else { throw RevisionComparisonFailure.selection }
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
-            try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+            // Diff's automatic stat refresh is separate from optional locks.
+            // Log observation and previews must not emit their own index writes.
+            try run(["-c","diff.autoRefreshIndex=false"]+args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
         guard try read(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { throw RevisionComparisonFailure.range }
         let head = try read(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1)
@@ -33,7 +35,7 @@ extension GitRepository {
     public func workingTreeHistory(cancellation: OperationCancellation? = nil) throws -> WorkingTreeHistory? {
         try cancellation?.check()
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
-            try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+            try run(["-c","diff.autoRefreshIndex=false"]+args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
         guard try read(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { return nil }
         let head = try read(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1)

@@ -1,5 +1,12 @@
 import Foundation
 
+public enum GitStatusReadPolicy: Sendable, Equatable {
+    /// Observe current state without Git's optional on-disk index-stat update.
+    case automatic
+    /// Permit the existing explicit index-stat refresh behavior.
+    case refreshIndex
+}
+
 /// A display-only record of the exact executable and argv about to run. Git
 /// still receives an argument array; this quoted text is never executed.
 public struct GitCommandInvocation: Sendable, Equatable {
@@ -172,7 +179,15 @@ public actor GitRepository {
         return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL
     }
     public func isBare(cancellation: OperationCancellation? = nil) throws -> Bool { try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true" }
-    public func status(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored", diffDetection.statusArgument], environmentOverrides: refreshIndex ? [:] : ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout) }
+    public func status(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] {
+        try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,cancellation:cancellation)
+    }
+    /// Automatic observers must not publish Git's optional index-stat refresh:
+    /// that write is itself a repository event and can retrigger every observer.
+    /// Disabling optional locks still computes status from current file contents.
+    public func status(readPolicy:GitStatusReadPolicy,cancellation:OperationCancellation? = nil) throws -> [StatusEntry] {
+        StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored", diffDetection.statusArgument], environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:], cancellation:cancellation).stdout)
+    }
     public func trackedPaths(cancellation:OperationCancellation? = nil) throws -> [String] {
         try run(["ls-files", "-z"],cancellation:cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
     }

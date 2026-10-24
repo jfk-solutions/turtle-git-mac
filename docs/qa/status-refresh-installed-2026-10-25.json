@@ -1,0 +1,43 @@
+{
+  "status": "focused-installed-behavior-passed",
+  "date": "2026-10-25",
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "executable_sha256": "dd67f67fcff7aa2b52309906c69d99dccec62e7e5b73b1a9a05960a3b55aeb1b",
+  "source_inputs_sha256": "f5a4d7afb2fe9575ae08eb1f1696d618a84d7901ba0ce15f9d64ed8d11e005b6",
+  "baseline_record": "build/qa/status-refresh-installed-baseline-2026-10-25.json",
+  "fixture_head": "8dd19fcd959477226c70aed5e8a052c1612d5452",
+  "index_sha256_before_and_after": "e0b7f9450006a85c5d07c1de36c980bc6d23e69460bcb169167a3650778db0b4",
+  "config_sha256_before_and_after": "23615da47be07b139f004b305a59bfa168b3cf64651f926fc2624f4cd1819980",
+  "working_files_preserved": 6,
+  "unchanged_tracked_stat_made_stale_before_launch": true,
+  "external_edit_then_restore_reflected_without_manual_refresh": true,
+  "idle_working_tree_ok_closed_once": true,
+  "commit_staging_display_loaded_three_unstaged_files": true,
+  "commit_manual_refresh_then_cancel_confirmed": true,
+  "command_q_exited_without_signal": true,
+  "fixture_permission_removed": true,
+  "unrelated_recent_repository_preserved": true,
+  "file_timestamp_restored": true,
+  "owned_gui_and_cache_and_receivers_absent": true,
+  "enabled_installed_finder_pid": 77954,
+  "prior_finder_pid_67907_retired_without_direct_kill": true,
+  "one_elected_installed_finder_registration": true,
+  "finder_registration_record": "build/qa/status-refresh-finder-registration-2026-10-25.txt",
+  "ax_observation_files_sha256": {
+    "fixture-permission-removed.txt": "ddc2b5335d7d8ff724b009c1bfa3235b1cbaee1a951758c79af77294c4b62f48",
+    "status-external-change.txt": "174d1a08b939987294b57444da76303fc3682d743c08c62f2b03b88034ae50dc",
+    "commit-cancelled.txt": "dae49c70772f853c7d2aa633d812759d9adfbade2f73b268815ef806ab5407c8",
+    "status-closed-once.txt": "1a3fc30fe4e5b6256415e40d303094702178572e5955f62afb42cf5679d28721",
+    "commit-refresh.txt": "03a65e3fbff09d952e104ca3a502db26797e5f351c4d7951c88ce3f198499046",
+    "status-initial.txt": "7050b185322a3638f0aa7167b70c4bd492e605b112f04ac8feeab3bd759706ad",
+    "status-restored.txt": "43edd8842f1762a67232b1f06ce2453905e3d62395633bd21427a608f0677a8d",
+    "commit-open.txt": "888287a159bdcb0601e3e0d3ab31bbd7131c74389b77fe9d3058a57d3693a232",
+    "commit-loaded.txt": "728a46ac832c0b38a2cb8126fc2b21e495f36a19bf0ba17575ccdac62d073deb"
+  },
+  "screenshots_captured": 0,
+  "limits": [
+    "Focused physical behavior only, not every dialog or Finder command",
+    "Native NSTableView reentrancy warning remains open",
+    "Full hosted CI and App Store archive/export/submission unverified"
+  ]
+}

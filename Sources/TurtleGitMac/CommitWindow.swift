@@ -1333,7 +1333,9 @@ import TurtleGitCore
         templateFileAccess = CommitTemplateFileAccess(preferences: dialogDefaults)
         queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
         queryHistoryIssue = { try await repository.issueFieldValue(properties: $0, message: $1, cancellation: $2) }
-        queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
+        // Display reloads must not create optional index locks: those are watched
+        // filesystem events and can otherwise restart other status dialogs.
+        queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1, refreshIndex: false) }
         queryStagingStates = { try await repository.commitStagingStates(for: $0, base: $1, cancellation: $2) }
         fileColumns = .load(from: dialogDefaults)
         completionAction = CompletionAction(sourceIndex: dialogDefaults.integer(forKey: "CommitLastAction"))
@@ -1957,7 +1959,7 @@ import TurtleGitCore
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
                 let nextSnippets = try await readReload(token) { await snippetLoader.load(userURL:snippetURL) }
                 let nextChangelists = try await readReload(token) { try await repository.changelists(cancellation:token) }
-                let nextIndexFlags = try await readReload(token) { try await repository.workingTreeStatus(cancellation:token) }
+                let nextIndexFlags = try await readReload(token) { try await repository.workingTreeStatus(readPolicy:.automatic,cancellation:token) }
                 let nextConflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation:token) }
                 let nextStatistics = GitPathMap(try await readReload(token) { try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextStaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})

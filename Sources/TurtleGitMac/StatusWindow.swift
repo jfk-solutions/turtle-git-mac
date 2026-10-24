@@ -333,7 +333,10 @@ final class StatusNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard, columnKey: String = "WorkingTree.FileColumns", initialColumns: StatusListColumnSettings? = nil) {
         self.repository = repository; self.access = access; self.defaults = defaults
         self.columnKey = columnKey; self.initialColumns = initialColumns ?? Self.defaultColumns
-        readStatus = { try await repository.workingTreeStatus(cancellation: $0) }
+        // Status is a fresh display read, not an index-stat publication. Writing
+        // optional index refreshes here feeds our own filesystem observer and
+        // can continuously enqueue the next Status refresh.
+        readStatus = { try await repository.workingTreeStatus(readPolicy: .automatic, cancellation: $0) }
         if defaults.integer(forKey: columnKey + ".Version") == 1 {
             fileColumns = .load(from: defaults, key: columnKey)
         } else {
@@ -481,6 +484,11 @@ final class StatusNativeWindow: NSWindow {
     }
     @discardableResult func cancelOperation() -> Bool {
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
+        // ChangedDlg busy-close cancels the read and stays open. Drop automatic
+        // reloads accumulated before that cancellation instead of immediately
+        // restarting the same read in its defer. A separately accepted scope
+        // request remains owed; later genuine external changes may queue anew.
+        refreshRequested = pendingScope != nil
         cancelling = true; token.cancel();missingStagedRecovery.cancel();fileListRefresh.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
     }
     func invalidate() {

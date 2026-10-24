@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+The [status refresh ownership family](STATUS-REFRESH-OWNERSHIP-PARITY.md) keeps
+Working Tree, Commit, Log working-tree previews and Finder display reads fresh
+without publishing optional index-stat updates. Busy Cancel drops older passive
+reloads while preserving accepted scope requests and later external changes.
+Its [checkpoint](qa/status-refresh-family-2026-10-25.json) records four distinct
+Core methods with each Git executable, final Debug and six native case/engine
+pairs passing after the recorded production and fixture repairs. All eight
+attempted receivers are absent. Reentrant NSTableView delegate warnings remain
+open. Signed build/static checks, recoverable install and focused physical
+refresh/close acceptance passed with raw index bytes preserved; wider Finder,
+App Store and full current hosted CI acceptance remain open.
+
 The [Finder comparison and delivery family](FINDER-DELIVERY-SERVICES-PARITY.md)
 adds eight selected-file Services to existing native comparison, patch/mail and
 repository export/request workflows. Captured document bytes/settings, independent

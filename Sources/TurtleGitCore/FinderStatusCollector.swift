@@ -60,7 +60,7 @@ extension GitRepository {
         let helper=try (libgit2Configuration ?? .load()).runtimeExecutor()
         let request=try JSONSerialization.data(withJSONObject:["version":1,"full":policy.cacheMode == .standard,"caseSensitive":policy.caseSensitive,"contentCheckLimitKiB":policy.contentCheckLimitKiB],options:[.sortedKeys])
         var bytes=Data()
-        _ = try run(["turtlegit-finder-status"],cancellation:cancellation,input:request,retainStandardOutput:false,consumeOutput:{chunk in
+        _ = try run(["turtlegit-finder-status"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation,input:request,retainStandardOutput:false,consumeOutput:{chunk in
             if case .stdout=chunk.stream {guard chunk.data.count<=64*1024*1024-bytes.count else{throw FinderStatusCollectionFailure.output};bytes.append(chunk.data)}
         },executorOverride:helper)
         return try FinderStatusProtocol.decode(bytes,root:root,policy:policy,cancellation:cancellation)

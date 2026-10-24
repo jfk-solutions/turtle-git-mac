@@ -806,7 +806,7 @@ extension GitRepository {
                     snapshot=FinderSnapshot(roots:[location.path],states:overlay.entries,repositories:[location.path:metadata])
                     snapshot.recordOverlay(policy:policy,caseSensitive:overlay.caseSensitive,entries:overlay.entries,indexFlags:overlay.indexFlags)
                 } else {
-                    let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(refreshIndex:false,cancellation:cancellation)
+                    let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(readPolicy:.automatic,cancellation:cancellation)
                     snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
                     snapshot.indexFlags = try await child.finderIndexFlags(cancellation:cancellation)
                     snapshot.repositories[location.path] = metadata
@@ -906,7 +906,7 @@ extension GitRepository {
         }
         await watchReady?(watch)
         try cancellation?.check()
-        let entries=try bare ? [] : status(refreshIndex:false,cancellation:cancellation)
+        let entries=try bare ? [] : status(readPolicy:.automatic,cancellation:cancellation)
         let conflict=try bare ? false : conflictIsRebase(cancellation:cancellation)
         let submodules=try bare ? GitPathSet() : GitPathSet(submodulePathNames(cancellation:cancellation).map(\.rawValue))
         let branch=try self.branch(cancellation:cancellation)

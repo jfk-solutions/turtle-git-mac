@@ -99,8 +99,11 @@ extension GitRepository {
     }
 
     public func workingTreeStatus(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [WorkingTreeFile] {
+        try workingTreeStatus(readPolicy:refreshIndex ? .refreshIndex:.automatic,cancellation:cancellation)
+    }
+    public func workingTreeStatus(readPolicy:GitStatusReadPolicy,cancellation:OperationCancellation? = nil) throws -> [WorkingTreeFile] {
         try cancellation?.check()
-        let changes = try status(refreshIndex: refreshIndex, cancellation: cancellation)
+        let changes = try status(readPolicy:readPolicy,cancellation:cancellation)
         var entries = GitPathMap(changes.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
         var flags = GitPathMap<(Bool,Bool)>()
         for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
