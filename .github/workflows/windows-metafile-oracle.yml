@@ -1,0 +1,23 @@
+name: Windows metafile reference
+on:
+  push:
+    branches: [codex/metafile-rendering-oracle]
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render original synthetic records with Windows GDI+
+        shell: powershell
+        run: |
+          Add-Type -Path scripts/oracles/MetafileReference.cs -ReferencedAssemblies System.Drawing
+          [MetafileReference]::Run("Tests/TurtleGitCoreTests/Fixtures/Metafile", "oracle-output")
+          Get-Content oracle-output/samples.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-metafile-reference
+          path: oracle-output
