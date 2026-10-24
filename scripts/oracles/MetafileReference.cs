@@ -48,38 +48,53 @@ public static class MetafileReference {
       }
       json.Append("}");
     }
+    RawImages(input, output, json, ref first);
     // This run is limited to the compressed-source questions; earlier embedded
     // texture/reference evidence is retained in its own completed run.
     if(first) throw new InvalidOperationException("No original compressed-raster metafiles selected");
     json.Append("]}");
     File.WriteAllText(Path.Combine(output,"samples.json"),json.ToString());
   }
-  private static void NativeTexture(string input,string output) {
-    using(var child=new Metafile(Path.Combine(input,"oracle-child.emf"))) {
-      using(var reference=new Bitmap(64,64))
-      using(var referenceGraphics=Graphics.FromImage(reference)) {
-        IntPtr hdc=referenceGraphics.GetHdc();
-        Metafile recorded;
-        try {recorded=new Metafile(Path.Combine(output,"native-recorded-texture.emf"),hdc,new Rectangle(0,0,64,64),MetafileFrameUnit.Pixel,EmfType.EmfPlusOnly);}
-        finally {referenceGraphics.ReleaseHdc(hdc);}
-        using(recorded)
-        using(var graphics=Graphics.FromImage(recorded))
-        using(var texture=new TextureBrush(child,WrapMode.Tile)) {
-          graphics.Clear(Color.Blue);graphics.FillRectangle(texture,8,8,48,48);
-        }
-      }
-      Console.WriteLine("NATIVE_RECORDED_TEXTURE "+Convert.ToBase64String(File.ReadAllBytes(Path.Combine(output,"native-recorded-texture.emf"))));
+  private static void Samples(StringBuilder json, Bitmap bitmap) {
+    json.Append(",\"samples\":["); bool first=true;
+    int[] positions={0,4,9,13,17,21,25,29,33,37,41,45,49,53,57,63};
+    foreach(int y in positions) foreach(int x in positions) {
+      if(!first)json.Append(",");first=false;
+      json.Append("[").Append(x).Append(",").Append(y).Append(",\"").Append(unchecked((uint)bitmap.GetPixel(x,y).ToArgb()).ToString("X8")).Append("\"]");
+    }
+    json.Append("]");
+  }
+  private static void Error(StringBuilder json, Exception error) {
+    json.Append(",\"error\":\"").Append(error.GetType().Name).Append(": ").Append(error.Message.Replace("\\","\\\\").Replace("\"","\\\"").Replace("\r"," ").Replace("\n"," ")).Append("\"");
+  }
+  private static void RawImages(string input,string output,StringBuilder json,ref bool first) {
+    foreach(var path in Directory.GetFiles(input,"compressed-raster-source-*")) {
+      if(!first)json.Append(",");first=false;
+      json.Append("{\"name\":\"raw-").Append(Path.GetFileName(path)).Append("\"");
       try {
-        using(var brush=new TextureBrush(child,WrapMode.Tile))
+        using(var source=Image.FromFile(path))
         using(var bitmap=new Bitmap(64,64,PixelFormat.Format32bppArgb)) {
-          using(var g=Graphics.FromImage(bitmap)) {
-            g.Clear(Color.Blue); g.FillRectangle(brush,0,0,64,64);
+          bitmap.SetResolution(96,96);
+          using(var graphics=Graphics.FromImage(bitmap)) {
+            graphics.Clear(Color.Blue); graphics.DrawImage(source,new Rectangle(0,0,64,64),0,0,source.Width,source.Height,GraphicsUnit.Pixel);
           }
-          bitmap.Save(Path.Combine(output,"native-texture.png"),ImageFormat.Png);
-          Console.WriteLine("NATIVE_TEXTURE_RESULT success pixel="+unchecked((uint)bitmap.GetPixel(5,5).ToArgb()).ToString("X8"));
+          json.Append(",\"imageSize\":[").Append(source.Width).Append(",").Append(source.Height).Append("]");
+          json.Append(",\"frameCounts\":[");bool firstFrame=true;
+          foreach(var dimension in source.FrameDimensionsList) {if(!firstFrame)json.Append(",");firstFrame=false;json.Append(source.GetFrameCount(new FrameDimension(dimension)));}json.Append("]");
+          if(Array.IndexOf(source.PropertyIdList,274)>=0)json.Append(",\"orientation\":").Append(BitConverter.ToUInt16(source.GetPropertyItem(274).Value,0));
+          Samples(json,bitmap);bitmap.Save(Path.Combine(output,"raw-"+Path.GetFileName(path)+".png"),ImageFormat.Png);
+          var native=Path.Combine(output,"native-"+Path.GetFileName(path)+".emf");
+          using(var reference=new Bitmap(64,64))
+          using(var referenceGraphics=Graphics.FromImage(reference)) {
+            IntPtr hdc=referenceGraphics.GetHdc();Metafile recorded;
+            try {recorded=new Metafile(native,hdc,new Rectangle(0,0,64,64),MetafileFrameUnit.Pixel,EmfType.EmfPlusOnly);}
+            finally {referenceGraphics.ReleaseHdc(hdc);}
+            using(recorded)using(var graphics=Graphics.FromImage(recorded)) {graphics.Clear(Color.Blue);graphics.DrawImage(source,new Rectangle(8,8,48,48),0,0,source.Width,source.Height,GraphicsUnit.Pixel);}
+          }
+          Console.WriteLine("NATIVE_COMPRESSED_RECORD "+Path.GetFileName(path)+" "+Convert.ToBase64String(File.ReadAllBytes(native)));
         }
-      } catch(Exception e) {Console.WriteLine("NATIVE_TEXTURE_RESULT "+e.GetType().Name+" "+e.Message);}
+      } catch(Exception error) {Error(json,error);}
+      json.Append("}");
     }
   }
-
 }
