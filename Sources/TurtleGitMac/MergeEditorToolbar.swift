@@ -285,7 +285,7 @@ extension MergeEditorToolbar {
             defaults: [.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference, .nextDifference, .previousConflict, .nextConflict, .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs, .resolved, .wrap, .find, .compareSources, .showBase, .help],
             menus: [.saveAs: [.saveLeft, .saveRight, .saveMerged, .continueResolving], .compareSources: [.compareTheirs, .compareMine]],
             changes: model.objectWillChange, preferences: model.comparisonDefaults,
-            visible: { [weak model] in model?.retired == false }, toolbarShown:{ [weak model] in model?.showToolbar == true }, changedVisibility:{ [weak model] in model?.setToolbarVisible($0) }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
+            visible: { [weak model] in model?.retired == false && model?.comparisonDefaults.bool(forKey:"TurtleGit.Comparison.CurvedInterface") == false }, toolbarShown:{ [weak model] in model?.showToolbar == true }, changedVisibility:{ [weak model] value in guard let model,!model.comparisonDefaults.bool(forKey:"TurtleGit.Comparison.CurvedInterface") else{return};model.setToolbarVisible(value) }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
             state: { [weak model] command in
                 guard let model else { return nil }
                 let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && !model.externalReloadBlocksCommands && !model.preservingSourceCopies && window.attachedSheet == nil && ownerReady()

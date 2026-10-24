@@ -385,6 +385,7 @@ struct MergeLocatorBar: NSViewRepresentable {
 }
 
 @MainActor final class MergeReadingScroller: NSScroller {
+    override class var isCompatibleWithOverlayScrollers:Bool {true}
     var beforeTracking: () -> Void = {}, afterTracking: () -> Void = {}
     override func mouseDown(with event: NSEvent) {
         beforeTracking(); defer { afterTracking() }; super.mouseDown(with:event)
@@ -1011,15 +1012,22 @@ struct MergePaneTabCommand {
 struct CurvedDiffConnections: NSViewRepresentable {
     let editors: () -> (NSScrollView?, NSScrollView?)
     let blocks: [Range<Int>]
+    var leftRanges: [NSRange]? = nil
+    var rightRanges: [NSRange]? = nil
+    var tint: NSColor = .systemBlue
+    var conflictBorders:[Bool]? = nil
     func makeNSView(context: Context) -> CurvedDiffConnectionView { CurvedDiffConnectionView() }
     func updateNSView(_ view: CurvedDiffConnectionView, context: Context) {
-        view.editors = editors; view.blocks = blocks; view.needsDisplay = true
+        view.editors = editors; view.blocks = blocks; view.leftRanges=leftRanges;view.rightRanges=rightRanges;view.tint=tint;view.conflictBorders=conflictBorders; view.needsDisplay = true
     }
     static func dismantleNSView(_ view: CurvedDiffConnectionView, coordinator: ()) { view.retire() }
 }
 @MainActor final class CurvedDiffConnectionView: NSView {
     var editors: () -> (NSScrollView?, NSScrollView?) = { (nil, nil) }
     var blocks: [Range<Int>] = []
+    var leftRanges: [NSRange]?, rightRanges: [NSRange]?
+    var tint: NSColor = .systemBlue
+    var conflictBorders:[Bool]?
     private var observations: [NSObjectProtocol] = []
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -1039,34 +1047,42 @@ struct CurvedDiffConnections: NSViewRepresentable {
     func retire() { observations.forEach(NotificationCenter.default.removeObserver); observations = []; editors = { (nil,nil) } }
     deinit { observations.forEach(NotificationCenter.default.removeObserver) }
     override func layout() { super.layout(); needsDisplay = true }
-    private func spans(_ scroll: NSScrollView?, ranges: [Range<Int>]) -> [NSRect?] {
+    private func spans(_ scroll: NSScrollView?, ranges: [Range<Int>], characters: [NSRange]?) -> [NSRect?] {
         guard let text = scroll?.documentView as? NSTextView, let layout = text.layoutManager, let container = text.textContainer else { return ranges.map { _ in nil } }
         layout.ensureLayout(for: container)
         let lines = MergeLineEndings.lineRanges(in: text.string)
-        return ranges.map { rows in
-            guard !rows.isEmpty, rows.lowerBound < lines.count else { return nil }
-            let first = lines[max(0, rows.lowerBound)], last = lines[min(lines.count - 1, rows.upperBound - 1)]
-            let characters = NSRange(location: first.location, length: NSMaxRange(last) - first.location)
-            let glyphs = layout.glyphRange(forCharacterRange: characters, actualCharacterRange: nil)
+        let input = characters ?? ranges.map { rows in
+            guard !rows.isEmpty, rows.lowerBound < lines.count else { return NSRange(location:text.string.utf16.count,length:0) }
+            let first=lines[max(0,rows.lowerBound)],last=lines[min(lines.count-1,rows.upperBound-1)]
+            return NSRange(location:first.location,length:NSMaxRange(last)-first.location)
+        }
+        return input.map { range in
+            guard range.location >= 0, NSMaxRange(range) <= text.string.utf16.count else { return nil }
+            let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             var rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
+            if range.length == 0 {
+                if range.location == text.string.utf16.count { rect=layout.extraLineFragmentRect }
+                else if layout.numberOfGlyphs > 0 {rect=layout.lineFragmentRect(forGlyphAt:min(glyphs.location,layout.numberOfGlyphs-1),effectiveRange:nil)}
+                rect.size.height=2
+            }
             rect.origin.x += text.textContainerOrigin.x; rect.origin.y += text.textContainerOrigin.y
             if rect.height < 2 { rect.size.height = layout.defaultLineHeight(for: text.font ?? .monospacedSystemFont(ofSize: 12, weight: .regular)) }
             return convert(rect, from: text)
         }
     }
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.controlBackgroundColor.setFill(); bounds.fill()
+        NSColor.textBackgroundColor.setFill(); bounds.fill()
         let (left, right) = editors()
-        let a = spans(left, ranges: blocks), b = spans(right, ranges: blocks)
-        for index in blocks.indices {
+        let a = spans(left, ranges: blocks, characters:leftRanges), b = spans(right, ranges: blocks, characters:rightRanges)
+        for index in 0..<min(a.count,b.count) {
             guard let l = a[index], let r = b[index], max(l.maxY,r.maxY) >= 0, min(l.minY,r.minY) <= bounds.height else { continue }
             let path = NSBezierPath(), width = bounds.width, bend = width * 0.5
             path.move(to: NSPoint(x: 0, y: l.minY))
             path.curve(to: NSPoint(x: width, y: r.minY), controlPoint1: NSPoint(x: bend, y: l.minY), controlPoint2: NSPoint(x: bend, y: r.minY))
             path.line(to: NSPoint(x: width, y: r.maxY))
             path.curve(to: NSPoint(x: 0, y: l.maxY), controlPoint1: NSPoint(x: bend, y: r.maxY), controlPoint2: NSPoint(x: bend, y: l.maxY))
-            path.close(); NSColor.systemBlue.withAlphaComponent(0.16).setFill(); path.fill()
-            NSColor.systemBlue.withAlphaComponent(0.5).setStroke(); path.lineWidth = 1; path.stroke()
+            path.close(); tint.withAlphaComponent(0.18).setFill(); path.fill()
+            (conflictBorders?.indices.contains(index)==true && conflictBorders?[index]==true ? NSColor.systemRed:tint).withAlphaComponent(0.65).setStroke(); path.lineWidth = 1; path.stroke()
         }
     }
 }

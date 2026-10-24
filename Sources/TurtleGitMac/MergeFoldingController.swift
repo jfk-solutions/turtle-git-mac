@@ -17,10 +17,10 @@ import TurtleGitCore
     var expanded: ([Range<Int>]) -> Void = { _ in }
     var actionsAllowed: () -> Bool = { true }
 
-    init(preferences: UserDefaults = .standard) {
+    init(preferences: UserDefaults = .standard, collapsedOverride: Bool? = nil) {
         self.preferences = preferences
         let settings = MergeFoldingPreferences.load(from: preferences)
-        collapsed = settings.collapsed; contextLines = settings.contextLines
+        collapsed = collapsedOverride ?? settings.collapsed; contextLines = settings.contextLines
     }
 
     /// A changed alignment starts a fresh source hide map, as upstream Reload

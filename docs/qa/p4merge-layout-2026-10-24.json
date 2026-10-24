@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-24",
+  "scope": "Optional P4Merge-style four-pane merge, source candidate projection, source choices, compact reference layout and native capture",
+  "references": [
+    "User-supplied P4Merge screenshots",
+    "https://www.perforce.com/manuals/v23.1/p4merge/Content/P4Merge/diff-merge.p4merge.html",
+    "https://help.perforce.com/helix-core/server-apps/p4merge/current/Content/Resources/Images/p4v-merge-highlight.png",
+    "https://blog.eiel.info/images/p4merge.png"
+  ],
+  "validation": {
+    "build": {
+      "configuration": "Unsigned macOS Debug",
+      "result": "passed",
+      "log": "build/p4merge-reference-repair-build.log"
+    },
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'P4MergePresentationTests|MergeSourceBlockEditTests|MergeSourceComparisonTests|MergePaneWordInputTests'",
+      "tests": 36,
+      "failures": 0,
+      "new_p4_tests": 9,
+      "log": "build/p4merge-reference-core.log"
+    },
+    "native": {
+      "command": "python3 scripts/test-p4merge-layout-native.py --capture build/qa/p4merge-reference-captures",
+      "result": "passed",
+      "coverage": [
+        "original unpadded sources",
+        "result below three source panes",
+        "real character ranges and unequal-height curved source bands",
+        "no classic toolbar during initial P4 presentation",
+        "inline source toggle and combined order",
+        "stale and closing-owner action gates",
+        "whole Base/Theirs file choices",
+        "undo/redo preserving source choice metadata",
+        "unresolved candidate projection with retained serialized conflict state",
+        "unresolved save refusal",
+        "typing into a candidate and undo restoring conflict state",
+        "manual result editing",
+        "classic interface round trip without reloading",
+        "chosen output Save preserves all three inputs",
+        "owned window and worker cleanup"
+      ],
+      "ownership": "Private repositories, input/output files and preferences; invisible/offscreen automated windows. Windows shown briefly only for deliberate per-window captures, then hidden and closed. Receiver group reaped.",
+      "fixture_repairs": "Initial save assertion waited for normal standalone Save As; corrected by injecting the private output URL and local-only folder authorization response. Subsequent native runs passed without removing save assertions."
+    },
+    "resources": [
+      "Localization --write and --check passed",
+      "Bundled help regenerated and --check passed",
+      "Dialog coverage reconciled",
+      "git diff --check passed"
+    ],
+    "visual": "Reviewed actual light/dark unresolved and selected-result captures against user and reference screenshots. Corrected initial native-toolbar installation race and replaced boxed selectors with unboxed source shapes."
+  },
+  "remaining": [
+    "Not every proprietary Perforce syntax language, menu, gesture or theme is reproduced.",
+    "Edits crossing engine-region boundaries can invalidate exact source choice maps; controls disable until Undo/reload restores them.",
+    "Dense overlapping chunks do not yet provide Perforce expandable selectors.",
+    "Broad physical keyboard/VoiceOver/multi-display and signed App Store acceptance remain open.",
+    "Focused local checks do not establish a full hosted CI pass."
+  ],
+  "toolbar_and_band_followup": {
+    "scope": "Separate difference/unresolved-conflict navigation; direct wrap, whitespace, line-number and Go to Line actions; visible compact +/\u2212 source controls and pointer cursor; continuous bands through rulers and overlay scrollers",
+    "build": "passed: build/p4merge-toolbar-build.log",
+    "native": "passed: build/p4merge-toolbar-native.log; unresolved navigation, resolved conflict skipping and retained ordinary difference navigation asserted",
+    "core": "Not rerun: followup changes are native UI only; prior 36-test focused Core pass retained",
+    "repairs": [
+      "Removed cursor override inadvertently added to text view during edit",
+      "Added overlay compatibility to custom reading-position scroller after native assertion caught reserved track"
+    ],
+    "captures": "build/qa/p4merge-toolbar-captures; light and dark inspected"
+  }
+}

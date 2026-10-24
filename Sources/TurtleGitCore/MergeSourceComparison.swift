@@ -136,6 +136,25 @@ public struct MergeSourceCell: Sendable {
     }
 }
 
+/// Original diff3 regions retain real source coordinates for the four-pane UI.
+public enum MergeInputSource: String, CaseIterable, Sendable { case theirs, base, mine }
+public struct MergeSourceChunk: Sendable, Identifiable {
+    public let id: Int
+    public let sourceRows: Range<Int>
+    public let baseRange: NSRange, theirsRange: NSRange, mineRange: NSRange
+    public let base: String, theirs: String, mine: String
+    public let conflict: Bool
+    public func text(_ input: MergeInputSource) -> String { switch input { case .base: return base; case .theirs: return theirs; case .mine: return mine } }
+    public func range(_ input: MergeInputSource) -> NSRange { switch input { case .base: return baseRange; case .theirs: return theirsRange; case .mine: return mineRange } }
+    public init(id: Int, sourceRows: Range<Int>, baseRange: NSRange, theirsRange: NSRange, mineRange: NSRange, base: String, theirs: String, mine: String, conflict: Bool) {
+        self.id=id; self.sourceRows=sourceRows; self.baseRange=baseRange; self.theirsRange=theirsRange; self.mineRange=mineRange
+        self.base=base; self.theirs=theirs; self.mine=mine; self.conflict=conflict
+    }
+    public func withSourceRows(_ rows: Range<Int>) -> Self {
+        .init(id:id,sourceRows:rows,baseRange:baseRange,theirsRange:theirsRange,mineRange:mineRange,base:base,theirs:theirs,mine:mine,conflict:conflict)
+    }
+}
+
 public struct MergeSourceRow: Sendable {
     public let mine: MergeSourceCell
     public let theirs: MergeSourceCell
@@ -144,6 +163,7 @@ public struct MergeSourceRow: Sendable {
 /// Aligned, read-only source views. Numbered cells recover each source; removed
 /// Base records and gaps retain view coordinates without adding source bytes.
 public struct MergeSourceComparison: Sendable {
+    public let chunks: [MergeSourceChunk]
     public let rows: [MergeSourceRow]
     public let resultLocator: MergeLocatorResult?
     /// Alignment-row anchors into the initial editable result. Common rows only;
@@ -154,11 +174,13 @@ public struct MergeSourceComparison: Sendable {
     /// Diff3 view records, distinct from serialized marker lines. Removed Base
     /// records and blank conflict/empty records retain their aligned positions.
     public let alignedResultRows: [MergeSourceCell]?
-    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init(), alignedResultRows: [MergeSourceCell]? = nil) {
+    public init(rows: [MergeSourceRow], resultLocator: MergeLocatorResult? = nil, resultAnchors: [Int: Int] = [:], ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init(), alignedResultRows: [MergeSourceCell]? = nil, chunks: [MergeSourceChunk] = []) {
+        self.chunks = chunks
         self.alignedResultRows = alignedResultRows?.count == rows.count ? alignedResultRows : nil
         self.navigationMap = navigationMap; self.rows = rows; self.resultLocator = resultLocator; self.resultAnchors = resultAnchors; self.ignoredConflicts = ignoredConflicts
     }
     public init(base: String, mine: String, theirs: String) {
+        chunks = []
         alignedResultRows = nil
         resultLocator = nil; resultAnchors = [:]; ignoredConflicts = []; navigationMap = .init()
         let baseLines = Self.lines(base), mineLines = Self.lines(mine), theirLines = Self.lines(theirs)
@@ -320,7 +342,9 @@ public struct MergeNavigationMap: Equatable, Sendable {
     public struct Entry: Equatable, Sendable {
         public let sourceRows: Range<Int>
         public let resultRange: NSRange
-        public init(sourceRows: Range<Int>, resultRange: NSRange) {
+        public let sourceSelection: [MergeInputSource]?
+        public init(sourceRows: Range<Int>, resultRange: NSRange, sourceSelection: [MergeInputSource]? = nil) {
+            self.sourceSelection = sourceSelection
             self.sourceRows = sourceRows; self.resultRange = resultRange
         }
     }
@@ -351,7 +375,7 @@ public struct MergeNavigationMap: Equatable, Sendable {
         let retained = entries.compactMap { entry -> Entry? in
             if entry.sourceRows.overlaps(rows) { return nil }
             if entry.sourceRows.lowerBound >= rows.upperBound {
-                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:entry.resultRange.location + delta,length:entry.resultRange.length))
+                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:entry.resultRange.location + delta,length:entry.resultRange.length),sourceSelection:entry.sourceSelection)
             }
             return entry
         }
@@ -379,7 +403,7 @@ public struct MergeNavigationMap: Equatable, Sendable {
             if range.length == 0 && start == limit && start == range.location { return nil }
             if limit <= range.location { return entry }
             if start >= end {
-                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:start + delta,length:entry.resultRange.length))
+                return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:start + delta,length:entry.resultRange.length),sourceSelection:entry.sourceSelection)
             }
             if range.location >= start && end <= limit {
                 return Entry(sourceRows:entry.sourceRows,resultRange:NSRange(location:start,length:entry.resultRange.length + delta))

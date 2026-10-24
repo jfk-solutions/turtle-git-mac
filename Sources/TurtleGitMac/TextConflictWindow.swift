@@ -944,6 +944,61 @@ private enum MergeSourceSide {
         if let start { ranges.append(start..<rows.count) }
         return ranges
     }
+    var p4Chunks: [MergeSourceChunk] { sourceComparison?.chunks ?? [] }
+    func p4Scroll(_ pane: P4MergePane) -> NSScrollView? {
+        switch pane {
+        case .base:return basePresentationScroll
+        case .result:return locatorResultScroll
+        case .theirs:return sourceScrolls.first {$0.key.hasPrefix("Theirs") && $0.value.view?.window != nil}?.value.view
+        case .mine:return sourceScrolls.first {$0.key.hasPrefix("Mine") && $0.value.view?.window != nil}?.value.view
+        }
+    }
+    func p4ResultRange(_ chunk: MergeSourceChunk) -> NSRange? { resultPresentation.navigationMap.exactResultRange(sourceRows:chunk.sourceRows) }
+    private var p4ProjectionCache:(presentation:Int,layout:Int,ending:MergeLineEnding,value:P4MergeResultProjection)?
+    var p4Projection:P4MergeResultProjection {
+        if let cache=p4ProjectionCache,cache.presentation==resultPresentationRevision,cache.layout==sourceLayoutRevision,cache.ending==resultLineEnding {return cache.value}
+        let value=P4MergeResultProjection(presentation:resultPresentation,chunks:p4Chunks,lineEnding:resultLineEnding)
+        p4ProjectionCache=(resultPresentationRevision,sourceLayoutRevision,resultLineEnding,value);return value
+    }
+    func p4DisplayPath(_ pane:P4MergePane)->String {
+        let location=paneHeaderLocation(pane == .base ? .base:pane == .mine ? .mine:pane == .theirs ? .theirs:.result)
+        let path=String(location.split(separator:"\n").first ?? "")
+        let prefix=repository.root.path+"/"
+        return path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)):(path as NSString).lastPathComponent
+    }
+    func p4DisplayRange(_ range:NSRange)->NSRange {p4Projection.displayRange(range) ?? range}
+    func p4Toggle(_ input: MergeInputSource, chunk: MergeSourceChunk, expected: MergeResultPresentation) {
+        guard sourceMutationsAllowed, resultPresentation == expected, p4Chunks.contains(where:{$0.id==chunk.id}),
+              let next=resultPresentation.togglingInput(input,chunk:chunk,lineEnding:resultLineEnding) else {return}
+        applyP4Presentation(next,name:"Choose " + input.rawValue + " chunk")
+    }
+    func p4UseFile(_ input: MergeInputSource) {
+        guard sourceMutationsAllowed,let document else{return}
+        let text=input == .base ? document.base:input == .theirs ? document.theirs:document.mine
+        applyP4Presentation(resultPresentation.usingWholeInput(input,text:text,chunks:p4Chunks),name:"Use whole " + input.rawValue + " file")
+    }
+    private func applyP4Presentation(_ next: MergeResultPresentation, name:String) {
+        if let applyResultFormat {applyResultFormat(next,sourceComparison,encoding,resultLineEnding,name)}
+        else {resultPresentation=next;result=next.text}
+    }
+    @Published var p4SelectedChunk=0
+    func p4NavigationTarget(_ direction:Int, conflictsOnly:Bool=false) -> Int? {
+        let indices=p4Chunks.indices.filter { index in
+            guard conflictsOnly else {return true}
+            return p4Projection.records.contains {$0.chunkID == p4Chunks[index].id && !$0.candidates.isEmpty}
+        }
+        return direction > 0 ? indices.first {$0 > p4SelectedChunk}:indices.last {$0 < p4SelectedChunk}
+    }
+    func p4Navigate(_ direction:Int, conflictsOnly:Bool=false) {
+        guard sourceToolsAllowed,let target=p4NavigationTarget(direction,conflictsOnly:conflictsOnly) else{return}
+        p4SelectedChunk=target
+        let chunk=p4Chunks[p4SelectedChunk]
+        for pane in P4MergePane.allCases {
+            guard let text=p4Scroll(pane)?.documentView as? NSTextView,
+                  let range=pane.input.map({chunk.range($0)}) ?? p4ResultRange(chunk).map({p4DisplayRange($0)}),NSMaxRange(range)<=text.string.utf16.count else {continue}
+            text.scrollRangeToVisible(range);text.setSelectedRange(NSRange(location:range.location,length:0))
+        }
+    }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll;schedulePanePresentation() }
     func registerBasePresentation(_ scroll:NSScrollView) {basePresentationScroll=scroll;schedulePanePresentation()}
     func invalidateLineRulers() {
@@ -2043,6 +2098,14 @@ private struct TextConflictDialog: View {
         }
     }
     var body: some View {
+        Group {
+            if curvedInterface { P4MergeWorkspace(model:model) }
+            else { classicBody }
+        }
+        .onAppear { if model.document == nil && !model.busy {model.load()}; model.window?.toolbar?.isVisible = !curvedInterface && model.showToolbar }
+        .onChange(of:curvedInterface) { value in model.window?.toolbar?.isVisible = !value && model.showToolbar;model.objectWillChange.send() }
+    }
+    private var classicBody: some View {
         VStack(spacing: 0) {
             if !model.nativeToolbarInstalled {
             HStack(spacing: 10) {
@@ -2105,18 +2168,6 @@ private struct TextConflictDialog: View {
                                         enabled: !model.busy && !model.confirmingQuit, navigate: model.scrollLocator)
                             .frame(width: 44).help("Theirs, merged result, and Mine overview; click or drag to scroll")
                     }
-                    if curvedInterface {
-                        VSplitView {
-                            if model.showBase { pane("Base", text: document.base) }
-                            HStack(spacing: 0) {
-                                pane("Theirs", text: document.theirs, caption: model.sourceCaption(mine: false), cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
-                                CurvedDiffConnections(editors: { model.connectionEditors(mine: false) }, blocks: model.connectionBlocks).frame(width: 44)
-                                pane("Merged · \(model.resultPath)", text: model.result, editable: true)
-                                CurvedDiffConnections(editors: { model.connectionEditors(mine: true) }, blocks: model.connectionBlocks).frame(width: 44)
-                                pane("Mine", text: document.mine, caption: model.sourceCaption(mine: true), cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
-                            }
-                        }
-                    } else {
                     VSplitView {
                     HSplitView {
                         pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, caption: model.sourceCaption(mine: false), cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
@@ -2124,7 +2175,6 @@ private struct TextConflictDialog: View {
                         if model.showBase { pane("Base", text: document.base) }
                     }
                     pane("Merged · \(model.resultPath)", text: model.result, editable: true)
-                    }
                     }
                 }
                 if model.lineDiffBarVisible {
@@ -2146,7 +2196,7 @@ private struct TextConflictDialog: View {
                 }.padding(8)
                 }
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-        }.disabled(model.busy || model.confirmingQuit || model.formatPending || model.externalReloadBlocksCommands || model.preservingSourceCopies).onAppear { model.load() }
+        }.disabled(model.busy || model.confirmingQuit || model.formatPending || model.externalReloadBlocksCommands || model.preservingSourceCopies)
         .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
     }
@@ -2172,6 +2222,7 @@ private struct MergeEditor: NSViewRepresentable {
     let tabWidth: Int
     let useSpaces: Bool
     let smartTab: Bool
+    var p4Pane: P4MergePane? = nil
     func makeNSView(context: Context) -> NSScrollView {
         let view = MergeTextView(); view.isRichText = false; view.allowsUndo = editable
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
@@ -2183,7 +2234,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
         view.setAccessibilityLabel(model.mergeToolPaneTitle(label,mine:sourceSide.map { $0 == .mine },result:editable)); view.delegate = context.coordinator; view.model = model; view.mergeEditable = editable
-        view.sourceSide = sourceSide
+        view.sourceSide = sourceSide; view.p4Pane=p4Pane
         if editable {
             model.undo = { [weak view] in view?.undoMergeEdit() }
             model.redo = { [weak view] in view?.redoMergeEdit() }
@@ -2217,7 +2268,8 @@ private struct MergeEditor: NSViewRepresentable {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent; view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         scroll.documentView = view
-        if sourceCells != nil && !editable { context.coordinator.attachSourceScroll(scroll, label: label) }
+        if p4Pane != nil {scroll.wantsLayer=true;scroll.layer?.masksToBounds=true}
+        if (sourceCells != nil || p4Pane != nil) && !editable && sourceSide != nil { context.coordinator.attachSourceScroll(scroll, label: label) }
         if !editable,sourceSide == nil {model.registerBasePresentation(scroll)}
         if editable {
             model.registerLocatorResult(scroll)
@@ -2235,13 +2287,20 @@ private struct MergeEditor: NSViewRepresentable {
         guard let view = scroll.documentView as? MergeTextView else { return }
         // Use a single current model generation rather than a queued View value
         // paired with newer source maps after rapid edits or Undo/Redo.
-        let sourceCells = editable ? model.alignedResultProjection?.cells : sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.mine : $0.theirs } } ?? self.sourceCells
-        let text = editable ? model.resultDisplayText : sourceCells.map { $0.map(\.displayText).joined(separator:"\n") + ($0.isEmpty ? "" : "\n") } ?? self.text
-        let background = MergePalette.color(MergeSourceState.normal), foreground = MergePalette.foreground(.normal)
+        let sourceCells = p4Pane != nil ? nil : editable ? model.alignedResultProjection?.cells : sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.mine : $0.theirs } } ?? self.sourceCells
+        let text = editable ? (p4Pane == .result ? model.p4Projection.text:model.resultDisplayText) : sourceCells.map { $0.map(\.displayText).joined(separator:"\n") + ($0.isEmpty ? "" : "\n") } ?? self.text
+        view.p4Pane=p4Pane
+        let background = p4Pane == nil ? MergePalette.color(MergeSourceState.normal) : NSColor.textBackgroundColor, foreground = p4Pane == nil ? MergePalette.foreground(.normal) : NSColor.labelColor
         if view.backgroundColor != background { view.backgroundColor = background }
         if view.insertionPointColor != foreground { view.insertionPointColor = foreground }
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
-        if !scroll.rulersVisible { scroll.rulersVisible = true }
+        if p4Pane != nil {
+            scroll.borderType = .noBorder
+            scroll.scrollerStyle = .overlay
+            scroll.autohidesScrollers = true
+        }
+        if p4Pane == .result {scroll.rulersVisible=false}
+        else if !scroll.rulersVisible {scroll.rulersVisible=true}
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         let writable = editable && !model.mergeToolReadOnly && model.sourceOperationsAllowed
@@ -2295,7 +2354,9 @@ private struct MergeEditor: NSViewRepresentable {
         let entire = NSRange(location: 0, length: (text as NSString).length)
         model.updateFolding()
         view.presentationDepth += 1
-        let presentationChanged = view.foldLayout.installPresentation(value, font: font, in: view, controller: editable ? model.resultFolding : model.folding)
+        let folding=p4Pane == nil ? (editable ? model.resultFolding:model.folding):view.p4Folding
+        if p4Pane != nil {folding.update(unchanged:Array(repeating:false,count:MergeLineEndings.lineRanges(in:text).count))}
+        let presentationChanged = view.foldLayout.installPresentation(value, font: font, in: view, controller: folding)
         view.presentationDepth -= 1
         // Caret visibility and centering query TextKit geometry. They run only
         // after the complete attributed presentation has committed.
@@ -2324,10 +2385,12 @@ private struct MergeEditor: NSViewRepresentable {
             let records = sourceCells ?? zip(MergeRegexFilters.lines(text), model.resultStates).enumerated().map {
                 MergeSourceCell(text:$0.element.0,lineNumber:$0.offset + 1,state:$0.element.1)
             }
-            ruler.updateRecords(records, peers: other)
+            let sourceRecords=p4Pane != nil && !editable ? MergeRegexFilters.lines(text).enumerated().map {MergeSourceCell(text:$0.element,lineNumber:$0.offset+1,state:.normal)}:records
+            ruler.updateRecords(sourceRecords, peers: p4Pane == nil ? other:nil)
         }
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         if presentationChanged { scroll.verticalRulerView?.needsDisplay = true }
+        if p4Pane != nil {view.applyP4Colors()}
         if editable { model.nativeEditorDidUpdate(view) }
         if sourceSide == .mine { DispatchQueue.main.async { [weak view, weak model] in guard let view, let model else { return }; model.applyMergeToolInitialLine(view) } }
     }
@@ -2347,11 +2410,13 @@ private struct MergeEditor: NSViewRepresentable {
             if (scroll.documentView as? MergeTextView)?.sourceCells != nil { model.sourceDidScroll(scroll) }
             else { model.refreshLocatorViewport(from:scroll) }
         }
-        @objc private func sourceScrolled(_ notification: Notification) { if let sourceScroll { model.sourceDidScroll(sourceScroll) } }
+        @objc private func sourceScrolled(_ notification: Notification) { if let sourceScroll {
+            if (sourceScroll.documentView as? MergeTextView)?.p4Pane != nil {model.refreshLocatorViewport(from:sourceScroll)} else {model.sourceDidScroll(sourceScroll)}
+        } }
         deinit { NotificationCenter.default.removeObserver(self) }
         func textDidChange(_ notification: Notification) {
             if editable, let view = notification.object as? MergeTextView {
-                if view.sourceCells == nil { model.result = view.string }; view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
+                if view.sourceCells == nil && view.p4Pane != .result { model.result = view.string }; view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
                 model.selectedConflict = min(model.selectedConflict, max(model.blocks.count - 1, 0))
                 DispatchQueue.main.async { view.updateUndoState() }
             }
@@ -2359,7 +2424,8 @@ private struct MergeEditor: NSViewRepresentable {
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
             guard editable, let view = textView as? MergeTextView, let replacementString else { return true }
             guard view.historyAllowed else { return false }
-            if view.sourceCells != nil { view.replaceAlignedRange(affectedCharRange,with:replacementString,actionName:"Typing") }
+            if view.p4Pane == .result {view.replaceP4Range(affectedCharRange,with:replacementString,actionName:"Typing")}
+            else if view.sourceCells != nil { view.replaceAlignedRange(affectedCharRange,with:replacementString,actionName:"Typing") }
             else {
                 view.replaceMergeBlock(affectedCharRange, with: replacementString, actionName: "Typing")
                 view.setSelectedRange(NSRange(location: affectedCharRange.location + replacementString.utf16.count, length: 0))
@@ -2382,6 +2448,8 @@ private struct MergeEditor: NSViewRepresentable {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
 private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverProviding, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    var p4Pane: P4MergePane?
+    lazy var p4Folding=MergeFoldingController(preferences:model?.comparisonDefaults ?? .standard,collapsedOverride:false)
     var presentationRole:TextConflictPaneRole {mergeEditable ? .result:sourceSide == .mine ? .mine:sourceSide == .theirs ? .theirs:.base}
     override var paneInputLayout:MergeFoldTextLayout {foldLayout}
     override var paneInputCells:[MergeSourceCell]? {sourceCells}
@@ -2484,7 +2552,11 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
         for range in ranges.reversed() { value.replaceCharacters(in: range, with: replacement) }
         let delta = ranges.dropLast().reduce(0) { $0 + (replacement as NSString).length - $1.length }
         var finalCaret = ranges.last!.location + delta + replacement.utf16.count
-        if sourceCells != nil {
+        if p4Pane == .result {
+            mergeUndoManager.beginUndoGrouping()
+            for range in ranges.reversed() {replaceP4Range(range,with:replacement,actionName:ranges.count==1 ? "Replace":"Replace All")}
+            mergeUndoManager.endUndoGrouping()
+        } else if sourceCells != nil {
             mergeUndoManager.beginUndoGrouping()
             var caret:Int?
             for range in ranges.reversed() {
@@ -2539,7 +2611,9 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
                 guard let ending = MergeLineEndings.boundaries(in:line).last,let next = MergeTyping.cycledLine(line) else {return}
                 let replacement = (next as NSString).substring(from:ending.range.location)
                 let caret = selectedRange().location
-                replaceMergeBlock(NSRange(location:start + ending.range.location,length:ending.range.length),with:replacement,actionName:"Cycle line ending")
+                let range=NSRange(location:start + ending.range.location,length:ending.range.length)
+                if p4Pane == .result {replaceP4Range(range,with:replacement,actionName:"Cycle line ending")}
+                else {replaceMergeBlock(range,with:replacement,actionName:"Cycle line ending")}
                 setSelectedRange(NSRange(location:min(caret,string.utf16.count),length:0))
             }
         } catch {model.error = error.localizedDescription}
@@ -2566,6 +2640,27 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     }
     let whitespaceRenderer = MergeWhitespaceRenderer()
     var inlineMissingOffsets: [Int] = []
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in:rect)
+        guard p4Pane != nil,let layout=layoutManager,let container=textContainer else{return}
+        for (range,color) in p4Bands() where NSMaxRange(range)<=string.utf16.count {
+            let glyphs=layout.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+            var band=layout.boundingRect(forGlyphRange:glyphs,in:container)
+            if range.length==0 {continue}
+            band.origin.x=0;band.size.width=bounds.width;band.origin.y += textContainerOrigin.y
+            if band.intersects(rect) {color.withAlphaComponent(0.18).setFill();band.fill()}
+        }
+        if let input=p4Pane?.input,let model {
+            for chunk in model.p4Chunks where chunk.conflict {
+                let range=chunk.range(input)
+                guard range.length>0,NSMaxRange(range)<=string.utf16.count else{continue}
+                let glyph=layout.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+                let band=layout.boundingRect(forGlyphRange:glyph,in:container).offsetBy(dx:0,dy:textContainerOrigin.y)
+                NSColor.systemRed.withAlphaComponent(0.65).setStroke();let edges=NSBezierPath();edges.lineWidth=0.7
+                for y in [band.minY,band.maxY] {edges.move(to:NSPoint(x:0,y:y));edges.line(to:NSPoint(x:bounds.width,y:y))};edges.stroke()
+            }
+        }
+    }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect); whitespaceRenderer.draw(in: self, dirtyRect: dirtyRect)
         MergeInlineTicks.draw(in: self, offsets: inlineMissingOffsets, dirtyRect: dirtyRect)
@@ -2609,6 +2704,7 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     }
     func replaceDisplayRange(_ range:NSRange,with replacement:String,actionName:String) {
         if sourceCells != nil { replaceAlignedRange(range,with:replacement,actionName:actionName) }
+        else if p4Pane == .result {replaceP4Range(range,with:replacement,actionName:actionName)}
         else { replaceMergeBlock(range,with:replacement,actionName:actionName) }
     }
     private var mergeTabWidth = 4
@@ -2651,10 +2747,12 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     func redoMergeEdit() { guard historyAllowed else { return }; if mergeUndoManager.canRedo { beginUserNavigation(); mergeUndoManager.redo() }; updateUndoState() }
     func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
     func serializedSelection(_ range:NSRange) -> NSRange? {
+        if p4Pane == .result {return model?.p4Projection.serializedRange(range)}
         guard mergeEditable, sourceCells != nil else { return range }
         return model?.alignedResultProjection?.serializedRange(displayRange:range)
     }
     func displaySelection(_ range:NSRange) -> NSRange? {
+        if p4Pane == .result {return model?.p4Projection.displayRange(range)}
         guard mergeEditable, sourceCells != nil else { return range }
         return model?.alignedResultProjection?.displayRange(serializedRange:range)
     }
@@ -2662,20 +2760,22 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     /// before the next SwiftUI refresh.
     func installResultView() {
         guard let model else { return }
-        let projection = model.alignedResultProjection
+        let projection = p4Pane == .result ? nil:model.alignedResultProjection
         isEditable = mergeEditable && !model.mergeToolReadOnly && model.sourceOperationsAllowed
         presentationDepth += 1
         textStorage?.beginEditing()
         foldLayout.prepare(self)
         sourceCells = projection?.cells; sourceLayoutRevision = model.sourceLayoutRevision; resultPresentationRevision = model.resultPresentationRevision
-        string = projection?.displayText ?? model.result
+        string = p4Pane == .result ? model.p4Projection.text:projection?.displayText ?? model.result
         let entire = NSRange(location:0,length:string.utf16.count)
         textStorage?.addAttributes([.foregroundColor:MergePalette.foreground(.normal), .backgroundColor:MergePalette.color(.normal), .font:model.generalPreferences.nativeFont, .paragraphStyle:defaultParagraphStyle ?? NSParagraphStyle.default],range:entire)
         let states = sourceCells?.map(\.state) ?? model.resultStates
         for (index,range) in MergeLineEndings.lineRanges(in:string).enumerated() where states.indices.contains(index) {
             textStorage?.addAttributes([.foregroundColor:MergePalette.foreground(states[index]), .backgroundColor:MergePalette.color(states[index])],range:range)
         }
-        model.updateFolding(); foldLayout.apply(to:self,controller:model.resultFolding)
+        model.updateFolding()
+        if p4Pane == .result {p4Folding.update(unchanged:Array(repeating:false,count:MergeLineEndings.lineRanges(in:string).count))}
+        foldLayout.apply(to:self,controller:p4Pane == .result ? p4Folding:model.resultFolding)
         textStorage?.endEditing()
         presentationDepth -= 1
         whitespaceRenderer.update(text:string,cells:sourceCells,otherCells:nil,preferences:model.whitespaceDisplay)
@@ -2688,7 +2788,13 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
                 ruler.updateRecords(records,peers:nil); ruler.updateMetrics(for:self); ruler.needsDisplay = true
             }
         }
+        if p4Pane != nil {applyP4Colors()}
         model.nativeEditorDidUpdate(self); needsDisplay = true
+    }
+    func replaceP4Range(_ range:NSRange,with replacement:String,actionName:String) {
+        guard let edit=model?.p4Projection.edit(range,replacement:replacement) else{return}
+        replaceMergeBlock(edit.range,with:edit.replacement,actionName:actionName)
+        if let position=displaySelection(NSRange(location:edit.caret,length:0)),NSMaxRange(position)<=string.utf16.count {setSelectedRange(position)}
     }
     func replaceAlignedRange(_ range:NSRange,with replacement:String,actionName:String) {
         guard isEditable, let model, model.sourceMutationsAllowed, let comparison = model.sourceComparison else { return }
@@ -3098,6 +3204,27 @@ final class MergeLineRuler: NSRulerView {
         guard let view = clientView as? NSTextView ?? scrollView?.documentView as? NSTextView, let manager = view.layoutManager, let container = view.textContainer else { return }
         removeAllToolTips();visibleMovedRows = [];visibleSymbols = []
         NSColor.controlBackgroundColor.setFill(); bounds.fill()
+        if let merge=view as? MergeTextView,merge.p4Pane != nil {
+            NSColor.textBackgroundColor.setFill();bounds.fill()
+            for (range,color) in merge.p4Bands() where range.length>0 && NSMaxRange(range)<=view.string.utf16.count {
+                let glyphs=manager.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+                let frame=manager.boundingRect(forGlyphRange:glyphs,in:container).offsetBy(dx:0,dy:view.textContainerOrigin.y)
+                let area=convert(frame,from:view)
+                color.withAlphaComponent(0.18).setFill()
+                NSRect(x:bounds.minX,y:area.minY,width:bounds.width,height:area.height).fill()
+            }
+            if let input=merge.p4Pane?.input,let model=merge.model {
+                for chunk in model.p4Chunks where chunk.conflict {
+                    let range=chunk.range(input)
+                    guard range.length>0,NSMaxRange(range)<=view.string.utf16.count else{continue}
+                    let glyphs=manager.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+                    let area=convert(manager.boundingRect(forGlyphRange:glyphs,in:container).offsetBy(dx:0,dy:view.textContainerOrigin.y),from:view)
+                    NSColor.systemRed.withAlphaComponent(0.65).setStroke()
+                    let path=NSBezierPath();path.lineWidth=0.7
+                    for y in [area.minY,area.maxY] {path.move(to:NSPoint(x:bounds.minX,y:y));path.line(to:NSPoint(x:bounds.maxX,y:y))};path.stroke()
+                }
+            }
+        }
         let text = view.string as NSString, visible = view.visibleRect
         let visibleInRuler = convert(visible, from: view)
         NSGraphicsContext.saveGraphicsState()
@@ -3149,4 +3276,357 @@ final class MergeLineRuler: NSRulerView {
 struct PatchMergeEditor:View {
     @ObservedObject var model:TextConflictWindowModel
     var body:some View {TextConflictDialog(model:model)}
+}
+
+// P4Merge's four-pane arrangement is an optional presentation of the same
+// document and undo history. Source editors show real lines, never diff3 padding.
+enum P4MergePane: CaseIterable {
+    case theirs, base, mine, result
+    var input: MergeInputSource? { switch self {case .theirs:return .theirs;case .base:return .base;case .mine:return .mine;case .result:return nil} }
+    var title: String {switch self {case .theirs:return "Theirs";case .base:return "Base";case .mine:return "Yours";case .result:return "Merge result"} }
+    var symbol:String {switch self {case .theirs:return "arrowtriangle.down.fill";case .base:return "square.fill";case .mine:return "circle.fill";case .result:return "diamond.fill"} }
+    var color:NSColor {switch self {case .theirs:return NSColor(srgbRed:0.48,green:0.40,blue:0.73,alpha:1);case .base:return NSColor(srgbRed:0.91,green:0.72,blue:0.12,alpha:1);case .mine:return NSColor(srgbRed:0.34,green:0.66,blue:0.22,alpha:1);case .result:return .secondaryLabelColor} }
+    static func role(_ input:MergeInputSource) -> Self {input == .base ? .base:input == .theirs ? .theirs:.mine}
+}
+private struct P4MergeWorkspace: View {
+    @ObservedObject var model:TextConflictWindowModel
+    @AppStorage("TurtleGit.Comparison.CurvedInterface") private var active=true
+    @AppStorage("TurtleGit.P4Merge.SourceFraction") private var sourceFraction=0.52
+    @State private var dividerStart:Double?
+    init(model:TextConflictWindowModel) {
+        self.model=model
+        _active=AppStorage(wrappedValue:true,"TurtleGit.Comparison.CurvedInterface",store:model.comparisonDefaults)
+        _sourceFraction=AppStorage(wrappedValue:0.52,"TurtleGit.P4Merge.SourceFraction",store:model.comparisonDefaults)
+    }
+    var body:some View {
+        VStack(spacing:0) {
+            HStack(spacing:14) {
+                Button {model.saveRetainedEditorWork()} label:{Label("Save",systemImage:"square.and.arrow.down")}.help("Save").keyboardShortcut("s",modifiers:.command).disabled(!model.sourceMutationsAllowed)
+                Divider().frame(height:20)
+                Button {model.undo()} label:{Image(systemName:"arrow.uturn.backward")}.help("Undo").accessibilityLabel("Undo").disabled(!model.canUndo)
+                Button {model.redo()} label:{Image(systemName:"arrow.uturn.forward")}.help("Redo").accessibilityLabel("Redo").disabled(!model.canRedo)
+                Divider().frame(height:20)
+                Button {model.p4Navigate(-1)} label:{Label("Previous",systemImage:"arrow.left")}.help("Previous difference").disabled(model.p4Chunks.isEmpty || model.p4SelectedChunk<=0)
+                Button {model.p4Navigate(1)} label:{Label("Next",systemImage:"arrow.right")}.help("Next difference").disabled(model.p4Chunks.isEmpty || model.p4SelectedChunk>=model.p4Chunks.count-1)
+                Divider().frame(height:20)
+                Button {model.p4Navigate(-1,conflictsOnly:true)} label:{Label("Previous unresolved conflict",systemImage:"arrow.left.circle").foregroundStyle(.red)}.help("Previous unresolved conflict").disabled(model.p4NavigationTarget(-1,conflictsOnly:true) == nil)
+                Button {model.p4Navigate(1,conflictsOnly:true)} label:{Label("Next unresolved conflict",systemImage:"arrow.right.circle").foregroundStyle(.red)}.help("Next unresolved conflict").disabled(model.p4NavigationTarget(1,conflictsOnly:true) == nil)
+                Divider().frame(height:20)
+                Button {model.setWrapLines(!model.wrapLines)} label:{Label("Word wrap",systemImage:"text.word.spacing")}.help(model.wrapLines ? "Disable word wrap":"Enable word wrap").foregroundStyle(model.wrapLines ? Color.accentColor:Color.primary)
+                Button {model.setLineNumbers(!model.showLineNumbers)} label:{Label("Line numbers",systemImage:"list.number")}.help("Toggle line numbers").foregroundStyle(model.showLineNumbers ? Color.accentColor:Color.primary)
+                Button {
+                    let key="TurtleGit.P4Merge.Whitespace"
+                    model.comparisonDefaults.set(!model.comparisonDefaults.bool(forKey:key),forKey:key);model.objectWillChange.send()
+                } label:{Label("Show whitespace",systemImage:"paragraphsign")}.help("Toggle whitespace")
+                Button {if let text=model.p4Scroll(.result)?.documentView as? MergeTextView {model.window?.makeFirstResponder(text);text.goToSourceLine(nil)}} label:{Label("Go to Line…",systemImage:"number")}.help("Go to Line…")
+                Button {(model.window as? TextConflictNSWindow)?.find(.showFindInterface)} label:{Image(systemName:"magnifyingglass")}.help("Find").accessibilityLabel("Find")
+                Spacer(minLength:8)
+                Menu("Options") {
+                    Button(model.wrapLines ? "Disable word wrap":"Enable word wrap") {model.setWrapLines(!model.wrapLines)}
+                    Button("Show whitespace") {
+                        let key="TurtleGit.P4Merge.Whitespace"
+                        model.comparisonDefaults.set(!model.comparisonDefaults.bool(forKey:key),forKey:key);model.objectWillChange.send()
+                    }
+                    Button {model.showFormatDialog()} label:{Text("Result encoding and line endings…")}
+                }.fixedSize()
+                Picker("Interface",selection:$active) {Text("Classic").tag(false);Text("P4Merge-style").tag(true)}.frame(width:200)
+            }.labelStyle(.iconOnly).buttonStyle(.borderless).controlSize(.small).padding(.horizontal,8).padding(.vertical,4).background(Color(nsColor:.controlBackgroundColor))
+            Divider()
+            HStack {
+                Text("\(model.p4Chunks.count) diffs · Tab spacing: \(model.editorPreferences.tabWidth) · \(model.encoding.rawValue) · \(model.resultLineEnding.menuTitle)").font(.system(size:10)).foregroundStyle(.secondary)
+                Spacer()
+            }.padding(.horizontal,6).padding(.vertical,2).background(Color(nsColor:.controlBackgroundColor))
+            Divider()
+            HStack(alignment:.top,spacing:6) {
+                P4MergeDiagram(model:model).frame(width:42,height:52)
+                VStack(alignment:.leading,spacing:1) {
+                    summary(.base); summary(.theirs);summary(.mine)
+                    HStack {Text("Merge:").frame(width:48,alignment:.leading);Text(model.dirty ? "Not saved":"Saved").fontWeight(.semibold);Spacer();Text("Conflicts: \(model.blocks.count)").foregroundStyle(model.hasUnresolvedConflicts ? Color.red:Color.secondary)}
+                }.font(.system(size:10))
+            }.padding(.horizontal,6).padding(.vertical,3).background(Color(nsColor:.controlBackgroundColor))
+            Divider()
+            if let document=model.document {
+                GeometryReader { geometry in
+                    let fraction=min(0.75,max(0.25,sourceFraction))
+                    let height=max(130,min(geometry.size.height-150,geometry.size.height*fraction))
+                    VStack(spacing:0) {
+                        HStack(spacing:0) {
+                            source(.theirs,text:document.theirs)
+                            connections(.theirs,.base)
+                            source(.base,text:document.base)
+                            connections(.base,.mine)
+                            source(.mine,text:document.mine)
+                        }.frame(height:height)
+                        Divider().frame(height:7).background(Color(nsColor:.separatorColor).opacity(0.35)).contentShape(Rectangle())
+                            .gesture(DragGesture(minimumDistance:0).onChanged {value in
+                                if dividerStart == nil {dividerStart=height}
+                                sourceFraction=min(0.75,max(0.25,((dividerStart ?? height)+value.translation.height)/max(1,geometry.size.height)))
+                            }.onEnded {_ in dividerStart=nil})
+                            .accessibilityElement(children:.ignore).accessibilityLabel("Source and result divider")
+                            .accessibilityAdjustableAction {direction in sourceFraction=min(0.75,max(0.25,fraction+(direction == .increment ? 0.05:-0.05)))}
+                        VStack(spacing:0) {
+                            header(.result,location:model.resultPath)
+                            HStack(spacing:0) {
+                                P4ResultOrigins(model:model).frame(width:28)
+                                editor(.result,text:model.result)
+                                P4ChunkChoices(model:model).frame(width:66).background(Color(nsColor:.textBackgroundColor))
+                            }
+                        }.frame(maxHeight:.infinity)
+                    }
+                }
+            } else {ProgressView().frame(maxWidth:.infinity,maxHeight:.infinity)}
+            Divider()
+            HStack {
+                Text(model.hasUnresolvedConflicts ? "Click the colored + symbols to include source text; click again to remove it.":"No remaining conflicts").font(.caption).foregroundStyle(model.hasUnresolvedConflicts ? Color.red:Color.secondary)
+                Spacer()
+                MergeFormatControls(label:"Merge result",encoding:model.encoding,text:model.result,editable:model.sourceMutationsAllowed,changeEncoding:model.changeEncoding,changeEnding:model.changeLineEnding)
+                Button("Mark as resolved") {model.save(markResolved:true)}.disabled(!model.repositoryResolutionAllowed || model.hasUnresolvedConflicts)
+            }.controlSize(.mini).padding(.horizontal,6).padding(.vertical,3)
+        }.disabled(model.busy || model.confirmingQuit || model.formatPending || model.externalReloadBlocksCommands || model.preservingSourceCopies)
+        .alert("Merge editor operation failed",isPresented:Binding(get:{model.error != nil},set:{if !$0 {model.error=nil}})) {Button("OK"){model.error=nil}} message:{Text(model.error ?? "")}
+        .onReceive(NotificationCenter.default.publisher(for:.mergeRegexFiltersChanged)) {_ in model.refreshRegexFilters()}
+    }
+    private func summary(_ pane:P4MergePane) -> some View {
+        HStack {
+            Text(pane.title+":").frame(width:40,alignment:.leading)
+            Text(verbatim:model.p4DisplayPath(pane)).lineLimit(1).truncationMode(.middle).help(model.paneHeaderLocation(pane == .base ? .base:pane == .mine ? .mine:.theirs))
+            Spacer()
+            if let input=pane.input,input != .base {Text("Differences from base: \(model.p4Chunks.filter{!$0.text(input).utf8.elementsEqual($0.base.utf8)}.count)").foregroundStyle(.secondary)}
+        }.frame(height:13)
+    }
+    private func header(_ pane:P4MergePane,location:String) -> some View {
+        HStack(spacing:5) {
+            if let input=pane.input {
+                Button {model.p4UseFile(input)} label:{Image(systemName:pane.symbol).foregroundStyle(Color(nsColor:pane.color))}
+                    .buttonStyle(.plain).help("Use whole \(pane.title) file").accessibilityLabel("Use whole \(pane.title) file").disabled(!model.sourceMutationsAllowed)
+            } else {Image(systemName:pane.symbol).foregroundStyle(Color(nsColor:pane.color))}
+            Text(verbatim:pane == .result ? (model.resultPath as NSString).lastPathComponent:model.p4DisplayPath(pane)).lineLimit(1).truncationMode(.middle).help(location)
+            Spacer(minLength:0)
+            if pane == .result {Text("Choose sources").foregroundStyle(.secondary)}
+        }.font(.system(size:10)).padding(.horizontal,5).frame(height:20).background(Color(nsColor:.controlBackgroundColor)).overlay(alignment:.bottom){Divider()}
+    }
+    private func source(_ pane:P4MergePane,text:String) -> some View {
+        VStack(spacing:0) {header(pane,location:model.paneHeaderLocation(pane == .base ? .base:pane == .mine ? .mine:.theirs));editor(pane,text:text)}.frame(minWidth:180,maxWidth:.infinity)
+    }
+    private func editor(_ pane:P4MergePane,text:String) -> some View {
+        MergeEditor(model:model,text:text,label:pane == .mine ? "Mine":pane.title,editable:pane == .result,sourceCells:nil,sourceSide:pane == .mine ? .mine:pane == .theirs ? .theirs:nil,tabWidth:model.editorPreferences.tabWidth,useSpaces:model.editorPreferences.useSpaces,smartTab:model.editorPreferences.smartTab,p4Pane:pane)
+    }
+    private func connections(_ left:P4MergePane,_ right:P4MergePane) -> some View {
+        VStack(spacing:0) {
+            Color(nsColor:.controlBackgroundColor).frame(height:20)
+            CurvedDiffConnections(editors:{(model.p4Scroll(left),model.p4Scroll(right))},blocks:model.p4Chunks.map(\.sourceRows),leftRanges:model.p4Chunks.map{$0.range(left.input!)},rightRanges:model.p4Chunks.map{$0.range(right.input!)},tint:left == .base ? P4MergePane.mine.color:P4MergePane.theirs.color,conflictBorders:model.p4Chunks.map(\.conflict))
+        }.frame(width:34)
+    }
+}
+private struct P4MergeDiagram:View {
+    @ObservedObject var model:TextConflictWindowModel
+    var body:some View {
+        ZStack {
+            Path {path in path.move(to:.init(x:6,y:5));path.addLine(to:.init(x:6,y:31));path.addQuadCurve(to:.init(x:32,y:46),control:.init(x:6,y:46));path.move(to:.init(x:18,y:18));path.addLine(to:.init(x:32,y:18));path.addLine(to:.init(x:32,y:46));path.move(to:.init(x:18,y:31));path.addLine(to:.init(x:32,y:31))}.stroke(Color.secondary,lineWidth:1)
+            ForEach(Array(P4MergePane.allCases.enumerated()),id:\.offset) {index,pane in
+                Group {
+                    if let input=pane.input {Button {model.p4UseFile(input)} label:{Image(systemName:pane.symbol).foregroundStyle(Color(nsColor:pane.color))}.buttonStyle(.plain).help("Use whole \(pane.title) file").accessibilityLabel("Use whole \(pane.title) file").disabled(!model.sourceMutationsAllowed)}
+                    else {Image(systemName:pane.symbol).foregroundStyle(Color(nsColor:pane.color))}
+                }.font(.system(size:10)).position(x:index == 3 ? 32:index == 1 ? 6:18,y:index == 0 ? 18:index == 1 ? 5:index == 2 ? 31:46)}
+        }
+    }
+}
+private struct P4ChunkChoices:NSViewRepresentable {
+    @ObservedObject var model:TextConflictWindowModel
+    func makeNSView(context:Context)->P4ChunkChoiceView {P4ChunkChoiceView()}
+    func updateNSView(_ view:P4ChunkChoiceView,context:Context) {view.configure(model)}
+    static func dismantleNSView(_ view:P4ChunkChoiceView,coordinator:()) {view.retire()}
+}
+@MainActor private final class P4SourceChoiceCell:NSButtonCell {
+    var role=P4MergePane.base
+    var hovered=false
+    override func draw(withFrame frame:NSRect,in view:NSView) {
+        NSColor.controlBackgroundColor.withAlphaComponent(isEnabled ? 0.8:0.3).setFill()
+        let button=NSBezierPath(roundedRect:frame.insetBy(dx:1,dy:2),xRadius:3,yRadius:3)
+        button.fill()
+        (hovered ? role.color:NSColor.separatorColor).setStroke();button.lineWidth=0.5;button.stroke()
+        if isEnabled && (hovered || isHighlighted) {
+            role.color.withAlphaComponent(isHighlighted ? 0.20:0.10).setFill();button.fill()
+        }
+        let area=NSRect(x:frame.midX-6,y:frame.midY-4,width:8,height:8),shape:NSBezierPath
+        if role == .mine {shape=NSBezierPath(ovalIn:area)}
+        else if role == .base {shape=NSBezierPath(rect:area)}
+        else {shape=NSBezierPath();shape.move(to:NSPoint(x:area.minX,y:area.minY));shape.line(to:NSPoint(x:area.maxX,y:area.minY));shape.line(to:NSPoint(x:area.midX,y:area.maxY));shape.close()}
+        let color=role.color.withAlphaComponent(isEnabled ? (state == .on ? 1:0.9):0.25)
+        if state == .on {color.setFill();shape.fill()}
+        else {color.setStroke();shape.lineWidth=1;shape.stroke()}
+        let action=(state == .on ? "−":"+") as NSString
+        action.draw(at:NSPoint(x:frame.midX+2,y:frame.midY-5),withAttributes:[.font:NSFont.systemFont(ofSize:9,weight:.semibold),.foregroundColor:NSColor.labelColor])
+        if showsFirstResponder {
+            NSColor.keyboardFocusIndicatorColor.setStroke()
+            let ring=NSBezierPath(roundedRect:frame.insetBy(dx:1,dy:1),xRadius:3,yRadius:3);ring.lineWidth=1.5;ring.stroke()
+        }
+    }
+}
+@MainActor private final class P4ChunkButton:NSButton {
+    var choose:()->Void = {}
+    private var hoverTracking:NSTrackingArea?
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        if isEnabled {addCursorRect(bounds,cursor:.pointingHand)}
+    }
+    override func updateTrackingAreas() {
+        if let hoverTracking {removeTrackingArea(hoverTracking)}
+        let area=NSTrackingArea(rect:.zero,options:[.mouseEnteredAndExited,.activeInKeyWindow,.inVisibleRect],owner:self)
+        addTrackingArea(area);hoverTracking=area;super.updateTrackingAreas()
+    }
+    override func mouseEntered(with event:NSEvent) {(cell as? P4SourceChoiceCell)?.hovered=true;needsDisplay=true}
+    override func mouseExited(with event:NSEvent) {(cell as? P4SourceChoiceCell)?.hovered=false;needsDisplay=true}
+    init(input:MergeInputSource,chunk:Int,selected:Bool,enabled:Bool,choose:@escaping()->Void) {
+        self.choose=choose;super.init(frame:.zero)
+        let role=P4MergePane.role(input)
+        let choiceCell=P4SourceChoiceCell();choiceCell.role=role;cell=choiceCell
+        isBordered=false;setButtonType(.toggle)
+        state=selected ? .on:.off;isEnabled=enabled;target=self;action=#selector(invokeChoice)
+        toolTip="\(selected ? "Remove":"Include") \(role.title) in chunk \(chunk+1)"
+        setAccessibilityLabel("\(role.title), chunk \(chunk+1)")
+    }
+    required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
+    @objc func invokeChoice(){choose()}
+}
+@MainActor private final class P4ChunkChoiceView:NSView {
+    weak var model:TextConflictWindowModel?
+    private var buttons:[(MergeSourceChunk,[P4ChunkButton])]=[]
+    private var observers:[NSObjectProtocol]=[]
+    override var isFlipped:Bool {true}
+    override init(frame:NSRect) {
+        super.init(frame:frame)
+        for name in [NSView.boundsDidChangeNotification,NSView.frameDidChangeNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] note in MainActor.assumeIsolated {
+                guard let self,let source=note.object as? NSView,source.window === self.window else{return};self.needsLayout=true
+            }})
+        }
+    }
+    required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
+    deinit {observers.forEach(NotificationCenter.default.removeObserver)}
+    func retire(){observers.forEach(NotificationCenter.default.removeObserver);observers=[];buttons.forEach{$0.1.forEach{$0.choose={}}};model=nil}
+    func configure(_ model:TextConflictWindowModel) {
+        self.model=model;buttons.forEach{$0.1.forEach{$0.removeFromSuperview()}};buttons=[]
+        let expected=model.resultPresentation
+        for (index,chunk) in model.p4Chunks.enumerated() {
+            let selected=expected.selectedInputs(for:chunk)
+            let row=MergeInputSource.allCases.map {input in P4ChunkButton(input:input,chunk:index,selected:selected.contains(input),enabled:model.sourceMutationsAllowed && model.p4ResultRange(chunk) != nil) { [weak model] in model?.p4Toggle(input,chunk:chunk,expected:expected) }}
+            row.forEach{addSubview($0)};buttons.append((chunk,row))
+        }
+        needsLayout=true
+    }
+    override func layout() {
+        super.layout()
+        guard let model,let text=model.p4Scroll(.result)?.documentView as? NSTextView,let layout=text.layoutManager,let container=text.textContainer else {return}
+        layout.ensureLayout(for:container)
+        var previous:CGFloat = -30
+        for (chunk,row) in buttons {
+            guard let range=model.p4ResultRange(chunk).map({model.p4DisplayRange($0)}),NSMaxRange(range)<=text.string.utf16.count else {row.forEach{$0.isHidden=true};continue}
+            let glyph=layout.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+            var rect=layout.boundingRect(forGlyphRange:glyph,in:container)
+            if range.length==0 {rect=range.location==text.string.utf16.count || layout.numberOfGlyphs==0 ? layout.extraLineFragmentRect:layout.lineFragmentRect(forGlyphAt:min(glyph.location,layout.numberOfGlyphs-1),effectiveRange:nil)}
+            rect.origin.y += text.textContainerOrigin.y
+            let point=convert(rect.origin,from:text), y=max(point.y,previous+22)
+            previous=y
+            for (index,button) in row.enumerated() {
+                var position=y
+                if let candidate=model.p4Projection.records.first(where:{$0.chunkID==chunk.id && $0.unresolved})?.candidates.first(where:{$0.source==MergeInputSource.allCases[index]}),NSMaxRange(candidate.range)<=text.string.utf16.count {
+                    let glyphs=layout.glyphRange(forCharacterRange:candidate.range,actualCharacterRange:nil)
+                    var sourceRect=layout.boundingRect(forGlyphRange:glyphs,in:container)
+                    if candidate.range.length==0 {sourceRect=candidate.range.location==text.string.utf16.count || layout.numberOfGlyphs==0 ? layout.extraLineFragmentRect:layout.lineFragmentRect(forGlyphAt:min(glyphs.location,layout.numberOfGlyphs-1),effectiveRange:nil)}
+                    position=convert(NSPoint(x:0,y:sourceRect.minY+text.textContainerOrigin.y),from:text).y
+                }
+                button.frame=NSRect(x:CGFloat(index)*20+3,y:position,width:20,height:20);button.isHidden=position+20<0 || position>bounds.height
+            }
+        }
+    }
+}
+private extension MergeTextView {
+    func p4Bands() -> [(NSRange,NSColor)] {
+        guard let model,let pane=p4Pane else{return []}
+        return model.p4Chunks.flatMap {chunk -> [(NSRange,NSColor)] in
+            if let input=pane.input {
+                let role=input != .base && chunk.text(input).utf8.elementsEqual(chunk.base.utf8) ? P4MergePane.base:pane
+                return [(chunk.range(input),role.color)]
+            }
+            if let record=model.p4Projection.records.first(where:{$0.chunkID==chunk.id && $0.unresolved}) {
+                return record.candidates.map {($0.range,P4MergePane.role($0.source).color)}
+            }
+            guard let raw=model.p4ResultRange(chunk),NSMaxRange(raw)<=model.result.utf16.count else{return []}
+            let display=model.p4DisplayRange(raw)
+            if model.resultPresentation.runs.contains(where:{$0.state == .edited && NSIntersectionRange(NSRange($0.range),raw).length>0}) {return [(display,.systemGray)]}
+            let selected=model.resultPresentation.selectedInputs(for:chunk)
+            guard !selected.isEmpty else{return [(display,chunk.conflict ? .systemRed:.systemGray)]}
+            if selected.count==1 {return [(display,P4MergePane.role(selected[0]).color)]}
+            var value="",pieces:[(NSRange,NSColor)]=[],included:[String]=[]
+            for input in selected {
+                let part=MergeLineEndings.converting(chunk.text(input),to:model.resultLineEnding)
+                if included.contains(where:{$0.utf8.elementsEqual(part.utf8)}) {continue}
+                let start=value.utf16.count
+                if !value.isEmpty && !MergeLineEndings.hasFinalEnding(value) && !part.isEmpty {value += model.resultLineEnding.rawValue}
+                value += part;included.append(part)
+                pieces.append((NSRange(location:raw.location+start,length:value.utf16.count-start),P4MergePane.role(input).color))
+            }
+            guard (model.result as NSString).substring(with:raw).utf8.elementsEqual(value.utf8) else {return [(display,.systemGray)]}
+            return pieces.map {(model.p4DisplayRange($0.0),$0.1)}
+        }
+    }
+    func applyP4Colors() {
+        guard p4Pane != nil,let storage=textStorage else{return}
+        storage.beginEditing();defer {storage.endEditing()}
+        let all=NSRange(location:0,length:string.utf16.count)
+        storage.addAttributes([.foregroundColor:NSColor.labelColor,.backgroundColor:NSColor.clear],range:all)
+        whitespaceRenderer.update(text:string,cells:sourceCells,otherCells:nil,preferences:.init(visible:model?.comparisonDefaults.bool(forKey:"TurtleGit.P4Merge.Whitespace") ?? false,endingIcons:false))
+        whitespaceRenderer.highlightEndings=false
+        backgroundColor = .textBackgroundColor;insertionPointColor = .labelColor;needsDisplay=true
+    }
+}
+
+private struct P4ResultOrigins:NSViewRepresentable {
+    @ObservedObject var model:TextConflictWindowModel
+    func makeNSView(context:Context)->P4ResultOriginView {P4ResultOriginView()}
+    func updateNSView(_ view:P4ResultOriginView,context:Context) {view.model=model;view.needsDisplay=true}
+    static func dismantleNSView(_ view:P4ResultOriginView,coordinator:()) {view.retire()}
+}
+@MainActor private final class P4ResultOriginView:NSView {
+    weak var model:TextConflictWindowModel?
+    private var observers:[NSObjectProtocol]=[]
+    override var isFlipped:Bool {true}
+    override func hitTest(_ point:NSPoint)->NSView? {nil}
+    override init(frame:NSRect) {
+        super.init(frame:frame)
+        for name in [NSView.boundsDidChangeNotification,NSView.frameDidChangeNotification,NSText.didChangeNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main){[weak self] note in MainActor.assumeIsolated {
+                guard let self,let view=note.object as? NSView,view.window === self.window else{return};self.needsDisplay=true
+            }})
+        }
+        setAccessibilityElement(false)
+    }
+    required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
+    deinit {observers.forEach(NotificationCenter.default.removeObserver)}
+    func retire(){observers.forEach(NotificationCenter.default.removeObserver);observers=[];model=nil}
+    override func draw(_ dirtyRect:NSRect) {
+        NSColor.controlBackgroundColor.setFill();bounds.fill()
+        guard let model,let text=model.p4Scroll(.result)?.documentView as? MergeTextView,let layout=text.layoutManager,let container=text.textContainer else{return}
+        layout.ensureLayout(for:container)
+        func rect(_ range:NSRange)->NSRect? {
+            guard range.length>0,NSMaxRange(range)<=text.string.utf16.count else{return nil}
+            let glyph=layout.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
+            var value=layout.boundingRect(forGlyphRange:glyph,in:container);value.origin.y += text.textContainerOrigin.y
+            return convert(value,from:text)
+        }
+        for record in model.p4Projection.records where record.unresolved {
+            if let band=rect(record.display) {NSColor.systemRed.withAlphaComponent(0.12).setFill();NSRect(x:0,y:band.minY,width:bounds.width,height:band.height).fill()}
+        }
+        for (range,color) in text.p4Bands() {
+            guard let band=rect(range),band.maxY>=0,band.minY<=bounds.height else{continue}
+            let x=bounds.width,shift:CGFloat=7,path=NSBezierPath()
+            path.move(to:NSPoint(x:0,y:band.minY-shift))
+            path.curve(to:NSPoint(x:x,y:band.minY),controlPoint1:NSPoint(x:x*0.55,y:band.minY-shift),controlPoint2:NSPoint(x:x*0.45,y:band.minY))
+            path.line(to:NSPoint(x:x,y:band.maxY))
+            path.curve(to:NSPoint(x:0,y:band.maxY-shift),controlPoint1:NSPoint(x:x*0.45,y:band.maxY),controlPoint2:NSPoint(x:x*0.55,y:band.maxY-shift))
+            path.close();color.withAlphaComponent(0.22).setFill();path.fill()
+            color.withAlphaComponent(0.55).setStroke();path.lineWidth=0.7;path.stroke()
+        }
+    }
 }

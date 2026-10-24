@@ -116,6 +116,10 @@ public struct SubversionMergePresentation: Sendable {
         var spans: [(Range<Int>, MergeSourceState)] = [], outputLength = 0
         var ignoredConflicts: [IgnoredMergeConflict] = []
         var navigation: [MergeNavigationMap.Entry] = []
+        var chunks: [MergeSourceChunk] = []
+        func offsets(_ lines: [String]) -> [Int] { var result=[0]; for line in lines {result.append(result.last! + line.utf16.count)}; return result }
+        let baseOffsets=offsets(plan.base), mineOffsets=offsets(plan.mine), theirsOffsets=offsets(theirs)
+        func characterRange(_ range: Range<Int>, _ offsets: [Int]) -> NSRange { .init(location:offsets[range.lowerBound],length:offsets[range.upperBound]-offsets[range.lowerBound]) }
         var resultRows: [MergeSourceCell] = [], resultLine = 0
         func appendResultRow(_ text: String, state: MergeSourceState, hidden: Bool? = nil) {
             let numbered = !state.isRemoval && state != .empty && state != .conflictEmpty
@@ -212,6 +216,9 @@ public struct SubversionMergePresentation: Sendable {
                 append(separator + "<<<<<<< Mine\n" + separated(mineText) + "||||||| Base\n" + separated(baseText) + "=======\n" + separated(theirsText) + ">>>>>>> Theirs\n", state: .conflicted)
             }
             if rows.count > sourceStart {
+                chunks.append(.init(id:sourceStart,sourceRows:sourceStart..<rows.count,
+                    baseRange:characterRange(segment.base,baseOffsets),theirsRange:characterRange(segment.theirs,theirsOffsets),mineRange:characterRange(segment.mine,mineOffsets),
+                    base:baseText,theirs:theirsText,mine:mineText,conflict:segment.kind == .conflict))
                 if segment.kind == .conflict {
                     navigation.append(.init(sourceRows:sourceStart..<rows.count,resultRange:NSRange(location:resultStart,length:outputLength - resultStart)))
                 } else {
@@ -230,7 +237,7 @@ public struct SubversionMergePresentation: Sendable {
                 }
             }
         }
-        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation),alignedResultRows:resultRows); result = output
+        sources = MergeSourceComparison(rows: rows, resultLocator: MergeLocatorResult(text: output, spans: spans), resultAnchors: anchors, ignoredConflicts: ignoredConflicts, navigationMap:.init(entries:navigation),alignedResultRows:resultRows,chunks:chunks); result = output
     }
 }
 

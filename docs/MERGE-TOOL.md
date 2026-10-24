@@ -14,14 +14,30 @@ for later diff/merge windows. Both interfaces use the same comparison, editing,
 Undo/Redo, source-choice and save operations.
 
 The alternative two-file view connects changed blocks with curved colored bands.
-Three-way merge places **Theirs**, the editable **Merged** result, and **Mine**
-side by side, with connection bands between them. **Show Base** adds the common
-ancestor above the editors. The bands follow actual editor glyph positions when
-scrolling and wrapping; they are decorative and do not intercept selection.
-This is a TurtleGit interface inspired by P4Merge, not the Perforce application.
-When manual edits no longer have a precise aligned source/result projection,
-merge connectors are hidden until an exact mapping is available; the result
-remains editable and all classic conflict actions remain available.
+Three-way merge follows the four-pane P4Merge arrangement: **Theirs / Base /
+Yours** above an editable **Merge result**. Purple identifies Theirs, yellow the
+common Base, and green Yours. The source panes show their original lines, so
+insertions and deletions have different heights joined by curved ribbons.
+
+The compact toolbar and flat file headers leave more room for text. Unresolved
+regions show the source candidates in yellow, purple and green, joined to the
+result by a colored flow gutter. This is a display projection: Git conflict
+markers remain in the underlying result, and Save still warns about unresolved
+conflicts. Typing within a candidate region resolves that region to its visible
+contents plus your edit; Undo restores its conflict state.
+
+The compact colored +/− buttons beside each result chunk are toggles. Select a source to
+include it; select it again to remove it. You can combine sources in click order.
+Identical text is included once. The three **Use whole file** controls replace
+the result with that complete source. All choices and manual result edits support
+Undo/Redo. A gray result band identifies manually edited text. Save uses the same
+output target, encoding checks and conflict-resolution safeguards as Classic.
+The source/result divider position is saved independently of the classic layout.
+
+Changing the interface preserves the current result. If an edit crosses several
+engine regions and destroys their exact result mapping, that region's source
+buttons are disabled; Undo or reload restores the mapping. P4Merge-style is a
+TurtleGit presentation inspired by Perforce's tool, not the Perforce application.
 
 Use the wrapper's absolute path in your Git configuration. For example, after
 placing it at `~/bin/turtlegit-merge`:
@@ -102,3 +118,5 @@ the Merge Editor Settings default.
 See [the source entry review](MERGE-TOOL-ENTRY-PARITY.md) and
 [two-file behavior review](MERGE-TOOL-COMPARISON-PARITY.md) for remaining states and
 platform differences. This does not certify complete TortoiseMerge parity.
+
+The P4Merge-style toolbar has separate previous/next controls for all differences and unresolved conflicts (red arrows). Resolved chunks are skipped by conflict navigation. It also offers Find, Go to Line, line numbers, whitespace and word wrap. Colored +/− source buttons include or remove text; hovering shows the source and a hand cursor. Highlight bands continue through the line-number margin, with overlay scrollbars keeping the connector edges clear.

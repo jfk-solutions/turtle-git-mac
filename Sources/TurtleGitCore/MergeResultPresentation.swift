@@ -481,7 +481,12 @@ private struct MergeAlignedResultSnapshot {
         }
         let map = MergeNavigationMap(entries:entries)
         self.presentation = presentation.installingAlignedText(text,runs:runs,ignored:ignored,map:map)
-        self.comparison = .init(rows:sources,navigationMap:map,alignedResultRows:cells)
+        let chunks = comparison.chunks.compactMap { chunk -> MergeSourceChunk? in
+            let indices = origins.indices.filter { origins[$0].map { chunk.sourceRows.contains($0) } == true }
+            guard let first=indices.first, let last=indices.last else { return nil }
+            return chunk.withSourceRows(first..<(last+1))
+        }
+        self.comparison = .init(rows:sources,navigationMap:map,alignedResultRows:cells,chunks:chunks)
     }
 }
 
@@ -496,7 +501,7 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
     /// with a freely edited/externally loaded result. Rebuild all result ranges
     /// directly from the captured source view, retaining removed/gap records.
     public init(wholeFileFrom comparison: MergeSourceComparison, presentation: MergeResultPresentation, mine: Bool, lineEnding: MergeLineEnding) {
-        var sources: [MergeSourceRow] = [], cells: [MergeSourceCell] = []
+        var sources: [MergeSourceRow] = [], cells: [MergeSourceCell] = [], originalRows:[Int] = []
         var entries: [MergeNavigationMap.Entry] = [], runs: [MergeResultPresentation.Run] = []
         var text = "", number = 0
         for (index, row) in comparison.rows.enumerated() {
@@ -506,12 +511,17 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
             let included = !resolved.state.isExcludedFromResult, start = text.utf16.count, position = cells.count
             if included { number += 1; text += resolved.text }
             cells.append(.init(text: resolved.text, lineNumber: included ? number : nil, state: resolved.state, hiddenByComparison: resolved.hiddenByComparison))
-            sources.append(row)
+            sources.append(row); originalRows.append(index)
             entries.append(.init(sourceRows: position..<(position + 1), resultRange: NSRange(location: start, length: text.utf16.count - start)))
             if text.utf16.count > start { runs.append(.init(range: start..<text.utf16.count, state: resolved.state, hiddenByComparison: resolved.hiddenByComparison)) }
         }
         let map = MergeNavigationMap(entries: entries)
-        self.comparison = .init(rows: sources, navigationMap: map, alignedResultRows: cells)
+        let chunks = comparison.chunks.compactMap { chunk -> MergeSourceChunk? in
+            let indices=originalRows.indices.filter {chunk.sourceRows.contains(originalRows[$0])}
+            guard let first=indices.first,let last=indices.last else{return nil}
+            return chunk.withSourceRows(first..<(last+1))
+        }
+        self.comparison = .init(rows: sources, navigationMap: map, alignedResultRows: cells, chunks:chunks)
         self.presentation = presentation.installingAlignedText(text, runs: runs, ignored: [], map: map)
         selectedRows = cells.indices
     }
@@ -605,4 +615,114 @@ extension MergeResultPresentation {
     fileprivate func installingAlignedText(_ text:String,runs:[Run],ignored:[IgnoredMergeConflict],map:MergeNavigationMap) -> Self {
         Self(text:text,runs:runs,foldAnchors:.init(),ignoredConflicts:ignored,navigationMap:map,sourceChoiceRevision:sourceChoiceRevision &+ 1)
     }
+}
+
+
+extension MergeResultPresentation {
+    public func selectedInputs(for chunk: MergeSourceChunk) -> [MergeInputSource] {
+        if let entry=navigationMap.entries.first(where:{$0.sourceRows == chunk.sourceRows}), let selection=entry.sourceSelection { return selection }
+        guard let range=navigationMap.exactResultRange(sourceRows:chunk.sourceRows), NSMaxRange(range)<=text.utf16.count else {return []}
+        let payload=(text as NSString).substring(with:range)
+        guard !payload.isEmpty else {return []}
+        return MergeInputSource.allCases.first(where:{chunk.text($0).utf8.elementsEqual(payload.utf8)}).map {[$0]} ?? []
+    }
+    public func togglingInput(_ input: MergeInputSource, chunk: MergeSourceChunk, lineEnding: MergeLineEnding) -> Self? {
+        guard let range=navigationMap.exactResultRange(sourceRows:chunk.sourceRows), NSMaxRange(range)<=text.utf16.count else {return nil}
+        var selection=selectedInputs(for:chunk)
+        if let index=selection.firstIndex(of:input) {selection.remove(at:index)} else {selection.append(input)}
+        var payload="", included:[String]=[]
+        for role in selection {
+            let value=MergeLineEndings.converting(chunk.text(role),to:lineEnding)
+            if included.contains(where:{$0.utf8.elementsEqual(value.utf8)}) {continue}
+            if !payload.isEmpty && !MergeLineEndings.hasFinalEnding(payload) && !value.isEmpty {payload += lineEnding.rawValue}
+            payload += value;included.append(value)
+        }
+        guard let next=replacing(range,with:payload,state:.resolved),
+              let map=navigationMap.applyingSourceRows(chunk.sourceRows,replacementLength:payload.utf16.count,replacementEntries:[.init(sourceRows:chunk.sourceRows,resultRange:NSRange(location:range.location,length:payload.utf16.count),sourceSelection:selection)]) else {return nil}
+        return Self(text:next.text,runs:next.runs,foldAnchors:next.foldAnchors,ignoredConflicts:next.ignoredConflicts,navigationMap:map,sourceChoiceRevision:sourceChoiceRevision &+ 1)
+    }
+    public func usingWholeInput(_ input: MergeInputSource, text value:String, chunks:[MergeSourceChunk]) -> Self {
+        let next=replacing(NSRange(location:0,length:text.utf16.count),with:value,state:.resolved)!
+        let entries=chunks.map {MergeNavigationMap.Entry(sourceRows:$0.sourceRows,resultRange:$0.range(input),sourceSelection:[input])}
+        return Self(text:next.text,runs:next.runs,foldAnchors:.init(),ignoredConflicts:[],navigationMap:.init(entries:entries),sourceChoiceRevision:sourceChoiceRevision &+ 1)
+    }
+}
+
+/// Display unresolved choices as source candidates while retaining Git's conflict
+/// bytes. Editing a candidate explicitly resolves its complete engine region.
+public struct P4MergeResultProjection: Sendable {
+    public struct Candidate: Sendable {
+        public let source: MergeInputSource
+        public let range: NSRange
+    }
+    public struct Record: Sendable {
+        public let serialized: NSRange
+        public let display: NSRange
+        public let chunkID: Int?
+        public let candidates: [Candidate]
+        public var unresolved: Bool { !candidates.isEmpty }
+    }
+    public struct Edit: Sendable {
+        public let range: NSRange
+        public let replacement: String
+        public let caret: Int
+    }
+    public let text: String
+    public let records: [Record]
+    public init(presentation: MergeResultPresentation, chunks: [MergeSourceChunk], lineEnding: MergeLineEnding) {
+        let raw=presentation.text as NSString, conflicts=presentation.conflicts().filter{!$0.isIgnored}
+        var value="", records:[Record]=[], cursor=0
+        func ordinary(_ range:NSRange,chunk:Int? = nil) {
+            let start=value.utf16.count;value += raw.substring(with:range)
+            records.append(.init(serialized:range,display:NSRange(location:start,length:range.length),chunkID:chunk,candidates:[]))
+        }
+        for chunk in chunks {
+            guard let range=presentation.navigationMap.exactResultRange(sourceRows:chunk.sourceRows),range.location>=cursor,NSMaxRange(range)<=raw.length else{continue}
+            if range.location>cursor {ordinary(NSRange(location:cursor,length:range.location-cursor))}
+            let start=value.utf16.count
+            if conflicts.contains(where: {NSIntersectionRange($0.range,range).length>0}) {
+                var candidates:[Candidate]=[]
+                for source in [MergeInputSource.base,.theirs,.mine] {
+                    let candidateStart=value.utf16.count
+                    let payload=MergeLineEndings.converting(chunk.text(source),to:lineEnding)
+                    value += payload
+                    if !payload.isEmpty && !MergeLineEndings.hasFinalEnding(payload) {value += lineEnding.rawValue}
+                    candidates.append(.init(source:source,range:NSRange(location:candidateStart,length:value.utf16.count-candidateStart)))
+                }
+                records.append(.init(serialized:range,display:NSRange(location:start,length:value.utf16.count-start),chunkID:chunk.id,candidates:candidates))
+            } else {ordinary(range,chunk:chunk.id)}
+            cursor=NSMaxRange(range)
+        }
+        ordinary(NSRange(location:cursor,length:raw.length-cursor))
+        self.text=value;self.records=records
+    }
+    public func displayRange(_ range:NSRange) -> NSRange? {
+        if range.length==0,range.location>=0 {
+            let record=records.first(where:{$0.chunkID != nil && $0.serialized==range}) ?? records.first(where:{range.location >= $0.serialized.location && range.location<NSMaxRange($0.serialized)}) ?? records.last
+            guard let record,range.location<=NSMaxRange(record.serialized) else{return nil}
+            let offset=record.unresolved ? (range.location==NSMaxRange(record.serialized) ? record.display.length:0):range.location-record.serialized.location
+            return NSRange(location:record.display.location+offset,length:0)
+        }
+        guard range.location>=0,let first=records.first(where: {range.length==0 ? range.location >= $0.serialized.location && range.location<=NSMaxRange($0.serialized):NSIntersectionRange(range,$0.serialized).length>0 || $0.serialized==range}),
+              let last=records.last(where:{range.length==0 ? range.location >= $0.serialized.location && range.location<=NSMaxRange($0.serialized):NSIntersectionRange(range,$0.serialized).length>0 || $0.serialized==range}) else{return nil}
+        let start=first.unresolved ? first.display.location:first.display.location+max(0,range.location-first.serialized.location)
+        let end=last.unresolved ? NSMaxRange(last.display):last.display.location+min(last.display.length,max(0,NSMaxRange(range)-last.serialized.location))
+        return NSRange(location:start,length:max(0,end-start))
+    }
+    public func edit(_ range:NSRange,replacement:String) -> Edit? {
+        guard range.location>=0,NSMaxRange(range)<=text.utf16.count else{return nil}
+        let end=NSMaxRange(range)
+        let first=records.first {range.length==0 ? range.location >= $0.display.location && range.location<NSMaxRange($0.display):NSIntersectionRange(range,$0.display).length>0} ?? records.last
+        let last=records.last {range.length==0 ? range.location >= $0.display.location && range.location<NSMaxRange($0.display):NSIntersectionRange(range,$0.display).length>0} ?? first
+        guard let first,let last else{return nil}
+        let displayStart=first.unresolved ? first.display.location:range.location
+        let displayEnd=last.unresolved ? NSMaxRange(last.display):end
+        let rawStart=first.unresolved ? first.serialized.location:first.serialized.location+range.location-first.display.location
+        let rawEnd=last.unresolved ? NSMaxRange(last.serialized):last.serialized.location+end-last.display.location
+        guard rawStart>=0,rawEnd>=rawStart,displayStart>=0,displayEnd>=displayStart else{return nil}
+        let original=(text as NSString).substring(with:NSRange(location:displayStart,length:displayEnd-displayStart)) as NSString
+        let changed=original.replacingCharacters(in:NSRange(location:range.location-displayStart,length:range.length),with:replacement)
+        return Edit(range:NSRange(location:rawStart,length:rawEnd-rawStart),replacement:changed,caret:rawStart+range.location-displayStart+replacement.utf16.count)
+    }
+    public func serializedRange(_ range:NSRange) -> NSRange? {edit(range,replacement:"")?.range}
 }
