@@ -383,7 +383,11 @@ import TurtleGitCore
         hintPopover?.close(); hintPopover = nil
         for control in [remote,url,pushURL,key,sshKey] { control.delegate = nil; control.isEnabled = false }
         for button in [browse,browseSSH,rename,add,remove,help,apply,ok,cancel] { button.target = nil; button.action = nil; button.isEnabled = false }
-        table.delegate = nil
+        // A view-based table determines its rendering mode from the delegate.
+        // Remove the data source first so delayed layout cannot reinterpret this
+        // retired view as a cell-based source requiring objectValueFor.
+        table.dataSource = nil; table.delegate = nil; table.isEnabled = false
+        table.target = nil; table.action = nil; table.reloadData()
         if model.ownsAttachment(attachmentID) {
             model.invalidate(attachment: attachmentID, sheets: sheets, completion: completion, terminal: { answer?((false,false)) })
         } else {

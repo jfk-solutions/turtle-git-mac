@@ -1,0 +1,269 @@
+{
+  "date": "2026-10-24",
+  "baseline": "56b8a00fb79904ba52e143f93bd54f4f5d46055b",
+  "status": "scoped-validation-complete",
+  "source_reference": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "parity_document": "docs/SETTINGS-COMPLETION-PARITY.md",
+    "anchors": [
+      "Settings/Settings.h:64 and Utils/TreePropSheet/TreePropSheet.h:77: inherited property-sheet completion",
+      "Settings/SetDialogs.cpp:291-329: Apply persistence and modified flag",
+      "Settings/SettingGitConfig.cpp:288-299: failed save prevents Apply completion"
+    ]
+  },
+  "confirmed_defects": [
+    "Cancel on a cached Remote participant started asynchronous retirement, then immediately attempted close; the safety guard refused it and the close intent was lost.",
+    "Footer buttons were enabled from transaction.busy alone although their actions used broader operation, child and retirement guards.",
+    "Remote collision checks could have pending work with busy false; pending workers must remain in close readiness.",
+    "A final awaited SettingsTransaction participant could report success after its registration was replaced or its transaction invalidated."
+  ],
+  "scope": [
+    "One owned terminal close intent for Cancel, Escape, titlebar and successful OK, retained through actual readiness and retirement drain",
+    "Footer availability follows complete existing safety guards, including pending Remote workers",
+    "Original delegate preflight before terminal draft cancellation; final refusal recovers an editable Remote page without repeated delegate questions",
+    "Apply validation/save failure retains drafts and already completed writes; final awaited registration and invalidation witnesses prevent stale completion",
+    "Before terminal intent, repository replacement invalidates old participants; after accepted Cancel or successful OK, original window/context stays frozen through drain and cannot close a replacement owner",
+    "SettingsSheetController onClosed Bool remains ordinary non-retired sheet release: Cancel can return true"
+  ],
+  "production_files": [
+    "Sources/TurtleGitMac/SettingsNavigation.swift",
+    "Sources/TurtleGitMac/SettingsTransaction.swift",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift"
+  ],
+  "core": {
+    "status": "not-planned",
+    "reason": "No TurtleGitCore production changes. SettingsTransaction is actual native application code and is exercised by the grouped native receiver."
+  },
+  "app": {
+    "status": "passed",
+    "session": 1658,
+    "log": "build/qa/settings-completion-app-2026-10-24.log",
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 3,
+    "retirement_repair": {
+      "session": 33801,
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/settings-completion-app-repair-2026-10-24.log",
+      "contradictory_exit_zero_diagnostics": 1
+    }
+  },
+  "native": {
+    "status": "eight-distinct-pairs-passed-affected-retirement-recheck-passed",
+    "runner": "scripts/test-settings-completion.py",
+    "fixture": "docs/qa/settings-completion-native-2026-10-24.swift",
+    "planned_cases": [
+      "close",
+      "apply",
+      "ownership",
+      "layout"
+    ],
+    "planned_git_executables": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "planned_pairs": 8,
+    "results": "build/qa/settings-completion-native-results.json",
+    "assertions_removed": false,
+    "ownership": "Private repositories/preferences, invisible or offscreen normal receivers, owned helper cleanup and receiver reaping on success/failure/timeout.",
+    "initial_attempt": {
+      "session": 39025,
+      "exit_code": 1,
+      "log": "build/qa/settings-completion-native-2026-10-24.log",
+      "receivers_started": 0,
+      "cases_executed": 0,
+      "failure": "Fixture line 78 selected async AppKit beginSheet overload without await. Fixture-only correction explicitly passes completionHandler:nil to use synchronous presentation; no app or Core rebuild."
+    },
+    "passed_distinct_pairs": 8,
+    "attempts": [
+      {
+        "session": 99957,
+        "status": "failed-first-close-system",
+        "receiver_pid": 42796,
+        "log": "build/qa/settings-completion-native-repair1-2026-10-24.log",
+        "failure": "Footer disabled: Cancel. Fixture observed model readiness before the actual native button reflected the 20 ms readiness publication.",
+        "repair": "Async click waits for the actual enabled button predicate before NSApp.sendAction. No blind delay, removed assertion, production change or app rebuild."
+      },
+      {
+        "session": 82297,
+        "status": "passed",
+        "case": "close",
+        "git": "/usr/bin/git",
+        "receiver_pid": 43049,
+        "log": "build/qa/settings-completion-close-repair2-2026-10-24.log",
+        "results": "build/qa/settings-completion-close-system-results-2026-10-24.json"
+      },
+      {
+        "session": 79940,
+        "status": "passed",
+        "case": "close",
+        "git": "build/git-runtime/Git/bin/git",
+        "receiver_pid": 43134,
+        "log": "build/qa/settings-completion-close-bundled-2026-10-24.log",
+        "results": "build/qa/settings-completion-close-bundled-results-2026-10-24.json"
+      },
+      {
+        "session": 40215,
+        "status": "passed",
+        "cases": [
+          "apply",
+          "ownership",
+          "layout"
+        ],
+        "git_executables": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "planned_pairs": 6,
+        "log": "build/qa/settings-completion-remaining-2026-10-24.log",
+        "exit_code": 0,
+        "receiver_pids": [
+          43245,
+          43287,
+          43330,
+          43393,
+          43427,
+          43509
+        ],
+        "results": "build/qa/settings-completion-remaining-results-2026-10-24.json"
+      },
+      {
+        "session": 75849,
+        "status": "passed",
+        "exit_code": 0,
+        "cases": [
+          "close",
+          "layout"
+        ],
+        "git_executables": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "pairs": 4,
+        "receiver_pids": [
+          44443,
+          44481,
+          44539,
+          44575
+        ],
+        "log": "build/qa/settings-completion-retirement-repair-2026-10-24.log",
+        "results": "build/qa/settings-completion-retirement-repair-results-2026-10-24.json",
+        "warning_emitted": false,
+        "scope": "Affected close/layout only; retain prior Apply/ownership passes without repetition."
+      }
+    ],
+    "remaining_results": "build/qa/settings-completion-remaining-results-2026-10-24.json",
+    "receiver_pids": [
+      42796,
+      43049,
+      43134,
+      43245,
+      43287,
+      43330,
+      43393,
+      43427,
+      43509,
+      44443,
+      44481,
+      44539,
+      44575
+    ],
+    "independent_receiver_absence": {
+      "command": "ps -p 42796,43049,43134,43245,43287,43330,43393,43427,43509,44443,44481,44539,44575 -o pid=,command=",
+      "exit_code": 1,
+      "output": "",
+      "all_absent": true
+    },
+    "pending_diagnostic": {
+      "receiver_pid": 43509,
+      "log": "build/qa/settings-completion-remaining-2026-10-24.log",
+      "message": "Illegal NSTableView data source (RemoteSettingsNativeView), emitted after bundled layout PASS.",
+      "status": "repaired-and-affected-recheck-passed",
+      "scope": "Initial behavior assertions passed with a real retirement warning; the owned table teardown was repaired and only affected close/layout pairs repeated successfully without the warning.",
+      "resolution": "Owned Remote native table retirement disconnects its table data source/delegate before releasing the owner; final focused close/layout runs emitted no Illegal NSTableView data source warning."
+    }
+  },
+  "visual": {
+    "status": "root-inspected-four-captures-accepted",
+    "planned_captures": 4,
+    "capture_scope": "Actual WindowServer full Settings Git and Remote pages in light/dark appearance, first layout engine only; temporary owned window visibility for deliberate capture, then close.",
+    "expected_filenames": [
+      "settings-completion-git-light.png",
+      "settings-completion-git-dark.png",
+      "settings-completion-remote-light.png",
+      "settings-completion-remote-dark.png"
+    ],
+    "acceptance": "Root inspected all four current captures: complete legible Git/Remote pages in light/dark, actual native two-row Remote table and correct bounds of all footer buttons.",
+    "directory": "build/qa/settings-completion-captures-2026-10-24",
+    "sha256": {
+      "settings-completion-git-light.png": "7057c769aa482c260cee86c0de199a8fb4447278314599446938d0d83d2ddc9b",
+      "settings-completion-remote-light.png": "14fe1c3fe5d80d6df840fa3ed55102a30df2a12717baedfab9c9be229ecfda60",
+      "settings-completion-git-dark.png": "8c3ae152220709d880b53e922cb9837af37febb53295f9eaadbf9aff8193c313",
+      "settings-completion-remote-dark.png": "d6f14fb42d54383f26a7dceef8f56ec83820681a3985a589f4376245e5cea9bb"
+    },
+    "provenance": "Four accepted captures retained unchanged; final repair changes owned Remote table retirement, with affected close/layout assertions repeated on both Git engines."
+  },
+  "help": {
+    "status": "generated",
+    "log": "build/qa/settings-completion-help-2026-10-24.log",
+    "documents": 58,
+    "topics": 51,
+    "files": 80,
+    "bytes": 3869517,
+    "mode": "write"
+  },
+  "failures": [
+    {
+      "scope": "native-receiver-compilation",
+      "log": "build/qa/settings-completion-native-2026-10-24.log",
+      "failure": "Async beginSheet overload selected inside async fixture function without await. No receiver or behavioral case ran.",
+      "repair": "Explicit completionHandler:nil selects synchronous sheet presentation.",
+      "production_changed": false
+    },
+    {
+      "scope": "native-close-system-fixture-readiness",
+      "receiver_pid": 42796,
+      "session": 99957,
+      "failure": "Footer disabled: Cancel",
+      "repair": "Wait for actual native button isEnabled before sending its action; retain behavioral assertions.",
+      "production_changed": false
+    }
+  ],
+  "limits": [
+    "Scoped Settings completion and selected layout validation, not a complete hosted CI pass or certification of every Settings page.",
+    "No physical Finder or signed deployment acceptance is implied."
+  ],
+  "measured_source_fixture_sha256": {
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "bf0c0cbc546dc2aaf803f262287ac1bc6c40c0a433b161dab0b2e816bf3a8270",
+    "Sources/TurtleGitMac/SettingsSheetController.swift": "5eae9553af614ba9da1c85f60ac6d5eb3b028c0e8dbe0a9d22fd6a0042aa9d7a",
+    "Sources/TurtleGitMac/SettingsTransaction.swift": "6c2b2c1483e15f51e89537bf6d611ef1bf52efe31649dc726d79fdce794518c8",
+    "docs/qa/settings-completion-native-2026-10-24.swift": "17de6214896b6168138f022a02e5485cad0c74e2b2b1684a37e1e9154c162eeb",
+    "scripts/test-settings-completion.py": "fdb0866ee1b5003dc71c3116f4117f91c6dd02d63dda54c0dd8df64a80aee958",
+    "docs/SETTINGS-COMPLETION-PARITY.md": "0a2eb38d36b72df89f46be6e61774a3081362e02b31cafa059001804111176f5",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": "70ef6d7c6fb16834bab08103762caca18e48209e3bbc0e67f0edbc3078841c9e"
+  },
+  "pre_retirement_repair_source_fixture_sha256": {
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "bf0c0cbc546dc2aaf803f262287ac1bc6c40c0a433b161dab0b2e816bf3a8270",
+    "Sources/TurtleGitMac/SettingsSheetController.swift": "5eae9553af614ba9da1c85f60ac6d5eb3b028c0e8dbe0a9d22fd6a0042aa9d7a",
+    "Sources/TurtleGitMac/SettingsTransaction.swift": "6c2b2c1483e15f51e89537bf6d611ef1bf52efe31649dc726d79fdce794518c8",
+    "docs/qa/settings-completion-native-2026-10-24.swift": "3621099966cc06dda0d981bda17b264086adecdef01f90149951cd9fe0f982a3",
+    "scripts/test-settings-completion.py": "fdb0866ee1b5003dc71c3116f4117f91c6dd02d63dda54c0dd8df64a80aee958",
+    "docs/SETTINGS-COMPLETION-PARITY.md": "22f930ec7897908abe98c7a246d083a6fb326de212135a55de61ae82c55286e8"
+  },
+  "documentation_checks": {
+    "localization": "passed (root-reported)",
+    "help": "passed (root-reported)",
+    "site": {
+      "documents": 447,
+      "unresolved_links": 0
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending": 10,
+      "controls_pending": 85,
+      "certified": 0,
+      "interpretation": "Coverage inventory is not feature completion percentage or dialog certification."
+    }
+  }
+}

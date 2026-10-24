@@ -195,6 +195,7 @@ for baseline and update rules.
 
 ## Settings, artwork and helpers
 
+- [Settings Apply, Cancel and owned completion](SETTINGS-COMPLETION-PARITY.md)
 - [Appearance and color parity](APPEARANCE.md)
 - [Native status text and dark-mode contrast](STATUS-TEXT-APPEARANCE.md)
 - [Application context-menu icon preference](CONTEXT-MENU-ICONS-PARITY.md)

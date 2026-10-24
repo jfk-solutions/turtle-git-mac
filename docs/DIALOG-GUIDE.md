@@ -770,8 +770,14 @@ the current repository. Those actions retain the current repository and drafts
 until Settings can close; refreshing the same repository remains available.
 Settings opened from Blame selects its Blame page.
 
-Settings uses a navigation tree. Apply saves changed pages; Cancel discards their
-unsaved drafts. Git, Dialogs 3 and Issue Tracker pages distinguish a read-only
+Settings uses a navigation tree. **Apply** saves changed pages and keeps Settings
+open. **OK** saves before closing; **Cancel**, Escape and the window close button
+discard unapplied drafts. Changes already saved through Apply remain saved.
+When an operation or child dialog temporarily prevents completion, the footer
+buttons are disabled. An accepted close waits for page cleanup and then finishes
+automatically. A validation or save failure leaves Settings open for correction.
+
+Git, Dialogs 3 and Issue Tracker pages distinguish a read-only
 Effective view from stored Local, Project, Global and System values where offered.
 Select a stored source, edit the relevant values/inherit choices, then select the
 Save to destination. Copying to a different destination asks for confirmation.

@@ -56,7 +56,17 @@ import AppKit
                 if let message = entry.validate() {
                     busy = false; error = message; notify(); failed(entry.page); return
                 }
-                guard await entry.apply() else {
+                let applied = await entry.apply()
+                // A captured page may finish writing its original repository
+                // after the workspace replaces that participant. Its result
+                // cannot accept or close the replacement Settings context.
+                guard !invalidated else { busy = false; return }
+                guard registrations[item.id] == item.registration else {
+                    busy = false
+                    error = "The settings context changed. Review the current repository before applying."
+                    notify(); return
+                }
+                guard applied else {
                     busy = false
                     if !invalidated { error = "Settings were not saved. Review this page and try again."; notify(); failed(entry.page) }
                     return

@@ -79,6 +79,12 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var retired = false
     private var deferredPage: Task<Void, Never>?
     private var pageRequest = UUID()
+    private var readinessWatch: Task<Void, Never>?
+    private var completionGeneration = UUID()
+    private(set) var completionPending = false
+    private var authorizingClose = false
+    private var completionCancelledDrafts = false
+    private weak var completionWindow: NSWindow?
     private var appearanceUpdates:AnyCancellable?
     init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, remoteNoFetch: Bool = false, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
         overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
@@ -130,7 +136,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             guard let self, !self.retired else { return }; self.show(page)
             if self.selected == page { self.reveal(page) }
         }
-        transaction.completed = { [weak self] close in if close { self?.view.window?.performClose(nil) } }
+        transaction.completed = { [weak self] close in if close { self?.beginCompletion(cancelDrafts: false) } }
         (right.arrangedSubviews[1] as? NSBox)?.boxType = .separator
         let split = pageSplit; split.isVertical = true; split.dividerStyle = .thin
         split.addArrangedSubview(sidebar); split.addArrangedSubview(right)
@@ -153,6 +159,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         guard !retired, let window = view.window, delegateProxy == nil else { return }
         let proxy = SettingsWindowDelegate(owner: self, original: window.delegate); delegateProxy = proxy; window.delegate = proxy
         transaction.window = window
+        startReadinessWatch(window: window)
         appearanceDraft.beginPreview()
         TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
@@ -165,9 +172,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         else { remote?.invalidate() }
         remote = nil
     }
-    var canDismiss: Bool { settingsLifetimesIdle && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { settingsLifetimesIdle && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && remote?.hasPendingWork != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
-        guard !retired, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
+        guard !retired, !completionPending, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
         cancelDeferredPage()
         hooks?.invalidate(); hooks = nil; cache.removeValue(forKey: .hooks); transaction.unregister("hooks")
@@ -219,7 +226,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     func requestCommandPage(_ page: SettingsPageID, noFetch: Bool = false) {
         // An initial page waiting for another owner's retirement can still be
         // superseded by a new command; existing live pages retain their guards.
-        guard !retired, current == nil || canDismiss else { return }
+        guard !retired, !completionPending, current == nil || canDismiss else { return }
         if noFetch { remoteNoFetch = true; remote?.suppressFetchForCommand() }
         show(page); reveal(selected)
     }
@@ -231,26 +238,93 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if row >= 0 { outline.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false); outline.scrollRowToVisible(row) }
     }
     private func renderFooter() {
-        applyButton.isEnabled = !transaction.busy && transaction.modified
-        okButton.isEnabled = !transaction.busy; cancelButton.isEnabled = !transaction.busy
+        let available = canDismiss && !completionPending
+        applyButton.isEnabled = available && transaction.modified
+        okButton.isEnabled = available; cancelButton.isEnabled = available
         errorLabel.stringValue = transaction.error ?? ""
         let wasHidden = busyShield.isHidden
-        busyShield.isHidden = !transaction.busy
-        if transaction.busy && wasHidden { view.window?.makeFirstResponder(busyShield) }
+        busyShield.isHidden = !transaction.busy && !completionPending
+        if (transaction.busy || completionPending) && wasHidden { view.window?.makeFirstResponder(busyShield) }
 
     }
-    @objc private func applySettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: false) }
-    @objc private func acceptSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: true) }
-    @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
+    @objc private func applySettings() { guard canDismiss, !completionPending else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: false) }
+    @objc private func acceptSettings() { guard canDismiss, !completionPending else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: true) }
+    @objc private func cancelSettings() {
+        guard canDismiss, !completionPending else { return }
+        view.window?.makeFirstResponder(nil)
+        beginCompletion(cancelDrafts: true)
+    }
+    private func beginCompletion(cancelDrafts: Bool, delegateApproved: Bool = false) {
+        guard !retired, !completionPending, let window = view.window else { return }
+        // Ask once for this explicit action before Cancel terminally retires a
+        // cached page. Polling readiness must never repeat delegate questions.
+        if cancelDrafts && !delegateApproved,
+           delegateProxy?.original?.windowShouldClose?(window) == false { return }
+        completionCancelledDrafts = cancelDrafts
+        cancelDeferredPage()
+        completionGeneration = UUID(); completionWindow = window; completionPending = true
+        // Cancel can start asynchronous participant retirement. Keep the intent
+        // and captured pages until their workers and native sheets actually drain.
+        if cancelDrafts { transaction.cancel() }
+        renderFooter()
+    }
+    func shouldCloseWindow(_ window: NSWindow) -> Bool {
+        if authorizingClose { return !retired && completionWindow === window && canDismiss }
+        guard canDismiss, !completionPending else { return false }
+        beginCompletion(cancelDrafts: true, delegateApproved: true)
+        return false
+    }
+    private func recoverRefusedCompletion() {
+        let cancelled = completionCancelledDrafts
+        completionPending = false; completionWindow = nil; completionCancelledDrafts = false
+        // Remote's Cancel is a terminal invalidation, unlike ordinary draft
+        // reset. A delegate can change its answer while that retirement drains.
+        // Recreate the discarded page, never reuse its disabled terminal model.
+        if cancelled, remote != nil {
+            if selected == .remote {
+                current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
+            }
+            cache.removeValue(forKey: .remote); transaction.unregister("remote"); remote = nil
+        }
+        updateRepository()
+        if selected == .remote, current == nil { show(.remote) }
+        renderFooter()
+    }
+    private func startReadinessWatch(window: NSWindow) {
+        readinessWatch?.cancel()
+        readinessWatch = Task { @MainActor [weak self, weak window] in
+            while !Task.isCancelled {
+                do {
+                    guard let self, let window, !self.retired, self.view.window === window else { return }
+                    self.renderFooter()
+                    if self.completionPending, self.completionWindow === window, self.canDismiss {
+                        let generation = self.completionGeneration
+                        self.authorizingClose = true
+                        window.performClose(nil)
+                        self.authorizingClose = false
+                        // An original delegate may refuse the final close. Do
+                        // not repeat its action or leave a permanently busy page.
+                        if !self.retired, self.completionGeneration == generation {
+                            self.recoverRefusedCompletion()
+                        }
+                    }
+                }
+                // Static release counters have no publisher. Observe actual
+                // readiness, weakly between turns, rather than guessing a delay
+                // after Cancel or resetting another owner's activity counters.
+                do { try await Task.sleep(nanoseconds: 20_000_000) } catch { return }
+            }
+        }
+    }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
     private var canRealizePage: Bool {
-        settingsLifetimesIdle && !retired && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && view.window?.attachedSheet == nil && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0
+        settingsLifetimesIdle && !retired && !completionPending && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && view.window?.attachedSheet == nil && remote?.busy != true && remote?.hasChild != true && remote?.hasPendingWork != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0
     }
     private func cancelDeferredPage() {
         pageRequest = UUID(); deferredPage?.cancel(); deferredPage = nil
     }
     private func deferInitialPage(_ page: SettingsPageID) {
-        guard !retired, current == nil else { return }
+        guard !retired, !completionPending, current == nil else { return }
         cancelDeferredPage()
         selected = page
         // Global pages do not depend on repository adoption; only repository
@@ -359,6 +433,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     func invalidate() {
         guard !retired else { return }; retired = true
         cancelDeferredPage()
+        completionGeneration = UUID(); completionPending = false; completionWindow = nil; completionCancelledDrafts = false
+        readinessWatch?.cancel(); readinessWatch = nil
         appearanceDraft.endPreview();appearanceUpdates=nil
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
         retireRemotePage()
@@ -382,7 +458,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         row.identifier = .init("Settings.Page." + node.id.rawValue); row.toolTip = node.title; text.toolTip = node.title
         row.setAccessibilityLabel(node.title); return row
     }
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { updating || canDismiss }
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { updating || (!completionPending && canDismiss) }
     func outlineViewSelectionDidChange(_ notification: Notification) {
         guard !updating, let node = outline.item(atRow: outline.selectedRow) as? SettingsPageNode else { return }; show(node.id)
     }
@@ -461,7 +537,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     weak var owner: SettingsNavigationController?
     nonisolated(unsafe) let original: NSWindowDelegate?
     init(owner: SettingsNavigationController, original: NSWindowDelegate?) { self.owner = owner; self.original = original }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { owner?.canDismiss == true && (original?.windowShouldClose?(sender) ?? true) }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { (original?.windowShouldClose?(sender) ?? true) && owner?.shouldCloseWindow(sender) == true }
     func windowWillClose(_ notification: Notification) {
         // Each page retires only the child dialogs it actually owns.
         owner?.invalidate(); original?.windowWillClose?(notification)
