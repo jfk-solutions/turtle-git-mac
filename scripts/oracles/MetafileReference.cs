@@ -51,6 +51,19 @@ public static class MetafileReference {
   }
   private static void NativeTexture(string input,string output) {
     using(var child=new Metafile(Path.Combine(input,"oracle-child.emf"))) {
+      using(var reference=new Bitmap(64,64))
+      using(var referenceGraphics=Graphics.FromImage(reference)) {
+        IntPtr hdc=referenceGraphics.GetHdc();
+        Metafile recorded;
+        try {recorded=new Metafile(Path.Combine(output,"native-recorded-texture.emf"),hdc,new Rectangle(0,0,64,64),MetafileFrameUnit.Pixel,EmfType.EmfPlusOnly);}
+        finally {referenceGraphics.ReleaseHdc(hdc);}
+        using(recorded)
+        using(var graphics=Graphics.FromImage(recorded))
+        using(var texture=new TextureBrush(child,WrapMode.Tile)) {
+          graphics.Clear(Color.Blue);graphics.FillRectangle(texture,8,8,48,48);
+        }
+      }
+      Console.WriteLine("NATIVE_RECORDED_TEXTURE "+Convert.ToBase64String(File.ReadAllBytes(Path.Combine(output,"native-recorded-texture.emf"))));
       try {
         using(var brush=new TextureBrush(child,WrapMode.Tile))
         using(var bitmap=new Bitmap(64,64,PixelFormat.Format32bppArgb)) {
