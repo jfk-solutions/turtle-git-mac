@@ -12,7 +12,12 @@ again after it closes. Saving retains the captured commit and notes ref; Cancel
 requests cancellation while the editor waits for its Git child. Ordinary errors
 retain the draft; confirmed saves with failed refresh and uncertain mutation
 outcomes have separate recovery messages. See <a href="GIT-NOTES.html">Editing Git notes</a>
-and the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/EDIT-NOTES-PARITY.html">source comparison</a>.</p>
+and the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/EDIT-NOTES-PARITY.html">source comparison</a>.
+The editor chooses <code>core.notesRef</code> or <code>refs/notes/commits</code>, independently of
+<code>GIT_NOTES_REF</code>. The stored note commit uses configured <code>user.name</code> and
+<code>user.email</code> for both identities; environment identity overrides do not replace
+those values. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/NOTES-BACKEND-PARITY.html">Notes storage</a> for source behavior and
+recovery limits.</p>
 <a name="topic-clone"></a><a name="topic-createRepository"></a><h2 id="clone-and-create">Clone and create</h2>
 <p>Use Clone to choose a repository URL and a destination folder. Choose an empty
 or new destination, review the branch and clone options, then start the operation.

@@ -960,6 +960,11 @@ public struct CommitNoteSnapshot: Identifiable, Sendable {
     public let notesRef: String
     public let text: String
     public let minimumLength: Int
+    public let acceptedBackend:GitLibGit2Configuration?
+    public let engine:GitNotesEngineKind?
+    public init(revision:String,notesRef:String,text:String,minimumLength:Int,acceptedBackend:GitLibGit2Configuration?=nil,engine:GitNotesEngineKind?=nil) {
+        self.revision=revision;self.notesRef=notesRef;self.text=text;self.minimumLength=minimumLength;self.acceptedBackend=acceptedBackend;self.engine=engine
+    }
     public var id: String { revision }
     public func accepts(_ text: String) -> Bool { text.utf16.count >= minimumLength && !text.contains("\0") }
 }
@@ -1013,72 +1018,50 @@ extension GitRepository {
         arguments.append(hash)
         return try run(arguments,cancellation:cancellation,onOutput:onOutput,executorOverride:executor)
     }
-    /// Read the active notes ref, independently of additional log display refs.
-    public func editableCommitNote(revision: String, cancellation: OperationCancellation? = nil) throws -> CommitNoteSnapshot {
+    /// Source GetGitNotes is unconditional libgit2, independent of command masks.
+    /// SHA-256 repositories retain the explicit native Git extension.
+    public func editableCommitNote(revision:String,cancellation:OperationCancellation?=nil)throws->CommitNoteSnapshot {
         try cancellation?.check()
-        _ = try run(["var", "GIT_AUTHOR_IDENT"], cancellation: cancellation)
-        _ = try run(["var", "GIT_COMMITTER_IDENT"], cancellation: cancellation)
-        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        let ref = try run(["notes", "get-ref"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        let note = try run(["notes", "--ref=" + ref, "list", hash], successfulExitCodes: 0...1, cancellation: cancellation)
-        var text = ""
-        if note.exitCode == 0 {
-            let blob = note.text.trimmingCharacters(in: .newlines)
-            let data = try run(["cat-file", "blob", blob], cancellation: cancellation).stdout
-            guard let value = String(data: data, encoding: .utf8), !value.contains("\0") else { throw CommitNoteFailure.invalidText }
-            text = value
-        }
-        let properties = try projectConfiguration(pattern: "^tgit[.]logminsize$", cancellation: cancellation)
-        let minimum = max(0, (properties["tgit.logminsize"] as NSString?)?.integerValue ?? 0)
+        let backend=libgit2Configuration ?? .load(),engine=try notesEngine(cancellation:cancellation)
+        let lookupBackend=GitLibGit2Configuration(enabled:engine == .libgit2,mask:backend.mask,helperURL:backend.helperURL)
+        guard let hash=try revisionLookup(revision,requirement:.commit,cancellation:cancellation,backend:lookupBackend).objectID else{throw GitNotesEngineFailure.revision}
+        let note=try readNotes(revision:hash,ref:nil,engine:engine,backend:backend,cancellation:cancellation)
+        let properties=try projectConfiguration(pattern:"^tgit[.]logminsize$",cancellation:cancellation)
+        let minimum=max(0,(properties["tgit.logminsize"] as NSString?)?.integerValue ?? 0)
         try cancellation?.check()
-        return CommitNoteSnapshot(revision: hash, notesRef: ref, text: text, minimumLength: minimum)
+        return .init(revision:hash,notesRef:note.notesRef,text:note.text,minimumLength:minimum,acceptedBackend:backend,engine:engine)
     }
-    /// Reusing a blob preserves exact text, including empty notes, on older Git
-    /// versions too. Cancellation owns every child, but cannot undo a published
-    /// notes ref. Failed mutation receipts therefore use a bounded read-only
-    /// recovery before reporting whether the requested blob is already stored.
-    public func saveCommitNote(_ note: CommitNoteSnapshot, text: String, cancellation: OperationCancellation? = nil) throws -> String {
+    /// The captured ref and revision remain immutable through editing and retry.
+    /// A failed write receipt never triggers a second mutation: bounded read-only
+    /// recovery distinguishes a completed write from an unknown outcome.
+    public func saveCommitNote(_ note:CommitNoteSnapshot,text:String,cancellation:OperationCancellation?=nil)throws->String {
         let token=cancellation ?? OperationCancellation();try token.check()
-        guard !text.contains("\0") else { throw CommitNoteFailure.invalidText }
-        guard note.accepts(text) else { throw CommitNoteFailure.minimumLength(note.minimumLength) }
-        func refValue(_ reader:OperationCancellation)throws->Data {
-            try run(["rev-parse","--verify","--quiet","--end-of-options",note.notesRef],successfulExitCodes:0...1,cancellation:reader).stdout
-        }
-        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitNote-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,attributes:[.posixPermissions:0o700])
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let file = directory.appendingPathComponent("note.txt")
-        try token.check();try Data(text.utf8).write(to: file)
-        let blob = try run(["hash-object", "-w", "--", file.path],cancellation:token).text.trimmingCharacters(in: .newlines)
-        let before=try refValue(token)
-        try token.check()
-        do {_ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--reuse-message", blob, note.revision],cancellation:token)}
+        guard !text.contains("\0"),text.utf8.count<=16_777_216 else{throw CommitNoteFailure.invalidText}
+        guard note.accepts(text) else{throw CommitNoteFailure.minimumLength(note.minimumLength)}
+        let backend=note.acceptedBackend ?? libgit2Configuration ?? .load(),engine=try note.engine ?? notesEngine(cancellation:token)
+        let expected=Self.notesBlobOID(text,engine:engine)
+        let before=try readNotes(revision:note.revision,ref:note.notesRef,engine:engine,backend:backend,cancellation:token)
+        do {try writeNotes(revision:note.revision,ref:note.notesRef,text:text,engine:engine,backend:backend,cancellation:token)}
         catch {
-            let mutationError=error
-            // The failed/cancelled command is already reaped by run(). Keep an
-            // independent bounded reader alive even if the caller's token is
-            // cancelled: otherwise a completed write would masquerade as an
-            // ordinary cancelled save. This reader never retries the mutation.
-            let recovery=OperationCancellation()
-            let timeout=DispatchWorkItem{recovery.cancel()}
-            DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+2,execute:timeout)
-            defer {timeout.cancel()}
-            let after:Data,stored:String,settled:Data
+            let mutationError=error,recovery=OperationCancellation()
+            // Keep the independent reader bounded even when the caller cancelled.
+            let deadline=DispatchWorkItem{recovery.cancel()}
+            DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+2,execute:deadline)
+            defer{deadline.cancel()}
+            let after:GitNotesValue,settled:GitNotesValue
             do {
-                after=try refValue(recovery)
-                stored=try run(["notes","--ref="+note.notesRef,"list",note.revision],successfulExitCodes:0...1,cancellation:recovery).text.trimmingCharacters(in:.newlines)
-                settled=try refValue(recovery)
-            } catch {throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription+"\n\n"+error.localizedDescription)}
-            guard after==settled else {throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription)}
-            if stored==blob {throw CommitNoteFailure.savedButRefreshFailed(mutationError.localizedDescription)}
-            if before != after {throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription)}
-            throw mutationError
+                after=try readNotes(revision:note.revision,ref:note.notesRef,engine:engine,backend:backend,cancellation:recovery)
+                settled=try readNotes(revision:note.revision,ref:note.notesRef,engine:engine,backend:backend,cancellation:recovery)
+            }catch{throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription+"\n\n"+error.localizedDescription)}
+            guard after.refOID==settled.refOID,after.blobOID==settled.blobOID,GitReferenceName.equal(after.notesRef,settled.notesRef) else{throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription)}
+            // An already identical note is not evidence of this write. Preserve
+            // a failed signature/pre-write cancellation when nothing published.
+            if before.refOID==after.refOID,before.blobOID==after.blobOID,GitReferenceName.equal(before.notesRef,after.notesRef){throw mutationError}
+            if before.refOID != after.refOID,after.blobOID==expected{throw CommitNoteFailure.savedButRefreshFailed(mutationError.localizedDescription)}
+            throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription)
         }
-        // A successful mutation remains successful even if cancellation prevents
-        // aggregate display refresh. The captured ref/revision are never replaced
-        // by whichever notes configuration is current when the edit finishes.
-        do {return try run(["show", "--encoding=UTF-8", "-s", "--notes", "--format=%N", note.revision, "--"],cancellation:token).text.trimmingCharacters(in: .newlines)}
-        catch {throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription)}
+        do{return try readNotes(revision:note.revision,ref:note.notesRef,engine:engine,backend:backend,cancellation:token).text}
+        catch{throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription)}
     }
     /// FF jumps inspect the actual graph, including ancestors omitted by filters/limits.
     public func historyJump(entries: [LogEntry], selected: Set<String>, kind: HistoryJumpKind, up: Bool, cancellation: OperationCancellation? = nil) throws -> Int? {

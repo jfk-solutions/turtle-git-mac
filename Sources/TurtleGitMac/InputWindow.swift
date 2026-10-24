@@ -246,7 +246,7 @@ final class InputMessageTextView: ProjectMessageTextView {
                 reply.resume(returning:self?.retired==false && self?.available()==true && !token.isCancelled)
             }
             configureSettings(child)
-            guard !settled,!retired,!token.isCancelled else{child.retire();return}
+            guard !settled,!retired,available(),!token.isCancelled,parent === owner,owner.attachedSheet==nil else{child.retire();return}
             child.presentSheet(for:owner)
         }
     }
@@ -268,6 +268,10 @@ final class InputMessageTextView: ProjectMessageTextView {
         self.parent = parent; self.model = model; self.preferences = preferences
         identitySession=NoteIdentitySession(repository:model.repository,access:model.noteAccess,preferences:preferences,parent:parent)
         identitySession.available={ [weak model] in model?.isInvalidated==false && model?.confirmingQuit==false }
+        identitySession.readIdentity={ [weak model] token in
+            guard let model else{throw OperationCancellationFailure.cancelled}
+            return try await (model.noteOperationRepository ?? model.repository).replayUserIdentity(cancellation:token)
+        }
         model.noteIdentitySession=identitySession
         model.prepareNoteIdentity={ [weak identitySession = self.identitySession] token in guard let identitySession else{throw OperationCancellationFailure.cancelled};return try await identitySession.require(token) }
         model.onShowNote = { [weak self] note, settings in self?.show(note, settings: settings) }

@@ -1664,19 +1664,14 @@ final class CommitHistoryTests: XCTestCase {
         let reread = try await bare.editableCommitNote(revision: "HEAD"); XCTAssertEqual(reread.text, "Bare note 雪")
     }
     func testNoteSavedButDisplayRefreshFailureReportsCompletedWrite() async throws {
-        let (root, repo, _) = try await GitPatchTests().fixture()
+        // These command-interception oracles cover the explicit SHA-256 CLI extension.
+        let (root, repo) = try await CommitNoteCancellationTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
         let note = try await repo.editableCommitNote(revision: "HEAD")
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        let wrapper = root.appendingPathComponent("fail-note-display")
-        let script = """
-        #!/bin/sh
-        case "$*" in
-          *--format=%N*) echo 'display refresh failed' >&2; exit 91 ;;
-        esac
-        exec /usr/bin/git "$@"
-        """
-        try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
+        let scripts=CommitNoteCancellationTests()
+        let body="if [ \"$task_note_command\" = notes ] && [ \"$task_note_subcommand\" = add ]; then\n"+scripts.quote(repo.executable.path)+" \"$@\" || exit $?\nprintf written > \"$0.written\"\nexit 0\nfi\nif [ -f \"$0.written\" ] && [ \"$task_note_command\" = notes ] && [ \"$task_note_subcommand\" = list ]; then printf 'display refresh failed\\n' >&2;exit 91;fi"
+        let wrapper=try scripts.wrapper(root,name:"fail-note-display",body:body)
         let failing = GitRepository(root: root, executable: wrapper)
         do { _ = try await failing.saveCommitNote(note, text: "written before display failure"); XCTFail() }
         catch CommitNoteFailure.savedButRefreshFailed(let message) { XCTAssertTrue(message.contains("display refresh failed")) }
@@ -1685,13 +1680,14 @@ final class CommitHistoryTests: XCTestCase {
         let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, note.revision)
     }
     func testOwnedNoteReadCancellationAndIndependentRead() async throws {
-        let (root, repo, _) = try await GitPatchTests().fixture()
+        // These command-interception oracles cover the explicit SHA-256 CLI extension.
+        let (root, repo) = try await CommitNoteCancellationTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
-        let entry = try await repo.history()[0], snapshot = try await repo.editableCommitNote(revision: "HEAD")
+        let hash=String(decoding:try await repo.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines), snapshot = try await repo.editableCommitNote(revision: "HEAD")
         _ = try await repo.saveCommitNote(snapshot, text: "cancel read note")
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let stopped = OperationCancellation(); stopped.cancel()
-        do { _ = try await repo.editableCommitNote(revision: entry.hash, cancellation: stopped); XCTFail() } catch is OperationCancellationFailure {}
+        do { _ = try await repo.editableCommitNote(revision: hash, cancellation: stopped); XCTFail() } catch is OperationCancellationFailure {}
         let wrapper = root.appendingPathComponent("slow-note-read")
         let script = """
         #!/bin/sh
@@ -1705,11 +1701,11 @@ final class CommitHistoryTests: XCTestCase {
             wait "$task_note_child"
             ;;
         esac
-        exec /usr/bin/git "$@"
+        exec \(CommitNoteCancellationTests().quote(repo.executable.path)) "$@"
         """
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
         let slow = GitRepository(root: root, executable: wrapper), token = OperationCancellation()
-        let task = Task { try await slow.editableCommitNote(revision: entry.hash, cancellation: token) }
+        let task = Task { try await slow.editableCommitNote(revision: hash, cancellation: token) }
         defer { token.cancel() }
         let marker = URL(fileURLWithPath: wrapper.path + ".started"), deadline = Date().addingTimeInterval(5)
         while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -1720,7 +1716,7 @@ final class CommitHistoryTests: XCTestCase {
         let reaped = Date().addingTimeInterval(3)
         while Date() < reaped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(pids.count, 2); XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
-        let independent = try await repo.editableCommitNote(revision: entry.hash); XCTAssertEqual(independent.text, "cancel read note")
+        let independent = try await repo.editableCommitNote(revision: hash); XCTAssertEqual(independent.text, "cancel read note")
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
     func testBatchRootRevertIsExplicitAndPreservesUnrelatedChanges() async throws {

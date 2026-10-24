@@ -1065,3 +1065,31 @@ int tg_historical_gitlink(const char *path,const char *revision,const char *git_
  if(stopped(&ctx)){result=GIT_EUSER;goto done;}if(callbacks->inspection)result=callbacks->inspection(&row,callbacks->payload);
  done:git_tree_entry_free(entry);git_tree_free(tree);git_commit_free(commit);git_repository_free(repo);return result;
 }
+
+/* Source Get/SetGitNotes: default config ref, one configured signature for both identities. */
+int tg_notes(const char *path,const char *revision,const char *notes_ref,const char *text,int write,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_note *note=NULL;git_blob *blob=NULL;git_commit *notes_commit=NULL;git_signature *signature=NULL;git_buf default_ref=GIT_BUF_INIT;git_oid oid,out;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};char blob_hex[GIT_OID_SHA1_HEXSIZE+1],ref_hex[GIT_OID_SHA1_HEXSIZE+1];const char *blob_id=NULL,*ref_id=NULL;
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_oid_fromstr(&oid,revision))<0)goto done;
+ if(!notes_ref){if((result=git_note_default_ref(&default_ref,repo))<0)goto done;notes_ref=default_ref.ptr;}
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if(write){
+  if((result=git_signature_default(&signature,repo))<0)goto done;
+  if((result=git_note_create(&out,repo,notes_ref,signature,signature,&oid,text,1))<0)goto done;
+  git_oid_tostr(blob_hex,sizeof(blob_hex),&out);blob_id=blob_hex;
+ }else{
+  /* Pin the notes commit once: blob and refOID describe the same tree,
+     including when another writer publishes a new notes ref concurrently. */
+  git_oid target;result=git_reference_name_to_id(&target,repo,notes_ref);
+  if(result==GIT_ENOTFOUND){git_error_clear();result=0;}else if(result<0)goto done;
+  else {
+   if((result=git_commit_lookup(&notes_commit,repo,&target))<0)goto done;
+   git_oid_tostr(ref_hex,sizeof(ref_hex),&target);ref_id=ref_hex;
+   result=git_note_commit_read(&note,repo,notes_commit,&oid);
+   if(result==GIT_ENOTFOUND){git_error_clear();result=0;}else if(result<0)goto done;
+  }
+  if(note){if((result=git_blob_lookup(&blob,repo,git_note_id(note)))<0)goto done;git_oid_tostr(blob_hex,sizeof(blob_hex),git_note_id(note));blob_id=blob_hex;if(git_blob_rawsize(blob)>16777216){git_error_set_str(GIT_ERROR_INVALID,"Note exceeds supported bounds");result=-1;goto done;}}
+ }
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if(callbacks->notes)result=callbacks->notes(notes_ref,blob?(const unsigned char *)git_blob_rawcontent(blob):NULL,blob?(size_t)git_blob_rawsize(blob):0,blob_id,ref_id,callbacks->payload);
+ done:git_signature_free(signature);git_commit_free(notes_commit);git_blob_free(blob);git_note_free(note);git_buf_dispose(&default_ref);git_repository_free(repo);return result;
+}

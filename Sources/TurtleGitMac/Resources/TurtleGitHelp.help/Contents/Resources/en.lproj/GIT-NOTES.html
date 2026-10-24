@@ -13,11 +13,14 @@ Editing is unavailable for stash rows. The same editor is available from the
 revision menus in RefLog, Rebase and Synchronization.</p>
 <p>If Git's author or committer name or email is missing, choose <strong>Yes</strong> to open
 Git Settings for this repository, or <strong>No</strong> to stop opening the editor. TurtleGit
-checks the effective identity again after Settings closes. Environment overrides
-can take precedence over saved configuration.</p>
-<p>The editor loads the active Git notes ref. Additional notes refs configured for
-Log display are not combined into the editable text. It saves back to the ref
-that was active when you opened the editor. Clearing the text saves an empty note;
+checks the effective identity again after Settings closes. Environment overrides can satisfy this opening check. The actual note commit
+uses configured <strong>user.name</strong> and <strong>user.email</strong> for both author and committer,
+with the current time. If those configured values are missing, saving reports an
+error and retains the draft.</p>
+<p>The editor loads <strong>core.notesRef</strong>, or <strong>refs/notes/commits</strong> when no default is
+configured. <strong>GIT_NOTES_REF</strong> does not replace this editor default. Additional
+notes refs configured for Log display are not combined into the editable text.
+It saves back to the exact ref captured when you opened the editor. Clearing the text saves an empty note;
 it does not delete the note association. Notes are separate from the commit and
 need their own fetch/push configuration; see the <a href="https://git-scm.com/docs/git-notes">Git notes manual</a>.</p>
 <p>During saving, <strong>Cancel</strong> requests cancellation and waits for the owned Git
@@ -28,7 +31,11 @@ retrying. If the app confirms that notes were saved but could not be refreshed,
 the editor closes and reports that refresh failure separately. Refresh Log to
 read them again. Refresh an existing Notes search after editing so its matches
 are recalculated.</p>
-<p>The current implementation and outstanding UI verification are recorded in
-<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/EDIT-NOTES-PARITY.html">Edit Notes parity</a>. macOS screenshots for this workflow are
-still pending.</p>
+<p>The native editor is shown below in light and dark appearance. These retained
+layout captures do not certify every keyboard or signed deployment workflow.</p>
+<p><img src="images/bd27adf93233-notes-editor-light.png" alt="Native Notes editor, light appearance" /></p>
+<p><img src="images/331e1e0f95a4-notes-editor-dark.png" alt="Native Notes editor, dark appearance" /></p>
+<p>The source comparison and remaining acceptance work are recorded in
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/EDIT-NOTES-PARITY.html">Edit Notes parity</a> and
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/NOTES-BACKEND-PARITY.html">Notes storage and owned editing</a>.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

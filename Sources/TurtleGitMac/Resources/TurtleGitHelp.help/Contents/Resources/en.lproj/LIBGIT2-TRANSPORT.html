@@ -240,4 +240,14 @@ LFS settings or replace a configured external toolchain. The persistent
 <code>filter.process</code> protocol, arbitrary LFS server/authentication combinations and
 signed sandbox execution remain separate acceptance work. See the
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/CLONE-CHECKOUT-FILTERS-PARITY.html">Clone filter source comparison</a>.</p>
+<h2 id="git-notes-storage">Git notes storage</h2>
+<p>Edit Notes follows the source's unconditional libgit2 route for SHA-1
+repositories, independently of <strong>UseLibgit2</strong> and the command mask. It uses the
+configured notes default and one configured user signature for author and
+committer. Accepted edits retain their literal ref and revision through Settings,
+retry and cancellation. Readback returns the captured note, with explicit saved
+and uncertain-outcome handling. The existing SHA-256 Git extension is elected
+from the repository format; helper failures do not cause a fallback. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/NOTES-BACKEND-PARITY.html">Notes backend parity</a> for exact ref/signature rules,
+bounds and remaining acceptance.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

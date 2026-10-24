@@ -74,6 +74,75 @@ def main():
                     assert historical_gitlink(revision,'module',commit_only)==dict(status='gitlink',oid=source_head)
                     assert historical_gitlink(revision,'missing',commit_only)==dict(status='missing',oid=None)
                 assert historical_gitlink(source_head,'file',True)==dict(status='other',oid=None)
+                # Source Edit Notes uses libgit2 independently of the master
+                # switch, with its configured default ref and one user signature.
+                note_environment=dict(env,GIT_NOTES_REF='refs/notes/ignored',GIT_AUTHOR_NAME='Wrong Author',GIT_AUTHOR_EMAIL='wrong-author@example.invalid',GIT_COMMITTER_NAME='Wrong Committer',GIT_COMMITTER_EMAIL='wrong-committer@example.invalid',GIT_AUTHOR_DATE='2001-01-01T00:00:00+0000',GIT_COMMITTER_DATE='2001-01-01T00:00:00+0000')
+                def notes_reply(verb,payload,configuration=(),environment=None):
+                    result=subprocess.run(prefix+[str(binary),'-C',str(source),*configuration,verb],input=json.dumps(dict(version=1,revision=source_head,**payload)).encode(),env=note_environment if environment is None else environment,capture_output=True,timeout=10)
+                    assert result.returncode==0,result.stderr.decode(errors='replace')
+                    lines=result.stdout.splitlines();marker=b'TurtleGit Notes v1:'
+                    assert len(lines)==1 and lines[0].startswith(marker),result.stdout
+                    encoded=lines[0][len(marker):];packet=base64.b64decode(encoded,validate=True)
+                    assert base64.b64encode(packet)==encoded
+                    return json.loads(packet)
+                empty_note=notes_reply('turtlegit-notes-read',dict(notesRef=None))
+                assert empty_note==dict(notesRef='refs/notes/commits',text='',blobOID=None,refOID=None),empty_note
+                exact_note='  Notes 雪 e\u0301\r\ntrailing spaces  \n\n'.encode()
+                expected_blob=hashlib.sha1(b'blob '+str(len(exact_note)).encode()+b'\0'+exact_note).hexdigest()
+                saved=notes_reply('turtlegit-notes-write',dict(notesRef=empty_note['notesRef'],text=base64.b64encode(exact_note).decode()))
+                assert saved==dict(blobOID=expected_blob),saved
+                loaded=notes_reply('turtlegit-notes-read',dict(notesRef=None))
+                assert set(loaded)=={'notesRef','text','blobOID','refOID'} and loaded['notesRef']==empty_note['notesRef'] and loaded['blobOID']==expected_blob and re.fullmatch('[0-9a-f]{40}',loaded['refOID'])
+                assert base64.b64decode(loaded['text'],validate=True)==exact_note
+                signature=git('-C',source,'log','-1','--format=%an%x00%ae%x00%cn%x00%ce%x00%at%x00%ct',loaded['refOID']).decode().strip().split('\0')
+                assert signature[:4]==['Fixture','fixture@example.invalid','Fixture','fixture@example.invalid'],signature
+                assert signature[4]==signature[5] and int(signature[4])>1_700_000_000,signature
+                review=notes_reply('turtlegit-notes-read',dict(notesRef=None),('-c','core.notesRef=refs/notes/review'))
+                assert review==dict(notesRef='refs/notes/review',text='',blobOID=None,refOID=None),review
+                # Values-backed config must fold section/variable ASCII case
+                # while preserving every subsection and value byte. Exercise all
+                # accepted global configuration ingress paths, without persisting.
+                upper=notes_reply('turtlegit-notes-read',dict(notesRef=None),('-c','CORE.NOTESREF=refs/notes/upper'))
+                assert upper==dict(notesRef='refs/notes/upper',text='',blobOID=None,refOID=None),upper
+                counted=dict(note_environment,GIT_CONFIG_COUNT='1',GIT_CONFIG_KEY_0='CoRe.NoTeSrEf',GIT_CONFIG_VALUE_0='refs/notes/counted')
+                quoted=dict(note_environment,GIT_CONFIG_PARAMETERS="'CORE.notesREF=refs/notes/quoted'")
+                for settings,expected in [(counted,'refs/notes/counted'),(quoted,'refs/notes/quoted')]:
+                    actual=notes_reply('turtlegit-notes-read',dict(notesRef=None),environment=settings)
+                    assert actual==dict(notesRef=expected,text='',blobOID=None,refOID=None),actual
+                literal_names=['MiXeD.Cafe\u0301.Sub','MiXeD.Café.Sub']
+                literal_url=root/'VaLuE.雪.Mixed Repo';literal_url.symlink_to(source,target_is_directory=True)
+                values=['ReMoTe.'+name+'.UrL='+str(literal_url) for name in literal_names]
+                config_cases=[(sum((['-c',value] for value in values),[]),env)]
+                counted=dict(env,GIT_CONFIG_COUNT=str(len(values)))
+                for index,value in enumerate(values):
+                    key,setting=value.split('=',1);counted['GIT_CONFIG_KEY_'+str(index)]=key;counted['GIT_CONFIG_VALUE_'+str(index)]=setting
+                config_cases.append(([],counted))
+                config_cases.append(([],dict(env,GIT_CONFIG_PARAMETERS=' '.join(shlex.quote(value) for value in values))))
+                for arguments,settings in config_cases:
+                    result=subprocess.run(prefix+[str(binary),'-C',str(source),*arguments,'turtlegit-configured-remotes'],input=b'{"version":1}',env=settings,capture_output=True,timeout=10)
+                    assert result.returncode==0,result.stderr.decode(errors='replace')
+                    records=[];marker=b'TurtleGit LocalRefs v1:'
+                    for line in result.stdout.splitlines():
+                        assert line.startswith(marker),line
+                        encoded=line[len(marker):];packet=base64.b64decode(encoded,validate=True);assert base64.b64encode(packet)==encoded
+                        records.append(json.loads(packet))
+                    assert records[0]==dict(kind='header',operation='remotes') and records[-1]==dict(kind='end',count=2),records
+                    assert sorted(row['name'].encode() for row in records[1:-1])==sorted(name.encode() for name in literal_names),records
+                    # A real read through each transient URL proves its mixed-case
+                    # Unicode path and embedded space survive, beyond name-only
+                    # enumeration. No network or mutation is involved.
+                    for name in literal_names:
+                        listed=subprocess.run(prefix+[str(binary),'-C',str(source),*arguments,'ls-remote','--heads',name],env=settings,capture_output=True,timeout=10)
+                        assert listed.returncode==0,listed.stderr.decode(errors='replace')
+                        assert (source_head+'\trefs/heads/main').encode() in listed.stdout,listed.stdout
+                captured=notes_reply('turtlegit-notes-read',dict(notesRef=loaded['notesRef']),('-c','core.notesRef=refs/notes/review'))
+                assert captured==loaded,captured
+                empty_saved=notes_reply('turtlegit-notes-write',dict(notesRef=loaded['notesRef'],text=''))
+                assert empty_saved==dict(blobOID=hashlib.sha1(b'blob 0\0').hexdigest()),empty_saved
+                empty_loaded=notes_reply('turtlegit-notes-read',dict(notesRef=loaded['notesRef']))
+                assert empty_loaded['text']=='' and empty_loaded['blobOID']==empty_saved['blobOID']
+                assert subprocess.run(['/usr/bin/git','-C',str(source),'show-ref','--verify','--quiet','refs/notes/ignored'],env=env).returncode==1
+                git('-C',source,'update-ref','-d',loaded['notesRef'])
                 assert all((source/'.git'/name).read_bytes()==value for name,value in before_lookup.items())
                 original=global_config.read_bytes()
                 def notifications(data):

@@ -15,6 +15,11 @@ requests cancellation while the editor waits for its Git child. Ordinary errors
 retain the draft; confirmed saves with failed refresh and uncertain mutation
 outcomes have separate recovery messages. See [Editing Git notes](GIT-NOTES.md)
 and the [source comparison](EDIT-NOTES-PARITY.md).
+The editor chooses `core.notesRef` or `refs/notes/commits`, independently of
+`GIT_NOTES_REF`. The stored note commit uses configured `user.name` and
+`user.email` for both identities; environment identity overrides do not replace
+those values. See [Notes storage](NOTES-BACKEND-PARITY.md) for source behavior and
+recovery limits.
 
 ## Clone and create
 

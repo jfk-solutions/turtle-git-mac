@@ -22,7 +22,19 @@ public final class FinderStatusOperationLease: @unchecked Sendable {
         guard let command=identity.command else { return true }
         let reads:Set<String>=["rev-parse","status","ls-files","for-each-ref","ls-tree","log","show","diff","diff-files","diff-index","diff-tree","merge-base","cat-file","check-ref-format","check-ignore","check-attr","show-ref","version","help","name-rev","describe","rev-list","count-objects","ls-remote","turtlegit-revision-lookup","turtlegit-historical-gitlink","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-history-diff-batch","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-single-commit","turtlegit-local-refs","turtlegit-ref-names","turtlegit-containing-refs","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-finder-status"]
         if reads.contains(command) { return false }
+        if command=="turtlegit-notes-read" {return false}
         let tail=identity.arguments
+        if command=="notes" {
+            // The SHA-256 compatibility reader uses Git's explicit notes ref.
+            // A ref value may itself be a command word; skip only ref options.
+            var position=0
+            while position<tail.count {
+                if tail[position].hasPrefix("--ref=") {position += 1}
+                else if tail[position]=="--ref",position+1<tail.count {position += 2}
+                else {break}
+            }
+            if position==tail.count || ["get-ref","list","show"].contains(tail[position]) {return false}
+        }
         if command=="branch",tail.contains("--show-current") || tail.contains("--list") { return false }
         if command=="symbolic-ref",tail.filter({!$0.hasPrefix("-")}).count==1 { return false }
         if command=="config",tail.contains(where:{["--get","--get-all","--get-regexp","--get-urlmatch","--list","-l"].contains($0)}) { return false }

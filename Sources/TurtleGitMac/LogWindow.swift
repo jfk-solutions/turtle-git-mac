@@ -1491,6 +1491,7 @@ struct LogCommandRequest: Identifiable {
     var writeNote:((CommitNoteSnapshot,String,OperationCancellation)async throws->String)?
     var prepareNoteIdentity:((OperationCancellation)async throws->Bool)?
     var noteIdentitySession:NoteIdentitySession?
+    private(set) var noteOperationRepository:GitRepository?
     var noteAccess:RepositoryAccessLease? {access}
     private var noteReadWorkers=0
     private var noteSaveCancellation:OperationCancellation?
@@ -1590,6 +1591,8 @@ struct LogCommandRequest: Identifiable {
     }
     func editNotes() {
         guard canEditNotes, let revision else { return }
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
+        noteOperationRepository=repository
         cancelNoteRead(); noteIssueProperties = IssueTrackerProperties(); let token = OperationCancellation(); noteCancellation = token
         let request = noteGeneration; loadingNote = true; error = nil
         Self.activeNoteReads += 1;noteReadWorkers += 1
@@ -1623,7 +1626,7 @@ struct LogCommandRequest: Identifiable {
     func cancelPendingNoteRead() { cancelNoteRead() }
     func cancelNote() { guard !savingNote else { return }; noteRequest = nil; noteText = ""; noteError = nil }
     private func beginNoteSave(_ note:CommitNoteSnapshot,text:String,token:OperationCancellation)->Bool {
-        guard !isInvalidated,!confirmingQuit,!savingNote,!token.isCancelled,noteRequest?.revision==note.revision,noteRequest?.notesRef==note.notesRef,note.accepts(text) else{return false}
+        guard !isInvalidated,!confirmingQuit,!savingNote,!token.isCancelled,noteRequest.map({GitReferenceName.equal($0.revision,note.revision) && GitReferenceName.equal($0.notesRef,note.notesRef) && $0.text.utf8.elementsEqual(note.text.utf8) && $0.minimumLength==note.minimumLength})==true,note.accepts(text) else{return false}
         savingNote=true;busy=true;noteError=nil;noteSaveCancellation=token;Self.activeNoteSaves += 1
         return true
     }
@@ -1642,6 +1645,7 @@ struct LogCommandRequest: Identifiable {
         try await persistNote(note,text:text,cancellation:token)
     }
     private func persistNote(_ note:CommitNoteSnapshot,text:String,cancellation token:OperationCancellation)async throws {
+        let repository=noteOperationRepository ?? self.repository.capturingDiffBackend(preferences:labelDefaults)
         defer{savingNote=false;busy=false;Self.activeNoteSaves -= 1;if noteSaveCancellation === token{noteSaveCancellation=nil};withExtendedLifetime(access){}}
         guard !isInvalidated else{throw OperationCancellationFailure.cancelled}
         try token.check()

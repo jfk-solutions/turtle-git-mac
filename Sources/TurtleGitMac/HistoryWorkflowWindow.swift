@@ -8,11 +8,15 @@ import TurtleGitCore
     let model:HistoryNotesWindowModel
     private(set) var identitySession:NoteIdentitySession!
     init(repository:GitRepository,access:RepositoryAccessLease?,revision:String,preferences:UserDefaults) {
-        let notes=HistoryNotesWindowModel(repository:repository,access:access,revision:revision);model=notes
+        let notes=HistoryNotesWindowModel(repository:repository,access:access,revision:revision,preferences:preferences);model=notes
         super.init(title:"Edit Notes",hint:"Edit Notes",text:"",preferences:preferences){[notes] text,_,token in try await notes.saveText(text,cancellation:token)}
         allowsSaveCancellation=true;closesAfterSavedNoteFailure=true
         identitySession=NoteIdentitySession(repository:repository,access:access,preferences:preferences,parent:window!)
         identitySession.available={ [weak notes] in notes?.invalidated==false }
+        identitySession.readIdentity={ [weak notes] token in
+            guard let notes else{throw OperationCancellationFailure.cancelled}
+            return try await (notes.acceptedOperationRepository ?? notes.repository).replayUserIdentity(cancellation:token)
+        }
         notes.prepareIdentity={ [weak identitySession = self.identitySession] token in guard let identitySession else{throw OperationCancellationFailure.cancelled};return try await identitySession.require(token)}
         pendingOwnedWork={ [weak self] in self?.model.hasPendingWork==true || self?.identitySession.hasPendingWork==true }
         retireOwnedChildren={ [weak self] in self?.identitySession.retire();self?.model.invalidate() }
@@ -43,6 +47,8 @@ import TurtleGitCore
     let repository:GitRepository
     let access:RepositoryAccessLease?
     let revision:String
+    let preferences:UserDefaults
+    private(set) var acceptedOperationRepository:GitRepository?
     @Published var text=""
     @Published private(set) var loading=false
     @Published private(set) var saving=false
@@ -62,12 +68,14 @@ import TurtleGitCore
     var onLoaded:(CommitNoteSnapshot,ProjectDialogSettings)->Void={_,_ in}
     var onStateChanged:()->Void={}
     var canSave:Bool {!invalidated && !loading && !saving && snapshot?.accepts(text)==true}
-    init(repository:GitRepository,access:RepositoryAccessLease?,revision:String){self.repository=repository;self.access=access;self.revision=revision}
+    init(repository:GitRepository,access:RepositoryAccessLease?,revision:String,preferences:UserDefaults = .standard){self.repository=repository;self.access=access;self.revision=revision;self.preferences=preferences}
     private func validateAccess()throws{
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable}
     }
     func load(){
         guard !invalidated,!loading,!saving,snapshot==nil else{return}
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
+        acceptedOperationRepository=repository
         loading=true;error=nil;onStateChanged()
         let token=OperationCancellation();cancellation=token;Self.activeReads += 1;readWorkers += 1
         worker=Task{[self,access] in
@@ -112,6 +120,7 @@ import TurtleGitCore
     }
     private func persistNote(_ note:CommitNoteSnapshot,text:String,cancellation token:OperationCancellation)async throws{
         defer{saving=false;Self.activeMutations -= 1;if saveCancellation === token{saveCancellation=nil};withExtendedLifetime(access){}}
+        let repository=acceptedOperationRepository ?? self.repository.capturingDiffBackend(preferences:preferences)
         do{
             guard !invalidated else{throw OperationCancellationFailure.cancelled};try token.check();try validateAccess()
             let display:String

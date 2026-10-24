@@ -275,3 +275,15 @@ LFS settings or replace a configured external toolchain. The persistent
 `filter.process` protocol, arbitrary LFS server/authentication combinations and
 signed sandbox execution remain separate acceptance work. See the
 [Clone filter source comparison](CLONE-CHECKOUT-FILTERS-PARITY.md).
+
+## Git notes storage
+
+Edit Notes follows the source's unconditional libgit2 route for SHA-1
+repositories, independently of **UseLibgit2** and the command mask. It uses the
+configured notes default and one configured user signature for author and
+committer. Accepted edits retain their literal ref and revision through Settings,
+retry and cancellation. Readback returns the captured note, with explicit saved
+and uncertain-outcome handling. The existing SHA-256 Git extension is elected
+from the repository format; helper failures do not cause a fallback. See
+[Notes backend parity](NOTES-BACKEND-PARITY.md) for exact ref/signature rules,
+bounds and remaining acceptance.

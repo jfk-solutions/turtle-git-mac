@@ -28,7 +28,15 @@ func configuration(_ value:String)throws->String{
     guard !value.contains("\0"),value.utf8.count<=1_048_576 else{try refuse("Invalid command configuration")}
     let parts=value.split(separator:"=",maxSplits:1,omittingEmptySubsequences:false)
     guard let key=parts.first,!key.isEmpty,key.contains("."),!key.contains(where:{$0.isWhitespace}) else{try refuse("Invalid command configuration key")}
-    return parts.count==1 ? value+"=true":value
+    // The values backend expects canonical keys; unlike its file parser it
+    // does not fold section/variable case. Git preserves subsection bytes.
+    var bytes=Array(key.utf8)
+    guard let first=bytes.firstIndex(of:46),let last=bytes.lastIndex(of:46) else{try refuse("Invalid command configuration key")}
+    for index in bytes.indices where index<first || index>last {
+        if (65...90).contains(bytes[index]) {bytes[index]+=32}
+    }
+    let name=String(decoding:bytes,as:UTF8.self)
+    return name+"="+(parts.count==1 ? "true":String(parts[1]))
 }
 struct Arguments{
     var command="",directory=FileManager.default.currentDirectoryPath,configs:[String]=[]
@@ -55,7 +63,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["turtlegit-notes-read","turtlegit-notes-write","turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -107,7 +115,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
+        if command == "turtlegit-notes-read" || command == "turtlegit-notes-write" || command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -240,6 +248,20 @@ struct PrivateHistoricalGitlinkRequest:Decodable {
         return value
     }
 }
+struct PrivateNotesRequest {
+    let revision:String,notesRef:String?,text:String?
+    static func read(write:Bool)throws->Self {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65536),!part.isEmpty {guard !cancelled(),part.count<=33_554_432-data.count else{try refuse("Notes request exceeds bounds")};data.append(part)}
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(fields.keys)==(write ? ["version","revision","notesRef","text"]:["version","revision","notesRef"]),let version=fields["version"] as? NSNumber,CFGetTypeID(version) != CFBooleanGetTypeID(),version.doubleValue==1,let revision=fields["revision"] as? String,PrivateDiffRequest.fullOID(revision) else{try refuse("Invalid notes request")}
+        let ref:String?
+        if fields["notesRef"] is NSNull {guard !write else{try refuse("Missing notes ref")};ref=nil}else{guard let value=fields["notesRef"] as? String,!value.utf8.contains(0),value.utf8.count<=1_048_576 else{try refuse("Invalid notes ref")};ref=value}
+        var text:String?
+        if write {guard let encoded=fields["text"] as? String,let bytes=Data(base64Encoded:encoded),bytes.base64EncodedString()==encoded,bytes.count<=16_777_216,let value=String(data:bytes,encoding:.utf8),!value.contains("\0") else{try refuse("Invalid note text")};text=value}
+        return .init(revision:revision,notesRef:ref,text:text)
+    }
+}
+
 struct PrivateRevisionLookupRequest {
     let operation:String,value:String,requirement:Int32
     static func read()throws->Self {
@@ -333,6 +355,7 @@ struct PrivateSingleCommitRequest:Decodable {
 }
 
 final class CallbackContext{
+    var notesWrite=false
     let directory:String,configs:[String]
     var httpConfiguration:HTTPConfiguration?
     init(directory:String,configs:[String]){
@@ -870,9 +893,24 @@ func run()throws->Int32{
     let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
     let finderRequest=try args.command=="turtlegit-finder-status" ? PrivateFinderRequest.read():nil
     let singleCommitRequest=try args.command=="turtlegit-single-commit" ? PrivateSingleCommitRequest.read():nil
+    let notesRequest=try ["turtlegit-notes-read","turtlegit-notes-write"].contains(args.command) ? PrivateNotesRequest.read(write:args.command=="turtlegit-notes-write"):nil
     let historicalRequest=try args.command=="turtlegit-historical-gitlink" ? PrivateHistoricalGitlinkRequest.read():nil
     let revisionRequest=try args.command=="turtlegit-revision-lookup" ? PrivateRevisionLookupRequest.read():nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if notesRequest != nil {
+        owner.notesWrite=args.command=="turtlegit-notes-write"
+        options.notes={ref,bytes,count,blob,refOID,raw in
+            do {
+                guard !cancelled(),count<=16_777_216 else{try refuse("Invalid notes response")}
+                var object:[String:Any]=["blobOID":blob.map{String(cString:$0) as Any} ?? NSNull()]
+                if !context(raw).notesWrite {guard let ref else{try refuse("Missing notes ref")};object["notesRef"]=try context(raw).notificationString(ref);object["refOID"]=refOID.map{String(cString:$0) as Any} ?? NSNull();object["text"]=(bytes.map{Data(bytes:$0,count:count)} ?? Data()).base64EncodedString()}
+                let data=try JSONSerialization.data(withJSONObject:object,options:[.sortedKeys,.withoutEscapingSlashes])
+                let frame=Data(("TurtleGit Notes v1:"+data.base64EncodedString()+"\n").utf8)
+                guard frame.count<=33_554_432 else{try refuse("Notes response exceeds bounds")}
+                try FileHandle.standardOutput.write(contentsOf:frame);return 0
+            }catch{output("Notes: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     if historicalRequest != nil {
         options.inspection={row,raw in do{try context(raw).historicalGitlink(row);return 0}catch{output("Historical lookup: "+error.localizedDescription+"\n");return -1}}
     }
@@ -948,6 +986,7 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=notesRequest{return tg_notes(args.directory,request.revision,request.notesRef,request.text,args.command=="turtlegit-notes-write" ? 1:0,&options)}
         if let request=historicalRequest{return tg_historical_gitlink(args.directory,request.revision,request.path,request.commitOnly ? 1:0,&options)}
         if let request=revisionRequest{return tg_revision_lookup(args.directory,request.value,request.requirement,request.operation=="reference" ? 1:0,&options)}
         if let request=finderRequest{return tg_finder_status(args.directory,request.full ? 1:0,request.caseSensitive ? 1:0,request.contentCheckLimitKiB,&options)}
