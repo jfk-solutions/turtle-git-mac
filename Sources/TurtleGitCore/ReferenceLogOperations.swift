@@ -6,7 +6,8 @@ extension GitRepository {
     /// events, and two selected events can point at the same commit.
     public func referenceLogOperationEntries(snapshot: [ReferenceLogEntry], selected: Set<String>, cancellation: OperationCancellation? = nil) throws -> [LogEntry] {
         try cancellation?.check()
-        let chosen = snapshot.filter { selected.contains($0.id) }
+        let exactSelected=Set(selected.map {GitReferenceName($0)})
+        let chosen = snapshot.filter { exactSelected.contains(GitReferenceName($0.id)) }
         guard !chosen.isEmpty, chosen.count == selected.count else { throw ReferenceLogFailure.selection }
         var seen = Set<String>(), hashes: [String] = []
         for entry in chosen {
@@ -18,7 +19,7 @@ extension GitRepository {
         for start in stride(from: 0, to: hashes.count, by: 128) {
             try cancellation?.check()
             let batch = Array(hashes[start..<min(start + 128, hashes.count)])
-            let output = try run(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "--no-notes", format] + batch + ["--"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+            let output = try referenceLogCommand(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "--no-notes", format] + batch + ["--"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
             let parsed = LogEntry.parseHistory(output)
             guard parsed.count == batch.count, Set(parsed.map(\.hash)) == Set(batch) else { throw ReferenceLogFailure.selection }
             for entry in parsed { records[entry.hash] = entry }
@@ -46,14 +47,15 @@ extension GitRepository {
     public func referenceLogCombineCandidate(snapshot: [ReferenceLogEntry], selected: Set<String>, expectedHead: String, cancellation: OperationCancellation? = nil) throws -> ReferenceLogCombineCandidate? {
         try cancellation?.check()
         guard try !isBare(cancellation: cancellation), try !logMergeActive(cancellation: cancellation) else { return nil }
-        let rows = snapshot.indices.filter { selected.contains(snapshot[$0].id) }
+        let exactSelected=Set(selected.map {GitReferenceName($0)})
+        let rows = snapshot.indices.filter { exactSelected.contains(GitReferenceName(snapshot[$0].id)) }
         guard rows.count >= 2, rows.count == selected.count, rows.last! - rows.first! + 1 == rows.count,
               let headRow = snapshot.firstIndex(where: { $0.hash == expectedHead }), rows.first! >= headRow else { return nil }
-        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let head = try referenceLogCommand(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         guard head == expectedHead else { return nil }
         let offset = rows.first! - headRow
         func ancestor(_ offset: Int) throws -> String? {
-            let value = try run(["rev-parse", "--verify", "HEAD~" + String(offset)], successfulExitCodes: 0...128, cancellation: cancellation)
+            let value = try referenceLogCommand(["rev-parse", "--verify", "HEAD~" + String(offset)], successfulExitCodes: 0...128, cancellation: cancellation)
             return value.exitCode == 0 ? value.text.trimmingCharacters(in: .newlines) : nil
         }
         guard try ancestor(offset) == snapshot[rows.first!].hash,
@@ -69,7 +71,7 @@ extension GitRepository {
         if let operation {
             guard operation != .reset, operation == .skip || entries.count == 1 else { throw BisectFailure.operation }
             guard state.active else { throw BisectFailure.inactive }
-            let marks = try run(["for-each-ref", "--points-at", entries[0].hash, "--format=%(refname)", "refs/bisect/"], cancellation: cancellation)
+            let marks = try referenceLogCommand(["for-each-ref", "--points-at", entries[0].hash, "--format=%(refname)", "refs/bisect/"], cancellation: cancellation)
             guard marks.stdout.isEmpty else { throw ReferenceLogBisectFailure.marked }
             return ReferenceLogBisectRequest(good: nil, bad: nil, operation: operation, revisions: entries.map(\.hash))
         }
@@ -77,7 +79,7 @@ extension GitRepository {
         guard !state.active, try !logMergeActive(cancellation: cancellation) else { throw BisectFailure.active }
         func preset(_ entry: LogEntry) throws -> String {
             guard let name = references[entry.hash]?.first else { return entry.hash }
-            let value = try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
+            let value = try referenceLogCommand(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
             return value.exitCode == 0 && value.text.trimmingCharacters(in: .newlines) == entry.hash ? name : entry.hash
         }
         return ReferenceLogBisectRequest(good: try preset(entries[1]), bad: try preset(entries[0]), operation: nil, revisions: [])
@@ -98,7 +100,7 @@ public struct ReferenceLogTransportRequest: Sendable {
 }
 extension GitRepository {
     public func referenceLogHasGitSVN(cancellation: OperationCancellation? = nil) throws -> Bool {
-        var bytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
+        var bytes = try referenceLogCommand(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
         if bytes.last == 10 { bytes.removeLast() }
         let result = String(decoding: bytes, as: UTF8.self)
         let directory = result.hasPrefix("/") ? URL(fileURLWithPath: result) : root.appendingPathComponent(result)
@@ -113,7 +115,7 @@ extension GitRepository {
             let names = references.filter { $0.hasPrefix("refs/heads/") } + references.filter { $0.hasPrefix("refs/tags/") }
             for name in names {
                 let ref = GitReferenceName.removingSuffix("^{}", from: name) ?? name
-                let value = try run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
+                let value = try referenceLogCommand(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
                 if value.exitCode == 0, value.text.trimmingCharacters(in: .newlines) == entry.hash {
                     return ReferenceLogTransportRequest(command: command, source: ref)
                 }
@@ -121,7 +123,7 @@ extension GitRepository {
             return ReferenceLogTransportRequest(command: command, source: entry.hash)
         case .pull:
             guard try !isBare(cancellation: cancellation), try !logMergeActive(cancellation: cancellation) else { throw ReferenceLogFailure.selection }
-            let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            let head = try referenceLogCommand(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             guard head == entry.hash else { throw ReferenceLogFailure.selection }
         case .svnDCommit:
             guard try !isBare(cancellation: cancellation), try referenceLogHasGitSVN(cancellation: cancellation) else { throw ReferenceLogFailure.selection }

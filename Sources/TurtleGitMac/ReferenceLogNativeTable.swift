@@ -156,7 +156,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             popupEpoch=UUID();let epoch=popupEpoch,generation=model.generation;var consumed=false
             let ids = selectedIDs, reference = model.reference, snapshot = entries.filter { ids.contains($0.id) }
             let live: () -> Bool = { [weak self] in
-                guard let self,!consumed,self.popupEpoch==epoch,self.model.generation==generation,self.available,self.model.reference == reference else { return false }
+                guard let self,!consumed,self.popupEpoch==epoch,self.model.generation==generation,self.available,GitReferenceName.equal(self.model.reference,reference) else { return false }
                 return self.model.entries.filter { ids.contains($0.id) } == snapshot
             }
             func add(_ title: String, _ icon: MenuIcon, to parent: NSMenu? = nil, enabled: Bool = true, action: @escaping () -> Void) {

@@ -45,7 +45,7 @@ import TurtleGitCore
         window.minSize = NSSize(width: 800, height: 360); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
-        model.noteLog.window = window
+        model.window=window;model.noteLog.window = window
         notePresenter = CommitNotePresenter(parent: window, model: model.noteLog, preferences: preferences)
         window.setContentSize(NSSize(width: 1000, height: 530)); window.center()
         model.close = { [weak self] in
@@ -155,13 +155,25 @@ import TurtleGitCore
     private var noteChanges: AnyCancellable?
     var commandSurfaceAvailable: Bool { !confirmingQuit && !invalidated && !busy && !confirmingDelete && !confirmingColumns && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
     private let access: RepositoryAccessLease?
-    @Published var reference: String
-    @Published var names: [String]
+    weak var window:NSWindow?
+    private var referencePickerEpoch=UUID()
+    @Published var reference: String {didSet{if !GitReferenceName.equal(oldValue,reference){referencePickerEpoch=UUID()}}}
+    @Published var names: [String] {didSet{if oldValue.map{GitReferenceName($0)} != names.map{GitReferenceName($0)}{referencePickerEpoch=UUID()}}}
+    struct ReferencePickerContext:Equatable {
+        let owner:ObjectIdentifier,epoch:UUID,generation:Int,reference:GitReferenceName,names:[GitReferenceName]
+    }
+    var referencePickerContext:ReferencePickerContext {
+        .init(owner:ObjectIdentifier(self),epoch:referencePickerEpoch,generation:generation,reference:GitReferenceName(reference),names:names.map{GitReferenceName($0)})
+    }
+    func acceptsReferencePicker(_ context:ReferencePickerContext)->Bool {canRefresh && context==referencePickerContext}
+    func chooseReference(_ name:String,context:ReferencePickerContext) {
+        guard acceptsReferencePicker(context),names.contains(where:{GitReferenceName.equal($0,name)}) else{return};selectReference(name)
+    }
     @Published var entries: [ReferenceLogEntry] = []
     @Published var selection = Set<String>() {
         didSet { if !finding { searchIndex = entries.firstIndex { selection.contains($0.id) } ?? 0 }; refreshCombineCandidate() }
     }
-    @Published var busy = false
+    @Published var busy = false {didSet{if oldValue != busy{referencePickerEpoch=UUID()}}}
     @Published var error: String?
     @Published var information: String?
     @Published private(set) var diffParents: [String: [LogParentChoice]] = [:]
@@ -173,8 +185,8 @@ import TurtleGitCore
     private(set) var pendingRevisionReads=0
     var hasPendingWork:Bool {!ownedTokens.isEmpty || pendingRevisionReads>0 || noteLog.noteWorkPending || noteLog.pendingHistoryLoads>0}
 
-    @Published private(set) var mutating=false
-    @Published private(set) var confirmingColumns=false
+    @Published private(set) var mutating=false {didSet{if oldValue != mutating{referencePickerEpoch=UUID()}}}
+    @Published private(set) var confirmingColumns=false {didSet{if oldValue != confirmingColumns{referencePickerEpoch=UUID()}}}
     var confirmColumnReset: () async -> Bool = {false}
     func requestColumnReset(accepted:@escaping () -> Void) {
         guard commandSurfaceAvailable else {return}
@@ -187,7 +199,7 @@ import TurtleGitCore
             confirmingColumns=false;accepted()
         }
     }
-    @Published private(set) var confirmingDelete=false
+    @Published private(set) var confirmingDelete=false {didSet{if oldValue != confirmingDelete{referencePickerEpoch=UUID()}}}
     private var deleteQuestion:UUID?
     private var loadToken:OperationCancellation?
     private var ownedTokens:[UUID:OperationCancellation]=[:]
@@ -410,10 +422,10 @@ import TurtleGitCore
     func switchBranches(_ ids: Set<String>) -> [String] {
         guard !invalidated,!selecting,commandSurfaceAvailable, hasWorkingTree,
               ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }), !isOnStash(entry) else { return [] }
-        return (referenceNamesByHash[entry.hash] ?? []).filter { $0.hasPrefix("refs/heads/") && $0 != "refs/heads/" + currentBranch }
+        return (referenceNamesByHash[entry.hash] ?? []).filter { $0.hasPrefix("refs/heads/") && !GitReferenceName.equal($0,"refs/heads/"+currentBranch) }
     }
     func switchBranch(_ ref: String, ids: Set<String>) {
-        guard switchBranches(ids).contains(ref) else { return }
+        guard switchBranches(ids).contains(where:{GitReferenceName.equal($0,ref)}) else { return }
         onSwitchBranch?(ref)
     }
     func comparisonSides(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> (ComparisonRevision, ComparisonRevision)? {
@@ -500,17 +512,17 @@ import TurtleGitCore
     func referenceDeletionCandidates(_ ids: Set<String>) -> [String] {
         guard commandSurfaceAvailable, !selecting, ids.count == 1,
               let entry = entries.first(where: { ids.contains($0.id) }) else { return [] }
-        var seen = Set<String>()
+        var seen = GitPathSet()
         let current = currentBranch.isEmpty ? nil : "refs/heads/" + currentBranch
         return (referenceNamesByHash[entry.hash] ?? []).compactMap { name in
             let name = GitReferenceName.removingSuffix("^{}", from: name) ?? name
-            guard name != current, seen.insert(name).inserted else { return nil }
+            guard current.map({GitReferenceName.equal(name,$0)}) != true, seen.insert(name).inserted else { return nil }
             return name
         }
     }
     func deleteNamedReferences(_ names: [String], ids: Set<String>) {
-        let candidates = referenceDeletionCandidates(ids)
-        guard !names.isEmpty, Set(names).count == names.count, names.allSatisfy(candidates.contains),
+        let candidates = GitPathSet(referenceDeletionCandidates(ids))
+        guard !names.isEmpty, GitPathSet(names).count == names.count, names.allSatisfy(candidates.contains),
               let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         let token = OperationCancellation(), request = generation, reference = self.reference
         let repository = self.repository.capturingDiffBackend(preferences: preferences), factory = noteLog.sshSettings.capture()
@@ -528,16 +540,16 @@ import TurtleGitCore
             }
             for name in names {
                 guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
-                      self.reference == reference, self.entries.first(where: { $0.id == entry.id }) == entry else { break }
+                      GitReferenceName.equal(self.reference,reference), self.entries.first(where: { $0.id == entry.id }) == entry else { break }
                 var choice = HistoryReferenceDeleteChoice.abort
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let snapshot = try await repository.prepareReferenceLogReferenceDeletion(name, entry: entry, cancellation: token)
                     guard !self.invalidated, !token.isCancelled, self.generation == request,
-                          self.reference == reference, self.entries.first(where: { $0.id == entry.id }) == entry else { break }
+                          GitReferenceName.equal(self.reference,reference), self.entries.first(where: { $0.id == entry.id }) == entry else { break }
                     choice = await self.confirmReferenceDeletion(snapshot)
                     guard choice != .abort, !self.invalidated, !token.isCancelled, self.generation == request,
-                          self.reference == reference, self.entries.first(where: { $0.id == entry.id }) == entry else { break }
+                          GitReferenceName.equal(self.reference,reference), self.entries.first(where: { $0.id == entry.id }) == entry else { break }
                     let output = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: token, prepareTransport: coordinator?.preparation)
                     outputs.append(output); changed = true
                 } catch {
@@ -577,7 +589,7 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let prepared = try await repository.referenceLogTransportRequest(command: command, entry: entry, references: names, cancellation: token)
-                guard let self, !self.invalidated, self.generation == request, self.reference == reference,
+                guard let self, !self.invalidated, self.generation == request, GitReferenceName.equal(self.reference,reference),
                       !token.isCancelled, self.entries.first(where: { $0.id == entry.id }) == entry else { return }
                 self.revisionReadToken = nil; self.busy = false; self.onTransport?(prepared)
             } catch {
@@ -631,7 +643,7 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let metadata = try await read(selected, ids, token)
-                guard let self, !self.invalidated, self.generation == request, self.reference == reference,
+                guard let self, !self.invalidated, self.generation == request, GitReferenceName.equal(self.reference,reference),
                       !token.isCancelled, self.entries.filter({ ids.contains($0.id) }) == selected else { return }
                 self.revisionReadToken = nil; self.busy = false
                 if operation == .editNotes {
@@ -663,7 +675,7 @@ import TurtleGitCore
                 if let read { candidate = try await read(snapshot, ids, head, token) }
                 else { candidate = try await repository.referenceLogCombineCandidate(snapshot:snapshot,selected:ids,expectedHead:head,cancellation:token) }
                 guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
-                      self.reference == reference, self.selection == ids, self.entries == snapshot else { return }
+                      GitReferenceName.equal(self.reference,reference), self.selection == ids, self.entries == snapshot else { return }
                 self.combineToken = nil; self.combineCandidate = candidate
             } catch { /* Source omits Combine when its ancestry check fails. */ }
         }
@@ -696,7 +708,7 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.referenceLogBisectRequest(snapshot: snapshot, selected: ids, operation: command == .start ? nil : command.operation, references: refs, cancellation: token)
                 guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
-                      self.reference == reference, self.entries.filter({ ids.contains($0.id) }) == snapshot else { return }
+                      GitReferenceName.equal(self.reference,reference), self.entries.filter({ ids.contains($0.id) }) == snapshot else { return }
                 self.revisionReadToken = nil; self.busy = false; self.onBisect?(result)
             } catch {
                 guard let self, !self.invalidated, !token.isCancelled, self.generation == request else { return }
@@ -800,7 +812,7 @@ private struct ReferenceLogDialog: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         VStack(spacing: 12) {
-            HStack { Text("Ref:"); ReferenceLogPicker(names: model.names, selection: Binding(get:{model.reference},set:{model.selectReference($0)})).frame(maxWidth: .infinity).frame(height: 26).disabled(!model.canRefresh) }
+            HStack { Text("Ref:"); ReferenceLogPicker(model:model).frame(maxWidth: .infinity).frame(height: 26).disabled(!model.canRefresh) }
             ReferenceLogNativeTable(model:model,dates:HistoryDateSettings(shortDate:shortDate,relative:relativeTimes,useSystemLocale:useSystemLocale)).disabled(!model.commandSurfaceAvailable)
             if let report = model.deletionReport { Text(report).font(.caption).foregroundStyle(.red).lineLimit(3).help(report) }
             HStack {
@@ -818,27 +830,65 @@ private struct ReferenceLogDialog: View {
     }
 }
 
-private struct ReferenceLogPicker: NSViewRepresentable {
-    let names: [String]
-    @Binding var selection: String
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-    func makeNSView(context: Context) -> NSPopUpButton {
-        let button = NSPopUpButton(frame: .zero, pullsDown: false)
-        button.target = context.coordinator; button.action = #selector(Coordinator.changed(_:))
-        button.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        button.setAccessibilityLabel("Ref:")
+struct ReferenceLogReferenceChoice {
+    let reference:GitReferenceName
+    let context:ReferenceLogWindowModel.ReferencePickerContext
+}
+
+/// Native insertion must preserve every raw Git spelling; AppKit's bulk title
+/// insertion merges canonically equivalent labels and shifts subsequent indices.
+@MainActor final class ReferenceLogReferencePopup:NSPopUpButton {
+    fileprivate var referenceTarget:ReferenceLogReferencePickerTarget?
+    private weak var previousWindow:NSWindow?
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let previousWindow,window !== previousWindow {retireReferenceTarget()}
+        if window != nil {previousWindow=window}
+    }
+    fileprivate func retireReferenceTarget() {
+        referenceTarget?.retire();referenceTarget=nil;target=nil;action=nil
+    }
+}
+@MainActor final class ReferenceLogReferencePickerTarget:NSObject {
+    weak var model:ReferenceLogWindowModel?
+    weak var popup:ReferenceLogReferencePopup?
+    let context:ReferenceLogWindowModel.ReferencePickerContext
+    private(set) var retired=false
+    init(model:ReferenceLogWindowModel,popup:ReferenceLogReferencePopup,context:ReferenceLogWindowModel.ReferencePickerContext) {
+        self.model=model;self.popup=popup;self.context=context
+    }
+    func retire(){retired=true}
+    @objc func changed(_ sender:NSPopUpButton) {
+        guard !retired,let model,let popup,sender === popup,popup.referenceTarget === self,
+              sender.isEnabled,let window=sender.window,window === model.window,window.attachedSheet==nil,NSApp.modalWindow==nil,
+              model.acceptsReferencePicker(context),let choice=sender.selectedItem?.representedObject as? ReferenceLogReferenceChoice,
+              choice.context==context,!GitReferenceName.equal(choice.reference.rawValue,model.reference) else{return}
+        retire();model.chooseReference(choice.reference.rawValue,context:context)
+    }
+}
+private struct ReferenceLogPicker:NSViewRepresentable {
+    @ObservedObject var model:ReferenceLogWindowModel
+    func makeNSView(context:Context)->ReferenceLogReferencePopup {
+        let button=ReferenceLogReferencePopup(frame:.zero,pullsDown:false)
+        button.setContentHuggingPriority(.defaultLow,for:.horizontal);button.setAccessibilityLabel("Ref:")
         return button
     }
-    func updateNSView(_ button: NSPopUpButton, context: Context) {
-        context.coordinator.parent = self
-        if button.itemTitles != names { button.removeAllItems(); button.addItems(withTitles: names) }
-        button.selectItem(at:names.firstIndex{GitReferenceName.equal($0,selection)} ?? -1)
+    func updateNSView(_ button:ReferenceLogReferencePopup,context:Context) {
+        let receipt=model.referencePickerContext
+        if button.referenceTarget?.context != receipt || button.referenceTarget?.retired != false {
+            button.retireReferenceTarget();button.removeAllItems()
+            for name in model.names {
+                let item=NSMenuItem(title:name,action:nil,keyEquivalent:"")
+                item.representedObject=ReferenceLogReferenceChoice(reference:GitReferenceName(name),context:receipt)
+                button.menu?.addItem(item)
+            }
+            let target=ReferenceLogReferencePickerTarget(model:model,popup:button,context:receipt)
+            button.referenceTarget=target;button.target=target;button.action=#selector(ReferenceLogReferencePickerTarget.changed(_:))
+        }
+        button.selectItem(at:model.names.firstIndex{GitReferenceName.equal($0,model.reference)} ?? -1)
+        button.isEnabled=model.canRefresh
     }
-    final class Coordinator: NSObject {
-        var parent: ReferenceLogPicker
-        init(_ parent: ReferenceLogPicker) { self.parent = parent }
-        @objc func changed(_ sender:NSPopUpButton) {let index=sender.indexOfSelectedItem;if parent.names.indices.contains(index) {parent.selection=parent.names[index]}}
-    }
+    static func dismantleNSView(_ button:ReferenceLogReferencePopup,coordinator:()) {button.retireReferenceTarget();button.isEnabled=false}
 }
 
 /// Function keys are handled by the owning RefLog window, without a global event monitor.

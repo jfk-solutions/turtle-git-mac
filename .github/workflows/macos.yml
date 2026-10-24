@@ -366,6 +366,8 @@ jobs:
         run: python3 scripts/test-rebase-execution-recovery.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Connected history reference workflows
         run: python3 scripts/test-history-reference-workflows.py --only rebase --only blame --only references --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: RefLog exact named-reference picker and actions
+        run: python3 scripts/test-reflog-reference-identity.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Rebase connected history tools
         run: python3 scripts/test-rebase-history-tools.py --only tools --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Rebase captured revision menu family

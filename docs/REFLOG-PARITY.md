@@ -1,5 +1,9 @@
 # RefLog and Stash List parity
 
+The [named-reference selection and command family](REFLOG-REFERENCE-IDENTITY-PARITY.md)
+records exact reference identity, native picker lifetime and single/All deletion
+behavior, including canonically equivalent UTF-8 names.
+
 Reference: pinned `RefLogDlg.cpp/.h`, `refloglist.cpp/.h`, `RefLogCommand.cpp/.h`,
 `IDD_REFLOG`, `GitLogListAction.cpp` and the
 [official Reference Log manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-reflog.html).

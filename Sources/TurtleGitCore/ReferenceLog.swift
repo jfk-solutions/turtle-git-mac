@@ -6,6 +6,13 @@ public struct ReferenceLogEntry: Identifiable, Hashable, Sendable {
     public let timestamp: String
     public let subject: String
     public var id: String { selector }
+    public static func ==(lhs:Self,rhs:Self)->Bool {
+        GitReferenceName.equal(lhs.hash,rhs.hash) && GitReferenceName.equal(lhs.selector,rhs.selector) &&
+        GitReferenceName.equal(lhs.timestamp,rhs.timestamp) && GitReferenceName.equal(lhs.subject,rhs.subject)
+    }
+    public func hash(into hasher:inout Hasher) {
+        for value in [hash,selector,timestamp,subject] {hasher.combine(GitReferenceName(value))}
+    }
     public var action: String { subject.components(separatedBy: ": ").first ?? subject }
     public var message: String { subject.range(of: ": ").map { String(subject[$0.upperBound...]) } ?? "" }
     public var date: Date? { timestamp.split(separator: " ").first.flatMap { TimeInterval($0) }.map(Date.init(timeIntervalSince1970:)) }
@@ -41,10 +48,17 @@ public enum ReferenceLogFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// Reference names and reflog selectors are Git byte identities. Keep the
+    /// user's persistent precomposition setting intact while preserving this
+    /// request's argv, including metadata and deletion revalidation commands.
+    func referenceLogCommand(_ arguments:[String],environmentOverrides:[String:String]=[:],successfulExitCodes:ClosedRange<Int32> = 0...0,cancellation:OperationCancellation?=nil,executorOverride:URL?=nil)throws->GitResult {
+        do {return try run(["-c","core.precomposeunicode=false"]+arguments,environmentOverrides:environmentOverrides,successfulExitCodes:successfulExitCodes,cancellation:cancellation,executorOverride:executorOverride)}
+        catch let failure as GitFailure {throw GitFailure(arguments:arguments,code:failure.code,message:failure.message)}
+    }
     /// Upstream's hash-to-friendly-name map, including peeled annotated tags.
     /// RefLog has no clicked ref label, so Switch guesses the first remote name.
     public func referenceLogReferenceNamesByHash(cancellation:OperationCancellation? = nil) throws -> [String: [String]] {
-        let result = try run(["show-ref", "-d"], successfulExitCodes: 0...1,cancellation:cancellation)
+        let result = try referenceLogCommand(["show-ref", "-d"], successfulExitCodes: 0...1,cancellation:cancellation)
         var names: [String: [String]] = [:]
         for line in String(decoding:result.stdout,as:UTF8.self).split(separator: "\n") {
             try cancellation?.check()
@@ -52,10 +66,10 @@ extension GitRepository {
             guard fields.count == 2 else { continue }
             names[String(fields[0]), default: []].append(String(fields[1]))
         }
-        return names.mapValues { $0.sorted() }
+        return names.mapValues { $0.sorted { $0 == $1 ? $0.utf8.lexicographicallyPrecedes($1.utf8):$0 < $1 } }
     }
     public func referenceLogNames(cancellation:OperationCancellation? = nil) throws -> [String] {
-        ["HEAD"] + String(decoding:try run(["for-each-ref","--format=%(refname)"],cancellation:cancellation).stdout,as:UTF8.self).split(separator:"\n").map(String.init)
+        ["HEAD"] + String(decoding:try referenceLogCommand(["for-each-ref","--format=%(refname)"],cancellation:cancellation).stdout,as:UTF8.self).split(separator:"\n").map(String.init)
     }
     public func referenceLogState(_ requested:String,fallbackToHead:Bool = true,cancellation:OperationCancellation? = nil) throws -> ReferenceLogState {
         try cancellation?.check()
@@ -66,16 +80,16 @@ extension GitRepository {
         let entries=try referenceLog(reference,cancellation:cancellation),bare=try isBare(cancellation:cancellation)
         let merging=try logMergeActive(cancellation:cancellation),bisect=try bisectState(cancellation:cancellation).active
         let svn=try referenceLogHasGitSVN(cancellation:cancellation)
-        let head=try text(run(["rev-parse","--verify","--quiet","--end-of-options","HEAD"],successfulExitCodes:0...1,cancellation:cancellation))
-        let branch=try text(run(["branch","--show-current"],cancellation:cancellation))
+        let head=try text(referenceLogCommand(["rev-parse","--verify","--quiet","--end-of-options","HEAD"],successfulExitCodes:0...1,cancellation:cancellation))
+        let branch=try text(referenceLogCommand(["branch","--show-current"],cancellation:cancellation))
         let references=try referenceLogReferenceNamesByHash(cancellation:cancellation)
         var stash:String?,indexParent:String?
         if names.contains("refs/stash") {
-            let hash=try text(run(["rev-parse","--verify","--quiet","--end-of-options","refs/stash"],successfulExitCodes:0...1,cancellation:cancellation))
+            let hash=try text(referenceLogCommand(["rev-parse","--verify","--quiet","--end-of-options","refs/stash"],successfulExitCodes:0...1,cancellation:cancellation))
             if !hash.isEmpty {
                 stash=hash
                 do {
-                    let parents=try text(run(["rev-list","--parents","-n","1",hash,"--"],cancellation:cancellation)).split(whereSeparator:\.isWhitespace)
+                    let parents=try text(referenceLogCommand(["rev-list","--parents","-n","1",hash,"--"],cancellation:cancellation)).split(whereSeparator:\.isWhitespace)
                     if parents.count==3 {indexParent=String(parents[2])}
                 } catch {try cancellation?.check()}
             }
@@ -87,13 +101,13 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard reference == "HEAD" || (reference.hasPrefix("refs/") && !reference.contains("\0") && !reference.contains("\n")) else { throw ReferenceLogFailure.reference }
         if reference != "HEAD" {
-            do { _ = try run(["check-ref-format", reference], cancellation: token) }
+            do { _ = try referenceLogCommand(["check-ref-format", reference], cancellation: token) }
             catch { try token.check(); throw ReferenceLogFailure.reference }
         }
         // Read the exact log, as the upstream libgit2/gitdll paths do. Git's
         // reflog-show walk can fall back from an empty HEAD log to the branch
         // log, making deleted HEAD entries appear again with wrong selectors.
-        var pathBytes = try run(["rev-parse", "--git-path", "logs/" + reference], cancellation: token).stdout
+        var pathBytes = try referenceLogCommand(["rev-parse", "--git-path", "logs/" + reference], cancellation: token).stdout
         if pathBytes.last == 10 { pathBytes.removeLast() }
         let path = String(decoding: pathBytes, as: UTF8.self)
         let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
@@ -120,13 +134,13 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard reference == "HEAD" || (reference.hasPrefix("refs/") && !reference.contains("\0") && !reference.contains("\n")) else { throw ReferenceLogFailure.reference }
         if reference != "HEAD" {
-            do { _ = try run(["check-ref-format", reference], cancellation: token) }
+            do { _ = try referenceLogCommand(["check-ref-format", reference], cancellation: token) }
             catch { try token.check(); throw ReferenceLogFailure.reference }
         }
         if reference == "refs/stash" { return try await deleteStashEntries(selected, expected: expected, onFailure: onFailure, cancellation: token) }
         let current = try referenceLog(reference, cancellation: token)
         guard current == expected else { throw ReferenceLogFailure.stale }
-        guard !expected.isEmpty, !selected.isEmpty, selected.isSubset(of: Set(expected.map(\.selector))) else { throw ReferenceLogFailure.selection }
+        guard !expected.isEmpty, !selected.isEmpty, Set(selected.map {GitReferenceName($0)}).isSubset(of:Set(expected.map {GitReferenceName($0.selector)})) else { throw ReferenceLogFailure.selection }
         return try await deleteReferenceLogBatch(selected, expected: expected, stash: false, onFailure: onFailure, cancellation: token)
     }
     /// Verify every row before positional deletion, then delete from oldest to newest
@@ -135,16 +149,17 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let current = try referenceLog("refs/stash", cancellation: token)
         guard current == expected else { throw ReferenceLogFailure.stale }
-        guard !expected.isEmpty, clear || (!selected.isEmpty && selected.isSubset(of: Set(expected.map(\.selector)))) else { throw ReferenceLogFailure.selection }
-        if clear { return try run(["stash", "clear"], cancellation: token).text }
+        guard !expected.isEmpty, clear || (!selected.isEmpty && Set(selected.map {GitReferenceName($0)}).isSubset(of:Set(expected.map {GitReferenceName($0.selector)}))) else { throw ReferenceLogFailure.selection }
+        if clear { return try referenceLogCommand(["stash", "clear"], cancellation: token).text }
         return try await deleteReferenceLogBatch(selected, expected: expected, stash: true, onFailure: onFailure, cancellation: token)
     }
     private func deleteReferenceLogBatch(_ selected: Set<String>, expected: [ReferenceLogEntry], stash: Bool, onFailure: (@Sendable (ReferenceLogDeleteIssue) async -> Void)?, cancellation: OperationCancellation) async throws -> String {
         var output = "", completed: [String] = [], failures: [ReferenceLogDeleteIssue] = []
-        for entry in expected.reversed() where selected.contains(entry.selector) {
+        let exactSelected=Set(selected.map {GitReferenceName($0)})
+        for entry in expected.reversed() where exactSelected.contains(GitReferenceName(entry.selector)) {
             try cancellation.check()
             do {
-                output += try run((stash ? ["stash", "drop"] : ["reflog", "delete"]) + ["--", entry.selector], cancellation: cancellation).text
+                output += try referenceLogCommand((stash ? ["stash", "drop"] : ["reflog", "delete"]) + ["--", entry.selector], cancellation: cancellation).text
                 completed.append(entry.selector)
             } catch {
                 try cancellation.check()

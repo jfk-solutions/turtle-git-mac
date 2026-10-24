@@ -43,13 +43,13 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let name = GitReferenceName.removingSuffix("^{}", from: name) ?? name
         guard name.utf8.starts(with: "refs/".utf8) else { throw HistoryReferenceDeletionFailure.reference }
-        do { _ = try run(["check-ref-format", name], cancellation: token) }
+        do { _ = try referenceLogCommand(["check-ref-format", name], cancellation: token) }
         catch { try token.check(); throw HistoryReferenceDeletionFailure.reference }
-        let current = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: token).text.trimmingCharacters(in: .newlines)
+        let current = try? referenceLogCommand(["symbolic-ref", "--quiet", "HEAD"], cancellation: token).text.trimmingCharacters(in: .newlines)
         try token.check()
         guard current.map({ !GitReferenceName.equal($0, name) }) ?? true else { throw HistoryReferenceDeletionFailure.current }
         let oid: String
-        do { oid = try run(["rev-parse", "--verify", "--end-of-options", name], cancellation: token).text.trimmingCharacters(in: .newlines) }
+        do { oid = try referenceLogCommand(["rev-parse", "--verify", "--end-of-options", name], cancellation: token).text.trimmingCharacters(in: .newlines) }
         catch { try token.check(); throw HistoryReferenceDeletionFailure.reference }
         let remote = name.utf8.starts(with: "refs/remotes/".utf8)
         let stash = name.utf8.starts(with: "refs/stash".utf8)
@@ -63,7 +63,7 @@ extension GitRepository {
     public func prepareReferenceLogReferenceDeletion(_ name: String, entry: ReferenceLogEntry, cancellation: OperationCancellation? = nil) throws -> HistoryReferenceDeletion {
         _ = try referenceLogOperationEntries(snapshot: [entry], selected: [entry.id], cancellation: cancellation)
         let snapshot = try prepareHistoryReferenceDeletion(name, cancellation: cancellation)
-        let resolved = try run(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let resolved = try referenceLogCommand(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         guard resolved == entry.hash else { throw HistoryReferenceDeletionFailure.changed }
         return snapshot
     }
@@ -88,14 +88,14 @@ extension GitRepository {
                 defer { withExtendedLifetime(session) {} }
                 let after = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token,backend:selectedBackend)
                 guard after.objectID == snapshot.objectID else { throw HistoryReferenceDeletionFailure.changed }
-                return try run(["-c", "core.precomposeunicode=false", "push", "--", remote, ":refs/heads/" + branch], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token,executorOverride:try selectedBackend.executor(for:.push)).text
+                return try referenceLogCommand(["push", "--", remote, ":refs/heads/" + branch], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token,executorOverride:try selectedBackend.executor(for:.push)).text
             }
             if selectedBackend.requests(.deleteTagBranch) {return try deleteLocalReference(name:snapshot.name,expectedOID:snapshot.objectID,expectedSymbolicTarget:snapshot.symbolicTarget,backend:selectedBackend,cancellation:token)}
-            return try run(["branch", "-D", "-r", "--", short], cancellation: token).text
+            return try referenceLogCommand(["branch", "-D", "-r", "--", short], cancellation: token).text
         }
         if selectedBackend.requests(.deleteTagBranch) {return try deleteLocalReference(name:snapshot.name,expectedOID:snapshot.objectID,expectedSymbolicTarget:snapshot.symbolicTarget,backend:selectedBackend,cancellation:token)}
-        if let short = GitReferenceName.removingPrefix("refs/heads/", from: snapshot.name) { return try run(["branch", "-D", "--", short], cancellation: token).text }
-        if let short = GitReferenceName.removingPrefix("refs/tags/", from: snapshot.name) { return try run(["tag", "-d", "--", short], cancellation: token).text }
-        return try run(["update-ref", "--no-deref", "-d", snapshot.name, snapshot.objectID], cancellation: token).text
+        if let short = GitReferenceName.removingPrefix("refs/heads/", from: snapshot.name) { return try referenceLogCommand(["branch", "-D", "--", short], cancellation: token).text }
+        if let short = GitReferenceName.removingPrefix("refs/tags/", from: snapshot.name) { return try referenceLogCommand(["tag", "-d", "--", short], cancellation: token).text }
+        return try referenceLogCommand(["update-ref", "--no-deref", "-d", snapshot.name, snapshot.objectID], cancellation: token).text
     }
 }

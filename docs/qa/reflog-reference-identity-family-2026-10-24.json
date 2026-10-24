@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-grouped-checkpoint-passed-after-fixture-repairs",
+  "baseline_head": "c301d45a031cf247cc637c3d31e27fd62b34ea58",
+  "scope": [
+    "Exact RefLog native popup projection, captured item authority and target retirement",
+    "Exact named-reference candidates, current-branch exclusion, Switch and All deletion",
+    "Invocation-only precomposition policy for ref/log reads and named mutation validation",
+    "Byte-exact event equality/hash, selected-selector membership, cancellation and owned helpers"
+  ],
+  "frozen_production_inputs": {
+    "Sources/TurtleGitCore/ReferenceLog.swift": "1107e4c67d8a97d044893a40800ed180c69bcf1891d8c48e91a05b6a42369e1f",
+    "Sources/TurtleGitCore/ReferenceLogOperations.swift": "bfeaec0a7a3c6c0e7af63ce6ef62217ea5b9e329d96329cec571bf76ae31f586",
+    "Sources/TurtleGitCore/ReferenceLogDiff.swift": "5c8d56a5179b4da0d6e3f7cfd8c4f51da35da2c432a7f59aebaee5c4a5ca8b69",
+    "Sources/TurtleGitCore/HistoryReferenceDeletion.swift": "a6fa6259f09a508044281c85ede71939bdba1e13ab083d1602cdaf45478163b6",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "577642706ac8213ecad566ca7d34130a1313f02babe19d191197dc5abd13e163",
+    "Sources/TurtleGitMac/ReferenceLogNativeTable.swift": "048628d1dd227ed621be0c493140c56aea0e124e1479545f2eedb18856cd99a4"
+  },
+  "validation": {
+    "core": {
+      "methods": 29,
+      "failures": 0,
+      "exit_code": 0,
+      "log": "build/qa/reflog-reference-identity-core-2026-10-24.log"
+    },
+    "app": {
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 5,
+      "source_changes_during_build": [],
+      "log": "build/qa/reflog-reference-identity-app-2026-10-24.log",
+      "note": "Five contradictory command-failed-with-exit-code-zero diagnostics remain recorded despite process exit0 and current native objects; no build rerun solely for these diagnostics."
+    },
+    "native": {
+      "initial_log": "build/qa/reflog-reference-identity-native-2026-10-24.log",
+      "initial_compile_exit_code": 1,
+      "initial_receivers_launched": 0,
+      "repair": "Fixture beginSheet selected async overload; specify completionHandler for nonblocking attached-sheet guard check. No production changes or Core/app rerun.",
+      "retry_log": "build/qa/reflog-reference-identity-native-repair1-2026-10-24.log",
+      "planned_pairs": 6,
+      "repair1": {
+        "exit_code": 1,
+        "attempted_case": "picker/system Git",
+        "owned_receiver_pid": 31830,
+        "termination": "SIGSEGV",
+        "log": "build/qa/reflog-reference-identity-native-repair1-2026-10-24.log",
+        "crash_evidence": {
+          "exception": "EXC_BAD_ACCESS",
+          "fault_thread": 0,
+          "top_frames": [
+            "objc_release",
+            "static RefLogReferenceIdentityVerification.main()"
+          ]
+        },
+        "repair": "Fixture-owned sheet and temporary window used AppKit release-on-close defaults while retained by Swift. Explicit isReleasedWhenClosed=false makes ARC own their lifetime. No production changes."
+      },
+      "retry2_log": "build/qa/reflog-reference-identity-native-repair2-2026-10-24.log",
+      "exit_code": 0,
+      "results": [
+        {
+          "case": "picker",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "picker",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "menus",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "menus",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "lifetime",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "lifetime",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "passed_pairs": 6,
+      "owned_receiver_pids": [
+        31830,
+        32042,
+        32150,
+        32257,
+        32373,
+        32487,
+        32588
+      ],
+      "independently_still_running": [],
+      "production_changed_after_core_app": []
+    },
+    "resources": {
+      "site_documents": 432,
+      "unresolved_fragments": 0,
+      "python_site_tests": 2,
+      "python_exit_code": 0,
+      "javascript_search_exit_code": 0,
+      "localization_check": {
+        "languages": 38,
+        "keys": 1317,
+        "exit_code": 0
+      },
+      "literal_labels_changed": false,
+      "bundled_help_guides_changed": false,
+      "logs": [
+        "build/qa/reflog-reference-identity-site-2026-10-24.log",
+        "build/qa/reflog-reference-identity-site-check-2026-10-24.log",
+        "build/qa/reflog-reference-identity-site-search-2026-10-24.log"
+      ],
+      "dialog_audit_counts": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_controls": 85,
+        "certified_complete": 0,
+        "note": "Not a feature-completion percentage"
+      }
+    }
+  },
+  "limits": [
+    "Packed refs preserve byte-distinct names, but filesystem-normalized loose reflog paths may still alias; no separate historical storage claim",
+    "Invalid UTF-8 names, full hosted integration, physical/VoiceOver and signed sandbox acceptance remain open",
+    "Shared external Merge/P4 edits and protected development work are preserved, excluded from this commit",
+    "No whole-port or App Store readiness claim"
+  ]
+}

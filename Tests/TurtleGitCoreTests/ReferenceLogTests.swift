@@ -145,10 +145,18 @@ final class ReferenceLogTests: XCTestCase {
         func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
         let script = """
         #!/bin/sh
-        if [ "$4" = reflog ] && [ "$5" = delete ]; then
-          printf '%s\\n' "$7" >> \(quote(calls.path))
-          if [ "$7" = 'HEAD@{2}' ]; then echo 'injected deletion failure' >&2; exit 77; fi
-        fi
+        inspect_delete() {
+          while [ "$#" -ge 4 ]; do
+            if [ "$1" = reflog ] && [ "$2" = delete ] && [ "$3" = -- ]; then
+              printf '%s\\n' "$4" >> \(quote(calls.path))
+              if [ "$4" = 'HEAD@{2}' ]; then echo 'injected deletion failure' >&2; return 77; fi
+              return 0
+            fi
+            shift
+          done
+          return 0
+        }
+        inspect_delete "$@" || exit 77
         exec \(quote(direct.executable.path)) "$@"
         """
         try script.write(to: wrapper, atomically: true, encoding: .utf8); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: wrapper.path)
