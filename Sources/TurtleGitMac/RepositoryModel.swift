@@ -2513,7 +2513,7 @@ private enum TransportBatchPresentationContext {
             guard let self, let controller, !controller.model.closed, let owner = controller.window,
                   owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
             await withCheckedContinuation { continuation in
-                self.showRebase(repository: repository, access: access, upstream: target, autoStart: autoStart, preserveMerges: preserve,
+                self.showRebase(repository: repository, access: access, upstream: target.isEmpty ? nil:target, autoStart: autoStart, preserveMerges: preserve,
                     afterFetch: true, owner: owner, onDismissed: { continuation.resume() })
             }
         }
@@ -4158,7 +4158,7 @@ private enum TransportBatchPresentationContext {
         }
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
             self?.performTransportHandoff(transportChain,modal:true) {
-                self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences)
+                self?.showRebase(repository: repository, access: access, upstream: upstream.isEmpty ? nil:upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences)
             }
         }
     }

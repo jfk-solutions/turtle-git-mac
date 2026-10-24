@@ -4,7 +4,8 @@ import TurtleGitCore
 @main struct PullCleanupVerification {
     struct Failure: Error { let message: String }
     static func require(_ value: Bool,_ message:String) throws { if !value { throw Failure(message:message) } }
-    @MainActor static func wait(_ predicate:()->Bool) async throws { for _ in 0..<2000 { if predicate() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(message:"Timeout") }
+    @MainActor static var phase="setup"
+    @MainActor static func wait(_ predicate:()->Bool) async throws { for _ in 0..<2000 { if predicate() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(message:"Timeout: "+phase) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Pull cleanup failed: \(error)\n",stderr); exit(1) } }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -12,7 +13,12 @@ import TurtleGitCore
         let suite="TurtleGit.PullCleanup.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer { prefs.removePersistentDomain(forName:suite); prefs.synchronize() }
         prefs.set(0,forKey:"AutoCloseGitProgress"); prefs.set(false,forKey:"ConfirmKillProcess")
-        let stages=["initial","config","remote","validation","pull","inspection","success","reset","answeredNo","answeredYes"]
+        // PullProgress.execute captures its backend from these private prefs.
+        prefs.set(false,forKey:"UseLibgit2")
+        let allStages=["initial","config","remote","validation","pull","inspection","success","reset","answeredNo","answeredYes"]
+        let requested=ProcessInfo.processInfo.environment["TURTLEGIT_PULL_CLEANUP_STAGES"].map{$0.split(separator:",").map(String.init)}
+        try require(requested.map{!$0.isEmpty && $0.allSatisfy(allStages.contains)} ?? true,"Unknown or empty requested Pull cleanup stages")
+        let stages=requested ?? allStages
         let remoteRoot=root.appendingPathComponent("producer");try FileManager.default.createDirectory(at:remoteRoot,withIntermediateDirectories:true)
         let producer=GitRepository(root:remoteRoot,executable:git)
         _ = try await producer.run(["init","-b","main"])
@@ -22,13 +28,32 @@ import TurtleGitCore
         for stage in stages { _ = try await producer.run(["clone",remoteRoot.path,root.appendingPathComponent(stage).path]) }
         _ = try await producer.run(["commit","--allow-empty","-m","next"])
         for stage in stages {
+            phase=stage+": load/progress"
             let client=root.appendingPathComponent(stage), actual=GitRepository(root:client,executable:git)
             let helper=root.appendingPathComponent("slow-"+stage),marker=URL(fileURLWithPath:helper.path+".started"),pause=URL(fileURLWithPath:helper.path+".pause")
-            let command=["initial":"rev-parse","validation":"check-ref-format","inspection":"status","success":"rev-parse","reset":"config","answeredNo":"pull","answeredYes":"pull"][stage] ?? stage
+            // Branch/refspec validation now belongs to Git. This stage closes
+            // directly before Pull executes; the separate pull stage first
+            // holds its Cancel confirmation. Keep both ownership assertions.
+            let command=["initial":"rev-parse","validation":"pull","inspection":"ls-files","success":"rev-parse","reset":"config","answeredNo":"pull","answeredYes":"pull"][stage] ?? stage
             let quoted="'"+git.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
             let script="""
             #!/bin/sh
-            if [ "${4-}" = pull ]; then
+            inspect_git_command() {
+              command_name=
+              while [ "$#" -gt 0 ]; do
+                case "$1" in
+                  -C|-c|--git-dir|--work-tree|--namespace|--config-env)
+                    shift
+                    if [ "$#" -gt 0 ]; then shift; fi
+                    ;;
+                  --) shift; command_name=${1-}; return ;;
+                  -*) shift ;;
+                  *) command_name=$1; return ;;
+                esac
+              done
+            }
+            inspect_git_command "$@"
+            if [ "$command_name" = pull ]; then
               if [ '\(stage)' = inspection ] || [ '\(stage)' = reset ]; then exit 1; fi
               if [ '\(stage)' = success ]; then
                 \(quoted) "$@"
@@ -37,7 +62,7 @@ import TurtleGitCore
                 exit "$task_result"
               fi
             fi
-            if [ "${4-}" = '\(command)' ] && [ -f "$0.pause" ]; then
+            if [ "$command_name" = '\(command)' ] && [ -f "$0.pause" ]; then
               if [ '\(stage)' != success ] || [ -f "$0.done" ]; then
                 printf 'owned Pull work\\n'
                 /bin/sleep 30 &
@@ -52,7 +77,10 @@ import TurtleGitCore
             try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
             let normalAnswer=stage.hasPrefix("answered")
             prefs.set(normalAnswer ? 2 : 0,forKey:"AutoCloseGitProgress")
-            let wrapped=GitRepository(root:client,executable:helper)
+            // This ownership fixture intercepts CLI commands. Conflict recovery
+            // now inspects ls-files -u, so capture CLI instead of permitting the
+            // selected helper backend to bypass the owned wrapper.
+            let wrapped=GitRepository(root:client,executable:helper,libgit2Configuration:.init(enabled:false))
             let owner=FetchWindowController(repository:wrapped,access:nil,isPull:true,preferences:prefs);var ids:[Int32]=[]
             defer { owner.close();for pid in ids where kill(pid,0)==0 { _ = kill(pid,SIGTERM) } }
             owner.presentPullProgress={parent,_ in parent.makeFirstResponder(nil);return true}
@@ -62,7 +90,9 @@ import TurtleGitCore
             var completions=0,dispatches=0,lateAnswer:((Bool)->Void)?
             let completed=model.onCompleted;model.onCompleted={ completed();completions += 1 };model.onPostAction={ _,_ in dispatches += 1 }
             if stage=="reset" { try await wait { !model.busy };try Data().write(to:pause);model.perform(.reset) }
+            phase=stage+": owned process marker"
             try await wait { FileManager.default.fileExists(atPath:marker.path) }
+            phase=stage+": owned process/result drain"
             ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) }
             try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Owned process not live")
             if stage=="pull" || normalAnswer { prefs.set(true,forKey:"ConfirmKillProcess");model.confirmCancellation={lateAnswer=$0};model.cancel();try require(model.confirmingCancellation,"Missing Cancel confirmation") }

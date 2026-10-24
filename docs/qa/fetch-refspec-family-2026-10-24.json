@@ -1,0 +1,266 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-validation-complete",
+  "scope": [
+    "Literal single-refspec Fetch/Pull input and selected-engine validation",
+    "Named/URL/force/wildcard/negative syntax and source selected-library load/add/fetch lifecycle",
+    "Captured request origin, exact configured-pair omission and Retry",
+    "Raw editable Rebase preset versus resolved immutable target, configured/default/empty chooser behavior",
+    "Cancellation, exact Unicode argv, persistent configuration and owned native windows/processes"
+  ],
+  "baseline": {
+    "initial_head": "95df5f46",
+    "external_merge_work_committed_during_batch": [
+      "067cbe47",
+      "a402d50b"
+    ],
+    "current_head": "a402d50b8dcd888a6d1ab862965038fbe8f9d262",
+    "note": "Separate user-owned Merge/P4 commits are preserved. The scoped app build was coherent at its checkpoint; later unrelated Merge changes are not certified by this batch."
+  },
+  "production_changes_after_initial_core": [
+    "Pull.swift optional captured command observer and FetchWindow.swift progress preamble, repaired after native Pull exposed missing submitted-command receipt."
+  ],
+  "validation": {
+    "core": {
+      "initial_methods": 51,
+      "intended_family_methods": 47,
+      "additional_filter_match": "RequestPullTests (4 methods)",
+      "initial_failures": 2,
+      "initial_unexpected": 1,
+      "initial_log": "build/qa/fetch-refspec-core-2026-10-24.log",
+      "repairs": [
+        {
+          "scope": "FetchPullOutputTests/testRebasePreparationFailurePreservesSuccessfulTransportDiagnostics",
+          "cause": "macOS /bin/sh parsing of case inside command substitution; fixture failed before reaching transport",
+          "change": "Use a helper function to inspect positional arguments without command substitution; shell syntax check passed."
+        },
+        {
+          "scope": "PullTests/testURLBranchSelectionAndConfiguredRebaseDoesNotMutate",
+          "cause": "Old assertion mislabeled a valid source/destination refspec as invalid branch input",
+          "change": "Retain structural-refusal assertion with embedded NUL; real mapping acceptance remains covered by new tests."
+        }
+      ],
+      "repair_methods": 2,
+      "repair_failures": 0,
+      "repair_exit_code": 0,
+      "repair_log": "build/qa/fetch-refspec-core-repair1-2026-10-24.log",
+      "current_result": "All 51 distinct methods pass cumulatively; two fixture-only failures repaired and rechecked, then two affected methods repeated after Pull command receipt production repair.",
+      "production_repair_check": {
+        "methods": 2,
+        "failures": 0,
+        "exit_code": 0,
+        "log": "build/qa/fetch-refspec-core-repair2-2026-10-24.log",
+        "scope": [
+          "FetchRefspecTests/testPullDestinationMappingFastForwardsAndDelegatesInvalidSyntax",
+          "FetchPullOutputTests/testFetchRebaseAndPullObserversMatchRawResultsAndRepositoryEffects"
+        ]
+      }
+    },
+    "app": {
+      "initial_exit_code": 0,
+      "initial_generic_exit_zero_diagnostics": 2,
+      "initial_changed_sources": [
+        "Sources/TurtleGitMac/TextConflictWindow.swift"
+      ],
+      "initial_log": "build/qa/fetch-refspec-app-2026-10-24.log",
+      "repair_exit_code": 0,
+      "repair_generic_exit_zero_diagnostics": 0,
+      "repair_changed_sources": [],
+      "repair_log": "build/qa/fetch-refspec-app-repair1-2026-10-24.log",
+      "reason": "Shared external Merge source changed during initial build; retry uses coherent source snapshot.",
+      "production_repair_build": {
+        "exit_code": 0,
+        "generic_exit_zero_diagnostics": 1,
+        "changed_sources": [],
+        "log": "build/qa/fetch-refspec-app-repair2-2026-10-24.log",
+        "source_snapshot": "build/qa/fetch-refspec-app-repair2-source-before-2026-10-24.json"
+      }
+    },
+    "native": {
+      "planned_pairs": 6,
+      "log": "build/qa/fetch-refspec-native-2026-10-24.log",
+      "scope": "CLI Fetch/Pull/Rebase \u00d7 system and bundled Git. Selected helper lifecycle is covered by Core checks, not these native cases.",
+      "initial_results": [
+        {
+          "case": "fetch",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "fetch",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pull",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "passed": false
+        }
+      ],
+      "initial_failure": "Pull literal mapping succeeded but progress lacked the submitted command receipt; input history/transport assertions retained.",
+      "production_repair": "Add optional captured Pull command observer, feed its exact preamble through the existing native stream parser, preserving raw Git output for Core observers.",
+      "repair_results": [
+        {
+          "case": "pull",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pull",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "rebase",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "rebase",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "repair_log": "build/qa/fetch-refspec-native-repair1-2026-10-24.log",
+      "distinct_passing_pairs": 6,
+      "attempted_receivers": [
+        42797,
+        42931,
+        43058,
+        43848,
+        43986,
+        44123,
+        44388
+      ],
+      "receiver_absence_verified": true,
+      "retained_initial": [
+        {
+          "case": "fetch-pull-stream",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/fetch-refspec-retained-fetch-pull-stream-2026-10-24.log"
+        },
+        {
+          "case": "fetch-cancellation",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/fetch-refspec-retained-fetch-cancellation-2026-10-24.log"
+        }
+      ],
+      "retained_repair1": [
+        {
+          "case": "fetch-cancellation",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/fetch-refspec-retained-fetch-cancellation-repair1-2026-10-24.log"
+        },
+        {
+          "case": "pull-cleanup",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/fetch-refspec-retained-pull-cleanup-repair1-2026-10-24.log"
+        }
+      ],
+      "retained_repairs": [
+        "Cancellation expected only a bare diagnostic; now requires exact retained command output, cancelled=true, success=false, plus original process/HEAD/index/No-Yes/owner assertions.",
+        "Forced cleanup inspection intercepted obsolete status; use current ls-files -u with an explicitly captured CLI backend. All ten stages and ownership assertions remain.",
+        "Repository-only CLI capture was replaced by Pull execution preference capture; set UseLibgit2=false in the private fixture preferences. The second inspection attempt timed out before this correction."
+      ],
+      "retained_repair2": [
+        {
+          "case": "pull-cleanup",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/fetch-refspec-retained-pull-cleanup-repair2-2026-10-24.log"
+        }
+      ],
+      "retained_repair3": [
+        {
+          "case": "pull-cleanup",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "helper_cleanup_needed": false,
+          "log": "build/qa/fetch-refspec-retained-pull-cleanup-repair3-2026-10-24.log"
+        }
+      ],
+      "retained_final_result": "Streaming and six cancellation modes pass with system Git. All ten forced Pull cleanup stages pass cumulatively; only the remaining five stages repeated after explicit private preference correction.",
+      "retained_attempted_receivers": [
+        44817,
+        44994,
+        45320,
+        45517,
+        46027,
+        46394
+      ],
+      "retained_receivers_absence_verified": true
+    },
+    "resources": {
+      "localization": {
+        "languages": 38,
+        "keys": 1317,
+        "check": "pass"
+      },
+      "dialog_coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "pending_control_reviews": 85,
+        "not_completion_percentage": true
+      },
+      "site": {
+        "documents": 433,
+        "unresolved_fragments": 0,
+        "python_tests": 2,
+        "python_result": "pass",
+        "javascript_search": "pass"
+      }
+    },
+    "hosted_observation": {
+      "commit": "95df5f46",
+      "run": 40096089548,
+      "build_job": {
+        "id": 120887008853,
+        "conclusion": "success"
+      },
+      "native_job": {
+        "id": 120887303782,
+        "status": "in_progress",
+        "current_step": "Rebase connected history tools"
+      },
+      "pages_run": 40096089541,
+      "pages_result": "success",
+      "full_current_pass": false
+    }
+  },
+  "limits": [
+    "Selected-library automatic Rebase continuation remains an explicit Mac extension; source libgit2 returns before CLI postexec",
+    "All-remotes Rebase remains a native profile restriction",
+    "No current full hosted integration, public server/authentication, physical/VoiceOver or signed/App Store acceptance claim",
+    "Protected reference-batch and reflog-capture work remains untouched"
+  ],
+  "initial_production_inputs": {
+    "Sources/TurtleGitCore/Fetch.swift": "94a582b2f050604a24e724e7cab189024fe3f2da228ca077e02836afc9ffa893",
+    "Sources/TurtleGitCore/Pull.swift": "f9ecfed72ed37049ab5b56bff4fc9e9f4661d0c0bba756dfeb394b55261a15ce",
+    "Sources/TurtleGitMac/FetchWindow.swift": "5440041d8ebd06e5853dd7ec4ad2425d84b57947a9eeea11f0f1f423e630e9c9",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "81b0461cb2480b5e35792d8e3a7b26eed2797855d3dd9da458059946ad6a4779"
+  },
+  "final_production_inputs": {
+    "Sources/TurtleGitCore/Fetch.swift": "94a582b2f050604a24e724e7cab189024fe3f2da228ca077e02836afc9ffa893",
+    "Sources/TurtleGitCore/Pull.swift": "ab6db860643b9f53c154f4b4ef45fd8f2fe5d5577bc66eabc37fd1616e3706cf",
+    "Sources/TurtleGitMac/FetchWindow.swift": "815bfbdb3f8c165db68633af2424dfcb7165c15977879cc1077b4b2a3d072f1e",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "81b0461cb2480b5e35792d8e3a7b26eed2797855d3dd9da458059946ad6a4779"
+  }
+}

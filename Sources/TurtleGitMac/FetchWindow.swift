@@ -414,7 +414,10 @@ import TurtleGitCore
         let wantsRebase = launchRebase && !bare && !options.arbitraryURL
         let autoStart = configuredRebase
         let keepMerges = preserveMerges
-        if wantsRebase && (options.allRemotes || options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { error = FetchRebaseFailure.destination.localizedDescription; return }
+        // PullFetchDlg rejects an empty displayed branch for Pull + Rebase.
+        // Fetch can omit its effective refspec and let Rebase use the captured
+        // configured tracking preset or its ordinary editable default chooser.
+        if wantsRebase && (options.allRemotes || isPull && options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { error = FetchRebaseFailure.destination.localizedDescription; return }
         var snapshot = options
         snapshot.verbose = GitCommandPresentation(defaults: preferences).fetchVerbose
         snapshot.branch = FetchDialogHistory.trim(snapshot.branch)
@@ -448,7 +451,7 @@ import TurtleGitCore
             progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
             onProgress?(progress); progress.start(); return
         }
-        let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges)
+        let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges,isPull:isPull)
         progress.makeSSHCoordinator = sshFactory
         progress.onNotificationLog=onNotificationLog
         fetchProgress = progress
@@ -846,7 +849,8 @@ enum PullPostAction: String, CaseIterable, Hashable {
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let operation = Task {
             defer { continuation.finish() }
-            return try await repository.pull(snapshot, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: preparation)
+            let observer:@Sendable(GitOutputChunk)->Void={chunk in parser.appendChunk(chunk.data);continuation.yield(())}
+            return try await repository.pull(snapshot, cancellation: cancellation, onOutput:observer, prepareTransport: preparation,onCommand:{observer(GitOutputChunk(stream:.stdout,data:$0.preamble))})
         }
         for await _ in updates { consume(parser.processPending(), parser: parser) }
         consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
@@ -1039,6 +1043,9 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     let options: FetchOptions
     let rebaseMode: FetchRebaseMode
     let preserveMerges: Bool
+    /// PullFetchDlg omits a named-all Pull field only for its configured pair;
+    /// ordinary Fetch omits it unconditionally. Retry retains this origin.
+    let isPull:Bool
     private let access: RepositoryAccessLease?
     var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults
@@ -1088,12 +1095,12 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
     var onOwnedRebase: ((String, Bool, Bool) async throws -> Void)?
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false,backend:GitLibGit2Configuration?=nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false,isPull:Bool=false,backend:GitLibGit2Configuration?=nil) {
         notifications=FileOperationProgressState(preferences:preferences)
         let capturedBackend = backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
         self.backend = capturedBackend
         self.repository = repository.capturingBackend(capturedBackend); self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
-        self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
+        self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges;self.isPull=isPull
     }
     private func answer(_ prompt: FetchRebasePrompt) async -> Int {
         guard !invalidated else { return prompt.answers[prompt.defaultIndex] }
@@ -1221,7 +1228,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             let observer: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
             let command:@Sendable(GitCommandInvocation)->Void={observer(GitOutputChunk(stream:.stdout,data:$0.preamble))}
             if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend,onNotification:{value in typed.append(value);continuation.yield(())}), nil) }
-            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend,onNotification:{value in typed.append(value);continuation.yield(())})
+            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend,onNotification:{value in typed.append(value);continuation.yield(())},isPull:isPull)
             return (result.output, result)
         }
         for await _ in updates { drainNotifications();consume(parser.processPending(), parser: parser) }

@@ -87,8 +87,8 @@ final class PullTests: XCTestCase {
         let head = try await consumer.run(["rev-parse", "HEAD"]).text, expected = try await publisher.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(head, expected)
         o.noFastForward = true; o.fastForwardOnly = true
         do { _ = try await consumer.pull(o); XCTFail("Incompatible flags") } catch PullFailure.combination {}
-        o.noFastForward = false; o.fetch.branch = "main:refs/heads/injected"
-        do { _ = try await consumer.pull(o); XCTFail("Invalid branch") } catch FetchFailure.branch {}
+        o.noFastForward = false; o.fetch.branch = "main\0invalid"
+        do { _ = try await consumer.pull(o); XCTFail("Embedded NUL must be rejected") } catch FetchFailure.branch {}
     }
     func testExplicitUnrelatedHistoryPullCreatesBothParents() async throws {
         let (root, publisher, _, consumer, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }

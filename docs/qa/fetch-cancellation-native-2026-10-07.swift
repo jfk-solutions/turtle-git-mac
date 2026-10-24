@@ -24,7 +24,22 @@ import TurtleGitCore
         let helper = root.appendingPathComponent("slow-git"), marker = URL(fileURLWithPath: helper.path + ".started")
         let script = """
         #!/bin/sh
-        case "${4-}" in
+        inspect_git_command() {
+          command_name=
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -C|-c|--git-dir|--work-tree|--namespace|--config-env)
+                shift
+                if [ "$#" -gt 0 ]; then shift; fi
+                ;;
+              --) shift; command_name=${1-}; return ;;
+              -*) shift ;;
+              *) command_name=$1; return ;;
+            esac
+          done
+        }
+        inspect_git_command "$@"
+        case "$command_name" in
           fetch|pull)
             /bin/sleep 30 &
             task_transport_child=$!
@@ -67,7 +82,16 @@ import TurtleGitCore
             try await wait(model, allowError: true)
             precondition(!model.transportRunning && model.canCancel && callbacks == 0)
             if mode >= 3 { precondition(model.error == nil && model.progress == nil && model.fetchProgress == nil && closes == 1, "Owned Pull/Fetch/Rebase cancellation must finish and close its owner") }
-            else { precondition(model.error == "Operation cancelled." && closes == 0) }
+            else {
+                // Streaming now retains the actual command preamble alongside
+                // cancellation. Require the accepted result verbatim, rather
+                // than discarding that context to match the former bare error.
+                let resultOutput = model.progress?.output ?? model.fetchProgress?.output
+                let resultCancelled = model.progress?.cancelled ?? model.fetchProgress?.cancelled ?? false
+                let resultSucceeded = model.progress?.success ?? model.fetchProgress?.success ?? true
+                precondition(model.error == resultOutput && resultOutput?.contains("Operation cancelled.") == true && resultCancelled && !resultSucceeded && closes == 0,
+                             "Retained cancellation lost its exact result/diagnostic or closed the owner: mode \(mode), \(model.error ?? "nil")")
+            }
             precondition(model.options.remote == "origin" && model.options.branch == "main" && confirmations == (mode == 1 || mode == 4 || mode == 5 ? 2 : 0))
             let afterHead = try await direct.run(["rev-parse", "HEAD"]).stdout, afterIndex = try Data(contentsOf: client.appendingPathComponent(".git/index"))
             precondition(head == afterHead && index == afterIndex && decoy.isRunning)

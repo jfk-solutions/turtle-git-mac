@@ -119,7 +119,7 @@ final class SourceFetchLifecycleTests:XCTestCase {
     func testStandaloneSourceRebaseUsesSelectedRemoteBranchInsteadOfConfiguredMainFetchHead()async throws {
         let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
         _=try await f.client.run(["config","--replace-all","remote.origin.fetch","+refs/heads/*:refs/remotes/origin/*"])
-        var options=FetchOptions();options.remote="origin";options.branch="side"
+        var options=FetchOptions();options.remote="origin";options.branch="side";options.namedRemoteFetchAll=false
         let receipt=Receipt(),result=try await f.client.fetchForRebase(options,backend:f.backend,onNotification:{receipt.event($0)})
         let fetchHead=try await hash(f.client,"FETCH_HEAD"),head=try await hash(f.client,"HEAD")
         XCTAssertEqual(fetchHead,f.base,"Configured merge FETCH_HEAD fixture must discriminate from selected side")
@@ -130,9 +130,11 @@ final class SourceFetchLifecycleTests:XCTestCase {
     }
     func testStandaloneSourceRebaseDoesNotUseUnrelatedFetchHeadWhenSelectedTrackingRefWasNotLoaded()async throws {
         let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
-        var options=FetchOptions();options.remote="origin";options.branch="side"
+        var options=FetchOptions();options.remote="origin";options.branch="side";options.namedRemoteFetchAll=false
         let receipt=Receipt()
-        do{_=try await f.client.fetchForRebase(options,backend:f.backend,onNotification:{receipt.event($0)});XCTFail("Narrow source fetch rebased toward unrelated configured main")}catch let error as FetchRebaseExecutionFailure{XCTAssertFalse(error.details.isEmpty);XCTAssertNotNil(error.commandFailure)}
+        let result=try await f.client.fetchForRebase(options,backend:f.backend,onNotification:{receipt.event($0)})
+        XCTAssertEqual(result.upstream,"remotes/origin/side");XCTAssertEqual(result.upstreamPreset,result.upstream);XCTAssertFalse(result.upstreamResolved)
+        XCTAssertFalse(result.canFastForward);XCTAssertFalse(result.currentIsUpToDate)
         let after=try await specs(f.client),fetchHead=try await hash(f.client,"FETCH_HEAD"),head=try await hash(f.client,"HEAD")
         XCTAssertEqual(after,[f.mainSpec,"side"]);XCTAssertEqual(fetchHead,f.base);XCTAssertEqual(head,f.base)
         XCTAssertTrue(receipt.refs.contains{$0.reference=="refs/remotes/origin/main" && $0.change == .same});XCTAssertFalse(receipt.refs.contains{$0.reference=="refs/remotes/origin/side"})

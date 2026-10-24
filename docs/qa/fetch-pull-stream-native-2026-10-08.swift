@@ -27,7 +27,22 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if { [ "${4-}" = fetch ] || [ "${4-}" = pull ]; } && [ ! -f "$0.release" ]; then
+        inspect_git_command() {
+          command_name=
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -C|-c|--git-dir|--work-tree|--namespace|--config-env)
+                shift
+                if [ "$#" -gt 0 ]; then shift; fi
+                ;;
+              --) shift; command_name=${1-}; return ;;
+              -*) shift ;;
+              *) command_name=$1; return ;;
+            esac
+          done
+        }
+        inspect_git_command "$@"
+        if { [ "$command_name" = fetch ] || [ "$command_name" = pull ]; } && [ ! -f "$0.release" ]; then
           printf '\\351\\233' >&2
           /bin/sleep 0.02
           printf '\\252\\360\\237\\220\\242\\n' >&2

@@ -33,14 +33,17 @@ public enum FetchFailure: LocalizedError {
 }
 public struct FetchRebaseResult: Sendable {
     public let output: String
-    /// Immutable target from this fetch, independent of later FETCH_HEAD updates.
+    /// Immutable resolved commit, or the editable source preset if unresolved.
     public let upstream: String
+    /// Source spelling before resolution, including an empty default chooser.
+    public let upstreamPreset: String
+    public let upstreamResolved: Bool
     /// The conventional named-remote ref before transport, as in DoFetch.
     public let oldUpstream: String
     public let head: String
     public let currentIsUpToDate: Bool
     public let canFastForward: Bool
-    public var unchangedAtHEAD: Bool { !oldUpstream.isEmpty && oldUpstream == upstream && upstream == head }
+    public var unchangedAtHEAD: Bool { upstreamResolved && !oldUpstream.isEmpty && oldUpstream == upstream && upstream == head }
 }
 /// Transport succeeded, but preparing the immutable Rebase target failed.
 public struct FetchRebaseExecutionFailure: LocalizedError {
@@ -59,34 +62,66 @@ public enum FetchRebaseFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend: GitLibGit2Configuration? = nil,onNotification:(@Sendable(GitTransferNotification)->Void)? = nil) async throws -> FetchRebaseResult {
+    /// Preserve literal decomposed ref names even in repositories whose worktree
+    /// filenames use precomposition. This override never changes stored config.
+    func fetchLiteralCommand(_ arguments: [String], environment: [String: String] = [:], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+        do { return try run(["-c", "core.precomposeunicode=false"] + arguments, environmentOverrides: environment, successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput) }
+        catch let failure as GitFailure {
+            throw GitFailure(arguments: arguments, code: failure.code, message: failure.message, outputWasDelivered: failure.outputWasDelivered, standardError: failure.standardError)
+        }
+    }
+    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend: GitLibGit2Configuration? = nil,onNotification:(@Sendable(GitTransferNotification)->Void)? = nil, isPull: Bool = false) async throws -> FetchRebaseResult {
         let backend = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard !(try rebaseState()).active else { throw FetchRebaseFailure.active }
-        guard !options.allRemotes, !options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FetchRebaseFailure.destination }
-        // CLI Fetch selects this branch directly. FetchProgressCommand instead
-        // appends its raw branch refspec for later invocations and fetches the
-        // already-loaded configured refs. Its Rebase target remains the named
-        // remote branch, as in DoFetch, rather than an unrelated FETCH_HEAD row.
+        guard !options.allRemotes else { throw FetchRebaseFailure.destination }
         let branch = options.branch.trimmingCharacters(in: .whitespacesAndNewlines)
-        let conventional = "refs/remotes/" + options.remote + "/" + (branch.hasPrefix("refs/heads/") ? String(branch.dropFirst(11)) : branch)
-        let oldUpstream = options.arbitraryURL ? "" : ((try? run(["rev-parse", "--verify", "--end-of-options", conventional + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? "")
-        var selected = options; selected.namedRemoteFetchAll = false
+        // PullFetchDlg omits named-all Fetch's field, but Pull omits it only
+        // for the exact configured tracking selection. Capture that decision
+        // once and use the same effective field for transport and its preset.
+        let tracking = try pullDefaults(cancellation: cancellation)
+        let matchesTracking = GitReferenceName.equal(tracking.trackedRemote, options.remote) && GitReferenceName.equal(tracking.trackedBranch, branch)
+        let effectiveBranch = options.arbitraryURL || !options.namedRemoteFetchAll || (isPull && !matchesTracking) ? branch : ""
+        guard !options.remote.contains("\0") else { throw FetchFailure.remote }
+        guard !effectiveBranch.contains("\0") else { throw FetchFailure.branch }
+        let preset: String
+        if options.arbitraryURL { preset = "FETCH_HEAD" }
+        else if !effectiveBranch.isEmpty { preset = "remotes/" + options.remote + "/" + effectiveBranch }
+        else {
+            preset = GitReferenceName.equal(tracking.trackedRemote, options.remote) && !tracking.trackedBranch.isEmpty ? "remotes/" + options.remote + "/" + tracking.trackedBranch : ""
+        }
+        let oldUpstream = options.arbitraryURL ? "" : (try fetchRebaseCommit(preset, cancellation: cancellation) ?? "")
+        var selected = options
+        if !effectiveBranch.isEmpty { selected.namedRemoteFetchAll = false }
         let output = try await fetch(selected, cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommand:onCommand,backend:backend,onNotification:onNotification)
         do {
-            let upstreamReference = backend.requests(.fetch) && !options.arbitraryURL ? conventional : "FETCH_HEAD"
-            let upstream = try run(["rev-parse", "--verify", "--end-of-options", upstreamReference + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            let resolved = try fetchRebaseCommit(preset, cancellation: cancellation)
             try cancellation?.check()
-            let head = (try? run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? ""
+            let head = try fetchRebaseCommit("HEAD", cancellation: cancellation) ?? ""
             func ancestor(_ from: String, _ to: String) throws -> Bool {
                 guard !from.isEmpty, !to.isEmpty else { return false }
                 return try replayMergeBase(from:from,to:to,cancellation:cancellation,backend:backend).fastForward
             }
-            let currentIsUpToDate = try ancestor(upstream, head)
-            let canFastForward = try ancestor(head, upstream)
+            let currentIsUpToDate = try resolved.map { try ancestor($0, head) } ?? false
+            let canFastForward = try resolved.map { try ancestor(head, $0) } ?? false
             try cancellation?.check()
-            return FetchRebaseResult(output: output, upstream: upstream, oldUpstream: oldUpstream, head: head, currentIsUpToDate: currentIsUpToDate, canFastForward: canFastForward)
-        } catch { throw FetchRebaseExecutionFailure(output: output, details: error.localizedDescription, commandFailure: error as? GitFailure) }
+            return FetchRebaseResult(output: output, upstream: resolved ?? preset, upstreamPreset: preset, upstreamResolved: resolved != nil, oldUpstream: oldUpstream, head: head, currentIsUpToDate: currentIsUpToDate, canFastForward: canFastForward)
+        } catch {
+            try cancellation?.check()
+            throw FetchRebaseExecutionFailure(output: output, details: error.localizedDescription, commandFailure: error as? GitFailure)
+        }
+    }
+
+    private func fetchRebaseCommit(_ reference: String, cancellation: OperationCancellation?) throws -> String? {
+        guard !reference.isEmpty else { return nil }
+        let arguments = ["rev-parse", "--verify", "--quiet", "--end-of-options", reference + "^{commit}"]
+        let result = try fetchLiteralCommand(arguments, cancellation: cancellation, successfulExitCodes: 0...1)
+        guard result.exitCode == 0 else { return nil }
+        let object = String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        guard [40, 64].contains(object.utf8.count), object.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
+            throw GitFailure(arguments: arguments, code: 1, message: "Git returned an invalid commit object ID.")
+        }
+        return object
     }
 
     private func fetchConfig(_ key: String, cancellation: OperationCancellation?) throws -> String {
@@ -147,11 +182,10 @@ extension GitRepository {
         if let depth = options.depth, depth <= 0 { throw FetchFailure.depth }
         let branch = options.branch.trimmingCharacters(in: .whitespacesAndNewlines)
         let useBranch = !options.allRemotes && (options.arbitraryURL || !options.namedRemoteFetchAll) && !branch.isEmpty
-        if useBranch {
-            let full = branch.hasPrefix("refs/heads/") ? branch : "refs/heads/" + branch
-            do { _ = try run(["check-ref-format", full], cancellation: cancellation) }
-            catch { try cancellation?.check(); throw FetchFailure.branch }
-        }
+        // PullFetchDlg forwards one literal refspec, not necessarily a branch
+        // name. Let the captured Git engine validate mappings, force, wildcard
+        // and negative syntax; argv transport still forbids embedded NUL.
+        if useBranch && branch.contains("\0") { throw FetchFailure.branch }
         var args = ["fetch", "--progress"]
         if options.verbose { args.append("--verbose") }
         if let depth = options.depth { args.append("--depth=" + String(depth)) }
@@ -162,8 +196,12 @@ extension GitRepository {
         let executor = try backend.executor(for: .fetch)
         let session = try await prepareSSHTransport(options.allRemotes ? names : [options.remote], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
-        try token.check();onCommand?(commandInvocation(args,executorOverride:executor))
-        return try runTransfer(args,environment:session?.transportEnvironment ?? [:],cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification,sourceFetch:executor != nil).text
+        let executionArguments = ["-c", "core.precomposeunicode=false"] + args
+        try token.check();onCommand?(commandInvocation(executionArguments,executorOverride:executor))
+        do { return try runTransfer(executionArguments,environment:session?.transportEnvironment ?? [:],cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification,sourceFetch:executor != nil).text }
+        catch let failure as GitFailure {
+            throw GitFailure(arguments: args, code: failure.code, message: failure.message, outputWasDelivered: failure.outputWasDelivered, standardError: failure.standardError)
+        }
     }
 }
 

@@ -38,7 +38,7 @@ extension GitRepository {
         return PullDefaults(trackedRemote: remote, trackedBranch: merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : merge,
                             rebase: ["true", "yes", "on", "1", "merges", "interactive", "preserve"].contains(rebase), preserveMerges: ["merges", "preserve"].contains(rebase))
     }
-    public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+    public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) async throws -> String {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !(options.noFastForward && options.fastForwardOnly) else { throw PullFailure.combination }
         let defaults = try pullDefaults(cancellation: cancellation)
@@ -48,11 +48,9 @@ extension GitRepository {
         guard !fetch.allRemotes, !fetch.remote.isEmpty, !fetch.remote.contains("\0"), fetch.arbitraryURL || names.contains(fetch.remote) else { throw FetchFailure.remote }
         if let depth = fetch.depth, depth <= 0 { throw FetchFailure.depth }
         let branch = fetch.branch.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !branch.isEmpty {
-            let full = branch.hasPrefix("refs/heads/") ? branch : "refs/heads/" + branch
-            do { _ = try run(["check-ref-format", full], cancellation: cancellation) }
-            catch { try cancellation?.check(); throw FetchFailure.branch }
-        }
+        // The source dialog passes this as one literal refspec argument.
+        // Git owns syntax/merge validation, including destination mappings.
+        if branch.contains("\0") { throw FetchFailure.branch }
         var args = ["pull", "--progress", "--verbose", "--no-rebase", "--no-edit"]
         if options.allowUnrelatedHistories { args.append("--allow-unrelated-histories") }
         if options.noFastForward { args.append("--no-ff") }
@@ -63,10 +61,11 @@ extension GitRepository {
         if fetch.prune != .configured { args.append(fetch.prune == .enabled ? "--prune" : "--no-prune") }
         if let depth = fetch.depth { args.append("--depth=" + String(depth)) }
         args += ["--", fetch.remote]
-        let configuredTracking = !fetch.arbitraryURL && fetch.namedRemoteFetchAll && fetch.remote == defaults.trackedRemote && branch == defaults.trackedBranch
+        let configuredTracking = !fetch.arbitraryURL && fetch.namedRemoteFetchAll && GitReferenceName.equal(fetch.remote, defaults.trackedRemote) && GitReferenceName.equal(branch, defaults.trackedBranch)
         if !branch.isEmpty && !configuredTracking { args.append(branch) }
         let session = try await prepareSSHTransport([fetch.remote], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
-        return try run(args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput).text
+        try token.check();onCommand?(commandInvocation(["-c","core.precomposeunicode=false"]+args))
+        return try fetchLiteralCommand(args, environment: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput).text
     }
 }

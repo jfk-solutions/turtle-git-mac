@@ -123,12 +123,15 @@ final class FetchTests: XCTestCase {
         let beforeIndex = try await consumer.diff(staged: true), beforeWorking = try await consumer.diff()
         try Data("remote\n".utf8).write(to: root.appendingPathComponent(path)); try await publisher.stage([path]); _ = try await publisher.commit(message: "remote advancement")
         _ = try await publisher.run(["branch", "topic/雪"]); _ = try await publisher.run(["push", "origin", "main", "topic/雪"])
-        // A custom refspec must not accidentally select a stale conventional ref.
+        // The source Rebase preset must remain editable when custom mappings
+        // leave the conventional tracking reference unresolved.
         _ = try await consumer.run(["config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/custom/*"])
-        var options = FetchOptions(); options.remote = "origin"; options.branch = "topic/雪"
+        var options = FetchOptions(); options.remote = "origin"; options.branch = "topic/雪"; options.namedRemoteFetchAll = false
         let result = try await consumer.fetchForRebase(options)
         let expected = try await publisher.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
-        XCTAssertEqual(result.upstream, expected)
+        let fetched = try await consumer.run(["rev-parse", "refs/remotes/custom/topic/雪"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(fetched, expected); XCTAssertEqual(result.upstream, "remotes/origin/topic/雪"); XCTAssertFalse(result.upstreamResolved)
+        XCTAssertFalse(result.canFastForward); XCTAssertFalse(result.currentIsUpToDate)
         _ = try await publisher.run(["checkout", "-b", "later"])
         try Data("later\n".utf8).write(to: root.appendingPathComponent(path)); try await publisher.stage([path]); _ = try await publisher.commit(message: "later target")
         _ = try await publisher.run(["push", "origin", "later"])
@@ -140,7 +143,8 @@ final class FetchTests: XCTestCase {
         options.allRemotes = true
         do { _ = try await consumer.fetchForRebase(options); XCTFail("Ambiguous destination") } catch FetchRebaseFailure.destination {}
         options.allRemotes = false; options.branch = ""
-        do { _ = try await consumer.fetchForRebase(options); XCTFail("Missing branch") } catch FetchRebaseFailure.destination {}
+        let trackingDefault = try await consumer.fetchForRebase(options)
+        XCTAssertEqual(trackingDefault.upstreamPreset, "remotes/origin/main")
         options.branch = "missing"
         do { _ = try await consumer.fetchForRebase(options); XCTFail("Must not reuse stale FETCH_HEAD on failed fetch") } catch {}
     }
@@ -240,8 +244,8 @@ final class FetchTests: XCTestCase {
         do { _ = try await consumer.fetch(options); XCTFail("Invalid destination combination") } catch FetchFailure.remote {}
         options.allRemotes = false; options.remote = remote.root.path; options.depth = 0
         do { _ = try await consumer.fetch(options); XCTFail("Invalid depth") } catch FetchFailure.depth {}
-        options.depth = nil; options.branch = "main:refs/heads/main"
-        do { _ = try await consumer.fetch(options); XCTFail("Refspec injection") } catch FetchFailure.branch {}
+        options.depth = nil; options.branch = "main\0:refs/heads/main"
+        do { _ = try await consumer.fetch(options); XCTFail("Embedded NUL accepted") } catch FetchFailure.branch {}
         options.branch = ""; options.arbitraryURL = false; options.remote = "unknown"
         do { _ = try await consumer.fetch(options); XCTFail("Unknown remote") } catch FetchFailure.remote {}
     }

@@ -27,21 +27,39 @@ final class FetchPullOutputTests: XCTestCase {
         let helper = root.appendingPathComponent("metadata-failure-git")
         let script = #"""
         #!/bin/sh
-        if [ "${4-}" = fetch ]; then
+        # Inspect the command after repository and invocation-only config flags.
+        inspect_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --literal-pathspecs|--no-literal-pathspecs) shift ;;
+              -C|-c) shift 2 ;;
+              *) break ;;
+            esac
+          done
+          command_name="${1-}"
+        }
+        inspect_command "$@"
+        if [ "$command_name" = fetch ]; then
           printf 'successful transport diagnostic\n' >&2
+          : > "$0.marker"
           exit 0
+        fi
+        if [ "$command_name" = rev-parse ] && [ -f "$0.marker" ]; then
+          printf 'owned metadata inspection failed\n' >&2
+          exit 73
         fi
         exec /usr/bin/git "$@"
         """#
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
         let repo = GitRepository(root: consumer.root, executable: helper), capture = FetchPullStreamCapture()
         var options = FetchOptions(); options.remote = "origin"; options.branch = "main"
-        do { _ = try await repo.fetchForRebase(options, onOutput: { capture.append($0) }); XCTFail("Missing fetched target accepted") }
+        do { _ = try await repo.fetchForRebase(options, onOutput: { capture.append($0) }); XCTFail("Metadata execution failure accepted") }
         catch let failure as FetchRebaseExecutionFailure {
             XCTAssertEqual(failure.output, "successful transport diagnostic\n")
             XCTAssertEqual(failure.output, capture.text)
             XCTAssertEqual(failure.commandFailure?.arguments.first, "rev-parse")
-            XCTAssertTrue(failure.commandFailure?.arguments.contains("FETCH_HEAD^{commit}") == true)
+            XCTAssertEqual(failure.commandFailure?.code, 73)
+            XCTAssertTrue(failure.commandFailure?.arguments.contains("remotes/origin/main^{commit}") == true)
             XCTAssertTrue(failure.localizedDescription.contains("successful transport diagnostic"))
             XCTAssertTrue(failure.localizedDescription.contains("Preparing Rebase failed"))
         }

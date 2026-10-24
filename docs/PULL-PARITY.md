@@ -1,5 +1,9 @@
 # Pull dialog parity
 
+The [literal refspec and Rebase preset family](FETCH-REFSPEC-PARITY.md) records
+exact tracking-pair omission, captured Pull origin through Retry and source
+editable presets after successful transport.
+
 See the October 18 [completion and owned Rebase handoff follow-up](FETCH-PULL-HANDOFF-PARITY.md) for native sheet drain, failed handoff recovery and deferred Quit ownership.
 
 Reference: `PullFetchDlg.cpp`, `IDD_PULLFETCH`, PullCommand and `CAppUtils::Pull/DoPull`

@@ -127,3 +127,12 @@ records 19 distinct relevant Core methods cumulatively passing, universal helper
 reconstruction, current Debug/embedded validation and four native Compare/conflict
 case/engine pairs. Full Windows rendering identity, remaining metafile records,
 physical Finder and current signed distribution acceptance remain open.
+
+The [literal Fetch/Pull refspec family](FETCH-REFSPEC-PARITY.md) accepts raw
+source/destination, force, wildcard and negative expressions through Git,
+preserves exact configured-pair omission and Retry origin, and opens unresolved
+source Rebase presets for editing. Its [dated checkpoint](qa/fetch-refspec-family-2026-10-24.json)
+records 51 distinct relevant Core methods cumulatively passing and six distinct
+native CLI case/engine pairs after recorded repairs. Selected-library lifecycle
+is covered by Core; native helper continuation, full hosted CI, physical Finder
+and signed distribution remain separate acceptance requirements.
