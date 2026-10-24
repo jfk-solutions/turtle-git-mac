@@ -45,7 +45,23 @@ public static class MetafileReference {
       }
       json.Append("}");
     }
+    NativeTexture(input,output);
     json.Append("]}");
     File.WriteAllText(Path.Combine(output,"samples.json"),json.ToString());
   }
+  private static void NativeTexture(string input,string output) {
+    using(var child=new Metafile(Path.Combine(input,"oracle-child.emf"))) {
+      try {
+        using(var brush=new TextureBrush(child,WrapMode.Tile))
+        using(var bitmap=new Bitmap(64,64,PixelFormat.Format32bppArgb)) {
+          using(var g=Graphics.FromImage(bitmap)) {
+            g.Clear(Color.Blue); g.FillRectangle(brush,0,0,64,64);
+          }
+          bitmap.Save(Path.Combine(output,"native-texture.png"),ImageFormat.Png);
+          Console.WriteLine("NATIVE_TEXTURE_RESULT success pixel="+unchecked((uint)bitmap.GetPixel(5,5).ToArgb()).ToString("X8"));
+        }
+      } catch(Exception e) {Console.WriteLine("NATIVE_TEXTURE_RESULT "+e.GetType().Name+" "+e.Message);}
+    }
+  }
+
 }
