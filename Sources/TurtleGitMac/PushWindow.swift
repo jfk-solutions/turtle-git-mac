@@ -219,9 +219,11 @@ struct CommitPushContinuation {
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
     private var invalidated = false
+    private var continuationRepository:GitRepository?
+    private var confirmationRepository:GitRepository?
     var directContinuation=false
     func invalidate() {
-        clientHooks.retire(); invalidated = true; formRevision = UUID(); confirmationRequest = nil; choosingReference = false; generation += 1
+        clientHooks.retire(); invalidated = true;confirmationRepository=nil; formRevision = UUID(); confirmationRequest = nil; choosingReference = false; generation += 1
         metadataToken?.cancel(); sourceToken?.cancel(); cancellation?.cancel()
         progress?.invalidate(); progress = nil; busy = false; preparingSource = false; confirmation = nil
         becameIdle = {}; close = {}
@@ -311,6 +313,7 @@ struct CommitPushContinuation {
     func preparationFailed(_ error:Error) {guard !invalidated else{return};preparationNeedsRetry=true;self.error=error.localizedDescription}
     func prepareCommitContinuation(usePushDialog:Bool=false,_ completion:@escaping(Result<CommitPushContinuationPlan,Error>)->Void) {
         guard !invalidated,!confirmingQuit,!busy,!preparing,progress==nil else{return}
+        let repository=self.repository.capturingDiffBackend(preferences:preferences);continuationRepository=repository
         let token=OperationCancellation();metadataToken=token;busy=true
         Self.activePreparationReads += 1;pendingOperations += 1
         Task { [self,access] in
@@ -538,27 +541,29 @@ struct CommitPushContinuation {
             }
         } else { stop() }
     }
-    private func askToPush(_ message: String, allBranches: Bool, deletion: Bool) {
+    private func askToPush(_ message: String, allBranches: Bool, deletion: Bool,repository:GitRepository) {
+        confirmationRepository=repository
         formRevision = UUID(); let request = UUID(), draft = submissionIdentity; confirmationRequest = request; confirmation = message
         confirmPush(message, allBranches, deletion) { [weak self] proceed, remember in
             guard let self, !self.invalidated, self.confirmationRequest == request, self.confirmation != nil else { return }
             self.confirmationRequest = nil; self.confirmation = nil
-            guard self.submissionIdentity == draft else { return }
+            guard self.submissionIdentity == draft else {self.confirmationRepository=nil;return}
             // PushDlg explicitly remembers Yes even when this invocation chose No.
             if allBranches && remember { self.preferences.set(true, forKey: "PushAllBranches") }
-            if proceed { self.push(confirmed: true) }
+            if proceed { self.push(confirmed: true) }else{self.confirmationRepository=nil}
         }
     }
     func push(confirmed: Bool = false,progressBeforePreflight:Bool=false) {
         guard !choosingReference else { return }
         guard !invalidated, !confirmingQuit, !busy, !preparing, !preparationNeedsRetry, progress == nil, confirmed || confirmation == nil else { return }
+        let repository=confirmed ? (confirmationRepository ?? self.repository.capturingDiffBackend(preferences:preferences)):(directContinuation ? (continuationRepository ?? self.repository.capturingDiffBackend(preferences:preferences)):self.repository.capturingDiffBackend(preferences:preferences))
         if !confirmed {
             let source = FetchDialogHistory.trim(options.source), destination = FetchDialogHistory.trim(options.destination)
             if options.allBranches && !preferences.bool(forKey: "PushAllBranches") {
-                askToPush("Do you really want to push all local branches?", allBranches: true, deletion: false); return
+                askToPush("Do you really want to push all local branches?", allBranches: true, deletion: false,repository:repository); return
             }
             if !options.allBranches && source.isEmpty {
-                askToPush(destination.isEmpty ? "The local branch name and the remote branch name are empty.\nContinue?" : "The local branch/tag name is empty. This results in a remote removal.\nContinue?", allBranches: false, deletion: !destination.isEmpty); return
+                askToPush(destination.isEmpty ? "The local branch name and the remote branch name are empty.\nContinue?" : "The local branch/tag name is empty. This results in a remote removal.\nContinue?", allBranches: false, deletion: !destination.isEmpty,repository:repository); return
             }
         }
         formRevision = UUID(); confirmationRequest = nil; confirmation = nil; postHookFailure = nil
@@ -566,6 +571,7 @@ struct CommitPushContinuation {
         snapshot.showBranchRevisionNumber = preferences.bool(forKey: "ShowBranchRevisionNumber")
         snapshot.source = FetchDialogHistory.trim(snapshot.source); snapshot.destination = FetchDialogHistory.trim(snapshot.destination)
         if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
+        confirmationRepository=nil
         let sshFactory = sshSettings.capture()
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
         busy = true; Self.activePushWorkflows += 1; pendingOperations += 1
@@ -603,7 +609,7 @@ struct CommitPushContinuation {
                     progress = captured; result = captured; onProgress(captured)
                 } else { result = nil }
                 do {
-                let output = try await runPush(snapshot, cancellation: token, result: result, sshFactory: sshFactory)
+                let output = try await runPush(snapshot, repository:repository,cancellation: token, result: result, sshFactory: sshFactory)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 cancellation = nil; cancelling = false; confirmingCancellation = false
                 guard !invalidated else { return }
@@ -647,7 +653,7 @@ struct CommitPushContinuation {
         defer { if cancellation === token { cancellation = nil; cancelling = false; confirmingCancellation = false } }
         _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token)
     }
-    private func runPush(_ snapshot: PushOptions, cancellation: OperationCancellation, result: PushProgressWindowModel?, sshFactory: SSHTransportFactory?) async throws -> String {
+    private func runPush(_ snapshot: PushOptions,repository:GitRepository, cancellation: OperationCancellation, result: PushProgressWindowModel?, sshFactory: SSHTransportFactory?) async throws -> String {
         let coordinator = sshFactory?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
         guard let result else { return try await repository.push(snapshot, cancellation: cancellation, prepareTransport: preparation) }
         let parser = GitCliOutputParser(limit: result.outputLimit)

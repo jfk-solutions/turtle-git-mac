@@ -55,7 +55,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -107,7 +107,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
+        if command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -226,6 +226,26 @@ struct PrivateLocalReferenceRequest {
             guard value.version==1,Self.name(value.reference),PrivateDiffRequest.fullOID(value.expectedOID),value.expectedSymbolicTarget.map(Self.name) ?? true else{try refuse("Invalid local deletion identity")}
             scope=0;operation="delete";contains=nil;deletion=value
         }
+    }
+}
+
+struct PrivateRevisionLookupRequest {
+    let operation:String,value:String,requirement:Int32
+    static func read()throws->Self {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65536),!part.isEmpty {guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Revision request exceeds bounds or was cancelled")};data.append(part)}
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=fields["version"] as? NSNumber,CFGetTypeID(version) != CFBooleanGetTypeID(),version.intValue==1,version.doubleValue==1,
+              let operation=fields["operation"] as? String else{try refuse("Invalid revision request")}
+        let value:String,requirement:Int32
+        if operation=="revision" {
+            guard Set(fields.keys)==["version","operation","revision","requirement"],let revision=fields["revision"] as? String,let name=fields["requirement"] as? String,let index=["sourceObject","existingObject","commit","tree"].firstIndex(of:name) else{try refuse("Invalid revision requirement")}
+            value=revision;requirement=Int32(index)
+        }else {
+            guard operation=="reference",Set(fields.keys)==["version","operation","reference"],let reference=fields["reference"] as? String else{try refuse("Invalid reference request")}
+            value=reference;requirement=0
+        }
+        guard value.utf8.count<=1_048_576,!value.utf8.contains(0) else{try refuse("Invalid revision text")}
+        return .init(operation:operation,value:value,requirement:requirement)
     }
 }
 
@@ -555,6 +575,21 @@ final class CallbackContext{
         }
         try localReferenceRecord(["kind":"end","count":localReferenceCount])
     }
+    func revisionLookup(_ pointer:UnsafePointer<tg_inspection>?)throws {
+        guard !cancelled(),let row=pointer?.pointee else{try refuse("Missing revision reply")}
+        let object:[String:Any]
+        if row.kind==5 {
+            guard row.value==0 || row.value==1 else{try refuse("Invalid reference existence reply")}
+            object=["operation":"reference","exists":row.value==1]
+        }else {
+            guard row.kind==4,(0...2).contains(row.value) else{try refuse("Invalid revision reply")}
+            let oid=try row.base.map{try notificationString($0)}
+            guard (row.value==1) == (oid != nil),oid.map(PrivateDiffRequest.fullOID) ?? true else{try refuse("Invalid revision object ID")}
+            object=["operation":"revision","oid":oid.map{$0 as Any} ?? NSNull(),"unbornHead":row.value==2]
+        }
+        let data=try JSONSerialization.data(withJSONObject:object,options:.sortedKeys)
+        try FileHandle.standardOutput.write(contentsOf:Data(("TurtleGit RevisionLookup v1:"+data.base64EncodedString()+"\n").utf8))
+    }
     var historySimple=false
     private var historyCount=0,historyBytes=0,historyFailed=false
     private var historyPaths:[Data:String]=[:]
@@ -817,7 +852,11 @@ func run()throws->Int32{
     let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
     let finderRequest=try args.command=="turtlegit-finder-status" ? PrivateFinderRequest.read():nil
     let singleCommitRequest=try args.command=="turtlegit-single-commit" ? PrivateSingleCommitRequest.read():nil
+    let revisionRequest=try args.command=="turtlegit-revision-lookup" ? PrivateRevisionLookupRequest.read():nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if revisionRequest != nil {
+        options.inspection={row,raw in do{try context(raw).revisionLookup(row);return 0}catch{output("Revision lookup: "+error.localizedDescription+"\n");return -1}}
+    }
     if finderRequest != nil {
         options.finder_status={path,state,skip,assume,raw in
             do{try context(raw).finder(path:path,state:state,skip:skip,assume:assume);return 0}catch{output("Finder status: "+error.localizedDescription+"\n");return -1}
@@ -887,6 +926,7 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=revisionRequest{return tg_revision_lookup(args.directory,request.value,request.requirement,request.operation=="reference" ? 1:0,&options)}
         if let request=finderRequest{return tg_finder_status(args.directory,request.full ? 1:0,request.caseSensitive ? 1:0,request.contentCheckLimitKiB,&options)}
         if let request=singleCommitRequest{return tg_read_single_commit(args.directory,request.revision,request.allowTree ? 1:0,&options)}
         if let request=inspectionRequest {

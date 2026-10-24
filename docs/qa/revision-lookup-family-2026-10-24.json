@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-24",
+  "baseline": "76766cd91e93c62340c9ca2ecd5d7b8fe4699e4d",
+  "status": "scoped-validation-complete",
+  "scope": [
+    "Typed raw/commit/tree revision lookup, exact reference existence and source master-engine selection",
+    "Create Branch/Tag, Switch, Push, Fetch/Rebase and Sync accepted backend retention",
+    "Queued and reused Rebase handoffs, cancellation and successful Pull metadata-failure handling"
+  ],
+  "production_inputs": {
+    "Sources/TurtleGitCore/Checkout.swift": "19b6fb68f1808de34d506addeda099c6eb0b943240c0e6ce77ce6ee31e3ea62a",
+    "Sources/TurtleGitCore/Fetch.swift": "e84ec973ca96cf644310ee9a6edd3b10bd00ab1af53248a883ec46c7f74c454b",
+    "Sources/TurtleGitCore/FinderStatusOperationLease.swift": "801a68a86dcd44f6ea0086241e3356dd94e35391d76a3359f5afdb456331a503",
+    "Sources/TurtleGitCore/GitLocalReferenceEngine.swift": "6c197f410f37d4b00adf9a37f2029e59bd70b1410d8899f3d43ca16542917630",
+    "Sources/TurtleGitCore/Push.swift": "8a99410db263fe0b6c11cd611dda2c4a51f049d1f695ec6fbfd120ab30f9fcf2",
+    "Sources/TurtleGitCore/ReferenceCreation.swift": "6764e82d84268191d51ac289c5461453baba6bf889da6120146eff804b8ff06e",
+    "Sources/TurtleGitCore/Synchronization.swift": "dff1bb95a02a088a8c217845234e726d3f5f455fb23961a3c8ab17a1b7d1bfdb",
+    "Sources/TurtleGitLibgit2/bridge.c": "202546a8ee9c81fa211d85a97f5e795fba246b41932d377cb05b9d6cc837798c",
+    "Sources/TurtleGitLibgit2/bridge.h": "83da30f321304ea05134304c41b7f5313365c927b4b2f63aba6726be31ab9102",
+    "Sources/TurtleGitLibgit2/main.swift": "d2244e9fc0b79dc15836bd15337e003179dfdee9c0f63d5a1e98daa6f58ac50f",
+    "Sources/TurtleGitMac/BranchTagWindow.swift": "dd69dbb51fac0a404dae2e6512cc83d79d1c64c4cf7c5cbd7a30fd646cb9557a",
+    "Sources/TurtleGitMac/FetchWindow.swift": "de5bf92c8258dba97c07b8af6b9625ed79e597327cf4f1df711a62e658ef797a",
+    "Sources/TurtleGitMac/PushWindow.swift": "ddc99dd8c10e50e5e6fe8ce74b11e1875f320ddcba726de307325ee9b26e6ef0",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "dd9228e83d1acd71313637faf3f97c80241c5274fd5b80446ece4aebfbf5e0b7",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "c28fc28826d64311d646e0ad1bb5e928b1b95437d267825f1c63e5b4e8e3ffbf",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "e61ad2661cb73d5f22fdb917f7801c778a9fdc2645a82242f3b14a8281e201ef",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "29d19faf5a20d02b52924eed76659a8abe6015f8a77ca8ce82fcd46b6c3ffede",
+    "Sources/TurtleGitCore/GitRevisionLookup.swift": "ae64b5573a05a3080f4e2c689a878a5429a3f9d2b091f750cccf503e1c6f617d"
+  },
+  "core": {
+    "distinct_methods_passed_cumulatively": 135,
+    "initial_methods": 135,
+    "initial_methods_passed": 127,
+    "initial_failed_methods": 8,
+    "initial_assertion_failures": 9,
+    "initial_unexpected_failures": 3,
+    "focused_recheck_methods_passed": 11,
+    "logs": [
+      "build/qa/revision-lookup-core-2026-10-24.log",
+      "build/qa/revision-lookup-core-repair1-2026-10-24.log"
+    ],
+    "repairs": [
+      "Resolve revision:path to a raw OID before applying an object-type requirement",
+      "Preserve literal Unicode with transient core.precomposeunicode=false at revision and shared local-reference helper boundaries",
+      "Preserve public GitFailure for missing required Sync revisions while optional missing remote remains unknownRemoteBranch"
+    ],
+    "assertions_removed": false
+  },
+  "runtimes": {
+    "build_exit": 0,
+    "both_architectures_validation_exit": 0,
+    "new_revision_reference_protocol_probes": true,
+    "logs": [
+      "build/qa/revision-lookup-runtime-2026-10-24.log",
+      "build/qa/revision-lookup-runtime-validation-2026-10-24.log"
+    ],
+    "prepared_and_embedded_original_sha256": "d0c0bd90e025d3e5cd8cc9dd83b0f2297830485cb4605c2a7d50ab299514628b"
+  },
+  "app": {
+    "attempts": [
+      {
+        "log": "build/qa/revision-lookup-app-2026-10-24.log",
+        "exit": 65,
+        "contradictory_exit_zero_diagnostics": 1,
+        "repair": "Unwrap captured Sync tag backend once before passing to captured actor"
+      },
+      {
+        "log": "build/qa/revision-lookup-app-repair1-2026-10-24.log",
+        "exit": 0,
+        "contradictory_exit_zero_diagnostics": 39,
+        "superseded_by_final_core_repairs": true
+      },
+      {
+        "log": "build/qa/revision-lookup-app-repair2-2026-10-24.log",
+        "exit": 0,
+        "contradictory_exit_zero_diagnostics": 2,
+        "final": true
+      }
+    ]
+  },
+  "native": {
+    "initial_attempt": {
+      "log": "build/qa/revision-lookup-native-2026-10-24.log",
+      "receiver_launched": false,
+      "failure": "Nested fixture Context required explicit MainActor isolation",
+      "repair": "Fixture-only MainActor annotation; behavioral assertions retained"
+    },
+    "grouped_log": "build/qa/revision-lookup-native-repair1-2026-10-24.log",
+    "case_engine_pairs_passed": 8,
+    "receiver_pids": [
+      9178,
+      9305,
+      9442,
+      9608,
+      9752,
+      10233,
+      10719,
+      11053
+    ],
+    "independently_absent": true,
+    "results": [
+      {
+        "case": "references",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "references",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "operations",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "operations",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "fetchsync",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "fetchsync",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "ownership",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "ownership",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "owned_helper_cleanup_needed": false
+  },
+  "remaining": [
+    "Other source-master revision callers and historical submodule lookup",
+    "Source notes unconditional libgit2 compatibility",
+    "Complete hosted CI",
+    "Physical Finder integration and keyboard/VoiceOver acceptance",
+    "Minimum macOS and physical Intel acceptance",
+    "Current signed distribution export and App Store submission",
+    "Complete upstream dialog behavior and layout acceptance"
+  ],
+  "fixture_inputs": {
+    "docs/qa/revision-lookup-native-2026-10-24.swift": "0ddb4b382cfdda6a41ea1147099124715bc2ec8508ddf8f87b2f4385fde05ca9",
+    "docs/qa/revision-lookup-queued-native-2026-10-24.swift": "f39efad838438a7674d932921ae9bc77ecb835e8699f84dd690bf96814f21228",
+    "scripts/test-revision-lookup.py": "02735c8bd144edb72e1ff9da7db85ce2ec936a71d9c98c4771d203d3fa9918e8"
+  },
+  "documentation": {
+    "localization_languages": 38,
+    "localization_keys": 1317,
+    "localization_check_exit": 0,
+    "help_documents": 58,
+    "help_topics": 51,
+    "help_files": 78,
+    "help_bytes": 3798814,
+    "help_check_exit": 0,
+    "site_documents": 444,
+    "site_unresolved_fragments": [],
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85
+    },
+    "diff_check_exit": 0
+  }
+}

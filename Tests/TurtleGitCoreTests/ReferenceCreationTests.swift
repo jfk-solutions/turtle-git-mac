@@ -7,7 +7,7 @@ final class ReferenceCreationTests: XCTestCase {
         let executable = root.appendingPathComponent("warning-git"), quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
         try Data(("#!/bin/sh\nprintf 'warning: revision diagnostic\\n' >&2\nexec " + quoted + " \"$@\"\n").utf8).write(to: executable)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
-        let warning = GitRepository(root: root, executable: executable)
+        let warning = GitRepository(root: root, executable: executable, libgit2Configuration: .init(enabled: false))
         var options = ReferenceCreationOptions(); options.name = "warning-branch"
         _ = try await warning.createReference(options)
         options.isTag = true; options.name = "warning-tag"; options.message = "annotated"

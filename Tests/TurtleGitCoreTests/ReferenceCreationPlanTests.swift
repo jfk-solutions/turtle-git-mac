@@ -6,7 +6,7 @@ final class ReferenceCreationPlanTests:XCTestCase {
     private func fixture()async throws->(GitRepository,String) {
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("ReferencePlan-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
-        let git=ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map{URL(fileURLWithPath:$0)} ?? URL(fileURLWithPath:"/usr/bin/git"),repo=GitRepository(root:folder,executable:git)
+        let git=ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map{URL(fileURLWithPath:$0)} ?? URL(fileURLWithPath:"/usr/bin/git"),repo=GitRepository(root:folder,executable:git,libgit2Configuration:.init(enabled:false))
         _ = try await repo.run(["init","-b","main"])
         for(key,value)in[("user.name","Plan QA"),("user.email","plan@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false")] {_ = try await repo.run(["config",key,value])}
         try Data("base\n".utf8).write(to:folder.appendingPathComponent("file"));try await repo.stage(["file"]);_ = try await repo.commit(message:"base")

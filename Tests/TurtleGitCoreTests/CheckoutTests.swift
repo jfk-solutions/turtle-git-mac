@@ -7,7 +7,7 @@ final class CheckoutTests: XCTestCase {
         let executable=root.appendingPathComponent("warning-git"), quoted="'"+repo.executable.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
         try Data(("#!/bin/sh\nprintf 'warning: diagnostic\\n' >&2\nexec "+quoted+" \"$@\"\n").utf8).write(to:executable)
         try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:executable.path)
-        let warning=GitRepository(root:root,executable:executable),head=try await repo.run(["rev-parse","HEAD"]).stdout
+        let warning=GitRepository(root:root,executable:executable,libgit2Configuration:.init(enabled:false)),head=try await repo.run(["rev-parse","HEAD"]).stdout
         var options=CheckoutOptions();options.target = .commit;options.revision="HEAD"
         _=try await warning.checkout(options)
         let actual=try await repo.run(["rev-parse","HEAD"]).stdout,branch=try await repo.branch()
@@ -25,10 +25,10 @@ final class CheckoutTests: XCTestCase {
         exec \(quoted) "$@"
         """
         try Data(script.utf8).write(to:executable);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:executable.path)
-        let probe=GitRepository(root:root,executable:executable),head=try Data(contentsOf:root.appendingPathComponent(".git/HEAD"))
+        let probe=GitRepository(root:root,executable:executable,libgit2Configuration:.init(enabled:false)),head=try Data(contentsOf:root.appendingPathComponent(".git/HEAD"))
         var options=CheckoutOptions();options.target = .commit;options.revision="HEAD";options.createBranch=true;options.branchName="guarded"
         try Data().write(to:root.appendingPathComponent("invalid-object"))
-        do { _=try await probe.checkout(options);XCTFail("Malformed object accepted") } catch CheckoutFailure.invalidRevision {}
+        do { _=try await probe.checkout(options);XCTFail("Malformed object accepted") } catch GitRevisionLookupFailure.output {}
         try FileManager.default.removeItem(at:root.appendingPathComponent("invalid-object"))
         do { _=try await probe.checkout(options);XCTFail("Failed existence probe ignored") } catch let failure as GitFailure { XCTAssertEqual(failure.code,128);XCTAssertEqual(failure.arguments.first,"show-ref") }
         XCTAssertEqual(head,try Data(contentsOf:root.appendingPathComponent(".git/HEAD")))

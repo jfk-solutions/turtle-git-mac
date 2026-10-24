@@ -155,6 +155,7 @@ import TurtleGitCore
     private(set) var pendingOperations=0
     static var activeProgressOperations: Int { PullProgressWindowModel.activeOperations + FetchProgressWindowModel.activeOperations }
     let repository: GitRepository
+    private(set) var acceptedOperationRepository:GitRepository?
     let isPull: Bool
     let sshSettings: SSHTransportSettings
     let remoteSettings: PushWindowModel
@@ -491,6 +492,7 @@ import TurtleGitCore
         if options.arbitraryURL {
             urls = FetchDialogHistory.save(url, entries: urls, preferences: preferences, key: "History.PullURLS", caseSensitive: true)
         }
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let wantsRebase = launchRebase && !bare && !options.arbitraryURL
         let autoStart = configuredRebase
         let keepMerges = preserveMerges
@@ -507,6 +509,7 @@ import TurtleGitCore
         }
         var pullOptions = PullOptions(); pullOptions.fetch = snapshot; pullOptions.squash = squash; pullOptions.noCommit = noCommit; pullOptions.noFastForward = noFastForward; pullOptions.fastForwardOnly = fastForwardOnly
         branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: true)
+        acceptedOperationRepository=repository
         formRevision = UUID(); error = nil
         busy = true; completedPresentation = false
         let sshFactory = sshSettings.capture(); sshSettings.save(preferences, key: key + ".autoload")
@@ -531,7 +534,7 @@ import TurtleGitCore
             progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
             onProgress?(progress); progress.start(); return
         }
-        let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges,isPull:isPull)
+        let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges,isPull:isPull,backend:repository.libgit2Configuration)
         progress.makeSSHCoordinator = sshFactory
         progress.onNotificationLog=onNotificationLog
         fetchProgress = progress
@@ -836,6 +839,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     private var cancellation = OperationCancellation()
     private var inspectionToken: OperationCancellation?
     private var started = false, invalidated = false, dispatched = false
+    @Published private(set) var completionWarning:String?
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -877,11 +881,11 @@ enum PullPostAction: String, CaseIterable, Hashable {
     var closeAfterCancellation = false
     private func finishCompletion() {
         guard !invalidated, !busy, !confirmingCancellation, !confirmingConflictHint, !dispatchingAction else { return }
-        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
+        if completionWarning==nil && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
     private func completed() { guard !invalidated else { return }; busy = false; cancelling = false; onCompleted(); finishCompletion() }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: PullOptions, followUp: PullFollowUp, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
+        self.repository = repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
     }
     func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; busy = false; confirmingCancellation = false; confirmingConflictHint = false; dispatchingAction = false }
     func start() { Task { await run() } }
@@ -890,16 +894,16 @@ enum PullPostAction: String, CaseIterable, Hashable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute(_ snapshot: PullOptions) async {
-        let repository=self.repository.capturingDiffBackend(preferences:preferences)
+        let repository=self.repository
         guard !invalidated else { return }
         Self.activeOperations += 1; pendingOperations += 1
         defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {} }
-        busy = true; success = false; cancelled = false; cancelling = false; resetOutput(); postActions = []; newHead = ""
+        busy = true; success = false; cancelled = false; cancelling = false;completionWarning=nil; resetOutput(); postActions = []; newHead = ""
         do { try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } }
         catch { guard !invalidated else { return }; output = error.localizedDescription; cancelled = cancellation.isCancelled; completed(); return }
         var beganPull = false
         do {
-            let head = try await repository.run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            guard let head=try await repository.revisionLookup("HEAD",requirement:.commit,cancellation:cancellation).objectID else{throw SynchronizationFailure.invalidInput}
             guard !invalidated else { return }; oldHead = head; beganPull = true
             let result = try await streamPull(snapshot,repository:repository)
             guard !invalidated else { return }; rawOutput = result
@@ -913,8 +917,12 @@ enum PullPostAction: String, CaseIterable, Hashable {
         var actions: [PullPostAction] = []
         if success {
             if followUp.showStashPop { actions.append(.stashPop) }
-            let head = try? await repository.run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
-            guard !invalidated else { return }; if let head { newHead = head; actions += [.diff, .log] }
+            do {
+                guard let head=try await repository.revisionLookup("HEAD",requirement:.commit,cancellation:token).objectID else{throw SynchronizationFailure.invalidInput}
+                guard !invalidated else{return};newHead=head;actions += [.diff,.log]
+            } catch {
+                guard !invalidated else{return};completionWarning=error.localizedDescription;output += "\n"+error.localizedDescription
+            }
             if followUp.showPush { actions.append(.push) }
             let modules = try? await repository.submoduleUpdatePaths(cancellation: token)
             guard !invalidated else { return }; if modules?.isEmpty == false { actions.append(.submoduleUpdate) }
@@ -932,7 +940,9 @@ enum PullPostAction: String, CaseIterable, Hashable {
                 }
                 actions = [.resolve, .commit]
             } else if conflicts == false {
-                let known = (try? await repository.remoteNames(cancellation: token).contains(options.fetch.remote)) == true
+                let known:Bool
+                do {known=try await repository.remoteNames(cancellation:token).contains{GitReferenceName.equal($0,options.fetch.remote)}}
+                catch {completionWarning=error.localizedDescription;output += "\n"+error.localizedDescription;known=false}
                 guard !invalidated else { return }
                 if !options.fetch.arbitraryURL, known {
                     var branch = options.fetch.branch, remote = options.fetch.remote

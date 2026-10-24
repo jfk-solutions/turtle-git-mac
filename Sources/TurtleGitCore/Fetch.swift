@@ -93,14 +93,14 @@ extension GitRepository {
         else {
             preset = GitReferenceName.equal(tracking.trackedRemote, options.remote) && !tracking.trackedBranch.isEmpty ? "remotes/" + options.remote + "/" + tracking.trackedBranch : ""
         }
-        let oldUpstream = options.arbitraryURL ? "" : (try fetchRebaseCommit(preset, cancellation: cancellation) ?? "")
+        let oldUpstream = options.arbitraryURL ? "" : (try fetchRebaseCommit(preset, cancellation: cancellation,backend:backend) ?? "")
         var selected = options
         if !effectiveBranch.isEmpty { selected.namedRemoteFetchAll = false }
         let output = try await fetch(selected, cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommand:onCommand,backend:backend,onNotification:onNotification)
         do {
-            let resolved = try fetchRebaseCommit(preset, cancellation: cancellation)
+            let resolved = try fetchRebaseCommit(preset, cancellation: cancellation,backend:backend)
             try cancellation?.check()
-            let head = try fetchRebaseCommit("HEAD", cancellation: cancellation) ?? ""
+            let head = try fetchRebaseCommit("HEAD", cancellation: cancellation,backend:backend) ?? ""
             func ancestor(_ from: String, _ to: String) throws -> Bool {
                 guard !from.isEmpty, !to.isEmpty else { return false }
                 return try replayMergeBase(from:from,to:to,cancellation:cancellation,backend:backend).fastForward
@@ -115,16 +115,9 @@ extension GitRepository {
         }
     }
 
-    private func fetchRebaseCommit(_ reference: String, cancellation: OperationCancellation?) throws -> String? {
-        guard !reference.isEmpty else { return nil }
-        let arguments = ["rev-parse", "--verify", "--quiet", "--end-of-options", reference + "^{commit}"]
-        let result = try fetchLiteralCommand(arguments, cancellation: cancellation, successfulExitCodes: 0...1)
-        guard result.exitCode == 0 else { return nil }
-        let object = String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
-        guard [40, 64].contains(object.utf8.count), object.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
-            throw GitFailure(arguments: arguments, code: 1, message: "Git returned an invalid commit object ID.")
-        }
-        return object
+    private func fetchRebaseCommit(_ reference: String, cancellation: OperationCancellation?,backend:GitLibGit2Configuration) throws -> String? {
+        guard !reference.isEmpty else {return nil}
+        return try revisionLookup(reference,requirement:.commit,cancellation:cancellation,backend:backend).objectID
     }
 
     private func fetchConfig(_ key: String, cancellation: OperationCancellation?) throws -> String {

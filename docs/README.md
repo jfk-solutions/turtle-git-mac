@@ -320,3 +320,7 @@ reference catalogs, labels, tag objects and batched History/Sync actions.
 [Compressed metafile rasters](METAFILE-COMPRESSED-RASTER-PARITY.md) records
 GIF/TIFF/EXIF image and brush playback, classic stretched transfers and Windows
 reference differences.
+
+[Revision and reference validation](REVISION-LOOKUP-PARITY.md) covers typed object
+resolution, exact branch/tag collisions and accepted backend ownership through
+creation, Switch, Push, Fetch and Synchronization continuations.

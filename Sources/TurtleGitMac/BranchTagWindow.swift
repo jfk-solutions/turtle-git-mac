@@ -237,6 +237,8 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     private var chooserReadOwned=false
     var awaitSwitchCloseOnRetirement=false
     let chooser: SwitchWindowModel
+    private var acceptedRepository:GitRepository
+    var operationRepository:GitRepository{acceptedRepository}
     let isTag: Bool
     private let access: RepositoryAccessLease?
     var formPreferences:UserDefaults {preferences}
@@ -365,10 +367,13 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     var remote: Bool { !isTag && !useHead && chooser.remote }
     private var previousSuggestion = ""
     init(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, preferences: UserDefaults = .standard) {
-        self.isTag = isTag; self.access = access; self.preferences = preferences; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
+        self.isTag = isTag; self.access = access; self.preferences = preferences;acceptedRepository=repository; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
         prepareForm={options,token in try await repository.prepareReferenceCreationForm(options,cancellation:token)}
         prepareReference={form,token in try await repository.prepareReferenceCreation(form,cancellation:token)}
         performReference={plan,token in try await repository.createReference(plan,writeDescription:false,cancellation:token)}
+        prepareForm={ [weak self] options,token in guard let self else{throw OperationCancellationFailure.cancelled};return try await self.acceptedRepository.prepareReferenceCreationForm(options,cancellation:token)}
+        prepareReference={ [weak self] form,token in guard let self else{throw OperationCancellationFailure.cancelled};return try await self.acceptedRepository.prepareReferenceCreation(form,cancellation:token)}
+        performReference={ [weak self] plan,token in guard let self else{throw OperationCancellationFailure.cancelled};return try await self.acceptedRepository.createReference(plan,writeDescription:false,cancellation:token)}
     }
     func load(revision: String?, name: String? = nil) {
         guard presentationAvailable(),error == nil,chooser.error == nil,!confirmingQuit,!busy,!hasPendingWork, !chooser.busy, chooser.pickerTarget == nil, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
@@ -424,6 +429,8 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
         if let createdOptions {
             snapshot = createdOptions; shouldSwitch = createdShouldSwitch; shouldPush = createdShouldPush
         }
+        if !allowNameConflict,createdOptions==nil {acceptedRepository=chooser.repository.capturingDiffBackend(preferences:preferences)}
+        let repository=acceptedRepository
         let routedSwitch = shouldSwitch ? onSwitch : nil
         let generation=interactionGeneration
         formRevision = UUID();error = nil;let token = OperationCancellation();creationToken=token;beginWork()
@@ -457,7 +464,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
                     guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 } else if shouldSwitch,!confirmingQuit,interactionGeneration==generation {
                     var checkout = CheckoutOptions(); checkout.revision = "refs/heads/" + created.name
-                    do { createdOutput += try await chooser.repository.checkout(checkout, cancellation: token) }
+                    do { createdOutput += try await repository.checkout(checkout, cancellation: token) }
                     catch {
                         guard !invalidated, creationToken === token, !token.isCancelled else { return }
                         checkoutFailure="Branch \(created.name) was created, but checkout failed. Resolve the working-tree changes and retry checkout, or close this dialog.\n\n" + error.localizedDescription
@@ -466,7 +473,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
                 guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 if createdWritesDescription {
                     descriptionSnapshot = created
-                    do { try checkAccess(); try await chooser.repository.updateBranchDescription(created.name, message: created.message, cancellation: token); descriptionSnapshot = nil }
+                    do { try checkAccess(); try await repository.updateBranchDescription(created.name, message: created.message, cancellation: token); descriptionSnapshot = nil }
                     catch {
                         guard !invalidated, creationToken === token, !token.isCancelled else { return }
                         notifyCreated(); self.error = "Branch \(created.name) was created, but its description could not be saved. Retry the description or close this dialog.\n\n" + error.localizedDescription; return
@@ -485,7 +492,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
             defer {if creationToken === token {creationToken=nil};endWork();withExtendedLifetime(access) {}}
             guard !invalidated,!confirmingQuit,interactionGeneration==generation,!token.isCancelled else{return}
             do {
-                try checkAccess(); try await chooser.repository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token)
+                try checkAccess(); try await acceptedRepository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token)
                 guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 descriptionSnapshot = nil; notifyCreated(); guard !invalidated else { return }; complete()
             } catch { if !confirmingQuit,interactionGeneration==generation,!invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }

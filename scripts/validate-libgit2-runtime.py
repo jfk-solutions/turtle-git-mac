@@ -38,6 +38,26 @@ def main():
                 version=subprocess.check_output(prefix+[str(binary),'--version'],env=env,text=True);assert pin['libgit2']['version'] in version
                 bad=subprocess.run(prefix+[str(binary),'push','--all'],env=env,capture_output=True,timeout=10);assert bad.returncode!=0 and bad.stderr
                 git('init','--initial-branch=main',source);(source/'file').write_text('first\n');git('-C',source,'add','file');git('-C',source,'commit','-m','first');git('-C',source,'tag','-a','v1','-m','annotated')
+                # Exercise the typed revision boundary on every requested slice.
+                # Raw annotated-tag identities must not be silently commit-peeled.
+                source_head=git('-C',source,'rev-parse','HEAD').decode().strip()
+                source_tag=git('-C',source,'rev-parse','refs/tags/v1').decode().strip()
+                source_tree=git('-C',source,'rev-parse','HEAD^{tree}').decode().strip()
+                before_lookup={name:(source/'.git'/name).read_bytes() for name in ['HEAD','index','config']}
+                def revision_lookup(payload):
+                    result=subprocess.run(prefix+[str(binary),'-C',str(source),'turtlegit-revision-lookup'],input=json.dumps(dict(version=1,**payload)).encode(),env=env,capture_output=True,timeout=10)
+                    assert result.returncode==0,result.stderr.decode(errors='replace')
+                    lines=result.stdout.splitlines();marker=b'TurtleGit RevisionLookup v1:'
+                    assert len(lines)==1 and lines[0].startswith(marker),result.stdout
+                    encoded=lines[0][len(marker):];packet=base64.b64decode(encoded,validate=True)
+                    assert base64.b64encode(packet)==encoded
+                    return json.loads(packet)
+                for requirement,expected in [('sourceObject',source_tag),('existingObject',source_tag),('commit',source_head),('tree',source_tree)]:
+                    assert revision_lookup(dict(operation='revision',revision='refs/tags/v1',requirement=requirement))==dict(operation='revision',oid=expected,unbornHead=False)
+                assert revision_lookup(dict(operation='revision',revision='refs/heads/missing',requirement='commit'))==dict(operation='revision',oid=None,unbornHead=False)
+                for name,expected in [('refs/heads/main',True),('refs/heads/missing',False)]:
+                    assert revision_lookup(dict(operation='reference',reference=name))==dict(operation='reference',exists=expected)
+                assert all((source/'.git'/name).read_bytes()==value for name,value in before_lookup.items())
                 original=global_config.read_bytes()
                 def notifications(data):
                     values=[]
@@ -214,5 +234,5 @@ def main():
                 assert (clone/'.git/index').read_bytes()==live_before and (clone/'file').read_bytes()==b'first\n'
                 assert (clone/renamed).read_bytes()==b'renamed\x00disk\r\n' and global_config.read_bytes()==original
 
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual Finder full/light status, clone/fetch/list/deletion/historical/checkout filters and private-index Add/Commit preparation.'))
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with typed revision/reference lookup, actual Finder full/light status, clone/fetch/list/deletion/historical/checkout filters and private-index Add/Commit preparation.'))
 if __name__=='__main__':main()

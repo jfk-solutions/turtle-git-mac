@@ -248,6 +248,7 @@ extension UserDefaults {
     private var initialLoadToken: OperationCancellation?
     private var checkoutToken: OperationCancellation?
     private var conflictSnapshot: CheckoutOptions?
+    private var conflictRepository:GitRepository?
     var hasPendingTagConflict: Bool { tagConflict || conflictSnapshot != nil }
     @Published private(set) var progress: SwitchProgressWindowModel?
     var onProgress: ((SwitchProgressWindowModel) -> Void)?
@@ -261,10 +262,10 @@ extension UserDefaults {
     }
     func invalidate() {
         invalidated = true; formRevision = UUID(); initialLoadToken?.cancel(); initialLoadToken = nil
-        checkoutToken?.cancel(); checkoutToken = nil; historyToken?.cancel();historyToken=nil;tagConflictRequest=nil;pendingTagDecision=nil;conflictSnapshot = nil; tagConflict = false
+        checkoutToken?.cancel(); checkoutToken = nil; historyToken?.cancel();historyToken=nil;tagConflictRequest=nil;pendingTagDecision=nil;conflictSnapshot = nil;conflictRepository=nil; tagConflict = false
         finishPicker(); referenceFocusRequest = 0; progress?.invalidate(); progress = nil; busy = false
     }
-    func abortTagConflict() {tagConflictRequest=nil;pendingTagDecision=nil;tagConflict=false;conflictSnapshot=nil;formRevision=UUID()}
+    func abortTagConflict() {tagConflictRequest=nil;pendingTagDecision=nil;tagConflict=false;conflictSnapshot=nil;conflictRepository=nil;formRevision=UUID()}
     private func answerTagConflict(_ request:UUID,accepted:Bool) {
         guard !invalidated,!finished,tagConflictRequest == request else{return}
         if busy || confirmingQuit {if pendingTagDecision == nil {pendingTagDecision=(request,accepted)};return}
@@ -306,6 +307,7 @@ extension UserDefaults {
         guard !confirmingQuit, !invalidated, !finished, pickerTarget == .branch else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token; busy = true
         let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Self.activeReads += 1;pendingReferenceReads += 1
         Task {
             var applied = false
@@ -336,6 +338,7 @@ extension UserDefaults {
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences
         readInitialReferences = { token in
+            let repository=repository.capturingDiffBackend(preferences:preferences)
             let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
             let current = try await repository.branch(cancellation: token)
             return (catalog, current)
@@ -418,6 +421,7 @@ extension UserDefaults {
         if let onBrowsePicker { guard canBrowse(target) else { return }; onBrowsePicker(target); return }
         guard presentationAvailable,!busy,progress == nil,pickerTarget == nil,!hasPendingTagConflict else{return}
         if target != .commit {browser=target;return}
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         busy=true;let token=OperationCancellation();historyToken=token;Self.activeReads += 1;pendingReferenceReads += 1
         Task { [self,access] in
             defer {Self.activeReads -= 1;pendingReferenceReads -= 1;withExtendedLifetime(access) {};if historyToken === token {historyToken=nil;busy=false}}
@@ -432,7 +436,8 @@ extension UserDefaults {
         var snapshot = options; snapshot.revision = revision; snapshot.allowTagNameConflict = allowTagConflict
         if allowTagConflict, let captured = conflictSnapshot { snapshot = captured; snapshot.allowTagNameConflict = true }
         else if hasPendingTagConflict { return }
-        conflictSnapshot = nil; tagConflict = false
+        let repository=allowTagConflict ? (conflictRepository ?? self.repository.capturingDiffBackend(preferences:preferences)):self.repository.capturingDiffBackend(preferences:preferences)
+        conflictSnapshot = nil;conflictRepository=nil; tagConflict = false
         formRevision = UUID(); busy = true; error = nil
         let token = OperationCancellation(); checkoutToken = token;Self.activeReads += 1;pendingReferenceReads += 1
         Task {
@@ -459,7 +464,7 @@ extension UserDefaults {
                 }
             } catch CheckoutFailure.tagNameConflict {
                 if presentationAvailable,checkoutToken === token,!token.isCancelled {
-                    conflictSnapshot=snapshot;tagConflict=true;let request=UUID();tagConflictRequest=request
+                    conflictSnapshot=snapshot;conflictRepository=repository;tagConflict=true;let request=UUID();tagConflictRequest=request
                     showTagConflict?(request,{ [weak self] accepted in self?.answerTagConflict(request,accepted:accepted) })
                 }
             }
@@ -853,6 +858,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         self.init(repository: repository, access: access, options: options, preferences: preferences)
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: CheckoutOptions, preferences: UserDefaults = .standard) {
+        let repository=repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository
         checkoutOperation = {options,token,emit in try await repository.checkout(options,cancellation:token,onOutput:emit,onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))})}
         self.repository = repository; self.access = access; self.options = options; self.reference = options.revision; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
@@ -948,7 +954,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         return result
     }
     private func execute(merge: Bool) async {
-        let repository=self.repository.capturingDiffBackend(preferences:preferences)
+        let repository=self.repository
         defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
         guard !invalidated else { return }
         merging = merge

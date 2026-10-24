@@ -2512,9 +2512,10 @@ private enum TransportBatchPresentationContext {
         controller.model.runRebase = { [weak self, weak controller] target, autoStart, preserve in
             guard let self, let controller, !controller.model.closed, let owner = controller.window,
                   owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
+            let accepted=controller.model.acceptedOperationRepository ?? repository.capturingDiffBackend(preferences:controller.model.preferences)
             await withCheckedContinuation { continuation in
-                self.showRebase(repository: repository, access: access, upstream: target.isEmpty ? nil:target, autoStart: autoStart, preserveMerges: preserve,
-                    afterFetch: true, owner: owner, onDismissed: { continuation.resume() })
+                self.showRebase(repository: accepted, access: access, upstream: target.isEmpty ? nil:target, autoStart: autoStart, preserveMerges: preserve,
+                    afterFetch: true, owner: owner, onDismissed: { continuation.resume() },preferences:controller.model.preferences,acceptedRepository:accepted)
             }
         }
         controller.model.runHistoryReplay = { [weak self, weak controller] upstream, commits in
@@ -3989,10 +3990,14 @@ private enum TransportBatchPresentationContext {
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: preferences) }
         }
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, force: Bool? = nil, commandLaunch: Bool = false, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, force: Bool? = nil, commandLaunch: Bool = false, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil, preferences: UserDefaults? = nil,acceptedRepository:GitRepository?=nil) {
         let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root
         let existing = rebaseWindows[root.path]
+        if acceptedRepository != nil,let existing,existing.model.active {
+            error=RebaseFailure.active.localizedDescription
+            onResult?(false);onDismissed?();return
+        }
         if commandLaunch, let existing {
             guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "Close the existing Rebase dialog before launching another Rebase command."
@@ -4091,7 +4096,7 @@ private enum TransportBatchPresentationContext {
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: inherited) }
         }
         rebaseWindows[root.path] = controller
-        if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force) }
+        if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil || acceptedRepository != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force,acceptedRepository:acceptedRepository) }
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let owner, let child = controller.window { owner.beginSheet(child) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
@@ -4156,9 +4161,10 @@ private enum TransportBatchPresentationContext {
                 }
             }
         }
-        controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
+        controller.model.onRebase = { [weak self,weak model=controller.model] upstream, autoStart, preserveMerges in
+            let accepted=model?.acceptedOperationRepository ?? repository.capturingDiffBackend(preferences:preferences)
             self?.performTransportHandoff(transportChain,modal:true) {
-                self?.showRebase(repository: repository, access: access, upstream: upstream.isEmpty ? nil:upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences)
+                self?.showRebase(repository: accepted, access: access, upstream: upstream.isEmpty ? nil:upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences,acceptedRepository:accepted)
             }
         }
     }
@@ -4240,7 +4246,7 @@ private enum TransportBatchPresentationContext {
         }
         controller.model.onSwitch = { [weak self, weak controller] reference, done in
             guard let self, !self.retired, !self.confirmingQuit, let controller, controller.model.active, !controller.model.confirmingQuit, let parent = controller.window, parent.attachedSheet == nil else { done(); return }
-            let progress = self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: preferences, completion: done)
+            let progress = self.showSwitchProgress(repository: controller.model.operationRepository, access: access, reference: reference, parent: parent, preferences: preferences, completion: done)
             controller.model.awaitSwitchCloseOnRetirement = progress != nil
             controller.model.cancelSwitchPresentation = { [weak progress] in progress?.close() }
         }

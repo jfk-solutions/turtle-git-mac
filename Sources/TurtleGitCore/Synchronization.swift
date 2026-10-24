@@ -224,6 +224,7 @@ public struct SynchronizationTransportOptions: Sendable {
 /// Read-only preflight. Native tracking/hook/checkout questions must be settled
 /// by the owner before it executes this immutable command selection.
 public struct SynchronizationTransportPlan: Sendable {
+    public let acceptedBackend:GitLibGit2Configuration
     public let root: URL
     public let options: SynchronizationTransportOptions
     public let arguments: [String]
@@ -257,6 +258,7 @@ public struct SynchronizationPullCheckout: Sendable {
 /// Captures the actual branch attachment for SyncDlg's post-fetch choices.
 /// The pinned target is independent of subsequent remote-ref/FETCH_HEAD writes.
 public struct SynchronizationRebaseState: Sendable {
+    public let acceptedBackend:GitLibGit2Configuration
     public let target: String
     public let head: String
     public let branch: String
@@ -285,19 +287,20 @@ public struct SynchronizationTransportFollowUpFailure: LocalizedError {
 
 extension GitRepository {
     public func synchronizationRebaseState(target: String, cancellation: OperationCancellation? = nil) throws -> SynchronizationRebaseState {
+        let backend=libgit2Configuration ?? .load()
         try cancellation?.check()
         guard !target.isEmpty, !target.contains("\0"),
-              let targetHash = try synchronizationHash(target, cancellation: cancellation),
-              let head = try synchronizationHash("HEAD", cancellation: cancellation) else { throw SynchronizationFailure.invalidInput }
+              let targetHash = try synchronizationHash(target, cancellation: cancellation,backend:backend),
+              let head = try synchronizationHash("HEAD", cancellation: cancellation,backend:backend) else { throw SynchronizationFailure.invalidInput }
         let branch = try self.branch(cancellation: cancellation)
-        let forward = try replayMergeBase(from:head,to:targetHash,cancellation:cancellation).fastForward
+        let forward = try replayMergeBase(from:head,to:targetHash,cancellation:cancellation,backend:backend).fastForward
         try cancellation?.check()
-        return SynchronizationRebaseState(target: targetHash, head: head, branch: branch, canFastForward: forward, repository: self)
+        return SynchronizationRebaseState(acceptedBackend:backend,target: targetHash, head: head, branch: branch, canFastForward: forward, repository: self)
     }
     public func validateSynchronizationRebaseState(_ state: SynchronizationRebaseState, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
         guard state.repository === self,
-              try synchronizationHash("HEAD", cancellation: cancellation) == state.head,
+              try synchronizationHash("HEAD", cancellation: cancellation,backend:state.acceptedBackend) == state.head,
               GitReferenceName.equal(try branch(cancellation: cancellation), state.branch) else { throw SynchronizationTransportFailure.repositoryChanged }
     }
     /// Source SyncDlg runs this separate progress command after Merge is chosen.
@@ -372,10 +375,16 @@ extension GitRepository {
         try cancellation?.check()
         return changes.sorted { a, b in a.kind.rawValue == b.kind.rawValue ? a.name.rawValue.utf16.lexicographicallyPrecedes(b.name.rawValue.utf16) : a.kind.rawValue < b.kind.rawValue }
     }
-    private func synchronizationHash(_ revision: String, cancellation: OperationCancellation?) throws -> String? {
-        guard !revision.contains("\0") else { throw SynchronizationFailure.invalidInput }
-        let result = try synchronizationLiteralCommand(["rev-parse", "--verify", "--quiet", "--end-of-options", revision + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
-        return result.exitCode == 0 ? String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
+    private func synchronizationHash(_ revision:String,cancellation:OperationCancellation?,backend:GitLibGit2Configuration?=nil)throws->String? {
+        guard !revision.contains("\0") else{throw SynchronizationFailure.invalidInput}
+        return try revisionLookup(revision,requirement:.commit,cancellation:cancellation,backend:backend).objectID
+    }
+    /// Required revision adapters retain the public GitFailure boundary used by
+    /// the original rev-parse call. A semantic miss from either engine is not a
+    /// transport/runtime failure and must never trigger another engine fallback.
+    private func synchronizationRequiredHash(_ revision:String,cancellation:OperationCancellation?,backend:GitLibGit2Configuration?=nil)throws->String {
+        if let value=try synchronizationHash(revision,cancellation:cancellation,backend:backend){return value}
+        throw GitFailure(arguments:["rev-parse","--verify","--end-of-options",revision+"^{commit}"],code:128,message:"Could not resolve revision '"+revision+"' to a commit.")
     }
     /// FixBranchName(FETCH_HEAD): exactly one for-merge line, not the first line
     /// and not an arbitrary member of an octopus fetch.
@@ -401,13 +410,14 @@ extension GitRepository {
         guard input.action == .pull || input.action == .fetch else { throw SynchronizationFailure.invalidInput }
         return try buildSynchronizationTransportPlan(input, cancellation: cancellation, checkoutCompleted: false, optionsOnly: true)
     }
-    private func buildSynchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation?, checkoutCompleted: Bool, optionsOnly: Bool = false) throws -> SynchronizationTransportPlan {
+    private func buildSynchronizationTransportPlan(_ input: SynchronizationTransportOptions, cancellation: OperationCancellation?, checkoutCompleted: Bool, optionsOnly: Bool = false,backend:GitLibGit2Configuration?=nil) throws -> SynchronizationTransportPlan {
+        let backend=backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard ![input.localBranch, input.remote, input.remoteBranch].contains(where: { $0.contains("\0") }), !input.remote.isEmpty else { throw SynchronizationFailure.invalidInput }
         var options = input
         options.remoteBranch = options.remoteBranch.trimmingCharacters(in: .whitespacesAndNewlines)
-        let catalog = try synchronizationBranches(localBranch: options.localBranch, cancellation: cancellation)
-        let head = try synchronizationHash("HEAD", cancellation: cancellation)
+        let catalog = try synchronizationBranches(localBranch: options.localBranch, cancellation: cancellation,backend:backend)
+        let head = try synchronizationHash("HEAD", cancellation: cancellation,backend:backend)
         let pushing = [.push, .pushTags, .pushNotes].contains(options.action)
         guard pushing || head != nil else { throw SynchronizationFailure.invalidInput }
         let url = options.remote.contains("/") || options.remote.contains("\\")
@@ -417,7 +427,7 @@ extension GitRepository {
         var mode = options.action == .fetchAndRebase ? SynchronizationRebaseMode.choose : .none
         if options.action == .pull {
             if !checkoutCompleted {
-                guard let localHash = try synchronizationHash(source, cancellation: cancellation) else { throw SynchronizationFailure.invalidInput }
+                guard let localHash = try synchronizationHash(source, cancellation: cancellation,backend:backend) else { throw SynchronizationFailure.invalidInput }
                 if localHash != head || !GitReferenceName.equal(options.localBranch, catalog.currentBranch) { checkout = options.localBranch }
             }
             // Before checkout, predict whether the selected short local branch
@@ -455,7 +465,7 @@ extension GitRepository {
             var refspec = options.action == .fetchAllBranches ? "" : options.remoteBranch
             if !url && !refspec.isEmpty {
                 let tracking = "remotes/" + options.remote + "/" + refspec
-                oldRemote = try synchronizationHash(tracking, cancellation: cancellation)
+                oldRemote = try synchronizationHash(tracking, cancellation: cancellation,backend:backend)
                 if oldRemote != nil { refspec += ":" + tracking }
             }
             args = ["fetch", "--progress"]
@@ -491,7 +501,7 @@ extension GitRepository {
         }
         guard !args.contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
         try cancellation?.check()
-        return SynchronizationTransportPlan(root: root, options: options, arguments: optionsOnly ? [] : args,
+        return SynchronizationTransportPlan(acceptedBackend:backend,root: root, options: options, arguments: optionsOnly ? [] : args,
             transportRemotes: options.action == .remoteUpdate ? catalog.remotes : [options.remote], oldHead: head,
             oldRemoteHash: oldRemote, checkoutBranch: checkout,
             checkoutArguments: checkout.map { branch in
@@ -522,11 +532,11 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard plan.options.action == .pull else { throw SynchronizationFailure.invalidInput }
         guard plan.root == root,
-              try synchronizationHash("HEAD", cancellation: token) == plan.oldHead,
+              try synchronizationHash("HEAD", cancellation: token,backend:plan.acceptedBackend) == plan.oldHead,
               GitReferenceName.equal(try branch(cancellation: token), plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         guard plan.checkoutBranch == nil || checkoutAuthorized else { throw SynchronizationTransportFailure.checkoutNotAuthorized }
         let command = try plan.checkoutArguments.map { try synchronizationLiteralCommand($0, cancellation: token, onOutput: onOutput) }
-        let head = try synchronizationHash("HEAD", cancellation: token)
+        let head = try synchronizationHash("HEAD", cancellation: token,backend:plan.acceptedBackend)
         let branch = try self.branch(cancellation: token)
         try token.check()
         return SynchronizationPullCheckout(plan: plan, command: command, repository: self, readyHead: head, readyBranch: branch)
@@ -548,7 +558,7 @@ extension GitRepository {
                                         onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, backend: GitLibGit2Configuration?,
                                         onNotification: (@Sendable (GitTransferNotification) -> Void)?,
                                         onCommandPresentation: (@Sendable (SynchronizationCommandPresentation) -> Void)?) async throws -> SynchronizationTransportResult {
-        let backend = backend ?? libgit2Configuration ?? .load()
+        let backend = backend ?? plan.acceptedBackend
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !plan.optionsOnly else { throw SynchronizationFailure.invalidInput }
         guard plan.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
@@ -558,24 +568,24 @@ extension GitRepository {
             let expectedHead: String?
             if let checkout { expectedHead = checkout.readyHead } else { expectedHead = plan.oldHead }
             guard checkout == nil || checkout?.repository === self,
-                  try synchronizationHash("HEAD", cancellation: token) == expectedHead,
+                  try synchronizationHash("HEAD", cancellation: token,backend:backend) == expectedHead,
                   GitReferenceName.equal(try branch(cancellation: token), checkout?.readyBranch ?? plan.currentBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         }
         if checkout == nil, let arguments = plan.checkoutArguments {
             _ = try synchronizationLiteralCommand(arguments, cancellation: token, onOutput: onOutput)
         }
-        let readyHead = plan.options.action == .pull ? try synchronizationHash("HEAD", cancellation: token) : nil
+        let readyHead = plan.options.action == .pull ? try synchronizationHash("HEAD", cancellation: token,backend:backend) : nil
         let readyBranch = plan.options.action == .pull ? try branch(cancellation: token) : ""
         let session = try await prepareSSHTransport(plan.transportRemotes, cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
         if plan.options.action == .pull {
-            guard try synchronizationHash("HEAD", cancellation: token) == readyHead,
+            guard try synchronizationHash("HEAD", cancellation: token,backend:backend) == readyHead,
                   GitReferenceName.equal(try branch(cancellation: token), readyBranch) else { throw SynchronizationTransportFailure.repositoryChanged }
         }
         // Source evaluates Pull rebase settings only after checkout and key
         // preparation. Rebuild its command from the same selected fields then;
         // the original plan still owns the pre-checkout HEAD for incoming tabs.
-        let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true) : plan
+        let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true,backend:backend) : plan
         let executor = GitCommandIdentity(execution.arguments).command == "fetch" ? try backend.executor(for: .fetch) : nil
         var arguments = execution.arguments
         if executor != nil {
@@ -599,7 +609,7 @@ extension GitRepository {
         if let reference = execution.rebaseReference {
             do {
                 let revision = reference == "FETCH_HEAD" ? try fetchHeadForMerge(cancellation: token) : reference
-                guard !revision.isEmpty, let resolved = try synchronizationHash(revision, cancellation: token) else { throw SynchronizationFailure.invalidInput }
+                guard !revision.isEmpty, let resolved = try synchronizationHash(revision, cancellation: token,backend:backend) else { throw SynchronizationFailure.invalidInput }
                 target = resolved
             } catch {
                 try token.check()
@@ -622,10 +632,11 @@ extension GitRepository {
         _ = try synchronizationLiteralCommand(["config", "--local", "branch." + localBranch + ".merge", "refs/heads/" + branch], cancellation: cancellation)
     }
 
-    public func synchronizationBranches(localBranch: String? = nil, cancellation: OperationCancellation? = nil) throws -> SynchronizationBranches {
+    public func synchronizationBranches(localBranch: String? = nil, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> SynchronizationBranches {
+        let backend=backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard localBranch?.contains("\0") != true else { throw SynchronizationFailure.invalidInput }
-        let refs = try checkoutReferences(cancellation: cancellation)
+        let refs = try checkoutReferences(cancellation: cancellation,backend:backend)
         let locals = refs.compactMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name) }
         let current = try branch(cancellation: cancellation)
         let selected = localBranch ?? current
@@ -639,14 +650,15 @@ extension GitRepository {
         if let short = GitReferenceName.removingPrefix("refs/heads/", from: tracked) { tracked = short }
         else if let short = GitReferenceName.removingPrefix("refs/", from: tracked) { tracked = short }
         while tracked.last?.isWhitespace == true { tracked.removeLast() }
-        let remotes = try run(["remote"], cancellation: cancellation).stdout
+        let remotes = try remoteNames(cancellation:cancellation,backend:backend)
         try cancellation?.check()
         return SynchronizationBranches(localBranches: locals, currentBranch: current,
-            remotes: String(decoding: remotes, as: UTF8.self).split(separator: "\n").map(String.init),
+            remotes: remotes,
             trackedRemote: remote, trackedBranch: tracked)
     }
 
     public func synchronizationOutgoing(localBranch: String, remote: String, remoteBranch: String, force: Bool = false, cancellation: OperationCancellation? = nil) throws -> SynchronizationOutgoing {
+        let backend=libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation()
         try token.check()
         guard ![localBranch, remote, remoteBranch].contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
@@ -657,14 +669,11 @@ extension GitRepository {
         // Preserve the source's URL/path heuristic; it intentionally does not
         // contact the server to discover commits for a typed URL.
         if remote.contains("/") || remote.contains("\\") { return snapshot(.unknownURL) }
-        let remoteResult = try synchronizationLiteralCommand(["rev-parse", "--verify", "--quiet", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...1, cancellation: token)
-        guard remoteResult.exitCode == 0 else { return snapshot(.unknownRemoteBranch) }
-        guard !localBranch.isEmpty else { throw SynchronizationFailure.invalidInput }
-        let remoteHash = String(decoding: remoteResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
-        let localResult = try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", localBranch + "^{commit}"], cancellation: token)
-        let localHash = String(decoding: localResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+        guard let remoteHash=try synchronizationHash(reference,cancellation:token,backend:backend) else{return snapshot(.unknownRemoteBranch)}
+        guard !localBranch.isEmpty else{throw SynchronizationFailure.invalidInput}
+        let localHash=try synchronizationRequiredHash(localBranch,cancellation:token,backend:backend)
         if localHash == remoteHash { return snapshot(.upToDate, local: localHash, tracking: remoteHash, base: localHash, fastForward: true) }
-        let inspection = try replayMergeBase(from:remoteHash,to:localHash,cancellation:token)
+        let inspection = try replayMergeBase(from:remoteHash,to:localHash,cancellation:token,backend:backend)
         let base = inspection.base
         let fastForward = inspection.fastForward
         guard fastForward || force else { return snapshot(.needsForce, local: localHash, tracking: remoteHash, base: base) }
@@ -691,8 +700,9 @@ extension GitRepository {
               ![localBranch, destination, branch].contains(where: { $0.contains("\0") }) else { throw SynchronizationFailure.invalidInput }
         let local = localBranch == "FETCH_HEAD" ? try fetchHeadForMerge(cancellation: cancellation) : localBranch
         guard !local.isEmpty else { throw SynchronizationFailure.invalidInput }
-        let from = try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", destination + "/" + branch + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        let to = try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", local + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let backend=libgit2Configuration ?? .load()
+        let from=try synchronizationRequiredHash(destination+"/"+branch,cancellation:cancellation,backend:backend)
+        let to=try synchronizationRequiredHash(local,cancellation:cancellation,backend:backend)
         return try formatPatch(selection: .range(from: from, to: to), to: root, cancellation: cancellation)
     }
 
@@ -702,7 +712,7 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation()
         func resolve(_ revision: String) throws -> String {
             guard !revision.isEmpty, !revision.contains("\0") else { throw SynchronizationFailure.invalidInput }
-            return String(decoding: try synchronizationLiteralCommand(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: token).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+            return try synchronizationRequiredHash(revision,cancellation:token)
         }
         var diffOptions = RevisionDiffOptions(); diffOptions.detectCopies = true
         let comparison = try revisionComparison(from: .revision(resolve(oldRevision)), to: .revision(resolve(newRevision)), options: diffOptions, cancellation: token)
@@ -811,8 +821,7 @@ extension GitRepository {
             guard deletionAuthorized else { throw SynchronizationTransportFailure.deletionNotAuthorized }
         }
         func checkLocal() throws {
-            let current = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--quiet", "--end-of-options", reference], successfulExitCodes: 0...1, cancellation: token)
-            let hash = current.exitCode == 0 ? String(decoding: current.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
+            let hash=try revisionLookup(reference,requirement:.existingObject,cancellation:token,backend:backend).objectID
             guard hash == snapshot.localObjects[row.tag] else { throw SynchronizationTransportFailure.repositoryChanged }
         }
         if action == .deleteLocal {

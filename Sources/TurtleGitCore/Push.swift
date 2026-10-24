@@ -72,12 +72,13 @@ extension GitRepository {
         if pushURL.isEmpty { if !pushConfig("remote." + name + ".pushurl").isEmpty { _ = try pushCommand(["config", "--local", "--unset-all", "remote." + name + ".pushurl"]) } }
         else { _ = try pushCommand(["config", "--local", "remote." + name + ".pushurl", pushURL]) }
     }
-    public func remoteNames(cancellation: OperationCancellation? = nil) throws -> [String] {
+    public func remoteNames(cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> [String] {
         try cancellation?.check()
-        if let names=try masterRemoteNames(cancellation:cancellation){return names}
+        if let names=try masterRemoteNames(cancellation:cancellation,backend:backend){return names}
         return try pushCommand(["remote"], cancellation: cancellation).text.split(separator: "\n").map(String.init) }
     private func pushConfig(_ key: String) -> String { ((try? pushCommand(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
-    public func pushDefaults(source: String, cancellation: OperationCancellation? = nil) throws -> PushDefaults {
+    public func pushDefaults(source: String, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> PushDefaults {
+        let selected=backend ?? libgit2Configuration ?? .load()
         func optionalRead(_ arguments: [String]) throws -> GitResult? {
             do { return try pushCommand(arguments, cancellation: cancellation) }
             catch { try cancellation?.check(); return nil }
@@ -85,10 +86,10 @@ extension GitRepository {
         func configuration(_ key: String) throws -> String {
             try optionalRead(["config", "--get", key])?.text.trimmingCharacters(in: .newlines) ?? ""
         }
-        let names = try remoteNames(cancellation: cancellation)
+        let names = try remoteNames(cancellation: cancellation,backend:selected)
         let symbolic = try optionalRead(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source])?.text.trimmingCharacters(in: .newlines) ?? ""
         let candidate: String? = source.hasPrefix("refs/heads/") ? String(source.dropFirst(11)) : (!source.hasPrefix("refs/") && !source.hasPrefix("remotes/") ? source : nil)
-        let exactBranch = try candidate.flatMap { name in try optionalRead(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + name]) != nil ? name : nil }
+        let exactBranch = try candidate.flatMap { name in try referenceExists("refs/heads/"+name,cancellation:cancellation,backend:selected) ? name : nil }
         let branch = exactBranch ?? (symbolic.hasPrefix("refs/heads/") ? String(symbolic.dropFirst(11)) : nil)
         var remote = try branch.map { try configuration("branch." + $0 + ".pushRemote") } ?? ""
         if remote.isEmpty { remote = try configuration("remote.pushDefault") }
@@ -143,16 +144,15 @@ extension GitRepository {
         do { return try pushCommand(arguments, cancellation: cancellation) }
         catch { try cancellation?.check(); return nil }
     }
-    private func pushSourceIsUnique(_ source: String, cancellation: OperationCancellation?) throws -> Bool {
+    private func pushSourceIsUnique(_ source: String, cancellation: OperationCancellation?,backend:GitLibGit2Configuration) throws -> Bool {
         // CGit::IsBranchTagNameUnique checks exact refs formed from the supplied
         // name. Fully qualified refs/revision expressions retain their source behavior.
-        let branch = try optionalPushRead(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + source], cancellation: cancellation) != nil
-        let tag = try optionalPushRead(["show-ref", "--verify", "--quiet", "--", "refs/tags/" + source], cancellation: cancellation) != nil
-        return !(branch && tag)
+        try branchTagNameIsUnique(source,cancellation:cancellation,backend:backend)
     }
     private func validatedPush(_ options: PushOptions, cancellation: OperationCancellation?) throws -> (source: String, destination: String, remotes: [String], localBranch: String?) {
+        let backend=libgit2Configuration ?? .load()
         try cancellation?.check()
-        let names = try remoteNames(cancellation: cancellation), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
+        let names = try remoteNames(cancellation: cancellation,backend:backend), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
         let destination = options.destination.trimmingCharacters(in: .whitespacesAndNewlines)
         let remotes = options.allRemotes ? names : [options.remote]
         guard !remotes.isEmpty, remotes.allSatisfy({ !$0.isEmpty && !$0.contains("\0") }), options.arbitraryURL || remotes.allSatisfy({remote in names.contains(where:{GitReferenceName.equal($0,remote)})}) else { throw PushValidationFailure.remote }
@@ -160,13 +160,13 @@ extension GitRepository {
         guard !options.pushOption.contains("\0"), !options.pushOption.contains("\n") else { throw PushValidationFailure.pushOption }
         if !options.allBranches, !source.isEmpty {
             // Verify before passing the original ref to push, retaining branch/tag identity.
-            guard !source.contains(":"), !source.hasPrefix("+"), try pushSourceIsUnique(source, cancellation: cancellation), try optionalPushRead(["rev-parse", "--verify", "--end-of-options", source + "^{object}"], cancellation: cancellation) != nil else { throw PushValidationFailure.source }
+            guard !source.contains(":"), !source.hasPrefix("+"), try pushSourceIsUnique(source, cancellation: cancellation,backend:backend), try revisionLookup(source,requirement:.existingObject,cancellation:cancellation,backend:backend).objectID != nil else { throw PushValidationFailure.source }
         }
         if !options.allBranches, !destination.isEmpty {
             let full = destination.hasPrefix("refs/") ? destination : "refs/heads/" + destination
             guard try optionalPushRead(["check-ref-format", full], cancellation: cancellation) != nil else { throw PushValidationFailure.destination }
         }
-        let defaults = try pushDefaults(source: source, cancellation: cancellation)
+        let defaults = try pushDefaults(source: source, cancellation: cancellation,backend:backend)
         // DoPush forwards the entered destination literally. Git resolves an
         // existing remote branch/tag, rejects ambiguous names, and requires a
         // qualified new destination when a raw revision has no ref namespace.

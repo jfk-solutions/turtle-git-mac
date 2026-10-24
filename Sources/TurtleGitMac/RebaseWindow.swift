@@ -504,6 +504,12 @@ struct RebaseReferenceRequest {
 
 @MainActor final class RebaseWindowModel: ObservableObject {
     let repository: GitRepository
+    /// A parent-owned Fetch/Sync continuation retains its accepted repository;
+    /// ordinary independent loads capture the current dialog preferences.
+    private(set) var inheritedOperationRepository:GitRepository?
+    private func operationRepository()->GitRepository {
+        inheritedOperationRepository ?? repository.capturingDiffBackend(preferences:messageDefaults)
+    }
     let fullCommitMessageOnLogLine: Bool
     private let access: RepositoryAccessLease?
     var columnPreferences: UserDefaults { messageDefaults }
@@ -514,8 +520,8 @@ struct RebaseReferenceRequest {
     private var controlMenuGeneration=UUID()
     @Published private(set) var editingPendingActions = false
     private var actionEditCancellation: OperationCancellation?
-    var readActionEditSnapshot: (OperationCancellation) async throws -> RebaseActionEditSnapshot
-    var writePendingActions: (RebaseAction, Set<String>, [String: RebaseAction], [String: Int], RebaseActionEditSnapshot, URL, RebaseConflictIdentity?, OperationCancellation) async throws -> RebaseSessionSnapshot
+    var readActionEditSnapshot: ((OperationCancellation) async throws -> RebaseActionEditSnapshot)?
+    var writePendingActions: ((RebaseAction, Set<String>, [String: RebaseAction], [String: Int], RebaseActionEditSnapshot, URL, RebaseConflictIdentity?, OperationCancellation) async throws -> RebaseSessionSnapshot)?
 
     @Published var options = RebaseOptions() {didSet{controlMenuGeneration=UUID()}}
     @Published private(set) var bulkAction:RebaseBulkAction = .pickAll
@@ -900,7 +906,7 @@ struct RebaseReferenceRequest {
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true;pendingLoad=nil;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); mainlineCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) {
         guard !retired, pendingConfirmation == nil, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
@@ -994,17 +1000,17 @@ struct RebaseReferenceRequest {
     }
     private func readPlanValue(_ options:RebaseOptions,_ cancellation:OperationCancellation,repository captured:GitRepository?=nil) async throws -> RebasePlan {
         if let readPlan {return try await readPlan(options,cancellation)}
-        let repository=captured ?? self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=captured ?? self.operationRepository()
         return try await repository.rebasePlan(options,cancellation:cancellation)
     }
     private func readSessionValue(_ identity:RebaseConflictIdentity?,_ cancellation:OperationCancellation,repository captured:GitRepository?=nil) async throws -> RebaseSessionSnapshot {
         if let readSession {return try await readSession(identity,cancellation)}
-        let repository=captured ?? self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=captured ?? self.operationRepository()
         return try await repository.rebaseSessionSnapshot(retaining:identity,cancellation:cancellation)
     }
     private func loadConflictFiles(cancellation:OperationCancellation?=nil,repository captured:GitRepository?=nil) async throws {
         try cancellation?.check();guard !retired else {return}
-        let repository=captured ?? self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=captured ?? self.operationRepository()
         let token=cancellation ?? OperationCancellation()
         if cancellation == nil {replayResultInspection=token}
         defer {if replayResultInspection === token {replayResultInspection=nil}}
@@ -1043,7 +1049,7 @@ struct RebaseReferenceRequest {
                 attributes?[.type] as? FileAttributeType == .typeDirectory
         }.map(\.path))
         return FileListDrag.workingSelection(repository:repository,access:access,entries:rows,
-            directories:directories,backend:GitLibGit2Configuration.load(from:messageDefaults),origin:workingDragOrigin)
+            directories:directories,backend:operationRepository().libgit2Configuration ?? GitLibGit2Configuration.load(from:messageDefaults),origin:workingDragOrigin)
     }
     func conflictFileMenu(_ values: some Sequence<String>,markedPath:String?=nil) -> ConflictFileMenu {
         let ids = GitPathSet(values)
@@ -1186,7 +1192,7 @@ struct RebaseReferenceRequest {
     }
     func addConflictFiles(_ menu:ConflictFileMenu,mode:WorkingFileAddMode) {
         guard canAddConflictFiles(menu,mode:mode) else {return}
-        let backend=GitLibGit2Configuration.load(from:messageDefaults)
+        let backend=operationRepository().libgit2Configuration ?? GitLibGit2Configuration.load(from:messageDefaults)
         runConflictFileMenu(menu) { [self] token in
             try token.check();presentingConflictFileDialog=true
             defer {presentingConflictFileDialog=false;if !retired {pendingSessionRefresh=true;onChanged()}}
@@ -1328,13 +1334,13 @@ struct RebaseReferenceRequest {
         }
     }
     private var completion = "Rebase finished"
-    private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?, force: Bool?)?
+    private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?, force: Bool?,acceptedRepository:GitRepository?)?
     private func loadPendingHandoff() {
         guard !retired,!busy,pendingConfirmation == nil,pickingReference == nil,!pickingCommits,!selectingSplit else {return}
         if pendingSessionRefresh {pendingSessionRefresh=false;refreshState();return}
         guard let pending=pendingLoad else {return}
         pendingLoad = nil
-        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick, force: pending.force)
+        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick, force: pending.force,acceptedRepository:pending.acceptedRepository)
     }
     var active: Bool { state?.active == true }
     var editable: Bool { !containingReferenceBlocked && !revisionFindBlocked && !revisionHistoryBlocked && confirmation == nil && pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
@@ -1379,8 +1385,8 @@ struct RebaseReferenceRequest {
             case .mail:
                 guard let preset = FormatPatchPreset(startRevision: self.options.upstream, endRevision: self.options.branch) else { return }
                 let callback = self.onCompletedMail; self.close(); callback?(preset)
-            case .restart: self.load()
-            case .rebase: self.load(upstream: self.options.upstream, autoStart: self.completionAutoStart, preserveMerges: self.options.preserveMerges)
+            case .restart: self.load(acceptedRepository:self.inheritedOperationRepository)
+            case .rebase: self.load(upstream: self.options.upstream, autoStart: self.completionAutoStart, preserveMerges: self.options.preserveMerges,acceptedRepository:self.inheritedOperationRepository)
             }
         }
     }
@@ -1419,8 +1425,6 @@ struct RebaseReferenceRequest {
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.messageDefaults = messageDefaults
-        readActionEditSnapshot = { try await repository.rebaseActionEditSnapshot(cancellation: $0) }
-        writePendingActions = { try await repository.changePendingRebaseActions($0, ids: $1, expected: $4, changes: $2, mainlines: $3, editorExecutable: $5, retaining: $6, cancellation: $7) }
         revisionFiles=RevisionComparisonWindowModel(repository:repository,access:access,from:.emptyTree,to:.revision("HEAD"),preferences:messageDefaults,columnsKey:"RebaseDlg.RevisionFiles.Columns")
         conflictFileColumns=StatusListColumnSettings.load(from:messageDefaults,key:Self.conflictColumnKey)
         let saved=messageDefaults.string(forKey:Self.conflictColumnKey+".SortColumn").flatMap(StatusListColumn.init(rawValue:))
@@ -1693,21 +1697,22 @@ struct RebaseReferenceRequest {
         try token.check(); let value = try await read()
         if retired { token.cancel() }; try token.check(); return value
     }
-    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, force: Bool? = nil) {
+    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, force: Bool? = nil,acceptedRepository:GitRepository?=nil) {
         guard !retired else { return }
         if pendingConfirmation != nil {
-            if upstream != nil || cherryPick != nil || force != nil {pendingLoad=(upstream,autoStart,preserveMerges,cherryPick,force)}
+            if upstream != nil || cherryPick != nil || force != nil || acceptedRepository != nil {pendingLoad=(upstream,autoStart,preserveMerges,cherryPick,force,acceptedRepository)}
             return
         }
         if hasReplayStash && !active && !busy {
-            finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force) }
+            finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force,acceptedRepository:acceptedRepository) }
             return
         }
         guard !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit else {
-            if upstream != nil || cherryPick != nil || force != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick, force) }
+            if upstream != nil || cherryPick != nil || force != nil || acceptedRepository != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick, force,acceptedRepository) }
             return
         }; planCancellation?.cancel(); detailCancellation?.cancel(); planSignature = nil
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        inheritedOperationRepository=acceptedRepository
+        let repository=self.operationRepository()
         let token = OperationCancellation(); initialCancellation = token; cancellingPreparation = false; Self.activePreparationReads += 1;pendingBatchWorkers += 1
         busy = true; planGeneration += 1; detailGeneration += 1
         Task {
@@ -1752,7 +1757,7 @@ struct RebaseReferenceRequest {
     func reloadPlan(force: Bool = false) {
         guard editable, !isCherryPick else { return }
         var snapshot = options; if !ontoEnabled { snapshot.onto = "" }
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         let backend=repository.libgit2Configuration
         let signature = Data([snapshot.branch, snapshot.upstream, snapshot.onto, String(snapshot.force), String(snapshot.preserveMerges), String(snapshot.squashDate.rawValue),String(backend?.enabled ?? true),String(backend?.mask ?? GitLibGit2Configuration.defaultMask),backend?.helperURL?.path ?? "",(try? repository.singleCommitBackendIdentity()) ?? "single-commit-unavailable"].joined(separator: "\0").utf8)
         if !force, planCancellation?.isCancelled != true, planSignature == signature, loadingPlan || plan != nil { return }
@@ -1845,7 +1850,7 @@ struct RebaseReferenceRequest {
     }
     private func prepareCherryPick() {
         guard canStart, var snapshot = plan else { return }
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         let token = OperationCancellation(), generation = planGeneration
         mainlineCancellation = token; preparingMainline = true; cancellingPreparation = false; busy = true; error = nil
         Self.activePreparationReads += 1;pendingBatchWorkers += 1
@@ -1897,7 +1902,7 @@ struct RebaseReferenceRequest {
     }
     func addCommits(_ revisions: [String]) {
         guard canAdd, !revisions.isEmpty else { return }
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         let snapshot = plan, draft = draftEntries
         var settings = options; if !ontoEnabled { settings.onto = "" }
         planCancellation?.cancel(); detailCancellation?.cancel(); busy = true; planGeneration += 1; detailGeneration += 1
@@ -1957,7 +1962,7 @@ struct RebaseReferenceRequest {
         guard canEditPendingActions, let captured = state, let editorExecutable,
               !revisionActionChoices(ids).isEmpty, let head = conflictHead.isEmpty ? nil : conflictHead else { return }
         let recovery = conflictIdentity
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         let original = replayRows.map { [$0.id, $0.action.rawValue, String(describing: $0.progress)] }
         let token = OperationCancellation()
         actionEditCancellation = token; editingPendingActions = true; busy = true; cancellingPreparation = false
@@ -1973,7 +1978,9 @@ struct RebaseReferenceRequest {
             }
             do {
                 try requireAccess()
-                let expected = try await readActionEditSnapshot(token)
+                let expected:RebaseActionEditSnapshot
+                if let readActionEditSnapshot {expected=try await readActionEditSnapshot(token)}
+                else {expected=try await repository.rebaseActionEditSnapshot(cancellation:token)}
                 try token.check()
                 guard !retired, formContext == generation, RebaseConflictIdentity(expected.state) == RebaseConflictIdentity(captured),
                       expected.head == head, expected.state.remainingCommands == captured.remainingCommands,
@@ -1988,7 +1995,9 @@ struct RebaseReferenceRequest {
                     }
                 }
                 guard !retired, formContext == generation else { return }
-                let snapshot = try await writePendingActions(action, ids, changes, mainlines, expected, editorExecutable, recovery, token)
+                let snapshot:RebaseSessionSnapshot
+                if let writePendingActions {snapshot=try await writePendingActions(action,ids,changes,mainlines,expected,editorExecutable,recovery,token)}
+                else {snapshot=try await repository.changePendingRebaseActions(action,ids:ids,expected:expected,changes:changes,mainlines:mainlines,editorExecutable:editorExecutable,retaining:recovery,cancellation:token)}
                 // Publication is a critical section. If Cancel arrives after its
                 // commit point, display the actual saved result rather than a
                 // false unchanged draft. Retirement still fences publication.
@@ -2068,7 +2077,7 @@ struct RebaseReferenceRequest {
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     func selectCommit() {
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         guard !retired else { return }; detailCancellation?.cancel()
         if !busy { refreshColumnMetadata() }
         detailGeneration += 1; let request = detailGeneration
@@ -2108,7 +2117,7 @@ struct RebaseReferenceRequest {
         planGeneration += 1;detailGeneration += 1;loadingPlan=false;planSignature=nil
         let token=OperationCancellation(),request=UUID(),originalIntent=referenceIntent
         var snapshot=options;if !ontoEnabled {snapshot.onto=""}
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         referenceRefreshCancellation=token;referenceRefreshGeneration=request;refreshingReferences=true;busy=true;cancellingPreparation=false;error=nil
         Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task { [self,access] in
@@ -2203,7 +2212,7 @@ struct RebaseReferenceRequest {
         if action=="start" {automaticallySkipFailedPicks=false;failedPickSkipSession=nil}
         failedPickRecoveryCancelled=false
         busy = true; tab = 2
-        let repository=captured ?? self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=captured ?? self.operationRepository()
         let preparation = OperationCancellation(); replayPreparationCancellation = preparation; replaying = true; cancellingReplay = false; replayStopped = false
         Self.beginReplayWork();pendingBatchWorkers += 1; LocalGitCommandProgress.begin()
         Task {
@@ -2345,7 +2354,7 @@ struct RebaseReferenceRequest {
     var canSplit: Bool { !revisionHistoryBlocked && !retired && pendingConfirmation == nil && confirmation == nil && !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
     private func prepareEditMessageContinuation() {
         guard canRequest("continue"), let expected = state else { return }
-        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
+        let repository=self.operationRepository()
         let head = conflictHead, draft = amendMessage, token = OperationCancellation()
         messageSelectionCancellation = token; preparingMessageSelection = true; busy = true; Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task { [self, access] in

@@ -1026,3 +1026,27 @@ int tg_checkout_references(const char *path,tg_callbacks *callbacks){
  if(result==GIT_ITEROVER)result=0;
  done:git_reference_free(ref);git_reference_iterator_free(iterator);git_repository_free(repo);return result;
 }
+
+/* requirement: source object, existing object, commit, tree. Reference lookup
+ * deliberately inspects the raw name, including dangling symbolic references. */
+int tg_revision_lookup(const char *path,const char *value,int requirement,int reference,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_reference *ref=NULL;git_object *object=NULL,*peeled=NULL;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};tg_inspection row={0};char hex[GIT_OID_SHA1_HEXSIZE+1];
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0)goto done;
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if(reference){
+  row.kind=5;result=git_reference_lookup(&ref,repo,value);
+  if(result==GIT_ENOTFOUND||result==GIT_EINVALIDSPEC){git_error_clear();result=0;row.value=0;}else if(result<0)goto done;else row.value=1;
+ }else{
+  row.kind=4;
+  if(requirement==0){int unborn=git_repository_head_unborn(repo);if(unborn<0){result=unborn;goto done;}if(unborn==1&&!strcmp(value,"HEAD")){row.value=2;goto emit;}}
+  result=git_revparse_single(&object,repo,value);
+  if(result==GIT_ENOTFOUND||result==GIT_EINVALIDSPEC||result==GIT_EAMBIGUOUS){git_error_clear();result=0;goto emit;}if(result<0)goto done;
+  if(requirement==2||requirement==3){
+   result=git_object_peel(&peeled,object,requirement==2?GIT_OBJECT_COMMIT:GIT_OBJECT_TREE);
+   if(result==GIT_ENOTFOUND||result==GIT_EINVALIDSPEC||result==GIT_EPEEL){git_error_clear();result=0;goto emit;}if(result<0)goto done;
+  }
+  git_oid_tostr(hex,sizeof(hex),git_object_id(peeled?peeled:object));row.base=hex;row.value=1;
+ }
+ emit:if(stopped(&ctx)){result=GIT_EUSER;goto done;}if(callbacks->inspection)result=callbacks->inspection(&row,callbacks->payload);
+ done:git_object_free(peeled);git_object_free(object);git_reference_free(ref);git_repository_free(repo);return result;
+}

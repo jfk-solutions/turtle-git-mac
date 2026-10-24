@@ -71,9 +71,10 @@ public enum CheckoutFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, localBranchesFirst: Bool? = nil, cancellation: OperationCancellation? = nil) throws -> [CheckoutReference] {
+    public func checkoutReferences(includeAll: Bool = false, includeFetchHead: Bool = false, localBranchesFirst: Bool? = nil, cancellation: OperationCancellation? = nil, backend:GitLibGit2Configuration?=nil) throws -> [CheckoutReference] {
+        let selected=backend ?? libgit2Configuration ?? .load()
         var result:[CheckoutReference]
-        if let backend=masterReferenceBackend() {
+        if let backend=masterReferenceBackend(selected) {
             result=try localReferenceReply(verb:"turtlegit-checkout-refs",operation:"choices",request:["version":1],backend:backend,command:.forEachRef,cancellation:cancellation).choices.filter {includeAll || $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/remotes/") || $0.name.hasPrefix("refs/tags/")}
         } else {
         let bytes = try checkoutCommand(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
@@ -90,7 +91,7 @@ extension GitRepository {
             // Exactly one for-merge FETCH_HEAD, matching GetBranchList's choice.
             if let hash = try? fetchHeadForMerge(cancellation: cancellation),
                (hash.count == 40 || hash.count == 64), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }),
-               try checkoutCommand(["rev-parse", "--verify", "--quiet", "--end-of-options", hash + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 {
+               try revisionLookup(hash,requirement:.commit,cancellation:cancellation,backend:selected).objectID != nil {
                 result.append(CheckoutReference(name: "FETCH_HEAD", symbolicTarget: nil))
             }
             try cancellation?.check()
@@ -112,22 +113,17 @@ extension GitRepository {
     public func validateCheckout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws { _ = try checkoutArguments(options, cancellation: cancellation) }
     private func checkoutArguments(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws -> [String] {
         try cancellation?.check()
+        let backend=libgit2Configuration ?? .load()
         let revision = options.revision
         guard !revision.isEmpty else { throw CheckoutFailure.invalidRevision }
-        let references = try checkoutReferences(includeFetchHead: GitReferenceName.equal(revision, "FETCH_HEAD"), cancellation: cancellation)
+        let references = try checkoutReferences(includeFetchHead: GitReferenceName.equal(revision, "FETCH_HEAD"), cancellation: cancellation,backend:backend)
         let reference = references.first { GitReferenceName.equal($0.name, revision) }
         if options.target == .branch {
             guard let reference, reference.target == .branch else { throw CheckoutFailure.invalidRevision }
         } else if options.target == .tag {
             guard reference?.target == .tag else { throw CheckoutFailure.invalidRevision }
         }
-        let resolved: String
-        do {
-            let output = try checkoutCommand(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).stdout
-            resolved = String(decoding:output,as:UTF8.self).trimmingCharacters(in:.newlines)
-            guard [40,64].contains(resolved.count), resolved.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw CheckoutFailure.invalidRevision }
-        }
-        catch { try cancellation?.check(); throw CheckoutFailure.invalidRevision }
+        guard let resolved=try revisionLookup(revision,requirement:.commit,cancellation:cancellation,backend:backend).objectID else{throw CheckoutFailure.invalidRevision}
         var args = ["switch", "--no-guess"]
         if options.overwriteChanges { args.append("--discard-changes") }
         if options.merge { args.append("--merge") }
@@ -138,7 +134,7 @@ extension GitRepository {
                 _ = try checkoutCommand(["check-ref-format", "--branch", name], cancellation: cancellation)
             } catch { try cancellation?.check(); throw CheckoutFailure.invalidBranch }
             func exists(_ reference: String) throws -> Bool {
-                try checkoutCommand(["show-ref", "--verify", "--quiet", reference], successfulExitCodes:0...1,cancellation:cancellation).exitCode == 0
+                try referenceExists(reference,cancellation:cancellation,backend:backend)
             }
             if !options.overrideBranch, try exists("refs/heads/" + name) { throw CheckoutFailure.branchExists }
             if !options.allowTagNameConflict, try exists("refs/tags/" + name) { throw CheckoutFailure.tagNameConflict }

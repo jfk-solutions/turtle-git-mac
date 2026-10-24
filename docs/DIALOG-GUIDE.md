@@ -257,7 +257,9 @@ and repository access.
 ## Branch, tag and checkout
 
 Create Branch or Tag asks for a name and a base revision: HEAD, a branch, a tag,
-or an explicit commit. Choose the base before accepting. Branch tracking, force,
+or an explicit object. A new branch requires a commit. A tag can also name an
+existing tree or blob, and retains an annotated tag object chosen as its target.
+Choose the base before accepting. Branch tracking, force,
 switch, signing and push options depend on the operation and reference type.
 Cancel stops active creation or loading and waits for its processes to finish;
 when configured, confirm the running-process question first. A branch or tag
@@ -278,6 +280,12 @@ inspection; resolve the reported condition before retrying. The completed result
 offers the applicable next actions, including Submodule Update, Pull, Commit or
 Stash. A selected action closes the owned result before opening the next dialog.
 Pending tag-name and cancellation questions keep their accepted target and options.
+
+Branch/tag collision checks retain the exact entered name in each namespace.
+The accepted operation also retains its backend choice while validation,
+warnings, progress and retries are pending. Changing Advanced settings affects
+the next accepted operation. A selected helper failure stays with the owned
+workflow for review rather than silently switching engines.
 
 Switch progress shows the actual quoted checkout command before its output,
 followed by a result status and optional elapsed time/date. The completed bar

@@ -1148,6 +1148,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         try await HistoryCombineSelectionReader.validate(repository:repository.capturingDiffBackend(preferences:preferences),access:access,entries:entries,offset:offset,head:head,token:token)
     }
     let repository: GitRepository
+    private(set) var acceptedOperationRepository:GitRepository?
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let comparison: RevisionComparisonWindowModel
@@ -1737,7 +1738,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let snapshot = try await repository.prepareHistoryReferenceDeletion(name, cancellation: request)
-                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: request).text.trimmingCharacters(in: .newlines)
+                    let resolved = try await repository.revisionLookup(name,requirement:.commit,cancellation:request).objectID
                     guard resolved == revision else { throw HistoryReferenceDeletionFailure.changed }
                     choice = await self.confirmHistoryDeletion(snapshot)
                     guard choice != .abort, !self.closed, self.token === request, !request.isCancelled else { break }
@@ -1758,6 +1759,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         guard !closed, !busy, !hasBlockingChild, !confirmingQuit, !confirmingCancellation,
               window?.attachedSheet == nil, !entries.isEmpty, let onHistoryBisect else { return }
         let request = OperationCancellation(); token = request; busy = true; error = nil
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task { [weak self, access, repository] in
             _ = access
             guard let self else { return }
@@ -1773,8 +1775,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                     guard !active, try await !repository.logMergeActive(cancellation: request) else { throw BisectFailure.active }
                     func preset(_ entry: LogEntry) async throws -> String {
                         guard let reference = entry.references.first?.name else { return entry.hash }
-                        let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...128, cancellation: request)
-                        return resolved.exitCode == 0 && resolved.text.trimmingCharacters(in: .newlines) == entry.hash ? reference : entry.hash
+                        let resolved=try await repository.revisionLookup(reference,requirement:.commit,cancellation:request).objectID
+                        return resolved == entry.hash ? reference:entry.hash
                     }
                     let bad = try await preset(entries[0]), good = try await preset(entries[entries.count - 1])
                     captured = LogBisectRequest(good: good, bad: bad, operation: nil, revisions: [])
@@ -1885,6 +1887,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         let selectedChoice = remoteWasSelected
         if refreshRemoteSelection { urlHistory = FetchDialogHistory.load(preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max)) }
         let attempt = beginInlineAttempt(request, command: false,preserveFormFocus:true)
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Task {
             defer { releaseInlineAttempt(attempt) }
             defer { if formReadToken === request {formReadToken=nil};if token === request { token = nil; busy = false } }
@@ -1917,11 +1920,11 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                 let bisectPath = try await repository.run(["rev-parse", "--git-path", "BISECT_START"], cancellation: request).text.trimmingCharacters(in: .newlines)
                 let bisectURL = bisectPath.hasPrefix("/") ? URL(fileURLWithPath: bisectPath) : repository.root.appendingPathComponent(bisectPath)
                 let bisectActive = FileManager.default.fileExists(atPath: bisectURL.path)
-                let head = try await repository.run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: request)
+                let head = try await repository.revisionLookup("HEAD",requirement:.sourceObject,cancellation:request).objectID
                 guard !closed, token === request, !request.isCancelled else { return }
                 historyReferenceContext = references; historyIssueProperties = properties
                 historyBare = bare; historyMergeActive = mergeActive; historyBisectActive = bisectActive; historyCurrentBranch = catalog.currentBranch
-                historyHead = head.exitCode == 0 ? head.text.trimmingCharacters(in: .newlines) : ""
+                historyHead = head ?? ""
                 historyActionFailures = []
                 outgoing = projection; graph = CommitGraph.layout(projection.commits); comparison.snapshot = projection.comparison
                 // Native control edits never write Git configuration or refs.
@@ -1938,12 +1941,13 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     func applyPatch() {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         let request = OperationCancellation(); token = request; busy = true; error = nil
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let attempt = beginInlineAttempt(request, command: false)
         Task {
             defer { releaseInlineAttempt(attempt) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let hash = try await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: request).text.trimmingCharacters(in: .newlines)
+                guard let hash=try await repository.revisionLookup("HEAD",requirement:.commit,cancellation:request).objectID else{throw SynchronizationFailure.invalidInput}
                 guard !closed, token === request, !request.isCancelled else { return }
                 token = nil; busy = false; onApplyPatch(hash)
             } catch {
@@ -2058,7 +2062,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     }
     func compareTags(shift: Bool = false) {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
-        tagBackend = captureTagBackend?() ?? .load(from:preferences)
+        let backend = captureTagBackend?() ?? GitLibGit2Configuration.load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        tagBackend = backend
         compareTagsSelected = true; preferences.set(6, forKey: historyKey + ".pullAction")
         if shift { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
@@ -2066,6 +2071,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false
         commandCompleted = false; percentage = nil; currentWork = ""
         incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil; conflicts = []
+        let repository=self.repository.capturingBackend(backend)
         let selectedRemote = remote
         sshSettings.save(preferences, key: historyKey + ".autoload")
         let attempt = beginInlineAttempt(request, command: false)
@@ -2074,7 +2080,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
             defer { if token === request { token = nil; busy = false; transportRunning = false } }
             do {
                 try checkTagAccess()
-                _ = try await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: request)
+                guard try await repository.revisionLookup("HEAD",requirement:.existingObject,cancellation:request).objectID != nil else{throw SynchronizationFailure.invalidInput}
                 if request.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard !closed, token === request else { return }
                 let result = await performTagOperation(.tags(selectedRemote), request)
@@ -2311,6 +2317,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         options.fetchVerbose = GitCommandPresentation(defaults: preferences).fetchVerbose
         let capturedBackend=GitLibGit2Configuration.load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
         let repository=self.repository.capturingBackend(capturedBackend)
+        acceptedOperationRepository=repository
         let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
         if pushing { Self.activePushWorkflows += 1 }

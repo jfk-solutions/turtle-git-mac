@@ -77,3 +77,8 @@ libgit2 calls; their native backend choice is a separate compatibility boundary,
 not a missing command-mask or master-switch consumer. Full provider, minimum-version/Intel,
 physical keyboard/VoiceOver, signed deployment and hosted integration acceptance
 remain separate.
+
+The connected [revision lookup family](REVISION-LOOKUP-PARITY.md) adds typed
+resolution and exact existence/collision checks for Create Branch/Tag, Switch,
+Push, Fetch-to-Rebase and Synchronization. Its accepted forms and handoffs retain
+the selected backend; callers outside that family remain separately scoped.

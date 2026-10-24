@@ -86,7 +86,7 @@ extension GitRepository {
         let input=try JSONSerialization.data(withJSONObject:request,options:[.sortedKeys])
         guard input.count<=2*1024*1024 else {throw GitLocalReferenceEngineFailure.output}
         var output=Data()
-        _ = try run([verb],cancellation:cancellation,input:input,retainStandardOutput:false,consumeOutput:{ chunk in
+        _ = try run(["-c","core.precomposeunicode=false",verb],cancellation:cancellation,input:input,retainStandardOutput:false,consumeOutput:{ chunk in
             if case .stdout = chunk.stream {
                 guard output.count + chunk.data.count <= 64*1024*1024 else {throw GitLocalReferenceEngineFailure.output}
                 output.append(chunk.data)
@@ -96,12 +96,12 @@ extension GitRepository {
     }
     /// GetBranchList/GetTagList/GetRemoteList/GetMapHashToFriendName use the
     /// master setting independently of the Reference Browser's command mask.
-    func masterReferenceBackend() -> GitLibGit2Configuration? {
-        let selected=libgit2Configuration ?? .load()
+    func masterReferenceBackend(_ backend:GitLibGit2Configuration?=nil) -> GitLibGit2Configuration? {
+        let selected=backend ?? libgit2Configuration ?? .load()
         return selected.enabled ? .init(enabled:true,mask:GitLibGit2Operation.forEachRef.mask,helperURL:selected.helperURL) : nil
     }
-    func masterRemoteNames(cancellation:OperationCancellation?) throws -> [String]? {
-        guard let backend=masterReferenceBackend() else{return nil}
+    func masterRemoteNames(cancellation:OperationCancellation?,backend:GitLibGit2Configuration?=nil) throws -> [String]? {
+        guard let backend=masterReferenceBackend(backend) else{return nil}
         let names=try localReferenceReply(verb:"turtlegit-configured-remotes",operation:"remotes",request:["version":1],backend:backend,command:.forEachRef,cancellation:cancellation).names
         return names.sorted {let order=$0.localizedStandardCompare($1);return order == .orderedSame ? $0.utf8.lexicographicallyPrecedes($1.utf8) : order == .orderedAscending}
     }

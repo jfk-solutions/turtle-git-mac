@@ -32,6 +32,18 @@ changes while they are pending. These are metadata reads; ordinary Push transpor
 keeps its existing Git command. See the
 [backend metadata source comparison](BACKEND-METADATA-PARITY.md).
 
+Revision resolution and exact branch/tag existence checks also follow the master
+switch independently of the command mask. Create Branch/Tag, Switch, Push,
+Fetch-to-Rebase and Synchronization retain the backend accepted for their current
+operation, including owned continuations and retries. Branch creation and Switch
+still require a commit; tags retain their existing target object, including a
+tree, blob or annotated tag. Push validates an existing object without changing the
+submitted source reference. These checks do not change the transport or mutation
+command. Missing selected helpers and invalid helper responses are reported
+instead of silently choosing Git. See the
+[revision lookup source comparison](REVISION-LOOKUP-PARITY.md) for raw source
+resolution, unborn HEAD and exact-name boundaries.
+
 Unified patch display uses Diff bit `0x10`; historical changed-file lists and
 history file searches use LogListDiff bit `0x8000`. Both are off in the source
 default mask. Selected unified output includes source full statistics and patch
