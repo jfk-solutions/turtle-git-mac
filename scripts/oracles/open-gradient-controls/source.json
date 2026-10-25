@@ -1,0 +1,9 @@
+{
+  "originalFixture": "Tests/TurtleGitCoreTests/Fixtures/Metafile/GeneralPathGradient/refused-cubic-open-after-paint.emf",
+  "openSHA256": "b6c15aa8b9b4b27be6340310d51d339c3c0276c5a527ccd1c0358db48755e14d",
+  "closedSHA256": "15a61d70b08352d066979ef2150ea0bd671dd48b1b6381b09f95e5e1a1722a49",
+  "onlyDifferenceOffset": 362,
+  "openByte": 3,
+  "closedByte": 131,
+  "scope": "Exact earlier-red-paint fixture; only CloseSubpath bit differs"
+}
