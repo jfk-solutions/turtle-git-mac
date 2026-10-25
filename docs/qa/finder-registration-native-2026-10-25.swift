@@ -219,6 +219,22 @@ private extension NSWindow {
         try await wait{!c.workspace.busy && c.workspace.root?.path==c.other.root.path}
         let originalRoot=c.workspace.root,originalWindow=c.workspace.workspaceWindow,originalWatch=c.watched.repositories[0]
         let windowCount=NSApp.windows.filter(\.isVisible).count
+        // A decoded restart archive may carry an invalid namespace from an
+        // older producer. Its optional restoration must not prevent real Add.
+        var archive=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:c.cache.warmURL))
+        archive.roots.append(c.source.root.path)
+        archive.states[c.source.root.path] = .conflicted
+        archive.states[c.source.root.path+"/stale/"] = .conflicted
+        archive.repositories[c.source.root.path] = .init()
+        let damaged=try JSONEncoder().encode(archive);try damaged.write(to:c.cache.warmURL)
+        let restart=c.cache,probeSession=try restart.startSession()
+        defer {_ = try? restart.endSession(probeSession)}
+        let warning=try restart.begin(root:c.source.root,session:probeSession)
+        try require(warning.persistenceFailure != nil && FinderSnapshot.readLive(from:c.cache.url)?.roots.contains(c.source.root.path) != true,"Invalid optional restart state became live authority or lost its nonfatal warning")
+        try require((try Data(contentsOf:c.cache.warmURL))==damaged,"Restart admission erased unrelated warm data before fresh publication")
+        let unchangedHead=try await c.source.run(["rev-parse","HEAD"]).stdout
+        let unchangedIndex=try Data(contentsOf:c.source.root.appendingPathComponent(".git/index"))
+        try Data("fresh registration state\n".utf8).write(to:c.source.root.appendingPathComponent("file"))
         try await c.submit(c.source.root)
         if c.permissionReply != nil {c.answer(.OK)}
         try await wait{!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.manager.pendingOperations==0}
@@ -226,6 +242,28 @@ private extension NSWindow {
         try require(NSApp.windows.filter(\.isVisible).count==windowCount && c.parent.isVisible,"Explicit Add presented a duplicate workspace")
         try require(c.watched.repositories.contains{$0.lastKnownPath==c.source.root.path} && c.watched.repositories.contains{$0.id==originalWatch.id && $0.bookmark==originalWatch.bookmark},"Explicit Add did not retain exact new/unrelated watches")
         try require(c.manager.rows.contains{$0.path==c.source.root.path} && c.manager.backgroundService==nil,"Explicit Add did not publish owned watch status or enabled background mode")
+        let fresh=try c.cache.readLive(),saved=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:c.cache.warmURL))
+        try require(fresh.states[c.source.root.path+"/file"] == .modified && fresh.states[c.source.root.path+"/stale/"]==nil && fresh.states[c.other.root.path+"/file"] == .normal,"Add failed to replace damaged restart state with fresh badges or lost valid sibling")
+        try require(saved.states[c.source.root.path+"/file"] == .modified && saved.states[c.source.root.path+"/stale/"]==nil && saved.states[c.other.root.path+"/file"] == .normal,"Fresh warm repair reset valid sibling or retained malformed cache keys")
+        try require(c.recent.repositories.contains{$0.lastKnownPath==c.source.root.path},"Nonfatal warm warning prevented Add from completing its Recent entry")
+        let finalHead=try await c.source.run(["rev-parse","HEAD"]).stdout
+        try require(finalHead==unchangedHead && (try Data(contentsOf:c.source.root.appendingPathComponent(".git/index")))==unchangedIndex,"Warm recovery changed repository HEAD or index")
+        // Unlike invalid namespace admission, malformed JSON is detected during
+        // optional archive rebuilding after live publication. Its typed recovery
+        // notice must not turn a successfully completed Add into an error.
+        try Data("{invalid restart archive".utf8).write(to:c.cache.warmURL)
+        let thirdHead=try await c.third.run(["rev-parse","HEAD"]).stdout
+        let thirdIndex=try Data(contentsOf:c.third.root.appendingPathComponent(".git/index"))
+        try await c.submit(c.third.root);if c.permissionReply != nil {c.answer(.OK)}
+        try await wait {!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.manager.pendingOperations==0}
+        try require(c.workspace.error==nil && c.recent.repositories.contains{$0.lastKnownPath==c.third.root.path},"Successful malformed-JSON rebuild incorrectly failed Add")
+        let rebuiltLive=try c.cache.readLive(),rebuiltWarm=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:c.cache.warmURL))
+        for value in [rebuiltLive,rebuiltWarm] {
+            try require(value.states[c.third.root.path+"/file"] == .normal && value.states[c.source.root.path+"/file"] == .modified && value.states[c.other.root.path+"/file"] == .normal,"JSON recovery lost fresh badges or valid live siblings")
+        }
+        try require(c.manager.rows.first(where:{$0.path==c.third.root.path})?.status.contains(FinderPublicationFailure.corruptWarmCacheReset.localizedDescription)==true,"Successful cache rebuild notice was not retained by the owned watch row")
+        let thirdFinalHead=try await c.third.run(["rev-parse","HEAD"]).stdout
+        try require(thirdFinalHead==thirdHead && (try Data(contentsOf:c.third.root.appendingPathComponent(".git/index")))==thirdIndex && c.workspace.root==originalRoot && c.workspace.workspaceWindow===originalWindow && c.manager.backgroundService==nil,"Warm JSON recovery changed repository/scene ownership or background opt-in")
     }
     static func publication(_ c:Context)async throws {
         let nested=try await c.repo(c.source.root.lastPathComponent+"/Nested checkout")

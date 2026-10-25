@@ -980,10 +980,11 @@ public struct FinderCachePersistencePreferences: Codable, Equatable, Sendable {
     @discardableResult public func write(to url: URL? = FinderIntegration.snapshotURL) throws -> Bool { guard let url else { return false }; try FinderSnapshotStore(url: url).setPersistence(self); return true }
 }
 public enum FinderPublicationFailure: LocalizedError {
-    case invalidUpdate, corruptStore, lockTimeout, retiredSession, corruptWarmCacheReset, policyChanged
+    case invalidUpdate, corruptStore, lockTimeout, retiredSession, corruptWarmCacheReset, invalidWarmCache, policyChanged
     public var errorDescription: String? {
         switch self {
         case .corruptWarmCacheReset: return "The invalid saved Finder cache was discarded and rebuilt from current repository status."
+        case .invalidWarmCache: return "Invalid saved Finder cache data for this repository was ignored. Current repository status will rebuild it."
         case .policyChanged: return "Finder status settings changed while this update was being collected."
         case .invalidUpdate: return "The Finder cache update does not belong to its repository."
         case .corruptStore: return "The Finder cache store is invalid; its previous data was retained."
@@ -1018,7 +1019,10 @@ public struct FinderPublicationResult: Sendable {
     public let published: Bool
     public let snapshot: FinderSnapshot
     public let persistenceFailure: String?
-    public init(published: Bool, snapshot: FinderSnapshot, persistenceFailure: String? = nil) { self.published=published;self.snapshot=snapshot;self.persistenceFailure=persistenceFailure }
+    /// True only when invalid restart JSON was replaced successfully. The
+    /// retained notice is informational; failed persistence remains distinct.
+    public let warmCacheRebuilt:Bool
+    public init(published: Bool, snapshot: FinderSnapshot, persistenceFailure: String? = nil, warmCacheRebuilt:Bool=false) { self.published=published;self.snapshot=snapshot;self.persistenceFailure=persistenceFailure;self.warmCacheRebuilt=warmCacheRebuilt }
 }
 /// Serializes policy, publication tickets and lease ownership under one store
 /// lock. Contributions remain separate so retiring one publisher reveals other
@@ -1185,10 +1189,13 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         try save(result,url);state.legacy=false;try save(state,controlURL);return result
     }
     private func warmWarning(_ operation: () throws -> Void) -> String? {do {try operation();return nil} catch {return error.localizedDescription}}
-    private func mergeWarm(root: String, snapshots: [FinderSnapshot], enabled: Bool) throws {
+    private func mergeWarm(root: String, snapshots: [FinderSnapshot], enabled: Bool, rebuildFrom:FinderSnapshot?=nil) throws {
         guard enabled else {return}
         let recovered=try readWarm(rebuildCorrupt:true)
-        var warm=recovered.snapshot ?? FinderSnapshot(roots:[],states:[:]);warm.liveRevision=nil;warm.persistenceFailure=nil
+        // A successful live publication is already namespace/lease validated.
+        // Retain those live siblings when unreadable restart JSON has no usable
+        // archive to merge, instead of reducing it to only this refreshed root.
+        var warm=recovered.snapshot ?? rebuildFrom ?? FinderSnapshot(roots:[],states:[:]);warm.liveRevision=nil;warm.persistenceFailure=nil
         warm.replaceSubtree(root:FileTransferPaths.fileURL(root),snapshots:snapshots);try save(warm,warmURL)
         if recovered.discarded {throw FinderPublicationFailure.corruptWarmCacheReset}
     }
@@ -1316,7 +1323,17 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 warning=warmWarning {
                     if let warm=try read(FinderSnapshot.self,warmURL) {
                         let selected=warm.subtree(root:FileTransferPaths.fileURL(root))
-                        if selected.roots.contains(where:{GitReferenceName.equal($0,root)}) {state.contributions.append(.init(root:root,session:session.id,sequence:state.counter,snapshots:[selected],restored:true))}
+                        if selected.roots.contains(where:{GitReferenceName.equal($0,root)}) {
+                            // Restart data is optional. Validate its claimed
+                            // namespace before it can enter the lease-backed
+                            // control record: writeLive's strict validation must
+                            // never turn an invalid archive into a failed claim.
+                            // Keep the archive/sibling roots until a fresh
+                            // publication replaces exactly this subtree.
+                            do {try validate(root:root,snapshots:[selected])}
+                            catch {throw FinderPublicationFailure.invalidWarmCache}
+                            state.contributions.append(.init(root:root,session:session.id,sequence:state.counter,snapshots:[selected],restored:true))
+                        }
                     }
                 }
             }
@@ -1338,8 +1355,15 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             state.contributions.removeAll {$0.session==ticket.session && GitReferenceName.equal($0.root,ticket.root)}
             state.contributions.append(.init(root:ticket.root,session:ticket.session,sequence:ticket.sequence,snapshots:snapshots,restored:false))
             let published=try writeLive(&state)
-            let warning=warmWarning {try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave)}
-            return .init(published:true,snapshot:published,persistenceFailure:warning)
+            var rebuilt=false
+            let warning=warmWarning {
+                do {try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave,rebuildFrom:published)}
+                catch let failure as FinderPublicationFailure {
+                    if case .corruptWarmCacheReset=failure {rebuilt=true}
+                    throw failure
+                }
+            }
+            return .init(published:true,snapshot:published,persistenceFailure:warning,warmCacheRebuilt:rebuilt)
         }
     }
     /// An explicit session removes only its contribution. The legacy no-session

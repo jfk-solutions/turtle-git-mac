@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-25",
+  "source_commit": "f45bc13c075b3702db20ea5b6fcccec47b19520b",
+  "build": 8,
+  "version": "0.1.0",
+  "status": "installed_signature_inventory_pass_and_physical_initial_chooser_cancel_pass",
+  "source_input_sha256": "c52aa9f2b8bab33c8925c5e5b3ef3875d6a23d95970f301acd1d7c6524dc8335",
+  "application_sha256": "2a7f2b114b7a50d7413b43ed028a502e88926728932048b80289f58ff9e7594a",
+  "universal_components": 8,
+  "inventory_members": 6362,
+  "signature": "Apple Development; deep strict verification passed",
+  "previous_build_preserved": true,
+  "finder_restarted": false,
+  "global_cache_reset": false,
+  "physical": {
+    "scope": "Actual signed standalone Merge initial file authorization chooser cancellation only.",
+    "owned_pid": 15568,
+    "returncode": 1,
+    "process_absent": true,
+    "editor_opened": false,
+    "misleading_renewal_error": false,
+    "preferences_restored_semantically": true,
+    "repository_watch_and_log_bytes_unchanged": true
+  },
+  "remaining": [
+    "No new physical three-way, image or export-to-mail pass.",
+    "Warm restart recovery source changes are newer than this installed candidate.",
+    "No full hosted CI or App Store submission acceptance."
+  ]
+}

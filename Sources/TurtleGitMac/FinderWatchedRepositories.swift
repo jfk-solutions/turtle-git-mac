@@ -156,10 +156,10 @@ struct FinderWatchRow:Identifiable {
                 else {
                     statuses[session.id]=result.failures.isEmpty ? "Updated" : "Updated; \(result.failures.count) child repositories unavailable"
                     if let failure=published.persistenceFailure {
-                        statuses[session.id,default:"Updated"] += "; saved cache unavailable: "+failure
+                        statuses[session.id,default:"Updated"] += published.warmCacheRebuilt ? "; "+failure : "; saved cache unavailable: "+failure
                     }
                     notify()
-                    if requirePublication,let failure=published.persistenceFailure {throw FinderWatchFailure.initialPublication(failure)}
+                    if requirePublication,!published.warmCacheRebuilt,let failure=published.persistenceFailure {throw FinderWatchFailure.initialPublication(failure)}
                     if requirePublication,!result.failures.isEmpty {
                         throw FinderWatchFailure.initialPublication(result.failures.values.sorted().joined(separator:"\n"))
                     }

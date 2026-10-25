@@ -92,7 +92,7 @@ final class FinderCachePersistenceTests: XCTestCase {
         let ticket=try store.begin(root:URL(fileURLWithPath:"/repo"),session:session)
         XCTAssertNotNil(ticket.persistenceFailure)
         let result=try store.publish(ticket,snapshots:[snapshot("/repo",.modified)])
-        XCTAssertTrue(result.published);XCTAssertNotNil(result.persistenceFailure)
+        XCTAssertTrue(result.published);XCTAssertNotNil(result.persistenceFailure);XCTAssertFalse(result.warmCacheRebuilt,"An actual failed cache write must not be labeled successful recovery")
         XCTAssertEqual(try store.readLive().states["/repo/file"],.modified)
         XCTAssertThrowsError(try store.setPersistence(.init(cacheSave:false)))
         XCTAssertFalse(try store.persistence().cacheSave)
@@ -235,6 +235,59 @@ final class FinderCachePersistenceTests: XCTestCase {
         XCTAssertEqual(revealed.states["/repo/file"],.modified)
         XCTAssertNil(revealed.states["/repo/child/file"])
         _ = try store.endSession(a)
+    }
+
+    func testInvalidWarmNamespaceCannotPoisonFreshClaimAndValidSiblingSurvives() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let damaged=FinderSnapshot(roots:["/claimed","/sibling"],states:["/claimed/trailing/":.modified,"/sibling/file":.added],repositories:["/claimed":.init(),"/sibling":.init()])
+        let archive=try JSONEncoder().encode(damaged);try archive.write(to:store.warmURL)
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        XCTAssertTrue(try store.readLive().roots.isEmpty)
+        let fresh=try store.begin(root:URL(fileURLWithPath:"/claimed"),session:session)
+        XCTAssertNotNil(fresh.persistenceFailure)
+        XCTAssertTrue(try store.readLive().roots.isEmpty,"Invalid warm data must not become lease-backed authority")
+        XCTAssertEqual(try Data(contentsOf:store.warmURL),archive,"Beginning a claim must not erase sibling restart data")
+        _ = try store.begin(root:URL(fileURLWithPath:"/sibling"),session:session)
+        XCTAssertEqual(try store.readLive().states["/sibling/file"],.added)
+        // Incoming producers retain the exact same strict namespace contract.
+        XCTAssertThrowsError(try store.publish(fresh,snapshots:[FinderSnapshot(roots:["/claimed"],states:["/claimed/trailing/":.modified])]))
+        XCTAssertEqual(try store.readLive().states["/sibling/file"],.added)
+        let result=try store.publish(fresh,snapshots:[snapshot("/claimed",.normal)])
+        XCTAssertTrue(result.published);XCTAssertFalse(result.warmCacheRebuilt);XCTAssertNil(result.persistenceFailure)
+        XCTAssertEqual(result.snapshot.states["/claimed/file"],.normal)
+        XCTAssertEqual(result.snapshot.states["/sibling/file"],.added)
+        XCTAssertNil(result.snapshot.states["/claimed/trailing/"])
+        let saved=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:store.warmURL))
+        XCTAssertEqual(saved.states["/claimed/file"],.normal);XCTAssertEqual(saved.states["/sibling/file"],.added)
+        XCTAssertNil(saved.states["/claimed/trailing/"])
+        // A new reader still validates the persisted control record, rather than
+        // relying on a special case in the writer that performed recovery.
+        XCTAssertEqual(try FinderSnapshotStore(url:store.url).readLive().states["/sibling/file"],.added)
+    }
+    func testMalformedWarmJSONWarnsWithoutBlockingColdSessionAndFreshPublication() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let malformed=Data("{invalid restart archive".utf8);try malformed.write(to:store.warmURL)
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        XCTAssertNotNil(session.persistenceFailure,"An optional archive error must be reported without refusing the live session")
+        let ticket=try store.begin(root:URL(fileURLWithPath:"/claimed"),session:session)
+        XCTAssertNotNil(ticket.persistenceFailure);XCTAssertTrue(try store.readLive().roots.isEmpty)
+        XCTAssertEqual(try Data(contentsOf:store.warmURL),malformed)
+        let result=try store.publish(ticket,snapshots:[snapshot("/claimed",.modified)])
+        XCTAssertTrue(result.published);XCTAssertTrue(result.warmCacheRebuilt);XCTAssertNotNil(result.persistenceFailure,"The successful rebuild must disclose discarded malformed restart bytes")
+        XCTAssertEqual(result.snapshot.states["/claimed/file"],.modified)
+        let rebuilt=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:store.warmURL))
+        XCTAssertEqual(rebuilt.states["/claimed/file"],.modified)
+        // A later corrupted archive must rebuild from all validated live
+        // contributions, retaining an unrelated already-published sibling.
+        try malformed.write(to:store.warmURL)
+        let sibling=try store.begin(root:URL(fileURLWithPath:"/sibling"),session:session)
+        let recoveredSibling=try store.publish(sibling,snapshots:[snapshot("/sibling",.added)])
+        XCTAssertTrue(recoveredSibling.published);XCTAssertTrue(recoveredSibling.warmCacheRebuilt)
+        let both=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:store.warmURL))
+        XCTAssertEqual(both.states["/claimed/file"],.modified);XCTAssertEqual(both.states["/sibling/file"],.added)
+        let retry=try store.begin(root:URL(fileURLWithPath:"/claimed"),session:session)
+        XCTAssertNil(retry.persistenceFailure)
+        XCTAssertNil(try store.publish(retry,snapshots:[snapshot("/claimed",.normal)]).persistenceFailure)
     }
 
 }

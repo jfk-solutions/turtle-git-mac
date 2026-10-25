@@ -2,30 +2,23 @@
 
 ## Current installed checkpoint
 
-Build 7 is the recoverably installed Apple Development build for Intel and Apple
-silicon. Its 1,509 clean measured distribution inputs match commit `d89ad1f6`;
-strict signatures and all eight universal components passed, and the 6,362-member
-source/staged/installed inventories agree. The
-[build 7 checkpoint](qa/signed-consolidation-build7-2026-10-25.json) retains the
-initial stale Metafile runtime refusal and the packaging-only repair after
-refreshing the pinned payload. Build 6 remains preserved for recovery.
-
-Actual installed three-way Merge authorized private inputs, displayed the source
-header menu with icons, and opened the correct read-only Base-versus-Incoming
-comparison. Closing removed its temporary snapshot; discarding the parent result
-preserved all original bytes. Physical acceptance found a temporary-path child
-title, a prominent left-side three-way interface selector and inaccessible header
-actions. Their subsequent source correction remains separate from installed
-build 7. The image launch failed before rendering, and the mail acceptance was
-deferred; neither has a new physical pass. Owned windows/processes were closed,
-and affected preferences, watch identity and timestamps were restored.
+[Build 8](qa/signed-consolidation-build8-2026-10-25.json) is the recoverably installed Apple Development build for Intel and Apple
+silicon. Its 1,509 clean measured distribution inputs match commit `f45bc13c`;
+strict signatures, all eight universal components and the 6,362-member
+source/staged/installed inventories passed. Build 7 remains preserved for recovery.
+The installed application contains the standalone authorization, stored-decision
+and pane-header corrections described below. The actual signed initial file
+chooser was cancelled; its owned process exited 1 without an editor or misleading
+permission-renewal error. No new image or mail physical acceptance is claimed.
 
 The [Finder registration and compact error checkpoint](qa/finder-directory-registration-errors-2026-10-25.json)
-remains evidence for the earlier actual permission, canonical publication,
-visible badges and repository context commands with nested untracked/ignored
-checkouts. Build 7 includes that repair. The short error content is 148 points
-high; long details remain selectable and scrollable. A later screenshot's build
-is unidentified; no new cache defect was reproduced or namespace guard relaxed.
+retains evidence for actual permission, canonical publication, visible badges and
+repository commands with nested untracked/ignored checkouts. The compact error
+controller is included in build 8: short content is 148 points high, and long
+selectable details scroll. The later screenshot's build is unidentified.
+A separate restart-cache defect has now been reproduced: invalid decoded warm
+status could enter live contributions and block a fresh Add. Its connected recovery
+batch is newer than installed build 8; installed recovery acceptance remains open.
 
 The completed hosted macOS run at `c47640a3` failed during test compilation
 on Swift 6.1.2, before behavioral tests ran. The subsequent typed gradient-assertion
@@ -35,6 +28,14 @@ repair retains the behavioral assertion. At the latest observation, the
 macOS pass or App Store distribution acceptance.
 
 ## Latest source batches
+
+The connected [Finder restart-cache recovery](qa/finder-warm-recovery-2026-10-25.json)
+validates optional saved subtrees before live admission and rebuilds malformed
+archives from fresh, validated status. A typed successful recovery notice allows
+Add to complete its paired Recent record; actual write, live-publication and
+child-collection failures still fail. Other live repositories survive recovery,
+and no global cache reset or new permission grant is used.
+
 
 The connected [standalone authorization family](MERGE-AUTHORIZATION-PARITY.md)
 separates lexical Open roles from post-grant file validation and distinguishes
@@ -51,8 +52,8 @@ Core methods, two retained hook engine cases and the native Saved Data case
 passing. The [pane-header acceptance correction](qa/merge-pane-acceptance-corrections-2026-10-25.json)
 records six final native scenario/engine pairs passing after repairing the real
 load-title overwrite and correcting the accessibility oracle. These corrections
-are newer source than installed build 7; their local checks do not establish
-new installed or full hosted acceptance.
+are included in installed build 8; their focused local checks do not establish
+physical acceptance of every workflow or full hosted acceptance.
 
 The [patch export-to-mail family](PATCH-EXPORT-DELIVERY-PARITY.md) replaces lossy
 attachment-list filtering in Sync and Format Patch with complete verified delivery.

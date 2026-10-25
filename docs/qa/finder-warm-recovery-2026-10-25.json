@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-25",
+  "source_head": "f45bc13c075b3702db20ea5b6fcccec47b19520b",
+  "status": "focused_core_and_grouped_native_pass",
+  "problem": "A decoded optional restart snapshot with an invalid claimed path entered lease-backed control before validation, making Add fail with invalidUpdate. A successful malformed-JSON rebuild was separately treated as Add failure by the watch consumer.",
+  "provenance": {
+    "probe": "Public Core API probe against existing Debug framework; no user cache, preferences or repository was accessed.",
+    "owned_pid": 15545,
+    "exit_code": 0,
+    "reaped_and_independently_absent": true,
+    "files": [
+      {
+        "path": "build/qa/finder-warm-admission-probe-2026-10-25/probe.swift",
+        "sha256": "97eb18216249a337dd3e2c4efb3b63793cf6a3566273e230c6eb33448d8491d3"
+      },
+      {
+        "path": "build/qa/finder-warm-admission-probe-2026-10-25/results-with-pid.txt",
+        "sha256": "58678dd8c1f31e6a610c1c59d2267082397b0523bdc42a7665eacc60d6f47b98"
+      }
+    ]
+  },
+  "before_repair_observations": [
+    "Decoded roots [/claimed], state /claimed/trailing/: startSession succeeds; begin fails with The Finder cache update does not belong to its repository.",
+    "Malformed JSON: startSession and begin already succeed with persistence warnings; fresh publication succeeds and rebuilds the archive. Cold session failure was not reproduced.",
+    "Native watch source treated every publication persistence warning as a failed initial Add, including the successful rebuild receipt."
+  ],
+  "implementation": [
+    "Validate the selected optional warm subtree before adding a restored lease-backed contribution. Invalid archive data becomes a nonfatal ticket warning, with strict producer/control/lease/policy checks preserved.",
+    "Fresh successful publication replaces only the claimed subtree. Unreadable JSON rebuild uses the already validated live projection to retain live sibling repositories.",
+    "warmCacheRebuilt is set only after the archive was successfully saved and the known recovery notice emitted. The watch retains that notice and allows Add to finish; real persistence or child-collection failures remain failures."
+  ],
+  "planned_validation": {
+    "core": [
+      "FinderCachePersistenceTests",
+      "FinderDirectoryPublicationTests"
+    ],
+    "native": "python3 scripts/test-finder-registration.py --only warm --only publication --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "native_assertions": [
+      "Actual Add through existing registration owner accepts damaged warm namespace and publishes fresh modified badge; valid sibling watch/cache and workspace owner survive.",
+      "Actual Add after malformed JSON completes Recent registration, retains recovery notice, preserves all validated live sibling cache entries and does not enable background mode.",
+      "Repository HEAD and index are unchanged; intentional private modified file is removed with the fixture.",
+      "Existing publication case keeps genuine first status failure fatal and retains nested ignored/untracked repository marker checks."
+    ]
+  },
+  "limits": [
+    "The reported user repository/archive was not supplied or inspected; reproduced mechanism is not proof of that specific archive content.",
+    "Installed build 8 does not contain this source repair. No new physical Finder, signed-installation or hosted CI acceptance is claimed."
+  ],
+  "validation": {
+    "core": {
+      "result": "pass",
+      "methods": 16,
+      "seconds": 1.38,
+      "scope": [
+        "FinderCachePersistenceTests",
+        "FinderDirectoryPublicationTests"
+      ],
+      "log_sha256": "316fcc9f91db756e25a67238f87c8017563c2adca59de5ba81a5853cd56dff9f"
+    },
+    "debug": {
+      "result": "pass",
+      "configuration": "arm64 Debug",
+      "warnings": "Installed CoreSimulator version warning; no Mac build failure."
+    },
+    "native": {
+      "result": "pass",
+      "cases": [
+        "warm",
+        "publication"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "pairs": 4,
+      "owned_receiver_pids": [
+        16548,
+        16673,
+        16792,
+        16915
+      ],
+      "independently_absent": true,
+      "scope": "Existing owned/offscreen registration fixture, including real Git, actual manager/router, invalid saved namespace, malformed JSON, paired Recent completion, fresh badges and unchanged HEAD/index. Not physical Finder."
+    },
+    "logs": {
+      "finder-warm-recovery-core-2026-10-25.log": "316fcc9f91db756e25a67238f87c8017563c2adca59de5ba81a5853cd56dff9f",
+      "finder-warm-recovery-debug-2026-10-25.log": "810f4397a30d8f83a20641718e958a85b965a2e66844680d64c50875aaf37114",
+      "finder-warm-recovery-native-2026-10-25.log": "96fae4b4890deee4c86b33491f8a3d81fe235a27eb5996cbbe43a2323d06a695"
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "55f6c0d7112b8b01b0e900674e86760bad0ffa2e86499ae2fe2251ed4e8c056d",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "74be9ee93f823d1173c0576e38c70adf002af253366156035a44affb5a9b0317",
+    "Tests/TurtleGitCoreTests/FinderCachePersistenceTests.swift": "82ba839d852be4fa08139b202715e4c273c62111badbd1e4a8d03ed1062ef55a",
+    "docs/qa/finder-registration-native-2026-10-25.swift": "9487e37476d2820324002bbd7004248222a95e70708e704441bd08a04c45dcf3"
+  }
+}
