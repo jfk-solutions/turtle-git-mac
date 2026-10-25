@@ -84,6 +84,50 @@ struct FormatPatchWorkflowVerification {
         try F.require(after==head && afterIndex==index && afterWorking==working,"Format Patch workflow changed source HEAD/index/working bytes")
         print("Format Patch exact command/native Copy/captured settings, actual progress detach before real mail, captured outputlease, held receipt/Quit/retirement, native No/Yes/stale answers and retry passed.")
     }
+    /// Real Git produces complete patches/receipts; only its returned file list
+    /// is damaged to reproduce delivery admission failures after command success.
+    @MainActor static func verifyDelivery()async throws {
+        typealias F=FormatPatchWorkflowFixture
+        let suite="TurtleGit.PatchDelivery."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!,clipboard=NSPasteboard.withUniqueName()
+        prefs.set(0,forKey:"AutoCloseGitProgress");prefs.set(false,forKey:"ConfirmKillProcess");prefs.set(false,forKey:"ShowGitexeTimings");prefs.set(true,forKey:"StyleGitOutput")
+        defer{prefs.removePersistentDomain(forName:suite);clipboard.releaseGlobally()}
+        let(repo,_,_)=try await F.repository("delivery source 雪"),root=URL(fileURLWithPath:CommandLine.arguments[1])
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+        try await verifyMail(repo:repo,root:root,preferences:prefs,clipboard:clipboard)
+        try await verifyHeldResult(repo:repo,root:root,preferences:prefs,clipboard:clipboard)
+        for mode in ["missing","malformed","duplicate"] {
+            let directory=root.appendingPathComponent("delivery "+mode+" '雪'\noutput"),owner=FormatPatchWindowController(repository:repo,access:nil,preferences:prefs)
+            defer{owner.close()}
+            try await configure(owner,directory:directory,clipboard:clipboard,mail:true)
+            var presented=0,written=[URL](),bytes=[Data]()
+            owner.model.composeMail={_ in presented+=1}
+            owner.model.runFormatPatch={selection,folder,prefix,token,output,command,finished in
+                let actual=try await repo.formatPatch(selection:selection,to:folder,noPrefix:prefix,cancellation:token,onOutput:output,onCommand:command,onCommandFinished:finished)
+                written=try FormatPatchExport.exportedFiles(stdout:actual.stdout,in:folder);bytes=try written.map{try Data(contentsOf:$0)}
+                var corrupted=actual.stdout
+                if mode=="missing" {try FileManager.default.removeItem(at:written[0])}
+                else if mode=="malformed" {corrupted.append(Data("not an absolute exported path\n".utf8))}
+                else {corrupted.append(actual.stdout)}
+                let payload=root.appendingPathComponent("delivery-"+mode+".stdout"),reader=root.appendingPathComponent("delivery-"+mode+"-receipt")
+                try corrupted.write(to:payload)
+                try ("#!/bin/sh\nexec /bin/cat "+quote(payload.path)+"\n").write(to:reader,atomically:true,encoding:.utf8)
+                try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:reader.path)
+                return try await GitRepository(root:repo.root,executable:reader).run([],cancellation:token)
+            }
+            owner.model.export()
+            try await F.wait("Delivery validation did not drain \(mode)"){owner.model.commandFinished && !owner.model.busy && !owner.model.hasPendingWork}
+            try F.require(owner.model.commandSucceeded && !owner.model.success && presented==0 && owner.model.output.contains(FormatPatchFailure.output.localizedDescription),"Unverified delivery lost successful Git receipt or opened partial mail: \(mode), \(owner.model.output)")
+            owner.model.finish();try await F.wait("Rejected delivery did not detach progress"){owner.progressController==nil}
+            try F.require(presented==0,"Acknowledging rejected delivery opened mail")
+            for (file,original) in zip(written,bytes) where FileManager.default.fileExists(atPath:file.path) {
+                try F.require(try Data(contentsOf:file)==original,"Rejected delivery modified an exported patch")
+            }
+            owner.close()
+        }
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+        try F.require(after==head && afterIndex==index,"Delivery admission changed HEAD/index")
+        print("All-or-error Format Patch delivery retained actual successful Git receipts and refused missing/malformed/duplicate complete lists without mail or patch mutation.")
+    }
     @MainActor static func configure(_ owner:FormatPatchWindowController,directory:URL,clipboard:NSPasteboard,mail:Bool)async throws {
         typealias F=FormatPatchWorkflowFixture
         owner.window?.alphaValue=0;owner.window?.appearance=NSAppearance(named:.darkAqua);owner.window?.setFrameOrigin(NSPoint(x:-12000,y:-12000));owner.showWindow(nil)

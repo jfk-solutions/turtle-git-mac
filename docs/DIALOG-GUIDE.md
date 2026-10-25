@@ -380,6 +380,10 @@ reference or conflict lookup can report its own error without changing the
 completed command's result. Cancellation waits for owned Git activity and its
 confirmation sheet to settle before releasing the workflow.
 
+**Email Patch** exports the selected outgoing range into the repository folder.
+Its command and output appear in Log; Cancel waits for export work to stop. The
+mail composer opens after the complete exported file list has been verified.
+
 Files dragged from the incoming or outgoing change list use the comparison's
 base revision, matching TortoiseGit. A new or renamed path absent at that base
 cannot be delivered; dragging does not substitute another revision. Changed
@@ -772,6 +776,13 @@ Alternative Editor chosen in Settings, or in Send Mail for recipient/message
 review. If opening fails, **Open request** retries the generated document.
 Authenticated repository checks use the normal Git/SSH prompts; credentials
 and mail-client permissions depend on the selected transport/delivery method.
+
+Format Patch and Synchronization Email Patch hand the complete verified export
+to Send Mail. If a reported file is missing or the output list cannot be read
+reliably, an error is shown and no partial attachment list is opened. Files
+already written remain in the output folder. A successful Git completion stays
+visible separately from a later file-list error; an empty range adds no old files
+from that folder.
 
 If the SMTP server certificate cannot be validated, review its hostname, issuer
 and fingerprints before choosing **Accept certificate**. **Cancel** is the default.

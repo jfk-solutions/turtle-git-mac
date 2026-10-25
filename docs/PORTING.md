@@ -21,7 +21,17 @@ Its focused local Core check passes; the older hosted compiler still requires a
 new workflow result. The earlier Pages deployment at `c04799e0` passed. These
 results do not establish a complete current hosted macOS pass.
 
-## Latest source batch
+## Latest source batches
+
+The [patch export-to-mail family](PATCH-EXPORT-DELIVERY-PARITY.md) replaces lossy
+attachment-list filtering in Sync and Format Patch with complete verified delivery.
+It retains actual Git completion/output, already-written files, owner cancellation
+and late-child refusal. The [grouped checkpoint](qa/patch-export-delivery-2026-10-25.json)
+passes 17 focused Core methods, one Debug build and four native case/engine pairs
+without a repair cycle; all owned receivers are absent. Installed build 6 predates
+this source. Pages deployment for `4b90f77a` succeeded; its macOS workflow remains
+in progress at the observed application-build step, so full hosted acceptance
+remains unproven.
 
 The [Compare/Merge pane-header family](MERGE-PANE-HEADER-PARITY.md) adds original
 source comparisons, saved-target Reveal and connected Save As menus in classic

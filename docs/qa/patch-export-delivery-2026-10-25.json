@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-25",
+  "status": "local_core_debug_and_four_native_pairs_pass",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "problem": "Sync Email Patch and Format Patch used lossy stdout decoding and compactMap filtering, allowing successful exports to open mail with an incomplete attachment list.",
+  "implementation": [
+    "Both use complete FormatPatchExport file-list verification; missing, duplicate, malformed or out-of-directory records refuse the whole handoff.",
+    "Successful command output/completion remains distinct from later delivery validation; already-written patch files remain.",
+    "Sync uses its existing inline command/cancellation pipeline, releases the exact producer before creating mail, and retains captured range/options.",
+    "Per-mail identity and current owner/Quit guards refuse delayed/duplicate child callbacks; existing leases, sheets and drains remain."
+  ],
+  "core": {
+    "result": "pass",
+    "methods": 17,
+    "seconds": 16.386,
+    "filter": "SynchronizationTests|FormatPatchExportTests|FormatPatchCommandCompletionTests",
+    "groups": {
+      "SynchronizationTests": 9,
+      "FormatPatchExportTests": 5,
+      "FormatPatchCommandCompletionTests": 3
+    },
+    "scope": "Actual selected range and FETCH_HEAD behavior, Unicode/newline directory framing, empty/pre-cancelled/failed export, complete strict file lists, preserved Git state, and successful command completion followed by invalid output."
+  },
+  "debug": {
+    "result": "pass",
+    "architecture": "arm64",
+    "configuration": "Debug",
+    "signing": "disabled"
+  },
+  "native": {
+    "result": "pass",
+    "pairs": 4,
+    "cases": [
+      "Format Patch delivery",
+      "Sync Email Patch"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "receiver_pids": [
+      2670,
+      2730,
+      2804,
+      3205
+    ],
+    "independently_absent": true,
+    "scope": [
+      "Actual valid composer and held-result owner retirement; missing/malformed/duplicate complete lists after real successful export.",
+      "Actual Sync two-commit mail options, Cancel, empty/error, whole-list refusal after an output disappears, forced export/sender cancellation and late callback refusal.",
+      "Private repositories/preferences/pasteboards and invisible windows; retained patch bytes and HEAD/index/config witnesses; no public email."
+    ]
+  },
+  "validation_failures": [],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "b7e74f159542d30c520117c0b57059a4662bf4dfa624fb61ffb407388590c2c6",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "880dd50aa48f2274b76e454284575aba64c67a9f8072832e62bbbc89e37a6904",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "69196c201650c31e747c8cb7389ce484c4ffb7144b020aeececc358b56b53799",
+    "Tests/TurtleGitCoreTests/SynchronizationTests.swift": "6a84c654b5a292dcca18aa85407481fa184372ba6b86c049806574ff4a7b1ec4",
+    "docs/qa/format-patch-workflow-native-2026-10-19.swift": "eb69a52ff89f25c63c22daf0e7da4c9deef14669c1c8efbd102a0d996fb05f7e",
+    "docs/qa/synchronization-email-native-2026-10-11.swift": "4019c82926b9720e6b151c5ec5bcae1cc1e1319a492d08e788d27ba5ed1663b9",
+    "scripts/test-format-patch-workflow-native.py": "33852604355f36a029c8df43884c4cda52aff635c050eb2835f73c5ea8b3ae85"
+  },
+  "logs": {
+    "patch-export-delivery-core-2026-10-25.log": "e0b0fea32454c512a05117d606f625e9a31c1665738aae379798598c6583880f",
+    "patch-export-delivery-debug-2026-10-25.log": "d4b3ceb90bfc81535502a31e8e1ebb31e8c47513c691817abdbbbce295d0e1df",
+    "patch-export-delivery-native-format-2026-10-25.log": "a7c4e9110ad7e982517a2bbcfb8bc55b88e484c47ef314ffd35fbe4a731501c6",
+    "patch-export-delivery-native-sync-2026-10-25.log": "adc3fd4fa260095b40df33b08440c335db2bdaf85ab4da3a7f3e9eabef67f558",
+    "patch-export-delivery-help-check-2026-10-25.log": "77580d35376558274fd713d2f3584e76368c6388e0a2d18a423093c6116c3169",
+    "patch-export-delivery-localizations-check-2026-10-25.log": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc",
+    "patch-export-delivery-coverage-2026-10-25.log": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651",
+    "patch-export-delivery-site-build-2026-10-25.log": "2c7fe489a7ea2620ae8462db8f3402075cf36bbe2d3e8926b3274bdf1b20ec05",
+    "patch-export-delivery-site-links-2026-10-25.log": "93c4c851d0c59d3177d80753501f56099d2e5888a8cb1d7a2b42e20d91a158f1",
+    "patch-export-delivery-site-search-2026-10-25.log": "d4e124ee1771fac404a14df30e82bdbce3cd4a1daa97cf17178347f683dbc5da",
+    "patch-export-delivery-final-coverage-2026-10-25.log": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+  },
+  "limits": [
+    "No complete hosted CI, physical/VoiceOver or signed sandbox acceptance claim.",
+    "Installed build6 at c47640a3 predates this and the preceding pane-header/gradient batch.",
+    "Strict UTF-8/newline-delimited attachment-leaf contract remains; source files already written are retained rather than rolled back."
+  ],
+  "documentation": "Bundled Help regenerated/checked; localization check passed without new labels; final coverage reconciled; static site built with no unresolved fragments, links and search checks passed."
+}

@@ -2,8 +2,14 @@ import XCTest
 @testable import TurtleGitCore
 
 final class SynchronizationTests: XCTestCase {
-    private func fixture() async throws -> (URL, GitRepository, String) {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-sync-" + UUID().uuidString)
+    private final class MailCompletionCapture:@unchecked Sendable {
+        private let lock=NSLock()
+        private var storage:[SynchronizationCommandCompletion]=[]
+        func append(_ value:SynchronizationCommandCompletion){lock.lock();defer{lock.unlock()};storage.append(value)}
+        var values:[SynchronizationCommandCompletion]{lock.lock();defer{lock.unlock()};return storage}
+    }
+    private func fixture(rootSuffix:String = "") async throws -> (URL, GitRepository, String) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-sync-" + UUID().uuidString + rootSuffix)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let git = ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? URL(fileURLWithPath: "/usr/bin/git")
         let repo = GitRepository(root: root, executable: git)
@@ -19,7 +25,7 @@ final class SynchronizationTests: XCTestCase {
         String(decoding: try await repo.run(["rev-parse", "HEAD"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
     }
     func testEmailPatchExportsSelectedRangeAndPreservesGitState() async throws {
-        let (root, repo, base) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let (root, repo, base) = try await fixture(rootSuffix:"-Cafe\u{301}\n🐢"); defer { try? FileManager.default.removeItem(at: root) }
         for name in ["first-mail", "second-mail"] {
             try Data((name + "\n").utf8).write(to: root.appendingPathComponent(name)); try await repo.stage([name])
             _ = try await repo.commit(message: name)
@@ -28,8 +34,10 @@ final class SynchronizationTests: XCTestCase {
         _ = try await repo.run(["switch", "-c", "other", base])
         let refs = try await repo.run(["show-ref"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
-        let result = try await repo.synchronizationEmailPatches(localBranch: "main", remote: " origin ", remoteBranch: " main ")
-        let files = result.text.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
+        let export = try await repo.synchronizationEmailPatchFiles(localBranch: "main", remote: " origin ", remoteBranch: " main ")
+        let result=export.result,files=export.files
+        XCTAssertEqual(result.exitCode,0)
+        XCTAssertEqual(try FormatPatchExport.exportedFiles(stdout:result.stdout,in:root).map{Data($0.path.utf8)},files.map{Data($0.path.utf8)})
         XCTAssertEqual(files.count, 2)
         XCTAssertEqual(try files.map { try SerialPatch(file: $0).subject }, ["[PATCH 1/2] first-mail", "[PATCH 2/2] second-mail"])
         XCTAssertTrue(files.allSatisfy { $0.deletingLastPathComponent().resolvingSymlinksInPath() == root.resolvingSymlinksInPath() })
@@ -47,12 +55,48 @@ final class SynchronizationTests: XCTestCase {
     }
     func testEmailPatchEmptyRangeAndCancelledExport() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
-        let result = try await repo.synchronizationEmailPatches(localBranch: "main", remote: "origin", remoteBranch: "main")
-        XCTAssertTrue(result.stdout.isEmpty)
+        let export = try await repo.synchronizationEmailPatchFiles(localBranch: "main", remote: "origin", remoteBranch: "main")
+        XCTAssertTrue(export.result.stdout.isEmpty);XCTAssertTrue(export.files.isEmpty)
         let token = OperationCancellation(); token.cancel()
-        do { _ = try await repo.synchronizationEmailPatches(localBranch: "main", remote: "origin", remoteBranch: "main", cancellation: token); XCTFail("cancelled export ran") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.synchronizationEmailPatchFiles(localBranch: "main", remote: "origin", remoteBranch: "main", cancellation: token); XCTFail("cancelled export ran") } catch is OperationCancellationFailure {}
         XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.hasSuffix(".patch") })
         do { _ = try await repo.synchronizationEmailPatches(localBranch: "main", remote: "origin", remoteBranch: "missing"); XCTFail("missing branch exported") } catch is GitFailure {}
+    }
+    func testSuccessfulEmailExportWithUnverifiableLaterFileNeverReturnsPartialReceipt() async throws {
+        let(root,repo,_)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        try Data("mail change\n".utf8).write(to:root.appendingPathComponent("file"));try await repo.stage(["file"])
+        _=try await repo.commit(message:"mail attachment")
+        let before=try await repo.run(["show-ref"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        let helper=root.appendingPathComponent(".git/mail-git"),done=root.appendingPathComponent(".git/export-completed")
+        let environment=GitRuntime.environment(executable:repo.executable).sorted{$0.key<$1.key}.map{"export "+$0.key+"="+quote($0.value)}.joined(separator:"\n")
+        let script="""
+        #!/bin/sh
+        \(environment)
+        if [ "${4-}" = format-patch ]; then
+          \(quote(repo.executable.path)) "$@" || exit "$?"
+          : > \(quote(done.path))
+          printf '%s\\n' "$6/missing.patch"
+          exit 0
+        fi
+        exec \(quote(repo.executable.path)) "$@"
+        """
+        try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
+        let wrapped=GitRepository(root:root,executable:helper,libgit2Configuration:.init(enabled:false)),receipts=MailCompletionCapture()
+        do {
+            _=try await wrapped.synchronizationEmailPatchFiles(localBranch:"main",remote:"origin",remoteBranch:"main",onCommandFinished:{receipts.append($0)})
+            XCTFail("An unverifiable later attachment must not publish an earlier valid subset")
+        }catch FormatPatchFailure.output {}
+        XCTAssertTrue(FileManager.default.fileExists(atPath:done.path),"The export itself must have completed successfully")
+        XCTAssertEqual(receipts.values.count,1)
+        let completed=try XCTUnwrap(receipts.values.first)
+        XCTAssertTrue(completed.success);XCTAssertFalse(completed.cancelled);XCTAssertEqual(completed.exitCode,0)
+        let written=try FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil).filter{$0.pathExtension=="patch"}
+        XCTAssertEqual(written.count,1)
+        XCTAssertEqual(try written.map{try SerialPatch(file:$0).subject},["[PATCH] mail attachment"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("missing.patch").path))
+        let after=try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(after,before);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }
     func testBranchControlsUsePullTrackingRatherThanPushOverrides() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }

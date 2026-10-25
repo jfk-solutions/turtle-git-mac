@@ -370,6 +370,7 @@ final class SynchronizationNativeWindow: NSWindow {
     private(set) var remoteSettingsController: RemoteSettingsWindowController?
     private(set) var importPatchController: ImportPatchWindowController?
     private(set) var emailWorkflow: SendMailWorkflow?
+    private var emailIdentity=UUID()
     private var emailAlert: NSAlert?
     private(set) var branchPicker: ReferenceBrowserWindowController?
     private var branchPickerRequest: UUID?
@@ -757,10 +758,12 @@ final class SynchronizationNativeWindow: NSWindow {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
               !files.isEmpty, let owner = window, owner.attachedSheet == nil, emailWorkflow == nil else { return }
         owner.makeFirstResponder(nil); model.emailingPatches = true
+        let identity=UUID();emailIdentity=identity
         let workflow = SendMailWorkflow(files: files, repository: model.repository, access: model.access,
             fileAccess: [model.access].compactMap { $0 }, preferences: model.preferences,
             presentation: { [weak self] child in
-                guard let self, !self.model.closed, let owner = self.window, let window = child.window else { child.close(); return }
+                guard let self,!self.model.closed,!self.model.confirmingQuit,self.emailIdentity==identity,
+                      let owner=self.window,let window=child.window else{child.close();return}
                 // Send Mail submits before closing its options window. Detach
                 // that sheet before presenting the owned result/progress sheet.
                 if let old = owner.attachedSheet, old.delegate is SendPatchWindowController { owner.endSheet(old); old.orderOut(nil) }
@@ -775,8 +778,8 @@ final class SynchronizationNativeWindow: NSWindow {
                 }
                 window.alphaValue = owner.alphaValue; owner.beginSheet(window)
             }) { [weak self] _ in
-                guard let self, !self.model.closed else { return }
-                self.emailWorkflow = nil; self.model.emailingPatches = false
+                guard let self,!self.model.closed,self.emailIdentity==identity else{return}
+                self.emailIdentity=UUID();self.emailWorkflow = nil; self.model.emailingPatches = false
             }
         emailWorkflow = workflow; workflow.start()
     }
@@ -1001,7 +1004,7 @@ final class SynchronizationNativeWindow: NSWindow {
             child.abandonPresentation(); branchPicker = nil; model.choosingBranch = false
         }
         importPatchController?.close(); importPatchController = nil; model.importingPatches = false
-        emailWorkflow?.invalidate(); emailWorkflow = nil; model.emailingPatches = false
+        emailIdentity=UUID();emailWorkflow?.invalidate(); emailWorkflow = nil; model.emailingPatches = false
         if let alert = emailAlert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort) }
         emailAlert = nil
         remoteSettingsController?.close(); remoteSettingsController = nil; model.managingRemotes = false
@@ -1958,29 +1961,44 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     var canEmailPatch: Bool { !closed && !confirmingQuit && !busy && !hasBlockingChild && window?.attachedSheet == nil && outgoing?.canEmailPatch == true }
     func emailPatch() {
         guard canEmailPatch else { return }
-        let request = OperationCancellation(); token = request; busy = true; emailingPatches = true; error = nil
-        let local = localBranch, selectedRemote = remote, branch = remoteBranch
-        let attempt = beginInlineAttempt(request, command: false)
+        let request=OperationCancellation();token=request;busy=true;emailingPatches=true;transportRunning=true;error=nil
+        let local=localBranch,selectedRemote=remote,branch=remoteBranch
+        resetNotifications();commandOutput="";outputState=GitProgressOutputState(preferences:preferences);tab=2
+        commandCompleted=false;commandSucceeded=false
+        let attempt=beginInlineAttempt(request,command:true)
         Task {
-            defer { releaseInlineAttempt(attempt) }
+            defer {releaseInlineAttempt(attempt)}
+            let parser=GitCliOutputParser(limit:outputState.limit)
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let result = try await repository.synchronizationEmailPatches(localBranch: local, remote: selectedRemote, remoteBranch: branch, cancellation: request)
-                guard !closed, token === request, !request.isCancelled else { return }
-                let root = repository.root.resolvingSymlinksInPath()
-                let files = String(decoding: result.stdout, as: UTF8.self).components(separatedBy: root.path + "/").dropFirst().compactMap { part -> URL? in
-                    let name = part.hasSuffix("\n") ? String(part.dropLast()) : part
-                    guard !name.isEmpty, !name.contains("/"), !name.contains("\n"), name != ".", name != ".." else { return nil }
-                    let file = root.appendingPathComponent(name)
-                    return FileManager.default.fileExists(atPath: file.path) ? file : nil
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let (updates,continuation)=AsyncStream<Void>.makeStream(bufferingPolicy:.bufferingNewest(1))
+                attempt.startCommand();let receipt=attempt.receipt
+                let operation=Task {
+                    defer {attempt.producerFinished();continuation.finish()}
+                    return try await repository.synchronizationEmailPatchFiles(localBranch:local,remote:selectedRemote,remoteBranch:branch,cancellation:request,
+                        onOutput:{chunk in parser.appendChunk(chunk.data);continuation.yield(())},
+                        onCommand:{command in parser.appendChunk(command.preamble);continuation.yield(())},
+                        onCommandFinished:{completion in receipt.record(completion);continuation.yield(())})
                 }
-                token = nil; busy = false; emailingPatches = false
-                if files.isEmpty { onEmailMessage("Email Patch", "No patches generated.") }
-                else { onEmailPatches(files) }
+                for await _ in updates {consume(parser.processPending(),parser:parser,request:request,attempt:attempt)}
+                consume(parser.processPending(),parser:parser,request:request,attempt:attempt);consume(parser.finish(),parser:parser,request:request,attempt:attempt)
+                let result=try await operation.value
+                guard !closed,token === request else{return};try request.check()
+                completeInlineCommand(attempt,success:true,cancelled:false,exitCode:result.result.exitCode)
+                commandCompleted=true;commandSucceeded=true
+                // Composer creation follows the exact producer AND delivery
+                // validation drain, never the earlier successful Git footer.
+                token=nil;busy=false;emailingPatches=false;transportRunning=false;cancelling=false
+                releaseInlineAttempt(attempt)
+                if result.files.isEmpty {onEmailMessage("Email Patch","No patches generated.")}
+                else {onEmailPatches(result.files)}
             } catch {
-                guard !closed, token === request else { return }
-                token = nil; busy = false; emailingPatches = false; self.error = error.localizedDescription
-                onEmailMessage("Could not create patches", error.localizedDescription)
+                guard !closed,token === request else{return}
+                failInlineCommand(attempt,error:error,request:request)
+                commandCompleted=true;commandSucceeded=attempt.receipt.read()?.success == true
+                token=nil;busy=false;emailingPatches=false;transportRunning=false;cancelling=false
+                releaseInlineAttempt(attempt)
+                onEmailMessage("Could not create patches",error.localizedDescription)
             }
         }
     }

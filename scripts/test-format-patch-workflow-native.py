@@ -7,6 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 CASES = {
+    'delivery': 'try await FormatPatchWorkflowVerification.verifyDelivery()',
     'workflow': 'try await FormatPatchWorkflowVerification.verify()',
     'options-retained': 'try await FormatPatchOptionsVerification.main()',
     'progress-retained': 'try await FormatPatchProgressVerification.main()',

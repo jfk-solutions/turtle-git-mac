@@ -10,6 +10,10 @@ public struct SynchronizationCommandCompletion: Sendable {
     public let exitCode: Int32?
     public let finished: Date
     public let elapsed: TimeInterval
+    fileprivate init(_ receipt:FormatPatchCommandCompletion) {
+        success=receipt.success;cancelled=receipt.cancelled;exitCode=receipt.exitCode
+        finished=receipt.finished;elapsed=receipt.elapsed
+    }
     fileprivate init(success: Bool, cancelled: Bool, exitCode: Int32?, started: TimeInterval) {
         self.success = success; self.cancelled = cancelled; self.exitCode = exitCode
         finished = Date(); elapsed = max(0, ProcessInfo.processInfo.systemUptime - started)
@@ -692,7 +696,9 @@ extension GitRepository {
     /// SyncDlg::OnBnClickedButtonEmail exports directly to the working directory,
     /// independently of Format Patch's saved dialog choices. The caller applies
     /// the outgoing projection's enablement and hands the resulting paths to mail.
-    public func synchronizationEmailPatches(localBranch: String, remote: String, remoteBranch: String, cancellation: OperationCancellation? = nil) throws -> GitResult {
+    public func synchronizationEmailPatches(localBranch: String, remote: String, remoteBranch: String, cancellation: OperationCancellation? = nil,
+        onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,onCommand:(@Sendable(GitCommandInvocation)->Void)?=nil,
+        onCommandFinished:(@Sendable(SynchronizationCommandCompletion)->Void)?=nil) throws -> GitResult {
         try cancellation?.check()
         let destination = remote.trimmingCharacters(in: .whitespacesAndNewlines)
         let branch = remoteBranch.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -703,7 +709,21 @@ extension GitRepository {
         let backend=libgit2Configuration ?? .load()
         let from=try synchronizationRequiredHash(destination+"/"+branch,cancellation:cancellation,backend:backend)
         let to=try synchronizationRequiredHash(local,cancellation:cancellation,backend:backend)
-        return try formatPatch(selection: .range(from: from, to: to), to: root, cancellation: cancellation)
+        return try formatPatch(selection: .range(from: from, to: to), to: root, cancellation: cancellation,onOutput:onOutput,onCommand:onCommand,
+            onCommandFinished:{onCommandFinished?(.init($0))})
+    }
+
+    /// Delivery is all-or-error. A successful Git command remains observable
+    /// through its completion even if subsequent output-file validation fails.
+    /// Neither failed exports nor unverified subsets are attachment receipts.
+    public func synchronizationEmailPatchFiles(localBranch:String,remote:String,remoteBranch:String,cancellation:OperationCancellation?=nil,
+        onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,onCommand:(@Sendable(GitCommandInvocation)->Void)?=nil,
+        onCommandFinished:(@Sendable(SynchronizationCommandCompletion)->Void)?=nil)throws->FormatPatchExport {
+        let result=try synchronizationEmailPatches(localBranch:localBranch,remote:remote,remoteBranch:remoteBranch,cancellation:cancellation,
+            onOutput:onOutput,onCommand:onCommand,onCommandFinished:onCommandFinished)
+        try cancellation?.check()
+        let files=try FormatPatchExport.exportedFiles(stdout:result.stdout,in:root)
+        try cancellation?.check();return .init(result:result,files:files)
     }
 
     /// Incoming tabs compare the captured pre-operation revision with the actual

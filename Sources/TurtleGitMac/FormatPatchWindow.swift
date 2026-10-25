@@ -53,6 +53,7 @@ import TurtleGitCore
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
     private var mailSnapshot:MergeWindowPresentation?
+    private var mailIdentity=UUID()
     var activeOperation: Bool { model.hasOptionSheet || model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.waitingForOwnerClose || model.composingMail || model.openingViewer }
     init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         mailPreferences = preferences; self.mailPresentation = mailPresentation
@@ -277,13 +278,16 @@ import TurtleGitCore
         do {
             model.composingMail = true
             let leases = [model.access, model.submittedOutputAccess].compactMap { $0 }
+            let epoch=interactionEpoch,snapshot=mailSnapshot,identity=UUID();mailIdentity=identity
             let workflow = SendMailWorkflow(files: files, repository: model.repository, access: model.access,
-                fileAccess: leases, preferences: mailPreferences, presentation: { [snapshot=mailSnapshot,present=mailPresentation] owner in
+                fileAccess: leases, preferences: mailPreferences, presentation: { [weak self] owner in
+                    guard let self,!self.retired,!self.model.confirmingQuit,self.interactionEpoch==epoch,self.mailIdentity==identity else{owner.close();return}
                     if let window=owner.window{snapshot?.apply(to:window)}
-                    if let present{present(owner)}else{owner.showWindow(nil);owner.window?.makeKeyAndOrderFront(nil)}
+                    if let present=self.mailPresentation{present(owner)}else{owner.showWindow(nil);owner.window?.makeKeyAndOrderFront(nil)}
                 }) { [weak self] _ in
-                guard let self else{return};self.sendPatch=nil;self.model.composingMail=false
-                guard !self.retired,!self.model.confirmingQuit else{return}
+                guard let self,self.mailIdentity==identity else{return}
+                self.mailIdentity=UUID();self.sendPatch=nil;self.model.composingMail=false
+                guard !self.retired,!self.model.confirmingQuit,self.interactionEpoch==epoch else{return}
                 // Format Patch reports export success independently of mail outcome.
                 // The retained mail result has already been reviewed before close.
                 self.model.close()
@@ -498,15 +502,10 @@ import TurtleGitCore
                 guard !invalidated else { return }
                 guard !token.isCancelled else {cancelled=true;presentFailure(OperationCancellationFailure.cancelled,context:"Any patches written before cancellation remain in the output directory.");return}
                 if result.stdout.isEmpty { appendDiagnostic("No patches created for this selection.") }
-                // Use the full stdout, independently of the visible output limit.
-                // A newline in the directory remains literal; Git sanitizes names.
-                let resolved = folder.resolvingSymlinksInPath()
-                files = String(decoding: result.stdout, as: UTF8.self).components(separatedBy: resolved.path + "/").dropFirst().compactMap { part in
-                    let name = part.hasSuffix("\n") ? String(part.dropLast()) : part
-                    guard !name.isEmpty, !name.contains("/"), !name.contains("\n"), name != ".", name != ".." else { return nil }
-                    let file = resolved.appendingPathComponent(name)
-                    return FileManager.default.fileExists(atPath: file.path) ? file : nil
-                }
+                // Validate the complete list atomically. Successful Git output
+                // and its command receipt remain visible if delivery is refused.
+                files = try FormatPatchExport.exportedFiles(stdout:result.stdout,in:folder)
+                try token.check()
                 success = true; exitCode = 0
             } catch let failure as GitCommandCancellationFailure {
                 cancelled = true; exitCode = failure.result.exitCode
