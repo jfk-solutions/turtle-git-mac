@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-25",
+  "scope": "General application cold-launch routing, retained native workspace ownership and shared Settings/access lifecycle",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "Debug and nine focused native checks passed; signed universal Apple Development build4 installed; real cold About-link visibly accepted and process closed; whole port remains incomplete",
+  "debug": {
+    "result": "pass",
+    "exit_code": 0,
+    "log": "build/qa/workspace-launch-debug-2026-10-25.log",
+    "warnings": "Existing SDK concurrency/simulator diagnostics and spurious exit-code-zero compiler diagnostics retained; xcodebuild completed with status0."
+  },
+  "core": "No TurtleGitCore source or public command inventory changed; no unaffected Core suite rerun.",
+  "native": {
+    "distinct_checks": 9,
+    "workspace_launch": [
+      {
+        "git": "/usr/bin/git",
+        "case": "cold",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "late",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "workspace",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "cold",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "late",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "workspace",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "retained_dialog_launch": [
+      {
+        "git": "/usr/bin/git",
+        "case": "launch",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "launch",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "tool_scene": "pass, system Git; classification, bootstrap, lazy ownership, focused menus and Save All",
+    "logs": [
+      "build/qa/workspace-launch-native-2026-10-25.log",
+      "build/qa/workspace-launch-retained-2026-10-25.log",
+      "build/qa/workspace-launch-tool-scene-2026-10-25.log"
+    ],
+    "receiver_pids_reaped_and_independently_absent": [
+      62969,
+      63018,
+      63037,
+      63091,
+      63135,
+      63178,
+      62972,
+      63248,
+      63556
+    ],
+    "limitations": [
+      "AppKit launch metadata and URL/file delivery are injected in private native receivers; actual Launch Services delivery is separate acceptance.",
+      "Private fixture bookmark providers emit sandbox-extension warnings; these are not signed security-scope grant evidence.",
+      "This checkpoint does not certify all dialog layouts, hosted CI, physical Finder gestures, App Store export or saved-state migration."
+    ]
+  },
+  "generators": {
+    "localizations": "pass,38languages/1321keys",
+    "help": "pass,58documents/51topics/80files",
+    "dialog_ledger": "pass,130dialogs/120partial/10pending/0certified; counts are not a feature completion percentage",
+    "diff_check": "pass"
+  },
+  "failures": [],
+  "signed_development": {
+    "result": "pass",
+    "exit_code": 0,
+    "build": "4",
+    "log": "build/qa/workspace-launch-signed-2026-10-25.log",
+    "source_sha256": "fb3c59b7da7afefe72796eea54038427aacd1848a62a7621847202fcb5503f68",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "code_components": 8,
+    "team": "A49SCA5S8K",
+    "identity": "Apple Development",
+    "app_store_distribution_or_submission": "not established"
+  },
+  "installation": {
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/workspace-launch-displaced-installed-2026-10-25",
+    "source": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "matching_files": 6356,
+    "source_sha256": "fb3c59b7da7afefe72796eea54038427aacd1848a62a7621847202fcb5503f68",
+    "version": "0.1.0",
+    "build": "4",
+    "signing": "Apple Development",
+    "team": "A49SCA5S8K",
+    "running_user_app_before_install": false,
+    "deep_strict_codesign": "pass",
+    "finder_registration": "One enabled installed extension at /Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex; no Finder restart or managed-extension process termination."
+  },
+  "physical_acceptance": {
+    "application": "/Applications/TurtleGit for Mac.app",
+    "build": "4",
+    "url": "turtlegit://action?command=about",
+    "launch": "Launch Services, no special argv or injected metadata",
+    "preexisting_processes": [],
+    "application_pids": [
+      65557
+    ],
+    "open_returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "remaining_processes": [],
+    "observed": "CUA showed About TurtleGit for Mac, version0.1.0(4), green TurtleGit banner and Jochen K\u00fchner port credit; no workspace was observed.",
+    "closed": "Command-Q through CUA; Launch Services waiting process returned0, PID65557 independently absent.",
+    "screenshot": "Emitted in conversation; not saved and not App Store marketing screenshot.",
+    "limits": "One actual cold About URL; not an exhaustive window inventory, saved-state migration, physical Finder interaction, or all dialog layouts."
+  }
+}

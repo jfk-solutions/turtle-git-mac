@@ -59,15 +59,30 @@ they do not establish physical Finder gestures, signed permission grants or
 visual parity of all upstream dialogs. Installed-application acceptance and cold
 URL-launch limitations remain separate from injected receiver checks.
 
-## Remaining entry-point gap
+## Cold links, patch documents and the workspace host
 
-A third-party application that cold-opens a raw `turtlegit://` action URL without
-TurtleGit's launch argument can still cause SwiftUI's default workspace scene to
-appear. The shipped Finder launcher and primary command-line dialog entry choose
-the action-only scene explicitly. Warm URL delivery is separated from workspace
-presentation. Eliminating the arbitrary cold-URL case across macOS 13 and later
-remains a distinct scene-startup gap; it is not counted as covered by injected
-URL delivery after startup.
+The general application uses a Settings-only SwiftUI scene on macOS 13 and later.
+A retained AppKit controller creates the workspace only for a default application
+launch, explicit Open Repository/Open Recent, the public Open Service or Dock
+reopen. AppKit's `launchIsDefaultUserInfoKey` supplies the initial launch intent;
+there is no timeout that guesses whether a URL will arrive. See the
+[AppKit launch metadata](https://developer.apple.com/documentation/appkit/nsapplication/launchisdefaultuserinfokey).
+
+A cold `turtlegit://` action or `.patch`/`.diff` document uses the retained routing
+owner without creating the repository model or workspace controller. Requests
+received before startup are queued and delivered in order. Closing and reopening
+the workspace retains its model and child operation ownership. The native toolbar
+keeps Open, Refresh, Commit and Show log, with repository/busy eligibility. Settings
+drafts are settled before the shared Settings service changes to the workspace;
+the action owner retains a separate service afterward.
+
+The [follow-up grouped checkpoint](qa/workspace-launch-2026-10-25.json) passed
+Debug and nine focused native checks: cold file, late URL and workspace ownership
+with system/bundled Git, retained primary dialog routing with both engines, and
+the dedicated Merge scene/menu lifecycle. Receiver processes were reaped and
+independently absent. These checks inject launch metadata; they do not certify
+physical Launch Services delivery or migration of previously saved window state.
+The installed build3 acceptance below describes the preceding candidate.
 
 ## Installed application acceptance — 25 October 2026
 
@@ -84,3 +99,18 @@ was closed before the clean retry. These attempts and all process cleanup are
 recorded rather than counted as successful physical checks. No acceptance app
 remains running. This covers application About, not physical Finder grants,
 all tool layouts, a live Dock-cache inspection or App Store distribution.
+
+## Follow-up installed acceptance — build4
+
+The universal Apple Development build4 passed strict signature checks and was
+installed with all6,356 files matching the measured candidate. Its source input
+digest is `fb3c59b7da7afefe72796eea54038427aacd1848a62a7621847202fcb5503f68`.
+One enabled Finder registration points to the installed extension.
+
+A real cold Launch Services request for `turtlegit://action?command=about`, with
+no special launch arguments or injected metadata, visibly opened the About
+dialog, green TurtleGit banner and version0.1.0(4); no workspace was observed.
+The acceptance process was closed with Command-Q, its waiting launcher exited0
+and the application PID was independently absent. This complements the private
+receiver checks; it is not exhaustive acceptance of saved-state migration, every
+external action, physical Finder grants or all upstream layouts.

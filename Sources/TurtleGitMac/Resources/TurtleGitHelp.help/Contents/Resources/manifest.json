@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "63415fbbb8eeb36f3b4d3e9f74e9141f08d8348bdd3eb5175035e19f904fafee",
+    "Contents/Info.plist": "6233a8180d37fddb4d50662a34a18ea46c622da31411e0c85c8bc6e6a36e2451",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -14,7 +14,7 @@
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "70dfd0ce61d44b4e95f23da57da85e0f563b2fa83c784194481bb968ec920f07",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/FINDER-DELIVERY-SERVICES-PARITY.html": "e7e4da2b76700260d215e10acb25f4a9c3812c7085c991c66fd4f05d851b1fa6",
-    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "e1d837b0a0688a7399d81d2fddff3cab931e0b5549107170ea7da3573f0a8aa1",
+    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "a1fe221853b05151e247ab6c1683fd0a1dd7901594bed4e40433ff130c616351",
     "Contents/Resources/en.lproj/FINDER-STATUS-POLICY.html": "9c0652e62ee7ffd86d13bdb0d1c1fb8716fe320454a3020abb48b24a12474398",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "c64d1d9afe3879fa37052651658c257f28192934620d7dda18d6314a1ef02a36",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cc62f622edf5577af5c763dd875b4343e37a57f2e284e1f265fb77af2dbe59f1",
@@ -94,7 +94,7 @@
     "docs/DIALOG-GUIDE.md": "736723ee9c63ed61968896c560b63439bd9a357ab8854d75404896122e5b1b4e",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/FINDER-DELIVERY-SERVICES-PARITY.md": "e6b4af67a87570cb955afa8c6c48355ee6ac1a26561b04e038afc334858d2924",
-    "docs/FINDER-SERVICES.md": "bc98d440f53864770f978356868c102838a2340b66da6b7ba69894a64fe66502",
+    "docs/FINDER-SERVICES.md": "9418ee4884fab374c87e94459f3f4615c77d8ab3ee4762ad6689264d0a4a239b",
     "docs/FINDER-STATUS-POLICY.md": "d1df94f55a4e747392e38f89be986a63a643c2931022ce72a69d1cd761d1d6be",
     "docs/GETTING-STARTED.md": "952181dd7bf027ddd9d2edddf7ee2a745e98b67332f51acba71d4e5cdaca09fa",
     "docs/GIT-AUTHENTICATION.md": "dd6d943d89e823349419471ce62e60259e1425516409cb0c7d033c93f0f00120",

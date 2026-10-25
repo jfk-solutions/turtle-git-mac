@@ -52,7 +52,7 @@ enum MergeToolSceneVerification {
         normal.startupDidFinishLaunching()
         try require(normal.standaloneWorkspace == nil && !normal.startupDelivered && normalDeliveries == 0, "Ordinary startup constructed tool owner instead of waiting for workspace")
         normal.repositoryModel = ordinary
-        try require(normalDeliveries == 1 && normal.applicationShouldOpenUntitledFile(NSApp) && normal.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false), "Ordinary workspace startup/reopen changed")
+        try require(normalDeliveries == 1 && !normal.applicationShouldOpenUntitledFile(NSApp) && normal.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false), "Ordinary workspace startup/reopen changed")
         let base = root.appendingPathComponent("scene-base"), mine = root.appendingPathComponent("scene-mine"), output = root.appendingPathComponent("scene-output")
         try Data("base\n".utf8).write(to: base); try Data("mine\n".utf8).write(to: mine)
         let owner = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: [], preferences: prefs, deferInitialLoad: true)

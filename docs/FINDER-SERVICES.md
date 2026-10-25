@@ -19,7 +19,8 @@ automatically. Refresh after quitting remains a separate opt-in preference.
 See [first-use registration](FINDER-REGISTRATION-PARITY.md).
 
 Finder and command-line requests for About, Settings and Git dialogs use a
-separate action launch route, so they do not need to show the workspace first.
+retained action owner, so they do not need to show the workspace first. Direct
+links and patch documents also route independently when starting the application.
 An existing workspace keeps its current repository. Explicit **Open in
 TurtleGit**, Open Repository and ordinary application opening remain workspace
 entry points. The action route retains the same folder-permission, cancellation,

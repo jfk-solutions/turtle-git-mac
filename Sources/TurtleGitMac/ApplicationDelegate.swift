@@ -26,7 +26,19 @@ import TurtleGitCore
         for observer in menuImageObservers { NotificationCenter.default.removeObserver(observer) }
         menuImageObservers.removeAll()
     }
+    static var generalApplicationConfiguration:((TurtleGitApplicationDelegate)->Void)?
+    var configureGeneralApplication:((TurtleGitApplicationDelegate)->Void)?
+    private(set) var generalApplicationConfigured=false
+    private var defaultWorkspaceRequested=false
+    private var isGeneralApplication:Bool {startupLaunchMode == .workspace || startupLaunchMode == .actionOnly}
+    private func configureGeneralApplicationIfNeeded() {
+        guard isGeneralApplication,!generalApplicationConfigured,
+              let configure=configureGeneralApplication ?? Self.generalApplicationConfiguration else{return}
+        generalApplicationConfigured=true
+        configure(self)
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
+        configureGeneralApplicationIfNeeded()
         installMenuImageVisibility()
         #if SWIFT_PACKAGE
         let iconBundle = Bundle.module
@@ -35,7 +47,7 @@ import TurtleGitCore
         #endif
         if let file = iconBundle.url(forResource:"ApplicationIcon",withExtension:"png",subdirectory:"Branding"),let icon=NSImage(contentsOf:file) {NSApp.applicationIconImage=icon}
         TurtleGitHelp.install()
-        startupDidFinishLaunching()
+        startupDidFinishLaunching(defaultLaunch:notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool)
         if startupLaunchMode == .workspace { SupportReportService.shared.checkForPreviousCrash() }
         installFinderServices()
     }
@@ -73,7 +85,7 @@ import TurtleGitCore
     func submitOpenServiceSelection(_ paths:[URL])throws {
         guard acceptingOpenURLs,!finderServicesProvider.retired,!confirmingQuit,repositoryModel?.confirmingQuit != true else{throw TurtleGitFinderServicesProvider.Failure.unavailable}
         let captured=try FinderServiceCommand.status.request(paths:paths).paths
-        if startupLaunchMode != .workspace {
+        if !isGeneralApplication || (startupLaunchMode != .workspace && presentWorkspace == nil) {
             workspaceOpenHandoff.submit([try TurtleGitFinderServicesProvider.openSelectionURL(captured)]);return
         }
         guard pendingOpenServiceSelection==nil,pendingFinderServiceRequest==nil,repositoryModel?.busy != true,repositoryModel?.hasPendingRepositoryWork != true else{throw TurtleGitFinderServicesProvider.Failure.busy}
@@ -93,10 +105,10 @@ import TurtleGitCore
         } else {pendingFinderServiceRequest=captured}
     }
     private func deliverPendingFinderService() {
-        guard acceptingOpenURLs,startupReady,startupDelivered,let repositoryModel else{return}
-        if pendingOpenServiceSelection != nil,startupLaunchMode == .workspace,workspaceDeliveryReady(),let paths=pendingOpenServiceSelection {
+        guard acceptingOpenURLs,startupReady,startupDelivered,repositoryModel != nil else{return}
+        if pendingOpenServiceSelection != nil,isGeneralApplication,workspaceDeliveryReady(),let paths=pendingOpenServiceSelection,let currentWorkspace=repositoryModel {
             pendingOpenServiceSelection=nil
-            if confirmingQuit || !workspaceOpenSelectionHandler(repositoryModel,paths) {pendingFinderServiceError=TurtleGitFinderServicesProvider.Failure.busy.localizedDescription}
+            if confirmingQuit || !workspaceOpenSelectionHandler(currentWorkspace,paths) {pendingFinderServiceError=TurtleGitFinderServicesProvider.Failure.busy.localizedDescription}
         }
         if let request=pendingFinderServiceRequest {
             pendingFinderServiceRequest=nil
@@ -117,13 +129,16 @@ import TurtleGitCore
             if !workspacePresentationRequested {
                 workspacePresentationRequested = true
                 presentWorkspace()
+                // The general AppKit host is synchronous. A refused Settings
+                // context change must not latch an unfulfillable scene request.
+                if generalApplicationConfigured,repositoryModel?.workspaceWindow == nil {workspacePresentationRequested=false}
             }
             return repositoryModel?.workspaceWindow != nil
         }
         return true
     }
     func workspaceWindowDidAttach() {
-        guard acceptingOpenURLs, startupLaunchMode == .workspace, repositoryModel?.workspaceWindow != nil else { return }
+        guard acceptingOpenURLs, isGeneralApplication, repositoryModel?.workspaceWindow != nil else { return }
         workspacePresentationRequested = false
         deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService();deliverWorkspaceRepositoryChoice()
     }
@@ -187,7 +202,7 @@ import TurtleGitCore
     private func actionRoutingModel()->RepositoryModel {
         if let actionRepositoryModel {return actionRepositoryModel}
         let model:RepositoryModel
-        if startupLaunchMode == .actionOnly,let standaloneWorkspace {model=standaloneWorkspace}
+        if (startupLaunchMode == .actionOnly || generalApplicationConfigured),let standaloneWorkspace {model=standaloneWorkspace}
         else {
             model=makeStandaloneWorkspace()
             let appearance=AppAppearance(preferences:model.fileComparisonPreferences),service=SettingsPresentationService()
@@ -220,16 +235,32 @@ import TurtleGitCore
     }
     func requestWorkspace(openRepository:Bool = false) {
         guard acceptingOpenURLs,!confirmingQuit else{return}
-        if startupLaunchMode == .workspace {
+        if isGeneralApplication,(presentWorkspace != nil || startupLaunchMode == .workspace) {
             pendingWorkspaceRepositoryChoice = pendingWorkspaceRepositoryChoice || openRepository
+            let alreadyAttached=repositoryModel?.workspaceWindow != nil
             if !workspaceDeliveryReady() {return}
-            presentWorkspace?();deliverWorkspaceRepositoryChoice()
+            if alreadyAttached {presentWorkspace?()}
+            deliverWorkspaceRepositoryChoice()
         } else if let url=URL(string:openRepository ? "turtlegit://workspace?open=repository":"turtlegit://workspace") {workspaceOpenHandoff.submit([url])}
     }
     private func deliverWorkspaceRepositoryChoice() {
-        guard pendingWorkspaceRepositoryChoice,startupLaunchMode == .workspace,let repositoryModel,workspaceDeliveryReady() else{return}
+        guard pendingWorkspaceRepositoryChoice,isGeneralApplication,workspaceDeliveryReady(),let repositoryModel else{return}
         pendingWorkspaceRepositoryChoice=false
         repositoryModel.chooseRepository()
+    }
+    /// Keep the router's Settings callbacks alive when the shared App-menu
+    /// service adopts the explicitly presented workspace context.
+    func attachWorkspaceModel(_ model:RepositoryModel,appearance:AppAppearance) {
+        let action=actionRoutingModel()
+        action.configureActionRouting(from:model,loadSavedAccess:false)
+        if action === standaloneWorkspace,actionSettingsService == nil {
+            let scopedAppearance=AppAppearance(preferences:action.fileComparisonPreferences)
+            let service=SettingsPresentationService()
+            actionAppearance=scopedAppearance;actionSettingsService=service
+            service.install(workspace:action,appearance:scopedAppearance)
+        }
+        SettingsPresentationService.shared.install(workspace:model,appearance:appearance)
+        repositoryModel=model
     }
     private var routingModels:[RepositoryModel] {
         var models:[RepositoryModel]=[]
@@ -282,27 +313,38 @@ import TurtleGitCore
         model.enableActionRoutingAccess()
         return model
     }
+    var makeStandaloneAppearance:()->AppAppearance = {AppAppearance(preferences:.standard)}
     var configureStandaloneServices: (RepositoryModel, AppAppearance) -> Void = { workspace, appearance in
         appearance.apply()
         SettingsPresentationService.shared.install(workspace: workspace, appearance: appearance)
         FirstStartWizardService.shared.install();ReleaseUpdateService.shared.install()
     }
     func bootstrapStandaloneToolIfNeeded() {
-        guard startupLaunchMode != .workspace, repositoryModel == nil, standaloneWorkspace == nil else { return }
-        let workspace = makeStandaloneWorkspace(), appearance = AppAppearance(preferences: .standard)
+        guard (startupLaunchMode != .workspace || generalApplicationConfigured), repositoryModel == nil, standaloneWorkspace == nil else { return }
+        let workspace = makeStandaloneWorkspace(), appearance = makeStandaloneAppearance()
         standaloneWorkspace = workspace; standaloneAppearance = appearance
         configureStandaloneServices(workspace, appearance)
         repositoryModel = workspace
     }
-    func startupDidFinishLaunching() {
+    func startupDidFinishLaunching(defaultLaunch:Bool? = nil) {
+        configureGeneralApplicationIfNeeded()
         bootstrapStandaloneToolIfNeeded(); startupReady = true
-        if standaloneWorkspace != nil, startupArguments != ["--turtlegit-action-only"], !standaloneActivationRequested {
+        if standaloneWorkspace != nil, startupLaunchMode != .workspace, startupArguments != ["--turtlegit-action-only"], !standaloneActivationRequested {
             standaloneActivationRequested = true; activateStandaloneApplication()
         }
-        if startupLaunchMode == .actionOnly {_ = actionRoutingModel()}
+        if startupLaunchMode == .actionOnly || generalApplicationConfigured {_ = actionRoutingModel()}
         deliverStartupCommand();deliverPendingOpenURLs();deliverPendingFinderService()
+        // AppKit supplies authoritative launch intent. A missing key is not an
+        // inferred default launch, and primary/tool commands never open a host.
+        if generalApplicationConfigured,startupLaunchMode == .workspace,defaultLaunch == true,!defaultWorkspaceRequested {
+            defaultWorkspaceRequested=true;requestWorkspace()
+        }
     }
-    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { startupLaunchMode == .workspace }
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {false}
+    func applicationOpenUntitledFile(_ sender:NSApplication)->Bool {
+        guard isGeneralApplication,acceptingOpenURLs,!confirmingQuit else{return false}
+        requestWorkspace();return true
+    }
     // Closing the workspace must not end an owned Git/editor child or stop
     // Finder routing. Reopen and the next external request use the same scene.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -318,7 +360,7 @@ import TurtleGitCore
     }
     private func deliverStartupCommand() {
         guard startupReady, !startupDelivered, let repositoryModel,
-              startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
+              generalApplicationConfigured || startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
         startupDelivered = true
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {

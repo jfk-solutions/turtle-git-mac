@@ -17,28 +17,11 @@ import UniformTypeIdentifiers
             TurtleGitUnifiedDiffApp.main()
         } else if launch == .mergeTool {
             TurtleGitMergeToolApp.main()
-        } else if launch == .actionOnly {
-            TurtleGitActionApp.main()
         } else {
+            TurtleGitApplicationDelegate.generalApplicationConfiguration = { delegate in
+                WorkspaceSceneOwner.shared.configure(applicationDelegate: delegate)
+            }
             TurtleGitMacApp.main()
-        }
-    }
-}
-
-/// Finder/primary dialog entry points own AppKit windows, never a bootstrap
-/// workspace. Explicit Open and Dock reopen can still request the normal app.
-struct TurtleGitActionApp: App {
-    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
-    var body: some Scene {
-        Settings { EmptyView() }
-            .commands { AppUtilityCommands(); ActionWorkspaceCommands(applicationDelegate:applicationDelegate) }
-    }
-}
-@MainActor private struct ActionWorkspaceCommands: Commands {
-    let applicationDelegate:TurtleGitApplicationDelegate
-    var body:some Commands {
-        CommandGroup(replacing:.newItem) {
-            Button("Open Repository…") { applicationDelegate.requestWorkspace(openRepository:true) }.keyboardShortcut("o")
         }
     }
 }
@@ -81,28 +64,25 @@ struct TurtleGitMergeToolApp: App {
 
 struct TurtleGitMacApp: App {
     @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
-    @StateObject private var workspaceScene = WorkspaceSceneOwner()
-    private var model: RepositoryModel { workspaceScene.model }
+    @StateObject private var workspaceScene = WorkspaceSceneOwner.shared
     @StateObject private var hookProcesses = ClientHookProcessPool.shared
-    @StateObject private var appearance = AppAppearance()
-    @StateObject private var blameMenuContext=BlameMenuContext()
+    @StateObject private var blameMenuContext = BlameMenuContext()
     @StateObject private var patchMenuContext = PatchMenuContext()
     @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     var body: some Scene {
-        // One workspace model has one native owner. A WindowGroup permits
-        // Launch Services to create another scene for each external event.
-        Window("TurtleGit for Mac", id: WorkspaceSceneContent.windowID) {
-            WorkspaceSceneContent(model: model, appearance: appearance, applicationDelegate: applicationDelegate)
-        }
+        // AppKit delivers the actual launch intent after scene construction.
+        // No repository window exists until the delegate requests the host.
+        Settings { EmptyView() }
         .commands {
             AppUtilityCommands()
             EditorFileCommands(blame: blameMenuContext, patch: patchMenuContext, statistics: statisticsMenuContext)
-            RepositoryCommands(model: model, hookProcesses: hookProcesses)
-            CommandMenu("Appearance") {
-                Picker("Appearance", selection: $appearance.choice) {
-                    ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) }
-                }
-            }
+            RepositoryCommands(model: workspaceScene.commandModel, hookProcesses: hookProcesses,
+                               openRepository: { applicationDelegate.requestWorkspace(openRepository: true) },
+                               openRecent: { saved in
+                                   guard let model = workspaceScene.presentWorkspace() else { return }
+                                   model.openRecent(saved)
+                               })
+            WorkspaceAppearanceCommands(appearance: workspaceScene.appearance)
             #if DEBUG
             CommandMenu("Development") {
                 Button("Save Window Screenshot…") { DocumentationCapture.saveWindow() }.keyboardShortcut("s", modifiers: [.command, .option, .shift])
@@ -111,39 +91,14 @@ struct TurtleGitMacApp: App {
         }
     }
 }
-
-/// The identified Window and every external/reopen request use this same
-/// presentation action. Child Git/editor windows retain their own controllers.
-@MainActor private struct WorkspaceSceneContent: View {
-    static let windowID = "workspace"
-    @ObservedObject var model: RepositoryModel
+@MainActor private struct WorkspaceAppearanceCommands: Commands {
     @ObservedObject var appearance: AppAppearance
-    let applicationDelegate: TurtleGitApplicationDelegate
-    @Environment(\.openWindow) private var openWindow
-    var body: some View {
-        RepositoryWindow(model: model, onWorkspaceWindowAttached: applicationDelegate.workspaceWindowDidAttach)
-            .disabled(model.confirmingQuit)
-            .onAppear {
-                let present = openWindow
-                applicationDelegate.presentWorkspace = { present(id: Self.windowID) }
-                appearance.apply()
-                SettingsPresentationService.shared.install(workspace: model, appearance: appearance)
-                FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install()
-                // Install the presentation route before permitting queued
-                // startup/URL/Services delivery against this model.
-                applicationDelegate.repositoryModel = model
+    var body: some Commands {
+        CommandMenu("Appearance") {
+            Picker("Appearance", selection: $appearance.choice) {
+                ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) }
             }
-            #if DEBUG
-            .onAppear {
-                if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
-                   let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRepository") as? String {
-                    model.open(URL(fileURLWithPath: path, isDirectory: true)) {
-                        if let request = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRequest") as? String,
-                           let url = URL(string: request), FinderRequest(url: url) != nil { model.handle(url) }
-                    }
-                }
-            }
-            #endif
+        }
     }
 }
 
@@ -176,6 +131,8 @@ struct TurtleGitMacApp: App {
 @MainActor private struct RepositoryCommands: Commands {
     @ObservedObject var model: RepositoryModel
     @ObservedObject var hookProcesses: ClientHookProcessPool
+    var openRepository: () -> Void
+    var openRecent: (SavedRepository) -> Void
     var body: some Commands {
         CommandGroup(after: .pasteboard) {
             Button { model.showFileTransfer(copy: true, urls: []) } label: { CommandLabel(title: "Copy and Add…", icon: .add) }.disabled(model.root == nil || model.bare || model.busy)
@@ -183,7 +140,7 @@ struct TurtleGitMacApp: App {
             Button { model.showFileTransfer(copy: false) } label: { CommandLabel(title: "Paste Move…", icon: .rename) }.disabled(model.root == nil || model.bare || model.busy)
         }
         CommandGroup(after: .newItem) {
-            Button { if let owner = PatchWindowController.focusedOwner(NSApp.keyWindow ?? NSApp.mainWindow), owner.documentSession.enabled { owner.documentSession.openDocument() } else { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { model.chooseRepository() } } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
+            Button { if let owner = PatchWindowController.focusedOwner(NSApp.keyWindow ?? NSApp.mainWindow), owner.documentSession.enabled { owner.documentSession.openDocument() } else { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { openRepository() } } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
             Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
             Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
             Button { model.showMergeOpen() } label: { CommandLabel(title: "Open in TurtleGitMerge…", icon: .open) }.disabled(model.busy || model.confirmingQuit)
@@ -193,7 +150,7 @@ struct TurtleGitMacApp: App {
             Button("Load Images…") { model.showLoadImages() }.disabled(model.busy || model.confirmingQuit)
             Menu("Open Recent") {
                 ForEach(model.recentRepositories) { saved in
-                    Button(saved.name) { model.openRecent(saved) }.help(saved.lastKnownPath)
+                    Button(saved.name) { openRecent(saved) }.help(saved.lastKnownPath)
                 }
                 Divider()
                 Button { model.showRepositoryAccess() } label: { CommandLabel(title:"Manage Repository Access…",icon:.settings) }
@@ -305,12 +262,6 @@ struct RepositoryWindow: View {
         }
         .frame(minWidth: 920, minHeight: 650)
         .background(RepositoryWindowCapture(model: model, onAttached: onWorkspaceWindowAttached).frame(width: 0, height: 0))
-        .toolbar {
-            Button { model.chooseRepository() } label: { Label("Open", systemImage: "folder") }.disabled(model.busy)
-            Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.disabled(model.root == nil || model.busy)
-            Button { model.activate(.commit) } label: { Label("Commit", systemImage: "checkmark.circle") }.disabled(model.root == nil || model.busy || model.bare)
-            Button { model.activate(.log) } label: { Label("Show log", systemImage: "clock") }.disabled(model.root == nil || model.busy)
-        }
         .sheet(item: $model.dialog) { action in OperationDialog(model: model, action: action) }
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }

@@ -4,15 +4,139 @@ import Combine
 import SwiftUI
 import TurtleGitCore
 
-/// Delay the production repository owner until the workspace Scene reads it.
-/// Merely installing the App's StateObjects must not restore Finder watches in
-/// an unrelated standalone Merge process.
+/// General launches start with a lightweight command/router context. Restoring
+/// repository access and creating the workspace are explicit presentation work.
 @MainActor final class WorkspaceSceneOwner: ObservableObject {
+    static let shared = WorkspaceSceneOwner()
+    @Published private(set) var commandModel: RepositoryModel
     private(set) var storedModel: RepositoryModel?
+    private(set) var storedController: WorkspaceWindowController?
+    let appearance = AppAppearance()
+    private weak var applicationDelegate: TurtleGitApplicationDelegate?
     var makeModel: () -> RepositoryModel = { RepositoryModel() }
+    var makeController: (RepositoryModel, AppAppearance, TurtleGitApplicationDelegate) -> WorkspaceWindowController = {
+        WorkspaceWindowController(model: $0, appearance: $1, applicationDelegate: $2)
+    }
+    init(commandModel: RepositoryModel? = nil) {
+        let router = commandModel ?? RepositoryModel(startMonitoring: false, initializePreferences: false)
+        if commandModel == nil { router.enableActionRoutingAccess() }
+        self.commandModel = router
+        makeModel = { [router] in router.makeWorkspaceSharingActionAccess() }
+    }
+    // Retained for callers that explicitly request the repository owner.
     var model: RepositoryModel {
         if let storedModel { return storedModel }
         let model = makeModel(); storedModel = model; return model
+    }
+    func configure(applicationDelegate: TurtleGitApplicationDelegate) {
+        self.applicationDelegate = applicationDelegate
+        applicationDelegate.makeStandaloneWorkspace = { [commandModel] in commandModel }
+        applicationDelegate.makeStandaloneAppearance = { [appearance] in appearance }
+        applicationDelegate.presentWorkspace = { [weak self] in _ = self?.presentWorkspace() }
+    }
+    @discardableResult func presentWorkspace() -> RepositoryModel? {
+        guard let applicationDelegate else { return nil }
+        if let storedController {
+            storedController.present(); return storedModel
+        }
+        // Switching the shared Settings context must never discard its draft.
+        guard SettingsPresentationService.shared.prepareContextChange() else { return nil }
+        let model = self.model
+        let controller = makeController(model, appearance, applicationDelegate)
+        storedController = controller
+        applicationDelegate.attachWorkspaceModel(model, appearance: appearance)
+        commandModel = model
+        controller.present()
+        return model
+    }
+}
+
+/// One native owner survives ordinary Close, including its child Git operations.
+/// Settings-only scenes avoid an automatic window for document/URL launches on
+/// every supported macOS version, including macOS 13 and 14.
+@MainActor final class WorkspaceWindowController: NSWindowController, NSToolbarDelegate {
+    let model: RepositoryModel
+    private weak var applicationDelegate: TurtleGitApplicationDelegate?
+    private var updates: AnyCancellable?
+    var presentWindow: (NSWindow) -> Void = { $0.makeKeyAndOrderFront(nil) }
+    static let toolbarIdentifiers: [NSToolbarItem.Identifier] = ["TurtleGitOpen", "TurtleGitRefresh", "TurtleGitCommit", "TurtleGitLog"].map { NSToolbarItem.Identifier($0) }
+    init(model: RepositoryModel, appearance: AppAppearance, applicationDelegate: TurtleGitApplicationDelegate) {
+        self.model = model; self.applicationDelegate = applicationDelegate
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: true)
+        window.title = "TurtleGit for Mac"
+        window.identifier = NSUserInterfaceItemIdentifier("workspace")
+        window.isReleasedWhenClosed = false
+        window.isRestorable = false
+        window.contentMinSize = NSSize(width: 920, height: 650)
+        window.contentViewController = NSHostingController(rootView: WorkspaceHostedContent(model: model, applicationDelegate: applicationDelegate))
+        super.init(window: window)
+        let toolbar = NSToolbar(identifier: "TurtleGitWorkspace")
+        toolbar.delegate = self; toolbar.displayMode = .iconAndLabel
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+        window.center()
+        updates = model.objectWillChange.sink { [weak self] in
+            DispatchQueue.main.async { self?.refreshToolbar() }
+        }
+        refreshToolbar()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func present() {
+        guard let window else { return }
+        DialogGeometry.attach(window, identifier: "workspace")
+        model.workspaceWindow = window
+        presentWindow(window)
+        applicationDelegate?.workspaceWindowDidAttach()
+    }
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { Self.toolbarIdentifiers }
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { Self.toolbarIdentifiers }
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        guard let index = Self.toolbarIdentifiers.firstIndex(of: identifier) else { return nil }
+        let captions = ["Open", "Refresh", "Commit", "Show log"]
+        let symbols = ["folder", "arrow.clockwise", "checkmark.circle", "clock"]
+        let actions: [Selector] = [#selector(openRepository), #selector(refresh), #selector(commit), #selector(showLog)]
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.label = NSLocalizedString(captions[index], comment: "")
+        item.paletteLabel = item.label; item.toolTip = item.label
+        item.image = NSImage(systemSymbolName: symbols[index], accessibilityDescription: item.label)
+        item.target = self; item.action = actions[index]
+        item.autovalidates = false
+        item.isEnabled = toolbarEnabled(index)
+        return item
+    }
+    private func toolbarEnabled(_ index: Int?) -> Bool {
+        !model.busy && !model.confirmingQuit &&
+            (index == 0 || model.root != nil) && (index != 2 || !model.bare)
+    }
+    private func refreshToolbar() {
+        for item in window?.toolbar?.items ?? [] {
+            item.isEnabled = toolbarEnabled(Self.toolbarIdentifiers.firstIndex(of: item.itemIdentifier))
+        }
+    }
+    @objc private func openRepository() { guard !model.busy, !model.confirmingQuit else { return }; model.chooseRepository() }
+    @objc private func refresh() { guard model.root != nil, !model.busy, !model.confirmingQuit else { return }; Task { await model.refresh() } }
+    @objc private func commit() { guard model.root != nil, !model.busy, !model.bare, !model.confirmingQuit else { return }; model.activate(.commit) }
+    @objc private func showLog() { guard model.root != nil, !model.busy, !model.confirmingQuit else { return }; model.activate(.log) }
+}
+
+@MainActor private struct WorkspaceHostedContent: View {
+    @ObservedObject var model: RepositoryModel
+    let applicationDelegate: TurtleGitApplicationDelegate
+    var body: some View {
+        RepositoryWindow(model: model, onWorkspaceWindowAttached: applicationDelegate.workspaceWindowDidAttach)
+            .disabled(model.confirmingQuit)
+            #if DEBUG
+            .onAppear {
+                if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
+                   let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRepository") as? String {
+                    model.open(URL(fileURLWithPath: path, isDirectory: true)) {
+                        if let request = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRequest") as? String,
+                           let url = URL(string: request), FinderRequest(url: url) != nil { model.handle(url) }
+                    }
+                }
+            }
+            #endif
     }
 }
 

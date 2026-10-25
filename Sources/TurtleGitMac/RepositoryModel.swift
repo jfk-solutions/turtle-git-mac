@@ -880,6 +880,12 @@ private enum TransportBatchPresentationContext {
     /// Only the production delegate factory opts into loading application
     /// bookmarks. Injected/direct model consumers keep their supplied stores.
     func enableActionRoutingAccess() {actionRoutingAccessEnabled=true}
+    /// Promoting a general action process to a workspace must keep its existing
+    /// bookmark archive and Finder publisher rather than create competing owners.
+    func makeWorkspaceSharingActionAccess() -> RepositoryModel {
+        RepositoryModel(finderWatches: finderWatches, savedAccessStore: accessStore,
+                        comparisonMarks: comparisonMarkStore)
+    }
     func configureActionRouting(from workspace:RepositoryModel? = nil,loadSavedAccess:Bool = true) {
         if accessStore == nil {
             if let store=workspace?.accessStore {accessStore=store}

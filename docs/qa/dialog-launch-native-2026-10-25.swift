@@ -77,11 +77,18 @@ import TurtleGitCore
             handoff.submit([registration]);handoff.submit([log])
             try require(actionConfigurations.count==2 && actionConfigurations[0].0==["--turtlegit-action-only"] && !actionConfigurations[0].1 && actionConfigurations[1].0==["--turtlegit-action-only"] && actionConfigurations[1].1 && !handoff.hasPendingWork,"Action handoff lost dialog-only launch or registration activation policy")
             handoff.retire()
+            let explicitHost=NSWindow(contentRect:.init(x:-24000,y:-24000,width:500,height:300),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+            explicitHost.isReleasedWhenClosed=false;explicitHost.alphaValue=0;model.workspaceWindow=explicitHost
+            defer {explicitHost.close();if model.workspaceWindow === explicitHost {model.workspaceWindow=nil}}
             delegate.requestWorkspace()
-            try require(forwarded.count==1 && forwarded[0].map(\.absoluteString)==["turtlegit://workspace"] && configurations[0].isEmpty,"Explicit workspace request did not retain workspace launch semantics")
+            try require(workspacePresentations==1 && forwarded.isEmpty && configurations.isEmpty && delegate.repositoryModel === model,"Explicit workspace request did not retain in-process presentation")
+            var opened=[[URL]]()
+            delegate.workspaceOpenSelectionHandler={target,paths in
+                guard target === model else {return false};opened.append(paths);return true
+            }
             let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()};board.writeObjects([folder as NSURL])
             var error:NSString?;delegate.finderServicesProvider.openInTurtleGit(board,userData:"open",error:&error)
-            try require(error==nil && forwarded.count==2 && (try? TurtleGitFinderServicesProvider.openSelection(from:forwarded[1][0]))?.map(\.path)==[folder.path] && configurations[1].isEmpty,"Generic public Service did not explicitly forward workspace Open")
+            try require(error==nil && opened.count==1 && opened[0].map(\.path)==[folder.path] && forwarded.isEmpty,"Generic public Service did not explicitly route workspace Open")
             delegate.retireFinderServices();model.stopMonitoringForTermination()
         }
         let originalRoot=existing.root,originalWindow=existing.workspaceWindow
