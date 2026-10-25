@@ -1,0 +1,41 @@
+{
+  "source": "path-gradient-square.emf",
+  "onlyChangedOffsets": [
+    32,
+    36
+  ],
+  "cases": [
+    {
+      "file": "frame-64p1.emf",
+      "frameHundredthsMillimetre": 1696,
+      "raw96DpiPixels": 64.1007874015748,
+      "sha256": "5998413eef2aaf7a07ccabc75fa86b12077cf95cac9abfb4bcd0ec3920632d66",
+      "roundPlusOne": 65,
+      "ceilPlusOne": 66
+    },
+    {
+      "file": "frame-64p4.emf",
+      "frameHundredthsMillimetre": 1704,
+      "raw96DpiPixels": 64.40314960629921,
+      "sha256": "a7f1a5d55b21bc49bc3595780ee5b0115fd8108c0e08b8ea6eb80891c875ee5c",
+      "roundPlusOne": 65,
+      "ceilPlusOne": 66
+    },
+    {
+      "file": "frame-64p6.emf",
+      "frameHundredthsMillimetre": 1709,
+      "raw96DpiPixels": 64.59212598425196,
+      "sha256": "ebe9522b50c608d9c6cab799f9e0cdabaa0db4fa5d54402a702b797175c146a7",
+      "roundPlusOne": 66,
+      "ceilPlusOne": 66
+    },
+    {
+      "file": "frame-64p9.emf",
+      "frameHundredthsMillimetre": 1717,
+      "raw96DpiPixels": 64.89448818897638,
+      "sha256": "28e13b81bd43a4e3e4a5a66fe9954870188ac717f29ba2a51489ef68dbebc86f",
+      "roundPlusOne": 66,
+      "ceilPlusOne": 66
+    }
+  ]
+}
