@@ -6,9 +6,10 @@ import SwiftUI
 import TurtleGitCore
 
 private enum FinderWatchFailure:LocalizedError {
-    case duplicate, unavailable
+    case duplicate, unavailable, initialPublication(String)
     var errorDescription:String? {
         switch self {
+        case .initialPublication(let detail):return "The repository was saved, but Finder status could not be published.\n"+detail
         case .duplicate:return "This repository is already watched."
         case .unavailable:return "Finder repository watches are unavailable. Open Icon Overlays settings and retry."
         }
@@ -90,7 +91,7 @@ struct FinderWatchRow:Identifiable {
         rows=permissions.repositories.map { FinderWatchRow(id:$0.id,name:$0.name,path:$0.lastKnownPath,status:statuses[$0.id] ?? "Waiting") }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
     func restore() { guard active,!busy else { return };for value in permissions.repositories where sessions[value.id]==nil { attach(value.id) } }
-    private func attach(_ id:UUID) {
+    private func attach(_ id:UUID,scheduleInitial:Bool = true) {
         guard active else { return };sessions.removeValue(forKey:id)?.retire()
         do {
             let lease=try permissions.acquire(id,requireSecurityScope:requireScope,updatingRecord:false),session=Session(id:id,lease:lease,repository:try repositoryFactory(lease.url))
@@ -98,8 +99,8 @@ struct FinderWatchRow:Identifiable {
             sessions[id]=session
             session.scheduler=RepositoryEventRefresh(available:{ [weak self,weak session] in
                 guard let self,let session else { return false };return self.active && !self.busy && session.active && session.request==nil
-            },refresh:{ [weak self,weak session] in if let self,let session { await self.collect(session) } })
-            statuses[id]="Waiting";render();session.scheduler?.invalidate()
+            },refresh:{ [weak self,weak session] in if let self,let session { try? await self.collect(session) } })
+            statuses[id]="Waiting";render();if scheduleInitial {session.scheduler?.invalidate()}
         } catch { statuses[id]="Permission or repository unavailable: "+error.localizedDescription;render() }
     }
     private func install(_ session:Session,_ directories:[URL]) {
@@ -113,14 +114,14 @@ struct FinderWatchRow:Identifiable {
             };session.watched=directories
         } catch { statuses[session.id]="Monitoring unavailable: "+error.localizedDescription;render() }
     }
-    private func collect(_ session:Session) async {
-        guard active,session.active,sessions[session.id] === session,session.request==nil else { return }
-        let token=OperationCancellation();session.request=token;pendingOperations += 1;statuses[session.id]="Refreshing…";render()
+    private func collect(_ session:Session,cancellation:OperationCancellation? = nil,requirePublication:Bool = false) async throws {
+        guard active,session.active,sessions[session.id] === session,session.request==nil else { throw OperationCancellationFailure.cancelled }
+        let token=cancellation ?? OperationCancellation();session.request=token;pendingOperations += 1;statuses[session.id]="Refreshing…";render()
         defer { session.request=nil;pendingOperations -= 1;withExtendedLifetime(session.lease) {} }
         do {
             let policy=try statusPolicyProvider?()
             if let policy,policy.blockStatus,(policy.cacheMode == .shell || policy.cacheMode == .shellExtended),FinderStatusOperationLease.isBlocked() {
-                statuses[session.id]="Waiting for Git command completion";render();return
+                statuses[session.id]="Waiting for Git command completion";render();if requirePublication {throw FinderWatchFailure.initialPublication("Waiting for Git command completion. Retry Add to TurtleGit when the command finishes.")};return
             }
             let root=try await session.repository.discoverRoot(cancellation:token)
             guard session.lease.contains(root) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) }
@@ -130,9 +131,9 @@ struct FinderWatchRow:Identifiable {
                 if let old=permissions.repositories.first(where:{ $0.id==session.id }),old.lastKnownPath != root.path,let cache {
                     let previous=URL(fileURLWithPath:old.lastKnownPath,isDirectory:true)
                     try await removePublication(previous,cache:cache,cancellation:token)
-                    guard active,session.active,!token.isCancelled else { return };notify()
+                    guard active,session.active,!token.isCancelled else { throw OperationCancellationFailure.cancelled };notify()
                 }
-                guard active,session.active,!token.isCancelled else { return }
+                guard active,session.active,!token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 _ = try permissions.replace(session.id,with:session.lease.url);session.permissionReady=true;serviceRevision += 1;render()
             }
             var ticket:FinderPublicationTicket?
@@ -147,21 +148,25 @@ struct FinderWatchRow:Identifiable {
             } else {
                 result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),cancellation:token,watchReady:watchReady,policy:policy)
             }
-            guard active,session.active,!token.isCancelled,sessions[session.id] === session else { return }
+            guard active,session.active,!token.isCancelled,sessions[session.id] === session else { throw OperationCancellationFailure.cancelled }
             if let cache,let ticket {
                 let published=try await Task.detached { try cache.publish(ticket,snapshots:result.snapshots,cancellation:token) }.value
-                guard active,session.active,!token.isCancelled else { return }
-                if !published.published { statuses[session.id]="Refresh superseded";session.scheduler?.invalidate() }
+                guard active,session.active,!token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                if !published.published { statuses[session.id]="Refresh superseded";session.scheduler?.invalidate();if requirePublication {throw FinderWatchFailure.initialPublication("Refresh superseded. Retry Add to TurtleGit.")} }
                 else {
                     statuses[session.id]=result.failures.isEmpty ? "Updated" : "Updated; \(result.failures.count) child repositories unavailable"
                     if let failure=published.persistenceFailure {
                         statuses[session.id,default:"Updated"] += "; saved cache unavailable: "+failure
                     }
                     notify()
+                    if requirePublication,let failure=published.persistenceFailure {throw FinderWatchFailure.initialPublication(failure)}
+                    if requirePublication,!result.failures.isEmpty {
+                        throw FinderWatchFailure.initialPublication(result.failures.values.sorted().joined(separator:"\n"))
+                    }
                 }
-            } else { statuses[session.id]="Updated; Finder integration unavailable" }
+            } else { statuses[session.id]="Updated; Finder integration unavailable";if requirePublication {throw FinderWatchFailure.initialPublication("Finder integration is unavailable in this application.")} }
             render()
-        } catch { if active,session.active,!token.isCancelled { statuses[session.id]=error.localizedDescription;render() } }
+        } catch { if active,session.active,!token.isCancelled { statuses[session.id]=error.localizedDescription;render() };throw error }
     }
     func refresh(_ id:UUID) {
         guard active,!busy else { return };if let session=sessions[id] { session.scheduler?.invalidate() } else { attach(id) }
@@ -206,7 +211,7 @@ struct FinderWatchRow:Identifiable {
     /// Register a root using an already accepted live folder grant. Unlike the
     /// Settings Add action this must not silently discard a completed Clone
     /// while another watch mutation is draining.
-    @discardableResult func register(root:URL,access:RepositoryAccessLease,additionalFolders:[URL] = [],cancellation:OperationCancellation) async throws -> UUID {
+    @discardableResult func register(root:URL,access:RepositoryAccessLease,additionalFolders:[URL] = [],cancellation:OperationCancellation,awaitInitialPublication:Bool = false) async throws -> UUID {
         while busy {
             try cancellation.check();guard active else {throw FinderWatchFailure.unavailable}
             try await Task.sleep(nanoseconds:10_000_000)
@@ -230,7 +235,11 @@ struct FinderWatchRow:Identifiable {
             serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id);render()
             self.error=error.localizedDescription;throw error
         }
-        serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id);render()
+        serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id,scheduleInitial:!awaitInitialPublication);render()
+        if awaitInitialPublication {
+            guard let session=sessions[saved.id] else {throw FinderWatchFailure.initialPublication(statuses[saved.id] ?? "Repository access is unavailable.")}
+            try await collect(session,cancellation:cancellation,requirePublication:true)
+        }
         return saved.id
     }
     func remove(_ id:UUID) async {

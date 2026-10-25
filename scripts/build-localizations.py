@@ -162,7 +162,9 @@ def main():
     args=parser.parse_args()
     outputs=build()
     for path,data in outputs.items():
-        if args.write:path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+        if args.write:
+            path.parent.mkdir(parents=True,exist_ok=True)
+            if not path.exists() or path.read_bytes()!=data:path.write_bytes(data)
         elif not path.exists() or path.read_bytes()!=data:raise SystemExit('Regenerate localized labels: python3 scripts/build-localizations.py --write ('+str(path.relative_to(ROOT))+')')
     manifest=json.loads(outputs[MANIFEST]);print(json.dumps({'languages':len(manifest['languages'])+1,'keys':manifest['keys'],'mode':'write' if args.write else 'check'}))
 if __name__=='__main__':main()

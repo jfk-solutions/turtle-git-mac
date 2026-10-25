@@ -192,7 +192,7 @@ private enum TransportBatchPresentationContext {
         }
         if let present { present(panel, window, reply) }
         else if let window { panel.beginSheetModal(for: window, completionHandler: reply) }
-        else { panel.begin(completionHandler: reply) }
+        else { NSApp.activate(ignoringOtherApps:true);panel.begin(completionHandler: reply) }
     }
     private func finish(_ selected: URL?) {
         guard !completed else { return }; completed = true
@@ -892,7 +892,13 @@ private enum TransportBatchPresentationContext {
             else if loadSavedAccess && actionRoutingAccessEnabled {do {accessStore=try RepositoryAccessStore(storageURL:RepositoryAccessStore.defaultStorageURL)} catch {self.error=error.localizedDescription}}
             recentRepositories=accessStore?.repositories ?? []
         }
-        if finderWatches == nil {finderWatches=workspace?.finderWatches}
+        if finderWatches == nil {
+            finderWatches=workspace?.finderWatches
+            if finderWatches == nil,loadSavedAccess,actionRoutingAccessEnabled {
+                do {let manager=try FinderWatchManager.production();finderWatches=manager;manager.restore()}
+                catch {self.error="Watched repositories unavailable: "+error.localizedDescription}
+            }
+        }
     }
     /// The public Service opens a workspace, not an implicit Status operation.
     /// An unknown selection starts an explicit folder chooser before Git reads.
@@ -1559,7 +1565,7 @@ private enum TransportBatchPresentationContext {
         configureActionRouting()
         if finderWatches == nil && actionRoutingAccessEnabled {let manager=try FinderWatchManager.production();finderWatches=manager;manager.restore()}
         guard let store=accessStore,let watches=finderWatches else {throw RepositoryAccessFailure.securityScopeUnavailable}
-        _=try await watches.register(root:repository.root,access:access,additionalFolders:additionalFolders,cancellation:cancellation)
+        _=try await watches.register(root:repository.root,access:access,additionalFolders:additionalFolders,cancellation:cancellation,awaitInitialPublication:true)
         // A completed watch publication remains completed if Cancel arrives as
         // its receipt returns. Finish its paired recent record without recasting
         // the successful persistence as an unchanged/cancelled operation.
@@ -6083,7 +6089,7 @@ private enum FinderSelectionFailure: LocalizedError {
                 guard let self else { return };self.finish(value == .OK && !cancellation.isCancelled ? picker?.url : nil)
             }
             if let owner { picker.beginSheetModal(for:owner,completionHandler:completed) }
-            else { picker.begin(completionHandler:completed) }
+            else { NSApp.activate(ignoringOtherApps:true);picker.begin(completionHandler:completed) }
         }
     }
     private func finish(_ url:URL?) {

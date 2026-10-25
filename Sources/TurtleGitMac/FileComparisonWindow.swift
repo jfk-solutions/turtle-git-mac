@@ -2279,6 +2279,14 @@ private struct FileComparisonDialog: View {
     }
     private var textBody: some View {
         VStack(spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
+                Picker("Interface", selection: $curvedInterface) {
+                    Text("Classic").tag(false); Text("P4Merge-style").tag(true)
+                }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
+                    .accessibilityLabel("Interface")
+                    .disabled(model.busy || model.confirmingQuit)
+            }.padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 4)
             if !model.nativeToolbarInstalled {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)
@@ -2294,9 +2302,6 @@ private struct FileComparisonDialog: View {
             }.padding(10).disabled(model.busy || model.confirmingQuit)
             }
             HStack {
-                Picker("Interface", selection: $curvedInterface) {
-                    Text("Classic").tag(false); Text("P4Merge-style").tag(true)
-                }.frame(width: 230).disabled(model.busy || model.confirmingQuit)
                 Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit)
                 Spacer()
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.singleFileMode || model.filtering || model.alignment == nil)

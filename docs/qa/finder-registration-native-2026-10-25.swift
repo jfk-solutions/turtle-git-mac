@@ -24,6 +24,7 @@ private extension NSWindow {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL.resolvingSymlinksInPath(),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let provider=RegistrationBookmarks(),suite="TurtleGit.Registration."+UUID().uuidString,prefs:UserDefaults
         let recent:RepositoryAccessStore,watched:RepositoryAccessStore,manager:FinderWatchManager,workspace:RepositoryModel
+        let cache:FinderSnapshotStore
         let parent:NSWindow
         var clones=[CloneWindowController](),panels=0
         var other:GitRepository!,source:GitRepository!,third:GitRepository!
@@ -34,7 +35,8 @@ private extension NSWindow {
             recent=try RepositoryAccessStore(storageURL:root.appendingPathComponent("recents.json"),provider:provider)
             watched=try RepositoryAccessStore(storageURL:root.appendingPathComponent("watches.json"),provider:provider)
             let wrapper=root.appendingPathComponent("held-helper")
-            manager=FinderWatchManager(permissions:watched,cache:nil,requireScope:true,scopeProvider:provider,repositoryFactory:{GitRepository(root:$0,executable:wrapper,libgit2Configuration:.init(enabled:false))},notify:{})
+            cache=FinderSnapshotStore(url:root.appendingPathComponent("private-status.json"))
+            manager=FinderWatchManager(permissions:watched,cache:cache,requireScope:true,scopeProvider:provider,repositoryFactory:{GitRepository(root:$0,executable:wrapper,libgit2Configuration:.init(enabled:false))},notify:{})
             workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:URL(fileURLWithPath:CommandLine.arguments[2]),libgit2Configuration:.init(enabled:false))},finderWatches:manager,savedAccessStore:recent)
             workspace.requiresRepositoryScope=true;workspace.repositoryBookmarkProvider=provider;workspace.fileComparisonPreferences=prefs
             parent=NSWindow(contentRect:.init(x:-24000,y:-24000,width:800,height:600),styleMask:[.titled,.closable],backing:.buffered,defer:false);parent.isReleasedWhenClosed=false;parent.alphaValue=0;workspace.workspaceWindow=parent;parent.orderFront(nil)
@@ -57,6 +59,15 @@ private extension NSWindow {
               while [ "$#" -gt 0 ]; do
                 case "$1" in -C|-c|--git-dir|--work-tree) shift; shift;; --*) shift;; *) break;; esac
               done
+              if [ "${1-}" = status ] && [ -f \(quote(root.appendingPathComponent("fail-status").path)) ]; then
+                echo 'controlled first publication failure' >&2
+                exit 73
+              fi
+              if [ "${1-}" = status ] && [ -f \(quote(root.appendingPathComponent("hold-status").path)) ]; then
+                exec 9>\(quote(root.appendingPathComponent("owned-resource").path))
+                : >\(quote(started.path))
+                while [ ! -f \(quote(release.path)) ]; do /bin/sleep 0.02; done
+              fi
               if [ "${1-}" = rev-parse ] && [ -f \(quote(hold.path)) ]; then
                 exec 9>\(quote(root.appendingPathComponent("owned-resource").path))
                 : >\(quote(started.path))
@@ -68,7 +79,7 @@ private extension NSWindow {
             """
             let wrapper=root.appendingPathComponent("held-helper");try Data(shell.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
             other=try await repo("other");source=try await repo("source café");third=try await repo("third")
-            await manager.add(other.root);try await FinderRegistrationVerification.wait {manager.pendingOperations==0}
+            await manager.add(other.root);try await FinderRegistrationVerification.wait {manager.pendingOperations==0 && FinderSnapshot.readLive(from:cache.url)?.roots.contains(other.root.path)==true}
             try FinderRegistrationVerification.require(manager.rows.count==1 && manager.backgroundService==nil,"Private baseline watch missing or service enabled")
         }
         func submit(_ folder:URL)async throws {
@@ -82,7 +93,7 @@ private extension NSWindow {
         func cleanup()async throws {
             unblock();answer(.cancel);workspace.stopMonitoringForTermination()
             for clone in clones {clone.progressController?.model.invalidate();clone.progressController?.close();clone.model.invalidate();clone.close()}
-            manager.retire();parent.close()
+            await manager.shutdown();parent.close()
             try await FinderRegistrationVerification.wait {!workspace.hasPendingFinderServiceWork && !workspace.busy && manager.pendingOperations==0 && CloneWindowModel.activeOperations==0 && CloneProgressWindowModel.activeOperations==0 && CloneWindowController.activeChildReleases==0}
             prefs.removePersistentDomain(forName:suite)
         }
@@ -216,6 +227,25 @@ private extension NSWindow {
         try require(c.watched.repositories.contains{$0.lastKnownPath==c.source.root.path} && c.watched.repositories.contains{$0.id==originalWatch.id && $0.bookmark==originalWatch.bookmark},"Explicit Add did not retain exact new/unrelated watches")
         try require(c.manager.rows.contains{$0.path==c.source.root.path} && c.manager.backgroundService==nil,"Explicit Add did not publish owned watch status or enabled background mode")
     }
+    static func publication(_ c:Context)async throws {
+        let hold=c.root.appendingPathComponent("hold-status"),fail=c.root.appendingPathComponent("fail-status")
+        try Data().write(to:hold);defer {c.unblock();try? FileManager.default.removeItem(at:hold);try? FileManager.default.removeItem(at:fail)}
+        try await c.submit(c.source.root);c.answer(.OK)
+        try await wait {FileManager.default.fileExists(atPath:c.started.path)}
+        try require(c.workspace.busy && c.workspace.hasPendingFinderServiceWork && c.recent.repositories.isEmpty,"Add completed before actual first status read/publication")
+        try require(c.watched.repositories.contains{$0.lastKnownPath==c.source.root.path},"Accepted watch was not persisted before owned first publication")
+        c.unblock();try? FileManager.default.removeItem(at:hold)
+        try await wait {!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.manager.pendingOperations==0}
+        try require(c.workspace.error==nil && c.recent.repositories.contains{$0.lastKnownPath==c.source.root.path},"Successful first publication lost saved recent: \(c.workspace.error ?? "")")
+        let published=FinderSnapshot.readLive(from:c.cache.url)
+        try require(published?.roots.contains(c.source.root.path)==true && published?.roots.contains(c.other.root.path)==true,"Successful Add did not publish both actual repository roots")
+        try Data().write(to:fail)
+        try await c.submit(c.third.root);if c.permissionReply != nil {c.answer(.OK)}
+        try await wait {!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.manager.pendingOperations==0}
+        try require(c.workspace.error?.contains("controlled first publication failure")==true,"First collection failure was silently reported as Add success")
+        try require(c.watched.repositories.contains{$0.lastKnownPath==c.third.root.path} && !c.recent.repositories.contains{$0.lastKnownPath==c.third.root.path},"Failed publication lost captured saved watch or falsely completed recent pairing")
+        try require(c.workspace.root==nil && c.workspace.workspaceWindow===c.parent && c.manager.backgroundService==nil,"Headless publication adopted workspace or enabled background service")
+    }
     static func ownership(_ c:Context)async throws {
         try c.block();let mutating=Task {await c.manager.add(c.other.root)};defer {c.unblock()}
         try await wait {c.manager.busy && FileManager.default.fileExists(atPath:c.started.path)}
@@ -232,7 +262,7 @@ private extension NSWindow {
         NSApp.setActivationPolicy(.prohibited)
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.registrationOrder(_:relativeTo:))) {method_exchangeImplementations(original,replacement)}
         var context:Context?
-        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
+        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "publication":try await publication(c);case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
         catch {try? await context?.cleanup();fputs("Finder registration failed: \(error)\n",stderr);exit(1)}
     }
 }

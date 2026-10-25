@@ -99,6 +99,7 @@ import TurtleGitCore
             workspaceOpenHandoff.submit([try command.serviceURL(paths:captured.paths,alternateTool:captured.alternateTool)]);return
         }
         guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
+        if captured.action != .registerRepository {activateStandaloneApplication()}
         if startupReady,startupDelivered {
             let target=actionRoutingModel()
             guard !target.busy,!target.hasPendingRepositoryWork,!target.confirmingQuit,workspaceServiceHandler(target,captured) else {throw TurtleGitFinderServicesProvider.Failure.busy}
@@ -186,6 +187,7 @@ import TurtleGitCore
                 if ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains(url.absoluteString) {
                     requestWorkspace(openRepository:url.query == "open=repository")
                 } else if FinderRequest(url:url) != nil || url.isFileURL {
+                    if FinderRequest(url:url)?.action != .registerRepository {activateStandaloneApplication()}
                     workspaceOpenHandler(actionRoutingModel(),url)
                 } else {workspaceOpenHandler(repositoryModel,url)}
             }
@@ -209,7 +211,7 @@ import TurtleGitCore
             actionAppearance=appearance;actionSettingsService=service
             service.install(workspace:model,appearance:appearance)
         }
-        model.configureActionRouting(from:repositoryModel === model ? nil:repositoryModel,loadSavedAccess:false)
+        model.configureActionRouting(from:repositoryModel === model ? nil:repositoryModel)
         actionRepositoryModel=model
         model.onFinderRegistrationSaved={ [weak self,weak model] in
             guard let self,let model,self.actionRepositoryModel === model,!model.isRetired else{return}
@@ -231,10 +233,11 @@ import TurtleGitCore
             if self.actionRepositoryModel?.error == message {self.actionRepositoryModel?.error=nil}
             self.showNextActionError()
         }
-        actionErrorController=controller;controller.present(owner:nil)
+        actionErrorController=controller;activateStandaloneApplication();controller.present(owner:nil)
     }
     func requestWorkspace(openRepository:Bool = false) {
         guard acceptingOpenURLs,!confirmingQuit else{return}
+        activateStandaloneApplication()
         if isGeneralApplication,(presentWorkspace != nil || startupLaunchMode == .workspace) {
             pendingWorkspaceRepositoryChoice = pendingWorkspaceRepositoryChoice || openRepository
             let alreadyAttached=repositoryModel?.workspaceWindow != nil
@@ -353,6 +356,7 @@ import TurtleGitCore
         if startupLaunchMode == .actionOnly {requestWorkspace();return false}
         guard startupLaunchMode == .workspace else{return false}
         guard let presentWorkspace else { return true }
+        activateStandaloneApplication()
         // openWindow targets the single identified scene even when only a child
         // workflow is visible, or the user closed the workspace earlier.
         presentWorkspace()

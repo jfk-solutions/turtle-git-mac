@@ -92,6 +92,8 @@
 	<string>TurtleGitHelp.help</string>
 	<key>CFBundleHelpBookName</key>
 	<string>org.turtlegit.macos.help</string>
+	<key>LSUIElement</key>
+	<true/>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleIconFile</key>

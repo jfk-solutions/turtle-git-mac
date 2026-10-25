@@ -3084,9 +3084,14 @@ struct CommitDialog: View {
     var body: some View {
         let receipt=model.formReceipt
         return VStack(alignment: .leading, spacing: 10) {
-            Picker("Commit window", selection: Binding(get: { model.gitGuiInterface }, set: { model.setCommitInterface($0) })) {
-                Text("Classic").tag(false); Text("Git Gui-style staging").tag(true)
-            }.pickerStyle(.segmented).frame(maxWidth: 420).disabled(model.inputsBlocked || model.guiPatch?.busy == true)
+            HStack {
+                Spacer(minLength: 0)
+                Picker("Commit window", selection: Binding(get: { model.gitGuiInterface }, set: { model.setCommitInterface($0) })) {
+                    Text("Classic").tag(false); Text("Git Gui-style staging").tag(true)
+                }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
+                    .accessibilityLabel("Commit window")
+                    .disabled(model.inputsBlocked || model.guiPatch?.busy == true)
+            }
             if model.gitGuiInterface { guiWorkspace } else {
             Group {
                 CommitDestinationLayout {
