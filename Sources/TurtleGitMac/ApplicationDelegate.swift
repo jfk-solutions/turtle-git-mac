@@ -370,6 +370,7 @@ import TurtleGitCore
         if ExportWindowModel.activeReads > 0 || BranchTagWindowModel.activeReads > 0 || BranchTagWindowModel.activeCreations > 0 || MergeWindowModel.activeReads > 0 || ResetWindowModel.activeReads > 0 || SwitchWindowModel.activeReads > 0 || SubmoduleUpdateWindowModel.activeReads > 0 || SubmoduleWorkingLogSession.activeReads > 0 || SubmoduleUpdateProgressWindowModel.activeOperations > 0 || SubmoduleDiffWindowModel.activeReads > 0 || SubmoduleDiffWindowController.activeReleases > 0 { return .terminateCancel }
         if RequestPullWindowModel.activeOperations > 0 || RequestPullWindowController.activeReleases > 0 || sender.windows.compactMap({ $0.delegate as? RequestPullWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if FormatPatchWindowModel.activeOperations > 0 || FormatPatchWindowController.activeReleases > 0 { return .terminateCancel }
+        if RebaseCompletionMailWindowModel.activeOperations > 0 || RebaseCompletionMailWindowController.activeReleases > 0 { return .terminateCancel }
         if LocalGitCommandProgress.activeOperations > 0 { return .terminateCancel }
         if StatusWindowModel.activeOperations > 0 { return .terminateCancel }
         if MissingStagedFileRecoverySession.activeRequests > 0 { return .terminateCancel }
@@ -457,6 +458,7 @@ import TurtleGitCore
         if sender.windows.compactMap({ $0.delegate as? WorkingTreePatchWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? ImportPatchWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FormatPatchWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? RebaseCompletionMailWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeCreateWindowController }).contains(where: { $0.model.busy || $0.model.chooser.busy || $0.model.chooser.pickerTarget != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.contains(where: { $0.delegate is LFSFileOperationController }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? LFSLocksWindowController }).contains(where: { $0.model.busy || $0.model.showingProgress || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -491,6 +493,7 @@ import TurtleGitCore
         let inaccessibleDiagnostics = sender.windows.compactMap { $0.delegate as? InaccessibleRepositoryWindowController }
         let mailProgresses = sender.windows.compactMap { $0.delegate as? SendPatchProgressWindowController }
         let formatPatches = sender.windows.compactMap { $0.delegate as? FormatPatchWindowController }
+        let rebaseCompletionMails = sender.windows.compactMap { $0.delegate as? RebaseCompletionMailWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
         let exportsInProgress = sender.windows.compactMap { $0.delegate as? ExportProgressWindowController }
         let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
@@ -543,6 +546,7 @@ import TurtleGitCore
         for controller in requestPulls { controller.model.confirmingQuit = true }
         for controller in mailProgresses { controller.model.confirmingQuit = true }
         for controller in formatPatches { controller.model.confirmingQuit = true }
+        for controller in rebaseCompletionMails { controller.confirmingQuit = true }
         for controller in exports { controller.model.confirmingQuit = true }
         for controller in exportsInProgress { controller.model.confirmingQuit = true }
         for controller in stashSaves { controller.model.confirmingQuit = true }
@@ -668,6 +672,7 @@ import TurtleGitCore
             for controller in requestPulls { controller.model.confirmingQuit = false }
             for controller in mailProgresses { controller.model.confirmingQuit = false }
             for controller in formatPatches { controller.model.confirmingQuit = false }
+            for controller in rebaseCompletionMails { controller.confirmingQuit = false }
             for controller in exports { controller.model.confirmingQuit = false }
             for controller in exportsInProgress { controller.model.confirmingQuit = false }
             for controller in stashSaves { controller.model.confirmingQuit = false }
@@ -713,6 +718,7 @@ import TurtleGitCore
         let inaccessibleDiagnostics = sender.windows.compactMap { $0.delegate as? InaccessibleRepositoryWindowController }
         let mailProgresses = sender.windows.compactMap { $0.delegate as? SendPatchProgressWindowController }
         let formatPatches = sender.windows.compactMap { $0.delegate as? FormatPatchWindowController }
+        let rebaseCompletionMails = sender.windows.compactMap { $0.delegate as? RebaseCompletionMailWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
         let exportsInProgress = sender.windows.compactMap { $0.delegate as? ExportProgressWindowController }
         let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
@@ -740,6 +746,7 @@ import TurtleGitCore
         for controller in requestPulls { controller.model.confirmingQuit = true }
         for controller in mailProgresses { controller.model.confirmingQuit = true }
         for controller in formatPatches { controller.model.confirmingQuit = true }
+        for controller in rebaseCompletionMails { controller.confirmingQuit = true }
         for controller in exports { controller.model.confirmingQuit = true }
         for controller in exportsInProgress { controller.model.confirmingQuit = true }
         for controller in stashSaves { controller.model.confirmingQuit = true }
@@ -785,6 +792,7 @@ import TurtleGitCore
             for controller in requestPulls { controller.model.confirmingQuit = false }
             for controller in mailProgresses { controller.model.confirmingQuit = false }
             for controller in formatPatches { controller.model.confirmingQuit = false }
+            for controller in rebaseCompletionMails { controller.confirmingQuit = false }
             for controller in exports { controller.model.confirmingQuit = false }
             for controller in exportsInProgress { controller.model.confirmingQuit = false }
             for controller in stashSaves { controller.model.confirmingQuit = false }

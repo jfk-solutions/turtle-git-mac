@@ -19,11 +19,13 @@ child-operation guards also apply.
 
 Show Log, Push and Send Mail close Rebase and hand off to the existing native
 workflow for the same repository/access lease. Push uses HEAD, the completed
-branch's current source. Send Mail opens Format Patch with the upstream-to-branch
-range and Send Mail after create enabled. macOS requires the user to choose an
-output directory; export then opens the existing mail composer with attachments.
-It does not automatically send a message. This differs from upstream's immediate
-patch generation into the worktree before opening its mail workflow.
+branch's current source. The connected [completion export/mail family](REBASE-COMPLETION-MAIL-PARITY.md)
+replaces the earlier Format Patch option-form handoff with immediate export of
+the upstream-to-branch range into the repository and then the existing composer.
+A valid repository grant already covers this output directory. Opening the
+composer does not send a message. See that family's checkpoint for current
+implementation and validation; the original evidence below describes the older
+injected callback and standalone Format Patch capability.
 
 Restart Rebase reloads the normal chooser in the same native window, refreshing
 references rather than replaying the old plan. Rebase after Fetch retains its

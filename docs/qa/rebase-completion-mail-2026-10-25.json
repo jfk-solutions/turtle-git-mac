@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-25",
+  "base_revision": "1e65a568",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused-grouped-checkpoint-passed-full-parity-open",
+  "source_anchors": [
+    "AppUtils.cpp2495\u20132512 immediate repository format-patch range after Rebase",
+    "AppUtils.cpp2140\u20132167 actual output files, empty information and mail composer"
+  ],
+  "scope": [
+    "Direct completion range export into authorized repository using source defaults",
+    "Typed discovery from full actual stdout independent of visible log limits",
+    "Owned progress, cancellation, failure and empty results",
+    "Composer only after export drain, retained leases and late-owner/quit fences",
+    "Existing Finder/command transport workflow chain"
+  ],
+  "checks": {
+    "status": "cumulative-pass",
+    "core_group": [
+      "FormatPatchTests",
+      "FormatPatchCommandCompletionTests",
+      "FormatPatchExportTests"
+    ],
+    "new_core_methods": 5,
+    "planned_core_methods": 15,
+    "native_fixture": "docs/qa/rebase-completion-mail-native-2026-10-25.swift",
+    "native_runner": "scripts/test-rebase-completion-mail.py",
+    "native_families": [
+      "handoff",
+      "outcomes",
+      "ownership"
+    ],
+    "planned_native_pairs": 6,
+    "resources": {
+      "localizations_write": {
+        "languages": 38,
+        "keys": 1321
+      },
+      "help_write": {
+        "documents": 58,
+        "topics": 51,
+        "files": 80,
+        "bytes": 3877490
+      },
+      "localizations_check": {
+        "languages": 38,
+        "keys": 1321
+      },
+      "help_check": {
+        "documents": 58,
+        "topics": 51,
+        "files": 80,
+        "bytes": 3877490
+      }
+    },
+    "static_repairs_before_checks": [
+      "Public close now retires actual composer even when progress owner was hidden after export",
+      "Owned sheet-end resumes pending handoff rather than losing it",
+      "Removed invalid confirmingQuit access on preexisting Send Patch option model",
+      "Native fixture canonicalizes existing base before actual workspace root comparisons"
+    ],
+    "core_attempts": [
+      {
+        "log": "build/qa/rebase-completion-mail-core-2026-10-25.log",
+        "methods": 14,
+        "passed": 13,
+        "failed_methods": 1,
+        "assertion_failures": 3,
+        "seconds": 8.644,
+        "failure": "Prefix test assumed unquoted diff header despite existing fixture Unicode/newline tracked path",
+        "repair": "Assert both source prefixes in Git quoted a/file and b/file header; actual exports and parser passed"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-core-quoted-path-repair-2026-10-25.log",
+        "methods": 1,
+        "passed": 1,
+        "failed_methods": 0,
+        "seconds": 0.789
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-core-directory-repair-2026-10-25.log",
+        "methods": 5,
+        "passed": 5,
+        "failed_methods": 0,
+        "seconds": 3.148,
+        "scope": "Only affected FormatPatchExportTests including new actual Git precomposition regression"
+      }
+    ],
+    "core_distinct_cumulative_passed": 15,
+    "core_full_suite_run": false,
+    "debug_attempts": [
+      {
+        "log": "build/qa/rebase-completion-mail-debug-2026-10-25.log",
+        "result": "BUILD FAILED exit65",
+        "failure": "New controller was present for SwiftPM but missing from explicit checked Xcode source references",
+        "repair": "Add one source file with four project membership references; existing project.yml directory recipe already includes it"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-debug-source-repair-2026-10-25.log",
+        "result": "BUILD SUCCEEDED",
+        "configuration": "Debug arm64",
+        "notes": "Existing SDK/Swift warnings; not warning-free or distribution acceptance."
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-debug-refresh-repair-2026-10-25.log",
+        "result": "BUILD SUCCEEDED",
+        "configuration": "Debug arm64",
+        "scope": "Affected Mac integration repair, no Core changes or repeat of passing Core methods"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-debug-directory-repair-2026-10-25.log",
+        "result": "BUILD SUCCEEDED",
+        "configuration": "Debug arm64",
+        "scope": "Actual Core Unicode directory matching repair; Mac sources unchanged"
+      }
+    ],
+    "hosted_snapshot": {
+      "revision": "1e65a568",
+      "pages": {
+        "id": 40191635439,
+        "conclusion": "success"
+      },
+      "macOS": {
+        "id": 40191635482,
+        "status": "pending",
+        "conclusion": null
+      },
+      "scope": "One bounded read of preceding pushed revision, not a complete current-batch hosted CI result."
+    },
+    "native_attempts": [
+      {
+        "log": "build/qa/rebase-completion-mail-native-2026-10-25.log",
+        "case": "handoff",
+        "git": "/usr/bin/git",
+        "passed": false,
+        "pid": 34978,
+        "reaped": true,
+        "failure": "Timeout117 waiting setup real Rebase completion before export; fixture setup under diagnosis"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-native-handoff-diagnostic-2026-10-25.log",
+        "case": "handoff",
+        "git": "/usr/bin/git",
+        "passed": false,
+        "pid": 37805,
+        "reaped": true,
+        "diagnostic": "finished=true completedSuccessfully=true busy=true activePreparationReads=1 activeReplayOperations=0, noerror/question/sheet",
+        "failure": "Real workspace Rebase onChanged requests self refreshState; that read calls onChanged again, keeping owner busy and blocking completion",
+        "repair": "Remove self-refresh recurrence from originating model callback; retain sibling/window/workspace updates and explicit external mutation refreshes"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-native-refresh-repair-2026-10-25.log",
+        "case": "handoff",
+        "git": "/usr/bin/git",
+        "passed": false,
+        "pid": 42227,
+        "reaped": true,
+        "passed_stages": [
+          "Actual workspace Rebase finishes and drains",
+          "Actual embedded revision-file revert restoresbytes, keepsHEAD and drains queued local refresh",
+          "Completion Mail actionable; captured export range/source-default args accepted; composer absent while exportheld"
+        ],
+        "failure": "Timeout152 after exportrelease waiting actual composer; transition diagnostics pending"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-native-transition-diagnostic-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "outcomes",
+            "git": "/usr/bin/git",
+            "passed": true,
+            "pid": 42795
+          },
+          {
+            "case": "handoff",
+            "git": "/usr/bin/git",
+            "passed": false,
+            "pid": 42914
+          }
+        ],
+        "owned_receivers_reaped": [
+          42795,
+          42914
+        ],
+        "diagnostic": "Git printed NFC Caf\u00e9 output directory for NFD Cafe\u0301 actual argv (native workspace adoption); model received successful Git but exportedFiles strict byte directory prefix refused it",
+        "repair": "Core-only exact leaf preservation with canonical-equivalent directory prefix verified against accepted filesystem directory; new regression required"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-native-system-final-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "handoff",
+            "git": "/usr/bin/git",
+            "passed": true,
+            "pid": 45344
+          },
+          {
+            "case": "ownership",
+            "git": "/usr/bin/git",
+            "passed": true,
+            "pid": 45681
+          }
+        ],
+        "owned_receivers_reaped": [
+          45344,
+          45681
+        ],
+        "scope": "Rebuilt actual directory-prefix repair, real factory Rebase plus revision-file revert and actual composer handoff, close aftercomposer, ownership/quit; earlier unaffected system outcomes pass retained"
+      },
+      {
+        "log": "build/qa/rebase-completion-mail-native-bundled-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "handoff",
+            "git": "build/git-runtime/Git/bin/git",
+            "passed": true,
+            "pid": 45841
+          },
+          {
+            "case": "outcomes",
+            "git": "build/git-runtime/Git/bin/git",
+            "passed": true,
+            "pid": 46158
+          },
+          {
+            "case": "ownership",
+            "git": "build/git-runtime/Git/bin/git",
+            "passed": true,
+            "pid": 46276
+          }
+        ],
+        "owned_receivers_reaped": [
+          45841,
+          46158,
+          46276
+        ]
+      }
+    ],
+    "native_integration_repair": "Remove own Rebase refreshState from originating onChanged. Retain logs/status/Commit/workspace updates. Revision-file mutations explicitly queue one refresh; weak owned busy-false observer releases pending refresh after child drain. Existing external mutation refreshes retained.",
+    "directory_normalization_repair": "Exact/NFC/NFD directory prefix candidates admitted only matching captured POSIX dev/inode directory identity, checked before/after discovery. Leaf bytes unchanged; malformed/traversal/duplicate/invalidUTF8/nonregular files remain refused.",
+    "native_distinct_cumulative_passed_pairs": 6,
+    "owned_receivers_attempted_and_independently_absent": [
+      34978,
+      37805,
+      42227,
+      42795,
+      42914,
+      45344,
+      45681,
+      45841,
+      46158,
+      46276
+    ],
+    "cleanup": "All ten attempted receivers reaped and independently absent. Successful runner cases needed no owned helper cleanup fallback. No main app or XCTest process remains; unrelated OS-managed Finder extension host retained.",
+    "git_versions": {
+      "system": "2.54.0 (Apple Git-157)",
+      "bundled": "2.55.0"
+    },
+    "native_coverage": "Actual RepositoryModel factory Rebase completes, actual embedded revision revert preserves refresh and completion availability, direct source-default export enters actual SendMailWorkflow, and public close retires actual composer. Outcomes/ownership use real controller/Git exports with wrappers holding/failing after export; existing callbacks approve Start, acknowledge revision-revert information and capture presentation. All windows hidden; no email sent.",
+    "cache": "App objects linked after source/binary changes; fixture-only recompilation for concrete diagnostic repairs; unchanged fixture reused across final scenarios.",
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574,
+      "certified_complete": 0
+    },
+    "site": {
+      "log": "build/qa/rebase-completion-mail-site-2026-10-25.log",
+      "documents": 465,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Physical layout/focus/VoiceOver",
+    "Installed signed sandbox and minimum macOS/physical Intel acceptance",
+    "Current full hosted CI",
+    "Complete mail transport and Rebase/application parity",
+    "App Store distribution signing/export/submission",
+    "Actual Finder/command transport-chain invocation of this new successor beyond static conformance and workspace handoff"
+  ]
+}

@@ -608,6 +608,12 @@ stash-restoration workflow. Manual Rebase keeps its completion choices. Show log
 is also available for ordinary unnamed rows when the owner is available. See
 [live replay and completion](REBASE-LIVE-COMPLETION-PARITY.md).
 
+After a successful manual Rebase opened after Fetch, **Send Mail** exports the
+upstream-to-branch range into the repository and opens the composer with those
+patches. Empty ranges show information; failures retain their diagnostic and any
+patches already written. Review recipients and attachments before sending. See
+[completion export and mail](REBASE-COMPLETION-MAIL-PARITY.md).
+
 If a stopped message amendment fails while the tracked worktree and index are
 clean, **Retry** returns to the message editor so you can correct the problem.
 **Ignore** continues with the existing commit without repeating that amendment.

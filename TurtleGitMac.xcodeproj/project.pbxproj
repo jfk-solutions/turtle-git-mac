@@ -290,6 +290,7 @@
 		91035494CCDC3A8E494D50D6 /* GitDiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7659920C4236C2BDDFE7FC /* GitDiffEngine.swift */; };
 		917A6F3AD15CB48EDD3A82FD /* PrimaryCommandInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0E07642065156B7B7D1788 /* PrimaryCommandInvocation.swift */; };
 		91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3329485A1DA9D2066A853483 /* MessageCompletion.swift */; };
+		CCEFA540612CEAA403477C77 /* RebaseCompletionMailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298322EEFA8B08267DC9E8FD /* RebaseCompletionMailWindow.swift */; };
 		9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */; };
 		92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1D2D9DD08218C53951382F /* StatusListGroups.swift */; };
 		9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */; };
@@ -923,6 +924,7 @@
 		A72CA1F57921800C12336E06 /* MergeToolPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolPresentation.swift; sourceTree = "<group>"; };
 		A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateProgressWindow.swift; sourceTree = "<group>"; };
 		A903049DFE6395BCA1EB8078 /* SSHKeyGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGeneration.swift; sourceTree = "<group>"; };
+		298322EEFA8B08267DC9E8FD /* RebaseCompletionMailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseCompletionMailWindow.swift; sourceTree = "<group>"; };
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
 		AA554BDD79BBAD3E89EF3CD2 /* SupportReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReport.swift; sourceTree = "<group>"; };
 		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
@@ -1308,6 +1310,7 @@
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
 				B0ADAB5E1FCC13EE50B581A7 /* RebaseColumnLayout.swift */,
 				0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */,
+				298322EEFA8B08267DC9E8FD /* RebaseCompletionMailWindow.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
 				6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */,
 				0A48AB398ECFD8FB04FA6048 /* ReferenceFormControls.swift */,
@@ -2515,6 +2518,7 @@
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
 				6945355043AA95201E2EB4CD /* RebaseColumnLayout.swift in Sources */,
 				2F7C9D3158F3B1EA926CE15F /* RebaseReplayTable.swift in Sources */,
+				CCEFA540612CEAA403477C77 /* RebaseCompletionMailWindow.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,
 				10DEF02C4073108A457F85DC /* ReferenceBrowserWindow.swift in Sources */,
 				3F86914217C0BA99DCA54E80 /* ReferenceFormControls.swift in Sources */,

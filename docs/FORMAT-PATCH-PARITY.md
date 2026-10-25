@@ -344,3 +344,12 @@ options cases plus the remaining policy/streaming cases. No Core or successful
 workflow case was repeated for that fixture-only repair. Nine receivers including
 the failed attempt were reaped and their PIDs/groups independently checked absent.
 Existing hidden split-view and compiler warnings remain recorded.
+
+## Direct Rebase completion export — October 25, 2026
+
+Rebase after Fetch now has a separate [direct export/mail workflow](REBASE-COMPLETION-MAIL-PARITY.md).
+It uses the source range and repository directory without opening these editable
+options or inheriting their saved no-prefix choice. The shared Core export helper
+provides verified files from full stdout and normalizes both range endpoints for
+FETCH_HEAD. Ordinary Format Patch keeps its existing option/progress workflow.
+The connected checkpoint and remaining acceptance are recorded separately.

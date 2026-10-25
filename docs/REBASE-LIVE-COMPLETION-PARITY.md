@@ -77,6 +77,6 @@ claimed by this focused checkpoint.
 
 Physical scroll/focus/VoiceOver, full source layout and contrast, signed installed
 replay, minimum supported macOS, physical Intel, all custom/external plans and
-complete hosted integration remain open. Completion Send Mail retains its separate
-Format Patch/output-directory adaptation. Full Rebase, Cherry Pick and application
+complete hosted integration remain open. Completion Send Mail is covered separately by the
+[direct export/mail family](REBASE-COMPLETION-MAIL-PARITY.md). Full Rebase, Cherry Pick and application
 parity are not certified by this family.

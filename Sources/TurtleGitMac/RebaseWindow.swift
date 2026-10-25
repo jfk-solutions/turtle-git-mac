@@ -230,7 +230,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         }
         model.revisionFiles.window = window
         revisionFilePresenter=RevisionFileActionPresenter(model:model.revisionFiles,window:window)
-        model.revisionFiles.onFilesChanged={ [weak model] in model?.onChanged() }
+        model.revisionFiles.onFilesChanged={ [weak model] in model?.revisionFilesDidChange() }
 
         model.chooseConflictApplication = { [weak self] in await self?.chooseConflictLocation(application: true) }
         model.chooseConflictExport = { [weak self] in await self?.chooseConflictLocation(application: false) }
@@ -582,6 +582,7 @@ struct RebaseReferenceRequest {
     @Published var files: [CommitFile] = []
     let revisionFiles:RevisionComparisonWindowModel
     private var revisionFilesObservation:AnyCancellable?
+    private var revisionFilesBusyObservation:AnyCancellable?
     private var revisionMenuObservation: AnyCancellable?
     private var revisionBusyObservation: AnyCancellable?
     var revisionFilesAvailable:Bool { !revisionHistoryBlocked && !retired && !busy && !selectingSplit && !pickingCommits && pickingReference == nil && !revisionFiles.busy && revisionFiles.window?.attachedSheet == nil }
@@ -1493,6 +1494,10 @@ struct RebaseReferenceRequest {
                 self.pendingConfirmation == nil && self.confirmation == nil && !self.hasReplayQuestion && !self.confirmingReplayCancellation
         }
         revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        revisionFilesBusyObservation=revisionFiles.$busy.dropFirst().removeDuplicates().sink { [weak self] busy in
+            guard !busy else{return}
+            Task { @MainActor [weak self] in self?.loadPendingHandoff() }
+        }
         revisionMenuObservation = revisionMenuLog.objectWillChange.sink { [weak self] _ in
             guard let self else { return }; self.controlMenuGeneration = UUID(); self.objectWillChange.send()
         }
@@ -2214,6 +2219,11 @@ struct RebaseReferenceRequest {
                 selection=Set(entries.first.map{[$0.id]} ?? []);selectCommit()
             } catch {if !retired,referenceRefreshCancellation === token,!token.isCancelled {self.error=error.localizedDescription}}
         }
+    }
+    /// A revision-file child mutates outside the replay state publisher. Queue
+    /// one local refresh, released after that child's operation drains.
+    func revisionFilesDidChange() {
+        guard !retired else{return};pendingSessionRefresh=true;onChanged();loadPendingHandoff()
     }
     func refreshState() {
         guard !retired,pickingReference == nil,!selectingSplit,!pickingCommits else {return}

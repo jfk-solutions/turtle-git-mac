@@ -723,3 +723,8 @@ and the index remain clean. It records the failure durably, returns Retry to the
 editor, and scopes Ignore to the actual HEAD and stopped session. Initial selected
 conflict-commit failures keep their ordinary error path. The linked family records
 its own grouped verification and remaining acceptance limits.
+
+The [completion export/mail family](REBASE-COMPLETION-MAIL-PARITY.md) connects the
+after-Fetch Send Mail action directly to repository patch export and the existing
+composer, preserving source defaults and ownership through drain. Its validation
+and remaining limitations are recorded separately.

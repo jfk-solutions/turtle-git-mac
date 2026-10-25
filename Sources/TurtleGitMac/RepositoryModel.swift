@@ -130,6 +130,8 @@ extension StashRestoreWindowController:TransportBatchWindow {}
 extension MergeWindowController:TransportBatchWindow {}
 extension RequestPullWindowController:TransportBatchWindow {}
 extension FormatPatchWindowController:TransportBatchWindow {}
+extension RebaseCompletionMailWindowController:TransportBatchWindow {}
+extension RebaseCompletionMailWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canPresent}}
 private enum TransportBatchPresentationContext {
     @TaskLocal static var chain:RepositoryTransportBatchChain?
 }
@@ -420,6 +422,7 @@ private enum TransportBatchPresentationContext {
             for controller in resolveWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in synchronizationWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in rebaseCompletionMailWindows.values {controller.confirmingQuit=confirmingQuit}
             for controller in requestPullWindows.values {controller.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {
                 for session in fileComparisonSessions.values { session.cancel() }
@@ -475,6 +478,7 @@ private enum TransportBatchPresentationContext {
     private var requestPullWindows: [String: RequestPullWindowController] = [:]
     private var importPatchWindows: [String: ImportPatchWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
+    private(set) var rebaseCompletionMailWindows:[UUID:RebaseCompletionMailWindowController]=[:]
     private(set) var blameWindows = GitPathMap<BlameWindowController>()
     var blameRecentDocuments:BlameRecentDocuments?
     private var rebaseWindows: [String: RebaseWindowController] = [:]
@@ -715,7 +719,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true;for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -3539,6 +3543,18 @@ private enum TransportBatchPresentationContext {
         formatPatchWindows[key] = controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showRebaseCompletionMail(repository:GitRepository,access:RepositoryAccessLease?,preset:FormatPatchPreset,preferences:UserDefaults) {
+        guard !retired,!confirmingQuit else{return}
+        let id=UUID(),controller=RebaseCompletionMailWindowController(repository:repository,access:access,preset:preset,preferences:preferences)
+        controller.onClosed={ [weak self,weak controller] in
+            guard let self,let controller,self.rebaseCompletionMailWindows[id] === controller else{return}
+            self.rebaseCompletionMailWindows.removeValue(forKey:id)
+            self.refreshStatusWindows(repository.root)
+        }
+        rebaseCompletionMailWindows[id]=controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        controller.start()
+    }
     func configureBrowserRevisionPicker(_ controller:RepositoryBrowserWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
         controller.configureLogPicker={ [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
     }
@@ -4132,7 +4148,9 @@ private enum TransportBatchPresentationContext {
             self?.rebaseWindows.removeValue(forKey: root.path); onResult?(completed); onDismissed?()
         }
         controller.model.onChanged = { [weak self] in
-            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            // Rebase publishes its own accepted state before this notification.
+            // Feeding this back into refreshState re-enters onChanged forever.
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { Task { await self?.refresh() } }
         }
         controller.model.onShowStatus = { [weak self] in
@@ -4167,7 +4185,7 @@ private enum TransportBatchPresentationContext {
         controller.model.completionAutoStart = autoStart
         controller.model.onCompletedLog = onRequestedLog ?? { [weak self] in self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
         controller.model.onCompletedPush = { [weak self] source in self?.performTransportHandoff(transportChain,modal:true) {self?.showPush(repository: repository, access: access, source: source, preferences: inherited)} }
-        controller.model.onCompletedMail = { [weak self] preset in self?.performTransportHandoff(transportChain,modal:true) {self?.showFormatPatch(repository: repository, access: access, preset: preset, sendMail: true, preferences: inherited)} }
+        controller.model.onCompletedMail = { [weak self] preset in self?.performTransportHandoff(transportChain,modal:true) {self?.showRebaseCompletionMail(repository: repository, access: access, preset: preset, preferences: inherited)} }
         controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
         let revisionFiles=controller.model.revisionFiles
         revisionFiles.onFileLog={ [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision,preferences:inherited) }
