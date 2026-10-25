@@ -502,6 +502,14 @@ private enum TransportBatchPresentationContext {
     var patchDocumentPresentation: ((PatchWindowController) -> Void)?
     var configurePatchDocument: (PatchWindowController) -> Void = { _ in }
     var reviewPatchPreferences: UserDefaults = .standard
+    private(set) var inaccessibleWindows: [Data: InaccessibleRepositoryWindowController] = [:]
+    var inaccessiblePresentation: ((InaccessibleRepositoryWindowController) -> Void)?
+    var configureInaccessibleWindow: ((InaccessibleRepositoryWindowController) -> Void)?
+    var inaccessibleFolderPermission: ((URL, OperationCancellation) async throws -> RepositoryAccessLease?)?
+    var inaccessibleReadDiagnosis: ((GitRepository, OperationCancellation) async throws -> GitRepositoryDiagnosis)?
+    private var inaccessiblePreparations: [UUID: OperationCancellation] = [:]
+    private var inaccessibleFolderPrompts: [UUID: RepositoryMetadataPermissionPrompt] = [:]
+    static private(set) var activeInaccessiblePreparations = 0
     var finderPatchHandoff: FinderPatchHandoff? = .current
     private var finderPatchReceipts: [String] = []
     var reviewPatchPreparation: ((ReviewPatchWorkflow) -> Void)?
@@ -625,7 +633,7 @@ private enum TransportBatchPresentationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -703,7 +711,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -943,7 +951,7 @@ private enum TransportBatchPresentationContext {
         }
         throw RepositoryMetadataAccessFailure.tooManyDependencies
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner suppliedHandoffOwner: RepositoryWindowOwner? = nil, serviceCommand: FinderServiceCommand? = nil, servicePreferences:UserDefaults? = nil, onOpened: (() -> Void)? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner suppliedHandoffOwner: RepositoryWindowOwner? = nil, serviceCommand: FinderServiceCommand? = nil, servicePreferences:UserDefaults? = nil, onOpened: (() -> Void)? = nil, requestedLocation: URL? = nil) {
         let handoffOwner = suppliedHandoffOwner ?? (invocation?.request.action == .revisionGraph && invocation?.outputFile != nil ? CommandGraphOutputContext.current?.owner : nil)
         guard !busy, !confirmingQuit, !retired, handoffOwner?.cancellation.isCancelled != true else { onFinished?(false); return }
         let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
@@ -960,6 +968,8 @@ private enum TransportBatchPresentationContext {
         let ownerObserver=owner.map { NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:$0,queue:.main) { _ in cancellation.cancel() } }
         Task {
             var opened = false, holdsBusy = true
+            var diagnosticLocation = requestedLocation ?? selected?.paths.first ?? lease.url
+            var diagnosticAccess = lease
             defer { onFinished?(opened) }
             defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil;if holdsBusy { busy=false } };withExtendedLifetime((lease,handoffOwner)) {} }
             do {
@@ -973,7 +983,7 @@ private enum TransportBatchPresentationContext {
                     try cancellation.check()
                 } else { commandMessage = nil }
                 defer { withExtendedLifetime(messageAccess) {} }
-                let first = selected?.paths.first ?? lease.url
+                let first = requestedLocation ?? selected?.paths.first ?? lease.url
                 let submoduleLocation = invocation?.submoduleDiscoveryURL
                 var location = submoduleLocation ?? first
                 // Blame attributes the named Git blob. A symbolic-link leaf is
@@ -994,9 +1004,11 @@ private enum TransportBatchPresentationContext {
                         location = parent
                     }
                 }
+                diagnosticLocation = location
                 let prepared=try await prepareRepositoryMetadataAccess(at:location,primary:lease,cancellation:cancellation)
                 try cancellation.check();guard adoption==adoptionGeneration else { return }
                 var sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
+                diagnosticAccess = sessionAccess
                 var discoveredPermissionFolders=prepared.newFolders
                 let candidate = try makeRepository(location)
                 var serviceSelectionSnapshot:FinderSnapshot?
@@ -1022,8 +1034,10 @@ private enum TransportBatchPresentationContext {
                     guard let handoffOwner else{throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)}
                     let parentAccess=try await finderServiceRepositoryAccess(resolved,related:prepared.scopes,owner:handoffOwner,cancellation:cancellation)
                     sessionAccess=parentAccess.retainingRelatedScopes([lease]+prepared.scopes)
+                    diagnosticAccess = sessionAccess
                     let parentMetadata=try await prepareRepositoryMetadataAccess(at:resolved,primary:sessionAccess,cancellation:cancellation)
                     sessionAccess=sessionAccess.retainingRelatedScopes(parentMetadata.scopes)
+                    diagnosticAccess = sessionAccess
                     discoveredPermissionFolders += parentMetadata.newFolders
                     try cancellation.check();guard adoption==adoptionGeneration else{return}
                 }
@@ -1110,7 +1124,24 @@ private enum TransportBatchPresentationContext {
             } catch {
                 guard adoption == adoptionGeneration else { return }
                 restoreState()
-                if !(error is RepositorySettingsContextRefusal), !cancellation.isCancelled { self.error=error.localizedDescription }
+                let originalError = error
+                var showedDiagnosis = false
+                if !(originalError is RepositorySettingsContextRefusal), !(originalError is RepositoryAccessFailure),
+                   !retired, !cancellation.isCancelled, diagnosticAccess.contains(diagnosticLocation),
+                   !requiresRepositoryScope || diagnosticAccess.hasSecurityScope {
+                    do {
+                        let failedRepository = try makeRepository(diagnosticLocation)
+                        let diagnostic: GitRepositoryDiagnosis
+                        if let read = inaccessibleReadDiagnosis { diagnostic = try await read(failedRepository, cancellation) }
+                        else { diagnostic = try await failedRepository.diagnoseRepositoryAccess(cancellation: cancellation) }
+                        guard adoption == adoptionGeneration, !retired, !cancellation.isCancelled else { return }
+                        if diagnostic.reason == .ownershipDenied || diagnostic.reason == .inaccessible {
+                            presentInaccessibleRepository(repository: failedRepository, access: diagnosticAccess, diagnosis: diagnostic)
+                            showedDiagnosis = true
+                        }
+                    } catch { /* Keep the original adoption error if diagnosis is unavailable. */ }
+                }
+                if !showedDiagnosis, !(originalError is RepositorySettingsContextRefusal), !cancellation.isCancelled { self.error=originalError.localizedDescription }
                 if !retired,monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
                 holdsBusy = false; busy=false
             }
@@ -1216,6 +1247,8 @@ private enum TransportBatchPresentationContext {
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .inaccessible:
+            guard let root else { return }; openInaccessibleRepository(root, invocation: nil, completion: nil)
         case .cat, .showCompare: error = "Use the command-line revision and destination options for this operation."
         case .commitIsOnRefs:
             if let repository { showCommandContainingReferences(repository: repository, access: activeAccess, revision: "") }
@@ -5672,11 +5705,87 @@ private enum TransportBatchPresentationContext {
         let controller = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: nil, title: title, preferences: preferences, onClosed: { [weak self] in self?.commandUnifiedWindows.removeValue(forKey: id) })
         commandUnifiedWindows[id] = controller
     }
+    private func presentInaccessibleRepository(repository: GitRepository, access: RepositoryAccessLease, diagnosis: GitRepositoryDiagnosis? = nil) {
+        guard !retired, !confirmingQuit else { return }
+        let key = Data(repository.root.path.utf8)
+        if let existing = inaccessibleWindows[key], !existing.model.retired {
+            if let inaccessiblePresentation { inaccessiblePresentation(existing) }
+            else { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil) }
+            if existing.model.available { existing.model.refresh() }; return
+        }
+        let controller = InaccessibleRepositoryWindowController(repository: repository, access: access, diagnosis: diagnosis)
+        if let read = inaccessibleReadDiagnosis { controller.model.readDiagnosis = { try await read(repository, $0) } }
+        configureInaccessibleWindow?(controller)
+        controller.model.onRetry = { [weak self, weak controller] in
+            guard let self, let controller, !self.retired, !self.busy, !self.confirmingQuit,
+                  self.inaccessibleWindows[key] === controller, controller.model.canRetry else { return }
+            // Source ends after trust; reopening is an explicit native action.
+            controller.close(); self.openSession(access, requestedLocation: repository.root)
+        }
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.inaccessibleWindows[key] === controller else { return }
+            self.inaccessibleWindows.removeValue(forKey: key)
+        }
+        inaccessibleWindows[key] = controller
+        if let inaccessiblePresentation { inaccessiblePresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        if diagnosis == nil { controller.model.refresh() }
+    }
+    /// Failed roots must not pass repository discovery just to show diagnostics.
+    private func openInaccessibleRepository(_ requested: URL, invocation: PrimaryCommandInvocation?, completion: ((Bool) -> Void)?) {
+        guard !retired, !busy, !confirmingQuit else { completion?(false); return }
+        guard requested.isFileURL, requested.path.hasPrefix("/"), !requested.path.utf8.contains(0) else {
+            error = "Select one inaccessible repository folder."; completion?(false); return
+        }
+        let id = UUID(), token = OperationCancellation(), originalWindow = workspaceWindow
+        inaccessiblePreparations[id] = token; Self.activeInaccessiblePreparations += 1
+        let observer = originalWindow.map { NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: $0, queue: .main) { _ in token.cancel() } }
+        Task { [self] in
+            defer {
+                if let observer { NotificationCenter.default.removeObserver(observer) }
+                inaccessiblePreparations.removeValue(forKey: id); inaccessibleFolderPrompts.removeValue(forKey: id)
+                Self.activeInaccessiblePreparations -= 1
+            }
+            do {
+                let lease: RepositoryAccessLease?
+                if let inaccessibleFolderPermission { lease = try await inaccessibleFolderPermission(requested, token) }
+                else if let activeAccess, activeAccess.contains(requested), !requiresRepositoryScope || activeAccess.hasSecurityScope { lease = activeAccess }
+                else if invocation != nil, let commandLineRepositoryPermission { lease = try commandLineRepositoryPermission([requested]) }
+                else if let stored = accessStore?.repositories.first(where: { RepositoryAccessLease.pathIsContained(requested, by: URL(fileURLWithPath: $0.lastKnownPath)) }), let accessStore {
+                    lease = try accessStore.acquire(stored.id, requireSecurityScope: requiresRepositoryScope, recordingOpen: false)
+                } else if !requiresRepositoryScope { lease = RepositoryAccessLease(url: requested, provider: repositoryBookmarkProvider) }
+                else {
+                    let prompt = RepositoryMetadataPermissionPrompt(); inaccessibleFolderPrompts[id] = prompt
+                    let selected = await prompt.chooseFolder(requested, explanation: "Allow TurtleGit to read this folder to diagnose Git access. This does not mark the repository as trusted.", owner: originalWindow, cancellation: token)
+                    lease = selected.map { RepositoryAccessLease(url: $0, provider: repositoryBookmarkProvider) }
+                }
+                try token.check()
+                guard !retired, !confirmingQuit, inaccessiblePreparations[id] === token, let lease else { completion?(false); return }
+                guard lease.contains(requested), !requiresRepositoryScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                // Sandbox denial can look like ENOENT: inspect the requested
+                // folder only after its retained authorization has been acquired.
+                var directory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: requested.path, isDirectory: &directory), directory.boolValue else {
+                    throw PrimaryCommandInvocation.Failure("Select one inaccessible repository folder.")
+                }
+                let repository = try makeRepository(requested)
+                presentInaccessibleRepository(repository: repository, access: lease); completion?(true)
+            } catch {
+                if !retired, !token.isCancelled { self.error = error.localizedDescription }; completion?(false)
+            }
+        }
+    }
     private func handleFinderRequest(_ request:FinderRequest, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandCancellation: OperationCancellation? = nil, commandRootOnly: Bool = false, completion: ((Bool) -> Void)? = nil) {
         var handedOff = false
         defer { if !handedOff { completion?(false) } }
         guard commandCancellation?.isCancelled != true else { return }
         let action = request.action
+        if action == .inaccessible {
+            guard request.paths.count == 1 else { error = "Select one inaccessible repository folder."; return }
+            handedOff = true
+            openInaccessibleRepository(request.paths[0], invocation: invocation, completion: completion)
+            return
+        }
         if action == .settings {
             let knownRoot = request.paths.first.flatMap { selected in
                 FinderSnapshot.readLive()?.roots.sorted { $0.count > $1.count }.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
@@ -5800,13 +5909,16 @@ private enum FinderSelectionFailure: LocalizedError {
     private var monitor:Task<Void,Never>?
     private var token:OperationCancellation?
     func choose(_ requirement:RepositoryMetadataAccessRequirement,owner:NSWindow?,cancellation:OperationCancellation) async -> URL? {
+        await chooseFolder(requirement.folder, explanation: requirement.explanation, owner: owner, cancellation: cancellation)
+    }
+    func chooseFolder(_ folder:URL,explanation:String,owner:NSWindow?,cancellation:OperationCancellation) async -> URL? {
         guard !cancellation.isCancelled,owner?.attachedSheet==nil else { return nil }
         token=cancellation
         let picker=NSOpenPanel();panel=picker
         picker.title="Allow repository folder access";picker.prompt="Allow Access"
-        picker.message=requirement.explanation+"\n\nSelect this folder, or a parent folder: "+requirement.folder.path
+        picker.message=explanation+"\n\nSelect this folder, or a parent folder: "+folder.path
         picker.canChooseDirectories=true;picker.canChooseFiles=false;picker.allowsMultipleSelection=false
-        picker.directoryURL=requirement.folder;picker.appearance=owner?.appearance;picker.alphaValue=owner?.alphaValue ?? 1
+        picker.directoryURL=folder;picker.appearance=owner?.appearance;picker.alphaValue=owner?.alphaValue ?? 1
         if let owner { observer=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:owner,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.cancel() } } }
         monitor=Task { [weak self] in
             while !cancellation.isCancelled,!Task.isCancelled { do { try await Task.sleep(nanoseconds:20_000_000) } catch { return } }

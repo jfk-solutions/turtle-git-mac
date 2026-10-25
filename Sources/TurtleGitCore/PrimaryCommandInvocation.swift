@@ -140,6 +140,7 @@ public struct PrimaryCommandInvocation: Sendable {
         }
         let action: RepositoryAction
         switch values["command"]?.lowercased() {
+        case "inaccessible": action = .inaccessible
         case "commit": action = .commit
         case "repostatus", "status": action = .status
         case "log": action = .log
@@ -371,7 +372,7 @@ public struct PrimaryCommandInvocation: Sendable {
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
-        if [.editConflict, .daemon, .clone, .initialize, .blame, .previousDiff, .rename, .export, .submoduleAdd, .cat, .showCompare, .worktreeCreate, .worktreeList, .requestPull, .settings].contains(action), urls.count != 1 {
+        if [.inaccessible, .editConflict, .daemon, .clone, .initialize, .blame, .previousDiff, .rename, .export, .submoduleAdd, .cat, .showCompare, .worktreeCreate, .worktreeList, .requestPull, .settings].contains(action), urls.count != 1 {
             throw Failure("This command requires one selected path.")
         }
     }

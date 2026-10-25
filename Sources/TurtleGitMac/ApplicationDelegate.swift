@@ -254,6 +254,7 @@ import TurtleGitCore
         if MergeExternalReloadCoordinator.activeRequests > 0 { return .terminateCancel }
         if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if RepositoryModel.activeInaccessiblePreparations > 0 || InaccessibleRepositoryWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? InaccessibleRepositoryWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.sourceExporter.hasPendingWork }) { return .terminateCancel }
         if MergeEditorOpenWorkflow.activeSaves > 0 || sender.windows.contains(where: { ($0.delegate as? FileComparisonWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? FileComparisonWindowController)?.preparingReplacement == true || ($0.delegate as? TextConflictWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? TextConflictWindowController)?.preparingReplacement == true || ($0.delegate as? WorkingTreePatchWindowController)?.preparingReplacement == true }) { return .terminateCancel }
         if RevertWindowModel.activeOperations > 0 || sender.windows.compactMap({$0.delegate as? RevertWindowController}).contains(where:{$0.model.hasChild || $0.model.commands.busy || $0.window?.attachedSheet != nil}) { return .terminateCancel }
@@ -463,6 +464,7 @@ import TurtleGitCore
         let clonesInProgress = sender.windows.compactMap { $0.delegate as? CloneProgressWindowController }
         let creations = sender.windows.compactMap { $0.delegate as? CreateRepositoryWindowController }
         let requestPulls = sender.windows.compactMap { $0.delegate as? RequestPullWindowController }
+        let inaccessibleDiagnostics = sender.windows.compactMap { $0.delegate as? InaccessibleRepositoryWindowController }
         let mailProgresses = sender.windows.compactMap { $0.delegate as? SendPatchProgressWindowController }
         let formatPatches = sender.windows.compactMap { $0.delegate as? FormatPatchWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
@@ -529,6 +531,7 @@ import TurtleGitCore
         for controller in bisects { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
+        for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = true }
         setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
         for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
@@ -616,6 +619,7 @@ import TurtleGitCore
             for add in adds { add.model.confirmingQuit = false }; for add in addProgress { add.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }
+            for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = false }
             setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
             for controller in controllers { controller.model.confirmingQuit = false }
             for controller in imports { controller.setQuitConfirmation(false) }
@@ -682,6 +686,7 @@ import TurtleGitCore
         let clonesInProgress = sender.windows.compactMap { $0.delegate as? CloneProgressWindowController }
         let creations = sender.windows.compactMap { $0.delegate as? CreateRepositoryWindowController }
         let requestPulls = sender.windows.compactMap { $0.delegate as? RequestPullWindowController }
+        let inaccessibleDiagnostics = sender.windows.compactMap { $0.delegate as? InaccessibleRepositoryWindowController }
         let mailProgresses = sender.windows.compactMap { $0.delegate as? SendPatchProgressWindowController }
         let formatPatches = sender.windows.compactMap { $0.delegate as? FormatPatchWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
@@ -735,6 +740,7 @@ import TurtleGitCore
         for controller in submoduleDiffs { controller.model.confirmingQuit = true }
         for controller in submoduleConflicts { controller.model.confirmingQuit = true }
         for controller in updateProgress { controller.model.confirmingQuit = true }
+        for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = true }
         setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
         Task {
             await manager?.shutdown();await repositoryModel?.shutdownFinderPublication()
@@ -772,6 +778,7 @@ import TurtleGitCore
             for controller in submoduleDiffs { controller.model.confirmingQuit = false }
             for controller in submoduleConflicts { controller.model.confirmingQuit = false }
             for controller in updateProgress { controller.model.confirmingQuit = false }
+            for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = false }
             setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
             confirmingQuit=false;replyToTermination(sender,true)
         }

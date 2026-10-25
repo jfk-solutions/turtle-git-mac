@@ -56,6 +56,6 @@ final class FinderLFSMailBatchTests: XCTestCase {
         }
         XCTAssertNil(FinderRequest(action: .lfs, paths: [URL(fileURLWithPath: "/repo")]).url)
         XCTAssertNil(FinderRequest(url: URL(string: "turtlegit://action?command=lfs&path=%2Frepo")!))
-        XCTAssertEqual(FinderMenuEntry.allCases.filter(\.availableInFinder).count, 55)
+        XCTAssertEqual(FinderMenuEntry.configurableCases.filter(\.availableInFinder).count, 55)
     }
 }

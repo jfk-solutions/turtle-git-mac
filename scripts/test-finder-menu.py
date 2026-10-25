@@ -4,7 +4,7 @@ import pathlib
 import platform
 import subprocess
 import tempfile
-from native_receiver import run_receiver
+from native_receiver import fingerprint, run_receiver
 
 root = pathlib.Path(__file__).resolve().parent.parent
 frameworks = root / 'build/Build/Products/Debug'
@@ -22,6 +22,7 @@ import TurtleGitCore
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
+            .inaccessible: "Inaccessible",
             .svnDCommit: "SVNDCommit", .svnRebase: "SVNRebase", .svnFetch: "SVNDFetch", .svnIgnore: "SVNIgnore",
             .lfs: "LFSMenu", .reviewPatch: "ApplyPatch", .sendMail: "Sendmail",
             .synchronize: "Sync", .previousDiff: "PrevDiff", .logSubmodule: "LogSubmoduleFolder", .blame: "Blame", .editConflict: "ConflictEditor", .settings: "Settings", .help: "Help", .about: "About",
@@ -87,6 +88,32 @@ import TurtleGitCore
             FinderMenuBuilder.make(paths: paths, snapshot: snapshot, settings: settings,
                 comparisonMark: mark, target: target, actionSelector: selector)
         }
+        // Diagnose a root that cannot enter the cache-backed repository loop.
+        // Source keeps this entry top-level and outside configurable menu rows.
+        let inaccessible = folder.appendingPathComponent("inaccessible", isDirectory: true)
+        try FileManager.default.createDirectory(at: inaccessible, withIntermediateDirectories: false)
+        try Data("gitdir: absent\n".utf8).write(to: inaccessible.appendingPathComponent(".git"))
+        var diagnosticPolicy=allCommands();diagnosticPolicy.extendedOnlyMask=FinderMenuEntry.allMask
+        for icons in [true,false] {
+            diagnosticPolicy.showIcons=icons
+            let menu=FinderMenuBuilder.make(paths:[inaccessible,tracked],snapshot:nil,settings:diagnosticPolicy,
+                comparisonMark:nil,target:target,actionSelector:selector)
+            let diagnostic=menu.items.filter {FinderShellMenuLayout.action($0) == .inaccessible}
+            precondition(diagnostic.count==1,"Inaccessible must remain a single top-level command without a cached root")
+            let item=diagnostic[0],command=item.representedObject as! FinderMenuCommand
+            precondition(item.isEnabled && item.target === target && item.action==selector)
+            precondition((item.image != nil)==icons)
+            let expected=FinderRequest(action:.inaccessible,paths:[inaccessible])
+            precondition(command.request.action == .inaccessible && command.request.paths.count==1 &&
+                         command.request.paths.map {Data($0.path.utf8)} == expected.paths.map {Data($0.path.utf8)} &&
+                         command.request.url == expected.url,"Only the normalized representative folder is captured")
+            precondition(!items(menu).contains {FinderShellMenuLayout.action($0) == .commit})
+        }
+        diagnosticPolicy.excludedPaths=inaccessible.path
+        let excludedDiagnostic=FinderMenuBuilder.make(paths:[inaccessible],snapshot:nil,settings:diagnosticPolicy,
+            comparisonMark:nil,target:target,actionSelector:selector)
+        precondition(!items(excludedDiagnostic).contains {FinderShellMenuLayout.action($0) == .inaccessible},"Global path exclusions also suppress diagnosis")
+        print("PASS Finder inaccessible entry: unknown root, forced top-level/unextended, original icon policy, one representative path and global exclusion; no extension activation or trust mutation.")
         for paths in [[untracked], [tracked], [conflict], [folder], [untracked, tracked], []] {
             let enabled = make(paths, settings: allCommands())
             let disabled = make(paths, settings: allCommands(showIcons: false))
@@ -580,13 +607,35 @@ import TurtleGitCore
     }
 }
 '''
+compiler = subprocess.check_output(['xcrun', 'swiftc', '--version'], text=True)
+sdk = subprocess.check_output(['xcrun', '--show-sdk-path'], text=True).strip()
+sdk_build = subprocess.check_output(['xcrun', '--show-sdk-build-version'], text=True).strip()
+target = platform.machine() + '-apple-macos13.0'
+flags = ['-swift-version', '6', '-parse-as-library', '-target', target,
+         '-sdk', sdk, '-F', str(frameworks), '-framework', 'TurtleGitCore',
+         '-framework', 'FinderSync', '-Xlinker', '-rpath', '-Xlinker', str(frameworks)]
+inputs = [pathlib.Path(__file__).resolve(), root / 'scripts/native_receiver.py', root / 'FinderSync/FinderSync.swift']
+inputs += sorted((root / 'Sources').rglob('*.swift'))
+core = frameworks / 'TurtleGitCore.framework'
+if not core.is_dir():
+    raise RuntimeError('Build the current Debug Core framework before Finder menu verification.')
+inputs += [path for path in core.rglob('*') if path.is_file() and not path.is_symlink()]
+settings = dict(version=1, architecture=platform.machine(), target=target,
+                compiler=compiler, sdk=sdk, sdk_build=sdk_build, flags=flags, driver=driver)
+generation = root / 'build/qa/native-receivers/finder-menu' / fingerprint(inputs, settings)
+generation.mkdir(parents=True, exist_ok=True)
+binary = generation / 'finder-menu-check'
+if not binary.is_file():
+    with tempfile.TemporaryDirectory(prefix='compile-', dir=generation) as staging:
+        staging = pathlib.Path(staging)
+        main = staging / 'main.swift'; main.write_text(driver)
+        output = staging / binary.name
+        subprocess.run(['xcrun', 'swiftc', *flags, str(root / 'FinderSync/FinderSync.swift'),
+                        str(main), '-o', str(output)], cwd=root, check=True, timeout=300)
+        output.replace(binary)
+    print('Native QA: compiled current Finder menu receiver.', flush=True)
+else:
+    print('Native QA: reused unchanged Finder menu receiver.', flush=True)
 with tempfile.TemporaryDirectory(prefix='TurtleGitFinderMenuTest-') as directory:
     folder = pathlib.Path(directory)
-    main = folder / 'main.swift'; main.write_text(driver)
-    binary = folder / 'finder-menu-check'
-    subprocess.run(['xcrun', 'swiftc', '-swift-version', '6', '-parse-as-library',
-                    '-target', platform.machine() + '-apple-macos13.0',
-                    '-F', str(frameworks), '-framework', 'TurtleGitCore', '-framework', 'FinderSync',
-                    '-Xlinker', '-rpath', '-Xlinker', str(frameworks),
-                    str(root / 'FinderSync/FinderSync.swift'), str(main), '-o', str(binary)], check=True)
     run_receiver([str(binary), str(folder / 'fixture'), str(root / 'docs/upstream-shell-menu-order.json'), str(frameworks/'TurtleGitMac.app/Contents/PlugIns/TurtleGitFinder.appex')], cwd=root, check=True)

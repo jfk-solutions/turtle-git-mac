@@ -86212,6 +86212,40 @@
         }
       }
     },
+    "Inaccessible...": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unzugreifbar..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inaccessible..."
+          }
+        }
+      }
+    },
+    "Inaccessible…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unzugreifbar…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inaccessible…"
+          }
+        }
+      }
+    },
     "Include FETCH_HEAD in branch selection boxes": {
       "extractionState": "manual",
       "localizations": {

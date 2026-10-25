@@ -48,6 +48,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     case remove = "Remove"
     case removeKeep = "RemoveKeep"
     case revert = "Revert"
+    case inaccessible = "Inaccessible"
     case cleanup = "Cleanup"
     case lfs = "LFS"
     case switchBranch = "Switch"
@@ -105,6 +106,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
         case .remove: return 0x0000000000002000
         case .removeKeep: return 0x0000000004000000
         case .revert: return 0x0000000000000010
+        case .inaccessible: return 0x0010000000000000
         case .cleanup: return 0x0000000000000020
         case .lfs: return 0x1000000000000000
         case .switchBranch: return 0x0000000000000080
@@ -164,6 +166,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
         case .remove: return "Delete"
         case .removeKeep: return "Delete (keep local)"
         case .revert: return "Revert..."
+        case .inaccessible: return "Inaccessible..."
         case .cleanup: return "Clean up..."
         case .lfs: return "LFS"
         case .switchBranch: return "Switch/Checkout..."
@@ -223,6 +226,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
         case .remove: return "menudelete"
         case .removeKeep: return "menudelete"
         case .revert: return "menurevert"
+        case .inaccessible: return "menucleanup"
         case .cleanup: return "menucleanup"
         case .lfs: return "menulfs"
         case .switchBranch: return "menuswitch"
@@ -251,6 +255,9 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     public static let defaultTopMask = sync.mask | createRepo.mask | clone.mask | commit.mask
     public static let defaultExtendedMask = svnIgnore.mask | stashApply.mask | submoduleSync.mask
     public static let allMask = allCases.reduce(UInt64(0)) { $0 | $1.mask }
+    /// SetLookAndFeelPage deliberately excludes the forced diagnostic command.
+    public static let configurableCases = allCases.filter { $0 != .inaccessible }
+    public static let configurableMask = configurableCases.reduce(UInt64(0)) { $0 | $1.mask }
     /// One preference controls every command sharing the source menu ID.
     public static func entry(for action: RepositoryAction) -> Self? {
         switch action {
@@ -296,6 +303,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
         case .remove: return .remove
         case .removeKeep: return .removeKeep
         case .revert: return .revert
+        case .inaccessible: return .inaccessible
         case .clean: return .cleanup
         case .switchBranch: return .switchBranch
         case .merge, .mergeAbort: return .merge

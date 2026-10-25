@@ -10,8 +10,8 @@ final class FinderContextMenuSettingsTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let source = try JSONDecoder().decode(Source.self, from: Data(contentsOf: root.appendingPathComponent("docs/upstream-context-menu-settings.json")))
         XCTAssertEqual(source.upstreamCommit, "7338078f8ddd924b8cddee35f512f2286072136d")
-        XCTAssertEqual(source.rows.count, 55); XCTAssertEqual(FinderMenuEntry.allCases.map(\.rawValue), source.rows.map(\.key))
-        for (entry, row) in zip(FinderMenuEntry.allCases, source.rows) {
+        XCTAssertEqual(source.rows.count, 55); XCTAssertEqual(FinderMenuEntry.configurableCases.map(\.rawValue), source.rows.map(\.key))
+        for (entry, row) in zip(FinderMenuEntry.configurableCases, source.rows) {
             XCTAssertEqual(entry.mask, UInt64(row.mask.dropFirst(2), radix: 16))
             XCTAssertEqual(entry.title, row.title); XCTAssertEqual(entry.iconResource, row.icon)
             let image = try XCTUnwrap(entry.image(), entry.rawValue)

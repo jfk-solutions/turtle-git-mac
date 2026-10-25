@@ -179,7 +179,7 @@ final class FinderMenuGroup: NSObject {
 /// Projection of pinned MenuInfo command order onto implemented Finder commands.
 enum FinderShellMenuLayout {
     static let groups: [[RepositoryAction]] = [
-        [.clone, .pull, .fetch, .push, .synchronize],
+        [.inaccessible, .clone, .pull, .fetch, .push, .synchronize],
         [.commit, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore],
         [.diff, .diffLater, .previousDiff],
         [.log, .logSubmodule, .reflog, .referenceBrowser, .daemon, .revisionGraph, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
@@ -248,6 +248,13 @@ enum FinderMenuBuilder {
         let creationDirectory = creationDirectory.flatMap { FinderRequest.normalizedSelection([$0]).first }.flatMap { paths.contains($0) ? $0 : nil }
         let submenu = NSMenu(title: "TurtleGit")
         submenu.autoenablesItems = false
+        // Source Inaccessible uses its representative folder even when the
+        // status cache cannot adopt it. It remains a request, never a grant.
+        if let selected=paths.first,FinderShellRules.allows(.inaccessible,flags:shellFlags) {
+            let item=NSMenuItem(title:captions.label(RepositoryAction.inaccessible.title),action:actionSelector,keyEquivalent:"")
+            item.image=image(RepositoryAction.inaccessible.icon);item.target=target
+            item.representedObject=FinderMenuCommand(action:.inaccessible,paths:[selected]);submenu.addItem(item)
+        }
         let creationActions = creationDirectory.map {
             FinderCreationMenuContext.read(directory: $0, snapshot: snapshot, extended: extended).actions
         } ?? (toolbar ? [.clone, .initialize] : [])
@@ -259,7 +266,7 @@ enum FinderMenuBuilder {
         let knownRepository = paths.first.flatMap { snapshot?.repositoryRoot(for: $0) } != nil
         let sharedRepository = snapshot?.commonRepositoryRoot(for: paths) != nil
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && $0 != .transferFiles && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .inaccessible && $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && $0 != .transferFiles && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
             guard (knownRepository || action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             if action == .diff && paths.count == 2 && paths.contains(where: { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) { continue }
             let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")

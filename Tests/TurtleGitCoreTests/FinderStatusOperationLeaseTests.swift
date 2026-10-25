@@ -55,7 +55,7 @@ final class FinderStatusOperationLeaseTests:XCTestCase {
         child.terminate();child.waitUntilExit();XCTAssertFalse(FinderStatusOperationLease.isBlocked(directory:dir))
     }
     func testInspectionCommandsNeverBlockTheirOwnCollectorsButMutationsDo() {
-        for arguments in [["status","--porcelain=v2"],["turtlegit-finder-status"],["turtlegit-local-refs"],["turtlegit-single-commit"],["-c","core.precomposeunicode=false","ls-files","-z"],["config","--get","core.ignorecase"],["branch","--show-current"],["submodule","status"],["worktree","list"]] {
+        for arguments in [["status","--porcelain=v2"],["turtlegit-repository-diagnosis"],["-C","/private/repository","turtlegit-repository-diagnosis"],["turtlegit-finder-status"],["turtlegit-local-refs"],["turtlegit-single-commit"],["-c","core.precomposeunicode=false","ls-files","-z"],["config","--get","core.ignorecase"],["branch","--show-current"],["submodule","status"],["worktree","list"]] {
             XCTAssertFalse(FinderStatusOperationLease.isCommandActivity(arguments),arguments.joined(separator:" "))
         }
         for arguments in [["commit","-m","test"],["add","--","path"],["turtlegit-prepare-index"],["config","--local","core.ignorecase","true"],["branch","-D","branch"],["custom-alias"],["-c","alias.status=reset","custom-alias"]] {

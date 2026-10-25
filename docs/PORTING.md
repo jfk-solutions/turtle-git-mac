@@ -1280,18 +1280,18 @@ top of this document retain failed attempts and the exact scope of later passes.
 
 ### Open work versus platform mappings
 
-One newly confirmed missing active workflow is **Inaccessible repository**:
-upstream `TortoiseShell/MenuInfo.cpp:29–30` exposes the command,
-`TortoiseShell/ContextMenu.cpp:964,1006–1011` preserves its inaccessible-root
-route, and `TortoiseProc/Commands/Command.cpp:294–296` constructs
-`InaccessibleCommand`. Its `Execute` at
-`TortoiseProc/Commands/InaccessibleCommand.cpp:25–77` diagnoses the failed root
-and conditionally offers an explicit global/XDG `safe.directory` trust action.
-Native Finder has an inaccessible-state flag, but the corresponding command,
-diagnostic/trust controls and recovery workflow are not implemented. Automatic
-retry/adoption would be an additional native adaptation, not source behavior.
-This is a real end-user gap, not a Windows-only resource or merely an acceptance
-task; finding it does not imply it is the only remaining workflow.
+The connected [Inaccessible repository workflow](INACCESSIBLE-REPOSITORY-PARITY.md)
+now has a native implementation: source-style Finder/command-line entry before
+adoption, unconditional typed libgit2 diagnosis, separate configuration-folder
+authorization and explicit exact-root trust, retained workspace/drafts, and owned
+Retry/Close/cancellation. The source anchors are `TortoiseShell/MenuInfo.cpp:29–30`,
+`TortoiseShell/ContextMenu.cpp:964,1006–1011,1300–1301`, and
+`TortoiseProc/Commands/{InaccessibleCommand.cpp:25–77,Command.cpp:465–488}`.
+Existing global/XDG entries are preserved; Retry reopens only the diagnosed root
+as an explicit native adaptation. The [grouped checkpoint](qa/inaccessible-repository-2026-10-25.json)
+records 83 distinct focused Core passes, eight native case/engine pairs, and
+affected Finder/Settings source checks. Physical installed Finder/sandbox grants and complete source acceptance
+remain separate; this does not imply it was the only remaining workflow.
 
 Confirmed implementation differences remain in the linked families; the table
 above is not an exhaustive missing-control inventory. Examples that must not be

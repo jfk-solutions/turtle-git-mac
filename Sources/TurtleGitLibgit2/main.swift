@@ -63,7 +63,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["turtlegit-notes-read","turtlegit-notes-write","turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["turtlegit-repository-diagnosis","turtlegit-notes-read","turtlegit-notes-write","turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -115,7 +115,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-notes-read" || command == "turtlegit-notes-write" || command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
+        if command == "turtlegit-repository-diagnosis" || command == "turtlegit-notes-read" || command == "turtlegit-notes-write" || command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -914,6 +914,21 @@ func run()throws->Int32{
     if historicalRequest != nil {
         options.inspection={row,raw in do{try context(raw).historicalGitlink(row);return 0}catch{output("Historical lookup: "+error.localizedDescription+"\n");return -1}}
     }
+    if args.command == "turtlegit-repository-diagnosis" {
+        options.diagnosis={reason,code,klass,gitFile,message,workdir,gitdir,raw in
+            do {
+                guard !cancelled(),(0...3).contains(reason),(0...1).contains(gitFile) else{try refuse("Invalid repository diagnosis")}
+                let owner=context(raw)
+                let object:[String:Any]=["reason":reason,"errorCode":code,"errorClass":klass,"gitFile":gitFile==1,
+                    "detail":try owner.notificationString(message),
+                    "workdir":try workdir.map{try owner.notificationString($0) as Any} ?? NSNull(),
+                    "gitdir":try gitdir.map{try owner.notificationString($0) as Any} ?? NSNull()]
+                let data=try JSONSerialization.data(withJSONObject:object,options:.sortedKeys)
+                guard data.count<=2_097_152 else{try refuse("Repository diagnosis exceeds bounds")}
+                try FileHandle.standardOutput.write(contentsOf:Data(("TurtleGit RepositoryDiagnosis v1:"+data.base64EncodedString()+"\n").utf8));return 0
+            }catch{output("Repository diagnosis: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     if revisionRequest != nil {
         options.inspection={row,raw in do{try context(raw).revisionLookup(row);return 0}catch{output("Revision lookup: "+error.localizedDescription+"\n");return -1}}
     }
@@ -986,6 +1001,7 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if args.command == "turtlegit-repository-diagnosis" {return tg_repository_diagnosis(args.directory,&options)}
         if let request=notesRequest{return tg_notes(args.directory,request.revision,request.notesRef,request.text,args.command=="turtlegit-notes-write" ? 1:0,&options)}
         if let request=historicalRequest{return tg_historical_gitlink(args.directory,request.revision,request.path,request.commitOnly ? 1:0,&options)}
         if let request=revisionRequest{return tg_revision_lookup(args.directory,request.value,request.requirement,request.operation=="reference" ? 1:0,&options)}

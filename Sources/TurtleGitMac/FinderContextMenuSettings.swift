@@ -66,12 +66,12 @@ import TurtleGitCore
     func accepts(_ context: EditContext) -> Bool { !retired && !applying && livePage == context.page && self.context(context.page) == context }
     func mask(_ page: Page) -> UInt64 { page == .extended ? draft.extendedOnlyMask : draft.topLevelMask }
     func set(_ entry: FinderMenuEntry, checked: Bool, context: EditContext, expectedMask: UInt64? = nil) {
-        guard accepts(context), entry.availableInFinder, expectedMask == nil || expectedMask == mask(context.page) else { return }
+        guard accepts(context), entry != .inaccessible, entry.availableInFinder, expectedMask == nil || expectedMask == mask(context.page) else { return }
         draft.set(entry, checked: checked, extendedOnly: context.page == .extended); error = nil; notice = nil
     }
     func selectAll(_ checked: Bool, context: EditContext, expectedMask: UInt64) {
         guard accepts(context), mask(context.page) == expectedMask else { return }
-        let value = checked ? expectedMask | FinderMenuEntry.allMask : expectedMask & ~FinderMenuEntry.allMask
+        let value = checked ? expectedMask | FinderMenuEntry.configurableMask : expectedMask & ~FinderMenuEntry.configurableMask
         if context.page == .extended { draft.extendedOnlyMask = value } else { draft.topLevelMask = value }
         error = nil; notice = nil
     }
@@ -140,7 +140,7 @@ struct FinderContextMenuSettingsPage: View {
                         .fixedSize(horizontal: false, vertical: true)
                     FinderMenuSettingsList(model: model, page: page).frame(height: extendedOnly ? 360 : 220)
                     HStack {
-                        MenuSelectAllButton(mask: mask, allMask: FinderMenuEntry.allMask) { checked in
+                        MenuSelectAllButton(mask: mask, allMask: FinderMenuEntry.configurableMask) { checked in
                             model.selectAll(checked, context: context, expectedMask: mask)
                         }.fixedSize().disabled(!model.accepts(context))
                         Spacer()
@@ -219,25 +219,25 @@ struct FinderMenuSettingsList: NSViewRepresentable {
         private var captured: FinderContextMenuSettingsModel.EditContext?
         private(set) var mask: UInt64 = 0
         init(model: FinderContextMenuSettingsModel, page: FinderContextMenuSettingsModel.Page) { self.model = model; self.page = page }
-        func numberOfRows(in tableView: NSTableView) -> Int { FinderMenuEntry.allCases.count }
+        func numberOfRows(in tableView: NSTableView) -> Int { FinderMenuEntry.configurableCases.count }
         func update() {
             guard live, let model, let table else { return }
-            NativeListSelection.install(on:table,preferences:model.defaults,primaryColumn:table.tableColumns.first,labelText:{row in FinderMenuEntry.allCases.indices.contains(row) ? FinderMenuEntry.allCases[row].title:nil},leadingInset:26)
+            NativeListSelection.install(on:table,preferences:model.defaults,primaryColumn:table.tableColumns.first,labelText:{row in FinderMenuEntry.configurableCases.indices.contains(row) ? FinderMenuEntry.configurableCases[row].title:nil},leadingInset:26)
             captured = model.context(page); mask = model.mask(page)
             let selected = table.selectedRow
             table.reloadData()
-            if selected >= 0 && selected < FinderMenuEntry.allCases.count { table.selectRowIndexes(IndexSet(integer: selected), byExtendingSelection: false) }
+            if selected >= 0 && selected < FinderMenuEntry.configurableCases.count { table.selectRowIndexes(IndexSet(integer: selected), byExtendingSelection: false) }
         }
         func toggleSelected() {
-            guard let table, table.selectedRow >= 0, table.selectedRow < FinderMenuEntry.allCases.count else { return }
-            choose(FinderMenuEntry.allCases[table.selectedRow], checked: mask & FinderMenuEntry.allCases[table.selectedRow].mask == 0)
+            guard let table, table.selectedRow >= 0, table.selectedRow < FinderMenuEntry.configurableCases.count else { return }
+            choose(FinderMenuEntry.configurableCases[table.selectedRow], checked: mask & FinderMenuEntry.configurableCases[table.selectedRow].mask == 0)
         }
         private func choose(_ entry: FinderMenuEntry, checked: Bool) {
             guard live, let model, let table, table.window != nil, table.window === model.window, let captured, model.accepts(captured) else { return }
             model.set(entry, checked: checked, context: captured, expectedMask: mask)
         }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            let entry = FinderMenuEntry.allCases[row], identifier = NSUserInterfaceItemIdentifier(entry.rawValue)
+            let entry = FinderMenuEntry.configurableCases[row], identifier = NSUserInterfaceItemIdentifier(entry.rawValue)
             let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? MenuRow ?? MenuRow(entry: entry)
             cell.identifier = identifier; cell.check.state = mask & entry.mask == 0 ? .off : .on
             cell.check.isEnabled = live && entry.availableInFinder && captured.map { model?.accepts($0) == true } == true

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
-  "catalog_sha256": "f02df7cc8f989522555df1619868bd69ec18d773e1c412e7cd6fdba46d27d126",
-  "keys": 1318,
+  "catalog_sha256": "442a644692ede86c2a316729debfea731e88487afdf6ee4ce3a8dcd0ef7721ee",
+  "keys": 1320,
   "languages": [
     {
       "id": "bg",
@@ -40,7 +40,7 @@
       "id": "de",
       "source": "Languages/Tortoise_de.po",
       "blob": "ccabc4dfd31b7f687b19e16c538cff834977533c",
-      "translated_keys": 1298,
+      "translated_keys": 1300,
       "ambiguous_keys_skipped": 22,
       "formatted_entries_skipped": 288
     },

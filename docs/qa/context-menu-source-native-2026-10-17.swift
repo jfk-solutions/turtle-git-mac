@@ -37,14 +37,17 @@ struct FinderMenuSourceVerification {
             notices += 1; notificationsCoherent = notificationsCoherent && FinderMenuSettings.read(from: shared) == FinderMenuSettings.from(defaults: prefs)
         })
         let unknown = (0..<64).map { UInt64(1) << $0 }.first { $0 & FinderMenuEntry.allMask == 0 }!
-        model.draft.topLevelMask |= unknown
+        model.draft.topLevelMask |= unknown | FinderMenuEntry.inaccessible.mask
         let initial = model.context(.primary), oldPaths = model.binding(\.excludedPaths, context: initial)
+        let forced = model.draft.topLevelMask
+        model.set(.inaccessible, checked: false, context: initial)
+        try require(model.draft.topLevelMask == forced, "Forced diagnostic was editable")
         model.set(.diff, checked: true, context: initial)
         let extended = model.draft.extendedOnlyMask
         model.selectAll(true, context: initial, expectedMask: model.mask(.primary))
-        try require(model.draft.topLevelMask == FinderMenuEntry.allMask | unknown && model.draft.extendedOnlyMask == extended, "Select all lost unknown/page bits")
+        try require(model.draft.topLevelMask == FinderMenuEntry.configurableMask | FinderMenuEntry.inaccessible.mask | unknown && model.draft.extendedOnlyMask == extended, "Select all lost unknown/page bits")
         model.selectAll(false, context: initial, expectedMask: model.mask(.primary))
-        try require(model.draft.topLevelMask == unknown, "Deselect all lost unknown bits")
+        try require(model.draft.topLevelMask == unknown | FinderMenuEntry.inaccessible.mask, "Deselect all lost unknown/forced bits")
         model.restore(context: initial)
         try require(model.draft.topLevelMask == FinderMenuEntry.defaultTopMask && model.draft.extendedOnlyMask == extended, "Restore changed another page")
         oldPaths.wrappedValue = "/stale/"
@@ -90,13 +93,13 @@ struct FinderMenuSourceVerification {
         try await wait { model.window === window && model.activePage == .primary && views(primary).contains { $0 is FinderMenuSettingsList.MenuTable } }
         guard let table = views(primary).compactMap({ $0 as? FinderMenuSettingsList.MenuTable }).first else { throw Failure(description: "Native source list missing") }
         try require(table.numberOfRows == 55 && table.headerView == nil && !table.allowsMultipleSelection, "Source list structure/count")
-        for entry in FinderMenuEntry.allCases { try require(entry.availableInFinder && entry.image() != nil, "Source icon/route missing: " + entry.rawValue) }
+        for entry in FinderMenuEntry.configurableCases { try require(entry.availableInFinder && entry.image() != nil, "Source icon/route missing: " + entry.rawValue) }
         try await wait { (table.view(atColumn: 0, row: 0, makeIfNecessary: false) as? FinderMenuSettingsList.MenuRow)?.check.isEnabled == true }
         guard let cell = table.view(atColumn: 0, row: 0, makeIfNecessary: true) as? FinderMenuSettingsList.MenuRow else { throw Failure(description: "Native checkbox row missing") }
         let before = model.mask(.primary), oldRow = cell.change
         cell.check.performClick(nil)
-        try require(model.mask(.primary) == before ^ FinderMenuEntry.allCases[0].mask && table.selectedRow == 0, "Native checkbox did not toggle/select original row: enabled=\(cell.check.isEnabled), attached=\(cell.check.window === window), cellWindow=\(String(describing: cell.window)), tableWindow=\(table.window === window), modelWindow=\(model.window === window), active=\(String(describing: model.activePage)), selected=\(table.selectedRow), before=\(before), after=\(model.mask(.primary)), state=\(cell.check.state.rawValue), tableFrame=\(table.frame)")
-        try await wait { cell.check.state == (model.mask(.primary) & FinderMenuEntry.allCases[0].mask == 0 ? .off : .on) }
+        try require(model.mask(.primary) == before ^ FinderMenuEntry.configurableCases[0].mask && table.selectedRow == 0, "Native checkbox did not toggle/select original row: enabled=\(cell.check.isEnabled), attached=\(cell.check.window === window), cellWindow=\(String(describing: cell.window)), tableWindow=\(table.window === window), modelWindow=\(model.window === window), active=\(String(describing: model.activePage)), selected=\(table.selectedRow), before=\(before), after=\(model.mask(.primary)), state=\(cell.check.state.rawValue), tableFrame=\(table.frame)")
+        try await wait { cell.check.state == (model.mask(.primary) & FinderMenuEntry.configurableCases[0].mask == 0 ? .off : .on) }
         try await wait { (NativeListSelection.originalDelegate(of:table) as? FinderMenuSettingsList.Coordinator)?.mask == model.mask(.primary) }
         guard let space = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: " ", charactersIgnoringModifiers: " ", isARepeat: false, keyCode: 49) else { throw Failure(description: "Native Space event missing") }
         table.keyDown(with: space)

@@ -72,6 +72,24 @@ exclusive, including an explicitly empty inline message. Message and issue prese
 survive initial template loading. A second invocation in the same process refuses
 to replace an existing Commit draft. Log invocations use independent windows.
 
+## Inaccessible repository diagnosis
+
+The `inaccessible` command opens a diagnostic for one selected repository folder
+without requiring successful repository adoption:
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=inaccessible \
+  --path '/absolute/repository'
+```
+
+It reports the library's repository-open result. Launching the command does not
+trust the folder or change configuration. When eligible, a separate explicit
+trust action adds that exact folder to Git's global `safe.directory` entries.
+The configuration directory may require its own macOS permission. Folder access
+and Git ownership trust are separate decisions. An explicit Retry reopens the
+selected repository; it does not accept the original Git operation. See the
+[source contract and current acceptance scope](INACCESSIBLE-REPOSITORY-PARITY.md).
+
 ## Permissions, lifetime and remaining parity
 
 Arguments carry requests, not sandbox permissions. Repository launches reuse an

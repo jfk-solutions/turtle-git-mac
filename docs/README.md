@@ -31,6 +31,7 @@ for baseline and update rules.
 - [List selection source comparison](LIST-SELECTION-PARITY.md)
 
 - [Choosing Finder status behavior](FINDER-STATUS-POLICY.md)
+- [Inaccessible repository diagnosis and explicit trust](INACCESSIBLE-REPOSITORY-PARITY.md)
 - [Finder status-policy source comparison](FINDER-STATUS-POLICY-PARITY.md)
 - [Getting started with TurtleGit for Mac](GETTING-STARTED.md)
 - [Help and the offline Mac manual](HELP.md)

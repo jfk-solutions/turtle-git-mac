@@ -211,6 +211,7 @@
 		66CF44BB23FCD175E3AAAF17 /* GitSVNAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C4600CE92C92F579616719 /* GitSVNAuthenticationPrompt.swift */; };
 		6744229F9015EB71878F57B5 /* GeneralSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2FB1E06EB9099598ACE6E4 /* GeneralSettings.swift */; };
 		678F61FE226855299DD616DB /* StatisticsChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F652716395D1C6B7B2071D5A /* StatisticsChartView.swift */; };
+		67A6725C87297ED553F62CC8 /* InaccessibleRepositoryWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 970DC70D912EB8F97EC6CBE8 /* InaccessibleRepositoryWindow.swift */; };
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
 		685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */; };
 		686B1F35B40207267BA9CCF3 /* SVNPromptWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CB356DE47836D1BE2F694D /* SVNPromptWindow.swift */; };
@@ -252,6 +253,7 @@
 		7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */; };
 		7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */; };
 		7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1559DC3926805ADF57166DCE /* CommitMessage.swift */; };
+		7E4C324CF9D7D2F0E4E30B97 /* GitRepositoryDiagnosis.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D803CE5C810999C99CE5DC /* GitRepositoryDiagnosis.swift */; };
 		7E6572D417D32FC2871A7AE9 /* MergeCommentProfiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FAB28527E314AA877C27D3 /* MergeCommentProfiles.swift */; };
 		8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */; };
 		805E34A3C95926C9E1244C75 /* CommitFileDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA4675C4521ED35D847FB62 /* CommitFileDrop.swift */; };
@@ -879,6 +881,7 @@
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeClipboard.swift; sourceTree = "<group>"; };
 		96E940ECCB7183AF9D421680 /* MessageEditorStylingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorStylingSession.swift; sourceTree = "<group>"; };
+		970DC70D912EB8F97EC6CBE8 /* InaccessibleRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InaccessibleRepositoryWindow.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		985A594AD651C7899145A75C /* UnifiedDiffCaseFold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffCaseFold.swift; sourceTree = "<group>"; };
 		98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSpelling.swift; sourceTree = "<group>"; };
@@ -1036,6 +1039,7 @@
 		E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertWindow.swift; sourceTree = "<group>"; };
 		E2B98C30D7BBA3C23B6F0643 /* GitBlamePresentationInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentationInteraction.swift; sourceTree = "<group>"; };
 		E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailMIME.swift; sourceTree = "<group>"; };
+		E2D803CE5C810999C99CE5DC /* GitRepositoryDiagnosis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepositoryDiagnosis.swift; sourceTree = "<group>"; };
 		E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphWindow.swift; sourceTree = "<group>"; };
 		E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteTagWindow.swift; sourceTree = "<group>"; };
 		E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProgressOutputState.swift; sourceTree = "<group>"; };
@@ -1232,6 +1236,7 @@
 				8B42920DE9933183EF4D9AD8 /* ImageLoadWindow.swift */,
 				8507AEE60EB25AB3DFDC1830 /* ImageWindowPresentation.swift */,
 				2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */,
+				970DC70D912EB8F97EC6CBE8 /* InaccessibleRepositoryWindow.swift */,
 				D4C6BF6E19AAE3084DA015CF /* InputWindow.swift */,
 				13FB95E04DD4B3286401A46C /* IssueProviderCredentials.swift */,
 				D7E6DA5F93A0F9287456B57C /* IssueProviderSettings.swift */,
@@ -1539,6 +1544,7 @@
 				0FD3BA5200E9573B839D215E /* GitRemoteAuthenticationPrompt.swift */,
 				32C763DEBF565EDBBEDECC38 /* GitReplayInspection.swift */,
 				F2E43773297420C7FDAE9748 /* GitRepository.swift */,
+				E2D803CE5C810999C99CE5DC /* GitRepositoryDiagnosis.swift */,
 				0B6BAF15EDEFC16EE8B836F4 /* GitResetNotifications.swift */,
 				84C2693689E5CF29E36E368D /* GitRevisionLookup.swift */,
 				E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */,
@@ -2188,6 +2194,7 @@
 				68F2FEFB068DF7A3FFDED9D0 /* GitRemoteAuthenticationPrompt.swift in Sources */,
 				EEE69E62649D079B5EC10C98 /* GitReplayInspection.swift in Sources */,
 				E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */,
+				7E4C324CF9D7D2F0E4E30B97 /* GitRepositoryDiagnosis.swift in Sources */,
 				88F1ECA1056605305D802D6B /* GitResetNotifications.swift in Sources */,
 				1228E2395F47936026DD26F4 /* GitRevisionLookup.swift in Sources */,
 				BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */,
@@ -2429,6 +2436,7 @@
 				3ECB98AE97E907C10D655116 /* ImageLoadWindow.swift in Sources */,
 				36CCF97A9662F8905E4612BA /* ImageWindowPresentation.swift in Sources */,
 				EB87E339AFB2D76B191B19BB /* ImportPatchWindow.swift in Sources */,
+				67A6725C87297ED553F62CC8 /* InaccessibleRepositoryWindow.swift in Sources */,
 				ED662E435F530B7A19153FBC /* InputWindow.swift in Sources */,
 				47BA36012EABE318429414FF /* IssueProviderCredentials.swift in Sources */,
 				2D9636CAF8ECE838038BF5F8 /* IssueProviderSettings.swift in Sources */,

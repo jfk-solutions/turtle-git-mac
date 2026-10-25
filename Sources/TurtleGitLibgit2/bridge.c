@@ -1238,6 +1238,29 @@ int tg_checkout_references(const char *path,tg_callbacks *callbacks){
  done:git_reference_free(ref);git_reference_iterator_free(iterator);git_repository_free(repo);return result;
 }
 
+/* Open failure is data for this explicit diagnosis, never an implicit trust
+ * override. Do not open parents or change libgit2's ownership policy. */
+int tg_repository_diagnosis(const char *path,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};git_repository *repo=NULL;
+ int result=0,reason=0,code=0,klass=0,gitfile=0;char *marker=NULL;const char *message="";struct stat st;
+ if(stopped(&ctx))return GIT_EUSER;
+ size_t length=strlen(path);if(length>SIZE_MAX-6)return -1;
+ marker=malloc(length+6);if(!marker)return -1;snprintf(marker,length+6,"%s/.git",path);
+ if(stat(marker,&st)==0){
+  gitfile=S_ISREG(st.st_mode);
+  if(!S_ISREG(st.st_mode)&&!S_ISDIR(st.st_mode)){
+   reason=3;code=GIT_ERROR;klass=GIT_ERROR_REPOSITORY;message="Repository .git marker is not a regular file or directory";goto emit;
+  }
+ }
+ code=git_repository_open_ext(&repo,path,GIT_REPOSITORY_OPEN_NO_SEARCH,NULL);
+ if(code<0){const git_error *error=git_error_last();klass=error?error->klass:0;message=error&&error->message?error->message:"Repository could not be opened";reason=code==GIT_EOWNER?1:code==GIT_ENOTFOUND?2:3;}
+ emit:
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if(!callbacks->diagnosis){result=-1;goto done;}
+ result=callbacks->diagnosis(reason,code,klass,gitfile,message,repo?git_repository_workdir(repo):NULL,repo?git_repository_path(repo):NULL,callbacks->payload);
+ done:free(marker);git_repository_free(repo);return result;
+}
+
 /* requirement: source object, existing object, commit, tree. Reference lookup
  * deliberately inspects the raw name, including dangling symbolic references. */
 int tg_revision_lookup(const char *path,const char *value,int requirement,int reference,tg_callbacks *callbacks){

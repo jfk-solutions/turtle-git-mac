@@ -58,6 +58,6 @@ final class GitSVNTests: XCTestCase {
         }
         XCTAssertFalse(FinderShellRules.allows(.svnRebase, flags: [.folderInGit, .gitSVN, .onlyOne, .merge]))
         XCTAssertTrue(FinderShellRules.allows(.svnFetch, flags: [.folderInGit, .gitSVN, .onlyOne, .merge]))
-        XCTAssertEqual(FinderMenuEntry.allCases.filter(\.availableInFinder).count, 55)
+        XCTAssertEqual(FinderMenuEntry.configurableCases.filter(\.availableInFinder).count, 55)
     }
 }

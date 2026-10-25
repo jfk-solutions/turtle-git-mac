@@ -73,8 +73,8 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
         guard valid else { throw GitConfigurationFailure.invalidValue }
         defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGit.FinderMenuSettings")
     }
-    public func visible(_ entry: FinderMenuEntry, extended: Bool) -> Bool { extended || extendedOnlyMask & entry.mask == 0 }
-    public func firstLevel(_ entry: FinderMenuEntry) -> Bool { topLevelMask & entry.mask != 0 }
+    public func visible(_ entry: FinderMenuEntry, extended: Bool) -> Bool { entry == .inaccessible || extended || extendedOnlyMask & entry.mask == 0 }
+    public func firstLevel(_ entry: FinderMenuEntry) -> Bool { entry == .inaccessible || topLevelMask & entry.mask != 0 }
     public mutating func set(_ entry: FinderMenuEntry, checked: Bool, extendedOnly: Bool) {
         if extendedOnly { extendedOnlyMask = checked ? extendedOnlyMask | entry.mask : extendedOnlyMask & ~entry.mask }
         else { topLevelMask = checked ? topLevelMask | entry.mask : topLevelMask & ~entry.mask }
@@ -138,10 +138,14 @@ public struct FinderCreationMenuContext: Sendable {
             var isDirectory: ObjCBool = false
             return fm.fileExists(atPath: url.appendingPathComponent(name).path, isDirectory: &isDirectory) && isDirectory.boolValue
         }
-        let bare = ["HEAD", "config"].allSatisfy {
+        let bareLayout = ["HEAD", "config"].allSatisfy {
             fm.fileExists(atPath: url.appendingPathComponent($0).path)
-        } && ["objects", "refs", "refs/heads"].allSatisfy(hasDirectory)
-        let inaccessible = values == nil || (fm.fileExists(atPath: url.appendingPathComponent(".git").path) && !known)
+        } && ["objects", "refs"].allSatisfy(hasDirectory)
+        let bare = bareLayout && hasDirectory("refs/heads")
+        // GitAdminDir::IsBareRepo reports invalidFormat for a repository-shaped
+        // folder whose refs/heads is not a directory (including reftable).
+        // Cache absence is only a menu heuristic; the app diagnoses afresh.
+        let inaccessible = values == nil || (!known && (fm.fileExists(atPath: url.appendingPathComponent(".git").path) || bareLayout && !bare))
         return Self(directory: folder, versioned: versioned && !bare, folderInGit: known && !bare, bare: bare,
                     ignored: ignored, inaccessible: inaccessible, extended: extended)
     }
@@ -387,6 +391,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
+    case inaccessible
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
@@ -395,6 +400,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .inaccessible: return "Inaccessible…"
         case .updateCheck: return "Check for Updates…"
         case .autotextTest: return "Autotext Tester…"
         case .introduction: return "Using TurtleGit for Mac…"
@@ -592,6 +598,7 @@ public struct FinderShellCondition: Sendable {
 }
 public enum FinderShellRules {
     public static let conditions: [RepositoryAction: [FinderShellCondition]] = [
+        .inaccessible: [.init([.inaccessible], [.inGit, .folderInGit, .bare]), .init([], []), .init([], []), .init([], [])],
         .svnDCommit: [.init([.inGit, .gitSVN], [.bisect, .merge]), .init([.folderInGit, .gitSVN], [.bisect, .merge]), .init([], []), .init([], [])],
         .svnRebase: [.init([.folderInGit, .gitSVN, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
         .svnFetch: [.init([.folderInGit, .gitSVN, .onlyOne], []), .init([], []), .init([], []), .init([], [])],

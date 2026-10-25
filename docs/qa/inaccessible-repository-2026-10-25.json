@@ -1,0 +1,863 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-family-checkpoint-passed-with-recorded-repairs",
+  "source": {
+    "pinned_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/TortoiseProc/Commands/InaccessibleCommand.cpp:25-77 unconditional library diagnosis; explicit ownership/gitfile exception and multivalue global/XDG append",
+      "src/TortoiseProc/Commands/Command.cpp:465-488 ordinary command failed library-open route",
+      "src/TortoiseShell/MenuInfo.cpp:29-30 Inaccessible command, Cleanup icon, mask 0x0010000000000000",
+      "src/TortoiseShell/ContextMenu.cpp:964,1006-1011,1300-1301 inaccessible selection and forced top-level placement"
+    ],
+    "git_configuration_reference": "https://git-scm.com/docs/git-config#Documentation/git-config.txt-safedirectory"
+  },
+  "implementation": {
+    "scope": [
+      "Pre-adoption typed repository diagnosis; unconditional selected packaged libgit2 helper independently of command master/mask.",
+      "Separate folder access and explicit exact-root safe.directory permission; no automatic exception, wildcard trust or original-operation retry.",
+      "Captured lexical configuration candidates permit sandbox authorization before filesystem target selection.",
+      "Authoritative global/HOME/XDG/GIT_CONFIG_GLOBAL selection, captured canonical file and root/symlink witnesses, exact confirmation and neutral-context --file append.",
+      "Preserved multivalue entries/reset markers/other configuration; real lock and cancellation errors, independent bounded post-failure completion inspection.",
+      "Owned native diagnosis/Copy/Refresh/Trust/Retry/close, failed-adoption retention, Finder and command-line entry paths."
+    ],
+    "public_core_apis": [
+      "diagnoseRepositoryAccess(environmentOverrides:cancellation:backend:) -> GitRepositoryDiagnosis",
+      "safeDirectoryConfigurationCandidates(_:) -> [URL]",
+      "prepareSafeDirectoryTrust(_:cancellation:) -> GitSafeDirectoryTrustPlan",
+      "addSafeDirectoryTrust(_:cancellation:) async -> GitSafeDirectoryTrustReceipt"
+    ],
+    "helper_verb": "turtlegit-repository-diagnosis",
+    "helper_wire": "TurtleGit RepositoryDiagnosis v1: canonical base64 JSON single line; exact reason/errorCode/errorClass/gitFile/detail/workdir/gitdir keys.",
+    "outcomes": [
+      "added",
+      "alreadyRecordedAfterFailure; completed append is retained even if cancellation or process failure followed the actual write",
+      "unchanged failure retains original diagnostic; uncertain recovery explicitly refuses rollback assumptions"
+    ],
+    "native_adaptations": [
+      "Native Retry is explicit; it reopens the selected repository, never silently replays the failed Commit/Push/etc.",
+      "Append uses the captured authoritative global file via --file, preventing a late --global selection/symlink change from writing beyond the authorized directory. The file remains protected global configuration on ordinary reads.",
+      "Canonical root is displayed explicitly; original selected symlink and canonical target identities are both fenced.",
+      "Literal directory names ending in /* are refused because Git interprets that value as broader recursive trust."
+    ]
+  },
+  "inputs": {
+    "production": [
+      {
+        "path": "Sources/TurtleGitCore/GitRepositoryDiagnosis.swift",
+        "sha256": "21dfe8591fdca20bc5aa173e1471f510d56e18df1399058fa9148601e30509c5"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/main.swift",
+        "sha256": "8124da9ac2a34e6d9c1553bc90ffdd188073f42273c07aaab371cad1b734c5d6"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.c",
+        "sha256": "66514c60ccda889a158f3262193e53a9e8d6544349766162cee1582ee6f19a8b"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.h",
+        "sha256": "99059280d37d940d02ae4342b1583c812268d82b3efdd3e62ca0943ccbe5e354"
+      },
+      {
+        "path": "Sources/TurtleGitCore/PrimaryCommandInvocation.swift",
+        "sha256": "1d9594e1c8cc023ea386b5476411cf9501e266611495399383ccd5dd488b223d"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderCache.swift",
+        "sha256": "e7ad2eb0c3e2ffee07573c1dc3c31861afdb116a6306694110ee52af197aa318"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderContextMenuSettings.swift",
+        "sha256": "24ca2055d441525e8b7515b052dd501db87e6b9a32f6f1765596c83bb4546b00"
+      },
+      {
+        "path": "Sources/TurtleGitCore/MenuIcons.swift",
+        "sha256": "6b60ad7dd4c61ec1b3d213e0c6aa8339d043f7d53f5e198a1c86eaef1457ec1c"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderStatusOperationLease.swift",
+        "sha256": "0dba127762a3ba8722f37d0f4882f6b405ce760014b57f790fd176ff03b78fee"
+      },
+      {
+        "path": "Sources/TurtleGitMac/InaccessibleRepositoryWindow.swift",
+        "sha256": "5ad359a2cbb5c9061a087d5a35a0eacd925be427b64f0fc65a2502d283074b67"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryModel.swift",
+        "sha256": "d61d47af97cda4ca7cc842b14488a1c259a4ef97b0f5cbf3f693f8da010c2a38"
+      },
+      {
+        "path": "Sources/TurtleGitMac/ApplicationDelegate.swift",
+        "sha256": "c49ffae747f0b821fef3c60f9b2fa3c0e9990d8b1b12be864fa59847225c237c"
+      },
+      {
+        "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+        "sha256": "ba209e1f2cc7d72d42ecd7f0a6a22a346731e85f8edb61d6cb816eaa2021e5d8"
+      },
+      {
+        "path": "FinderSync/FinderSync.swift",
+        "sha256": "0104c308a09e40510483d6040d12f5960ce2a5b88e2d68e1b2c7cbc393557531"
+      }
+    ],
+    "authored_checks": [
+      {
+        "path": "Tests/TurtleGitCoreTests/GitRepositoryDiagnosisTests.swift",
+        "sha256": "078c1633fed1c46cd98e23d5b6cab750a0997b06e167c782da3097a4dc7e1c12",
+        "initial_sha256": "2a4517c0ed5e072b93f2307498a3ff84f8c9383a86d81a5339ea84546dd413e2"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/InaccessibleEntryTests.swift",
+        "sha256": "e86f9064dd89afb67b155c70e9493e0cdb036b12968e97902e23660e30ec97e8"
+      },
+      {
+        "path": "docs/qa/inaccessible-repository-native-2026-10-25.swift",
+        "sha256": "b9c73996b3e5ecc4568523fa938ddf2248023df49b8fffc839adbfd0c0e6deb3"
+      },
+      {
+        "path": "scripts/test-inaccessible-repository.py",
+        "sha256": "e337c5881c64d4b1ae87fd9693a95dfbc62c350004a586894e49bc162031f408"
+      }
+    ]
+  },
+  "authored_core": {
+    "diagnosis_methods": [
+      "testActualLibgit2DiagnosisDoesNotRequirePriorOpenOrMasterPreference",
+      "testActualBareAndLinkedWorktreeDiagnosesKeepAccessibleGitfileUntrusted",
+      "testExplicitTrustUsesGlobalXDGAndOverrideTargetsWithoutReplacingEntries",
+      "testTrustPlanRejectsChangedRepositoryAndChangedGlobalSelection",
+      "testLockFailureAndPrecancelledTrustNeverChangeConfiguration",
+      "testCancelledAfterCommittedAppendReportsActualWriteWithoutDuplicateRetry",
+      "testRealMalformedGitfileOffersExplicitTrustWithoutPretendingToRepairItsContents",
+      "testCapturedRootSymlinkCannotBeRetargetedBeforeTrust",
+      "testMalformedDiagnosticAndWildcardRootNeverAcquireTrust"
+    ],
+    "diagnosis_count": 9,
+    "entry_methods": [
+      "testSourceDiagnosticIdentityAndForcedPlacementAreNotConfigurableRows",
+      "testSourceInaccessibleConditionsExcludeKnownRepositoryKinds",
+      "testUnknownGitMarkerProducesDiagnosticFlagsWithoutRunningGit",
+      "testUnwatchedBareLayoutAndInvalidRefsDirectoryFollowSourceDetection",
+      "testKnownCachedRootSuppressesDiagnosticEvenWithGitMarker",
+      "testCommandCapturesOneLiteralFolderWithoutTrustOrMutationArguments",
+      "testPathFileCardinalityAndCancellationDoNotDeleteRejectedSelection",
+      "testFinderEnvelopeRetainsUnknownSelectionAndConveysNoAutomaticTrust"
+    ],
+    "entry_count": 8,
+    "filters": [
+      "GitRepositoryDiagnosisTests",
+      "InaccessibleEntryTests"
+    ]
+  },
+  "actual_vs_controlled": {
+    "actual": [
+      "Real packaged libgit2 opening of accessible, missing, bare and linked-worktree repositories.",
+      "Real malformed regular .git file: libgit2 reports an inaccessible gitfile; explicit trust does not pretend to repair its contents.",
+      "Actual private Git config append/global selection, duplicates/reset preservation, configuration lock failure and cancellation after committed append.",
+      "Real native entry/presentation and private repositories, leases, preferences, configuration; injected native question/permission responses."
+    ],
+    "controlled": [
+      "The typed ownershipDenied path uses controlled strict helper frames; this does not establish real other-UID ownership handling on the host.",
+      "Malformed protocol/code/class fixtures prove invalid replies cannot become a trust receipt.",
+      "Native held callbacks test owner retirement and cancellation, not physical user gestures."
+    ]
+  },
+  "validation": {
+    "helper": {
+      "status": "passed",
+      "session": 45211,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/inaccessible-libgit2-build-2026-10-25.log",
+        "sha256": "7b34f235bb3cb439946bc339ced6fd594436f049fa9bb53919a380086167e34f"
+      },
+      "scope": "Universal macOS13 helper rebuilt; exact pinned libgit2 static arm64/x86_64 slices reused; structural bundled dependency/license validation passed. This is not a behavioral Core/native pass."
+    },
+    "core": {
+      "status": "cumulatively-passed-after-fixture-repairs",
+      "session": 25159,
+      "exit_code": 1,
+      "log": {
+        "path": "build/qa/inaccessible-core-2026-10-25.log",
+        "sha256": "f1d42fe4d27901108caeb3ba2bc522b29810a10fe0cf01ebbe6194bf9ab882c1"
+      },
+      "diagnosis_suite": {
+        "tests": 9,
+        "assertion_failures": 23,
+        "unexpected_failures": 0,
+        "failed_methods": [
+          "testCancelledAfterCommittedAppendReportsActualWriteWithoutDuplicateRetry",
+          "testCapturedRootSymlinkCannotBeRetargetedBeforeTrust",
+          "testExplicitTrustUsesGlobalXDGAndOverrideTargetsWithoutReplacingEntries",
+          "testRealMalformedGitfileOffersExplicitTrustWithoutPretendingToRepairItsContents"
+        ],
+        "passed_methods": 5
+      },
+      "entry_suite": {
+        "tests": 8,
+        "unexpected_failures": 5,
+        "status": "focused-parser-fixture-repair-passed"
+      },
+      "repair": {
+        "scope": "Tests/TurtleGitCoreTests/GitRepositoryDiagnosisTests.swift only; no production changes.",
+        "cause": "Foundation file URL appending abbreviated the temporary /private/var canonical path back to /var; independent fixture expectations disagreed with correctly canonical production receipts.",
+        "change": "Resolve temporary directory with POSIX realpath before fixture creation; construct base and every child expected URL using byte-preserving FileTransferPaths.fileURL. All existing assertions retained.",
+        "affected_rerun_methods": [
+          "testCancelledAfterCommittedAppendReportsActualWriteWithoutDuplicateRetry",
+          "testCapturedRootSymlinkCannotBeRetargetedBeforeTrust",
+          "testExplicitTrustUsesGlobalXDGAndOverrideTargetsWithoutReplacingEntries",
+          "testRealMalformedGitfileOffersExplicitTrustWithoutPretendingToRepairItsContents"
+        ],
+        "status": "focused-recheck-passed"
+      },
+      "initial_result": {
+        "tests": 83,
+        "assertion_failures": 28,
+        "unexpected_failures": 5,
+        "duration_seconds": 10.775
+      },
+      "focused_recheck": {
+        "session": 97038,
+        "exit_code": 0,
+        "tests": 5,
+        "failures": 0,
+        "duration_seconds": 3.381,
+        "log": {
+          "path": "build/qa/inaccessible-core-fixture-repair-2026-10-25.log",
+          "sha256": "030a7c1ca1053ad4dd9a7132404599e9181cb3b8bee7950d251b13e58e59fb75"
+        },
+        "methods": [
+          "testCancelledAfterCommittedAppendReportsActualWriteWithoutDuplicateRetry",
+          "testCapturedRootSymlinkCannotBeRetargetedBeforeTrust",
+          "testExplicitTrustUsesGlobalXDGAndOverrideTargetsWithoutReplacingEntries",
+          "testRealMalformedGitfileOffersExplicitTrustWithoutPretendingToRepairItsContents",
+          "testCommandCapturesOneLiteralFolderWithoutTrustOrMutationArguments"
+        ]
+      },
+      "cumulative": {
+        "distinct_methods": 83,
+        "all_passed": true,
+        "scope": "Retains original passing methods and reruns only the five failed methods; no full suite or matrix repeat."
+      }
+    },
+    "debug_app": {
+      "status": "passed-before-finder-array-repair",
+      "session": 29012,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/inaccessible-debug-build-2026-10-25.log",
+        "sha256": "857591450ac5d94e29c55eb706bcfc64be33e9809b52714ae0393f81515d3003"
+      },
+      "contradictory_generic_exit_zero_diagnostics": 35,
+      "limitation": "The Debug app embedded Finder extension predates the later source menu-array repair. Do not claim that this bundle includes that repair; final current Finder source was compiled separately by its receiver."
+    },
+    "native": {
+      "status": "cumulatively-passed-eight-distinct-case-engine-pairs",
+      "fixture": "docs/qa/inaccessible-repository-native-2026-10-25.swift",
+      "runner": "scripts/test-inaccessible-repository.py",
+      "planned_cases": [
+        "diagnosis",
+        "routes",
+        "trust",
+        "ownership"
+      ],
+      "planned_git_executables": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "planned_pairs": 8,
+      "attempts": [
+        {
+          "session": 85919,
+          "result": "failed-after-system-diagnosis-pass",
+          "log": {
+            "path": "build/qa/inaccessible-native-2026-10-25.log",
+            "sha256": "bbc37b92409b23b180469482971076a6068cf091f4247079a398e1063edf6ee8"
+          },
+          "cases": [
+            {
+              "case": "diagnosis",
+              "git": "/usr/bin/git",
+              "result": "passed",
+              "pid": 95288,
+              "reaped": true
+            },
+            {
+              "case": "routes",
+              "git": "/usr/bin/git",
+              "result": "failed-fixture-alias-timeout",
+              "pid": 95345,
+              "reaped": true
+            }
+          ]
+        },
+        {
+          "session": 94338,
+          "result": "diagnostic-fixture-alias-failure",
+          "log": {
+            "path": "build/qa/inaccessible-routes-diagnostic-2026-10-25.log",
+            "sha256": "77203127ee0920d297cc5cae5fcb70083c8bc9891e18f492bce71ea32cf0d2ef"
+          },
+          "cases": [
+            {
+              "case": "routes",
+              "git": "/usr/bin/git",
+              "result": "failed-fixture-alias-timeout",
+              "pid": 95597,
+              "reaped": true
+            }
+          ],
+          "evidence": "Retry actually adopted the repaired root with error=nil and retired the diagnostic owner; only /var vs /private/var assertion prevented readiness."
+        },
+        {
+          "session": 14115,
+          "result": "failed-after-system-routes-and-trust-pass",
+          "log": {
+            "path": "build/qa/inaccessible-native-remaining-2026-10-25.log",
+            "sha256": "1626070f3ba6c86b730b800713d65c612894224a84f08d57e46d600735e226a5"
+          },
+          "cases": [
+            {
+              "case": "routes",
+              "git": "/usr/bin/git",
+              "result": "passed",
+              "pid": 96004,
+              "reaped": true
+            },
+            {
+              "case": "trust",
+              "git": "/usr/bin/git",
+              "result": "passed",
+              "pid": 96085,
+              "reaped": true
+            },
+            {
+              "case": "ownership",
+              "git": "/usr/bin/git",
+              "result": "failed-real-attached-sheet-parent-close-timeout",
+              "pid": 96122,
+              "reaped": true
+            }
+          ]
+        },
+        {
+          "session": 89029,
+          "result": "failed-diagnostic-established-standard-appkit-parent-close-gate",
+          "log": {
+            "path": "build/qa/inaccessible-ownership-diagnostic-2026-10-25.log",
+            "sha256": "139a32b93d98f1fdb90372ab5b32754f2e2e1214e61d597477a52ed3e0fd7610"
+          },
+          "scope": "Actual attached question and parent-close diagnostic; no pass claimed.",
+          "exit_code": 1,
+          "cases": [
+            {
+              "case": "ownership",
+              "git": "/usr/bin/git",
+              "result": "failed-fixture-parent-close-expectation",
+              "pid": 96247,
+              "reaped": true
+            }
+          ],
+          "evidence": "The actual attached NSAlert prevented AppKit parent performClose from reaching its delegate, as standard modal behavior. Fixture now asserts this block before requesting the model-owned cancellation/close path, then verifies actual sheet detach, worker drain, retirement and zero late-confirm writes. Real NSAlert Cancel button is also exercised."
+        },
+        {
+          "session": 48139,
+          "exit_code": 0,
+          "result": "passed",
+          "log": {
+            "path": "build/qa/inaccessible-native-system-final-2026-10-25.log",
+            "sha256": "5d5445e937dac3261152f2ab75c34f65ff763a1b0feca9f28baa164c6927ca43"
+          },
+          "results": {
+            "path": "build/qa/inaccessible-native-system-final-results-2026-10-25.json",
+            "sha256": "7895dee1efb42097dfcdb717f15a05c8c67047b1a567c4c1378df5eaa3a41342"
+          },
+          "cases": [
+            {
+              "case": "ownership",
+              "git": "/usr/bin/git",
+              "result": "passed",
+              "pid": 96465,
+              "reaped": true
+            },
+            {
+              "case": "diagnosis",
+              "git": "/usr/bin/git",
+              "result": "passed",
+              "pid": 96491,
+              "reaped": true
+            }
+          ]
+        },
+        {
+          "session": 53154,
+          "exit_code": 0,
+          "result": "passed",
+          "log": {
+            "path": "build/qa/inaccessible-native-bundled-final-2026-10-25.log",
+            "sha256": "28ffae561f376459fbf2b4a16a9528325e175930a4d3c439a90cd7c791540ed3"
+          },
+          "results": {
+            "path": "build/qa/inaccessible-native-bundled-final-results-2026-10-25.json",
+            "sha256": "d9ce425f7737ff497ae0a6ec6a7f678161064c2ede1d167b3a258ba7bf3da5ba"
+          },
+          "cases": [
+            {
+              "case": "diagnosis",
+              "git": "build/git-runtime/Git/bin/git",
+              "result": "passed",
+              "pid": 96531,
+              "reaped": true
+            },
+            {
+              "case": "routes",
+              "git": "build/git-runtime/Git/bin/git",
+              "result": "passed",
+              "pid": 96556,
+              "reaped": true
+            },
+            {
+              "case": "trust",
+              "git": "build/git-runtime/Git/bin/git",
+              "result": "passed",
+              "pid": 96636,
+              "reaped": true
+            },
+            {
+              "case": "ownership",
+              "git": "build/git-runtime/Git/bin/git",
+              "result": "passed",
+              "pid": 96669,
+              "reaped": true
+            }
+          ]
+        }
+      ],
+      "actual_receiver_pids": [
+        95288,
+        95345,
+        95597,
+        96004,
+        96085,
+        96122,
+        96247,
+        96465,
+        96491,
+        96531,
+        96556,
+        96636,
+        96669
+      ],
+      "passing_distinct_pairs": 8,
+      "receiver_attempts": 13,
+      "failed_attempts": 4,
+      "passing_attempts_including_duplicate_diagnosis": 9,
+      "passing_pair_evidence": [
+        {
+          "case": "diagnosis",
+          "git": "/usr/bin/git",
+          "session": 48139,
+          "pid": 96491
+        },
+        {
+          "case": "routes",
+          "git": "/usr/bin/git",
+          "session": 14115,
+          "pid": 96004
+        },
+        {
+          "case": "trust",
+          "git": "/usr/bin/git",
+          "session": 14115,
+          "pid": 96085
+        },
+        {
+          "case": "ownership",
+          "git": "/usr/bin/git",
+          "session": 48139,
+          "pid": 96465
+        },
+        {
+          "case": "diagnosis",
+          "git": "build/git-runtime/Git/bin/git",
+          "session": 53154,
+          "pid": 96531
+        },
+        {
+          "case": "routes",
+          "git": "build/git-runtime/Git/bin/git",
+          "session": 53154,
+          "pid": 96556
+        },
+        {
+          "case": "trust",
+          "git": "build/git-runtime/Git/bin/git",
+          "session": 53154,
+          "pid": 96636
+        },
+        {
+          "case": "ownership",
+          "git": "build/git-runtime/Git/bin/git",
+          "session": 53154,
+          "pid": 96669
+        }
+      ],
+      "retained_prior_pass": "System routes/trust from session14115 passed on unchanged production and remain valid; original diagnosis PID95288 is a duplicate historical pass, not a ninth feature or pair.",
+      "cache": {
+        "linked_library_key": "e0f4dbef63609ce68bfce4b4dec4a58282fbf1c44e4e76572542fd17ad4a612e",
+        "final_fixture_same_for_system_and_bundled": true,
+        "fixture_final": {
+          "path": "docs/qa/inaccessible-repository-native-2026-10-25.swift",
+          "sha256": "ab3c76c424e089fb5c0075a7a34cd5f6b3bf6712d11b5cc7c52a289f4c567914"
+        },
+        "note": "Final bundled receiver reused the unchanged fixture compilation; no Core/app rebuild for fixture repairs."
+      }
+    },
+    "finder_source": {
+      "status": "passed-after-recorded-production-and-fixture-repairs",
+      "attempts": [
+        {
+          "session": 78385,
+          "result": "failed-source-order-assertion",
+          "log": {
+            "path": "build/qa/inaccessible-finder-menu-2026-10-25.log",
+            "sha256": "329183ca8a54682aa509752a0cc86fd690cccc40164f7beac486adef67766326"
+          },
+          "receiver_pids_reaped": [
+            95426
+          ],
+          "repair": "FinderSync/FinderSync.swift FinderShellMenuLayout.groups[0] merged Inaccessible with Clone and related pinned root items after the Debug build."
+        },
+        {
+          "session": 32834,
+          "result": "failed-fixture-raw-url-alias-assertion",
+          "log": {
+            "path": "build/qa/inaccessible-finder-menu-repair-2026-10-25.log",
+            "sha256": "5da89a77bf9dba790a7b03bccdba10f8061e1d18fb05a68fde8318675164e9e2"
+          },
+          "receiver_pids_reaped": [
+            95629
+          ],
+          "repair": "Fixture compares the actual representative folder across /var and /private/var aliases while retaining payload assertions."
+        },
+        {
+          "session": 1942,
+          "exit_code": 0,
+          "result": "passed",
+          "log": {
+            "path": "build/qa/inaccessible-finder-menu-payload-repair-2026-10-25.log",
+            "sha256": "cd02f70cf42d840a6edbe2ddca147824e67a1088cf0b3bcdfde96514634b4d47"
+          },
+          "receiver_pids_reaped": [
+            95835
+          ],
+          "scope": "Current production Finder source compiled with Swift 6; all retained menu and new source order/payload assertions. No installed Finder activation."
+        }
+      ]
+    },
+    "context_menu_source": {
+      "status": "passed",
+      "session": 90937,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/inaccessible-context-menu-source-2026-10-25.log",
+        "sha256": "5b1d67e8323e1094a906dda7d390090879a17184dfe77da62aec07818b0e9629"
+      },
+      "receiver_pids_reaped": [
+        95423
+      ],
+      "scope": "Source-only Context Menu Settings receiver; no installed activation."
+    },
+    "localizations": {
+      "status": "passed",
+      "session": 61275,
+      "exit_code": 0,
+      "languages": 38,
+      "keys": 1320,
+      "log": {
+        "path": "build/qa/inaccessible-localizations-check-2026-10-25.log",
+        "sha256": "cc3d03e0ce643d1d5f1e56a3d4b9974d843dc58e485f8bfe7288bcf305202bcd"
+      },
+      "limit": "Resource check does not certify complete translation."
+    },
+    "cleanup": {
+      "status": "passed",
+      "receipt": {
+        "path": "build/qa/inaccessible-cleanup-2026-10-25.json",
+        "sha256": "4449d52286db27f60da5ee24d591b9dadf860397cbf1de45a1baf6bebfd22618"
+      },
+      "result": {
+        "owned_gui_or_receiver_processes": [],
+        "protected_user_wip_sha256": {
+          "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+          "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+        },
+        "unrelated_finder_not_terminated": true
+      },
+      "note": "No owned GUI or receiver process remains; unrelated Finder was not terminated. Native attempt logs record each receiver reaped."
+    }
+  },
+  "limits": [
+    "This bounded local checkpoint passed: 83 distinct focused Core methods cumulatively, Debug build, helper build, separately compiled current Finder/Context Menu source checks, and eight distinct native case/engine pairs. It is not a full hosted CI pass or complete-port certification.",
+    "Debug build29012 predates the later Finder menu-array source repair. Current production Finder source compiled and passed separately; this record does not claim the final Debug bundle embeds that repair or establish a final shipping bundle.",
+    "Actual other-UID ownership denial remains unverified: controlled strict helper frames exercise ownership diagnostics, while real helper fixtures exercise malformed gitfile and accessible/missing/bare/linked repositories.",
+    "Native receivers use private repositories, configuration, preferences and scopes with invisible/offscreen owned windows and injected permission responses. No user repository is trusted and no user global configuration is written.",
+    "Physical Finder gestures/activation, installed signed App Store sandbox approval, VoiceOver, external ownership-state acceptance and distribution acceptance remain separate gates.",
+    "No validation expansion after the affected checks passed; initial failures, focused repairs, duplicate historical passes and actual process cleanup remain recorded."
+  ],
+  "inputs_initial": {
+    "production": [
+      {
+        "path": "Sources/TurtleGitCore/GitRepositoryDiagnosis.swift",
+        "sha256": "21dfe8591fdca20bc5aa173e1471f510d56e18df1399058fa9148601e30509c5"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/main.swift",
+        "sha256": "8124da9ac2a34e6d9c1553bc90ffdd188073f42273c07aaab371cad1b734c5d6"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.c",
+        "sha256": "66514c60ccda889a158f3262193e53a9e8d6544349766162cee1582ee6f19a8b"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.h",
+        "sha256": "99059280d37d940d02ae4342b1583c812268d82b3efdd3e62ca0943ccbe5e354"
+      },
+      {
+        "path": "Sources/TurtleGitCore/PrimaryCommandInvocation.swift",
+        "sha256": "1d9594e1c8cc023ea386b5476411cf9501e266611495399383ccd5dd488b223d"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderCache.swift",
+        "sha256": "e7ad2eb0c3e2ffee07573c1dc3c31861afdb116a6306694110ee52af197aa318"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderContextMenuSettings.swift",
+        "sha256": "24ca2055d441525e8b7515b052dd501db87e6b9a32f6f1765596c83bb4546b00"
+      },
+      {
+        "path": "Sources/TurtleGitCore/MenuIcons.swift",
+        "sha256": "6b60ad7dd4c61ec1b3d213e0c6aa8339d043f7d53f5e198a1c86eaef1457ec1c"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderStatusOperationLease.swift",
+        "sha256": "0dba127762a3ba8722f37d0f4882f6b405ce760014b57f790fd176ff03b78fee"
+      },
+      {
+        "path": "Sources/TurtleGitMac/InaccessibleRepositoryWindow.swift",
+        "sha256": "5ad359a2cbb5c9061a087d5a35a0eacd925be427b64f0fc65a2502d283074b67"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryModel.swift",
+        "sha256": "d61d47af97cda4ca7cc842b14488a1c259a4ef97b0f5cbf3f693f8da010c2a38"
+      },
+      {
+        "path": "Sources/TurtleGitMac/ApplicationDelegate.swift",
+        "sha256": "c49ffae747f0b821fef3c60f9b2fa3c0e9990d8b1b12be864fa59847225c237c"
+      },
+      {
+        "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+        "sha256": "ba209e1f2cc7d72d42ecd7f0a6a22a346731e85f8edb61d6cb816eaa2021e5d8"
+      },
+      {
+        "path": "FinderSync/FinderSync.swift",
+        "sha256": "0104c308a09e40510483d6040d12f5960ce2a5b88e2d68e1b2c7cbc393557531"
+      }
+    ],
+    "authored_checks": [
+      {
+        "path": "Tests/TurtleGitCoreTests/GitRepositoryDiagnosisTests.swift",
+        "sha256": "2a4517c0ed5e072b93f2307498a3ff84f8c9383a86d81a5339ea84546dd413e2",
+        "initial_sha256": "2a4517c0ed5e072b93f2307498a3ff84f8c9383a86d81a5339ea84546dd413e2"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/InaccessibleEntryTests.swift",
+        "sha256": "e86f9064dd89afb67b155c70e9493e0cdb036b12968e97902e23660e30ec97e8"
+      },
+      {
+        "path": "docs/qa/inaccessible-repository-native-2026-10-25.swift",
+        "sha256": "b9c73996b3e5ecc4568523fa938ddf2248023df49b8fffc839adbfd0c0e6deb3"
+      },
+      {
+        "path": "scripts/test-inaccessible-repository.py",
+        "sha256": "e337c5881c64d4b1ae87fd9693a95dfbc62c350004a586894e49bc162031f408"
+      }
+    ]
+  },
+  "inputs_current": {
+    "production": [
+      {
+        "path": "Sources/TurtleGitCore/GitRepositoryDiagnosis.swift",
+        "sha256": "21dfe8591fdca20bc5aa173e1471f510d56e18df1399058fa9148601e30509c5"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/main.swift",
+        "sha256": "8124da9ac2a34e6d9c1553bc90ffdd188073f42273c07aaab371cad1b734c5d6"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.c",
+        "sha256": "66514c60ccda889a158f3262193e53a9e8d6544349766162cee1582ee6f19a8b"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.h",
+        "sha256": "99059280d37d940d02ae4342b1583c812268d82b3efdd3e62ca0943ccbe5e354"
+      },
+      {
+        "path": "Sources/TurtleGitCore/PrimaryCommandInvocation.swift",
+        "sha256": "1d9594e1c8cc023ea386b5476411cf9501e266611495399383ccd5dd488b223d"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderCache.swift",
+        "sha256": "e7ad2eb0c3e2ffee07573c1dc3c31861afdb116a6306694110ee52af197aa318"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderContextMenuSettings.swift",
+        "sha256": "24ca2055d441525e8b7515b052dd501db87e6b9a32f6f1765596c83bb4546b00"
+      },
+      {
+        "path": "Sources/TurtleGitCore/MenuIcons.swift",
+        "sha256": "6b60ad7dd4c61ec1b3d213e0c6aa8339d043f7d53f5e198a1c86eaef1457ec1c"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderStatusOperationLease.swift",
+        "sha256": "0dba127762a3ba8722f37d0f4882f6b405ce760014b57f790fd176ff03b78fee"
+      },
+      {
+        "path": "Sources/TurtleGitMac/InaccessibleRepositoryWindow.swift",
+        "sha256": "5ad359a2cbb5c9061a087d5a35a0eacd925be427b64f0fc65a2502d283074b67"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryModel.swift",
+        "sha256": "d61d47af97cda4ca7cc842b14488a1c259a4ef97b0f5cbf3f693f8da010c2a38"
+      },
+      {
+        "path": "Sources/TurtleGitMac/ApplicationDelegate.swift",
+        "sha256": "c49ffae747f0b821fef3c60f9b2fa3c0e9990d8b1b12be864fa59847225c237c"
+      },
+      {
+        "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+        "sha256": "ba209e1f2cc7d72d42ecd7f0a6a22a346731e85f8edb61d6cb816eaa2021e5d8"
+      },
+      {
+        "path": "FinderSync/FinderSync.swift",
+        "sha256": "7fd0020a182c10987c39c28f1b03c57199adf879aaa1414d90c00cb441a77c5e"
+      }
+    ],
+    "authored_checks": [
+      {
+        "path": "Tests/TurtleGitCoreTests/GitRepositoryDiagnosisTests.swift",
+        "sha256": "078c1633fed1c46cd98e23d5b6cab750a0997b06e167c782da3097a4dc7e1c12"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/InaccessibleEntryTests.swift",
+        "sha256": "3f2b914f4a42f41dd2d6c68ae84e27718b849792096f28fe7e9e184a1246856b"
+      },
+      {
+        "path": "docs/qa/inaccessible-repository-native-2026-10-25.swift",
+        "sha256": "ab3c76c424e089fb5c0075a7a34cd5f6b3bf6712d11b5cc7c52a289f4c567914"
+      },
+      {
+        "path": "scripts/test-inaccessible-repository.py",
+        "sha256": "6ebdaaca202f138dcc7f62663faab4dc20c3e50526c4d2776caa8836e405ae56"
+      }
+    ],
+    "supporting_source_and_checks": [
+      {
+        "path": "scripts/test-finder-menu.py",
+        "sha256": "e36629951f7fac3075faddc20699a1790f0df4d9da2dc138a36ee55922ef2c04"
+      },
+      {
+        "path": "docs/upstream-shell-menu-order.json",
+        "sha256": "e0d38e3fee4a5fc1bce3e884350830c22013832753d3fa66875f3a4e989c30bf"
+      }
+    ]
+  },
+  "inputs_current_status": "Final source/test/native fixture/runner input snapshot after all checks stopped; initial input snapshot retained separately.",
+  "inputs_final": {
+    "production": [
+      {
+        "path": "Sources/TurtleGitCore/GitRepositoryDiagnosis.swift",
+        "sha256": "21dfe8591fdca20bc5aa173e1471f510d56e18df1399058fa9148601e30509c5"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/main.swift",
+        "sha256": "8124da9ac2a34e6d9c1553bc90ffdd188073f42273c07aaab371cad1b734c5d6"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.c",
+        "sha256": "66514c60ccda889a158f3262193e53a9e8d6544349766162cee1582ee6f19a8b"
+      },
+      {
+        "path": "Sources/TurtleGitLibgit2/bridge.h",
+        "sha256": "99059280d37d940d02ae4342b1583c812268d82b3efdd3e62ca0943ccbe5e354"
+      },
+      {
+        "path": "Sources/TurtleGitCore/PrimaryCommandInvocation.swift",
+        "sha256": "1d9594e1c8cc023ea386b5476411cf9501e266611495399383ccd5dd488b223d"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderCache.swift",
+        "sha256": "e7ad2eb0c3e2ffee07573c1dc3c31861afdb116a6306694110ee52af197aa318"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderContextMenuSettings.swift",
+        "sha256": "24ca2055d441525e8b7515b052dd501db87e6b9a32f6f1765596c83bb4546b00"
+      },
+      {
+        "path": "Sources/TurtleGitCore/MenuIcons.swift",
+        "sha256": "6b60ad7dd4c61ec1b3d213e0c6aa8339d043f7d53f5e198a1c86eaef1457ec1c"
+      },
+      {
+        "path": "Sources/TurtleGitCore/FinderStatusOperationLease.swift",
+        "sha256": "0dba127762a3ba8722f37d0f4882f6b405ce760014b57f790fd176ff03b78fee"
+      },
+      {
+        "path": "Sources/TurtleGitMac/InaccessibleRepositoryWindow.swift",
+        "sha256": "5ad359a2cbb5c9061a087d5a35a0eacd925be427b64f0fc65a2502d283074b67"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryModel.swift",
+        "sha256": "d61d47af97cda4ca7cc842b14488a1c259a4ef97b0f5cbf3f693f8da010c2a38"
+      },
+      {
+        "path": "Sources/TurtleGitMac/ApplicationDelegate.swift",
+        "sha256": "c49ffae747f0b821fef3c60f9b2fa3c0e9990d8b1b12be864fa59847225c237c"
+      },
+      {
+        "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+        "sha256": "ba209e1f2cc7d72d42ecd7f0a6a22a346731e85f8edb61d6cb816eaa2021e5d8"
+      },
+      {
+        "path": "FinderSync/FinderSync.swift",
+        "sha256": "7fd0020a182c10987c39c28f1b03c57199adf879aaa1414d90c00cb441a77c5e"
+      }
+    ],
+    "authored_checks": [
+      {
+        "path": "Tests/TurtleGitCoreTests/GitRepositoryDiagnosisTests.swift",
+        "sha256": "078c1633fed1c46cd98e23d5b6cab750a0997b06e167c782da3097a4dc7e1c12"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/InaccessibleEntryTests.swift",
+        "sha256": "3f2b914f4a42f41dd2d6c68ae84e27718b849792096f28fe7e9e184a1246856b"
+      },
+      {
+        "path": "docs/qa/inaccessible-repository-native-2026-10-25.swift",
+        "sha256": "ab3c76c424e089fb5c0075a7a34cd5f6b3bf6712d11b5cc7c52a289f4c567914"
+      },
+      {
+        "path": "scripts/test-inaccessible-repository.py",
+        "sha256": "6ebdaaca202f138dcc7f62663faab4dc20c3e50526c4d2776caa8836e405ae56"
+      }
+    ],
+    "supporting_source_and_checks": [
+      {
+        "path": "scripts/test-finder-menu.py",
+        "sha256": "e36629951f7fac3075faddc20699a1790f0df4d9da2dc138a36ee55922ef2c04"
+      },
+      {
+        "path": "docs/upstream-shell-menu-order.json",
+        "sha256": "e0d38e3fee4a5fc1bce3e884350830c22013832753d3fa66875f3a4e989c30bf"
+      }
+    ]
+  }
+}

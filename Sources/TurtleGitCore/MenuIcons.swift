@@ -235,7 +235,7 @@ extension RepositoryAction {
         case .commit: return .commit
         case .add, .submoduleAdd, .dropCopyAdd: return .add
         case .revert: return .revert
-        case .clean: return .clean
+        case .clean, .inaccessible: return .clean
         case .log, .stashList, .reflog: return .log
         case .daemon: return .daemon
         case .revisionGraph: return .revisionGraph
