@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-25",
+  "scope": "Synthetic App Review attachment only; no app/UI, authorization, network, Finder, SMTP or Office acceptance claimed.",
+  "archive": "docs/app-store/turtlegit-review-demo-v1.zip",
+  "sha256": "8b4a36a69a9e6851e1a54aaf1991440d02dee7d8a4d26d23a86a19ab87816e5f",
+  "bytes": 96445,
+  "file_inventory_privacy_and_safety": "pass",
+  "engines": [
+    {
+      "git": "/usr/bin/git",
+      "repository_integrity": "pass",
+      "initial_status_and_refs": "pass",
+      "offline_clone_default_main": "pass",
+      "patch_reproduces_expected_tree": "pass",
+      "real_conflict_resolution_and_merge_commit": "pass"
+    },
+    {
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "repository_integrity": "pass",
+      "initial_status_and_refs": "pass",
+      "offline_clone_default_main": "pass",
+      "patch_reproduces_expected_tree": "pass",
+      "real_conflict_resolution_and_merge_commit": "pass"
+    }
+  ],
+  "failed_authoring_or_check_attempts": [
+    "System Python3.9 Path.write_text rejected newline keyword; replaced with explicit text stream.",
+    "Initial bundle omitted HEAD and clone did not select main; bundle now advertises HEAD and conflict construction explicitly selects main.",
+    "First inventory check caught clone reflog OS identity and private temporary source path; all authoring commands now force synthetic identities, initial clone reflogs expire before authored review history. Affected archive regenerated before publication."
+  ],
+  "cleanup": "All validation Git subprocesses waited with timeouts; both private extraction directories removed by context manager. Authoring subprocesses wait normally, without explicit timeouts.",
+  "hosted_or_submission": "Not performed.",
+  "readme_repair": {
+    "result": "pass",
+    "changed_entries": [
+      "TurtleGit Review Sample/README.txt"
+    ],
+    "git_payloads_and_expected_state": "byte-identical to both-engine validated sample; no unaffected Git actions rerun",
+    "detail": "Clarified paste bundle path because source Browse is folders-only."
+  }
+}

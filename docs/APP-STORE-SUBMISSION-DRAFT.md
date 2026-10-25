@@ -21,7 +21,8 @@ unconfirmed App Store seller/legal entity and retained upstream rights.
 | Keywords | `repository,version control,branches,merge,blame,patch,clone,staging,ssh,submodules` | 82 ASCII bytes; owner approval |
 | Description | Exact plain-text copy in the JSON payload | Owner approval; no price, release date or full-parity claim |
 | Marketing URL | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable; current site correctly says development/planned availability |
-| Support URL candidate | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable, links to GitHub issues; **not approved until owner supplies actual support contact details** |
+| Public support email | jochen.kuehner@gmx.de | Confirmed by owner on 25 October 2026; recorded in this draft |
+| Support URL candidate | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable, links to GitHub issues; Confirmed support email included in the website source; pending deployment and final listing approval |
 | Privacy Policy URL candidate | https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html | Reachable policy; owner must approve for the exact release and identify the responsible publisher/contact |
 | Copyright, seller, SKU | Not supplied | Owner must confirm legal rights/identity and the App Store Connect record |
 | Price, territories, release method | Not supplied | Owner decision; no free, trial, subscription or purchase claim inferred |
@@ -43,12 +44,13 @@ for the homepage, `manual/PRIVACY.html`, `manual/GETTING-STARTED.html` and
 `scripts/site_docs.py`'s `manual/<document>.html` output and the site's existing
 Support/Source links. No new page was published by this audit.
 
-The homepage's issue tracker is a useful technical support route. It does not
-currently supply an owner-approved email/telephone/legal contact. Apple describes
+The owner confirmed **jochen.kuehner@gmx.de** as the public support email on
+25 October 2026. The homepage's issue tracker is a useful technical support route;
+the confirmed email is now included in the website source, awaiting deployment. Apple describes
 actual contact information for Support URL and requires a privacy URL; a reachable
 page alone does not settle those fields. See [version metadata](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information)
 and [App Privacy](https://developer.apple.com/help/app-store-connect/reference/app-information/app-privacy/).
-Do not invent a publisher address or email to fill this gap.
+The seller/legal entity remains unspecified; the support email does not establish it.
 
 ## Draft reviewer instructions
 
@@ -114,11 +116,24 @@ restricted-feature credentials through Apple's private review channel.
    entries and restore background preferences. Do not clear unrelated histories,
    repositories, Keychain entries or Finder windows.
 
-**Owner attachment still required:** a clean redistributable local sample
-repository/patch set, expected history and mutation results, fixture checksum and
-reset instructions. A previously used private QA path is not a reviewer download.
-A reviewer does not need credentials to inspect the local core workflow. No sample
-archive or external account was created as part of this draft.
+**Offline review attachment prepared:**
+[Download the synthetic review sample](https://github.com/jfk-solutions/turtle-git-mac/raw/refs/heads/main/docs/app-store/turtlegit-review-demo-v1.zip).
+It contains Harbor's eleven-commit branched history, staged/unstaged/renamed/added/
+untracked examples, a separate genuine merge conflict, an offline history bundle,
+a patch document, GPL license, exact initial-state inventory and reset/cleanup
+instructions. All identities are synthetic and there is no network remote or
+credential. The ZIP is 96,445 bytes; SHA-256:
+`8b4a36a69a9e6851e1a54aaf1991440d02dee7d8a4d26d23a86a19ab87816e5f`.
+[The manifest](app-store/turtlegit-review-demo-v1.manifest.json) records every file
+and the expected repository state. Rebuild it with
+`python3 scripts/build-review-demo.py` using the pinned bundled Git.
+
+A reviewer can inspect local core workflows without an external account. Final
+owner approval and attachment to the actual Connect submission remain separate;
+this sample does not supply optional SMTP/Office credentials or certify native
+review of every scenario. The [attachment checkpoint](qa/review-demo-2026-10-25.json)
+records file/metadata checks and actual offline clone, patch application and
+conflict resolution with system and bundled Git; it is not app/sandbox acceptance.
 
 Apple asks for working support links and sufficient specific review instructions,
 including access to restricted features. These notes require final owner review
@@ -218,7 +233,7 @@ pending. No image was edited or newly captured for this dossier.
 | App identifier/SKU/version/build admission | Confirm in the actual Connect record; do not infer from local build values |
 | Distribution certificate/profile and App Group entitlement | Final channel/account verification; Apple Development signatures are not a submitted distribution export |
 | Exact final archive/package/source+notice set | Match measured inputs, actual signed binary, symbols and corresponding source/reconstruction inputs; prior receipts remain historical |
-| Final screenshots and sample review attachment | Pending as above |
+| Final screenshots and sample review attachment | Offline synthetic attachment prepared with checksums/reset instructions; final screenshots and owner/submission approval remain pending |
 | Hosted CI | Latest observed HEAD `5951b0b7`: Pages success, macOS run40195564513 pending at the release audit; no current full pass claimed |
 | Upload/validation/App Review/release | Not performed; only after owner approval and remaining gates |
 
