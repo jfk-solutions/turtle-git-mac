@@ -1,0 +1,203 @@
+{
+  "family": "Standalone Unified Diff launch, stdin/file input, document menus and owned cancellation",
+  "date": "2026-10-25",
+  "base_commit": "50592ed7297c4c524d328440dd1fecb4a0220f1c",
+  "status": "bounded_core_debug_five_native_cases_and_prior_physical_pipe_passed",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "TortoiseUDiff/TortoiseUDiff.cpp85\u2013135 title/window/input selection",
+    "TortoiseUDiff/MainWindow.cpp804\u2013835 handle EOF and size limit",
+    "TortoiseUDiff/MainWindow.cpp839ff regular file loading",
+    "TortoiseUDiff/MainWindow.cpp962ff product title suffix"
+  ],
+  "scope": [
+    "Typed native/source command grammar without repository command interception",
+    "Document-only scene and native startup handler without eager Git repository/runtime initialization",
+    "Synchronous accepted CLOEXEC input identity, detached bounded cancellable raw reader, explicit empty EOF",
+    "Exact owner/current-window publication, deferred close and forced-retirement/independent-document fencing",
+    "Active group cancellation/drain before single Quit resumes existing dirty document pipeline",
+    "Regular-only bounded file reads and owned exact command-line file scope selection",
+    "Focused document menus and owner dark/light presentation"
+  ],
+  "native_adaptations": [
+    "Responsive empty native document before asynchronous input EOF rather than source synchronous handle load",
+    "Explicit native tool marker and product suffix",
+    "Command paths require explicit scoped selection when no sandbox lease exists; cancelled/wrong choices do not read",
+    "Input errors remain on document owner without partial publication"
+  ],
+  "authored_native": {
+    "fixture": "docs/qa/unified-diff-input-native-2026-10-25.swift",
+    "runner": "scripts/test-unified-diff-input.py",
+    "cases": [
+      "stream",
+      "lifetime",
+      "failure",
+      "command",
+      "startup"
+    ],
+    "planned_cases": 5,
+    "git_repository_or_engine_required": false,
+    "private_preferences_and_directories": true,
+    "offscreen_owned_windows_and_sheets": true,
+    "injected_boundaries": "Held reader for noncooperative late return and file-scope providers/panel choices; actual pipe/file reader and actual startup/application delegate/menu routing retained",
+    "executed": true
+  },
+  "validation": {
+    "core": "17 distinct methods cumulatively pass after Unicode production repair",
+    "app": "AffectedQuitDebug68902exit0,1contradictoryexitzero diagnostic retained",
+    "native": "5 distinct cases cumulatively pass:4previous63564 +startup70023; no unnecessary rerun after flag-only change",
+    "physical": "Actual App.main Debug scene/real pipe16706exit0+CmdW close/reap passed",
+    "signed": "not_run",
+    "localization": "38locales/1318labels checkpass",
+    "coverage": "Reconcile130resource dialogs/120partial/10pending/85unmappedcontrols/0certified; not completion percentage",
+    "site": "452documents/0unresolved before latestQAupdate; finalregeneration parentowned"
+  },
+  "limits": [
+    "No full menu/keyboard/VoiceOver or every source visual state certification",
+    "Physical isolation environment does not prove persisted preference isolation",
+    "Injected file-scope boundary does not prove signed sandbox grant acceptance",
+    "No new signed build/install or App Store delivery",
+    "Not every exceptional stream/filesystem state or full hosted CI",
+    "Native entry differences retained; not complete upstream UDiff parity",
+    "Prior physicalCommandW predates Quitflagrepair; targetednative startup verifies route, physicalCommandQ not claimed"
+  ],
+  "dark_mode_contract": "Source File-menu item rc90; window-local state, no preference writes",
+  "core_initial": {
+    "path": "build/qa/unified-diff-standalone-core-2026-10-25.log",
+    "sha256": "a6ea8dd9d0d5af1b1d3cbc09c6a76502b5306c6e49f9fd17d831e5c350030595",
+    "session": 23712,
+    "methods": 17,
+    "passed_methods": 16,
+    "failed_methods": 1,
+    "assertion_failures": 4,
+    "cause": "Foundation file URL NFC/NFD path normalization in invocation parse"
+  },
+  "core_focused": {
+    "path": "build/qa/unified-diff-standalone-unicode-core-2026-10-25.log",
+    "sha256": "9d06b03cfa44ca8c58f6338097927128e2ad7f5eb4165c6932b9a01797a5b612",
+    "session": 87910,
+    "exit_code": 0,
+    "methods": 1,
+    "passed_methods": 1,
+    "production_repair": "FileTransferPaths exact lexical/byte URL helpers; no assertion weakened"
+  },
+  "debug_initial": {
+    "path": "build/qa/unified-diff-standalone-debug-2026-10-25.log",
+    "sha256": "502b44c49f6cddbd5ba6fe7bb6edde1305944fcfe09c6a4fd07de995fd6eb7e0",
+    "session": 84204,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 33
+  },
+  "debug_affected": {
+    "path": "build/qa/unified-diff-standalone-unicode-debug-2026-10-25.log",
+    "sha256": "1a36650f11527f581bcf984e00737169178bb9d619e83519552b87f9437774aa",
+    "session": 39120,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 1
+  },
+  "native_initial": {
+    "path": "build/qa/unified-diff-standalone-native-2026-10-25.log",
+    "sha256": "63e8f05eb1700a46ea4e33e0a28a62b5a118203ff970bcce8c789610ea0254aa",
+    "session": 59803,
+    "status": "compile_failed_before_receiver",
+    "receivers_started": 0,
+    "cause": "Nested Context did not inherit outer enum MainActor; owner/session initialization and cleanup actor calls rejected",
+    "fixture_repair": "Explicit @MainActor on nested Context; assertions unchanged"
+  },
+  "native_final": {
+    "path": "build/qa/unified-diff-standalone-native-repair-2026-10-25.log",
+    "sha256": "1a0d920091b033df87d23289b245131b49c62009e3024fcbac7c20d602b71f14",
+    "session": 63564,
+    "exit_code": 0,
+    "cases": 4,
+    "passed_cases": [
+      "stream",
+      "lifetime",
+      "failure",
+      "command"
+    ],
+    "receiver_pids": [
+      85278,
+      85289,
+      85290,
+      85293
+    ],
+    "receivers_reaped": true,
+    "fixture_only_repair": "Explicit Context MainActor; no behavioral assertions removed"
+  },
+  "physical": {
+    "status": "actual_debug_scene_pipe_pass",
+    "session": 16706,
+    "process_pid": 85302,
+    "process_exit_code": 0,
+    "process_reaped": true,
+    "metadata": {
+      "path": "build/qa/unified-diff-standalone-physical-2026-10-25.json",
+      "sha256": "5ef733e8749d5de5b336409c9029c47e23338b46370e3aa3613828315a934ad6"
+    },
+    "png": {
+      "path": "build/qa/unified-diff-standalone-physical-2026-10-25.png",
+      "sha256": "177a289fc1dd9267939518e6072419f4e3b48cb084d00747f65e9ab4c9581e2e"
+    },
+    "accessibility": {
+      "path": "build/qa/unified-diff-standalone-physical-2026-10-25.txt",
+      "sha256": "c44a61fa7c2d178fe33f5035f5b6c0a949f7ac1d140cbad92d27eef1d8620c97"
+    },
+    "arguments": [
+      "--unified-diff",
+      "--stdin",
+      "--title",
+      "Piped changes \ud83d\udc22"
+    ],
+    "observations": [
+      "Actual App.main selected viewer-only scene",
+      "Real pipe EOF raw diff displayed editable with captured title",
+      "No repository workspace or first-start wizard appeared",
+      "Composed image source colors/controls reviewed",
+      "Command-W closed viewer and whole process exited0"
+    ],
+    "isolation": "Private HOME/CFFIXED_USER_HOME/TMPDIR environment supplied; no private preference files observed, so persistent preference isolation not proven",
+    "all_source_visual_parity": false
+  },
+  "cleanup": {
+    "gui_cache_receivers_absent": true,
+    "independently_checked": true,
+    "installed_finder_pid": 77954,
+    "installed_finder_untouched": true
+  },
+  "actual_bootstrap_quit_issue": {
+    "discovery": "Static final review after prior4nativepasses and actualphysicalCmdWclose",
+    "bug": "Unified Diff set startupMergeToolActive so clean/approved dirty Quit attempted empty Merge launch shutdown and could hang",
+    "production_repair": "Unified Diff delivery no longer adopts Merge-active flag; shared onClosed exit retained",
+    "coverage_gap": "Prior physical Command-W passed but did not exercise actual startup-mode Command-Q",
+    "focused_case": "startup",
+    "assertions": [
+      "Actual startupDidFinishLaunching private minimal workspace/no-opservices/activation/stubexit",
+      "Clean document returns terminateNow",
+      "Dirty document discard completes ordinary global Quit reply",
+      "Held input cancels/drains and completes single Quit on actual bootstrap"
+    ],
+    "results": "Focused actualbootstrap startup case70023 passed after AppDelegateflagrepair; priorphysicalCmdW evidence predates repair, no physicalCmdQ claim"
+  },
+  "startup_quit_debug": {
+    "path": "build/qa/unified-diff-standalone-quit-debug-2026-10-25.log",
+    "sha256": "ecef31ca9e7dabcee3a907be6df6171685b4b8276ee14e2971beefe5755c6ab5",
+    "session": 68902,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 1
+  },
+  "startup_quit_native": {
+    "path": "build/qa/unified-diff-standalone-startup-native-2026-10-25.log",
+    "sha256": "43456e072081578797c9f8c26949d5210123ee0633f88ac9b225f99d1b21e725",
+    "session": 70023,
+    "exit_code": 0,
+    "receiver_pid": 85661,
+    "receiver_reaped": true,
+    "passed_case": "startup"
+  },
+  "remaining_entry_differences": [
+    "Dedicated upstream noarguments attempts stdin; combined native --unified-diff without input opens explicitly empty document; stdin requires --stdin or/p",
+    "Upstream accepts unmarked filename in dedicated executable; combined native app requires --unified-diff marker for filename entry",
+    "Upstream failed load exits1; native input errors remain visible on owned document rather than exiting automatically"
+  ]
+}

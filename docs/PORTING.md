@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The [standalone Unified Diff family](UNIFIED-DIFF-STANDALONE-PARITY.md) adds
+explicit file, empty-document and raw stdin entry without Git or a repository
+workspace. It retains source titles, bounded bytes, owned cancellation and Quit
+drain, regular-file admission, explicit sandbox file selection and per-window
+Dark Mode. Existing document editing and Save/Apply workflows are reused, with
+Git resolved only for Apply. The checkpoint records 17 cumulative Core method
+passes, four native cases and a real executable pipe launch/close. The Unicode
+path repair and fixture compile failure remain recorded; complete viewer visual
+parity, signed grants and App Store deployment remain open.
+
 The [native list interaction family](NATIVE-LIST-INTERACTIONS-PARITY.md) preserves
 full-row/label selection, native checks, colors and drag while deferring unsafe
 row-construction work and fencing delegate/client/reuse/retirement handoffs.

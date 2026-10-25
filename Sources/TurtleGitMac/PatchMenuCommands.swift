@@ -7,6 +7,8 @@ import TurtleGitCore
 /// Repository, Settings and other editors must not act on a background diff.
 @MainActor final class PatchMenuContext: ObservableObject {
     @Published private(set) var available = false
+    @Published private(set) var closeAvailable = false
+    @Published private(set) var darkMode = false
     @Published private(set) var documentAvailable = false
     @Published private(set) var documentVisible = false
     @Published private(set) var partialAvailable = false
@@ -45,8 +47,12 @@ import TurtleGitCore
                 Task { @MainActor in self?.refresh() }
             }
         }
-        let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil } ?? false
+        let dark = controller?.model.darkMode ?? false
+        if darkMode != dark { darkMode = dark }
+        let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil && NSApp.modalWindow == nil } ?? false
         if available != enabled { available = enabled }
+        let closable = controller.map { !$0.model.retired && !$0.model.confirmingQuit && $0.window?.attachedSheet == nil && (!$0.model.busy || $0.startupInput?.isReading == true) } ?? false
+        if closeAvailable != closable { closeAvailable = closable }
         let visible = controller?.documentSession.enabled == true
         if documentVisible != visible { documentVisible = visible }
         let document = enabled && visible
@@ -68,8 +74,11 @@ import TurtleGitCore
         guard available, partialAvailable, let model = current?.model, model.staged == staged else { return }
         model.apply(entireHunks: entireHunks)
     }
+    func setDarkMode(_ dark: Bool) { refresh(); guard available else { return }; current?.setDarkMode(dark); refresh() }
     func copyPatch() { refresh(); guard available else { return }; current?.model.copyPatch() }
     func saveDocument() { refresh(); guard documentAvailable else { return }; current?.documentSession.saveDocument() }
+    func openDocument() { refresh(); guard documentAvailable else { return }; current?.documentSession.openDocument() }
+    func close() { refresh(); guard closeAvailable else { return }; current?.window?.performClose(nil) }
     func applyPatch() { refresh(); guard documentAvailable else { return }; current?.documentSession.applyPatch() }
     func showSettings() { refresh(); guard documentAvailable else { return }; current?.documentSession.showSettings() }
     func saveAs() { refresh(); guard available else { return }; current?.model.saveAs() }
@@ -95,6 +104,7 @@ struct PatchFileCommands: Commands {
             Button { context.copyPatch() } label: { CommandLabel(title: "Copy Patch", icon: .copy) }.disabled(!context.available)
             Button("Save As…") { context.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift]).disabled(!context.available)
+            Toggle("Dark Mode", isOn: Binding(get: { context.darkMode }, set: { context.setDarkMode($0) })).disabled(!context.available)
             if context.documentVisible {
                 Divider()
                 Button { context.applyPatch() } label: { CommandLabel(title: "Apply Patch…", icon: .patch) }.disabled(!context.documentAvailable)

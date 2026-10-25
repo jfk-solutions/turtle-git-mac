@@ -16,6 +16,7 @@ Mac App Store; the app is not yet available for purchase.
 - Commit, staging, branches, tags, remotes and synchronization.
 - Searchable history, blame and revision graphs.
 - Text comparison, three-way conflict resolution and partial staging.
+- Standalone editable patch documents and piped diffs; see [command-line usage](docs/COMMAND-LINE.md#standalone-unified-diff).
 - Native light and dark appearances and bundled offline help.
 
 See the [user manual](docs/GETTING-STARTED.md) for workflows and

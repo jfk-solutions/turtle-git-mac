@@ -43,20 +43,26 @@ import UniformTypeIdentifiers
 @MainActor final class PatchWindowController: NSWindowController, NSWindowDelegate {
     let model: PatchWindowModel
     private(set) var documentSession: PatchDocumentSession!
+    var startupInput: UnifiedDiffInputSession?
     var onClosed: () -> Void = {}
     var onMoved: () -> Void = {}
     private let preferences: UserDefaults
     private var flashGeneration = 0
     func windowDidMove(_ notification: Notification) { onMoved() }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+    convenience init(documentDirectory: URL, preferences: UserDefaults = .standard) {
+        self.init(repository: nil, access: nil, preferences: preferences, documentDirectory: documentDirectory)
+    }
+    init(repository: GitRepository?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, documentDirectory: URL? = nil) {
         self.preferences = preferences
-        model = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
+        model = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences, documentDirectory: documentDirectory)
         model.usesSourceFindBar = true
+        model.darkMode = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         let savedWidth = preferences.double(forKey: "PartialPatchWindowWidth")
         let width = savedWidth >= 460 && savedWidth <= 4000 ? savedWidth : 600
         let window = PatchNSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 760),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.minSize = NSSize(width: 460, height: 500); window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: model.darkMode ? .darkAqua : .aqua)
         let host = NSHostingController(rootView: PatchDialog(model: model))
         // Patch content scrolls; its intrinsic size must not replace window limits.
         host.sizingOptions = []
@@ -99,13 +105,22 @@ import UniformTypeIdentifiers
         model.markDocumentSaved(source)
         (window as? PatchNSWindow)?.patchText?.breakUndoCoalescing()
     }
+    func setDarkMode(_ dark: Bool) {
+        guard let window, window.delegate === self, !model.retired, !model.busy,
+              !model.confirmingQuit, model.error == nil, window.attachedSheet == nil,
+              NSApp.modalWindow == nil else { return }
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        model.darkMode = dark
+    }
     func windowWillClose(_ notification: Notification) {
+        startupInput?.cancel()
         flashGeneration += 1; window?.contentView?.layer?.borderWidth = 0
         documentSession.retire(); model.retire()
         if let window { preferences.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
         onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if startupInput?.requestClose() == true { return false }
         guard !model.busy, !model.confirmingQuit, sender.attachedSheet == nil else { return false }
         if documentSession.dirty { documentSession.requestClose(); return false }
         return true
@@ -122,9 +137,11 @@ import UniformTypeIdentifiers
 }
 
 @MainActor final class PatchWindowModel: ObservableObject {
-    let repository: GitRepository
+    let repository: GitRepository?
+    let documentDirectory: URL
     private let access: RepositoryAccessLease?
     let appearancePreferences: UserDefaults
+    @Published var darkMode = false
     @Published var document = GitPatch(text: "") { didSet { originalDiff = nil; findRevision=UUID() } }
     private var originalDiff: UnifiedDiffDocument?
     var usesSourceFindBar = false
@@ -255,13 +272,28 @@ import UniformTypeIdentifiers
         }
     }
 
+    private var startupCancel: (() -> Void)?
+    @discardableResult func beginStartupInput(cancel: @escaping () -> Void) -> Bool {
+        guard !retired, !busy, !confirmingQuit, startupCancel == nil else { return false }
+        startupCancel = cancel; busy = true; loading = true; cancelling = false; error = nil
+        return true
+    }
+    func markStartupInputCancelling() {
+        guard startupCancel != nil else { return }; cancelling = true
+    }
+    func finishStartupInput() {
+        guard startupCancel != nil else { return }
+        startupCancel = nil; loading = false; cancelling = false; busy = applying || ownedReads != 0
+    }
     func cancelRead() {
         guard !retired, loading, !cancelling else { return }
-        cancelling = true; readCancellation?.cancel(); readTask?.cancel()
+        cancelling = true
+        if let startupCancel { startupCancel(); return }
+        readCancellation?.cancel(); readTask?.cancel()
     }
     func retire() {
         guard !retired else { return }; retired = true; generation += 1
-        readCancellation?.cancel(); readTask?.cancel()
+        startupCancel?(); readCancellation?.cancel(); readTask?.cancel()
         sourceAttached={false};sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
         requestReplacement = nil; requestReload = nil; documentChanged = {};editBuffer=nil
         saveDocument = {}; openDocument = {}; saveAs = {}; printDiff = {}; customRefresh = nil; onApplied = {}; onApplying = { _ in }; onSettled = { _ in }
@@ -270,7 +302,10 @@ import UniformTypeIdentifiers
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
     var onSettled: (Bool) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences }
+    init(repository: GitRepository?, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard, documentDirectory: URL? = nil) {
+        self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences
+        self.documentDirectory = documentDirectory ?? repository?.root ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+    }
     var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: document.bytes,displayLegacyEncoding:document.displayLegacyEncoding) : UnifiedDiffDocument(bytes: document.bytes,displayLegacyEncoding:document.displayLegacyEncoding) }
     func copyPatch(to pasteboard: NSPasteboard = .general) {
         guard !retired, !busy, !confirmingQuit else { return }
@@ -305,11 +340,11 @@ import UniformTypeIdentifiers
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil) {
-        let repository=self.repository.capturingDiffBackend(preferences:appearancePreferences)
-        guard !retired, !applying, !confirmingQuit, !showPageSetup else { return }
+        guard !retired, !applying, !confirmingQuit, !showPageSetup, startupCancel == nil else { return }
         let legacy=displayLegacyEncoding ?? .legacyEncoding(from:appearancePreferences)
         if documentDirty && !discardingEdits {requestReload?(paths,staged,legacy);return}
         if let customRefresh { if discardingEdits { approvedReplacementText = document.text }; customRefresh(); return }
+        guard let repository = self.repository?.capturingDiffBackend(preferences: appearancePreferences) else { return }
         readCancellation?.cancel(); readTask?.cancel()
         generation += 1; let request = generation, cancellation = OperationCancellation()
         readCancellation = cancellation
@@ -337,7 +372,7 @@ import UniformTypeIdentifiers
         }
     }
     func apply(entireHunks: Bool) {
-        guard !retired, !readOnly, entireHunks ? canApplyHunks : canApplyLines else { return }
+        guard let repository, !retired, !readOnly, entireHunks ? canApplyHunks : canApplyLines else { return }
         let document = self.document, paths = self.paths, staged = self.staged, lines = selectedLines, base = self.base
         let releaseParent = onApplying, settleParent = onSettled
         busy = true; applying = true; Self.activeOperations += 1; releaseParent(true)
@@ -373,6 +408,7 @@ struct PatchDialog: View {
             if model.loading { HStack { ProgressView(model.cancelling ? "Cancelling…" : "Loading patch…").controlSize(.small); Button("Cancel") { model.cancelRead() }.disabled(model.cancelling) } }
             if model.readOnly { Text(model.documentDirty ? "Modified patch document" : model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }.padding(model.readOnly ? 12 : 0).disabled(model.confirmingQuit)
+        .environment(\.colorScheme, model.darkMode ? .dark : .light)
         .sheet(isPresented: $model.showPageSetup, onDismiss: { model.busy = false }) { PatchPageSetup(model: model) }
         .onReceive(NotificationCenter.default.publisher(for: .unifiedDiffAppearanceChanged)) { _ in model.objectWillChange.send() }
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
@@ -431,7 +467,6 @@ private struct PartialPatchFindBar: View {
 
 struct PatchTextView: NSViewRepresentable {
     @ObservedObject var model: PatchWindowModel
-    @Environment(\.colorScheme) private var scheme
     @Environment(\.colorSchemeContrast) private var contrast
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView {
@@ -480,7 +515,7 @@ struct PatchTextView: NSViewRepresentable {
         model.focusSource = { [weak text,weak model] in
             guard let text,let model,model.sourceCallbacksCurrent(identity,revision:callbackRevision),text.coordinator?.model === model else{return};text.window?.makeFirstResponder(text)
         }
-        let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
+        let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = model.darkMode, highContrast = contrast == .increased
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
         guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }

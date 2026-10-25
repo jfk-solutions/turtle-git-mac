@@ -4773,9 +4773,9 @@ private enum TransportBatchPresentationContext {
         guard url.isFileURL, ["patch", "diff"].contains(url.pathExtension.lowercased()) else {
             error = "Choose a .patch or .diff document to open in Unified Diff."; return
         }
-        let file = url.standardizedFileURL, key = Data(file.path.utf8)
+        let file = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(url.path)), key = Data(file.path.utf8)
         if let entry = patchDocumentWindows.first(where: { id, controller in
-            if let current = controller.documentSession.fileURL { return Data(current.standardizedFileURL.path.utf8) == key }
+            if let current = controller.documentSession.fileURL { return Data(FileTransferPaths.lexicalPath(current.path).utf8) == key }
             return patchDocumentOpeningPaths[id] == key
         }) {
             let existing = entry.value
@@ -4786,22 +4786,46 @@ private enum TransportBatchPresentationContext {
             else { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil) }
             return
         }
+        let controller = makePatchDocument(directory: file.deletingLastPathComponent(), title: file.lastPathComponent)
+        patchDocumentOpeningPaths[controller.id] = key
+        controller.owner.documentSession.openFile(file)
+    }
+    private func makePatchDocument(directory: URL, title: String, completion: (() -> Void)? = nil) -> (id: UUID, owner: PatchWindowController) {
+        let id = UUID(), controller = PatchWindowController(documentDirectory: directory, preferences: reviewPatchPreferences)
+        controller.presentDocument(Data(), title: title + " – Unified Diff – TurtleGit", comparison: title, information: "")
+        configurePatchDocument(controller)
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.patchDocumentWindows[id] === controller else { return }
+            self.patchDocumentWindows.removeValue(forKey: id); self.patchDocumentOpeningPaths.removeValue(forKey: id)
+            completion?()
+        }
+        patchDocumentWindows[id] = controller
+        if let patchDocumentPresentation { patchDocumentPresentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        return (id, controller)
+    }
+    @discardableResult func handleUnifiedDiffCommandLine(arguments: [String], currentDirectory: String, descriptor: Int32 = STDIN_FILENO, completion: ((Int32) -> Void)? = nil) -> Bool {
         do {
-            let id = UUID()
-            let context = GitRepository(root: file.deletingLastPathComponent(), executable: try GitRuntime.executable())
-            let controller = PatchWindowController(repository: context, access: nil, preferences: reviewPatchPreferences)
-            controller.presentDocument(Data(), title: file.lastPathComponent + " – Unified Diff – TurtleGit", comparison: file.lastPathComponent,
-                information: "Opening patch document…")
-            configurePatchDocument(controller)
-            controller.onClosed = { [weak self, weak controller] in
-                guard let self, let controller, self.patchDocumentWindows[id] === controller else { return }
-                self.patchDocumentWindows.removeValue(forKey: id); self.patchDocumentOpeningPaths.removeValue(forKey: id)
+            guard let invocation = try UnifiedDiffInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return false }
+            guard !retired, !confirmingQuit else { completion?(1); return true }
+            let directory: URL
+            if case .file(let url) = invocation.input { directory = url.deletingLastPathComponent() }
+            else { directory = URL(fileURLWithPath: currentDirectory, isDirectory: true) }
+            let title = invocation.title ?? { if case .file(let url) = invocation.input { return url.lastPathComponent }; return "Unnamed" }()
+            let entry = makePatchDocument(directory: directory, title: title) { completion?(0) }
+            switch invocation.input {
+            case .empty: break
+            case .file(let url): entry.owner.documentSession.openFile(url, title: invocation.title, authorizeIfNeeded: true)
+            case .standardInput:
+                let input = UnifiedDiffInputSession()
+                input.start(controller: entry.owner, descriptor: descriptor, title: title)
             }
-            patchDocumentWindows[id] = controller; patchDocumentOpeningPaths[id] = key
-            if let patchDocumentPresentation { patchDocumentPresentation(controller) }
-            else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
-            controller.documentSession.openFile(file)
-        } catch { self.error = error.localizedDescription }
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            if completion != nil { fputs("TurtleGitUDiff: " + error.localizedDescription + "\n", stderr) }
+            completion?(2); return true
+        }
     }
     // Injected pickers are test-owned. Production keeps the same explicit
     // repository/file authorization as Finder and never trusts argv as a grant.
@@ -4937,6 +4961,7 @@ private enum TransportBatchPresentationContext {
     }
     func handleCommandLine(arguments: [String], currentDirectory: String) {
         guard !confirmingQuit else { return }
+        if handleUnifiedDiffCommandLine(arguments: arguments, currentDirectory: currentDirectory) { return }
         if handleMergeToolCommandLine(arguments: arguments, currentDirectory: currentDirectory) { return }
         do {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }

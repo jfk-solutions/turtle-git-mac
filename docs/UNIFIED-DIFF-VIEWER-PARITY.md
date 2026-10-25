@@ -645,3 +645,14 @@ all physical Scintilla gestures and signed acceptance remain open.
 The connected [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) shares
 guarded Close/OK/Cancel and actual-detachment ownership across Properties,
 Unified Diff and Rebase, preserving their original preferences and pending work.
+
+## Standalone input and local appearance — October 25, 2026
+
+The [standalone input family](UNIFIED-DIFF-STANDALONE-PARITY.md) adds explicit
+empty, file and stdin launch without a Git runtime or repository workspace,
+captured titles, bounded byte-preserving reads, regular-file admission and
+worker-owned cancellation/Close/Quit. Explicit command-file authorization uses
+the document's native chooser when needed. The source File-menu Dark Mode action
+now changes the current viewer without writing global appearance preferences.
+The family checkpoint separates its Core/native and real executable pipe checks
+from broader visual, signed-grant, hosted and full-port acceptance.

@@ -12,10 +12,39 @@ import UniformTypeIdentifiers
         ProgressActionLog.install()
         OperationSounds.enabled = true
         DialogGeometry.install()
-        if TurtleGitLaunchMode.resolve(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath) == .mergeTool {
+        let launch = TurtleGitLaunchMode.resolve(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath)
+        if launch == .unifiedDiff {
+            TurtleGitUnifiedDiffApp.main()
+        } else if launch == .mergeTool {
             TurtleGitMergeToolApp.main()
         } else {
             TurtleGitMacApp.main()
+        }
+    }
+}
+
+struct TurtleGitUnifiedDiffApp: App {
+    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
+    @StateObject private var patchMenu = PatchMenuContext()
+    var body: some Scene {
+        Settings { EmptyView() }
+            .commands { UnifiedDiffBaseCommands(context: patchMenu); PatchFileCommands(context: patchMenu) }
+    }
+}
+
+struct UnifiedDiffBaseCommands: Commands {
+    @ObservedObject var context: PatchMenuContext
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("Open…") { context.openDocument() }.keyboardShortcut("o").disabled(!context.documentAvailable)
+            Button("Close") { context.close() }.keyboardShortcut("w").disabled(!context.closeAvailable)
+        }
+        CommandGroup(replacing: .appSettings) { }
+        CommandGroup(replacing: .appInfo) {
+            Button("About TurtleGitUDiff…") { TurtleGitAboutService.shared.show(.unified) }
+        }
+        CommandGroup(replacing: .help) {
+            Button("TurtleGit Help") { TurtleGitHelp.showContext() }.keyboardShortcut("?", modifiers: .command)
         }
     }
 }

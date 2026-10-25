@@ -477,6 +477,7 @@ private struct FirstStartWizardDialog: View {
     var present: (FirstStartWizardController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var consideredFirstRun = false
     func install() {
+        if TurtleGitLaunchMode.resolve(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath) != .workspace { return }
         if (try? MergeToolInvocation.parse(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath)) != nil { return }
         guard !consideredFirstRun else { return }
         consideredFirstRun = true

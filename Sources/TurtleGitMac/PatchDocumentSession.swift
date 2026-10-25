@@ -56,18 +56,10 @@ import UniformTypeIdentifiers
         panel.beginSheetModal(for: window) { reply($0 == .OK ? panel.url : nil) }
     }
     var acquireAccess: (URL) -> RepositoryAccessLease = { RepositoryAccessLease(url: $0) }
+    var requiresFileScope = GitRuntime.isAppStoreBuild
     var readFile: (URL, OperationCancellation) async throws -> Data = { url, token in
         try await Task.detached {
-            let handle = try FileHandle(forReadingFrom: url); defer { try? handle.close() }
-            var bytes = Data()
-            while true {
-                try token.check()
-                let part = try handle.read(upToCount: 1024 * 1024) ?? Data()
-                if part.isEmpty { break }
-                guard bytes.count + part.count < 250 * 1024 * 1024 else { throw Failure.tooLarge }
-                bytes.append(part)
-            }
-            try token.check(); return bytes
+            try UnifiedDiffInputReader.readFile(url, cancellation: token)
         }.value
     }
     init(owner: PatchWindowController) {
@@ -107,11 +99,11 @@ import UniformTypeIdentifiers
     }
     /// Finder/Launch Services already supplies the chosen file; retain the same
     /// scoped read, save point and cancellation ownership as the Open panel.
-    func openFile(_ url: URL) {
+    func openFile(_ url: URL, title: String? = nil, authorizeIfNeeded: Bool = false) {
         launch { session in
             session.pendingReplacement = nil
             guard await session.resolveChanges(), !session.retired else { return }
-            await session.load(url)
+            await session.load(url, title: title, authorizeIfNeeded: authorizeIfNeeded)
         }
     }
     func saveDocument(as newFile: Bool = false) { launch { _ = await $0.save(as: newFile) } }
@@ -153,8 +145,11 @@ import UniformTypeIdentifiers
             // TortoiseProc supplies a read-only temporary patch for generated
             // comparisons. Its native equivalent is an immutable loaded snapshot.
             let snapshot = session.fileURL == nil && !owner.model.savedDocumentBytes.isEmpty ? owner.model.savedDocumentBytes : nil
-            let workflow = ReviewPatchWorkflow(file: session.fileURL, target: nil, preferred: owner.model.repository.root,
-                grants: grants, executable: owner.model.repository.executable, preferences: owner.model.appearancePreferences,
+            let executable: URL
+            do { executable = try owner.model.repository?.executable ?? GitRuntime.executable(preferences: owner.model.appearancePreferences) }
+            catch { owner.model.error = error.localizedDescription; return }
+            let workflow = ReviewPatchWorkflow(file: session.fileURL, target: nil, preferred: owner.model.documentDirectory,
+                grants: grants, executable: executable, preferences: owner.model.appearancePreferences,
                 clipboardBytes: snapshot, title: owner.model.comparisonTitle)
             session.reviewWorkflow = workflow; owner.model.busy = true
             workflow.onFinished = { [weak session, weak workflow] in
@@ -188,10 +183,22 @@ import UniformTypeIdentifiers
         guard !retired else { return false }
         switch decision { case .cancel: return false; case .discard: return true; case .save: return await save() }
     }
-    private func load(_ url: URL) async {
+    private func load(_ url: URL, title: String? = nil, authorizeIfNeeded: Bool = false) async {
         guard !retired, let owner else { return }
-        let access = acquireAccess(url), token = OperationCancellation(), request = generation,legacy=ComparisonTextEncoding.legacyEncoding(from:owner.model.appearancePreferences)
-        if GitRuntime.isAppStoreBuild && !access.hasSecurityScope { owner.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+        var access = acquireAccess(url)
+        if requiresFileScope && !access.hasSecurityScope && authorizeIfNeeded {
+            guard let window = owner.window else { return }
+            owner.model.busy = true
+            let chosen = await withCheckedContinuation { reply in chooseOpen(window) { reply.resume(returning: $0) } }
+            owner.model.busy = false
+            guard !retired, let chosen else { return }
+            guard Data(FileTransferPaths.lexicalPath(chosen.path).utf8) == Data(FileTransferPaths.lexicalPath(url.path).utf8) else {
+                owner.model.error = "Choose the requested Unified Diff input file."; return
+            }
+            access = acquireAccess(chosen)
+        }
+        let token = OperationCancellation(), request = generation,legacy=ComparisonTextEncoding.legacyEncoding(from:owner.model.appearancePreferences)
+        if requiresFileScope && !access.hasSecurityScope { owner.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
         owner.model.busy = true; cancellation = token
         defer { withExtendedLifetime(access) {}; owner.model.busy = false; cancellation = nil }
         do {
@@ -201,9 +208,9 @@ import UniformTypeIdentifiers
             owner.window?.representedURL = url
             owner.model.setReadOnlyDiff(bytes, discardingEdits: true,displayLegacyEncoding:legacy)
             owner.model.refreshAvailable = false; owner.model.customRefresh = nil
-            owner.model.comparisonTitle = url.lastPathComponent
+            owner.model.comparisonTitle = title ?? url.lastPathComponent
             owner.model.readOnlyInformation = "Patch document. Edits are saved to the selected patch file."
-            owner.window?.title = url.lastPathComponent + " – Unified Diff – TurtleGit"
+            owner.window?.title = (title ?? url.lastPathComponent) + " – Unified Diff – TurtleGit"
         } catch { if !retired && !token.isCancelled { owner.model.error = error.localizedDescription } }
     }
     func encodedBytes() throws -> Data {

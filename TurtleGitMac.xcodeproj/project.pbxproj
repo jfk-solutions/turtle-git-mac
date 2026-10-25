@@ -222,6 +222,7 @@
 		6A2A057EEA62561CBC437DBC /* PresentationPackage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D341C533E341D13F4B679864 /* PresentationPackage.swift */; };
 		6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F6087799A5783306A27CEE /* RenameWindow.swift */; };
 		6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */; };
+		6D2D981E5D64302DE8DDB0F8 /* UnifiedDiffInputSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0EDB03211D3A2B2D3F259B /* UnifiedDiffInputSession.swift */; };
 		6E9C211F63BF121EEBABF693 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 388C1314131AD02CE01C4045 /* Security.framework */; };
 		70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */; };
 		7164C7C2217E6ABE41A1A1F5 /* SubmoduleUpdateProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */; };
@@ -302,6 +303,7 @@
 		9E622C7C59E4097D00A01885 /* HookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6C7223527745421AF60617 /* HookSettings.swift */; };
 		9E86F9AB226AFE398D3E1F6E /* LFSLocksTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49FCBFED2C9CC4E19476062C /* LFSLocksTable.swift */; };
 		9EAA76B0018911240EAC2639 /* RemoteSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3343365A5D1715F6611CABA /* RemoteSettings.swift */; };
+		9EBCEFEFCDF456AD469B5545 /* UnifiedDiffInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D60C3ADD6C9700F29412601 /* UnifiedDiffInvocation.swift */; };
 		9FCCF3C7B9757CF88874DA66 /* MessageSpelling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
 		A15800C5D07FE7D8B87B6D79 /* GitAskpassPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0D58AA19D852666927E54D /* GitAskpassPrompt.swift */; };
@@ -462,6 +464,7 @@
 		F28EFEC5D2C77F276B76731E /* CommitCheckboxIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC45B25889170370E887B2AC /* CommitCheckboxIndex.swift */; };
 		F338A5A635E1EA0F64ADF694 /* SMTPCertificateReviewWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD915C3966A70BBEC96420EC /* SMTPCertificateReviewWindow.swift */; };
 		F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */; };
+		F3D9B9F535F57EEB78760B47 /* UnifiedDiffInputReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C01D1DB29EA77496D9575B6 /* UnifiedDiffInputReader.swift */; };
 		F44F454B57C6503187788976 /* MergeFoldingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738666ABF57FC060C82F5C25 /* MergeFoldingController.swift */; };
 		F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79BBB2F306958D4D34AFF839 /* SSHTransportPreparation.swift */; };
 		F4D94506F25F14CFDBD68746 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
@@ -654,6 +657,7 @@
 		1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFileTable.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSyntax.swift; sourceTree = "<group>"; };
+		1D60C3ADD6C9700F29412601 /* UnifiedDiffInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffInvocation.swift; sourceTree = "<group>"; };
 		1F284E21C1B77A8212AA4943 /* MergeExternalReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeExternalReload.swift; sourceTree = "<group>"; };
 		1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitSMTP.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		205A616C02EABD9EE7DB57A2 /* SMTP.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = SMTP.c; sourceTree = "<group>"; };
@@ -848,6 +852,7 @@
 		8B42920DE9933183EF4D9AD8 /* ImageLoadWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoadWindow.swift; sourceTree = "<group>"; };
 		8B5ECE8E964DD38B678A58BE /* MergeOpenWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeOpenWindow.swift; sourceTree = "<group>"; };
 		8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddWindow.swift; sourceTree = "<group>"; };
+		8C01D1DB29EA77496D9575B6 /* UnifiedDiffInputReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffInputReader.swift; sourceTree = "<group>"; };
 		8C9B173C5B4A10A0D415C859 /* ImageComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageComparisonWindow.swift; sourceTree = "<group>"; };
 		8CEE54BA90E5B4FFFCC88149 /* HistoryWorkflowWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWorkflowWindow.swift; sourceTree = "<group>"; };
 		8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeMessageHistory.swift; sourceTree = "<group>"; };
@@ -984,6 +989,7 @@
 		CA84FDF422F71D741C28D6BA /* PathEntryField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathEntryField.swift; sourceTree = "<group>"; };
 		CB189665E36607BD18B45679 /* GitPropertiesWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPropertiesWindow.swift; sourceTree = "<group>"; };
 		CB2FFCE3F96744E4076184C2 /* GitLocalReferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLocalReferenceEngine.swift; sourceTree = "<group>"; };
+		CC0EDB03211D3A2B2D3F259B /* UnifiedDiffInputSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffInputSession.swift; sourceTree = "<group>"; };
 		CC73279697B4174BE7ED4D66 /* StashWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashWindow.swift; sourceTree = "<group>"; };
 		CFA1DB0B2E3DCDDE760C501F /* AboutBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutBannerView.swift; sourceTree = "<group>"; };
 		D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueTracker.swift; sourceTree = "<group>"; };
@@ -1361,6 +1367,7 @@
 				792C774F2364FC09D00A6FCE /* TurtleGitHelp.swift */,
 				1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */,
 				4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */,
+				CC0EDB03211D3A2B2D3F259B /* UnifiedDiffInputSession.swift */,
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
 				367B7BE2778863DCF15D253E /* WordComparisonAutomation.swift */,
 				B8BDE176DAEFC2951FD10AA5 /* WorkspaceOpenHandoff.swift */,
@@ -1664,6 +1671,8 @@
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
 				0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */,
 				985A594AD651C7899145A75C /* UnifiedDiffCaseFold.swift */,
+				8C01D1DB29EA77496D9575B6 /* UnifiedDiffInputReader.swift */,
+				1D60C3ADD6C9700F29412601 /* UnifiedDiffInvocation.swift */,
 				548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */,
 				766198338B0BF88B62BC0C31 /* UnifiedDiffSearch.swift */,
 				AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */,
@@ -2311,6 +2320,8 @@
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
 				9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */,
 				5FC25E652DEC9F024AEA858C /* UnifiedDiffCaseFold.swift in Sources */,
+				F3D9B9F535F57EEB78760B47 /* UnifiedDiffInputReader.swift in Sources */,
+				9EBCEFEFCDF456AD469B5545 /* UnifiedDiffInvocation.swift in Sources */,
 				2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */,
 				753A8B77C31169848F56EE3A /* UnifiedDiffSearch.swift in Sources */,
 				D7E9B06DF606B6A8A0488AF9 /* UnifiedDiffViewer.swift in Sources */,
@@ -2553,6 +2564,7 @@
 				827581DA51F1B9C0932E2982 /* TurtleGitHelp.swift in Sources */,
 				140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */,
 				3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */,
+				6D2D981E5D64302DE8DDB0F8 /* UnifiedDiffInputSession.swift in Sources */,
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
 				B19ACA1FA589C48D404F591C /* WordComparisonAutomation.swift in Sources */,
 				8D78B7880D0127DBE9E7FF27 /* WorkspaceOpenHandoff.swift in Sources */,

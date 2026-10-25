@@ -42,7 +42,7 @@ import TurtleGitCore
               repositoryModel?.confirmingQuit != true else { throw TurtleGitFinderServicesProvider.Failure.unavailable }
         guard let command = FinderServiceCommand(rawValue: request.action.rawValue) else { throw TurtleGitFinderServicesProvider.Failure.command }
         let captured = try command.request(paths: request.paths, alternateTool: request.alternateTool)
-        if startupLaunchMode == .mergeTool {
+        if startupLaunchMode != .workspace {
             // Keep the service origin across the separate workspace launch; its
             // typed decoder must choose the owned Services permission workflow.
             let url = try command.serviceURL(paths: captured.paths, alternateTool: captured.alternateTool)
@@ -108,7 +108,7 @@ import TurtleGitCore
     }()
     func application(_ application: NSApplication, open urls: [URL]) {
         guard acceptingOpenURLs else { return }
-        if startupLaunchMode == .mergeTool { workspaceOpenHandoff.submit(urls) }
+        if startupLaunchMode != .workspace { workspaceOpenHandoff.submit(urls) }
         else {
             for url in urls {
                 if url.scheme == "turtlegit", url.host == "service" {
@@ -173,7 +173,7 @@ import TurtleGitCore
         SettingsPresentationService.shared.install(workspace: workspace, appearance: appearance)
     }
     func bootstrapStandaloneToolIfNeeded() {
-        guard startupLaunchMode == .mergeTool, repositoryModel == nil, standaloneWorkspace == nil else { return }
+        guard startupLaunchMode != .workspace, repositoryModel == nil, standaloneWorkspace == nil else { return }
         let workspace = makeStandaloneWorkspace(), appearance = AppAppearance(preferences: .standard)
         standaloneWorkspace = workspace; standaloneAppearance = appearance
         configureStandaloneServices(workspace, appearance)
@@ -204,6 +204,12 @@ import TurtleGitCore
         startupDelivered = true
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {
+          if startupLaunchMode == .unifiedDiff {
+            // Unified Diff uses ordinary document Quit decisions. The Merge
+            // flag instead drains MergeToolLaunchSession's accepted outputs.
+            _ = repositoryModel.handleUnifiedDiffCommandLine(arguments: startupArguments, currentDirectory: startupDirectory, completion: { [weak self] status in self?.finishMergeToolStartup(status) })
+            return
+          }
           let mergeTool = repositoryModel.handleMergeToolCommandLine(arguments: startupArguments, currentDirectory: startupDirectory, completion: { [weak self, weak repositoryModel] status in
             guard let self else { return }
             self.finishMergeToolStartup(status)
@@ -214,6 +220,7 @@ import TurtleGitCore
         deliverPendingOpenURLs(); deliverPendingFinderService()
     }
     private var confirmingQuit = false
+    private var drainingUnifiedDiffQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
@@ -232,6 +239,17 @@ import TurtleGitCore
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if drainingUnifiedDiffQuit { return .terminateLater }
+        if UnifiedDiffInputSession.activeOperations > 0 {
+            drainingUnifiedDiffQuit = true
+            Task { [self] in
+                await UnifiedDiffInputSession.cancelAllAndWait()
+                drainingUnifiedDiffQuit = false
+                let reply = applicationShouldTerminate(sender)
+                if reply != .terminateLater { replyToTermination(sender, reply == .terminateNow) }
+            }
+            return .terminateLater
+        }
         if pendingFinderServiceRequest != nil { return .terminateCancel }
         if MergeExternalReloadCoordinator.activeRequests > 0 { return .terminateCancel }
         if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }

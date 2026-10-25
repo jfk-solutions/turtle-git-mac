@@ -1070,14 +1070,50 @@ and cleanup adaptations. Native labels and reflected names never replace the
 file paths or grant filesystem access.
 
 
-### Finder/document delivery while a standalone Merge tool is open
+## Standalone Unified Diff
+
+Launch the app executable with `--unified-diff` to create an editable Unnamed
+document, or provide one file or an explicit stdin stream. This mode opens only
+the native Unified Diff window, without a repository workspace or first-start
+wizard. Opening, editing and saving text do not require a Git executable.
+
+```sh
+"/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac" --unified-diff
+"/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac" --unified-diff --patchfile changes.txt --title "Review changes"
+git diff --binary | "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac" --unified-diff --stdin --title "Working tree"
+```
+
+The source aliases `/patchfile:path`, `/p` and `/title:caption` are also accepted.
+An arbitrary filename is allowed in this explicit mode; ordinary macOS document
+associations remain `.patch` and `.diff`. Use `--` before a literal filename that
+looks like an option. Choose a single input; conflicting inputs, duplicate titles
+and malformed options are rejected. `/command:` and `--command` retain their
+repository-command meaning.
+
+Stdin is consumed only with `--stdin` or `/p`. EOF publishes the captured bytes as
+one document, including empty EOF; partial input is not editable. The input limit
+is less than 250 MiB. Closing the window cancels and drains its reader. Quit
+cancels all active readers, waits for them, then performs the normal unsaved
+document decisions. The caller's descriptor is never closed or reconfigured.
+File inputs must resolve to regular files; use stdin for pipe input. Sandboxed
+command-line file arguments require an explicit matching file selection if no
+file scope is available; the argument itself grants no access.
+
+The File menu's Dark Mode command changes only the current viewer. Save, Save As,
+Find, Print and Settings reuse the existing document workflow. Apply Patch resolves
+the configured Git engine when invoked and opens the existing target/review
+workflow. The command process stays alive until its document closes and accepted
+external workspace handoffs finish. See
+[the implementation and validation record](UNIFIED-DIFF-STANDALONE-PARITY.md) for limits.
+
+### Finder/document delivery while a standalone Merge or Unified Diff tool is open
 
 The application delegate receives macOS URL/document events. An ordinary workspace
 queues early events until its model and startup command are ready, then delivers
 them once in received order. The former window-view URL handler is removed so an
 event has one owner.
 
-A standalone Merge process forwards supported `turtlegit://action` requests and
+A standalone Merge or Unified Diff process forwards supported `turtlegit://action` requests and
 `.patch`/`.diff` documents through Launch Services to a fresh workspace instance,
 with empty launch arguments. It preserves the URL list, order and duplicates;
 Merge input/output arguments are never inherited by the new workspace. Unknown
