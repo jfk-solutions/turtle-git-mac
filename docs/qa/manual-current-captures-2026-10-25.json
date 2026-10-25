@@ -1,0 +1,51 @@
+{
+  "method": "ScreenCaptureKit desktopIndependentWindow; actual native windows offscreen, original PNG bytes",
+  "repository": "Synthetic offline Harbor with branch merge, staged/unstaged files and draft; fixture commits only before capture baseline",
+  "preferences": "private suite removed; private HOME/CFFIXED_USER_HOME env",
+  "network": false,
+  "owned_receiver_reaped": true,
+  "assets": [
+    {
+      "path": "docs/site/assets/mac-log-light-2026-10-25.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-25/mac-log-light-2026-10-25.png",
+      "width": 2240,
+      "height": 1624,
+      "bytes": 575734,
+      "sha256": "f691df2e7ef014fdf3b475f2a8dadf412250e4cf8c092713ac22272228e48f00"
+    },
+    {
+      "path": "docs/site/assets/mac-log-dark-2026-10-25.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-25/mac-log-dark-2026-10-25.png",
+      "width": 2240,
+      "height": 1624,
+      "bytes": 566054,
+      "sha256": "1277334484766740f8e20e2d6a5fc33b3bc66cfa9f4f0b7dcea3ea370477fe47"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-light-2026-10-25.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-25/mac-commit-light-2026-10-25.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 428153,
+      "sha256": "5ddca9d207b35101fe7d84ee64670deea369a8f2540884bed5592c7d53be0b02"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-dark-2026-10-25.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-25/mac-commit-dark-2026-10-25.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 444369,
+      "sha256": "05839da2273ba68fe11b5efd9251c9d7e5db1a964132a5c59ffda26e99ba0ece"
+    }
+  ],
+  "stdout_sha256": "f6fe438322604f842eb82cc688148e1f178214bd15b7d961437d5d295f97ac27",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "receiver_pid": 72331,
+  "independent_ps_absent": true,
+  "fixture_directory_removed": true,
+  "visual_review": "All four original PNGs viewed: legible real controls, graph/merge parents, checked files and meaningful draft; no compositing or image editing. Titles retain actual temporary repository path.",
+  "limitations": [
+    "Focused screenshots only; no full visual parity or installed-app acceptance assertion.",
+    "Initial fixture setup created private sample commits; no commit/apply action after capture baseline."
+  ]
+}

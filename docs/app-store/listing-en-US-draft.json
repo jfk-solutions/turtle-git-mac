@@ -10,14 +10,16 @@
   "proposed_secondary_category": "Utilities",
   "marketing_url": "https://jfk-solutions.github.io/turtle-git-mac/",
   "support_url_candidate": "https://jfk-solutions.github.io/turtle-git-mac/",
-  "support_url_approval": "confirmed support email included in website source; pending deployment and final listing approval",
+  "support_url_approval": "confirmed support email deployed and verified 2026-10-25; final listing approval pending",
   "privacy_policy_url_candidate": "https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html",
   "privacy_policy_approval": "pending exact release/publisher review",
   "url_observation": {
     "date": "2026-10-25",
     "method": "direct HTTPS GET",
     "homepage_status": 200,
-    "privacy_status": 200
+    "privacy_status": 200,
+    "support_email_present": true,
+    "support_deployment_pages_run": 40214801400
   },
   "measured_copy_lengths": {
     "name_characters": 17,

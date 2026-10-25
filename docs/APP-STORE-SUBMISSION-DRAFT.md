@@ -22,7 +22,7 @@ unconfirmed App Store seller/legal entity and retained upstream rights.
 | Description | Exact plain-text copy in the JSON payload | Owner approval; no price, release date or full-parity claim |
 | Marketing URL | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable; current site correctly says development/planned availability |
 | Public support email | jochen.kuehner@gmx.de | Confirmed by owner on 25 October 2026; recorded in this draft |
-| Support URL candidate | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable, links to GitHub issues; Confirmed support email included in the website source; pending deployment and final listing approval |
+| Support URL candidate | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable, links to GitHub issues; Confirmed support email deployed and verified on 25 October 2026; final listing approval pending |
 | Privacy Policy URL candidate | https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html | Reachable policy; owner must approve for the exact release and identify the responsible publisher/contact |
 | Copyright, seller, SKU | Not supplied | Owner must confirm legal rights/identity and the App Store Connect record |
 | Price, territories, release method | Not supplied | Owner decision; no free, trial, subscription or purchase claim inferred |
@@ -46,7 +46,8 @@ Support/Source links. No new page was published by this audit.
 
 The owner confirmed **jochen.kuehner@gmx.de** as the public support email on
 25 October 2026. The homepage's issue tracker is a useful technical support route;
-the confirmed email is now included in the website source, awaiting deployment. Apple describes
+the confirmed email was deployed and verified by direct HTTPS GET on
+25 October 2026 (Pages run `40214801400`, commit `ca7c08d1f94d`). Apple describes
 actual contact information for Support URL and requires a privacy URL; a reachable
 page alone does not settle those fields. See [version metadata](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information)
 and [App Privacy](https://developer.apple.com/help/app-store-connect/reference/app-information/app-privacy/).

@@ -13,11 +13,11 @@ def slug(text):
 def page_shell(title, body, repository, toc=''):
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{escape(title)} — TurtleGit for Mac</title><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="manual.css"></head>
+<title>{escape(title)} — TurtleGit for Mac</title><link rel="icon" type="image/png" href="../assets/application-favicon.png"><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="manual.css"></head>
 <body><a class="skip-link" href="#content">Skip to content</a>
-<header><a class="brand" href="../index.html">🐢 TurtleGit for Mac</a><nav aria-label="Main"><a href="index.html">Documentation</a><a href="GETTING-STARTED.html">Getting started</a><a href="https://github.com/{repository}">Source ↗</a></nav></header>
+<header><a class="brand" href="../index.html"><img src="../assets/application-icon.png" width="36" height="36" alt="">TurtleGit for Mac</a><nav aria-label="Main"><a href="index.html">Documentation</a><a href="GETTING-STARTED.html">Getting started</a><a href="https://github.com/{repository}">Source ↗</a></nav></header>
 <main class="manual-layout"><aside class="manual-sidebar" aria-label="On this page">{toc}</aside><article id="content" class="manual-content">{body}</article></main>
-<footer><p>Development preview. Complete TortoiseGit parity and signed distribution remain in progress.</p><p><a href="https://github.com/{repository}/blob/main/LICENSE">License</a> · <a href="https://github.com/{repository}/blob/main/NOTICE">Attribution</a></p></footer></body></html>'''
+<footer><p>TurtleGit for Mac · A macOS fork of TortoiseGit · macOS port by Jochen Kühner.</p><p><a href="https://github.com/{repository}/blob/main/LICENSE">License</a> · <a href="https://github.com/{repository}/blob/main/NOTICE">Attribution</a></p></footer></body></html>'''
 
 
 def render_documents(root, destination, repository):
@@ -78,8 +78,8 @@ def render_documents(root, destination, repository):
         item.pop('anchors')
     (output / 'search-index.json').write_text(json.dumps(catalog, ensure_ascii=False) + '\n')
     rows = ''.join(f'<li data-kind="{item["kind"]}"><a href="{escape(item["url"], quote=True)}">{escape(item["title"])}</a><span class="doc-kind">{"Source audit" if item["kind"] == "audit" else "Guide / reference"}</span></li>' for item in catalog)
-    body = f'''<h1>TurtleGit documentation</h1><p>Start with the user guides, or inspect source audits for verified behavior and remaining work. Checkpoint records describe their stated scope; they do not certify the complete port.</p>
-<p><a href="GETTING-STARTED.html">Getting started →</a> · <a href="README.html">Grouped documentation index →</a> · <a href="PORTING.html">Port progress →</a> · <a href="DISTRIBUTION.html">Build and distribution →</a></p>
+    body = f'''<h1>TurtleGit user manual</h1><p>Work with Git in native Mac windows and Finder. Learn how to open a repository, choose changes for a commit, explore history and resolve conflicts.</p>
+<p><a href="GETTING-STARTED.html">Getting started →</a> · <a href="GETTING-STARTED.html#start-from-finder">Finder commands →</a> · <a href="GETTING-STARTED.html#commit-with-checked-files">Commit changes →</a> · <a href="MERGE-TOOL.html">Compare and merge →</a> · <a href="README.html">All guides and references →</a></p>
 <form id="doc-search" role="search"><label for="search">Search documentation</label><input id="search" name="q" type="search" placeholder="Commit, Finder, staging…" autocomplete="off"><label for="kind">Document type</label><select id="kind"><option value="all">All documents</option><option value="guide">Guides and references</option><option value="audit">Source audits</option></select></form>
 <p id="search-status" role="status">{len(catalog)} documents. Search loads locally in your browser.</p><ol id="search-results" class="doc-results" hidden></ol><ul id="document-list" class="doc-list">{rows}</ul><script src="search.js" defer></script>'''
     (output / 'index.html').write_text(page_shell('Documentation', body, repository, '<a href="../index.html">← Screenshots and project</a>'))

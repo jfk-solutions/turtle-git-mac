@@ -9,9 +9,9 @@ Mac windows, with Git commands and status badges in Finder.
 The macOS port is authored by **Jochen Kühner**. See [AUTHORS.md](AUTHORS.md)
 for port and upstream attribution.
 
-TurtleGit is an independent, unofficial project based on TortoiseGit. It is under
-development and requires macOS 13 or later. Distribution is planned through the
-Mac App Store; the app is not yet available for purchase.
+TurtleGit is an independent, unofficial project based on TortoiseGit and requires
+macOS 13 or later. Mac App Store distribution is planned; there is no published
+store listing or purchase available yet.
 
 ## Features
 
@@ -21,9 +21,19 @@ Mac App Store; the app is not yet available for purchase.
 - Text comparison, three-way conflict resolution and partial staging.
 - Standalone editable patch documents and piped diffs; see [command-line usage](docs/COMMAND-LINE.md#standalone-unified-diff).
 - Native light and dark appearances and bundled offline help.
+- Included Git and OpenSSH in the sandboxed distribution build.
+
+Finder commands can open their own dialogs without opening a repository workspace.
+Use **Open Repository…** when you want the main repository window.
 
 See the [user manual](docs/GETTING-STARTED.md) for workflows and
 [documentation index](docs/README.md) for detailed guides and known limitations.
+
+## Screenshots
+
+![Native Log with revision graph and changed files](docs/site/assets/mac-log-light-2026-10-25.png)
+
+[See Commit and dark-mode screenshots](https://jfk-solutions.github.io/turtle-git-mac/#screenshots) or follow the [illustrated Getting Started guide](docs/GETTING-STARTED.md).
 
 ## Development
 

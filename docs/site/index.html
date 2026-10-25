@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="author" content="Jochen Kühner">
-  <meta name="description" content="TurtleGit for Mac brings familiar Git workflows to native macOS windows and Finder. Read the user manual and learn about the project.">
+  <meta name="description" content="TurtleGit for Mac is a native macOS Git client and a macOS fork of TortoiseGit. Review history, commit changes, compare files and work from Finder.">
   <link rel="icon" type="image/png" href="assets/application-favicon.png">
   <title>TurtleGit for Mac — Git in your Finder</title>
   <link rel="stylesheet" href="style.css">
@@ -17,18 +17,18 @@
 <main id="main">
   <section class="hero" aria-labelledby="title">
     <div><h1 id="title">The power of Git.<br>At home on your Mac.</h1>
-    <p>Review changes, explore history and manage your repositories with familiar Git tools in native Mac windows and Finder.</p>
+    <p>A macOS fork of TortoiseGit. Review changes, explore history and manage your repositories with familiar Git tools in native Mac windows and Finder.</p>
     <a class="primary" href="manual/GETTING-STARTED.html">Read the manual</a>
-    <p class="availability">Under development · Planned for the Mac App Store</p></div>
+    <p class="availability">macOS 13 or later · Apple silicon and Intel</p></div>
     <img class="hero-icon" src="assets/application-icon.png" width="180" height="180" alt="TurtleGit turtle with Git on its shell">
   </section>
   <div class="columns">
     <section id="about">
       <h2>Git, close at hand</h2>
       <p>The macOS port is authored by <strong>Jochen Kühner</strong>.</p>
-      <p>TurtleGit brings the workflows of TortoiseGit to macOS: Finder context menus, file status badges, commits, branches and remote synchronization.</p>
-      <p>Inspect a repository’s history, compare files and resolve conflicts with built-in tools. Native windows support light and dark appearances, with help available offline.</p>
-      <figure><a href="assets/log-current-light.png"><img src="assets/log-current-light.png" width="1200" height="800" alt="TurtleGit native revision history window" loading="lazy"></a><figcaption>Explore commits and changed files in the history window.</figcaption></figure>
+      <p>Start from Finder with Git context menus and colored file status badges. Open the dialog you need: Commit, Log, branches, tags, remotes or synchronization. A repository workspace is available when you want a broader view.</p>
+      <p>Follow branches and merges in the history graph, inspect each commit’s changed files, and use Blame to trace a line’s origin. Review changes with built-in comparison and conflict-resolution tools, then choose what to stage and commit.</p>
+      <p>Native Mac controls, light and dark appearances, keyboard shortcuts and offline help keep everyday Git work close at hand.</p>
     </section>
     <aside aria-label="Resources">
       <section><h2>User manual</h2><p>Guides for everyday Git work.</p><ul>
@@ -36,10 +36,20 @@
         <li><a href="manual/MERGE-TOOL.html">Compare and merge files</a></li>
         <li><a href="manual/index.html">Browse the full manual</a></li>
       </ul></section>
-      <section><h2>Availability</h2><p>TurtleGit is under development. We plan to sell it through the Mac App Store. It is not yet available for purchase.</p><p>Requires macOS 13 or later.</p></section>
+      <section><h2>Made for macOS</h2><p>Runs on Apple silicon and Intel Macs with macOS 13 or later. The sandboxed distribution build includes Git and OpenSSH.</p><p>Choose which repository folders TurtleGit can access. Enable its Finder extension for repository menus and status badges.</p></section>
       <section id="support"><h2>Support</h2><p>Contact Jochen Kühner at <a href="mailto:jochen.kuehner@gmx.de">jochen.kuehner@gmx.de</a> for TurtleGit support.</p><p>Found a problem or have an idea?</p><ul><li><a href="@@REPOSITORY_URL@@/issues">Report an issue</a></li><li><a href="@@REPOSITORY_URL@@">Browse the source</a></li></ul></section>
     </aside>
   </div>
+  <section id="screenshots" class="screenshots" aria-labelledby="screenshots-title">
+    <h2 id="screenshots-title">Your repositories, in light and dark</h2>
+    <p>Current native windows, captured with a sample repository. Select an image to see it at full size.</p>
+    <div class="screenshot-grid">
+      <figure><a href="assets/mac-log-light-2026-10-25.png"><img src="assets/mac-log-light-2026-10-25.png" width="2240" height="1624" alt="Light Log window showing a branch and merge graph, colored references, commit message and changed files" loading="lazy"></a><figcaption>Log: branches, merges, messages and changed files.</figcaption></figure>
+      <figure><a href="assets/mac-log-dark-2026-10-25.png"><img src="assets/mac-log-dark-2026-10-25.png" width="2240" height="1624" alt="Dark Log window with the revision graph and selected merge commit" loading="lazy"></a><figcaption>The same history in dark appearance.</figcaption></figure>
+      <figure><a href="assets/mac-commit-light-2026-10-25.png"><img src="assets/mac-commit-light-2026-10-25.png" width="2000" height="1584" alt="Light Commit window with message editor, author controls and checked files grouped by changelist" loading="lazy"></a><figcaption>Commit: write a message and choose the files to include.</figcaption></figure>
+      <figure><a href="assets/mac-commit-dark-2026-10-25.png"><img src="assets/mac-commit-dark-2026-10-25.png" width="2000" height="1584" alt="Dark Commit window showing colored modified, untracked and deleted file rows" loading="lazy"></a><figcaption>Familiar status colors and options in a native Mac dialog.</figcaption></figure>
+    </div>
+  </section>
 </main>
 <footer><p>macOS port by Jochen Kühner. An independent, unofficial macOS project based on <a href="https://tortoisegit.org/">TortoiseGit</a>. Licensed under GPL v2.</p></footer>
 </body>

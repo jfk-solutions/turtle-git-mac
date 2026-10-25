@@ -1,9 +1,14 @@
 # Getting started with TurtleGit for Mac
 
-This first manual chapter covers opening a repository, committing and inspecting
-history in the development app. The complete port and manual remain in progress.
-For build and signing instructions, start with the [project README](../README.md)
-and [distribution guide](DISTRIBUTION.md).
+TurtleGit brings Git commands, file status badges, history and comparison tools
+to macOS. This chapter covers opening a repository, working from Finder,
+committing changes and reviewing history in native Mac windows.
+
+The macOS port is authored by **Jochen Kühner**, with upstream attribution in
+[AUTHORS.md](../AUTHORS.md). It requires macOS 13 or later. Mac App Store
+distribution is planned; no store purchase is available yet. Build and signing
+instructions are in the [project README](../README.md) and
+[distribution guide](DISTRIBUTION.md).
 
 ## Set up Git and authentication
 
@@ -20,19 +25,25 @@ HTTP credential-helper choice. If that later step fails, the accepted SSH
 choice remains saved so you can correct the helper and retry. **Don't store**
 for HTTP credentials does not discard the SSH choice.
 
-An App Store build uses its included Git and OpenSSH, with custom executable
-selection disabled. Existing custom-client preferences remain available to a
-regular development build. See the [SSH setup source comparison](FIRST-START-SSH-PARITY.md)
-for the current implementation and acceptance limits.
+The sandboxed distribution build includes Git and OpenSSH, so a separate Git
+installation is not required. Custom executable selection is disabled in that
+build. Builds made for development can use a separately configured Git or SSH
+client. See [SSH setup](FIRST-START-SSH-PARITY.md) for authentication details and
+platform limitations.
 
 ## Open, clone or create
 
-Use **Open Repository…** (Command-O) to select an existing repository folder.
+Use **Open Repository…** (Command-O) to select an existing repository folder
+and open the main workspace.
 Use **Clone…** (Command-Shift-C) for a remote or local source, or **Create
 Repository…** (Command-Shift-R) for a new repository. Clone has its own options
 and progress windows; inspect the result before continuing. A failed Clone can
 leave partial files: retry does not delete them for you. See [Clone parity](CLONE-PARITY.md)
 for supported options, cancellation and remaining authentication work.
+
+Finder commands, Settings, About and standalone comparison or patch documents
+open their own windows. They do not need to open a repository workspace first.
+Closing a dialog leaves any existing workspace available.
 
 The source button remembers **Browse…** or **Open**. Use its arrow to change the
 action. Open reveals a local source in Finder (or its closest existing parent)
@@ -91,6 +102,14 @@ and **Message only**. The commit choice offers **Commit**, **ReCommit** and
 and result before continuing. [Commit parity](COMMIT-PARITY.md) records their
 source comparisons, verification and remaining work.
 
+The Commit window in light appearance:
+
+![Commit in light mode: message, author options and checked files](site/assets/mac-commit-light-2026-10-25.png)
+
+The same window in dark appearance:
+
+![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-dark-2026-10-25.png)
+
 ## Choose a commit window
 
 The **Commit window** selector offers **Classic** and **Git Gui-style staging**.
@@ -139,11 +158,17 @@ windows are available through supported routes. See [Log parity](LOG-PARITY.md),
 [Log graph](LOG-GRAPH.md) and [comparison parity](SUBMODULE-DIFF-PARITY.md) for
 implemented commands and remaining differences.
 
-The existing [Commit screenshot](site/assets/commit-controls.png),
-[partial-staging screenshot](site/assets/partial-staging.png) and
-[Log screenshot](site/assets/log-messages.png) show actual native windows at
-previous development checkpoints. Updated screenshots and the remaining manual
-chapters still need work; see the [manual plan](MANUAL-PLAN.md).
+The Log window shows the revision graph before the commit list, with the selected
+commit's message and changed paths below. This example selects a merge so you can
+inspect its differences against each parent.
+
+![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-25.png)
+
+![The same Log window in dark mode](site/assets/mac-log-dark-2026-10-25.png)
+
+These screenshots show actual native windows using the offline Harbor sample
+repository. Available actions depend on the repository and selection. The
+[partial-staging example](site/assets/partial-staging.png) shows the patch controls.
 
 Return to the [documentation index](README.md) for other workflows.
 
@@ -158,8 +183,8 @@ Repo-browser for a tree object. Copy ref names copies selected shortened
 names in displayed order (branch names, or tags/remotes with their namespace). Revision pickers in other dialogs remain single-selection.
 
 Single-reference menus include Fetch, Merge, Switch, creation, rename, tracking and
-deletion where applicable. Some standalone and batch menus remain unfinished; see
-[reference-browser parity](REFERENCE-BROWSER-PARITY.md) for the current limits.
+deletion where applicable. See [reference browsing](REFERENCE-BROWSER-PARITY.md)
+for command eligibility and platform differences.
 
 
 To delete several references, select branches, tags or remote branches from one
@@ -186,8 +211,7 @@ In **Git Synchronization**, click **Manage** beside Remote URL to edit remotes.
 Use **Add New/Save** to add a name and URL, or select an existing remote and
 apply its URL, Push URL, tag, prune or Push Default changes. Closing Remote
 settings refreshes Synchronization's remote list and outgoing results.
-Unapplied edits are discarded when you cancel. The complete Settings tree
-and full upstream dialog parity are still being ported.
+Unapplied edits are discarded when you cancel.
 
 In Synchronization, use **…** beside Local Branch to choose a local branch and
 load its tracking destination. Use **…** beside Remote Branch to choose a stored
@@ -259,8 +283,8 @@ the [light Export sheet](site/assets/sync-export-light.png) and
 
 The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
 and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
-windows at earlier development checkpoints. See [Sync parity](SYNCHRONIZATION-PARITY.md)
-for the tested commands and remaining UI, Finder and signed acceptance work.
+windows with incoming and outgoing history. See [Synchronization](SYNCHRONIZATION-PARITY.md)
+for command details and platform limitations.
 
 ## Standalone comparison and merging
 
@@ -293,6 +317,28 @@ are cleared while selected, you can uncheck it and choose a patch file. See
 
 
 In a text comparison or merge, **View → Scroll → Line Up / Line Down** moves all displayed panes by one visible line. **Line Left / Line Right** moves them by one font character cell where horizontal scrolling is available. These commands leave text, caret selections and Undo history unchanged; ordinary caret arrow keys keep their usual behavior. See the [viewport navigation record](VIEWPORT-NAVIGATION-PARITY.md) for source mapping and platform differences.
+
+## Open a standalone unified diff
+
+Open a patch document in the Unified Diff viewer to read, edit and save its text
+without opening a repository. The command-line entry also accepts piped diff
+bytes and an optional window title; see [standalone Unified Diff](COMMAND-LINE.md#standalone-unified-diff).
+The viewer has Find and a window-local Light/Dark choice. Saving writes the patch
+document; applying it to a working tree is a separate action that requires a
+repository and folder access.
+
+## Appearance and folder access
+
+Windows follow the application or system Light/Dark appearance, with separate
+color palettes for comparison, patch and Blame views. Standalone Unified Diff can
+use its own appearance choice. Use Settings to customize fonts and colors.
+
+macOS can ask you to select a repository, its external Git metadata, a destination
+or an input file before allowing access. These permissions are separate from Git's
+safe-directory trust checks. Review any trust question and its exact repository
+and configuration path before accepting it. Cancelling a permission or trust
+request does not grant access. Registration alone does not enable background
+refresh or scan other folders.
 
 ## Text encoding and line endings
 

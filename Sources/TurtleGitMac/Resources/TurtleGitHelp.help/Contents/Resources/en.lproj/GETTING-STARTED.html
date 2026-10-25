@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Getting started with TurtleGit for Mac</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-overview"></a><h1 id="getting-started-with-turtlegit-for-mac">Getting started with TurtleGit for Mac</h1>
-<p>This first manual chapter covers opening a repository, committing and inspecting
-history in the development app. The complete port and manual remain in progress.
-For build and signing instructions, start with the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/README.md">project README</a>
-and <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DISTRIBUTION.html">distribution guide</a>.</p>
+<p>TurtleGit brings Git commands, file status badges, history and comparison tools
+to macOS. This chapter covers opening a repository, working from Finder,
+committing changes and reviewing history in native Mac windows.</p>
+<p>The macOS port is authored by <strong>Jochen Kühner</strong>, with upstream attribution in
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/AUTHORS.md">AUTHORS.md</a>. It requires macOS 13 or later. Mac App Store
+distribution is planned; no store purchase is available yet. Build and signing
+instructions are in the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/README.md">project README</a> and
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DISTRIBUTION.html">distribution guide</a>.</p>
 <h2 id="set-up-git-and-authentication">Set up Git and authentication</h2>
 <p>Open <strong>First Start Wizard…</strong> from the application menu, or re-run it from
 General settings. Choose the interface language, Git engine, identity and
@@ -16,17 +20,22 @@ stops a pending check. Finish saves a changed SSH choice before applying the
 HTTP credential-helper choice. If that later step fails, the accepted SSH
 choice remains saved so you can correct the helper and retry. <strong>Don't store</strong>
 for HTTP credentials does not discard the SSH choice.</p>
-<p>An App Store build uses its included Git and OpenSSH, with custom executable
-selection disabled. Existing custom-client preferences remain available to a
-regular development build. See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FIRST-START-SSH-PARITY.html">SSH setup source comparison</a>
-for the current implementation and acceptance limits.</p>
+<p>The sandboxed distribution build includes Git and OpenSSH, so a separate Git
+installation is not required. Custom executable selection is disabled in that
+build. Builds made for development can use a separately configured Git or SSH
+client. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FIRST-START-SSH-PARITY.html">SSH setup</a> for authentication details and
+platform limitations.</p>
 <h2 id="open-clone-or-create">Open, clone or create</h2>
-<p>Use <strong>Open Repository…</strong> (Command-O) to select an existing repository folder.
+<p>Use <strong>Open Repository…</strong> (Command-O) to select an existing repository folder
+and open the main workspace.
 Use <strong>Clone…</strong> (Command-Shift-C) for a remote or local source, or <strong>Create
 Repository…</strong> (Command-Shift-R) for a new repository. Clone has its own options
 and progress windows; inspect the result before continuing. A failed Clone can
 leave partial files: retry does not delete them for you. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/CLONE-PARITY.html">Clone parity</a>
 for supported options, cancellation and remaining authentication work.</p>
+<p>Finder commands, Settings, About and standalone comparison or patch documents
+open their own windows. They do not need to open a repository workspace first.
+Closing a dialog leaves any existing workspace available.</p>
 <p>The source button remembers <strong>Browse…</strong> or <strong>Open</strong>. Use its arrow to change the
 action. Open reveals a local source in Finder (or its closest existing parent)
 or opens a remote URL using its registered application. It does not start a clone.
@@ -73,6 +82,10 @@ and <strong>Message only</strong>. The commit choice offers <strong>Commit</stro
 <strong>Commit &amp; Push</strong>. Options have eligibility rules; inspect the enabled controls
 and result before continuing. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-PARITY.html">Commit parity</a> records their
 source comparisons, verification and remaining work.</p>
+<p>The Commit window in light appearance:</p>
+<p><img src="images/1c4f9b9a24c8-mac-commit-light-2026-10-25.png" alt="Commit in light mode: message, author options and checked files" /></p>
+<p>The same window in dark appearance:</p>
+<p><img src="images/ca07992015d4-mac-commit-dark-2026-10-25.png" alt="Commit in dark mode with colored status rows and changelists" /></p>
 <h2 id="choose-a-commit-window">Choose a commit window</h2>
 <p>The <strong>Commit window</strong> selector offers <strong>Classic</strong> and <strong>Git Gui-style staging</strong>.
 Classic remains the default. The choice is saved for subsequent Commit windows.
@@ -112,11 +125,14 @@ original upstream artwork. Colored unified patches and native file comparison
 windows are available through supported routes. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-PARITY.html">Log parity</a>,
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-GRAPH.html">Log graph</a> and <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SUBMODULE-DIFF-PARITY.html">comparison parity</a> for
 implemented commands and remaining differences.</p>
-<p>The existing <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/commit-controls.png">Commit screenshot</a>,
-<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/partial-staging.png">partial-staging screenshot</a> and
-<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/log-messages.png">Log screenshot</a> show actual native windows at
-previous development checkpoints. Updated screenshots and the remaining manual
-chapters still need work; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MANUAL-PLAN.html">manual plan</a>.</p>
+<p>The Log window shows the revision graph before the commit list, with the selected
+commit's message and changed paths below. This example selects a merge so you can
+inspect its differences against each parent.</p>
+<p><img src="images/f074a5014ab8-mac-log-light-2026-10-25.png" alt="Log in light mode showing a branch and merge graph, message and changed files" /></p>
+<p><img src="images/058ba0a78a81-mac-log-dark-2026-10-25.png" alt="The same Log window in dark mode" /></p>
+<p>These screenshots show actual native windows using the offline Harbor sample
+repository. Available actions depend on the repository and selection. The
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/partial-staging.png">partial-staging example</a> shows the patch controls.</p>
 <p>Return to the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/README.html">documentation index</a> for other workflows.</p>
 <h2 id="browse-references">Browse references</h2>
 <p>Choose <strong>Browse References</strong> in the TurtleGit menu or sidebar to inspect branches,
@@ -126,8 +142,8 @@ the last selected reference is the right endpoint. Double-click opens Log, or
 Repo-browser for a tree object. Copy ref names copies selected shortened
 names in displayed order (branch names, or tags/remotes with their namespace). Revision pickers in other dialogs remain single-selection.</p>
 <p>Single-reference menus include Fetch, Merge, Switch, creation, rename, tracking and
-deletion where applicable. Some standalone and batch menus remain unfinished; see
-<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REFERENCE-BROWSER-PARITY.html">reference-browser parity</a> for the current limits.</p>
+deletion where applicable. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REFERENCE-BROWSER-PARITY.html">reference browsing</a>
+for command eligibility and platform differences.</p>
 <p>To delete several references, select branches, tags or remote branches from one
 namespace and choose <strong>Delete N…</strong> in the context menu. Review the confirmation:
 remote branches are removed on the remote, and branch batches do not check whether
@@ -148,8 +164,7 @@ Fetch and Delete remote tags for their configured remote.</p>
 Use <strong>Add New/Save</strong> to add a name and URL, or select an existing remote and
 apply its URL, Push URL, tag, prune or Push Default changes. Closing Remote
 settings refreshes Synchronization's remote list and outgoing results.
-Unapplied edits are discarded when you cancel. The complete Settings tree
-and full upstream dialog parity are still being ported.</p>
+Unapplied edits are discarded when you cancel.</p>
 <p>In Synchronization, use <strong>…</strong> beside Local Branch to choose a local branch and
 load its tracking destination. Use <strong>…</strong> beside Remote Branch to choose a stored
 remote-tracking reference; its remote and branch populate both fields. These
@@ -224,8 +239,8 @@ the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-export-dark.png">dark Export sheet</a>.</p>
 <p>The existing <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/git-synchronization-light.png">light Sync screenshot</a>
 and <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/git-synchronization-dark.png">dark Sync screenshot</a> show native
-windows at earlier development checkpoints. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYNCHRONIZATION-PARITY.html">Sync parity</a>
-for the tested commands and remaining UI, Finder and signed acceptance work.</p>
+windows with incoming and outgoing history. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYNCHRONIZATION-PARITY.html">Synchronization</a>
+for command details and platform limitations.</p>
 <a name="topic-compare"></a><h2 id="standalone-comparison-and-merging">Standalone comparison and merging</h2>
 <p>Choose <strong>Tools → Open in TurtleGitMerge…</strong> without needing a repository.
 Use <strong>Merging</strong> and select Base, Their and My files. Two selected files open a
@@ -251,6 +266,23 @@ availability without reading clipboard text until OK. If clipboard contents
 are cleared while selected, you can uncheck it and choose a patch file. See
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-OPEN-PARITY.html">Merge Open parity</a> for current validation and limitations.</p>
 <p>In a text comparison or merge, <strong>View → Scroll → Line Up / Line Down</strong> moves all displayed panes by one visible line. <strong>Line Left / Line Right</strong> moves them by one font character cell where horizontal scrolling is available. These commands leave text, caret selections and Undo history unchanged; ordinary caret arrow keys keep their usual behavior. See the <a href="VIEWPORT-NAVIGATION-PARITY.html">viewport navigation record</a> for source mapping and platform differences.</p>
+<h2 id="open-a-standalone-unified-diff">Open a standalone unified diff</h2>
+<p>Open a patch document in the Unified Diff viewer to read, edit and save its text
+without opening a repository. The command-line entry also accepts piped diff
+bytes and an optional window title; see <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMAND-LINE.html#standalone-unified-diff">standalone Unified Diff</a>.
+The viewer has Find and a window-local Light/Dark choice. Saving writes the patch
+document; applying it to a working tree is a separate action that requires a
+repository and folder access.</p>
+<h2 id="appearance-and-folder-access">Appearance and folder access</h2>
+<p>Windows follow the application or system Light/Dark appearance, with separate
+color palettes for comparison, patch and Blame views. Standalone Unified Diff can
+use its own appearance choice. Use Settings to customize fonts and colors.</p>
+<p>macOS can ask you to select a repository, its external Git metadata, a destination
+or an input file before allowing access. These permissions are separate from Git's
+safe-directory trust checks. Review any trust question and its exact repository
+and configuration path before accepting it. Cancelling a permission or trust
+request does not grant access. Registration alone does not enable background
+refresh or scan other folders.</p>
 <h2 id="text-encoding-and-line-endings">Text encoding and line endings</h2>
 <p>In an editable comparison or merged-result pane, choose <strong>Encoding…</strong> beside
 its format indicators. Choose the output encoding and EOL, then OK. <strong>Auto</strong>
@@ -378,4 +410,4 @@ commit’s first reference. Rebase prefers a local branch on that commit. If the
 chosen reference has moved, refresh the Log before trying again. Preparation can
 be cancelled by closing Log; a cancelled or retired window does not open late
 Merge/Rebase options.</p>
-</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>
+</main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit · macOS port by Jochen Kühner. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

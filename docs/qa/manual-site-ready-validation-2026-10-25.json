@@ -1,0 +1,114 @@
+{
+  "base": "ca7c08d1f94d3c722c89d041667cca9036154ca1",
+  "scope": "Clean tracked docs/scripts/Help snapshot plus explicit ready overlay only; no main sources restored or edited",
+  "snapshot": "build/qa/manual-site-ready-snapshot-2026-10-25",
+  "overlay": {
+    "README.md": "b67d85f80b6f813a38e4231aeb4fa26b17de2e7d94d224ba2e08afc3c3c2d1f7",
+    "docs/GETTING-STARTED.md": "f234795bef3cdaf3fd4d212ef0dfe463024d8b63a3bf15169a732c91b7ea15bc",
+    "docs/site/index.html": "f830afdced2f6d83ef2e87781f5475da5cb461227861f90664e99d8edd4e3230",
+    "docs/site/style.css": "03396c4150484f60b5eac1b4a30325390ad094a9a044c08485ddfcf8ccd95973",
+    "scripts/site_docs.py": "d2d241b1674beb214c94c875f4f9f33fd63b9316fb230d015669775cb0ca74ce",
+    "scripts/build-help.py": "55e08749e7e10a121bb232dbb8764722eb124cbb64beeb33e6cf47c787eaed73",
+    "docs/site/assets/mac-log-light-2026-10-25.png": "f691df2e7ef014fdf3b475f2a8dadf412250e4cf8c092713ac22272228e48f00",
+    "docs/site/assets/mac-log-dark-2026-10-25.png": "1277334484766740f8e20e2d6a5fc33b3bc66cfa9f4f0b7dcea3ea370477fe47",
+    "docs/site/assets/mac-commit-light-2026-10-25.png": "5ddca9d207b35101fe7d84ee64670deea369a8f2540884bed5592c7d53be0b02",
+    "docs/site/assets/mac-commit-dark-2026-10-25.png": "05839da2273ba68fe11b5efd9251c9d7e5db1a964132a5c59ffda26e99ba0ece"
+  },
+  "checks": {
+    "manual": {
+      "inline_current_images": [
+        "../assets/mac-commit-light-2026-10-25.png",
+        "../assets/mac-commit-dark-2026-10-25.png",
+        "../assets/mac-log-light-2026-10-25.png",
+        "../assets/mac-log-dark-2026-10-25.png"
+      ],
+      "development_footer_absent": true
+    },
+    "homepage": {
+      "inline_current_images": [
+        "assets/mac-log-light-2026-10-25.png",
+        "assets/mac-log-dark-2026-10-25.png",
+        "assets/mac-commit-light-2026-10-25.png",
+        "assets/mac-commit-dark-2026-10-25.png"
+      ],
+      "development_footer_absent": true
+    },
+    "help": {
+      "inline_current_images": [
+        "images/1c4f9b9a24c8-mac-commit-light-2026-10-25.png",
+        "images/ca07992015d4-mac-commit-dark-2026-10-25.png",
+        "images/f074a5014ab8-mac-log-light-2026-10-25.png",
+        "images/058ba0a78a81-mac-log-dark-2026-10-25.png"
+      ],
+      "development_footer_absent": true
+    }
+  },
+  "results": {
+    "site_documents": 467,
+    "unresolved_fragments": 0,
+    "site_tests": 2,
+    "help_documents": 58,
+    "help_topics": 51,
+    "help_files": 84,
+    "help_bytes": 5897283,
+    "help_write_and_check": "PASS"
+  },
+  "generated_help_copied": "Sources/TurtleGitMac/Resources/TurtleGitHelp.help",
+  "generated_help_removed_extras": [],
+  "logs": {
+    "build/qa/manual-site-ready-build-2026-10-25.log": {
+      "sha256": "127cf6e05e2fc949b1d39fbc08861c832f46de38d2ea373bdb381065f16c8284",
+      "text": "{\n  \"documents\": 467,\n  \"unresolved_fragments\": []\n}\n/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/manual-site-ready-snapshot-2026-10-25/build/site\n"
+    },
+    "build/qa/manual-site-ready-tests-2026-10-25.log": {
+      "sha256": "5fd332cbc6dc7eeeedac54581f7031a7d3f9287a56984f4c54242cce99e832c7",
+      "text": "..\n----------------------------------------------------------------------\nRan 2 tests in 4.252s\n\nOK\n"
+    },
+    "build/qa/manual-site-ready-help-2026-10-25.log": {
+      "sha256": "061802d3482ea6877702a03a9a3b0894ca218d210f4cfcf72b698fcac8cec4c5",
+      "text": "{\"documents\": 58, \"topics\": 51, \"files\": 84, \"bytes\": 5897283, \"mode\": \"write\"}\n"
+    },
+    "build/qa/manual-site-ready-help-check-2026-10-25.log": {
+      "sha256": "99b2d82b8e954077075403b87487db4e5e15ae942ffe9782d11bb90f3a6a218a",
+      "text": "{\"documents\": 58, \"topics\": 51, \"files\": 84, \"bytes\": 5897283, \"mode\": \"check\"}\n"
+    },
+    "build/qa/manual-site-ready-favicon-build-2026-10-25.log": {
+      "sha256": "127cf6e05e2fc949b1d39fbc08861c832f46de38d2ea373bdb381065f16c8284",
+      "text": "{\n  \"documents\": 467,\n  \"unresolved_fragments\": []\n}\n/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/manual-site-ready-snapshot-2026-10-25/build/site\n"
+    },
+    "build/qa/manual-site-ready-favicon-tests-2026-10-25.log": {
+      "sha256": "15784ceaab5cd4d326657a16aed01add321761b21280a48390571568afa3240a",
+      "text": "..\n----------------------------------------------------------------------\nRan 2 tests in 5.437s\n\nOK\n"
+    }
+  },
+  "setup_note": "System Python tarfile lacks extractall(filter=); retried trusted git archive extraction without that option before validation. No test/build failure.",
+  "excluded_unready_gradient_guide_verified": true,
+  "limitations": [
+    "Documentation and generated Help validation only; no app/runtime/Core/native tests.",
+    "Raw original capture evidence under build/qa preserved."
+  ],
+  "ready_overlay_sha256": "6f094a3e9c0e4e3b4d00a17424ab0545f5f4eb36b489ea4a04cc16f40c5402b3",
+  "focused_repair": {
+    "reason": "Root browser review found manual favicon.ico404 and generic emoji brand; site_docs.py now supplies official favicon and header image.",
+    "scope": "Only changed site_docs.py copied to preview; site render and affected two site tests repeated. Help/native checks not repeated.",
+    "site_documents": 467,
+    "unresolved_fragments": 0,
+    "site_tests": 2,
+    "result": "PASS",
+    "manual_explicit_favicon_and_official_header_image": true
+  },
+  "root_visual_acceptance": {
+    "result": "Homepage gallery and illustrated manual accepted",
+    "evidence": [
+      {
+        "path": "build/qa/manual-home-gallery-2026-10-25.png",
+        "sha256": "1e58aaf27a7e110187383f593b49fc26903e2e12e5d311abbb1c201640a1b9e2"
+      },
+      {
+        "path": "build/qa/manual-inline-commit-2026-10-25.png",
+        "sha256": "bf83a67c24cbd2a91ea96e37e6da4baf9daea4948d7b3ab73c64b00507ccf9fa"
+      }
+    ],
+    "cleanup": "Root closed preview tab and reaped loopback HTTP server."
+  }
+}

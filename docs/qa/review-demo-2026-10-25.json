@@ -37,5 +37,15 @@
     ],
     "git_payloads_and_expected_state": "byte-identical to both-engine validated sample; no unaffected Git actions rerun",
     "detail": "Clarified paste bundle path because source Browse is folders-only."
+  },
+  "support_website": {
+    "public_email": "jochen.kuehner@gmx.de",
+    "site_build": "pass",
+    "site_routes_and_fragments": "2 tests pass",
+    "pages_run": 40214801400,
+    "pages_conclusion": "success",
+    "deployed_https_status": 200,
+    "deployed_email_and_support_anchor": "verified",
+    "scope": "Public support section only; no App Store Connect change."
   }
 }
