@@ -432,7 +432,13 @@ private extension FileComparisonDocument {
         onePaneMode = invocation.oneWay; loadedPaneMode = true
         configureSourceLine(invocation.line); useInternalMergeViewer()
     }
+    private var sourceComparisonTitles:[Bool:String]=[:]
+    func configureSourceComparisonTitles(base:String,side:String) {
+        guard document==nil,!busy,!retired else{return}
+        sourceComparisonTitles=[true:base,false:side]
+    }
     func mergeToolDescriptiveName(base: Bool) -> String? {
+        if let title=sourceComparisonTitles[storageSide(base)] {return title}
         guard let invocation = mergeToolInvocation else { return nil }
         return storageSide(base) ? invocation.baseName : invocation.mineName
     }
@@ -451,6 +457,27 @@ private extension FileComparisonDocument {
             guard let self,self.paneTabEpoch==epoch,self.storageSide(base)==physical,self.comparisonDefaults === preferences else{return}
             self.focusPresentationPane(base:base,generation:generation)
         }
+    }
+    var revealPaneInFinder:(URL)->Void = {NSWorkspace.shared.activateFileViewerSelecting([$0])}
+    private func headerFileURL(base:Bool)->URL? {
+        externalReloadSources.first {$0.id == (base ? "base":"destination") && !$0.expectedMissing}?.url
+    }
+    private func headerIdentity(base:Bool)->MergePaneHeaderIdentity {
+        .init(owner:ObjectIdentifier(self),epoch:paneTabEpoch,generation:alignmentGeneration,role:base ? "base":"destination",location:Data((headerFileURL(base:base)?.path ?? "").utf8),pane:(scrolls[base]?.documentView).map{ObjectIdentifier($0)})
+    }
+    func paneHeaderActions(base:Bool)->MergePaneHeaderActions {
+        let identity=headerIdentity(base:base),owner=window
+        let allowed:()->Bool = {[weak self,weak owner] in
+            guard let self,let owner,self.window === owner,NSApp.modalWindow==nil else{return false}
+            guard let scroll=self.scrolls[base],self.ownsViewport(scroll,base:base),self.ownsEditor(scroll,base:base),scroll.window === owner,!scroll.isHiddenOrHasHiddenAncestor else{return false}
+            return self.headerIdentity(base:base)==identity && self.panePresentationAvailable && (!self.onePaneActive || !base)
+        }
+        let save=MergePaneHeaderCommand(title:"Save this pane as…",icon:.mergeSaveAs,available:{[weak self] in allowed() && self?.canSavePaneAs == true},perform:{[weak self] in self?.saveAs(base:base)})
+        var commands=[save]
+        if let url=headerFileURL(base:base) {
+            commands.append(.init(title:"Reveal in Finder",icon:.explore,available:allowed,perform:{[weak self] in self?.revealPaneInFinder(url)}))
+        }
+        return .init(identity:identity,commands:commands)
     }
     func focusPresentationPane(base:Bool,generation:Int) {
         guard panePresentationAvailable,alignmentGeneration==generation,(!onePaneActive || !base),let window,
@@ -2234,7 +2261,7 @@ struct FileComparisonPane: View {
             let title=model.onePaneActive ? model.paneTitle(base:true)+" – "+model.paneTitle(base:false):model.paneTitle(base:base)
             let caption=title==header ? header:title+" — "+header
             let activate=model.panePresentationAction(base:base)
-            MergePaneHeader(title:caption,location:model.onePaneActive ? model.paneHelp(base:true)+"\n"+model.paneHelp(base:false):model.paneHelp(base:base),modified:model.onePaneActive ? model.paneModified(base:true) || model.paneModified(base:false):model.paneModified(base:base),active:model.focusedPresentationPane==base,kind:model.onePaneActive ? .removed:model.singleFileMode ? .neutral:base ? .removed:.added,font:model.generalPreferences.nativeFont,enabled:model.panePresentationAvailable,preferences:model.comparisonDefaults,activate:activate)
+            MergePaneHeader(title:caption,location:model.onePaneActive ? model.paneHelp(base:true)+"\n"+model.paneHelp(base:false):model.paneHelp(base:base),modified:model.onePaneActive ? model.paneModified(base:true) || model.paneModified(base:false):model.paneModified(base:base),active:model.focusedPresentationPane==base,kind:model.onePaneActive ? .removed:model.singleFileMode ? .neutral:base ? .removed:.added,font:model.generalPreferences.nativeFont,enabled:model.panePresentationAvailable,preferences:model.comparisonDefaults,activate:activate,actions:model.paneHeaderActions(base:base))
                 .frame(maxWidth:.infinity)
             if let alignment = model.alignment {
                 FileComparisonEditor(model: model, cells: model.displayCells(base: base), base: base)

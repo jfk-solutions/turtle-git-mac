@@ -1,0 +1,1448 @@
+{
+  "format": "Original Windows GDI+ straightRGBA top-left64x64; natural Bitmap/file extent64; tolerance applies after premultiplication; glyph shape property only",
+  "cases": [
+    {
+      "file": "native-general-cubic-uniform.emf",
+      "sourceSHA256": "bab00f35d980fbc9dd4c896b69d8ac1bce0f1a438f3657d367c089efd81c957d",
+      "rgba": "native-general-cubic-uniform.rgba",
+      "rgbaSHA256": "d1ebdac72f65a8d017d14668a96dd18bfae80e352a7af3884fc21cede984475c",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          8.5,
+          32.5,
+          0
+        ],
+        [
+          9.0625,
+          26.9375,
+          1
+        ],
+        [
+          10.5625,
+          22.3125,
+          1
+        ],
+        [
+          12.9375,
+          18.5625,
+          1
+        ],
+        [
+          16,
+          15.625,
+          1
+        ],
+        [
+          19.625,
+          13.5,
+          1
+        ],
+        [
+          23.6875,
+          12.125,
+          1
+        ],
+        [
+          28,
+          11.4375,
+          1
+        ],
+        [
+          32.5,
+          11.5,
+          1
+        ],
+        [
+          37,
+          12.1875,
+          1
+        ],
+        [
+          41.3125,
+          13.5,
+          1
+        ],
+        [
+          45.375,
+          15.4375,
+          1
+        ],
+        [
+          49,
+          17.875,
+          1
+        ],
+        [
+          52.0625,
+          20.875,
+          1
+        ],
+        [
+          54.4375,
+          24.3125,
+          1
+        ],
+        [
+          55.9375,
+          28.1875,
+          1
+        ],
+        [
+          56.5,
+          32.5,
+          1
+        ],
+        [
+          55.9375,
+          37.3125,
+          1
+        ],
+        [
+          54.4375,
+          41.1875,
+          1
+        ],
+        [
+          52.0625,
+          44.25,
+          1
+        ],
+        [
+          49,
+          46.5625,
+          1
+        ],
+        [
+          45.375,
+          48.125,
+          1
+        ],
+        [
+          41.3125,
+          49,
+          1
+        ],
+        [
+          37,
+          49.3125,
+          1
+        ],
+        [
+          32.5,
+          49,
+          1
+        ],
+        [
+          28,
+          48.1875,
+          1
+        ],
+        [
+          23.6875,
+          46.9375,
+          1
+        ],
+        [
+          19.625,
+          45.25,
+          1
+        ],
+        [
+          16,
+          43.1875,
+          1
+        ],
+        [
+          12.9375,
+          40.8125,
+          1
+        ],
+        [
+          10.5625,
+          38.25,
+          1
+        ],
+        [
+          9.0625,
+          35.4375,
+          1
+        ],
+        [
+          8.5,
+          32.5,
+          129
+        ]
+      ],
+      "originalPointCount": 7,
+      "surroundCount": 7
+    },
+    {
+      "file": "native-general-cubic-multi.emf",
+      "sourceSHA256": "021d4a9c6e88049d45a5fc8b93fcb8c42c731c73bddaf610047dbd54a3fa094e",
+      "rgba": "native-general-cubic-multi.rgba",
+      "rgbaSHA256": "4248440ca6a1b1670890d0f8f5164106cab264dc3d501821acdcd45a4d63d048",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          8.5,
+          32.5,
+          0
+        ],
+        [
+          9.0625,
+          26.9375,
+          1
+        ],
+        [
+          10.5625,
+          22.3125,
+          1
+        ],
+        [
+          12.9375,
+          18.5625,
+          1
+        ],
+        [
+          16,
+          15.625,
+          1
+        ],
+        [
+          19.625,
+          13.5,
+          1
+        ],
+        [
+          23.6875,
+          12.125,
+          1
+        ],
+        [
+          28,
+          11.4375,
+          1
+        ],
+        [
+          32.5,
+          11.5,
+          1
+        ],
+        [
+          37,
+          12.1875,
+          1
+        ],
+        [
+          41.3125,
+          13.5,
+          1
+        ],
+        [
+          45.375,
+          15.4375,
+          1
+        ],
+        [
+          49,
+          17.875,
+          1
+        ],
+        [
+          52.0625,
+          20.875,
+          1
+        ],
+        [
+          54.4375,
+          24.3125,
+          1
+        ],
+        [
+          55.9375,
+          28.1875,
+          1
+        ],
+        [
+          56.5,
+          32.5,
+          1
+        ],
+        [
+          55.9375,
+          37.3125,
+          1
+        ],
+        [
+          54.4375,
+          41.1875,
+          1
+        ],
+        [
+          52.0625,
+          44.25,
+          1
+        ],
+        [
+          49,
+          46.5625,
+          1
+        ],
+        [
+          45.375,
+          48.125,
+          1
+        ],
+        [
+          41.3125,
+          49,
+          1
+        ],
+        [
+          37,
+          49.3125,
+          1
+        ],
+        [
+          32.5,
+          49,
+          1
+        ],
+        [
+          28,
+          48.1875,
+          1
+        ],
+        [
+          23.6875,
+          46.9375,
+          1
+        ],
+        [
+          19.625,
+          45.25,
+          1
+        ],
+        [
+          16,
+          43.1875,
+          1
+        ],
+        [
+          12.9375,
+          40.8125,
+          1
+        ],
+        [
+          10.5625,
+          38.25,
+          1
+        ],
+        [
+          9.0625,
+          35.4375,
+          1
+        ],
+        [
+          8.5,
+          32.5,
+          129
+        ]
+      ],
+      "originalPointCount": 7,
+      "surroundCount": 7
+    },
+    {
+      "file": "native-general-disjoint-ab.emf",
+      "sourceSHA256": "d2d19a39991f9dc18a3f689abf93c209a7470f030486b1abc98caa1f358b2364",
+      "rgba": "native-general-disjoint-ab.rgba",
+      "rgbaSHA256": "3d0292d9adcd9c7f4bab895c06d815e2a87cd6dd2735016f1dbde38ce0d9728b",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          6.5,
+          8.5,
+          0
+        ],
+        [
+          28.5,
+          8.5,
+          1
+        ],
+        [
+          28.5,
+          52.5,
+          1
+        ],
+        [
+          6.5,
+          52.5,
+          129
+        ],
+        [
+          36.5,
+          16.5,
+          0
+        ],
+        [
+          58.5,
+          16.5,
+          1
+        ],
+        [
+          58.5,
+          48.5,
+          1
+        ],
+        [
+          36.5,
+          48.5,
+          129
+        ]
+      ],
+      "originalPointCount": 8,
+      "surroundCount": 8
+    },
+    {
+      "file": "native-general-disjoint-ba.emf",
+      "sourceSHA256": "51afb6de254491cda96af8b5d381bd07b1b3d13ceb5cef1814a908a04c688765",
+      "rgba": "native-general-disjoint-ba.rgba",
+      "rgbaSHA256": "969ec3308a02a0f72f7a11276fd342996ebfef29b6de3099993654d12b460e5e",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          36.5,
+          16.5,
+          0
+        ],
+        [
+          58.5,
+          16.5,
+          1
+        ],
+        [
+          58.5,
+          48.5,
+          1
+        ],
+        [
+          36.5,
+          48.5,
+          129
+        ],
+        [
+          6.5,
+          8.5,
+          0
+        ],
+        [
+          28.5,
+          8.5,
+          1
+        ],
+        [
+          28.5,
+          52.5,
+          1
+        ],
+        [
+          6.5,
+          52.5,
+          129
+        ]
+      ],
+      "originalPointCount": 8,
+      "surroundCount": 8
+    },
+    {
+      "file": "native-general-nested-same.emf",
+      "sourceSHA256": "70b750238b45e4525bc5a991ccbfada26984719079a0ece42891250add1cd8b0",
+      "rgba": "native-general-nested-same.rgba",
+      "rgbaSHA256": "a5b8dcf30cdb4964a225115436f5576596c99bdb11ffe240472dd52b5921c6fb",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          6.5,
+          6.5,
+          0
+        ],
+        [
+          58.5,
+          6.5,
+          1
+        ],
+        [
+          58.5,
+          58.5,
+          1
+        ],
+        [
+          6.5,
+          58.5,
+          129
+        ],
+        [
+          20.5,
+          20.5,
+          0
+        ],
+        [
+          44.5,
+          20.5,
+          1
+        ],
+        [
+          44.5,
+          44.5,
+          1
+        ],
+        [
+          20.5,
+          44.5,
+          129
+        ]
+      ],
+      "originalPointCount": 8,
+      "surroundCount": 8
+    },
+    {
+      "file": "native-general-nested-reversed.emf",
+      "sourceSHA256": "5bf5af05475f3e907506cffce6d2918c5bfa68028984d2bf31350c7db765835f",
+      "rgba": "native-general-nested-reversed.rgba",
+      "rgbaSHA256": "587f579e5c264d3915f49763623a31ab5dcb547b1d44c588d7c246803fcb4a1d",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          6.5,
+          6.5,
+          0
+        ],
+        [
+          58.5,
+          6.5,
+          1
+        ],
+        [
+          58.5,
+          58.5,
+          1
+        ],
+        [
+          6.5,
+          58.5,
+          129
+        ],
+        [
+          20.5,
+          20.5,
+          0
+        ],
+        [
+          20.5,
+          44.5,
+          1
+        ],
+        [
+          44.5,
+          44.5,
+          1
+        ],
+        [
+          44.5,
+          20.5,
+          129
+        ]
+      ],
+      "originalPointCount": 8,
+      "surroundCount": 8
+    },
+    {
+      "file": "native-general-crossing.emf",
+      "sourceSHA256": "65ab0a95105f0d9dd45852818dfb16ba1d3fbf05cd432b0281fa4aecfb538cd4",
+      "rgba": "native-general-crossing.rgba",
+      "rgbaSHA256": "ca717fdfd7a77c5a97e287285293e1267a4d5a46cffecdb1b4e31f47072fa6f4",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          8.5,
+          8.5,
+          0
+        ],
+        [
+          56.5,
+          56.5,
+          1
+        ],
+        [
+          8.5,
+          56.5,
+          1
+        ],
+        [
+          56.5,
+          8.5,
+          129
+        ]
+      ],
+      "originalPointCount": 4,
+      "surroundCount": 4
+    },
+    {
+      "file": "native-general-crossing-reversed.emf",
+      "sourceSHA256": "667ba55fca0ab11978c401be2bc8c3486ca2623a41a38a8b81149932e6f5f64f",
+      "rgba": "native-general-crossing-reversed.rgba",
+      "rgbaSHA256": "d29b6e1edbec1149caace7351ba98cec05a0955fe1e1717790a1c6282b0fdaaf",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          56.5,
+          8.5,
+          0
+        ],
+        [
+          8.5,
+          56.5,
+          1
+        ],
+        [
+          56.5,
+          56.5,
+          1
+        ],
+        [
+          8.5,
+          8.5,
+          129
+        ]
+      ],
+      "originalPointCount": 4,
+      "surroundCount": 4
+    },
+    {
+      "file": "native-general-cubic-clip.emf",
+      "sourceSHA256": "62c4e31247fa1f1282da4343fb787bf7cf5d4de5686ac2c79952bc3da1af15b4",
+      "rgba": "native-general-cubic-clip.rgba",
+      "rgbaSHA256": "d33c199b7a40aab9eca7edcf87e292bd7651cfa1575352ecd88d3d1b4d32a44b",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          8.5,
+          32.5,
+          0
+        ],
+        [
+          9.0625,
+          26.9375,
+          1
+        ],
+        [
+          10.5625,
+          22.3125,
+          1
+        ],
+        [
+          12.9375,
+          18.5625,
+          1
+        ],
+        [
+          16,
+          15.625,
+          1
+        ],
+        [
+          19.625,
+          13.5,
+          1
+        ],
+        [
+          23.6875,
+          12.125,
+          1
+        ],
+        [
+          28,
+          11.4375,
+          1
+        ],
+        [
+          32.5,
+          11.5,
+          1
+        ],
+        [
+          37,
+          12.1875,
+          1
+        ],
+        [
+          41.3125,
+          13.5,
+          1
+        ],
+        [
+          45.375,
+          15.4375,
+          1
+        ],
+        [
+          49,
+          17.875,
+          1
+        ],
+        [
+          52.0625,
+          20.875,
+          1
+        ],
+        [
+          54.4375,
+          24.3125,
+          1
+        ],
+        [
+          55.9375,
+          28.1875,
+          1
+        ],
+        [
+          56.5,
+          32.5,
+          1
+        ],
+        [
+          55.9375,
+          37.3125,
+          1
+        ],
+        [
+          54.4375,
+          41.1875,
+          1
+        ],
+        [
+          52.0625,
+          44.25,
+          1
+        ],
+        [
+          49,
+          46.5625,
+          1
+        ],
+        [
+          45.375,
+          48.125,
+          1
+        ],
+        [
+          41.3125,
+          49,
+          1
+        ],
+        [
+          37,
+          49.3125,
+          1
+        ],
+        [
+          32.5,
+          49,
+          1
+        ],
+        [
+          28,
+          48.1875,
+          1
+        ],
+        [
+          23.6875,
+          46.9375,
+          1
+        ],
+        [
+          19.625,
+          45.25,
+          1
+        ],
+        [
+          16,
+          43.1875,
+          1
+        ],
+        [
+          12.9375,
+          40.8125,
+          1
+        ],
+        [
+          10.5625,
+          38.25,
+          1
+        ],
+        [
+          9.0625,
+          35.4375,
+          1
+        ],
+        [
+          8.5,
+          32.5,
+          129
+        ]
+      ],
+      "originalPointCount": 7,
+      "surroundCount": 7
+    },
+    {
+      "file": "native-general-cubic-sourcecopy.emf",
+      "sourceSHA256": "c766fdce47787829e085823fa66be0461322b33cb66e8045e539bca4d5dccc96",
+      "rgba": "native-general-cubic-sourcecopy.rgba",
+      "rgbaSHA256": "d1ebdac72f65a8d017d14668a96dd18bfae80e352a7af3884fc21cede984475c",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          8.5,
+          32.5,
+          0
+        ],
+        [
+          9.0625,
+          26.9375,
+          1
+        ],
+        [
+          10.5625,
+          22.3125,
+          1
+        ],
+        [
+          12.9375,
+          18.5625,
+          1
+        ],
+        [
+          16,
+          15.625,
+          1
+        ],
+        [
+          19.625,
+          13.5,
+          1
+        ],
+        [
+          23.6875,
+          12.125,
+          1
+        ],
+        [
+          28,
+          11.4375,
+          1
+        ],
+        [
+          32.5,
+          11.5,
+          1
+        ],
+        [
+          37,
+          12.1875,
+          1
+        ],
+        [
+          41.3125,
+          13.5,
+          1
+        ],
+        [
+          45.375,
+          15.4375,
+          1
+        ],
+        [
+          49,
+          17.875,
+          1
+        ],
+        [
+          52.0625,
+          20.875,
+          1
+        ],
+        [
+          54.4375,
+          24.3125,
+          1
+        ],
+        [
+          55.9375,
+          28.1875,
+          1
+        ],
+        [
+          56.5,
+          32.5,
+          1
+        ],
+        [
+          55.9375,
+          37.3125,
+          1
+        ],
+        [
+          54.4375,
+          41.1875,
+          1
+        ],
+        [
+          52.0625,
+          44.25,
+          1
+        ],
+        [
+          49,
+          46.5625,
+          1
+        ],
+        [
+          45.375,
+          48.125,
+          1
+        ],
+        [
+          41.3125,
+          49,
+          1
+        ],
+        [
+          37,
+          49.3125,
+          1
+        ],
+        [
+          32.5,
+          49,
+          1
+        ],
+        [
+          28,
+          48.1875,
+          1
+        ],
+        [
+          23.6875,
+          46.9375,
+          1
+        ],
+        [
+          19.625,
+          45.25,
+          1
+        ],
+        [
+          16,
+          43.1875,
+          1
+        ],
+        [
+          12.9375,
+          40.8125,
+          1
+        ],
+        [
+          10.5625,
+          38.25,
+          1
+        ],
+        [
+          9.0625,
+          35.4375,
+          1
+        ],
+        [
+          8.5,
+          32.5,
+          129
+        ]
+      ],
+      "originalPointCount": 7,
+      "surroundCount": 7
+    },
+    {
+      "file": "native-general-cubic-pen.emf",
+      "sourceSHA256": "5f47ff2a51f943e4a151b4192d5503345db723d5671f7f974ef45a6dd262c1f6",
+      "rgba": "native-general-cubic-pen.rgba",
+      "rgbaSHA256": "891a09123769bbef6f18b62088e2800d61abf3eddba842f7d893c3c2e6c59b4b",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "nativeFlatten025": [
+        [
+          8.5,
+          32.5,
+          0
+        ],
+        [
+          9.0625,
+          26.9375,
+          1
+        ],
+        [
+          10.5625,
+          22.3125,
+          1
+        ],
+        [
+          12.9375,
+          18.5625,
+          1
+        ],
+        [
+          16,
+          15.625,
+          1
+        ],
+        [
+          19.625,
+          13.5,
+          1
+        ],
+        [
+          23.6875,
+          12.125,
+          1
+        ],
+        [
+          28,
+          11.4375,
+          1
+        ],
+        [
+          32.5,
+          11.5,
+          1
+        ],
+        [
+          37,
+          12.1875,
+          1
+        ],
+        [
+          41.3125,
+          13.5,
+          1
+        ],
+        [
+          45.375,
+          15.4375,
+          1
+        ],
+        [
+          49,
+          17.875,
+          1
+        ],
+        [
+          52.0625,
+          20.875,
+          1
+        ],
+        [
+          54.4375,
+          24.3125,
+          1
+        ],
+        [
+          55.9375,
+          28.1875,
+          1
+        ],
+        [
+          56.5,
+          32.5,
+          1
+        ],
+        [
+          55.9375,
+          37.3125,
+          1
+        ],
+        [
+          54.4375,
+          41.1875,
+          1
+        ],
+        [
+          52.0625,
+          44.25,
+          1
+        ],
+        [
+          49,
+          46.5625,
+          1
+        ],
+        [
+          45.375,
+          48.125,
+          1
+        ],
+        [
+          41.3125,
+          49,
+          1
+        ],
+        [
+          37,
+          49.3125,
+          1
+        ],
+        [
+          32.5,
+          49,
+          1
+        ],
+        [
+          28,
+          48.1875,
+          1
+        ],
+        [
+          23.6875,
+          46.9375,
+          1
+        ],
+        [
+          19.625,
+          45.25,
+          1
+        ],
+        [
+          16,
+          43.1875,
+          1
+        ],
+        [
+          12.9375,
+          40.8125,
+          1
+        ],
+        [
+          10.5625,
+          38.25,
+          1
+        ],
+        [
+          9.0625,
+          35.4375,
+          1
+        ],
+        [
+          8.5,
+          32.5,
+          129
+        ]
+      ],
+      "originalPointCount": 7,
+      "surroundCount": 7
+    },
+    {
+      "file": "native-general-cubic-glyph.emf",
+      "sourceSHA256": "ba7f1bbc43a53e99ee9e844908d7644772f4c613bcc80855a5e3c0545cb802ac",
+      "rgba": "native-general-cubic-glyph.rgba",
+      "rgbaSHA256": "ba491dc267b96158d8698629471942ab0d84e747b665a557e4d5c17bfe30caff",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": false,
+      "nativeFlatten025": [
+        [
+          8.5,
+          32.5,
+          0
+        ],
+        [
+          9.0625,
+          26.9375,
+          1
+        ],
+        [
+          10.5625,
+          22.3125,
+          1
+        ],
+        [
+          12.9375,
+          18.5625,
+          1
+        ],
+        [
+          16,
+          15.625,
+          1
+        ],
+        [
+          19.625,
+          13.5,
+          1
+        ],
+        [
+          23.6875,
+          12.125,
+          1
+        ],
+        [
+          28,
+          11.4375,
+          1
+        ],
+        [
+          32.5,
+          11.5,
+          1
+        ],
+        [
+          37,
+          12.1875,
+          1
+        ],
+        [
+          41.3125,
+          13.5,
+          1
+        ],
+        [
+          45.375,
+          15.4375,
+          1
+        ],
+        [
+          49,
+          17.875,
+          1
+        ],
+        [
+          52.0625,
+          20.875,
+          1
+        ],
+        [
+          54.4375,
+          24.3125,
+          1
+        ],
+        [
+          55.9375,
+          28.1875,
+          1
+        ],
+        [
+          56.5,
+          32.5,
+          1
+        ],
+        [
+          55.9375,
+          37.3125,
+          1
+        ],
+        [
+          54.4375,
+          41.1875,
+          1
+        ],
+        [
+          52.0625,
+          44.25,
+          1
+        ],
+        [
+          49,
+          46.5625,
+          1
+        ],
+        [
+          45.375,
+          48.125,
+          1
+        ],
+        [
+          41.3125,
+          49,
+          1
+        ],
+        [
+          37,
+          49.3125,
+          1
+        ],
+        [
+          32.5,
+          49,
+          1
+        ],
+        [
+          28,
+          48.1875,
+          1
+        ],
+        [
+          23.6875,
+          46.9375,
+          1
+        ],
+        [
+          19.625,
+          45.25,
+          1
+        ],
+        [
+          16,
+          43.1875,
+          1
+        ],
+        [
+          12.9375,
+          40.8125,
+          1
+        ],
+        [
+          10.5625,
+          38.25,
+          1
+        ],
+        [
+          9.0625,
+          35.4375,
+          1
+        ],
+        [
+          8.5,
+          32.5,
+          129
+        ]
+      ],
+      "originalPointCount": 7,
+      "surroundCount": 7
+    },
+    {
+      "file": "explicit-cubic-uniform.emf",
+      "sourceSHA256": "f81178f9b3fb2430928c34394e35f12a5a1fe9ddf7f6aba164586978329f3e07",
+      "rgba": "explicit-cubic-uniform.rgba",
+      "rgbaSHA256": "d1ebdac72f65a8d017d14668a96dd18bfae80e352a7af3884fc21cede984475c",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true
+    },
+    {
+      "file": "explicit-cubic-multi.emf",
+      "sourceSHA256": "95d0e2ff0b1f7cc9a3d066084187389a6edbf94a7b639738f61a262a87c5a2db",
+      "rgba": "explicit-cubic-multi.rgba",
+      "rgbaSHA256": "4248440ca6a1b1670890d0f8f5164106cab264dc3d501821acdcd45a4d63d048",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true
+    },
+    {
+      "file": "explicit-disjoint-ab.emf",
+      "sourceSHA256": "9a7b5fdeed16779066f036cf9738684311ff33fdcc60825dc0a33065d4643a33",
+      "rgba": "explicit-disjoint-ab.rgba",
+      "rgbaSHA256": "3d0292d9adcd9c7f4bab895c06d815e2a87cd6dd2735016f1dbde38ce0d9728b",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true
+    },
+    {
+      "file": "open-cubic-after-paint.emf",
+      "sourceSHA256": "b6c15aa8b9b4b27be6340310d51d339c3c0276c5a527ccd1c0358db48755e14d",
+      "rgba": "open-cubic-after-paint.rgba",
+      "rgbaSHA256": "7c0d285dc559d5bcafa87ec88bf68047e77b61f0299c804bd7dcad0fe99f5d84",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "independentlyWindowsMeasured": true
+    },
+    {
+      "file": "closed-cubic-after-paint.emf",
+      "sourceSHA256": "15a61d70b08352d066979ef2150ea0bd671dd48b1b6381b09f95e5e1a1722a49",
+      "rgba": "closed-cubic-after-paint.rgba",
+      "rgbaSHA256": "7c0d285dc559d5bcafa87ec88bf68047e77b61f0299c804bd7dcad0fe99f5d84",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "independentlyWindowsMeasured": true
+    },
+    {
+      "file": "open-cubic-multi.emf",
+      "sourceSHA256": "42b5b538d2cc32ca38be0ed6b1e6e937232b184f4aeb7a11a08439e385f49829",
+      "rgba": "explicit-cubic-multi.rgba",
+      "rgbaSHA256": "4248440ca6a1b1670890d0f8f5164106cab264dc3d501821acdcd45a4d63d048",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "independentlyWindowsMeasured": false,
+      "derivedFrom": "explicit-cubic-multi.emf",
+      "onlyChangedCloseFlagOffsets": [
+        454
+      ],
+      "expectedBasis": "Implicit final fan closure; measured separate open close-bit control and Microsoft open-figure fill contract; original ordered points/colors unchanged"
+    },
+    {
+      "file": "open-disjoint-ab.emf",
+      "sourceSHA256": "1c03ccd61a7d2d497f526bc4d08a9cc2451b50f19f99e96dc420bda4f86dc41c",
+      "rgba": "explicit-disjoint-ab.rgba",
+      "rgbaSHA256": "3d0292d9adcd9c7f4bab895c06d815e2a87cd6dd2735016f1dbde38ce0d9728b",
+      "width": 64,
+      "height": 64,
+      "tolerance": 3,
+      "exactGlyphGeometry": true,
+      "independentlyWindowsMeasured": false,
+      "derivedFrom": "explicit-disjoint-ab.emf",
+      "onlyChangedCloseFlagOffsets": [
+        359,
+        363
+      ],
+      "expectedBasis": "Implicit final fan closure; measured separate open close-bit control and Microsoft open-figure fill contract; original ordered points/colors unchanged"
+    }
+  ]
+}

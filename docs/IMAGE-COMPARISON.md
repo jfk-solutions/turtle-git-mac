@@ -94,8 +94,8 @@ clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the [pen scope](METAFILE-PEN-PARITY.md).
 
-The path-gradient candidate extends EMF+ painting to simple line polygons and
-canonical ellipses, off-center origins, separate surrounding colors and measured
+The path-gradient renderer covers line polygons and canonical ellipses,
+off-center origins, separate surrounding colors and measured
 focus, blend, preset and gamma behavior. The same brushes paint fills, pen
 strokes and text outlines while geometry, clipping and recorded smoothing remain
 independent. Uniform and multicolor brushes have distinct Windows interpolation
@@ -103,12 +103,17 @@ rules: multicolor focus is ignored, and preset-stop orientation differs. Linear
 gamma/alpha interpolation has independent Windows evidence. Original image bytes
 remain unchanged.
 
-Complex curved or multiple-subpath boundaries, self-intersections and Gouraud
-edges with a zero truncated major-axis extent are refused as whole images.
+The [general boundary continuation](METAFILE-GENERAL-PATH-GRADIENT-PARITY.md)
+adds bounded cubic flattening, multiple figures and self-intersections,
+including multicolor brushes. Independent Windows controls establish the ordered
+fan behavior rather than treating inner figures as holes. Its new decoder and
+native acceptance checks are pending; the earlier checkpoint below covers the
+earlier profile. Figures close implicitly; wholly collinear boundaries and Gouraud edges with a
+zero truncated major-axis extent remain whole-image refusals.
 Aggregate point, raster and work budgets also apply. The initial failures and
 focused repairs are retained in the [Mac checkpoint](qa/metafile-path-gradient-2026-10-25.json).
-The bounded profile now passes the grouped Core checkpoint plus its affected
-repair checks and the native workflow with both Git engines. Signed installed
+The earlier profile passed its grouped Core checkpoint, affected repair checks
+and native workflow with both Git engines. Signed installed
 and complete format/visual acceptance remain open. File-backed EMF display uses
 Windows' inclusive natural canvas without scaling the drawing; embedded metafile
 textures retain their logical frame profile. See the

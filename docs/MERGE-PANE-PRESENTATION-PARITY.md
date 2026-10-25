@@ -46,3 +46,13 @@ three native scenarios, with twelve reviewed light/dark captures. The patch/Core
 group passes 48 tests; a separate 59-test focused check covers actual hosted
 assertion repairs. Failed attempts and their repairs remain in the dated record.
 These scoped results do not establish complete upstream or signed acceptance.
+
+## Pane-header context actions — October 25, 2026
+
+The connected [header workflow family](MERGE-PANE-HEADER-PARITY.md) adds the
+source **Show diff separately** and native Reveal/Save As routes with captured
+pane/window/generation ownership. It distinguishes source three-pane behavior
+from native two-pane and compact P4-style conveniences, and documents retained
+source snapshots and saved-output identity. Its [separate evidence record](qa/merge-pane-header-2026-10-25.json)
+will record the new grouped checkpoint; the earlier presentation passes above
+do not validate these new actions.

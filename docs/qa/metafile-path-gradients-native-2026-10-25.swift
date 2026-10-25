@@ -15,6 +15,11 @@ import TurtleGitCore
     }
     struct ReferenceCase:Decodable {let file:String;let sourceSHA256:String;let samples:[Sample];let width:Int;let height:Int}
     struct Reference:Decodable {let cases:[ReferenceCase]}
+    struct GeneralReference:Decodable {let cases:[GeneralCase]}
+    struct GeneralCase:Decodable {let file:String,sourceSHA256:String,rgba:String,rgbaSHA256:String;let width:Int,height:Int,tolerance:Int}
+    static let generalCubic="GeneralPathGradient/explicit-cubic-multi.emf"
+    static let generalContour="GeneralPathGradient/native-general-disjoint-ab.emf"
+    static let generalCrossing="GeneralPathGradient/native-general-crossing.emf"
     static var reference:[ReferenceCase]=[]
     static func require(_ value:Bool,_ message:String,line:Int = #line)throws {if !value {throw Failure(message:"\(line): "+message)}}
     static func wait(line:Int = #line,_ ready:()->Bool)async throws {
@@ -38,7 +43,8 @@ import TurtleGitCore
     static func pixels(_ image:ComparisonImage?,_ expected:[Sample],_ name:String)throws {
         guard let image else {throw Failure(message:"Missing actual bundled decoder image "+name)}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==65 && height==65 && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
+        let record=reference.first{$0.file==name}
+        try require(width==(record?.width ?? 65) && height==(record?.height ?? 65) && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes { buffer in
             guard let color=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:color,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(message:"Pixel inspection failed")}
@@ -67,7 +73,7 @@ import TurtleGitCore
         }
     }
     static func consumers(_ c:Context)async throws {
-        let pairs:[(String,String,[Sample],[Sample])]=[(scanlineName,triangleName,scanlines,triangle),(rectangleName,scanlineName,rectangle,scanlines),("path-gradient-sourcecopy.emf","path-gradient-gamma.emf",samples("path-gradient-sourcecopy.emf"),samples("path-gradient-gamma.emf"))]
+        let pairs:[(String,String,[Sample],[Sample])]=[(scanlineName,triangleName,scanlines,triangle),(rectangleName,scanlineName,rectangle,scanlines),("path-gradient-sourcecopy.emf","path-gradient-gamma.emf",samples("path-gradient-sourcecopy.emf"),samples("path-gradient-gamma.emf")),(generalCubic,generalContour,samples(generalCubic),samples(generalContour)),(generalCrossing,generalCubic,samples(generalCrossing),samples(generalCubic))]
         for explicit in [false,true] {
             for(leftName,rightName,leftPixels,rightPixels)in pairs {
                 let left=try c.input(leftName),right=try c.input(rightName),owner:FileComparisonWindowController
@@ -101,7 +107,7 @@ import TurtleGitCore
         try require(late.model.document==nil && late.model.imageComparison==nil,"Retired comparison published late actual-helper pixels")
     }
     static func conflict(_ c:Context)async throws {
-        let baseURL=try c.input(scanlineName),theirsURL=try c.input(rectangleName),mineURL=try c.input(triangleName)
+        let baseURL=try c.input(generalCrossing),theirsURL=try c.input(generalContour),mineURL=try c.input(generalCubic)
         let base=try Data(contentsOf:baseURL),theirs=try Data(contentsOf:theirsURL),mine=try Data(contentsOf:mineURL)
         let root=c.base.appendingPathComponent("repository",isDirectory:true);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo=GitRepository(root:root,executable:c.git,askpass:nil,libgit2Configuration:.init(enabled:false)),path="drawing [gradient]; 雪.emf",file=root.appendingPathComponent(path)
@@ -117,9 +123,9 @@ import TurtleGitCore
         let owner=c.track(ImageConflictWindowController(repository:repo,access:nil,document:document,preferences:c.preferences))
         try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.images.count==3 && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==3}
         try require(ImageConflictSide.allCases.allSatisfy{owner.model.canSelect($0)},"New image stages lost selectable native conflict panes")
-        try pixels(owner.model.panes[.base]?.currentImage(base:true),scanlines,"scanline conflict base")
-        try pixels(owner.model.panes[.theirs]?.currentImage(base:true),rectangle,"gradient focus theirs")
-        try pixels(owner.model.panes[.mine]?.currentImage(base:true),triangle,"gradient multicolor mine")
+        try pixels(owner.model.panes[.base]?.currentImage(base:true),samples(generalCrossing),generalCrossing)
+        try pixels(owner.model.panes[.theirs]?.currentImage(base:true),samples(generalContour),generalContour)
+        try pixels(owner.model.panes[.mine]?.currentImage(base:true),samples(generalCubic),generalCubic)
         try require(owner.model.document.contents[.base]==base && owner.model.document.contents[.theirs]==theirs && owner.model.document.contents[.mine]==mine,"Conflict displayed PNG replaced raw Git stages")
         let ids=owner.model.images.mapValues(\.id),decode=owner.model.decodeImages
         var reply:CheckedContinuation<Void,Never>?,token:OperationCancellation?
@@ -142,6 +148,22 @@ import TurtleGitCore
     static func verify()async throws {
         let c=Context()
         reference=try JSONDecoder().decode(Reference.self,from:Data(contentsOf:c.corpus.appendingPathComponent("path-gradient-windows-reference.json"))).cases
+        let generalFolder=c.corpus.appendingPathComponent("GeneralPathGradient")
+        let general=try JSONDecoder().decode(GeneralReference.self,from:Data(contentsOf:generalFolder.appendingPathComponent("windows-reference.json")))
+        for item in general.cases {
+            let raw=try Data(contentsOf:generalFolder.appendingPathComponent(item.rgba))
+            try require(raw.count==item.width*item.height*4 && SHA256.hash(data:raw).map{String(format:"%02x",$0)}.joined()==item.rgbaSHA256,"General boundary Windows pixels changed")
+            var points:[Sample]=[]
+            for y in stride(from:0,to:item.height,by:4) {for x in stride(from:0,to:item.width,by:4) {
+                let offset=(y*item.width+x)*4
+                points.append(Sample(x:x,y:y,rgba:Array(raw[offset..<(offset+4)]).map(Int.init),tolerance:item.tolerance))
+            }}
+            for (x,y) in [(49,18),(52,21),(63,63)] {
+                let offset=(y*item.width+x)*4
+                points.append(Sample(x:x,y:y,rgba:Array(raw[offset..<(offset+4)]).map(Int.init),tolerance:item.tolerance))
+            }
+            reference.append(ReferenceCase(file:"GeneralPathGradient/"+item.file,sourceSHA256:item.sourceSHA256,samples:points,width:item.width,height:item.height))
+        }
         for item in reference {
             let wire=try Data(contentsOf:c.corpus.appendingPathComponent(item.file))
             try require(SHA256.hash(data:wire).map{String(format:"%02x",$0)}.joined()==item.sourceSHA256,"Windows reference wire changed: "+item.file)

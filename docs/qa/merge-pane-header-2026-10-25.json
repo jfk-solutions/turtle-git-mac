@@ -1,0 +1,133 @@
+{
+  "date": "2026-10-25",
+  "status": "local_debug_and_six_cumulative_native_pairs_pass",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contract": [
+    "BaseView.cpp2398\u20132453: three-pane left/right Show diff separately; bottom Explore To.",
+    "MainFrm.cpp1286\u20131315: original Base/Their and Base/Your backing inputs with descriptive titles."
+  ],
+  "implementation": [
+    "Classic and compact native headers share fresh one-shot menu and AX receipts, source artwork preferences and Shift-F10 routing.",
+    "Captured owner/window/pane/epoch/generation/location plus modal, sheet and retirement checks refuse stale actions.",
+    "Separate comparison configures titles, codecs, read-only snapshots and cleanup before its first load; temporary files drain with the child.",
+    "Saved-target Reveal and existing Save As are native conveniences; unnamed/historical/temp-backed headers cannot invent a live target.",
+    "Coalesced attached-visible pane identity publication refreshes late-mounted readonly/Base header receipts independently from status changes; hidden outgoing P4 views cannot mask their replacement."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/MergePanePresentation.swift": "1e616e71fca01cf718062819d5eef89918a3d6c3e4088e226fba0be65663ab16",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "c24ed256f8313bfe34d5473685c54b60d8b7c62cafca9ff53160de5f4d509232",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "d79877390622f66eeaa1f2e707a6a0f8ea7ce7f6a4ccc0784ececd881e7c9b01",
+    "Sources/TurtleGitMac/MergeSourceComparisonWindows.swift": "406e706902d0e71d05a1f501e9a5f0ef4262534b6071c23b2e50324e8aef4dfd",
+    "docs/qa/merge-pane-header-native-2026-10-25.swift": "e6776b035e03bcc09c1a3832b1adfbbf335fe4734ddc331b32584a8037783a77",
+    "scripts/test-merge-pane-header.py": "390f5ed4e09427812fbb4182940d8e4371b67b488ee398bb284f0272f37e4f5a"
+  },
+  "core": "No Core production changes for the header family; no unrelated Core suite requested.",
+  "native": {
+    "result": "pass",
+    "pairs": 6,
+    "cases": [
+      "compare",
+      "merge",
+      "ownership"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "retained_compare_system": {
+      "pid": 98189,
+      "log": "build/qa/merge-general-native-headers-2026-10-25.log",
+      "scope": "Retained initial Compare pass; later production repairs affect only Merge startup/mounting."
+    },
+    "final_five": {
+      "pids": [
+        99932,
+        99966,
+        99993,
+        120,
+        149
+      ],
+      "receipt": "build/qa/merge-header-final-native-results-2026-10-25.json"
+    },
+    "owned_receivers_reaped": true,
+    "independently_absent": true,
+    "scope": "Actual offscreen native headers/menus, source snapshot bytes/titles, saved targets, optional Base late mounting, compact P4 replacement/reopen, one-shot AX actions, sheet/modal/detach/Quit/late-save refusal; unchanged source/HEAD/index."
+  },
+  "retained_failures": [
+    {
+      "pid": 98212,
+      "failure": "selection",
+      "cause": "Fixture used eager initial load before configureMergeTool; corrected to the production deferred configure/start sequence.",
+      "repair_scope": "fixture only"
+    },
+    {
+      "pid": 98630,
+      "failure": "Separate source comparison lost original descriptive titles",
+      "cause": "Shared production child could begin loading before its titles/codecs/snapshot ownership were installed.",
+      "repair_scope": "MergeSourceComparisonWindows deferred preparation and setup-failure cleanup; assertion retained with actual-title diagnostics."
+    },
+    {
+      "pid": 98879,
+      "failure": "timeout at P4 header selection",
+      "cause": "Fixture compared a full title-plus-location tooltip to a bare path; corrected exact tooltip and settled epoch/sheet waits. Subsequent source review also found readonly/Base late mount could retain a stale pane identity.",
+      "repair_scope": "Fixture tooltip/settlement diagnostics; production coalesced attached-pane identity publication and hidden outgoing pane exclusion."
+    },
+    {
+      "pid": 99668,
+      "failure": "Optional Base mount unexpectedly changed focus/status",
+      "cause": "Initial nativeEditorReady/header-count readiness preceded deferred focus/column and L/R/B-zero report publication; fixture now waits for actual enabled headers and report matching the current native first responder before capturing baseline.",
+      "repair_scope": "Fixture-only baseline settlement; unchanged-report assertion retained with before/after diagnostics."
+    },
+    {
+      "failure": "Fixture compile: private MergeTextView unavailable outside its source file",
+      "receiver_launched": false,
+      "repair_scope": "Baseline reads actual NSTextView plus shared MergeFindProviding pane IDs; no production access widened."
+    }
+  ],
+  "validation_policy": "Retain compare/system, Core and image passes; rebuild only affected app and run failed/unrun header pairs.",
+  "limits": [
+    "No physical menu tracking, keyboard/VoiceOver, signed installation or complete dialog/application parity claim.",
+    "Installed signed build6 corresponds to c47640a3 and predates this family."
+  ],
+  "debug": "Affected arm64 Debug rebuild passed after attached-pane identity repair; fixture-only repairs reused cached app objects. No Core/image checks repeated.",
+  "visual": {
+    "result": "two_original_native_PNGs_reviewed",
+    "receipt": "build/qa/merge-header-comparison-captures-2026-10-25/capture.json",
+    "pid": 98994,
+    "independently_absent": true,
+    "scope": "Light Classic and dark P4-style two-pane Compare; diagnostic only, not three-pane Merge/menu/physical acceptance."
+  },
+  "logs": {
+    "merge-header-mount-debug-repair-2026-10-25.log": "41d41d58ae3113a11e49cbe547a3854bf3224ae1497e9b095aeb540f259d9537",
+    "merge-header-mount-native-system-2026-10-25.log": "143e1d0a16eed648fe9ad81da49b8f7608e93e933ec682d061dd137770d1bfea",
+    "merge-header-settled-native-system-2026-10-25.log": "f6874feb2abf5752b960c2c60126ded562da75eea5d345c2a0c19a353b010b06",
+    "merge-header-final-native-system-2026-10-25.log": "6df208f23f819845fe74051f251b3590f0f4135ed5950506b4eb828868f0b12e",
+    "merge-header-final-native-bundled-2026-10-25.log": "36a58adae5967ca8888471edd51c35375a2381b6b403186afca70a5a3907ab34"
+  },
+  "resource_and_documentation_checkpoint": {
+    "merge-general-localizations-check-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc"
+    },
+    "merge-general-help-check-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "02e960f99717cec4be6124110711f7322edf64fbdf20dc4545ae864a517b68c3"
+    },
+    "merge-general-dialog-coverage-check-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    },
+    "merge-general-site-build-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "3092502bcc729526afedb74e7dce38b751f87ef5b16c1d769480ebadef649671"
+    },
+    "merge-general-site-links-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "e4d296dcf059f75d14cb858f111b70e02b487dc3e8fcc72a76fc745e21f33279"
+    },
+    "merge-general-site-search-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "d4e124ee1771fac404a14df30e82bdbce3cd4a1daa97cf17178347f683dbc5da"
+    }
+  }
+}

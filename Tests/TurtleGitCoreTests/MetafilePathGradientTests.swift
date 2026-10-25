@@ -70,12 +70,34 @@ final class MetafilePathGradientTests:XCTestCase {
             let context=try XCTUnwrap(CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
             context.draw(image.pixels,in:CGRect(x:0,y:0,width:width,height:height))
         }
-        let colored=stride(from:0,to:ink.count,by:4).filter {Int(ink[$0])>Int(ink[$0+1])+20 && Int(ink[$0+2])>Int(ink[$0+1])+20}
-        XCTAssertGreaterThan(colored.count,8,"Gradient glyph ink must use the colored brush, not solid default text")
+        var coloredCount = 0
+        for offset in stride(from: 0, to: ink.count, by: 4) {
+            let red = Int(ink[offset])
+            let green = Int(ink[offset + 1])
+            let blue = Int(ink[offset + 2])
+            if red > green + 20 && blue > green + 20 { coloredCount += 1 }
+        }
+        XCTAssertGreaterThan(coloredCount,8,"Gradient glyph ink must use the colored brush, not solid default text")
         XCTAssertEqual(try Data(contentsOf:corpus.appendingPathComponent("path-gradient-glyph.emf")),source)
     }
+    func testPreviouslyRefusedCrossingAndMultipleFiguresRetainEarlierPaint()throws {
+        for suffix in ["self-crossing","multi-subpath"] {
+            let url=corpus.appendingPathComponent("path-gradient-refused-"+suffix+".emf"),original=try Data(contentsOf:url)
+            let image=try XCTUnwrap(ComparisonImage(bytes:original),"Valid brush geometry must not discard earlier painting: \(suffix)")
+            XCTAssertEqual(image.pixels.width,65);XCTAssertEqual(image.pixels.height,65)
+            let cropped=try XCTUnwrap(image.pixels.cropping(to:CGRect(x:0,y:0,width:8,height:8)))
+            var pixels=[UInt8](repeating:0,count:8*8*4)
+            try pixels.withUnsafeMutableBytes { buffer in
+                let space=try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB))
+                let context=try XCTUnwrap(CGContext(data:buffer.baseAddress,width:8,height:8,bitsPerComponent:8,bytesPerRow:32,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+                context.draw(cropped,in:CGRect(x:0,y:0,width:8,height:8))
+            }
+            XCTAssertEqual(Array(pixels.prefix(4)),[255,0,0,255],"The original earlier red primitive remains visible")
+            XCTAssertEqual(try Data(contentsOf:url),original)
+        }
+    }
     func testMalformedAndUnsupportedBrushAfterEarlierPaintRefusesWholeImageWithoutChangingBytes()throws {
-        for suffix in ["colors-empty","path-truncated","center-nonfinite","focus-truncated","focus-nonfinite","wrap-invalid","transform-singular","preset-unsorted","blend-unsorted","raster-work-budget","self-crossing","multi-subpath"] {
+        for suffix in ["colors-empty","path-truncated","center-nonfinite","focus-truncated","focus-nonfinite","wrap-invalid","transform-singular","preset-unsorted","blend-unsorted","raster-work-budget"] {
             let url=corpus.appendingPathComponent("path-gradient-refused-"+suffix+".emf"),original=try Data(contentsOf:url)
             XCTAssertThrowsError(try MetafileImageDecoder.convert(original),suffix) {error in
                 if suffix=="raster-work-budget" {

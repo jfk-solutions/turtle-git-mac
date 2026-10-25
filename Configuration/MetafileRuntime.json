@@ -95,7 +95,7 @@
   },
   "path_gradient_painting": {
     "implementation": "Original TurtleGit bounded gradient playback (GPL-2.0-or-later)",
-    "scope": "EMF+ polygon/canonical-ellipse path brushes, surrounding colors, captured centers, focus scales and gamma through shared fill/pen/glyph/clip/SourceCopy consumers; source-backed linear gamma and associated-alpha interpolation",
+    "scope": "EMF+ polygon, cubic, multiple-figure and crossing path brushes, retained canonical-ellipse sampling, surrounding colors, captured centers, focus scales and gamma through shared fill/pen/glyph/clip/SourceCopy consumers; source-backed linear gamma and associated-alpha interpolation",
     "semantics": [
       "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/cfe9439a-f2b6-4663-9032-67ce8feea5aa",
       "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/0008fc6a-b678-41a6-ab99-9be99fc14092",
@@ -107,7 +107,9 @@
       "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/08ea5d19-dbd9-4056-9db3-424d8f47c3c1"
     ],
     "windows_reference": "docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json",
+    "general_boundary_reference": "docs/qa/metafile-general-path-gradient-windows-reference-2026-10-25.json",
     "documentation": "docs/METAFILE-PATH-GRADIENT-PARITY.md",
+    "general_boundary_documentation": "docs/METAFILE-GENERAL-PATH-GRADIENT-PARITY.md",
     "third_party_code_copied": false,
     "aliased_pen_coverage": "Conversion-scoped exact native stroke-outline receipts and binary device-lattice masks; geometric coverage remains independent of brush alpha."
   },

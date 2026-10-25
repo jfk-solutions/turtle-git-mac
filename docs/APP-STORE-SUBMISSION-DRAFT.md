@@ -20,7 +20,7 @@ unconfirmed App Store seller/legal entity and retained upstream rights.
 | Primary language | English (U.S.) | Proposal; compiled UI translations do not establish reviewed store localizations |
 | Keywords | `repository,version control,branches,merge,blame,patch,clone,staging,ssh,submodules` | 82 ASCII bytes; owner approval |
 | Description | Exact plain-text copy in the JSON payload | Owner approval; no price, release date or full-parity claim |
-| Marketing URL | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable; current site correctly says development/planned availability |
+| Marketing URL | https://jfk-solutions.github.io/turtle-git-mac/ | TurtleGit homepage with native screenshots and the illustrated manual; final listing approval pending |
 | Public support email | jochen.kuehner@gmx.de | Confirmed by owner on 25 October 2026; recorded in this draft |
 | Support URL candidate | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable, links to GitHub issues; Confirmed support email deployed and verified on 25 October 2026; final listing approval pending |
 | Privacy Policy URL candidate | https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html | Reachable policy; owner must approve for the exact release and identify the responsible publisher/contact |
@@ -235,7 +235,7 @@ pending. No image was edited or newly captured for this dossier.
 | Distribution certificate/profile and App Group entitlement | Final channel/account verification; Apple Development signatures are not a submitted distribution export |
 | Exact final archive/package/source+notice set | Match measured inputs, actual signed binary, symbols and corresponding source/reconstruction inputs; prior receipts remain historical |
 | Final screenshots and sample review attachment | Offline synthetic attachment prepared with checksums/reset instructions; final screenshots and owner/submission approval remain pending |
-| Hosted CI | Latest observed HEAD `5951b0b7`: Pages success, macOS run40195564513 pending at the release audit; no current full pass claimed |
+| Hosted CI | macOS run40225297562 at `c47640a3` failed during Swift 6.1.2 test compilation, before behavioral tests. Explicitly typed equivalent assertion is repaired in the next source batch and passes the focused local check; a complete hosted pass remains unproven |
 | Upload/validation/App Review/release | Not performed; only after owner approval and remaining gates |
 
 Existing [distribution engineering](DISTRIBUTION.md), [privacy](PRIVACY.md),

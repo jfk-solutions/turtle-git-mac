@@ -1,0 +1,221 @@
+{
+  "scope": "Twelve original native controls plus three explicit original-path substitutions, no prior corpus reruns; no local helper/Core/native acceptance claimed",
+  "nativeAssay": {
+    "commit": "dc16d3c42e5a246237d530e3dd53bd3c57db38b2",
+    "run": 40225687395,
+    "job": 121266428706,
+    "conclusion": "success",
+    "artifact": 12611246970,
+    "artifactSHA256": "40616683ef213ed7fdd8a03b96fdee504c0869164e7a4f7a011c94c137584dc9",
+    "newNativeControls": 12,
+    "priorControlsRerun": 0
+  },
+  "explicitPathAssay": {
+    "commit": "9adc067b41268448ed43159fd595fd44b5802cfc",
+    "run": 40225939610,
+    "job": 121267197884,
+    "conclusion": "success",
+    "artifact": 12610489346,
+    "artifactSHA256": "fc4b9a24486cbd24dc7fd82eda6a2f8cfcf530972bc991c24cc9396337b63aef",
+    "controls": 3,
+    "priorControlsRerun": 0
+  },
+  "nativeDirectReplayMaximumErrors": [
+    {
+      "file": "native-general-cubic-uniform.emf",
+      "maximum": 2
+    },
+    {
+      "file": "native-general-cubic-multi.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-disjoint-ab.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-disjoint-ba.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-nested-same.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-nested-reversed.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-crossing.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-crossing-reversed.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-cubic-clip.emf",
+      "maximum": 2
+    },
+    {
+      "file": "native-general-cubic-sourcecopy.emf",
+      "maximum": 2
+    },
+    {
+      "file": "native-general-cubic-pen.emf",
+      "maximum": 0
+    },
+    {
+      "file": "native-general-cubic-glyph.emf",
+      "maximum": 3
+    }
+  ],
+  "measuredConclusions": [
+    "Explicit cubic playback matches the native flattened point-array replay (multicolor byte-identical; uniform maximum2).",
+    "Explicit multiple figures match the same flattened ordered point-array fan byte-for-byte; figure boundaries do not impose holes or separate clips.",
+    "Native cubic flatten(.25) produces33 points for the original7 point shape, rounded to1/16 grid; recursive midpoint chord-flatness .25 reproduces all33 points exactly.",
+    "Multicolor surrounding colors retain ordinal point assignment after flattening; missing entries become opaque white.",
+    "Original and reversed crossing/nested/disjoint controls establish original array order and final-covering-fan ownership."
+  ],
+  "numericJSProfile": {
+    "scope": "Direct extracted shipping shader math against immutable full Windows frames; not helper decoding/consumer acceptance",
+    "new": [
+      {
+        "file": "native-general-cubic-multi.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-general-disjoint-ab.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-general-disjoint-ba.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-general-nested-same.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-general-nested-reversed.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-general-crossing.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-general-crossing-reversed.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      }
+    ],
+    "prior": [
+      {
+        "file": "native-control-scanline-integer.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-scanline-vertex-x-half.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-scanline-vertex-y-half.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-scanline-center-x-half.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-scanline-center-y-half.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-scanline-steep.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-triangle-multicolor.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-quad-multicolor.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      },
+      {
+        "file": "native-control-surround-two.emf",
+        "max": 1,
+        "bad": 0,
+        "cov": 0,
+        "points": []
+      }
+    ]
+  },
+  "remaining": [
+    "Actual rebuilt helper, Core and native consumer validation pending.",
+    "No universal glyph outline parity: Windows Arial and macOS font fallback differ.",
+    "Wholly collinear and unresolved subpixel-major-axis Gouraud edges remain whole-image refusals; aggregate budgets remain."
+  ],
+  "openProfileAssay": {
+    "commit": "9cfb66907a224c6fc743fd6b055727a4da7d465a",
+    "run": 40227267929,
+    "job": 121271181649,
+    "conclusion": "success",
+    "artifact": 12612155317,
+    "artifactSHA256": "3385021b28ee05c24625773e3e9e296f5d0c072c5271bab7f12ccac27db5104e",
+    "profiles": 1,
+    "frames": 2,
+    "priorControlsRerun": 0
+  },
+  "openProfileConclusion": {
+    "playbackStatus": 0,
+    "openClosedFullFrameMaximumDifference": 0,
+    "onlyChangedByte": "Final CloseSubpath3\u2192131",
+    "limitation": "Original cubic endpoint coincides with start. Direct observation proves close-bit irrelevance; distinct-endpoint and new-figure adjacency behavior derives from measured ordered fan closure plus Microsoft open-figure fill contract, not a separate Windows geometry assay."
+  }
+}

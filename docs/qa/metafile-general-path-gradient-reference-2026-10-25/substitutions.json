@@ -1,0 +1,151 @@
+[
+  {
+    "file": "explicit-cubic-uniform.emf",
+    "recordedSource": "native-general-cubic-uniform.emf",
+    "recordedSHA256": "bab00f35d980fbc9dd4c896b69d8ac1bce0f1a438f3657d367c089efd81c957d",
+    "explicitSHA256": "f81178f9b3fb2430928c34394e35f12a5a1fe9ddf7f6aba164586978329f3e07",
+    "originalBoundaryCount": 33,
+    "originalSurroundCountPreserved": 1,
+    "suppliedPoints": [
+      [
+        8.5,
+        32.5
+      ],
+      [
+        8.5,
+        0.5
+      ],
+      [
+        56.5,
+        8.5
+      ],
+      [
+        56.5,
+        32.5
+      ],
+      [
+        56.5,
+        60.5
+      ],
+      [
+        8.5,
+        48.5
+      ],
+      [
+        8.5,
+        32.5
+      ]
+    ],
+    "suppliedTypes": [
+      0,
+      3,
+      3,
+      3,
+      3,
+      3,
+      131
+    ],
+    "change": "Only brush boundary point-array replaced with original EmfPlusPath, flag and enclosing lengths/nBytes updated; all colors/transforms/draw records preserved"
+  },
+  {
+    "file": "explicit-cubic-multi.emf",
+    "recordedSource": "native-general-cubic-multi.emf",
+    "recordedSHA256": "021d4a9c6e88049d45a5fc8b93fcb8c42c731c73bddaf610047dbd54a3fa094e",
+    "explicitSHA256": "95d0e2ff0b1f7cc9a3d066084187389a6edbf94a7b639738f61a262a87c5a2db",
+    "originalBoundaryCount": 33,
+    "originalSurroundCountPreserved": 33,
+    "suppliedPoints": [
+      [
+        8.5,
+        32.5
+      ],
+      [
+        8.5,
+        0.5
+      ],
+      [
+        56.5,
+        8.5
+      ],
+      [
+        56.5,
+        32.5
+      ],
+      [
+        56.5,
+        60.5
+      ],
+      [
+        8.5,
+        48.5
+      ],
+      [
+        8.5,
+        32.5
+      ]
+    ],
+    "suppliedTypes": [
+      0,
+      3,
+      3,
+      3,
+      3,
+      3,
+      131
+    ],
+    "change": "Only brush boundary point-array replaced with original EmfPlusPath, flag and enclosing lengths/nBytes updated; all colors/transforms/draw records preserved"
+  },
+  {
+    "file": "explicit-disjoint-ab.emf",
+    "recordedSource": "native-general-disjoint-ab.emf",
+    "recordedSHA256": "d2d19a39991f9dc18a3f689abf93c209a7470f030486b1abc98caa1f358b2364",
+    "explicitSHA256": "9a7b5fdeed16779066f036cf9738684311ff33fdcc60825dc0a33065d4643a33",
+    "originalBoundaryCount": 8,
+    "originalSurroundCountPreserved": 8,
+    "suppliedPoints": [
+      [
+        6.5,
+        8.5
+      ],
+      [
+        28.5,
+        8.5
+      ],
+      [
+        28.5,
+        52.5
+      ],
+      [
+        6.5,
+        52.5
+      ],
+      [
+        36.5,
+        16.5
+      ],
+      [
+        58.5,
+        16.5
+      ],
+      [
+        58.5,
+        48.5
+      ],
+      [
+        36.5,
+        48.5
+      ]
+    ],
+    "suppliedTypes": [
+      0,
+      1,
+      1,
+      129,
+      0,
+      1,
+      1,
+      129
+    ],
+    "change": "Only brush boundary point-array replaced with original EmfPlusPath, flag and enclosing lengths/nBytes updated; all colors/transforms/draw records preserved"
+  }
+]

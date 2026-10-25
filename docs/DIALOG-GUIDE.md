@@ -501,6 +501,17 @@ choices retain the copied visibility, while newly typed result rows remain shown
 
 
 
+Right-click a pane's filename header for its file actions. In a three-pane
+merge, **Show diff separately** opens Base versus the selected original source in
+an independent read-only comparison; it does not compare your edited result.
+**Save this pane as…** or **Save merged result as…** uses the existing Save As
+workflow. **Reveal in Finder** selects a known input or saved output; an unnamed
+result has no Reveal target. Header left-click still focuses its editor. Classic
+headers also support Shift-F10 when the header has keyboard focus and accessibility
+menu/custom actions. Compact P4-style headers offer the same file commands in
+their context menu. See [pane-header workflows](MERGE-PANE-HEADER-PARITY.md) for
+source behavior, captured-version handling and acceptance limits.
+
 When first-difference navigation is enabled, Compare opens with the first state
 block selected, including neutral rows in combined view. Block transfer commands
 require a selected block or text range. Later keyboard, mouse or Find navigation

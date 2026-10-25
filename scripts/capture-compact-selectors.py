@@ -8,7 +8,7 @@ parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--only-errors',action='store_true',help='Three error-only captures; no Git fixture or Git actions')
 parser.add_argument('--app-root',type=Path,default=Path('/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac'),help='Existing Debug app/object build root')
 parser.add_argument('--output',type=Path)
-parser.add_argument('--compare-only',action='store_true',help='Retain earlier Commit captures in the selected output directory')
+parser.add_argument('--compare-only',action='store_true',help='Capture only the two Comparison windows without constructing Commit')
 args=parser.parse_args();clean=args.app_root.resolve()
 name='action-error-captures-2026-10-25' if args.only_errors else 'compact-selector-captures-2026-10-25'
 out=(args.output or root/'build/qa'/name).absolute();out.mkdir(parents=True,exist_ok=True)
@@ -24,10 +24,10 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-owned-capture-') as private:
     result=run_receiver([str(receiver),'unused','/usr/bin/git'],cwd=root,env=env,capture_output=True,text=True,timeout=120)
     (out/'stdout.txt').write_text(result.stdout);(out/'stderr.txt').write_text(result.stderr)
     print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
-    marker='Captured three real compact action error windows' if args.only_errors else 'Captured four real compact Commit/Comparison windows'
+    marker='Captured three real compact action error windows' if args.only_errors else 'Captured two real compact Comparison windows' if args.compare_only else 'Captured four real compact Commit/Comparison windows'
     if marker not in result.stdout:raise RuntimeError('Native capture did not finish')
 manifest={'method':'ScreenCaptureKit desktopIndependentWindow; actual native windows offscreen, original PNG bytes','repository':'No repository or Git action in error-only mode' if args.only_errors else 'Synthetic offline Harbor with branch merge, staged/unstaged files and draft; fixture commits only before capture baseline','preferences':'Private HOME/CFFIXED_USER_HOME env; private suite for selector mode','network':False,'owned_receiver_reaped':True,'assets':[],'mode':'errors' if args.only_errors else 'selectors'}
-names=['action-error-short-light.png','action-error-short-dark.png','action-error-long-light.png'] if args.only_errors else ['commit-compact-light.png','commit-compact-dark.png','compare-compact-light-classic.png','compare-compact-dark-p4merge.png']
+names=['action-error-short-light.png','action-error-short-dark.png','action-error-long-light.png'] if args.only_errors else ['compare-compact-light-classic.png','compare-compact-dark-p4merge.png'] if args.compare_only else ['commit-compact-light.png','commit-compact-dark.png','compare-compact-light-classic.png','compare-compact-dark-p4merge.png']
 for filename in names:
     source=out/filename;data=source.read_bytes();width,height=struct.unpack('>II',data[16:24])
     manifest['assets'].append(dict(raw_path=str(source),width=width,height=height,bytes=len(data),sha256=hashlib.sha256(data).hexdigest()))

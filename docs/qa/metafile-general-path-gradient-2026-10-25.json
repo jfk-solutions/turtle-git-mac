@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-25",
+  "status": "local_runtime_core_and_native_images_pass",
+  "implementation": [
+    "General cubic boundaries flatten with the measured Windows flatness/grid and retain boundary color order.",
+    "Multiple figures and crossings use the observed ordered fan, including signed-area-zero paths.",
+    "Fractional-row interpolation counter correction preserves original vertex-row seeds.",
+    "Open-path closing-bit rejection removed after an exact Windows open/closed replay; proof scope and derived closure cases remain identified."
+  ],
+  "windows_reference": "metafile-general-path-gradient-windows-reference-2026-10-25.json",
+  "core": {
+    "result": "pass",
+    "methods": 12,
+    "seconds": 7.694,
+    "command": "swift test --filter 'MetafilePathGradientTests|MetafileGeneralPathGradientTests'",
+    "scope": "Six retained path-gradient methods plus six general-boundary methods: full-frame references, open paths, all shared paint consumers, source bytes, and whole-image budget refusal.",
+    "log": "build/qa/merge-general-core-2026-10-25.log"
+  },
+  "native": {
+    "result": "pass",
+    "pairs": 2,
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "pids": [
+      98253,
+      98398
+    ],
+    "independently_absent": true,
+    "scope": "Actual Compare automatic/explicit IDiff and Git Conflict stages for cubic multicolor, contour and crossing originals; retained cancellation/Quit/resolution/index/HEAD assertions.",
+    "log": "build/qa/merge-general-native-images-2026-10-25.log"
+  },
+  "runtime": {
+    "cache_key": "57f10d4f217b0ce48a40c35364148bf245c0587cd8414f7bbbbd03947109d2b7",
+    "binary_sha256": "7b73d40a3943d3c6e5959485f64c5a3a1a74c65f97d9a04e3eeaabd63fa34cda",
+    "renderer_sha256": "352b5555442534838a9964e62bef4be70f0d1066e3a7491ebd37b1d2e460cdbb",
+    "sdk_version": "27.0"
+  },
+  "runtime_scope": "Universal helper structure/reconstruction checked; functional executions on this arm64 host only.",
+  "source_sha256": {
+    "patches/metafile-renderer.patch": "7bef9f3f0a51c6a392a248b5f6fded1fc811eb1f0128760494d31f70ceb7c428",
+    "Configuration/MetafileRuntime.json": "c205e556442b162914c3b50066ba8551587ef7ada7c8cf91a6e766b121178942",
+    "Tests/TurtleGitCoreTests/MetafilePathGradientTests.swift": "efef83dc626014d208811fc3e0e8f7addad529892165f5b7a85c97017698a509",
+    "Tests/TurtleGitCoreTests/MetafileGeneralPathGradientTests.swift": "d0f777631067b0a4766b10218851fdac70cff3057b28271f9add89645336dcfb",
+    "docs/qa/metafile-path-gradients-native-2026-10-25.swift": "4e2c55a3708f367cb068b5c6758a9bb96fbd4d9944ab301d57ea24600811e7c8"
+  },
+  "preparation_diagnostics": [
+    "Initial supplied --output named the runtime parent and was rejected before replacement; corrected to the script default build/metafile-runtime/Metafile.",
+    "Initial reconstructed closed-only candidate was superseded after source review disproved its inherited open-path rejection; no Core/native functional checks ran against that candidate.",
+    "System Python lacks markdown_it; actual Help generation used existing build/site-venv."
+  ],
+  "unplanned_capture": {
+    "receipt": "build/qa/unplanned-manual-capture-correction-2026-10-25.json",
+    "scope": "--help on a script without argparse ran four unnecessary offscreen Commit/Log captures. Five tracked image/receipt files restored byte-exactly from HEAD; PID96702 reaped and independently absent; not counted as planned feature validation."
+  },
+  "limits": [
+    "Not an exhaustive Windows metafile implementation or proof of every curve, transform or printer-device profile.",
+    "Existing resource/work/deadline limits remain; no tolerance or original behavioral assertion relaxed.",
+    "New source is not installed signed build6; full hosted Swift6.1.2 and signed/physical acceptance remain separate."
+  ],
+  "related_header_workflow": "merge-pane-header-2026-10-25.json",
+  "resource_and_documentation_checkpoint": {
+    "merge-general-localizations-check-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc"
+    },
+    "merge-general-help-check-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "02e960f99717cec4be6124110711f7322edf64fbdf20dc4545ae864a517b68c3"
+    },
+    "merge-general-dialog-coverage-check-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    },
+    "merge-general-site-build-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "3092502bcc729526afedb74e7dce38b751f87ef5b16c1d769480ebadef649671"
+    },
+    "merge-general-site-links-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "e4d296dcf059f75d14cb858f111b70e02b487dc3e8fcc72a76fc745e21f33279"
+    },
+    "merge-general-site-search-2026-10-25.log": {
+      "result": "pass",
+      "sha256": "d4e124ee1771fac404a14df30e82bdbce3cd4a1daa97cf17178347f683dbc5da"
+    }
+  }
+}

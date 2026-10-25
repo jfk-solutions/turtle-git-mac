@@ -481,7 +481,7 @@ jobs:
       - name: Image native command family
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: WMF and EMF native comparison consumers and colors
-        run: python3 scripts/test-metafile-workflows.py --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: python3 scripts/test-metafile-workflows.py --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic WMF and EMF Boolean raster consumers and conflict ownership
         run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic EMF masked and transparent bitmap transfers
@@ -512,6 +512,8 @@ jobs:
         run: python3 scripts/test-commit-scope-report-push.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Historical window identity and retiring comparison owners
         run: python3 scripts/test-window-byte-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Compare and Merge pane header commands and ownership
+        run: python3 scripts/test-merge-pane-header.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge folded keyboard input and aligned deletion
         run: python3 scripts/test-merge-pane-input.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Embedded Commit patches and Compare/Merge appearance ownership

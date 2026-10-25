@@ -88,13 +88,13 @@ import TurtleGitCore
         defer {prefs.removePersistentDomain(forName:suite)}
         prefs.set(false,forKey:"EnableLogCache");prefs.set(false,forKey:"EnableGravatar");prefs.set(true,forKey:"ShowAppContextMenuIcons");prefs.set(12,forKey:"LogFontSize");prefs.set("Menlo",forKey:"LogFontName")
         prefs.set(false,forKey:"LogIncludeWorkingTreeChanges");prefs.set(false,forKey:"RelativeTimes");prefs.set(true,forKey:"UseSystemLocaleForDates")
+        if ProcessInfo.processInfo.environment["TURTLEGIT_CAPTURE_COMPARE_ONLY"] == nil {
         let commit=CommitWindowController(repository:repo,access:nil,defaults:prefs);defer {commit.close()};commit.model.confirmCancel={ $0(true) };commit.model.reload();try await wait {!commit.model.busy && commit.model.hasHead}
         commit.model.message="Improve repository status display\n\nKeep familiar colors and original icons in native Mac dialogs."
         commit.model.checked=["README.md","Sources/Repository.swift"]
-        if ProcessInfo.processInfo.environment["TURTLEGIT_CAPTURE_COMPARE_ONLY"] == nil {
         for (appearance,name) in [(NSAppearance.Name.aqua,"commit-compact-light"),(.darkAqua,"commit-compact-dark")] {commit.window!.appearance=NSAppearance(named:appearance);try await png(commit.window!,output.appendingPathComponent(name+".png"))}
-        }
         commit.close()
+        }
         let before=fixture.appendingPathComponent("Harbor-before.swift"),after=fixture.appendingPathComponent("Harbor-after.swift")
         let source="""
         import Foundation
@@ -134,6 +134,7 @@ import TurtleGitCore
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try await repo.run(["write-tree"]).stdout,afterStatus=try await repo.run(["status","--porcelain=v1","-z"]).stdout
         guard head == afterHead,index == afterIndex,status == afterStatus else {throw Failure(description:"Capture changed HEAD/index tree/working status")}
         _ = base
-        print("Captured four real compact Commit/Comparison windows in light/dark. Private fixture/preferences; no Commit/apply actions; HEAD/index tree/status preserved; owned windows closed.")
+        let captured=ProcessInfo.processInfo.environment["TURTLEGIT_CAPTURE_COMPARE_ONLY"] == nil ? "four real compact Commit/Comparison windows":"two real compact Comparison windows"
+        print("Captured \(captured) in light/dark. Private fixture/preferences; no Commit/apply actions; HEAD/index tree/status preserved; owned windows closed.")
     }
 }

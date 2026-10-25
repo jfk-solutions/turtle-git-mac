@@ -652,7 +652,7 @@ private enum MergeSourceSide {
         guard sourceTargets[mine] == nil, let titles = document?.conflictTitles else { return nil }
         return mine ? titles.mine.title : titles.theirs.title
     }
-    @Published private(set) var exportingSource = false
+    @Published private(set) var exportingSource = false {didSet {if exportingSource != oldValue {paneTabEpoch=UUID()}}}
     lazy var sourceExporter: MergeSourceExport = {
         let value = MergeSourceExport()
         value.present={panel,owner,reply in panel.appearance=owner.effectiveAppearance;panel.alphaValue=owner.alphaValue;panel.beginSheetModal(for:owner,completionHandler:reply)}
@@ -734,7 +734,7 @@ private enum MergeSourceSide {
             let sourceEncoding=mine ? document.mineEncoding:document.theirsEncoding
             let sideEncoding=savedSource.flatMap {$0.bytes==sourceBytes ? sourceEncoding ?? $0.encoding:$0.encoding} ?? sourceEncoding
             try MergeSourceComparisonWindows.open(base: base, side: side, name: path, sideName: mine ? "Mine" : "Theirs", preferences: comparisonDefaults,
-                baseEncoding:document.baseEncoding,sideEncoding:sideEncoding,sourceWindow:window,configure:sourceComparisonPresentation)
+                baseEncoding:document.baseEncoding,sideEncoding:sideEncoding,baseTitle:mergeToolPaneTitle("Base"),sideTitle:mergeToolPaneTitle(sourceCaption(mine:mine) ?? (mine ? "Mine":"Theirs"),mine:mine),sourceWindow:window,configure:sourceComparisonPresentation)
         } catch { self.error = error.localizedDescription }
     }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
@@ -870,13 +870,23 @@ private enum MergeSourceSide {
     @Published private(set) var presentationColumn=1
     @Published private(set) var presentationMarkedCounts:[MergePaneMarkCount]=[]
     private var panePresentationScheduled=false
+    private var panePresentationViews:[ObjectIdentifier?]=[]
     fileprivate func presentationView(_ role:TextConflictPaneRole)->MergeTextView? {
         if role == .result {return locatorResultScroll?.documentView as? MergeTextView}
         if role == .base {guard let view=basePresentationScroll?.documentView as? MergeTextView,view.window === window else{return nil};return view}
-        return sourceScrolls.values.compactMap{$0.view?.documentView as? MergeTextView}.first{$0.presentationRole == role && $0.window === window}
+        return sourceScrolls.values.compactMap{$0.view?.documentView as? MergeTextView}.first{$0.presentationRole == role && $0.window === window && !$0.isHiddenOrHasHiddenAncestor}
     }
     fileprivate func refreshPanePresentation() {
         guard !retired else{return}
+        // Header commands capture native pane identity during SwiftUI body
+        // construction. A readonly source/Base can attach after that body even
+        // when focus, column and marks stay unchanged. Publish that slot change
+        // from this coalesced callback, never from representable registration.
+        let attached:[ObjectIdentifier?]=[TextConflictPaneRole.theirs,.mine,.base,.result].map {role in
+            guard let owner=window,let view=presentationView(role),view.window === owner,!view.isHiddenOrHasHiddenAncestor else{return nil}
+            return ObjectIdentifier(view)
+        }
+        if panePresentationViews != attached {panePresentationViews=attached;objectWillChange.send()}
         let focused=(window?.firstResponder as? MergeTextView).flatMap {view in
             presentationView(view.presentationRole) === view ? view:nil
         }
@@ -900,6 +910,40 @@ private enum MergeSourceSide {
             guard let self,self.paneTabEpoch==epoch,self.loadGeneration==generation,self.comparisonDefaults === preferences else{return}
             self.focusPresentationPane(role)
         }
+    }
+    var revealPaneInFinder:(URL)->Void = {NSWorkspace.shared.activateFileViewerSelecting([$0])}
+    private func headerFileURL(_ role:TextConflictPaneRole)->URL? {
+        if role == .result {
+            if let target=mergedResultTarget {return target.url}
+            guard document?.workingContents != nil else{return nil}
+            if workingMerge != nil {return workingMergeOutput}
+            return repository.root.appendingPathComponent(path)
+        }
+        let id=role == .base ? "base":role == .mine ? "mine":"theirs"
+        return externalReloadSources.first {$0.id==id && !$0.expectedMissing}?.url
+    }
+    private func headerIdentity(_ role:TextConflictPaneRole)->MergePaneHeaderIdentity {
+        .init(owner:ObjectIdentifier(self),epoch:paneTabEpoch,generation:loadGeneration,role:String(describing:role),location:Data((headerFileURL(role)?.path ?? "").utf8),layout:sourceLayoutRevision,presentation:resultPresentationRevision,pane:presentationView(role).map{ObjectIdentifier($0)})
+    }
+    func paneHeaderActions(_ role:TextConflictPaneRole)->MergePaneHeaderActions {
+        let identity=headerIdentity(role),owner=window
+        let allowed:()->Bool = {[weak self,weak owner] in
+            guard let self,let owner,self.window === owner,NSApp.modalWindow==nil else{return false}
+            guard let view=self.presentationView(role),view.window === owner,!view.isHiddenOrHasHiddenAncestor,view.mergeSourceRowsReady else{return false}
+            return self.headerIdentity(role)==identity && self.sourceToolsAllowed
+        }
+        var commands=[MergePaneHeaderCommand]()
+        if role == .mine || role == .theirs {
+            let mine=role == .mine
+            commands.append(.init(title:"Show diff separately",icon:.compare,available:allowed,perform:{[weak self] in self?.compareSourceWithBase(mine:mine)}))
+            commands.append(.init(title:"Save this pane as…",icon:.mergeSaveAs,available:{[weak self] in allowed() && self?.sourceMutationsAllowed == true},perform:{[weak self] in self?.exportSource(mine:mine)}))
+        } else if role == .result {
+            commands.append(.init(title:"Save merged result as…",icon:.mergeSaveAs,available:{[weak self] in allowed() && self?.sourceMutationsAllowed == true},perform:{[weak self] in self?.export()}))
+        }
+        if let url=headerFileURL(role) {
+            commands.append(.init(title:"Reveal in Finder",icon:.explore,available:allowed,perform:{[weak self] in self?.revealPaneInFinder(url)}))
+        }
+        return .init(identity:identity,commands:commands)
     }
     func paneHeaderLocation(_ role:TextConflictPaneRole)->String {
         let mine:Bool?=role == .mine ? true:role == .theirs ? false:nil
@@ -2143,7 +2187,7 @@ private struct TextConflictDialog: View {
         let headerTitle=([paneTitle]+details).joined(separator:" — ")
         let headerLocation=model.paneHeaderLocation(paneRole)+(side.map{model.keptExternalSources.contains($0 == .mine)} == true ? "\n"+model.keptSourcesExplanation:"")
         return VStack(spacing: 0) {
-            MergePaneHeader(title:headerTitle,location:headerLocation,modified:editable && model.dirty,active:model.activePresentationPane == paneRole,kind:.neutral,font:model.generalPreferences.nativeFont,enabled:model.sourceToolsAllowed,preferences:model.comparisonDefaults,activate:model.paneHeaderAction(paneRole))
+            MergePaneHeader(title:headerTitle,location:headerLocation,modified:editable && model.dirty,active:model.activePresentationPane == paneRole,kind:.neutral,font:model.generalPreferences.nativeFont,enabled:model.sourceToolsAllowed,preferences:model.comparisonDefaults,activate:model.paneHeaderAction(paneRole),actions:model.paneHeaderActions(paneRole))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts,palette:model.palette).padding(.horizontal,7).padding(.vertical,2)}
@@ -2950,6 +2994,7 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        model?.schedulePanePresentation()
         if mergeEditable { (window as? TextConflictNSWindow)?.mergedText = self; model?.nativeEditorDidUpdate(self) }
     }
     func selectContextBlock(at displayOffset: Int) {
@@ -3351,6 +3396,7 @@ struct PatchMergeEditor:View {
 // document and undo history. Source editors show real lines, never diff3 padding.
 enum P4MergePane: CaseIterable {
     case theirs, base, mine, result
+    var headerRole:TextConflictPaneRole {switch self {case .base:return .base;case .mine:return .mine;case .theirs:return .theirs;case .result:return .result}}
     var input: MergeInputSource? { switch self {case .theirs:return .theirs;case .base:return .base;case .mine:return .mine;case .result:return nil} }
     var title: String {switch self {case .theirs:return "Theirs";case .base:return "Base";case .mine:return "Yours";case .result:return "Merge result"} }
     var symbol:String {switch self {case .theirs:return "arrowtriangle.down.fill";case .base:return "square.fill";case .mine:return "circle.fill";case .result:return "diamond.fill"} }
@@ -3469,7 +3515,7 @@ private struct P4MergeWorkspace: View {
                 Button {model.p4UseFile(input)} label:{Image(systemName:pane.symbol).foregroundStyle(Color(nsColor:pane.color))}
                     .buttonStyle(.plain).help("Use whole \(pane.title) file").accessibilityLabel("Use whole \(pane.title) file").disabled(!model.sourceMutationsAllowed)
             } else {Image(systemName:pane.symbol).foregroundStyle(Color(nsColor:pane.color))}
-            Text(verbatim:pane == .result ? (model.resultPath as NSString).lastPathComponent:model.p4DisplayPath(pane)).lineLimit(1).truncationMode(.middle).help(location)
+            MergePaneHeader(title:pane == .result ? (model.resultPath as NSString).lastPathComponent:model.p4DisplayPath(pane),location:location,modified:pane == .result && model.dirty,active:model.activePresentationPane == pane.headerRole,kind:.neutral,font:.systemFont(ofSize:10),enabled:model.sourceToolsAllowed,preferences:model.comparisonDefaults,activate:model.paneHeaderAction(pane.headerRole),actions:model.paneHeaderActions(pane.headerRole),compact:true)
             Spacer(minLength:0)
             if pane == .result {Text("Choose sources").foregroundStyle(.secondary)}
         }.font(.system(size:10)).padding(.horizontal,5).frame(height:20).background(Color(nsColor:.controlBackgroundColor)).overlay(alignment:.bottom){Divider()}

@@ -108,7 +108,9 @@
     "receipts": [
       "build/qa/finder-url-signed6-private-publication-2026-10-25.json",
       "build/qa/finder-url-signed6-owned-windows-93713-2026-10-25.json",
-      "build/qa/finder-url-signed6-owned-cleanup-2026-10-25.json"
-    ]
+      "build/qa/finder-url-signed6-owned-cleanup-2026-10-25.json",
+      "build/qa/finder-url-signed6-owned-permission-cleanup-2026-10-25.json"
+    ],
+    "post_checkpoint_permission_cleanup": "After the owned app was independently absent, removed only the private Harbor recent permission and watch. One unrelated record in each store was preserved semantically; repository files remain intact."
   }
 }

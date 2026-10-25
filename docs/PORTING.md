@@ -1,14 +1,53 @@
 # TurtleGit for Mac — full port tracking
 
-The current connected parity batch covers [Commit category checking](COMMIT-CHECK-LINKS-PARITY.md)
+## Current installed checkpoint
+
+Build 6 is the recoverably installed Apple Development build for Intel and Apple
+silicon. Its 1,508 measured distribution inputs match commit `c47640a3`; strict
+signature checks and all eight universal components passed. The
+[Finder registration and compact error checkpoint](qa/finder-directory-registration-errors-2026-10-25.json)
+records actual OS URL delivery, folder permission, saved registration, canonical
+status publication, visible Finder badges and repository context commands for a
+private repository containing nested untracked and ignored checkouts. Short error
+windows were reviewed in light and dark appearances; long diagnostics remain
+selectable and scrollable. The record preserves the observer-reopen limitation
+and does not certify every Finder workflow or App Store distribution.
+
+The completed hosted macOS run at `c47640a3` failed during test compilation
+on Swift 6.1.2, before behavioral tests ran: a gradient pixel assertion exceeded
+the compiler's type-checking limit. The next source batch replaces that expression
+with equivalent explicitly typed channel arithmetic and retains the assertion.
+Its focused local Core check passes; the older hosted compiler still requires a
+new workflow result. The earlier Pages deployment at `c04799e0` passed. These
+results do not establish a complete current hosted macOS pass.
+
+## Latest source batch
+
+The [Compare/Merge pane-header family](MERGE-PANE-HEADER-PARITY.md) adds original
+source comparisons, saved-target Reveal and connected Save As menus in classic
+and compact headers, with owner and layout replacement handling. Its affected
+Debug build and six cumulative native case/engine pairs pass after recorded
+startup and fixture repairs. The [general path-gradient family](METAFILE-GENERAL-PATH-GRADIENT-PARITY.md)
+extends EMF+ rendering to cubic, multiple-figure and crossing boundaries against
+retained Windows references; 12 focused Core methods and two actual native
+Compare/Conflict engine workloads pass. These source changes are newer than
+installed build 6. Physical/full-dialog parity, current hosted CI, distribution
+signing and App Store submission remain open.
+
+## Earlier connected implementation checkpoints
+
+The connected parity batch covering [Commit category checking](COMMIT-CHECK-LINKS-PARITY.md)
 and [Settings context/page handoffs](SETTINGS-CONTEXT-HANDOFF-PARITY.md). Source
 comparison confirmed the existing Commit checkbox layout and graph-first Log
 presentation, while identifying actual category-mask and asynchronous Settings
 request loss. Its [grouped checkpoint](qa/commit-settings-source-parity-2026-10-25.json)
 records 13 focused Core methods, both affected bundled-Git filter cases and 16
-native case/engine pairs passing after recorded repairs. A reproducible Commit
-table-reentrancy warning remains open; complete dialog/application parity,
-current full hosted CI and a consolidated signed deployment remain unproven.
+native case/engine pairs passing after recorded repairs. Its original Commit
+table-reentrancy warning is followed by the later
+[Commit report-row checkpoint](COMMIT-REPORT-ROWS-PARITY.md), whose bounded final
+checks contain no reentrancy warning. That does not prove global resolution of
+every earlier shared-table diagnostic. Complete dialog/application parity and a
+current full hosted CI pass remain unproven.
 
 The [Browser Git filename family](REPOSITORY-BROWSER-NAMESPACE-PARITY.md) preserves
 raw tree identities instead of rejecting a complete directory because one name
@@ -17,10 +56,11 @@ inspection, explicit path-action admission and recursive transfer preflight.
 Its [grouped checkpoint](qa/repository-browser-namespace-2026-10-25.json) passed
 33 focused Core methods and 14 native case/engine pairs after a recorded compile
 repair. Raw-byte filesystem operations, physical/signed acceptance and full
-Browser parity remain open; the installed signed candidate predates this batch.
+Browser parity remain open. Build 6 includes this source; the Browser-specific
+physical acceptance was not repeated as part of the Finder registration check.
 
 The [signed viewer-family checkpoint](qa/viewer-families-installed-2026-10-25.json)
-records the current recoverably installed Apple Development candidate: measured
+records that earlier recoverably installed Apple Development candidate: measured
 `8569ede1…` inputs at a955f566 with preserved dirty work, eight universal owned
 components, 206 runtime items and matching 6,356-member inventory. Actual signed
 stdin/title, native Save with exact bytes, window-local Dark Mode and Quit passed.

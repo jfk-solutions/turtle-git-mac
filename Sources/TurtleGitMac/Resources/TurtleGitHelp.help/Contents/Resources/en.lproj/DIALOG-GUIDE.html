@@ -415,6 +415,16 @@ uses separate visibility metadata shared by all three panes. It can hide a commo
 ignored conflict; <strong>Continue resolving conflicts</strong> reveals it for an explicit
 choice. Collapsing or expanding a row does not resolve or save it. Source block
 choices retain the copied visibility, while newly typed result rows remain shown.</p>
+<p>Right-click a pane's filename header for its file actions. In a three-pane
+merge, <strong>Show diff separately</strong> opens Base versus the selected original source in
+an independent read-only comparison; it does not compare your edited result.
+<strong>Save this pane as…</strong> or <strong>Save merged result as…</strong> uses the existing Save As
+workflow. <strong>Reveal in Finder</strong> selects a known input or saved output; an unnamed
+result has no Reveal target. Header left-click still focuses its editor. Classic
+headers also support Shift-F10 when the header has keyboard focus and accessibility
+menu/custom actions. Compact P4-style headers offer the same file commands in
+their context menu. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-PANE-HEADER-PARITY.html">pane-header workflows</a> for
+source behavior, captured-version handling and acceptance limits.</p>
 <p>When first-difference navigation is enabled, Compare opens with the first state
 block selected, including neutral rows in combined view. Block transfer commands
 require a selected block or text range. Later keyboard, mouse or Find navigation

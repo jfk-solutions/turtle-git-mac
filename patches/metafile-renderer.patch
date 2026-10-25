@@ -1061,10 +1061,10 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +};
 diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 new file mode 100644
-index 0000000..dc80a8b
+index 0000000..0350971
 --- /dev/null
 +++ b/src/turtleGitPaint.js
-@@ -0,0 +1,678 @@
+@@ -0,0 +1,709 @@
 +// TurtleGit EMF+ gradient, hatch and bitmap texture painting. MIT, see repository LICENSE.
 +// Canonical hatch cell data is isolated in LGPL-2.1-or-later turtleGitHatch.js.
 +// Geometry remains in local drawing coordinates; the record's world/page/device
@@ -1172,11 +1172,42 @@ index 0000000..dc80a8b
 +    for(let i=0;i<13;i++) for(let axis=0;axis<2;axis++) if(Math.abs(p[i][axis]-(c[axis]+coefficients[i][0]*u[axis]+coefficients[i][1]*v[axis]))>tolerance) fail('unsupported non-ellipse path gradient');
 +    return {center:c,tolerance,transform:nonsingular([u[0],u[1],v[0],v[1],c[0],c[1]])};
 +  }
-+  // One explicit closed figure is the bounded polygon profile. It is decoded
-+  // by the same C/R/RLE-aware EmfPlusPath reader used for ordinary geometry.
-+  // Windows writes/replays point-array constructors as closed line polygons.
-+  // That observed wire behavior is handled explicitly below; no cardinal-spline
-+  // tension or curve is invented from the specification's inconsistent label.
++  // GDI+ flattens explicit cubic brush boundaries before fan scan conversion.
++  // The original Windows controls bind .25 chord flatness and a 1/16 path-space
++  // grid. Figure starts/closures are retained for validation but the gradient
++  // consumes the flattened points as one ordered array (including crossings).
++  function flattenedBoundary(d,path) {
++    const points=[],types=[];
++    let current=null,work=0;
++    const append=(p,type)=>{if(points.length>=4096)fail('flattened path-gradient point limit');points.push({x:Math.round(p[0]*16)/16,y:Math.round(p[1]*16)/16});types.push(type);};
++    const midpoint=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
++    function cubic(a,b,c,e,depth) {
++      if(++work>65536||depth>20)fail('path-gradient cubic subdivision limit');
++      const dx=e[0]-a[0],dy=e[1]-a[1],length=Math.hypot(dx,dy);
++      const distance=p=>length?Math.abs(dx*(a[1]-p[1])-(a[0]-p[0])*dy)/length:Math.hypot(p[0]-a[0],p[1]-a[1]);
++      if(Math.max(distance(b),distance(c))<=.25){append(e,1);return;}
++      const ab=midpoint(a,b),bc=midpoint(b,c),ce=midpoint(c,e),abc=midpoint(ab,bc),bce=midpoint(bc,ce),m=midpoint(abc,bce);
++      cubic(a,ab,abc,m,depth+1);cubic(m,bce,ce,e,depth+1);
++    }
++    for(let i=0;i<path.count;i++) {
++      const t=path.pointTypes[i],kind=t&15,p=[path.points[i].x,path.points[i].y];
++      if(kind===0){current=p;append(p,0);}
++      else if(kind===1){append(p,1);current=p;}
++      else {const c=path.points[i+1],e=path.points[i+2];cubic(current,p,[c.x,c.y],[e.x,e.y],0);current=[e.x,e.y];i+=2;}
++      if(path.pointTypes[i]&128)types[types.length-1]|=128;
++    }
++    d.ctx._turtleDecodedPathPoints=(d.ctx._turtleDecodedPathPoints||0)+points.length;
++    if(d.ctx._turtleDecodedPathPoints>1048576)fail('aggregate decoded path point limit');
++    return {count:points.length,points,pointTypes:Uint8Array.from(types)};
++  }
++  function canonicalEllipse(path) {
++    if(path.count!==13)return false;
++    for(let i=0;i<13;i++)if(path.pointTypes[i] !== (i===0?0:i===12?0x83:3))return false;
++    const p=path.points.map(p=>[p.x,p.y]),c=p[0].map((v,i)=>(v+p[6][i])/2),u=p[0].map((v,i)=>(v-p[6][i])/2),v=p[3].map((x,i)=>(x-p[9][i])/2),k=.5522847498307936;
++    const coefficients=[[1,0],[1,k],[k,1],[0,1],[-k,1],[-1,k],[-1,0],[-1,-k],[-k,-1],[0,-1],[k,-1],[1,-k],[1,0]];
++    const tolerance=Math.max(Math.max(...u.map(Math.abs),...v.map(Math.abs))*2e-5,Math.max(...p.flat().map(Math.abs))*Math.pow(2,-22));
++    return coefficients.every((q,i)=>q.every((_,axis)=>Math.abs(p[i][axis]-(c[axis]+q[0]*u[axis]+q[1]*v[axis]))<=tolerance));
++  }
 +  function polygonBoundary(d,path) {
 +    if(path.count<3||path.count>4096)fail('path-gradient polygon point limit');
 +    const comparisons=path.count*(path.count-1)/2;
@@ -1184,26 +1215,14 @@ index 0000000..dc80a8b
 +    if(d.ctx._turtlePathGradientBoundaryWork>16777216)fail('aggregate path-gradient boundary work limit');
 +    const points=path.points.map(p=>[p.x,p.y]);
 +    for(let i=0;i<path.count;i++) {
-+      const expected=i===0?0:i===path.count-1?0x81:1;
-+      if((path.pointTypes[i]&0x8f)!==expected)fail('unsupported path-gradient boundary figure');
++      const kind=path.pointTypes[i]&15;
++      if(kind!==0&&kind!==1)fail('unsupported path-gradient boundary figure');
 +    }
-+    let area=0;
-+    const edge=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
-+    for(let i=0;i<points.length;i++) {
-+      const a=points[i],b=points[(i+1)%points.length];
-+      if(a[0]===b[0]&&a[1]===b[1])fail('degenerate path-gradient polygon edge');
-+      area+=a[0]*b[1]-b[0]*a[1];
-+      for(let j=i+2;j<points.length;j++) {
-+        if(i===0&&j===points.length-1)continue;
-+        const c=points[j],e=points[(j+1)%points.length];
-+        const abC=edge(a,b,c),abE=edge(a,b,e),ceA=edge(c,e,a),ceB=edge(c,e,b);
-+        // Collinear touching/nonadjacent overlap is outside this simple-boundary
-+        // profile as well; accepting it would invent a triangulation/fill rule.
-+        const box=!(Math.max(a[0],b[0])<Math.min(c[0],e[0])||Math.max(c[0],e[0])<Math.min(a[0],b[0])||Math.max(a[1],b[1])<Math.min(c[1],e[1])||Math.max(c[1],e[1])<Math.min(a[1],b[1]));
-+        if(box&&abC*abE<=0&&ceA*ceB<=0)fail('unsupported intersecting path-gradient boundary');
-+      }
-+    }
-+    if(!Number.isFinite(area)||area===0)fail('degenerate path-gradient polygon area');
++    // Signed area may legitimately be zero for a crossing boundary. Keep the
++    // original point order; Windows uses the final covering fan, not a polygon
++    // winding/contour clip. Only wholly collinear/point boundaries are refused.
++    const first=points[0],second=points.find(p=>p[0]!==first[0]||p[1]!==first[1]);
++    if(!second||!points.some(p=>(second[0]-first[0])*(p[1]-first[1])-(second[1]-first[1])*(p[0]-first[0])!==0))fail('degenerate path-gradient boundary');
 +    return {kind:'polygon',points,bounds:[Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))]};
 +  }
 +  function pathGradient(d,r,data,flags,wrap) {
@@ -1218,9 +1237,17 @@ index 0000000..dc80a8b
 +      if(size<12||size>data.length-r.offset)fail('invalid path-gradient boundary extent');
 +      version(data,r.offset);
 +      path=paths.decode(d,data.subarray(r.offset+4,r.offset+size),{maxPoints:4096});
-+      if(path.count===13&&path.pointTypes[1]===3) {
++      // Closure is implicit for a brush boundary. Normalize the final flag in
++      // the private decoded copy so an open canonical ellipse retains its
++      // analytic profile; original wire bytes and intermediate figure order stay.
++      if(path.count&&!(path.pointTypes[path.count-1]&128)) {
++        path={...path,pointTypes:path.pointTypes.slice()};path.pointTypes[path.count-1]|=128;
++      }
++      if(count===1&&canonicalEllipse(path)) {
 +        boundary={kind:'ellipse',...ellipse(d,data,r.offset,size,path)};
-+        if(count!==1)fail('unsupported multicolor cubic path-gradient boundary');
++      }
++      if(!boundary&&path.pointTypes.some(type=>(type&15)===3)){
++        path=flattenedBoundary(d,path);
 +      }
 +      r.offset+=size;
 +    } else {
@@ -1337,7 +1364,11 @@ index 0000000..dc80a8b
 +        if(distance===0)fail('unsupported subpixel path-gradient fan edge');
 +        const start=horizontal?Math.trunc(a.x):Math.floor(a.y),end=horizontal?Math.trunc(b.x):Math.floor(b.y);
 +        const carry=distance-(end-start),position=horizontal?Math.ceil(edge.x):y;
-+        t=Math.abs((position-start+(left?carry:0))/distance);
++        const progress=(position-start+(left?carry:0))/distance;
++        // A vertex exactly on this scanline retains GDI+'s quantized seed.
++        // After advancing above a fractional vertex, a negative startup
++        // counter stays at the endpoint instead of reflecting into the ramp.
++        t=y===a.y?Math.abs(progress):Math.max(0,progress);
 +      }
 +      return {x:Math.ceil(edge.x),weight:a.weight.map((v,i)=>v+(b.weight[i]-v)*t)};
 +    }

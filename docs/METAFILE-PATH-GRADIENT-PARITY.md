@@ -103,8 +103,11 @@ expectations and profile limits are in
 
 ## Bounds and remaining gaps
 
-Complex cubic boundaries beyond the recognized ellipse, multiple subpaths,
-self-intersections and degenerate boundaries are refused. A Gouraud edge whose
+The [general boundary continuation](METAFILE-GENERAL-PATH-GRADIENT-PARITY.md)
+now implements bounded cubic boundaries, multiple figures and
+self-intersections using new independent Windows controls. Its decoder/native
+checkpoint remains pending; the results above cover the earlier profile.
+Figures close implicitly; wholly collinear boundaries remain refused. A Gouraud edge whose
 major device-axis extent truncates to zero is also refused rather than divided
 by zero or assigned guessed subpixel colors. These are whole-image refusals;
 earlier painted records are not exposed as a successful partial image.
