@@ -940,6 +940,8 @@ jobs:
         run: python3 scripts/test-switch-reset-bisect-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit, Rebase message editing and Fetch/Pull completion
         run: python3 scripts/test-operation-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native Rebase empty-message review and ownership
+        run: python3 scripts/test-rebase-empty-message.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch cancellation
         run: python3 scripts/test-fetch-cancellation.py
       - name: Native Pull and Fetch clipboard input

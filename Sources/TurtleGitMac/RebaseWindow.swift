@@ -352,6 +352,9 @@ import TurtleGitCore
             let answer = await self?.askReplay("The current commit will be empty", detail: "Skip the commit or keep the message-only commit?", buttons: ["Commit", "Skip", "Cancel"], defaultIndex: 2) ?? 2
             return answer == 0 ? .commit : answer == 1 ? .skip : .cancel
         }
+        model.confirmEmptyMessageReview = { [weak self] in
+            await self?.askReplay(NSLocalizedString("Found an empty commit message. You have to enter one or rebase cannot proceed.", comment: ""), buttons: [NSLocalizedString("OK", comment: "")], defaultIndex: 0, style: .warning) == 0
+        }
         model.chooseFailedPickRecovery = { [weak self] failed in
             let remember=NSButton(checkboxWithTitle:"Do the same for the rest",target:nil,action:nil)
             let accessory=Self.recoveryDiagnosticAccessory(failed.diagnostic,checkbox:remember)
@@ -408,9 +411,10 @@ import TurtleGitCore
         if let checkbox {checkbox.frame=NSRect(x:0,y:0,width:width,height:24);accessory.addSubview(checkbox)}
         return accessory
     }
-    private func askReplay(_ title: String, detail: String = "", buttons: [String], defaultIndex: Int, accessory: NSView? = nil, icons: [MenuIcon?] = []) async -> Int {
+    private func askReplay(_ title: String, detail: String = "", buttons: [String], defaultIndex: Int, accessory: NSView? = nil, icons: [MenuIcon?] = [], style: NSAlert.Style? = nil) async -> Int {
         guard !model.retired, replayQuestion == nil, let window, window.attachedSheet == nil else { return Int.max }
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail; alert.accessoryView = accessory;alert.window.alphaValue=window.alphaValue
+        if let style { alert.alertStyle = style }
         for (index, title) in buttons.enumerated() {
             let button = alert.addButton(withTitle:title);button.keyEquivalent=index == defaultIndex ? "\r":""
             if icons.indices.contains(index),let icon=icons[index] {button.image=icon.image();button.imagePosition = .imageLeading}
@@ -778,7 +782,7 @@ struct RebaseReferenceRequest {
             if key == \RebaseOptions.addCherryPickedFrom {self.updateAttribution()} else {self.reloadPlan()}
         })
     }
-    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
+    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && state?.emptyMessageWarning == nil && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
     func messageBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.amendMessage},set:{if self.matches(context),self.canEditMessage {self.amendMessage=$0}}) }
     func splitBinding(_ context: FormContext) -> Binding<Bool> { Binding(get:{self.splitCommit},set:{if self.matches(context),self.canSplit,self.state?.split == nil {self.splitCommit=$0}}) }
     func tabBinding(_ context: FormContext) -> Binding<Int> { Binding(get:{self.tab},set:{if self.matches(context),!self.busy,!self.selectingSplit,self.pickingReference == nil,self.pendingConfirmation == nil {self.tab=$0}}) }
@@ -882,6 +886,7 @@ struct RebaseReferenceRequest {
     @Published private(set) var confirmingReplayCancellation = false
     @Published var hasReplayQuestion = false
     var confirmReplayCancellation: () async -> Bool = { false }
+    var confirmEmptyMessageReview: () async -> Bool = { false }
     func cancelReplay() {
         guard !retired, replaying, !hasReplayQuestion, !confirmingReplayCancellation, !cancellingReplay, let token = replayPreparationCancellation else { return }
         if !messageDefaults.bool(forKey: "ConfirmKillProcess") { pendingSessionRefresh = false; cancellingReplay = true; token.cancel(); return }
@@ -1395,6 +1400,7 @@ struct RebaseReferenceRequest {
     var primaryActionTitle: String {
         if finished { return "Done" }
         if !active { return startTitle }
+        if state?.emptyMessageWarning != nil { return "Continue" }
         if state?.squashMessage?.skipBaseHead != nil { return "Continue" }
         if state?.squashMessage != nil { return "Commit" }
         if state?.isEditPause == true { return "Amend" }
@@ -1412,6 +1418,7 @@ struct RebaseReferenceRequest {
         if editingPendingActions { return "Saving replay actions…" }
         if replayStopped { return completion }
         if finished { return completion }
+        if state?.emptyMessageWarning != nil { return "Review the empty commit message before continuing." }
         if state?.squashMessage?.skipBaseHead != nil { return "Continue retries the approved empty-group Skip." }
         if state?.squashMessage != nil { return "Edit the combined commit message, then Commit." }
         if active { return "Step \(state?.currentStep ?? 0) of \(state?.total ?? 0) • \(state?.conflicts.count ?? 0) unresolved paths" }
@@ -2187,6 +2194,7 @@ struct RebaseReferenceRequest {
     }
     func request(_ action: String) {
         guard canRequest(action) else{return}
+        if action == "continue",state?.emptyMessageWarning != nil {execute(action);return}
         if action == "continue", splitCommit || state?.split != nil && state?.split?.conflictRecovery != true { beginSplitSelection(); return }
         if action == "continue", state?.split?.conflictRecovery == true { resumeConflictSelection(); return }
         if action == "continue", state?.isEditPause == true, state?.squashMessage == nil, state?.split == nil {
@@ -2203,7 +2211,7 @@ struct RebaseReferenceRequest {
     }
     func execute(_ action: String,repository captured:GitRepository?=nil) {
         guard !containingReferenceBlocked, !revisionFindBlocked, !revisionHistoryBlocked, !retired, pendingConfirmation == nil, confirmation == nil, !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
-        let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished
+        let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished, replayEditor = editorExecutable
         let continuationState=state,continuationPaths=checkedConflicts,continuationHead=conflictHead
         let continuationRecovery=fileRecovery,usesCheckedSelection=supportsConflictSelection
         let stripComments=messageDefaults.bool(forKey:"StripCommentedLines")
@@ -2228,7 +2236,7 @@ struct RebaseReferenceRequest {
                     let result: RebaseExecution
                 try preparation.check()
                 switch action {
-                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }
+                case "start": guard let snapshot, let executable = replayEditor else { throw RebaseFailure.plan }
                     let condition = try await repository.replayStashCondition(cherryPick: snapshot.options.isCherryPick, cancellation: preparation)
                     if condition.dirty {
                         let accepted = condition.automatic ? true : await chooseStashBeforeReplay()
@@ -2254,6 +2262,12 @@ struct RebaseReferenceRequest {
                 default:
                     let rawText=draftMessage,paths=continuationPaths,head=continuationHead
                     guard let captured=continuationState else {throw RebaseFailure.inactive}
+                    if captured.emptyMessageWarning != nil {
+                        // A reopened pre-entry warning has not applied its row.
+                        // Keep its captured checkpoint through the same owned
+                        // warning/recovery loop instead of amending a prior HEAD.
+                        result=RebaseExecution(output:"",exitCode:0,state:captured)
+                    } else {
                     try await repository.validateRebaseContinuation(expected:captured,expectedHead:head,cancellation:preparation)
                     let usesMessage=captured.squashMessage?.skipBaseHead == nil && (captured.squashMessage != nil || captured.isEditPause || continuationRecovery && usesCheckedSelection)
                     let text=usesMessage ? try await prepareReplayMessage(rawText,stripComments,sanitizeMessage,preparation):rawText
@@ -2265,12 +2279,12 @@ struct RebaseReferenceRequest {
                     try preparation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
                     try await repository.validateRebaseContinuation(expected:captured,expectedHead:head,cancellation:preparation)
                     if captured.squashMessage?.skipBaseHead != nil {
-                        result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit)
+                        result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit,editorExecutable:replayEditor)
                     } else if captured.squashMessage != nil,captured.split == nil,try await repository.rebaseSquashIsEmpty(cancellation:preparation) {
                         let choice=await chooseEmptyResult()
                         try preparation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
                         if choice == .cancel {tab=1;throw OperationCancellationFailure.cancelled}
-                        result=try await repository.continueRebase(squashMessage:text,emptySquashChoice:choice,expectedSquashHead:head,expectedSquashState:captured,expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit)
+                        result=try await repository.continueRebase(squashMessage:text,emptySquashChoice:choice,expectedSquashHead:head,expectedSquashState:captured,expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit,editorExecutable:replayEditor)
                     } else if continuationRecovery,usesCheckedSelection,captured.split == nil {
                         let empty=try await repository.rebaseConflictSelectionIsEmpty(paths:paths,expected:captured,expectedHead:head,cancellation:preparation)
                         let choice=empty ? await chooseEmptyResult():RebaseEmptyChoice.commit
@@ -2281,7 +2295,8 @@ struct RebaseReferenceRequest {
                         if choice == .skip {skippedID=captured.stoppedEntryID;result=try await repository.skipRebase(cancellation:preparation,onOutput:emit)}
                         else {result=try await repository.commitRebaseConflictSelection(message:text,paths:paths,expected:captured,expectedHead:head,allowEmpty:empty,cancellation:preparation,onOutput:emit)}
                     } else {
-                        result=try await repository.continueRebase(squashMessage:captured.squashMessage == nil ? nil:text,editMessage:captured.isEditPause ? text:nil,expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit)
+                        result=try await repository.continueRebase(squashMessage:captured.squashMessage == nil ? nil:text,editMessage:captured.isEditPause ? text:nil,expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit,editorExecutable:replayEditor)
+                    }
                     }
                 }
                     return try await recoverExecutionFailures(result,repository:repository,cancellation:preparation,onOutput:emit)
@@ -2313,13 +2328,26 @@ struct RebaseReferenceRequest {
             }
         }
     }
-    /// This loop keeps the existing replay/access/Quit owner until the source
-    /// failure decision and its checked Git recovery have both settled.
+    /// Keep the replay/access/Quit owner through each reached-row warning and
+    /// source failure decision, including the checked return from Git recovery.
     private func recoverExecutionFailures(_ initial:RebaseExecution,repository:GitRepository,cancellation:OperationCancellation,
         onOutput:@escaping @Sendable (GitOutputChunk)->Void) async throws -> RebaseExecution {
         var result=initial
-        while result.exitCode != 0 {
+        while true {
             try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+            if let warning=result.state.emptyMessageWarning {
+                state=result.state;recovered=try await repository.remainingRebaseEntries(cancellation:cancellation)
+                replayRows=try await repository.rebaseReplayEntries(cancellation:cancellation)
+                try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+                selection=[warning.entryID];tab=2;error=nil
+                hasReplayQuestion=true
+                let accepted=await confirmEmptyMessageReview()
+                hasReplayQuestion=false
+                try cancellation.check();guard !retired,accepted else {throw OperationCancellationFailure.cancelled}
+                result=try await repository.acknowledgeRebaseEmptyMessage(warning,expected:result.state,expectedHead:warning.head,cancellation:cancellation,onOutput:onOutput)
+                continue
+            }
+            guard result.exitCode != 0 else {return result}
             guard let failed=try await repository.failedPickRecovery(after:result,cancellation:cancellation) else {return result}
             if failedPickSkipSession != failed.sessionIdentity {automaticallySkipFailedPicks=false;failedPickSkipSession=failed.sessionIdentity}
             state=result.state;recovered=try await repository.remainingRebaseEntries(cancellation:cancellation)
@@ -2349,7 +2377,6 @@ struct RebaseReferenceRequest {
                 replayRows=replayRows.map {row in var row=row;if row.id==failed.entry.id {row.action = .skip;row.progress = .completed};return row}
             }
         }
-        return result
     }
     var canSplit: Bool { !revisionHistoryBlocked && !retired && pendingConfirmation == nil && confirmation == nil && !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
     private func prepareEditMessageContinuation() {

@@ -688,3 +688,19 @@ other Rebase behavior is certified.
 Earlier remaining-work notes about bulk/structural actions, Split, Add, footer
 actions and conflict/empty recovery are superseded by the later family sections
 and current implementation; they should not be counted again as missing screens.
+
+## Reached empty-message recovery — October 25, 2026
+
+The connected [empty-message family](REBASE-EMPTY-MESSAGE-PARITY.md) adds the
+pinned source warning and mandatory review for each reached retained entry whose
+raw subject is empty. Requested actions and occurrence identities stay intact;
+ordinary/structural replay, Cherry Pick, pending/adopted plans, Squash boundaries
+and the existing Continue/Split/Abort workflows share durable checked recovery.
+
+The [dated checkpoint](qa/rebase-empty-message-2026-10-25.json) records cumulative
+37 distinct focused Core methods and six native case/engine pairs passing after
+a real intermediate-Squash accumulator repair and documented fixture corrections.
+Actual hidden native warning content/default action, draft reopening, checked
+continuation and late-answer refusal are covered. Windows no-commit intermediate
+state identity, physical keyboard/VoiceOver, signed installed replay, complete
+hosted integration and complete source-dialog parity are not certified.

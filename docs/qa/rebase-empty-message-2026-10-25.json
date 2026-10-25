@@ -1,0 +1,251 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-core-debug-and-six-native-pairs-passed-after-recorded-repairs",
+  "base_revision": "02e816a7f1bb2df24615f07466b1a1473546bea2",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_audit": "docs/qa/rebase-empty-message-gap-2026-10-25.json",
+  "source_anchors": [
+    "src/TortoiseProc/RebaseDlg.cpp:2048-2051 Skip precedes warning",
+    "src/TortoiseProc/RebaseDlg.cpp:2091-2094 retained raw-empty subject warns and switches local execution mode to Edit",
+    "src/TortoiseProc/RebaseDlg.cpp:2368-2371 Edit stops replay",
+    "src/TortoiseProc/RebaseDlg.cpp:1625 onward editable message validation/amend and next-Squash continuation",
+    "src/Git/GitRev.cpp:118-130 raw message first-newline subject split"
+  ],
+  "implementation_scope": [
+    "Durable owned pre-entry warning before applying a retained raw-empty-subject row; Skip does not warn",
+    "Requested action/occurrence identity retained separately from mandatory Edit/message review behavior",
+    "Plain/body-only raw first line is distinct from a whitespace-only first line; display summary normalization unchanged",
+    "Pick/Edit/Squash and structural merge/Cherry Pick handling preserve message group metadata and mandatory pause boundaries",
+    "Actual warning acknowledgement is session/HEAD/owner/cancellation fenced; unrelated reserved-looking markers are refused without adopting metadata",
+    "Existing Continue/Split/Abort/reopen/draft/author controls reused",
+    "External Git sessions can arm future checkpoints through accepted continueRebase editor capture; pending action edits regenerate markers"
+  ],
+  "authored_verification": {
+    "new_core_file": "Tests/TurtleGitCoreTests/RebaseEmptyMessageTests.swift",
+    "new_core_methods": 14,
+    "native_fixture": "docs/qa/rebase-empty-message-native-2026-10-25.swift",
+    "native_runner": "scripts/test-rebase-empty-message.py",
+    "native_cases": [
+      "review",
+      "sequence",
+      "ownership"
+    ],
+    "planned_native_case_engine_pairs": 6,
+    "actual_warning_scope": "Actual controller-wired hidden NSAlert, full source text/one default OK/parent and alpha0, real button dispatch and sheet drain; .warning style source-reviewed without private KVC",
+    "ci": "One grouped native step adjacent the existing Rebase message-workflow step"
+  },
+  "initial_core": {
+    "status": "terminal-failed",
+    "executed_methods": 37,
+    "passed_methods": 35,
+    "failed_methods": 2,
+    "assertion_failures": 4,
+    "unexpected_failures": 1,
+    "log": {
+      "path": "build/qa/rebase-empty-message-core-2026-10-25.log",
+      "sha256": "086e8bcd182f57cc40d4d2e8e48e945907b1b05972b709a0c36c094266963316"
+    },
+    "retained_scope": "RebaseMessageEditingTests, selected pending-action coverage and ten RebaseSessionAdoptionTests alongside fourteen new methods; no complete Core suite",
+    "cumulative_distinct_methods_passed_after_focused_repair": 37
+  },
+  "initial_debug": {
+    "status": "BUILD SUCCEEDED",
+    "log": {
+      "path": "build/qa/rebase-empty-message-debug-build-2026-10-25.log",
+      "sha256": "6d23494b916171f255237ca8f4fe270b58ec8bb9d2663c13a1ef730aedafc75e"
+    },
+    "contradictory_exit_zero_diagnostics": 0,
+    "limits": "Simulator and other retained SDK diagnostics do not amount to a warning-free build."
+  },
+  "failures_and_repairs": [
+    {
+      "kind": "new Split fixture contract mistake",
+      "method": "testForcedEditCanSplitAndAbortRestoresTheOriginalBranch",
+      "failure": "RebaseFailure.changed at Rebase.swift1279",
+      "cause": "The first split part replaces the stopped commit and requires amend=true/amendDiffToLastCommit=false. The new test passed default CommitOptions with amend=false.",
+      "repair": "Set the established first-part options, matching retained RebaseTests; preserve all Split/author/Abort assertions. No Split production workaround."
+    },
+    {
+      "kind": "real intermediate Squash approved-text loss",
+      "method": "testMiddleEmptySquashWarnsAndPausesBeforeTheFollowingSquash",
+      "failure": "Expected one Empty middle body occurrence but got zero; final subject remained first rather than Reviewed complete group; final body occurrence zero.",
+      "cause": "A forced review on an intermediate Squash member was followed by message reconstruction that could use Git old first-section text instead of the accepted intermediate text.",
+      "repair": "Core message-editor configuration now retains the reviewed boundary and approved message separately from stored requested actions. Actual combined body-once/final exact message/first-author assertions remain unchanged. The focused eight-method repair check and six native case/engine pairs subsequently passed."
+    },
+    {
+      "kind": "native fixture default-button oracle",
+      "initial": {
+        "path": "build/qa/rebase-empty-message-native-2026-10-25.log",
+        "sha256": "c689ad2b56a61bd8af0aef27650bbf2e00bbfb869b7811fd7974d08d0d258a0b",
+        "receiver_pids_reaped": [
+          52039
+        ]
+      },
+      "diagnostic": {
+        "path": "build/qa/rebase-empty-message-native-review-diagnostic-2026-10-25.log",
+        "sha256": "5e7e7ae1e5a23423a65350a5dd344dd10ac91e00697b806b12b40f4a5bb262bf",
+        "receiver_pids_reaped": [
+          52446
+        ]
+      },
+      "actual_diagnostic": {
+        "button_count": 1,
+        "title": "OK",
+        "keyEquivalent": "",
+        "defaultButtonCell_identity": true,
+        "enabled": true,
+        "hidden": false,
+        "hiddenAncestor": false
+      },
+      "cause": "AppKit kept the real OK button as the sheet defaultButtonCell while clearing its keyEquivalent; requiring a literal carriage return string was not the native default-button contract.",
+      "repair": "Fixture now requires actual defaultButtonCell identity, enabled/visible single OK, retaining exact full warning text, hidden owner/parent, actual action dispatch and sheet-detachment/drain assertions. No production NSAlert change.",
+      "result": "All six case/engine pairs passed after fixture-only correction."
+    }
+  ],
+  "focused_repair": {
+    "core": {
+      "status": "terminal-PASS",
+      "session": 26147,
+      "selected_methods": 8,
+      "failures": 0,
+      "test_seconds": 47.41,
+      "cumulative_distinct_methods_passed": 37,
+      "log": {
+        "path": "build/qa/rebase-empty-message-core-repair-2026-10-25.log",
+        "sha256": "db5c90e129a4887473db4171e9369dbc413e4df3312499c21e7d3fae0e05c70f",
+        "receiver_pids_reaped": []
+      }
+    },
+    "debug": {
+      "status": "BUILD SUCCEEDED",
+      "session": 81744,
+      "log": {
+        "path": "build/qa/rebase-empty-message-debug-repair-build-2026-10-25.log",
+        "sha256": "f723a704292c92fc0f1b1642d227152eaa527fc974fb37a6fa55363fa5b6471d",
+        "receiver_pids_reaped": []
+      },
+      "contradictory_exit_zero_diagnostics": 0
+    },
+    "native": {
+      "status": "PASS",
+      "distinct_case_engine_pairs": 6,
+      "cases": [
+        "review",
+        "sequence",
+        "ownership"
+      ],
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": {
+        "path": "build/qa/rebase-empty-message-native-default-cell-repair-2026-10-25.log",
+        "sha256": "f153d3d3b603520a6272fb38aa40d8c3a0d719ebd2ca77d23b185a4ea7e98168",
+        "receiver_pids_reaped": [
+          52727,
+          53228,
+          54222,
+          55113,
+          55618,
+          56606
+        ]
+      },
+      "actual_results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "review",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "sequence",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "review",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "sequence",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "results_file": {
+        "path": "build/qa/rebase-empty-message-native-results.json",
+        "sha256": "057f6bd5ac840907c0b4a546de32de87fa9f1f5d09757214659be241c96b6e80",
+        "receiver_pids_reaped": []
+      },
+      "cleanup": "Owning runners reaped all six final receivers; root independently verified all eight attempted receiver PIDs absent afterward, including the two earlier failed attempts."
+    }
+  },
+  "supporting_checks_parent_reported": {
+    "localizations": {
+      "status": "PASS",
+      "languages": 38,
+      "keys": 1321
+    },
+    "bundled_help": {
+      "status": "PASS",
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3874341
+    },
+    "source_peer": "Bounded Core/UI/fixture/API peers reviewed the ordered source warning, original-action grouping, raw first-line rule, marker ownership, external adoption and actual controller warning route; this is static evidence."
+  },
+  "limits": [
+    "No new signed/installed or physical Rebase acceptance in this checkpoint",
+    "Actual NSAlert verification will use private offscreen windows; full physical default-button/keyboard/VoiceOver remains separate",
+    "All source sequencer/conflict/hook/signing/filesystem combinations and complete latest hosted CI remain open",
+    "Protected human WIP scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift were not changed"
+  ],
+  "documentation_task": "Agent aggregated terminal logs and scoped results; root subsequently appended its independent process inventory and website check. No additional Core or native runs were added after the relevant checks passed.",
+  "native_accepted_scope": [
+    "Actual controller-wired NSAlert source warning text, one enabled visible default OK identified by defaultButtonCell, owner alpha0/sheet relationship, real button dispatch and drain into Edit",
+    "Pre-application warning, body-only message review and source author/date preservation, draft refresh/reopen and retired editor binding",
+    "Skipped empty row no warning/no application; advanced Cherry Pick review; middle body-only Squash stops before following member and retains approved body exactly once/first author",
+    "Held warning decline/retry, owner retirement and externally changed session refuse late HEAD mutation; private repositories/preferences and owned cleanup"
+  ],
+  "remaining_signed_installed_and_full_parity": {
+    "status": "open",
+    "scope": "No new signed/installed or physical Rebase execution in this checkpoint. Full source sequencer/conflict/hooks/signing/permission combinations, physical keyboard/default-button/VoiceOver, minimum OS/Intel and latest complete hosted CI remain separate."
+  },
+  "independent_process_inventory": {
+    "path": "build/qa/rebase-empty-message-owned-processes-2026-10-25.json",
+    "sha256": "4429c454bfc9a26bb97dc1a2c7cb03782d9e01d1e8be65ca5aec598ed17c28bd",
+    "all_eight_attempted_receiver_pids_absent": true,
+    "pids": [
+      52039,
+      52446,
+      52727,
+      53228,
+      54222,
+      55113,
+      55618,
+      56606
+    ]
+  },
+  "site_build": {
+    "passed": true,
+    "log_sha256": "3c6a840fecdd36ae83cd0fb73610fd0e2ade0b789b15e01f65613c73ba6f2f13",
+    "summary": "{\n  \"documents\": 460,\n  \"unresolved_fragments\": []\n}\n/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/site"
+  }
+}

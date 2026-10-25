@@ -71228,6 +71228,131 @@
         }
       }
     },
+    "Found an empty commit message. You have to enter one or rebase cannot proceed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No s'ha trobat un missatge per aquesta entrega. N'heu d'introduir un per a poder completar aquesta operació de rebase."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nalezena prázdná zpráva odevzdání. Musíte nějakou zadat, jinak přeskládání nemůže pokračovat."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine leere Log-Meldung wurde gefunden. Sie müssen eine eingeben, um das neu Aufbauen fortzusetzen."
+          }
+        },
+        "el": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Βρέθηκε κενό μήνυμα προσθήκης. Πρέπει να εισάγετε ένα ή επαναφορά κλάδου δεν μπορεί να προχώρηση."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found an empty commit message. You have to enter one or rebase cannot proceed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detectado un mensaje de consignación (commit) vacío. Tiene que introducir uno o el reasentado (rebase) no podrá continuar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un message de livraison vide a été trouvé. Vous devez en entrer un ou rebase ne pourra pas s'effectuer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trovato un messaggio di commit vuoto. Devi inserirne uno o rebase non può procedere."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空のコミットメッセージが見つかったため、リベース出来ません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found an empty commit message. You have to enter one or rebase cannot proceed."
+          }
+        },
+        "lt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patvirtinimo aprašas tuščias. Norėdami tęsti perkėlimą ir apjungimą, privalote jį pateikti."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leeg commitbericht gevonden. U moet er een opgeven voordat het rebasen voortgezet kan worden."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Znaleziono pusty komunikat zatwierdzania. Wprowadź komunikat, albo zmiana bazy nie będzie kontynuowana."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encontrada uma mensagem de submissão em branco. Você tem que informar uma ou a reorganização não pode prosseguir."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S-a găsit un mesaj de transmitere nul. Trebuie să introduceţi un mesaj de transmitere sau reamplasarea nu poate continua."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найдено пустое сообщение фиксации. Вы должны ввести что-нибудь или процесс перемещения будет остановлен."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hittade ett tomt arkiveringsmeddelande. Du måste ange ett annars kan inte ombaseringen fortsätta."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "வெற்று உறுதிமொழி செய்தி கிடைத்தது. நீங்கள் ஒன்றை உள்ளிட வேண்டும் அல்லது மறுதளத்தை தொடர முடியாது."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找到一个空的提交信息。必须输入一个或者变基没完成。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找到空白的提交訊息，請輸入提交訊息，否則不能繼續變基"
+          }
+        }
+      }
+    },
     "Found auto words:": {
       "extractionState": "manual",
       "localizations": {

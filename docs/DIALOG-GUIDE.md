@@ -601,6 +601,14 @@ Retry clears it. A failed cleanup has its own Retry/Abort decision. See
 [execution recovery](REBASE-EXECUTION-RECOVERY-PARITY.md). Empty commits, conflicts
 and Edit/Squash pauses retain their separate paths.
 
+A retained commit with an empty subject warns when replay reaches it. After
+acknowledging the warning, review its applied result and enter a message before
+continuing. Its selected Pick/Edit/Squash action stays in the plan; skipped
+commits do not produce this warning. A stopped warning can be resumed after
+reopening the replay window. Edit, checked-file amendment, Split and Abort keep
+their usual recovery rules. See [empty-message recovery](REBASE-EMPTY-MESSAGE-PARITY.md)
+for squash grouping and the native sequencer adaptation.
+
 When replay stops, inspect its message and Conflict Files, resolve and save the
 required files, then continue through the owning replay window. Use Abort when
 you intend to abandon the unfinished replay. Closing a window is not a substitute
