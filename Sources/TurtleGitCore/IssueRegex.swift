@@ -28,6 +28,19 @@ public struct IssueRegexMatch: Sendable, Equatable {
         return ranges.map { text.substring(with: $0) }
     }
 }
+public enum IssueRegexSyntax:String,Sendable {
+    case inactive,valid
+    case invalidCheck="invalid-check",invalidExtraction="invalid-extraction"
+}
+/// Configured ProjectProperties expressions have caught compilation semantics,
+/// distinct from strict expression editors and actual helper failures.
+public struct IssueRegexSourceMatch:Sendable,Equatable {
+    public let match:IssueRegexMatch
+    public let syntax:IssueRegexSyntax
+    public var hasMatch:Bool {match.hasMatch}
+    public var ranges:[NSRange] {match.ranges}
+    public func identifiers(in message:String)->[String] {match.identifiers(in:message)}
+}
 public enum IssueRegexRuntime {
     private final class FrameworkAnchor: NSObject {}
     public static func executable(bundle: Bundle = .main) throws -> URL {
@@ -45,9 +58,10 @@ public enum IssueRegexRuntime {
     }
     /// Uses C++ ECMAScript matching with Windows UTF-16 offsets. Call off the UI thread.
     public static func match(message: String, check: String, extract: String = "", executable: URL? = nil, bundle: Bundle = .main, cancellation: OperationCancellation? = nil, ignoreInvalidPattern: Bool = false) throws -> IssueRegexMatch {
+        if ignoreInvalidPattern {return try sourceMatch(message:message,check:check,extract:extract,executable:executable,bundle:bundle,cancellation:cancellation).match}
         try cancellation?.check()
         guard !check.isEmpty else { return IssueRegexMatch(hasMatch: false, ranges: []) }
-        let output = try capture(message: message, check: check, extract: extract, executable: executable, bundle: bundle, mode: ignoreInvalidPattern ? ["--issue-ids"] : [], cancellation: cancellation)
+        let output = try capture(message: message, check: check, extract: extract, executable: executable, bundle: bundle, mode: [], cancellation: cancellation)
         guard let text = String(data: output, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid helper output.") }
         let rows = text.split(separator: "\n")
         guard let first = rows.first, first == "matched\t0" || first == "matched\t1" else { throw IssueRegexFailure.failed("Invalid helper output.") }
@@ -60,6 +74,28 @@ public enum IssueRegexRuntime {
             ranges.append(NSRange(location: location, length: size))
         }
         return IssueRegexMatch(hasMatch: first == "matched\t1", ranges: ranges)
+    }
+    /// A fresh configured-value snapshot follows AutoUpdateRegex's ordered
+    /// assignments: an invalid extraction cannot undo a valid check expression.
+    /// No process-global cache is shared between repositories or dialog owners.
+    public static func sourceMatch(message:String,check:String,extract:String="",executable:URL?=nil,bundle:Bundle = .main,cancellation:OperationCancellation?=nil)throws->IssueRegexSourceMatch {
+        try cancellation?.check()
+        guard !check.isEmpty else{return .init(match:.init(hasMatch:false,ranges:[]),syntax:.inactive)}
+        let output=try capture(message:message,check:check,extract:extract,executable:executable,bundle:bundle,mode:["--source-issue"],cancellation:cancellation)
+        guard let text=String(data:output,encoding:.utf8),text.hasSuffix("\n") else{throw IssueRegexFailure.failed("Invalid configured issue output.")}
+        var rows=text.components(separatedBy:"\n");rows.removeLast()
+        guard rows.count>=3,rows[0]=="source\t1",rows[1].hasPrefix("syntax\t"),
+              let syntax=IssueRegexSyntax(rawValue:String(rows[1].dropFirst(7))),rows[2]=="matched\t0" || rows[2]=="matched\t1" else{throw IssueRegexFailure.failed("Invalid configured issue output.")}
+        let matched=rows[2]=="matched\t1",length=message.utf16.count
+        var ranges=[NSRange]()
+        for row in rows.dropFirst(3) {
+            let fields=row.components(separatedBy:"\t")
+            guard fields.count==2,fields.allSatisfy({!$0.isEmpty && $0.utf8.allSatisfy{(48...57).contains($0)}}),let start=Int(fields[0]),let count=Int(fields[1]),start>=0,count>=0,start<=length,count<=length-start else{throw IssueRegexFailure.failed("Invalid configured issue range.")}
+            ranges.append(.init(location:start,length:count))
+        }
+        guard (matched || ranges.isEmpty),syntax == .valid || ranges.isEmpty,
+              ![IssueRegexSyntax.inactive,.invalidCheck].contains(syntax) || !matched else{throw IssueRegexFailure.failed("Inconsistent configured issue output.")}
+        return .init(match:.init(hasMatch:matched,ranges:ranges),syntax:syntax)
     }
     /// Validate the Log expression with the same ECMAScript engine as filtering,
     /// without reading history or confusing an invalid expression with no matches.

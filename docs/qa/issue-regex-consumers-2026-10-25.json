@@ -1,0 +1,229 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-connected-family-passed-after-fixture-only-core-repair",
+  "base_commit": "651959d8d4a04f6fc17220d78267914ef9e7fe51",
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/TortoiseProc/ProjectProperties.cpp:209-224 ordered caught check/extraction compilation",
+      "src/TortoiseProc/ProjectProperties.cpp:248-304 FindBugIDPositions and391 FindBugID",
+      "src/TortoiseProc/ProjectProperties.cpp:454-467 HasBugID",
+      "src/TortoiseProc/CommitDlg.cpp:642 missing-issue warning,1625 duplicate ID comparison,2316 nonempty history ID assignment",
+      "src/TortoiseProc/BugtraqRegexTestDlg.cpp:95-105 valid-both-edit-controls gate"
+    ]
+  },
+  "implementation": {
+    "files": [
+      {
+        "path": "Sources/TurtleGitCore/IssueRegex.swift",
+        "sha256": "650b32411376b06a2621c10bd0c4051f5c1fe08cd244049fb1009fddbf6dffda"
+      },
+      {
+        "path": "Sources/TurtleGitCore/IssueTracker.swift",
+        "sha256": "f07d7933f88f0bdb25c1a51a761633c4ed717e8063393e2e3ee1444185d3ee75"
+      },
+      {
+        "path": "Sources/TurtleGitCore/IssueMessageStyle.swift",
+        "sha256": "28571222d6e1c901bb475ce411cd8fe3db74fc7bfcca32fa7537ac1c4009273c"
+      },
+      {
+        "path": "Sources/TurtleGitIssueRegex/main.cpp",
+        "sha256": "ebba35f2db8d0edf58304214f7f61ee01a44134573d4fe8f6fada662e37c7bc5"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/IssueRegexTests.swift",
+        "sha256": "9bb185d0472c9a653bec7d7d4439226c64a722861fc6dad92e3e974b37f4bf0b"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/IssueTrackerTests.swift",
+        "sha256": "1a498d4b9b9cfeea9e537fec6b793478c65058ed88dabe4230a88c2b8ce48e96"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/IssueMessageStyleTests.swift",
+        "sha256": "57e457adbf91e1cee1dc2fd0a9f4622f9fdc3b9c7e3dccc8f7adea2fa24bc579"
+      },
+      {
+        "path": "scripts/build-issue-regex-runtime.py",
+        "sha256": "67ac9507b1b39b02ecf2fe23074f4a1e7518acdde79193213d1d3ba3de9f2a35"
+      },
+      {
+        "path": "scripts/validate-issue-regex-runtime.py",
+        "sha256": "6bc72aed974a91498d941a0e5014ebb82c1d182fe596c49be831e4ec39b142b6"
+      },
+      {
+        "path": "docs/qa/issue-regex-consumers-native-2026-10-25.swift",
+        "sha256": "0908a019f1ed958d300967a601f5bed1d58b6ca0f109bb3acaa193f844b0b6d2"
+      },
+      {
+        "path": "scripts/test-issue-regex-consumers.py",
+        "sha256": "42d1eabcae30a67997a4320e6155ba199188e3838c0064328ceb0779667e4a31"
+      }
+    ],
+    "scope": [
+      "Typed configured syntax state/HasBugID/UTF16 range receipts, preserving valid check when extraction invalid",
+      "Commit prepare/identifiers/history and shared issue readers use source-configured policy; strict Regex Tester remains strict",
+      "Typed UTF8 source styling preserves independent formatting/URLs on syntax errors; actual runtime/protocol failures propagate from Core actor",
+      "Invalid configured regex cannot hide malformed batch record framing",
+      "Private real commit, decline, Log recovery, history stale/retire and strict tester native coverage"
+    ],
+    "compiled_state_boundary": "Immutable configured property snapshots match active Commit initial ReadProps lifecycle, not a mutable C++ setter API. No cross-repository process cache; tester separately accepts whole valid pair."
+  },
+  "validation": {
+    "runtime_build": {
+      "exit_code": 0,
+      "log": "build/qa/issue-regex-consumers-runtime-2026-10-25.log"
+    },
+    "runtime_architectures": {
+      "exit_code": 0,
+      "log": "build/qa/issue-regex-consumers-runtime-architectures-2026-10-25.log",
+      "executed": [
+        "native",
+        "arm64",
+        "x86_64/Rosetta"
+      ]
+    },
+    "core_attempts": [
+      {
+        "exit_code": 1,
+        "log": "build/qa/issue-regex-consumers-core-2026-10-25.log",
+        "failure": "New fixture expected bold after same-line supplementary scalar, contradicting intentionally retained source scalar-vs-UTF16 formatting quirk; indexed follow-up assertion trapped. No production change required."
+      },
+      {
+        "exit_code": 0,
+        "log": "build/qa/issue-regex-consumers-core-repair-2026-10-25.log",
+        "methods": 31,
+        "duration_seconds": 10.69,
+        "repair": "Newline normal formatting case plus explicit same-line source-quirk assertion and count guards; all original behavior assertions retained."
+      }
+    ],
+    "native_attempts": [
+      {
+        "exit_code": 0,
+        "log": "build/qa/issue-regex-consumers-native-2026-10-25.log",
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "commit",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "log",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "commit",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "log",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "reaped_receivers": [
+          19678,
+          19869,
+          20043,
+          20195,
+          20385,
+          20558
+        ],
+        "reentrancy_warning_count": 0,
+        "scope": "Two actual private commits per engine; accepted/declined malformed-check warning, valid check with invalid extraction, Log/history/native style recovery, stale/closed owner fences, retained strict tester assertions."
+      }
+    ],
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/issue-regex-consumers-build-2026-10-25.log",
+      "generic_exit_zero_diagnostics": 12
+    },
+    "embedded_helper": {
+      "runtime_sha256": "d3ac44a1d7a44177096ee152172de1f53bbe876435f3648255daac2237ed411b",
+      "app_sha256": "011f4e5f5e0f9f6c78115bc07670d4be4193be5fcc119bc4d8961f70c588b223",
+      "equal": false,
+      "raw_binary_difference": "Expected bundle-layout/ad-hoc signing normalization; compare signed manifest lineage rather than raw bytes.",
+      "source_sha256": "ebba35f2db8d0edf58304214f7f61ee01a44134573d4fe8f6fada662e37c7bc5",
+      "same_source": true,
+      "unsigned_parent_matches_runtime": true,
+      "manifest_matches_app_binary": true,
+      "configured_source_protocol": 1,
+      "signed": true,
+      "sandbox_inherited": false,
+      "bundle_layout": 1
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1320,
+      "mode": "check",
+      "exit_code": 0
+    },
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3871472,
+      "mode": "check",
+      "exit_code": 0
+    },
+    "site": {
+      "documents": 458,
+      "unresolved_fragments": [],
+      "exit_code": 0,
+      "log": "build/qa/issue-regex-consumers-site-2026-10-25.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574
+    },
+    "cleanup": {
+      "receiver_pids": [
+        19678,
+        19869,
+        20043,
+        20195,
+        20385,
+        20558
+      ],
+      "independent_ps_absent": true,
+      "fallback_helper_termination_needed": false,
+      "note": "Every successful native case drained owned model/timer/helper work and closed its windows before process reap; no unrelated app/Finder terminated."
+    }
+  },
+  "limits": [
+    "No complete current hosted CI result established.",
+    "No new signed distribution, installed acceptance or App Store submission.",
+    "Complete source/dialog visual parity, physical/VoiceOver and all filesystem/provider environments remain open."
+  ],
+  "protected_human_files": [
+    {
+      "path": "scripts/test-native-reference-batch.py",
+      "sha256": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+    },
+    {
+      "path": "docs/qa/reflog-capture-native-2026-10-13.swift",
+      "sha256": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  ]
+}

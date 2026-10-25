@@ -573,6 +573,8 @@ jobs:
         run: python3 scripts/test-rebase-source.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Issue Tracker source and Regex Tester workflows
         run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native configured issue-regex consumers and failure ownership
+        run: python3 scripts/test-issue-regex-consumers.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native issue-provider Settings, HTTP callbacks and Commit ownership
         run: python3 scripts/test-native-issue-provider.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native release download and App Store workflows

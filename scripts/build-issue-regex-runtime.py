@@ -27,7 +27,8 @@ shutil.copy2(ROOT / 'scripts/validate-issue-regex-runtime.py', rebuild / 'script
 manifest = {'architectures': ['arm64', 'x86_64'], 'deployment_target': '13.0',
             'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
             'binary_sha256': hashlib.sha256((target / 'issue-regex').read_bytes()).hexdigest(),
-            'engine': 'C++ ECMAScript: std::wregex UTF-16 units for validation; std::regex UTF-8 bytes for SciEdit styling; icase std::wregex captures for Commit code symbols; batched ECMAScript Log filters and match ranges; merge line regex replacements over framed UTF-16 records'}
+            'configured_source_protocol': 1,
+            'engine': 'C++ ECMAScript: source syntax receipts separate check matches from extraction; std::wregex UTF-16 units for validation; std::regex UTF-8 bytes for SciEdit styling; icase std::wregex captures for Commit code symbols; batched ECMAScript Log filters and match ranges; merge line regex replacements over framed UTF-16 records'}
 (target / 'provenance.json').write_text(json.dumps(manifest, indent=2) + '\n')
 subprocess.run(['python3', ROOT / 'scripts/validate-issue-regex-runtime.py', target], check=True)
 print(target)

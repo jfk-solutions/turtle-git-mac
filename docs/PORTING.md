@@ -4661,3 +4661,14 @@ value help and exact native geometry ownership/restoration. The original
 AppKit row-span recursion is captured separately from the source layout defect;
 its affected-workload checkpoint is recorded without attributing an unproven
 cause to the shared selection decorator.
+
+
+## Configured expression failure family — October 25, 2026
+
+[Configured issue-regex semantics](ISSUE-REGEX-FAILURE-PARITY.md) separates
+HasBugID from extracted ranges, preserves a valid first expression when the
+second is invalid, and routes Commit/history/shared consumers through caught
+configuration syntax behavior. The explicit tester stays strict. The family
+also separates syntax fallback from actual helper/protocol/cancellation failures
+and documents the fresh-property snapshot boundary. Its grouped checkpoint is
+recorded separately from full dialog, signed and hosted acceptance.

@@ -50,7 +50,10 @@ final class IssueTrackerTests: XCTestCase {
         XCTAssertEqual(try properties.logIssueIDs(in: "issue #100 issue #2 issue #2", executable: parser), "2 100")
         let invalid = IssueTrackerProperties(values: ["bugtraq.logregex": "(?<=#)42"])
         XCTAssertEqual(try invalid.logIssueIDs(in: "#42", executable: parser), "")
-        XCTAssertThrowsError(try invalid.identifiers(in: "#42", executable: parser))
+        XCTAssertEqual(try invalid.identifiers(in: "#42", executable: parser), [])
+        // Configured project properties tolerate syntax; the explicit tester
+        // operation remains strict and reports the same malformed expression.
+        XCTAssertThrowsError(try IssueRegexRuntime.match(message:"#42",check:invalid.checkExpression,executable:parser))
         let stopped = OperationCancellation(); stopped.cancel()
         XCTAssertThrowsError(try properties.logIssueIDs(in: "issue #2", executable: parser, cancellation: stopped)) { XCTAssertTrue($0 is OperationCancellationFailure) }
     }
@@ -118,5 +121,55 @@ final class IssueTrackerTests: XCTestCase {
         XCTAssertEqual(IssueTrackerProperties.addingSignOff(line, to: "Body\n\n"), "Body\n\n" + line + "\n")
         XCTAssertEqual(IssueTrackerProperties.addingSignOff(line, to: "Body\nReviewed-by: Another <a@example.invalid>\n"), "Body\nReviewed-by: Another <a@example.invalid>\n" + line + "\n")
         XCTAssertEqual(IssueTrackerProperties.addingSignOff(line, to: "Body\n" + line), "Body\n" + line)
+    }
+}
+
+extension IssueTrackerTests {
+    func testConfiguredPartialRegexUsesHasBugIDForWarningButNoExtractedDuplicate()throws {
+        let properties=IssueTrackerProperties(values:["bugtraq.logregex":"issue #[0-9]+\n(","bugtraq.warnifnoissue":"true","bugtraq.message":"Issue %BUGID%"])
+        let message="雪🦎 issue #42\r\nbody"
+        XCTAssertEqual(try properties.identifiers(in:message,executable:parser),[])
+        XCTAssertEqual(try properties.logIssueIDs(in:message,executable:parser),"")
+        XCTAssertEqual(try properties.issueFieldValue(in:message,executable:parser),"")
+        let matched=try properties.prepareCommit(message:message,issueID:"",executable:parser)
+        XCTAssertFalse(matched.requiresIssueWarning);XCTAssertEqual(Data(matched.message.utf8),Data(message.utf8))
+        let missing=try properties.prepareCommit(message:"Body",issueID:"",executable:parser)
+        XCTAssertTrue(missing.requiresIssueWarning);XCTAssertEqual(missing.message,"Body")
+        // Check success is distinct from extraction: the existing text cannot
+        // suppress a supplied field value when the second expression failed.
+        let supplied=try properties.prepareCommit(message:message,issueID:"42",executable:parser)
+        XCTAssertFalse(supplied.requiresIssueWarning);XCTAssertEqual(supplied.message,message+"\nIssue 42\n")
+        XCTAssertEqual(properties.messageForCancelledDraft(message:message,issueID:"42"),message+"\nIssue 42\n")
+    }
+    func testFreshInvalidPropertySnapshotDoesNotReusePreviousCompiledPairOrTemplateFallback()throws {
+        let message="🦎 issue #42\nIssue 42"
+        let valid=IssueTrackerProperties(values:["bugtraq.logregex":"issue #([0-9]+)","bugtraq.message":"Issue %BUGID%"])
+        XCTAssertEqual(try valid.identifiers(in:message,executable:parser),["42"])
+        let invalid=IssueTrackerProperties(values:["bugtraq.logregex":"(\n[0-9]+","bugtraq.warnifnoissue":"true","bugtraq.message":"Issue %BUGID%"])
+        XCTAssertEqual(try invalid.identifiers(in:message,executable:parser),[])
+        XCTAssertEqual(try invalid.logIssueIDs(in:message,executable:parser),"")
+        let result=try invalid.prepareCommit(message:message,issueID:"",executable:parser)
+        XCTAssertTrue(result.requiresIssueWarning);XCTAssertEqual(result.message,message)
+        let field=try invalid.prepareCommit(message:message,issueID:"73",executable:parser)
+        XCTAssertFalse(field.requiresIssueWarning);XCTAssertEqual(field.message,message+"\nIssue 73\n")
+        // A separately accepted valid snapshot retains its own raw expressions.
+        XCTAssertEqual(try valid.identifiers(in:message,executable:parser),["42"])
+        XCTAssertEqual(invalid.messageForCancelledDraft(message:message,issueID:" 73 , 42 "),message+"\nIssue 73,42\n")
+    }
+    func testConfiguredTrackerRuntimeAndCancellationRemainDistinctFromSyntax()throws {
+        let properties=IssueTrackerProperties(values:["bugtraq.logregex":"issue.*\n(","bugtraq.warnifnoissue":"true"])
+        let missing=URL(fileURLWithPath:"/no-such-turtlegit-project-regex")
+        for operation in [
+            { _ = try properties.prepareCommit(message:"issue #42",issueID:"",executable:missing) },
+            { _ = try properties.identifiers(in:"issue #42",executable:missing) },
+            { _ = try properties.logIssueIDs(in:"issue #42",executable:missing) }
+        ] {
+            XCTAssertThrowsError(try operation()) {error in
+                guard case IssueRegexFailure.runtimeMissing=error else{return XCTFail("Runtime failure hidden as missing issue: \(error)")}
+            }
+        }
+        let cancellation=OperationCancellation();cancellation.cancel()
+        XCTAssertThrowsError(try properties.prepareCommit(message:"issue #42",issueID:"",executable:missing,cancellation:cancellation)) {XCTAssertTrue($0 is OperationCancellationFailure)}
+        XCTAssertThrowsError(try properties.identifiers(in:"issue #42",executable:missing,cancellation:cancellation)) {XCTAssertTrue($0 is OperationCancellationFailure)}
     }
 }

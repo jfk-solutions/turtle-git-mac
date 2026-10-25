@@ -98,7 +98,7 @@ public struct IssueTrackerProperties: Sendable, Equatable {
     public func identifiers(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
         try cancellation?.check()
         if !checkExpression.isEmpty {
-            return try IssueRegexRuntime.match(message: message, check: checkExpression, extract: extractionExpression, executable: executable, cancellation: cancellation).identifiers(in: message)
+            return try IssueRegexRuntime.sourceMatch(message: message, check: checkExpression, extract: extractionExpression, executable: executable, cancellation: cancellation).identifiers(in: message)
         }
         guard let found = templateLine(in: message), found.id.length > 0 else { return [] }
         // Upstream trims edge commas before splitting, while retaining the
@@ -130,7 +130,7 @@ public struct IssueTrackerProperties: Sendable, Equatable {
         guard validatesIssueID(issueID) else {
             throw IssueTrackerFailure.invalidIssueID
         }
-        let match = checkExpression.isEmpty ? nil : try IssueRegexRuntime.match(message:message,check:checkExpression,extract:extractionExpression,executable:executable,cancellation:cancellation)
+        let match = checkExpression.isEmpty ? nil : try IssueRegexRuntime.sourceMatch(message:message,check:checkExpression,extract:extractionExpression,executable:executable,cancellation:cancellation)
         let warning = warnIfNoIssue && issueID.isEmpty && match?.hasMatch != true
         let id = issueID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !id.isEmpty, showsIssueField else { return IssueCommitPreparation(message: message, requiresIssueWarning: warning) }
@@ -228,7 +228,7 @@ extension IssueTrackerProperties {
     public func logIssuePositions(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [NSRange] {
         try cancellation?.check()
         if !checkExpression.isEmpty {
-            return try IssueRegexRuntime.match(message:message,check:checkExpression,extract:extractionExpression,executable:executable,cancellation:cancellation,ignoreInvalidPattern:true).ranges
+            return try IssueRegexRuntime.sourceMatch(message:message,check:checkExpression,extract:extractionExpression,executable:executable,cancellation:cancellation).ranges
         }
         guard let found = templateLine(in: message), found.id.length > 0 else { return [] }
         var value = found.text.substring(with:found.id)

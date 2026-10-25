@@ -58,11 +58,16 @@ static std::string utf8(const std::wstring& units) {
 static void style(const char* kind, size_t start, size_t length) {
     if (length) std::cout << kind << '\t' << start << '\t' << length << '\n';
 }
-static void styles(const std::wstring& checkUnits, const std::wstring& extractUnits, const std::wstring& textUnits) {
-    std::cout << "styles\tutf8\n";
+static void styles(const std::wstring& checkUnits, const std::wstring& extractUnits, const std::wstring& textUnits, bool source = false) {
+    std::cout << (source ? "styles\tutf8-source\n" : "styles\tutf8\n");
     const auto check = utf8(checkUnits), extract = utf8(extractUnits), text = utf8(textUnits);
-    if (check.empty()) return;
-    const std::regex first(check), second(extract);
+    if (check.empty()) { if (source) std::cout << "syntax\tinactive\n"; return; }
+    std::regex first, second;
+    try { first.assign(check); }
+    catch (const std::regex_error&) {if (!source) throw;std::cout << "syntax\tinvalid-check\n";return;}
+    try { second.assign(extract); }
+    catch (const std::regex_error&) {if (!source) throw;std::cout << "syntax\tinvalid-extraction\n";return;}
+    if (source) std::cout << "syntax\tvalid\n";
     const std::sregex_iterator end;
     for (std::sregex_iterator match(text.cbegin(), text.cend(), first); match != end; ++match) {
         const auto start = match->position(0);
@@ -91,24 +96,28 @@ int main(int argc, char** argv) {
     const bool svnRevisions = argc == 5 && std::string(argv[4]) == "--svn-revisions";
     const bool mergeReplace = argc == 5 && std::string(argv[4]) == "--merge-replace";
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
+    const bool sourceStyling = argc == 5 && std::string(argv[4]) == "--source-styles-utf8";
+    const bool sourceIssue = argc == 5 && std::string(argv[4]) == "--source-issue";
     const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
     const bool issueIDs = argc == 5 && std::string(argv[4]) == "--issue-ids";
     const bool logRanges = argc == 5 && (std::string(argv[4]) == "--log-ranges-case" || std::string(argv[4]) == "--log-ranges-insensitive");
     const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
-    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace && !svnRevisions && !batchIssues) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    if (argc != 4 && !styling && !sourceStyling && !sourceIssue && !code && !logFilter && !logRanges && !issueIDs && !mergeReplace && !svnRevisions && !batchIssues) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
         const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges && !mergeReplace && !svnRevisions && !batchIssues);
         if (batchIssues) {
             std::cout << "issues\t1\n";
             std::wregex first, second;
+            bool expressionsValid = true;
             try { first = std::wregex(check); if (!extract.empty()) second = std::wregex(extract); }
-            catch (const std::regex_error&) { return 0; } // Source FindBugID ignores invalid syntax.
+            catch (const std::regex_error&) { expressionsValid = false; } // Source FindBugID ignores invalid syntax, never malformed transport.
             size_t offset = 0, row = 0;
             while (offset < text.size()) {
                 if (text.size() - offset < 2) throw std::runtime_error("Invalid issue record header.");
                 const size_t length = static_cast<size_t>(text[offset]) | (static_cast<size_t>(text[offset + 1]) << 16); offset += 2;
                 if (length > text.size() - offset) throw std::runtime_error("Invalid issue record length.");
                 auto value = text.substr(offset, length); offset += length;
+                if (!expressionsValid) { ++row; continue; }
                 const auto nul = value.find(L'\0'); if (nul != std::wstring::npos) value.resize(nul);
                 const std::wsregex_iterator end;
                 for (std::wsregex_iterator match(value.cbegin(), value.cend(), first); match != end; ++match) {
@@ -218,15 +227,25 @@ int main(int argc, char** argv) {
             }
             return 0;
         }
-        if (styling) { styles(check, extract, text); return 0; }
-        if (check.empty()) { std::cout << "matched\t0\n"; return 0; }
+        if (styling || sourceStyling) { styles(check, extract, text, sourceStyling); return 0; }
+        if (sourceIssue) std::cout << "source\t1\n";
+        if (check.empty()) {if (sourceIssue) std::cout << "syntax\tinactive\n";std::cout << "matched\t0\n";return 0;}
         std::wregex first, second;
-        try { first.assign(check); second.assign(extract); }
+        bool extractionValid=true;
+        try {first.assign(check);}
         catch (const std::regex_error&) {
-            if (!issueIDs) throw;
-            std::cout << "matched\t0\n"; return 0;
+            if (!issueIDs && !sourceIssue) throw;
+            if (sourceIssue) std::cout << "syntax\tinvalid-check\n";
+            std::cout << "matched\t0\n";return 0;
         }
+        try {second.assign(extract);}
+        catch (const std::regex_error&) {
+            if (!issueIDs && !sourceIssue) throw;
+            extractionValid=false;
+        }
+        if (sourceIssue) std::cout << (extractionValid ? "syntax\tvalid\n":"syntax\tinvalid-extraction\n");
         std::cout << "matched\t" << (std::regex_search(text, first) ? 1 : 0) << '\n';
+        if (!extractionValid) return 0;
         const std::wsregex_iterator end;
         for (std::wsregex_iterator match(text.cbegin(), text.cend(), first); match != end; ++match) {
             if (extract.empty()) {

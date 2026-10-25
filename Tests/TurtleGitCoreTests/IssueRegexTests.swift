@@ -119,3 +119,98 @@ final class IssueRegexTests: XCTestCase {
         XCTAssertEqual(try match("42", ""), IssueRegexMatch(hasMatch: false, ranges: []))
     }
 }
+
+extension IssueRegexTests {
+    func testConfiguredSourceSyntaxRetainsSuccessfulFirstExpressionWithoutRanges()throws {
+        let message="雪🦎 issues #42 and #73"
+        let valid=try IssueRegexRuntime.sourceMatch(message:message,check:"issues.*",extract:"#[0-9]+",executable:parser)
+        XCTAssertEqual(valid.syntax,.valid);XCTAssertTrue(valid.hasMatch)
+        XCTAssertEqual(valid.identifiers(in:message),["#42","#73"])
+        XCTAssertEqual(valid.ranges,[(message as NSString).range(of:"#42"),(message as NSString).range(of:"#73")])
+        let partial=try IssueRegexRuntime.sourceMatch(message:message,check:"issues.*",extract:"(",executable:parser)
+        XCTAssertEqual(partial.syntax,.invalidExtraction);XCTAssertTrue(partial.hasMatch);XCTAssertEqual(partial.ranges,[])
+        let miss=try IssueRegexRuntime.sourceMatch(message:"No issue here",check:"issues.*",extract:"(",executable:parser)
+        XCTAssertEqual(miss.syntax,.invalidExtraction);XCTAssertFalse(miss.hasMatch);XCTAssertEqual(miss.ranges,[])
+        let invalid=try IssueRegexRuntime.sourceMatch(message:message,check:"(",extract:"#[0-9]+",executable:parser)
+        XCTAssertEqual(invalid.syntax,.invalidCheck);XCTAssertFalse(invalid.hasMatch);XCTAssertEqual(invalid.ranges,[])
+        // The strict tester still rejects either malformed expression. Tolerant
+        // source-property matching is an explicit separate operation.
+        for(check,extract)in [("issues.*","("),("(","#[0-9]+")] {
+            XCTAssertThrowsError(try IssueRegexRuntime.match(message:message,check:check,extract:extract,executable:parser)) {error in
+                guard case IssueRegexFailure.failed=error else{return XCTFail("Not a strict syntax failure: \(error)")}
+            }
+        }
+    }
+    func testSourceCaptureOffsetsNULTerminationAndInactiveRuntimeBypass()throws {
+        let message="雪🦎 issue #42\0issue #99"
+        let result=try IssueRegexRuntime.sourceMatch(message:message,check:"issue #([0-9]+)",executable:parser)
+        XCTAssertEqual(result.syntax,.valid);XCTAssertTrue(result.hasMatch)
+        XCTAssertEqual(result.identifiers(in:message),["42"])
+        XCTAssertEqual(result.ranges,[(message as NSString).range(of:"42")])
+        let missing=URL(fileURLWithPath:"/no-such-turtlegit-source-regex")
+        let inactive=try IssueRegexRuntime.sourceMatch(message:message,check:"",extract:"(",executable:missing)
+        XCTAssertEqual(inactive.syntax,.inactive);XCTAssertFalse(inactive.hasMatch);XCTAssertEqual(inactive.ranges,[])
+        let stopped=OperationCancellation();stopped.cancel()
+        XCTAssertThrowsError(try IssueRegexRuntime.sourceMatch(message:message,check:"",executable:missing,cancellation:stopped)) {XCTAssertTrue($0 is OperationCancellationFailure)}
+        XCTAssertThrowsError(try IssueRegexRuntime.sourceMatch(message:message,check:"issue",executable:missing)) {error in
+            guard case IssueRegexFailure.runtimeMissing=error else{return XCTFail("Missing helper disguised as syntax: \(error)")}
+        }
+    }
+    private func sourceFixtureHelper(_ script:String)throws->(URL,URL) {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("IssueSource-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let helper=root.appendingPathComponent("helper")
+        try Data(("#!/bin/sh\n"+script+"\n").utf8).write(to:helper)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
+        return(root,helper)
+    }
+    func testSourceSyntaxProtocolAndExecutionFailuresRemainFailures()throws {
+        let malformed=[
+            "matched\t1\n",
+            "source\t1\nsyntax\tunknown\nmatched\t0\n",
+            "source\t1\nsyntax\tinvalid-check\nmatched\t1\n",
+            "source\t1\nsyntax\tinvalid-extraction\nmatched\t1\n0\t1\n",
+            "source\t1\nsyntax\tvalid\nmatched\t1\n999\t1\n"
+        ]
+        for output in malformed {
+            let escaped=output.replacingOccurrences(of:"'",with:"'\"'\"'")
+            let(root,helper)=try sourceFixtureHelper("printf '%s' '"+escaped+"'");defer{try? FileManager.default.removeItem(at:root)}
+            XCTAssertThrowsError(try IssueRegexRuntime.sourceMatch(message:"🦎 issue #42",check:"issue.*",extract:"#[0-9]+",executable:helper)) {error in
+                guard case IssueRegexFailure.failed(let detail)=error else{return XCTFail("Malformed wire accepted as syntax: \(error)")}
+                XCTAssertFalse(detail.isEmpty)
+            }
+        }
+        let(root,helper)=try sourceFixtureHelper("echo 'source-regex-runtime-sentinel' >&2\nexit 7");defer{try? FileManager.default.removeItem(at:root)}
+        XCTAssertThrowsError(try IssueRegexRuntime.sourceMatch(message:"issue #42",check:"issue.*",extract:"(",executable:helper)) {error in
+            guard case IssueRegexFailure.failed(let detail)=error else{return XCTFail("Execution failure became syntax: \(error)")}
+            XCTAssertTrue(detail.contains("source-regex-runtime-sentinel"))
+        }
+    }
+    func testConfiguredSourceCancellationReapsOnlyItsOwnedHelperAndChild()async throws {
+        let(root,helper)=try sourceFixtureHelper("""
+        /bin/sleep 30 &
+        task_issue_child=$!
+        trap 'kill "$task_issue_child" 2>/dev/null; wait "$task_issue_child" 2>/dev/null; exit 143' TERM INT
+        echo "$$ $task_issue_child" > "$0.started"
+        wait "$task_issue_child"
+        """)
+        defer{try? FileManager.default.removeItem(at:root)}
+        let token=OperationCancellation(),marker=URL(fileURLWithPath:helper.path+".started")
+        let request=Task.detached {try IssueRegexRuntime.sourceMatch(message:"issue #42",check:"issue.*",extract:"(",executable:helper,cancellation:token)}
+        defer{token.cancel()}
+        do {
+            let deadline=Date().addingTimeInterval(3)
+            while !FileManager.default.fileExists(atPath:marker.path),Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+            guard FileManager.default.fileExists(atPath:marker.path) else{token.cancel();_=await request.result;return XCTFail("Owned source helper did not start")}
+            let pids=try String(contentsOf:marker,encoding:.utf8).split(whereSeparator:\.isWhitespace).compactMap{Int32($0)}
+            XCTAssertEqual(pids.count,2)
+            let independent=try IssueRegexRuntime.sourceMatch(message:"issue #73",check:"issue #([0-9]+)",executable:parser)
+            XCTAssertEqual(independent.identifiers(in:"issue #73"),["73"])
+            token.cancel()
+            do{_=try await request.value;XCTFail("Cancellation returned a syntax receipt")}catch is OperationCancellationFailure {}
+            let drained=Date().addingTimeInterval(3)
+            while Date()<drained,pids.contains(where:{kill($0,0)==0}){try await Task.sleep(nanoseconds:10_000_000)}
+            XCTAssertTrue(pids.allSatisfy{kill($0,0) != 0})
+        } catch {token.cancel();_=await request.result;throw error}
+    }
+}

@@ -160,6 +160,14 @@ open Create Branch with switching enabled, **No** to commit while detached, or
 Commit asks again. Cancelling Create Branch abandons that commit attempt. A branch
 already created remains available if the later commit fails.
 
+A malformed configured issue expression does not itself block Commit. The
+project's missing-issue question still applies when its check expression finds
+no match; numeric issue-field validation remains active. If only extraction is
+invalid, a successful check can still suppress that question, as in TortoiseGit.
+Message History still inserts the selected message when no IDs can be extracted,
+and keeps the separate issue field unchanged. The Regex Tester continues to
+report invalid expressions.
+
 When cancelling a draft, the saved message history includes the separate issue
 field using the project's issue-line template. Declining cancellation keeps the
 editor and issue field unchanged. An invalid issue ID can still be recovered from

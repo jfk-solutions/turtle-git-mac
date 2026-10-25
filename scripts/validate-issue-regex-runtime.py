@@ -82,12 +82,41 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitIssueRegexAudit-') as folder:
         for check, extract, message, expected in [
             (r'issue (\d+)', '', 'issue 42', 'matched\t1\n6\t2\n'),
             (r'(?<=#)42', '', '#42', 'matched\t0\n'),
-            ('issue.*', '(', 'issue 42', 'matched\t0\n'),
+            ('issue.*', '(', 'issue 42', 'matched\t1\n'),
         ]:
             for file, value in zip(inputs, (check, extract, message)):
                 file.write_bytes(value.encode('utf-16-le'))
             output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--issue-ids'], text=True, timeout=6)
             assert output == expected, (check, output, expected)
+        # Bad syntax must not hide a damaged length-framed batch transport.
+        inputs[0].write_bytes('('.encode('utf-16-le')); inputs[1].write_bytes(b'')
+        for broken in [b'\x01\x00', b'\x03\x00\x00\x00A\x00']:
+            inputs[2].write_bytes(broken)
+            invalid = subprocess.run(prefix + [str(binary)] + [str(file) for file in inputs] + ['--batch-issue-ids'], capture_output=True, timeout=6)
+            assert invalid.returncode == 1 and b'Invalid issue record' in invalid.stderr, (prefix, invalid.returncode, invalid.stdout, invalid.stderr)
+        # Configured source expressions classify syntax separately from helper
+        # failures. A valid first expression survives invalid extraction.
+        for check, extract, message, expected in [
+            (r'issue (\d+)', '', '🦎 issue 42', 'source\t1\nsyntax\tvalid\nmatched\t1\n9\t2\n'),
+            ('(', '', 'issue 42', 'source\t1\nsyntax\tinvalid-check\nmatched\t0\n'),
+            ('issue.*', '(', 'issue 42', 'source\t1\nsyntax\tinvalid-extraction\nmatched\t1\n'),
+            ('issue.*', '(', 'unrelated', 'source\t1\nsyntax\tinvalid-extraction\nmatched\t0\n'),
+            ('', '(', 'issue 42', 'source\t1\nsyntax\tinactive\nmatched\t0\n'),
+        ]:
+            for file, value in zip(inputs, (check, extract, message)):
+                file.write_bytes(value.encode('utf-16-le'))
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--source-issue'], text=True, timeout=6)
+            assert output == expected, (prefix, check, extract, output, expected)
+        for check, extract, message, expected in [
+            (r'issue #(\d+)', '', '🦎 issue #42', 'styles\tutf8-source\nsyntax\tvalid\ncontext\t5\t7\nidentifier\t12\t2\n'),
+            ('(', '', 'issue 42 https://example.invalid', 'styles\tutf8-source\nsyntax\tinvalid-check\n'),
+            ('issue.*', '(', 'issue 42', 'styles\tutf8-source\nsyntax\tinvalid-extraction\n'),
+            ('', '(', 'issue 42', 'styles\tutf8-source\nsyntax\tinactive\n'),
+        ]:
+            for file, value in zip(inputs, (check, extract, message)):
+                file.write_bytes(value.encode('utf-16-le'))
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--source-styles-utf8'], text=True, timeout=6)
+            assert output == expected, (prefix, check, extract, output, expected)
         for pattern, mode, texts, expected in [
             (r'^red.*fox$', '--log-case', ['red fox', 'RED fox', 'blue fox', ''], 'log\tactive\n1\n0\n0\n0\n'),
             (r'fox|snow', '--log-insensitive', ['FOX', 'snow', 'green', ''], 'log\tactive\n1\n1\n0\n0\n'),

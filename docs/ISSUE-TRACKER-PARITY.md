@@ -28,13 +28,15 @@ to 1024 bytes. A shared runner bounds execution to five seconds plus a
 one-second termination grace and forcibly reaps its own unresponsive process.
 EditorConfig now uses the same runner. Excessive helper output is rejected.
 
-The helper reports malformed expressions as an explicit failure. Upstream
-silently catches compilation failures and may retain previously compiled
-expressions. This error-state behavior is not yet mapped in the native property
-loader. Matching grammar and UTF-16 positions are retained; libc++ versus MSVC
-locale, character-class, pathological-expression and exception differences
-still need cross-platform acceptance. No Foundation/ICU regex substitution is
-used.
+The explicit Regex Tester reports malformed expressions as validation failures.
+Configured consumers use [source syntax receipts](ISSUE-REGEX-FAILURE-PARITY.md):
+an invalid check yields no match; invalid extraction retains a successful first
+check with no ID ranges. Runtime and protocol failures remain failures.
+Configured properties are fresh value snapshots; the C++ mutable setters'
+previously compiled cache is a separate boundary. Matching grammar and UTF-16
+positions are retained; libc++ versus MSVC locale, character-class, pathological
+expression and exception differences still need cross-platform acceptance.
+No Foundation/ICU regex substitution is used.
 
 ## Build and distribution
 
@@ -163,8 +165,9 @@ classification remain unverified; Foundation link guessing is disabled.
 splits issue runs at ordinary URL boundaries and resolves any remaining ID
 hotspot from its actual visible substring. Ordinary links use the regular
 font and dynamic link color; issue context and IDs keep bold/italic styles.
-When issue matching fails during typing, ordinary links can still appear,
-while Commit validation continues reporting configuration failures.
+When configured issue syntax is invalid during typing, independent formatting
+and ordinary links still appear. Commit follows its source missing-issue
+warning policy; real matcher runtime/protocol failures remain preflight errors.
 
 The upstream `AppUtilsTest.cpp` fixtures were verified at blob
 `c2db167dc2893395ba497ba030d1a0e78b22bf6c`. Their complete URL range examples,
@@ -415,3 +418,14 @@ The Debug build, 12 focused Core checks and five native case/engine runs pass. T
 execution, full SciEdit/editor/context-menu parity, every configuration/locale/IME
 boundary, physical keyboard/VoiceOver and signed sandbox/App Store acceptance
 remain open. No full dialog or port certification is claimed.
+
+
+## Configured expression failure family — October 25, 2026
+
+[Configured issue-regex semantics](ISSUE-REGEX-FAILURE-PARITY.md) separates
+HasBugID from extracted ranges, preserves a valid first expression when the
+second is invalid, and routes Commit/history/shared consumers through caught
+configuration syntax behavior. The explicit tester stays strict. The family
+also separates syntax fallback from actual helper/protocol/cancellation failures
+and documents the fresh-property snapshot boundary. Its grouped checkpoint is
+recorded separately from full dialog, signed and hosted acceptance.

@@ -13,12 +13,7 @@ public actor IssueMessageStyler {
     public init() {}
     public func styles(properties: IssueTrackerProperties, message: String, formattingEnabled: Bool = true, cancellation: OperationCancellation? = nil) throws -> [IssueMessageStyle] {
         try Task.checkCancellation(); try cancellation?.check()
-        do { return try properties.messageStyles(in: message, formattingEnabled: formattingEnabled, cancellation: cancellation) }
-        catch is IssueRegexFailure {
-            // SciEdit's URL pass still runs after an invalid issue expression.
-            try Task.checkCancellation(); try cancellation?.check()
-            return try IssueTrackerProperties().messageStyles(in: message, formattingEnabled: formattingEnabled, cancellation: cancellation)
-        }
+        return try properties.messageStyles(in: message, formattingEnabled: formattingEnabled, cancellation: cancellation)
     }
 }
 
@@ -28,16 +23,19 @@ extension IssueTrackerProperties {
     public func messageStyles(in message: String, executable: URL? = nil, formattingEnabled: Bool = true, cancellation: OperationCancellation? = nil) throws -> [IssueMessageStyle] {
         try cancellation?.check()
         guard !checkExpression.isEmpty, !message.isEmpty else { return resolvedStyles(in: message, ranges: [], formattingEnabled: formattingEnabled) }
-        let output = try IssueRegexRuntime.capture(message: message, check: checkExpression, extract: extractionExpression, executable: executable, mode: ["--styles-utf8"], cancellation: cancellation)
+        let output = try IssueRegexRuntime.capture(message: message, check: checkExpression, extract: extractionExpression, executable: executable, mode: ["--source-styles-utf8"], cancellation: cancellation)
         guard let text = String(data: output, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid styling output.") }
-        let rows = text.split(separator: "\n")
-        guard rows.first == "styles\tutf8" else { throw IssueRegexFailure.failed("Invalid styling output.") }
+        guard text.hasSuffix("\n") else{throw IssueRegexFailure.failed("Invalid styling output.")}
+        var rows=text.components(separatedBy:"\n");rows.removeLast()
+        guard rows.count>=2,rows[0]=="styles\tutf8-source",rows[1].hasPrefix("syntax\t"),
+              let syntax=IssueRegexSyntax(rawValue:String(rows[1].dropFirst(7))) else{throw IssueRegexFailure.failed("Invalid styling output.")}
+        guard syntax == .valid || rows.count==2 else{throw IssueRegexFailure.failed("Inconsistent styling output.")}
         var byteRanges: [(IssueMessageStyle.Kind, Int, Int)] = []
         var needed = Set<Int>()
         let length = message.utf8.count
-        for row in rows.dropFirst() {
+        for row in rows.dropFirst(2) {
             let columns = row.split(separator: "\t")
-            guard columns.count == 3, let kind = IssueMessageStyle.Kind(rawValue: String(columns[0])),
+            guard columns.count == 3, let kind = IssueMessageStyle.Kind(rawValue: String(columns[0])),kind == .context || kind == .identifier,
                   let start = Int(columns[1]), let count = Int(columns[2]), start >= 0, count > 0,
                   start <= length, count <= length - start else { throw IssueRegexFailure.failed("Invalid styling range.") }
             byteRanges.append((kind, start, count)); needed.insert(start); needed.insert(start + count)
@@ -105,8 +103,8 @@ extension IssueTrackerProperties {
     func logIssueIDs(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
         if checkExpression.isEmpty { return try issueFieldValue(in: message, executable: executable, cancellation: cancellation) }
-        let match = try IssueRegexRuntime.match(message: message, check: checkExpression, extract: extractionExpression,
-            executable: executable, cancellation: cancellation, ignoreInvalidPattern: true)
+        let match = try IssueRegexRuntime.sourceMatch(message: message, check: checkExpression, extract: extractionExpression,
+            executable: executable, cancellation: cancellation)
         return Self.naturalIssueIDs(match.identifiers(in: message))
     }
     public func issueFieldValue(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> String {
