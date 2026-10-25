@@ -611,8 +611,9 @@ private extension FileComparisonDocument {
     var regexExecutable: URL?
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
+    @Published private(set) var palette = MergePalette.Context()
     var comparisonDefaults: UserDefaults = .standard {
-        didSet { if document == nil { comparisonOptions = .load(from:comparisonDefaults); showMovedBlocks = MergeMovedBlock.enabled(defaults:comparisonDefaults)
+        didSet { palette = MergePalette.Context(defaults: comparisonDefaults); generalPreferences = .load(from: comparisonDefaults); if document == nil { comparisonOptions = .load(from:comparisonDefaults); showMovedBlocks = MergeMovedBlock.enabled(defaults:comparisonDefaults)
             showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
             showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
             editorPreferences = .load(from:comparisonDefaults); showLineNumbers = editorPreferences.showLineNumbers
@@ -1010,6 +1011,8 @@ private extension FileComparisonDocument {
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
     var legacyEncoding:ComparisonTextEncoding { .legacyEncoding(from:comparisonDefaults) }
     func refreshPreferences() {
+        guard !retired else { return }
+        palette = MergePalette.Context(defaults: comparisonDefaults)
         paneTabEpoch = UUID()
         let general = MergeGeneralPreferences.load(from: comparisonDefaults)
         if general != generalPreferences { generalPreferences = general; inlineCache = [:] }
@@ -1517,6 +1520,7 @@ private extension FileComparisonDocument {
         let value = (patchComparison.textEncodingPolicy ?? MergeTextEncodingPolicy(defaults:preferences)).applying(patchComparison.editingDocument)
         document = value; originalPaneDocument = value; drafts = FileComparisonDrafts(value)
         comparisonDefaults = preferences; comparisonOptions = .load(from:preferences)
+        palette = MergePalette.Context(defaults: preferences); generalPreferences = .load(from: preferences)
         drafts?.setEditing(false, base: false); showInlineDiff = false
         editorPreferences = .load(from: preferences); showLineNumbers = editorPreferences.showLineNumbers
         editorConfigEnabled = [true: editorPreferences.enableEditorConfig, false: editorPreferences.enableEditorConfig]
@@ -2242,7 +2246,7 @@ struct FileComparisonPane: View {
             if let alignment=model.alignment {
                 let states=model.onePaneActive ? model.combined?.rows.map { $0.cell.state } ?? []:alignment.rows.map {base ? $0.base.state:$0.destination.state}
                 let counts=MergeLineStatistics(states:states)
-                if !counts.isEmpty {MergeLineStatisticsView(statistics:counts)}
+                if !counts.isEmpty {MergeLineStatisticsView(statistics:counts,palette:model.palette)}
             }
             HStack {
                 let inputReceipt=model.inputEncodingReceipt(base:base)
@@ -2335,7 +2339,7 @@ private struct FileComparisonDialog: View {
             HStack(spacing: 0) {
                 if model.locatorPreferences.visible {
                     MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, highlights: model.locatorHighlights, fishEye: model.locatorPreferences.fishEye,
-                                    enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator)
+                                    enabled: !model.busy && !model.filtering && !model.confirmingQuit, navigate: model.scrollLocator,palette:model.palette)
                         .frame(width: 44).help("Left and right file overview; click or drag to scroll")
                 }
                 if !model.singleFileMode && !model.onePaneActive {
@@ -2404,8 +2408,10 @@ struct FileComparisonEditor: NSViewRepresentable {
         (view as? FileComparisonTextView)?.baseSide = base
         view.setAccessibilityLabel(base ? "Base file" : "Destination file")
         context.coordinator.bind(scroll, base: base)
-        let background = MergePalette.color(MergeSourceState.normal), foreground = MergePalette.foreground(.normal)
+        let background = model.palette.color(MergeSourceState.normal), foreground = model.palette.foreground(.normal)
         if view.backgroundColor != background { view.backgroundColor = background }
+        scroll.drawsBackground = true; scroll.backgroundColor = background
+        scroll.contentView.drawsBackground = true; scroll.contentView.backgroundColor = background
         if view.insertionPointColor != foreground { view.insertionPointColor = foreground }
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         // Hosting can deliver a previously captured View value after an edit.
@@ -2421,6 +2427,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         (view as? FileComparisonTextView)?.sourceCells = cells
         if let renderer = (view as? MergeWhitespaceDisplaying)?.whitespaceRenderer {
+            renderer.palette = model.palette
             if renderer.preferences != model.whitespaceDisplay || renderer.removal != base || renderer.highlightEndings != model.showInlineDiff { view.needsDisplay = true }
             renderer.update(text: cells.map(\.displayText).joined(separator: "\n") + (cells.isEmpty ? "" : "\n"), cells: cells,
                             otherCells: model.onePaneActive ? nil : model.alignment?.rows.map { base ? $0.destination : $0.base }, preferences: model.whitespaceDisplay)
@@ -2430,7 +2437,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         if view.isEditable != editable { view.isEditable = editable }
         (view as? FileComparisonTextView)?.mergeFindController?.updateGates()
         let peerCells = model.onePaneActive || model.singleFileMode ? nil : model.displayCells(base: !base)
-        let style = MergeEditorPresentationCache.Style(font: model.generalPreferences.nativeFont, tabWidth: model.tabWidth(base: base), inline: model.showInlineDiff && !model.filtering, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: MergePalette.revision, mode: model.onePaneActive ? 2 : base ? 0 : 1)
+        let style = MergeEditorPresentationCache.Style(font: model.generalPreferences.nativeFont, tabWidth: model.tabWidth(base: base), inline: model.showInlineDiff && !model.filtering, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: model.palette.revision, mode: model.onePaneActive ? 2 : base ? 0 : 1)
         let rendered = presentationCache.value(text: "", cells: cells, peers: peerCells, style: style) {
             .init(text: Self.attributed(cells, font: style.font, model: model, base: base), missingOffsets: Self.missingOffsets(cells, model: model, base: base))
         }
@@ -2512,10 +2519,10 @@ struct FileComparisonEditor: NSViewRepresentable {
         let value = NSMutableAttributedString(string: "")
         for (index, cell) in cells.enumerated() {
             let diff = inline(index, model: model, base: base), offset = value.length
-            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: MergePalette.foreground(cell.state), .backgroundColor: diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon, .paragraphStyle: paragraph]))
+            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: model.palette.foreground(cell.state), .backgroundColor: diff == nil ? model.palette.color(cell.state) : model.palette.inlineCommon, .paragraphStyle: paragraph]))
             if let diff {
                 let removal = model.onePaneActive && !base ? model.combined?.rows[index].base == true : base
-                for range in removal ? diff.base : diff.destination { value.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length)) }
+                for range in removal ? diff.base : diff.destination { value.addAttribute(.backgroundColor, value: removal ? model.palette.inlineRemoved : model.palette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length)) }
             }
         }
         return value
@@ -2855,6 +2862,13 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         return model?.replaceFindMatches(ranges, cells: sourceCells, base: baseSide, replacement: replacement) == true
     }
     let whitespaceRenderer = MergeWhitespaceRenderer()
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        layoutManager?.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: string.utf16.count))
+        needsDisplay = true; enclosingScrollView?.contentView.needsDisplay = true
+        enclosingScrollView?.verticalRulerView?.needsDisplay = true
+    }
+
     var missingOffsets: [Int] = []
     func menuDidClose(_ menu: NSMenu) {
         guard let model, model.activeBase == baseSide, !model.busy, !model.confirmingQuit,
@@ -3303,6 +3317,7 @@ private struct MergeLineDiffBar: NSViewRepresentable {
 
 /// Two TextKit lines, without additional editors, selection or focus ownership.
 @MainActor final class MergeLineDiffPreview: NSView {
+    var palette = MergePalette.Context()
     private struct Line {
         let storage: NSTextStorage
         let layout: NSLayoutManager
@@ -3329,6 +3344,7 @@ private struct MergeLineDiffBar: NSViewRepresentable {
     convenience init() { self.init(frame: .zero) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func update(_ model: FileComparisonWindowModel) {
+        palette = model.palette
         let row = model.lineDiffRow
         update(cells: row.map { [$0.base, $0.destination] },
                pairedDiff: row.flatMap { MergeInlineComparison(base:$0.base.displayText,destination:$0.destination.displayText,word:model.inlineWordDiff,maximumLength:model.generalPreferences.maximumInlineLength) },
@@ -3355,16 +3371,16 @@ private struct MergeLineDiffBar: NSViewRepresentable {
             let diff = cell.displayText.utf16.count <= maximumInlineLength ? pairedDiff : nil
             let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
             paragraph.defaultTabInterval = CGFloat(tabWidths.indices.contains(index) ? tabWidths[index] : 4) * (" " as NSString).size(withAttributes: [.font: font]).width
-            let background = diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon
-            let storage = NSTextStorage(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: MergePalette.foreground(cell.state), .backgroundColor: background, .paragraphStyle: paragraph])
+            let background = diff == nil ? palette.color(cell.state) : palette.inlineCommon
+            let storage = NSTextStorage(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: palette.foreground(cell.state), .backgroundColor: background, .paragraphStyle: paragraph])
             if let diff {
                 for range in base ? diff.base : diff.destination {
-                    storage.addAttribute(.backgroundColor, value: base ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: range)
+                    storage.addAttribute(.backgroundColor, value: base ? palette.inlineRemoved : palette.inlineAdded, range: range)
                 }
             }
             let layout = NSLayoutManager(), container = NSTextContainer(containerSize: NSSize(width: 10_000_000, height: Self.lineHeight(font)))
             container.lineFragmentPadding = 0; layout.addTextContainer(container); storage.addLayoutManager(layout)
-            let renderer = MergeWhitespaceRenderer(); renderer.removal = base; renderer.highlightEndings = true
+            let renderer = MergeWhitespaceRenderer(); renderer.palette = palette; renderer.removal = base; renderer.highlightEndings = true
             renderer.update(text: storage.string, cells: [cell], otherCells: [other], preferences: .init(visible: true, endingIcons: endingIcons))
             lines.append(Line(storage: storage, layout: layout, container: container, renderer: renderer, font: font, background: background,
                               missing: (base ? diff?.baseMissing : diff?.destinationMissing) ?? [], horizontalOffset: horizontalOffsets.indices.contains(index) ? horizontalOffsets[index] : 0))
@@ -3372,8 +3388,13 @@ private struct MergeLineDiffBar: NSViewRepresentable {
         }
         setAccessibilityValue(labels[0] + ": " + displayedStrings[0] + "\n" + labels[1] + ": " + displayedStrings[1]); needsDisplay = true
     }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        for line in lines { line.layout.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: line.storage.length)) }
+        needsDisplay = true
+    }
     override func draw(_ dirtyRect: NSRect) {
-        MergePalette.color(.normal).setFill(); bounds.fill()
+        palette.color(.normal).setFill(); bounds.fill()
         for (index, line) in lines.enumerated() {
             let height = Self.lineHeight(line.font)
             let rect = NSRect(x: 0, y: CGFloat(index) * height, width: bounds.width, height: height)
@@ -3385,7 +3406,7 @@ private struct MergeLineDiffBar: NSViewRepresentable {
             line.layout.drawBackground(forGlyphRange: glyphs, at: origin)
             line.layout.drawGlyphs(forGlyphRange: glyphs, at: origin)
             line.renderer.draw(layout: line.layout, container: line.container, origin: origin, appearance: effectiveAppearance, font: line.font, textLength: line.storage.length, dirtyRect: rect.intersection(dirtyRect))
-            MergePalette.inlineRemoved.setFill()
+            palette.inlineRemoved.setFill()
             for offset in line.missing where offset < line.storage.length {
                 let glyph = line.layout.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
                 let marker = line.layout.boundingRect(forGlyphRange: glyph, in: line.container).offsetBy(dx: origin.x, dy: origin.y)

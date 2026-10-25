@@ -514,6 +514,8 @@ jobs:
         run: python3 scripts/test-window-byte-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge folded keyboard input and aligned deletion
         run: python3 scripts/test-merge-pane-input.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Embedded Commit patches and Compare/Merge appearance ownership
+        run: python3 scripts/test-editor-appearance.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Merge view switching, native chrome and saved splits
         run: python3 scripts/test-merge-view-family.py --only view --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Inline engine native consumers

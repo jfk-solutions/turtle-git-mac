@@ -104,7 +104,7 @@ struct MergeCommandMenusVerification {
             for appearance in [NSAppearance.Name.aqua,.darkAqua] {
                 var actual:NSColor?,expected:NSColor?
                 NSAppearance(named:appearance)!.performAsCurrentDrawingAppearance {
-                    actual=painted?.usingColorSpace(.sRGB);expected=MergePalette.color(.resolved).usingColorSpace(.sRGB)
+                    actual=painted?.usingColorSpace(.sRGB);expected=merge.model.palette.color(.resolved).usingColorSpace(.sRGB)
                 }
                 try require(actual == expected,"Immediate row color differs before SwiftUI refresh")
             }

@@ -29,9 +29,9 @@ import TurtleGitCore
         try Data("staged other\n".utf8).write(to:root.appendingPathComponent("other.txt"));try await repo.stage(["other.txt"]);try Data("working other\n".utf8).write(to:root.appendingPathComponent("other.txt"))
         let head = try await repo.run(["rev-parse","HEAD"]).stdout,index = try Data(contentsOf:root.appendingPathComponent(".git/index")),original = try Data(contentsOf:file)
         let suite = "TurtleGit.MergeIgnored.QA."+UUID().uuidString,prefs = UserDefaults(suiteName:suite)!
-        defer { prefs.removePersistentDomain(forName:suite);MergePalette.reload() }
+        defer { prefs.removePersistentDomain(forName:suite) }
         MergeComparisonOptions(whitespace:.ignoreAll).save(to:prefs)
-        var palette = MergeColorPreferences();palette.light[.conflicted] = .init(0x112233,0x456789);palette.dark[.conflicted] = .init(0xabcdef,0x234567);try palette.save(to:prefs);MergePalette.reload(defaults:prefs)
+        var palette = MergeColorPreferences();palette.light[.conflicted] = .init(0x112233,0x456789);palette.dark[.conflicted] = .init(0xabcdef,0x234567);try palette.save(to:prefs)
         let owner = TextConflictWindowController(repository:repo,access:nil,path:path,preferences:prefs,deferInitialLoad:true),model = owner.model
         defer {owner.close()};owner.window!.alphaValue = 0;owner.window!.orderFront(nil);model.beginTransferredDocument()
         try await wait { !model.busy && !model.preparing }

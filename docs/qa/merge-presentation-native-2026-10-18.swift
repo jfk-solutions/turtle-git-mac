@@ -48,7 +48,7 @@ struct MergePresentationVerification {
     @MainActor static func verify() async throws {
         try verifySourceCache()
         let suite = "TurtleGit.Presentation." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
-        defer { prefs.removePersistentDomain(forName: suite); MergePalette.reload() }
+        defer { prefs.removePersistentDomain(forName: suite) }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.alphaValue = 0
         defer { window.close() }
@@ -59,9 +59,10 @@ struct MergePresentationVerification {
         scroll.documentView = text; window.contentView!.addSubview(scroll); window.orderFront(nil)
         let original = (0..<40).map { "row \($0) alpha 🐢\t" + String(repeating: "long words ", count: 8) + "\n" }.joined()
         let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        var palette = MergePalette.Context(defaults: prefs)
         func value(_ font: NSFont) -> NSAttributedString {
             let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []; paragraph.defaultTabInterval = 32
-            return NSAttributedString(string: original, attributes: [.font: font, .paragraphStyle: paragraph, .foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(.normal)])
+            return NSAttributedString(string: original, attributes: [.font: font, .paragraphStyle: paragraph, .foregroundColor: palette.foreground(.normal), .backgroundColor: palette.color(.normal)])
         }
         let fold = MergeFoldingController(preferences: prefs), presentation = MergeFoldTextLayout(), wrapping = MergeLineWrapping(), counts = Counts()
         defer { wrapping.retire(); fold.retire() }
@@ -125,7 +126,7 @@ struct MergePresentationVerification {
         try require(text.layoutManager!.temporaryAttribute(.mergeFindMatch, atCharacterIndex: offset, effectiveRange: nil) as? Bool == true, "Find did not repaint after unfolding")
         storage.replaceCharacters(in: NSRange(location: 0, length: 3), with: "row")
         try require(presentation.installPresentation(value(large), font: large, in: text, controller: fold), "Same-text character replacement retained a stale presentation")
-        MergePalette.reload(defaults: prefs)
+        palette = MergePalette.Context(defaults: prefs)
         try require(presentation.installPresentation(value(large), font: large, in: text, controller: fold), "Palette replacement retained stale dynamic colors")
         try require(text.string.utf8.elementsEqual(original.utf8) && text.undoManager?.canUndo != true, "Presentation changed source bytes or Undo")
         print("PASS: unchanged presentation/Find/wrapping perform no storage or geometry work; font, palette, fold, search, marked-word and same-text edit invalidation retained")

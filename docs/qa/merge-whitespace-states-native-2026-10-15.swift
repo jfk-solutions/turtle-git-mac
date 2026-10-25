@@ -18,10 +18,10 @@ struct MergeWhitespaceStatesVerification {
         let baseBytes=try ComparisonTextEncoding.utf16LEBOM.encode(old),mineBytes=try ComparisonTextEncoding.utf8BOM.encode(new)
         try baseBytes.write(to:base);try mineBytes.write(to:mine)
         let suite="TurtleGit.WhitespaceStates."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
-        defer{prefs.removePersistentDomain(forName:suite);MergePalette.reload()}
+        defer{prefs.removePersistentDomain(forName:suite)}
         prefs.set(true,forKey:"TurtleGitMerge.OnePane");MergeComparisonOptions.exact.save(to:prefs)
         let filter=MergeRegexFilter(name:"Versions",expression:"[0-9]+",replacement:"");try MergeRegexFilters.save([filter],defaults:prefs)
-        var palette=MergeColorPreferences();palette.light[.normal] = .init(0x112233,0x345678);palette.dark[.normal] = .init(0xabcdef,0x234567);try palette.save(to:prefs);MergePalette.reload(defaults:prefs)
+        var palette=MergeColorPreferences();palette.light[.normal] = .init(0x112233,0x345678);palette.dark[.normal] = .init(0xabcdef,0x234567);try palette.save(to:prefs)
         let owner=FileComparisonWindowController(comparison:try WorkingFileComparison(base:base,destination:mine),permissions:[],preferences:prefs),model=owner.model
         defer{owner.close()};owner.window!.alphaValue=0;owner.window!.orderFront(nil)
         model.commentProfileURL=root.appendingPathComponent("ignorecomments.txt");model.regexDefaults=prefs;model.refreshRegexFilters();model.load();try await TwoPaneEngineVerification.settled(model)

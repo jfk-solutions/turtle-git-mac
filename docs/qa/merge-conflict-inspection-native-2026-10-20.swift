@@ -104,7 +104,7 @@ enum MergeConflictInspectionVerification {
         try require(window.firstResponder === left && left.selectedRange() == selection && model.result == resultText && model.dirty == dirty,"Hover changed focus/selection/result")
         try require(!model.showInlineDiff && bar.displayedAttributes.contains { value in
             var found = false; value.enumerateAttribute(.backgroundColor,in:.init(location:0,length:value.length)) { color,_,_ in
-                if let color = color as? NSColor, color == MergePalette.inlineRemoved || color == MergePalette.inlineAdded { found = true }
+                if let color = color as? NSColor, color == bar.palette.inlineRemoved || color == bar.palette.inlineAdded { found = true }
             }; return found
         },"Three-way inspection did not force inline colors independently")
         try require(bar.displayedMarkers.allSatisfy { !$0.isEmpty },"Three-way inspection did not force whitespace/EOL markers")
@@ -207,7 +207,7 @@ enum MergeConflictInspectionVerification {
         try require(twoBar.displayedStrings[0] != twoBar.displayedStrings[1] && !pair.model.showInlineDiff,"Filtered inspection lost original whitespace or changed main setting")
         try require(twoBar.displayedAttributes.contains { value in
             var found = false;value.enumerateAttribute(.backgroundColor,in:.init(location:0,length:value.length)) { color,_,_ in
-                if let color = color as? NSColor,color == MergePalette.inlineRemoved || color == MergePalette.inlineAdded { found = true }
+                if let color = color as? NSColor,color == twoBar.palette.inlineRemoved || color == twoBar.palette.inlineAdded { found = true }
             };return found
         },"Shared line strip failed to expose comparison-filtered whitespace changes")
         pair.model.previewLine(atRow:nil)

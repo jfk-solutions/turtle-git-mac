@@ -72,7 +72,7 @@ import TurtleGitCore
         precondition(model.alignment?.rows.first(where: { $0.destination.lineNumber == 3 })?.destination.text == "newer\r\n")
         precondition(model.alignment?.rows.last?.destination.lineNumber == 4 && model.alignment?.rows.last?.destination.text == "" && model.alignment?.rows.last?.destination.state == .normal)
         precondition(model.draftText(base: false) == "version 900\r\nkeep\r\nnewer\r\n")
-        let image = MergePalette.color(.filtered)
+        let image = model.palette.color(.filtered)
         let light = NSAppearance(named: .aqua)!, dark = NSAppearance(named: .darkAqua)!
         var lightGreen: CGFloat = 0, darkGreen: CGFloat = 0
         light.performAsCurrentDrawingAppearance { lightGreen = image.usingColorSpace(.deviceRGB)!.greenComponent }

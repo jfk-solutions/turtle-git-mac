@@ -5,6 +5,11 @@ The choice is saved for the app and applied to AppKit and SwiftUI windows throug
 `NSApp.appearance`. Follow System removes the app override. Finder's appearance is
 controlled by macOS; the app's preference does not change Finder or system settings.
 
+The [patch and comparison appearance family](PATCH-COMPARISON-APPEARANCE-PARITY.md)
+tracks embedded Commit patch inheritance, the complete editor canvas and
+per-window comparison palettes. Its verification boundary is recorded separately
+from the earlier screenshots below.
+
 Use the [official dialog screenshots](https://tortoisegit.org/docs/) alongside the
 pinned source/resource layouts when reviewing every replacement. Native controls
 should retain upstream's semantic colors, recognizable artwork, list density and

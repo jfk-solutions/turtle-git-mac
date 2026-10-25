@@ -59,12 +59,12 @@ struct UnifiedDiffAppearanceSettings: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: .infinity)
             if transaction == nil { HStack { Spacer(); Button("Cancel") { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize); NSApp.keyWindow?.performClose(nil) }
-                Button("Apply") { guard let value else { return }; value.save(to:preferences); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil) }.disabled(value == nil || value == saved)
+                Button("Apply") { guard let value else { return }; value.save(to:preferences); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: preferences) }.disabled(value == nil || value == saved)
             } }
         }.padding(20).onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) } }
         .settingsParticipant("unifiedDiff.appearance", page: .unifiedDiff, value: draft,
             modified: { value != saved }, validate: { value == nil ? "Enter font and tab sizes from 1 to 1000." : nil },
-            apply: { guard let value else { return false }; value.save(to:preferences); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil); return true },
+            apply: { guard let value else { return false }; value.save(to:preferences); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: preferences); return true },
             cancel: { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) })
         .onChange(of: size) { _ in transaction?.notify() }
         .onChange(of: tabs) { _ in transaction?.notify() }

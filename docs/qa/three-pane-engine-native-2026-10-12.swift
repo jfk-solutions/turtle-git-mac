@@ -51,12 +51,12 @@ import TurtleGitCore
         let old=defaults.data(forKey:"TurtleGitMerge.Colors"),inline=model.showInlineDiff,appearance=owner.window?.appearance
         defer {
             if let old {defaults.set(old,forKey:"TurtleGitMerge.Colors")} else {defaults.removeObject(forKey:"TurtleGitMerge.Colors")}
-            MergePalette.reload(defaults:defaults);owner.window?.appearance=appearance;model.setInlineDiff(inline);model.objectWillChange.send()
+            NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: defaults);owner.window?.appearance=appearance;model.setInlineDiff(inline);model.objectWillChange.send()
         }
         var palette=MergeColorPreferences()
         palette.light[.conflicted]=UnifiedDiffColors(0x112233,0xcc3344);palette.dark[.conflicted]=UnifiedDiffColors(0xaabbcc,0x552233)
         palette.light[.empty]=UnifiedDiffColors(0,0x778899);palette.dark[.empty]=UnifiedDiffColors(0,0x223344)
-        try palette.save(to:defaults);MergePalette.reload(defaults:defaults);model.setInlineDiff(false)
+        try palette.save(to:defaults);NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: defaults);model.setInlineDiff(false)
         guard let rows=model.sourceComparison?.rows else {preconditionFailure("No alias source rows")}
         precondition(rows.contains {$0.mine.state == .conflictAdded} && rows.contains {$0.mine.state == .identicalRemoved})
         for dark in [false,true] {
@@ -65,8 +65,8 @@ import TurtleGitCore
             try await Task.sleep(nanoseconds:100_000_000)
             for state in MergeSourceState.allCases {
                 let expected=palette.stateColors(state,dark:dark,applied:true)
-                precondition(aliasRGB(MergePalette.color(state),appearance)==expected.background)
-                precondition(aliasRGB(MergePalette.foreground(state),appearance)==expected.foreground)
+                precondition(aliasRGB(model.palette.color(state),appearance)==expected.background)
+                precondition(aliasRGB(model.palette.foreground(state),appearance)==expected.foreground)
             }
             for mine in [false,true] {
                 let cells=rows.map {mine ? $0.mine:$0.theirs},display=cells.map(\.displayText).joined(separator:"\n")+"\n"

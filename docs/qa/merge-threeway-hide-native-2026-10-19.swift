@@ -72,7 +72,7 @@ import TurtleGitCore
         try MergeRegexFilters.save([filter], defaults: prefs)
         var palette = MergeColorPreferences()
         palette.light[.normal] = .init(0x112233, 0x345678); palette.dark[.normal] = .init(0xabcdef, 0x234567)
-        try palette.save(to: prefs); MergePalette.reload(defaults: prefs)
+        try palette.save(to: prefs)
         for (name, old, new, options, useRegex) in cases {
             let folder = root.appendingPathComponent(name); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             var baseLines = (0..<70).map { "line \($0) 雪🦎 unchanged\n" }; baseLines[25] = old
@@ -163,7 +163,7 @@ import TurtleGitCore
         try Data("unrelated staged\n".utf8).write(to: root.appendingPathComponent("other.txt")); try await repo.stage(["other.txt"]); try Data("unrelated working\n".utf8).write(to: root.appendingPathComponent("other.txt"))
         let original = try Data(contentsOf: file), index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
         MergeComparisonOptions(whitespace: .ignoreAll).save(to: prefs); MergeGeneralPreferences(firstDifference: false, firstConflict: false).save(to: prefs); MergeFoldingPreferences(collapsed: false).saveCollapsed(to: prefs)
-        var palette = MergeColorPreferences(); palette.light[.conflicted] = .init(0x112233, 0x456789); palette.dark[.conflicted] = .init(0xabcdef, 0x234567); try palette.save(to: prefs); MergePalette.reload(defaults: prefs)
+        var palette = MergeColorPreferences(); palette.light[.conflicted] = .init(0x112233, 0x456789); palette.dark[.conflicted] = .init(0xabcdef, 0x234567); try palette.save(to: prefs)
         let owner = TextConflictWindowController(repository: repo, access: nil, path: path, preferences: prefs, deferInitialLoad: true), model = owner.model
         offscreen(owner, ownership: ownership); model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); model.regexDefaults = prefs; model.refreshRegexFilters(); model.beginTransferredDocument(); try await settled(owner); model.setInlineDiff(false)
         guard let block = model.blocks.first, block.isIgnored, let comparison = model.sourceComparison, let row = comparison.rows.firstIndex(where: { $0.mine.displayText.hasPrefix("target") }) else { throw Failure(description: "Ignored conflict missing") }
@@ -200,7 +200,7 @@ import TurtleGitCore
     @MainActor static func main() async throws {
         _ = NSApplication.shared; NSApp.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), name = "TurtleGit.ThreewayHide." + UUID().uuidString, prefs = UserDefaults(suiteName: name)!, ownership = Ownership()
-        defer { prefs.removePersistentDomain(forName: name); MergePalette.reload() }
+        defer { prefs.removePersistentDomain(forName: name) }
         var failure: Error?
         do {
             switch CommandLine.arguments[3] {

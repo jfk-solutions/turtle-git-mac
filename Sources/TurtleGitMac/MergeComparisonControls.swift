@@ -19,7 +19,7 @@ struct MergeInlineControls: View {
     static func draw(in view: NSTextView, offsets: [Int], dirtyRect: NSRect) {
         guard !offsets.isEmpty, let layout = view.layoutManager, let container = view.textContainer else { return }
         let length = (view.string as NSString).length, origin = view.textContainerOrigin
-        MergePalette.inlineRemoved.setFill()
+        ((view as? MergeWhitespaceDisplaying)?.whitespaceRenderer.palette.inlineRemoved ?? MergePalette.inlineRemoved).setFill()
         for offset in offsets where offset >= 0 && offset < length {
             guard view.textStorage?.attribute(.mergeFoldHidden, at: offset, effectiveRange: nil) == nil, view.textStorage?.attribute(.mergeFoldMarker, at: offset, effectiveRange: nil) == nil else { continue }
             let glyphs = layout.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
@@ -149,15 +149,17 @@ struct MergeLocatorBar: NSViewRepresentable {
     let fishEye: Bool
     let enabled: Bool
     let navigate: (Int) -> Void
+    var palette = MergePalette.Context()
     func makeNSView(context: Context) -> MergeLocatorNativeView { MergeLocatorNativeView() }
     func updateNSView(_ view: MergeLocatorNativeView, context: Context) {
-        view.map = map; view.viewport = viewport; view.highlights = highlights; view.fishEye = fishEye; view.enabled = enabled; view.navigate = navigate
+        view.palette = palette; view.map = map; view.viewport = viewport; view.highlights = highlights; view.fishEye = fishEye; view.enabled = enabled; view.navigate = navigate
         view.needsDisplay = true
     }
 }
 /// Native counterpart of LocatorBar.cpp: Left / Bottom / Right stripes,
 /// source colors, blue viewport, nonselecting drag and fourfold hover lens.
 @MainActor final class MergeLocatorNativeView: NSView {
+    var palette = MergePalette.Context()
     var map = MergeLocatorMap(columns: [])
     var viewport = MergeLocatorViewport()
     var highlights: [MergeLocatorHighlights] = []
@@ -183,7 +185,7 @@ struct MergeLocatorBar: NSViewRepresentable {
     }
     private var dark: Bool { effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
     private func paint() {
-        MergePalette.color(MergeSourceState.normal).setFill(); bounds.fill()
+        palette.color(MergeSourceState.normal).setFill(); bounds.fill()
         guard map.lineCount > 0 else { return }
         let scale = bounds.height / CGFloat(map.lineCount)
         let top = CGFloat(viewport.rows.lowerBound) * scale, bottom = CGFloat(viewport.rows.upperBound) * scale
@@ -192,12 +194,12 @@ struct MergeLocatorBar: NSViewRepresentable {
         let width = bounds.width / 3
         for (column, runs) in map.columns.prefix(3).enumerated() {
             for run in runs where run.state != .normal {
-                MergePalette.color(run.state).setFill()
+                palette.color(run.state).setFill()
                 NSRect(x: CGFloat(column) * width, y: CGFloat(run.rows.lowerBound) * scale, width: width, height: max(1, CGFloat(run.rows.count) * scale)).fill()
             }
             if highlights.indices.contains(column) {
                 for (rows, scaleAmount) in [(highlights[column].marked, 200), (highlights[column].search, 30)] {
-                    MergeFindHighlights.intense(MergePalette.color(.normal), scale: scaleAmount).setFill()
+                    MergeFindHighlights.intense(palette.color(.normal), scale: scaleAmount).setFill()
                     for row in rows where row >= 0 && row < map.lineCount {
                         NSRect(x: CGFloat(column) * width, y: CGFloat(row) * scale, width: width, height: max(2, scale)).fill()
                     }
@@ -251,6 +253,7 @@ struct MergeLocatorBar: NSViewRepresentable {
 /// Draws source whitespace symbols over glyphs. No attributed-string characters,
 /// selection offsets, clipboard values or original ending metadata are replaced.
 @MainActor final class MergeWhitespaceRenderer {
+    var palette = MergePalette.Context()
     private var text = "", cells: [String]?, others: [String]?
     private(set) var markers: [MergeWhitespaceMarker] = []
     private(set) var preferences = MergeWhitespaceDisplayPreferences()
@@ -273,7 +276,7 @@ struct MergeLocatorBar: NSViewRepresentable {
              textLength: (view.string as NSString).length, dirtyRect: dirtyRect)
     }
     func draw(layout: NSLayoutManager, container: NSTextContainer, origin: NSPoint, appearance: NSAppearance, font: NSFont, textLength: Int, dirtyRect: NSRect) {
-        if colorRevision != MergePalette.revision { colorRevision = MergePalette.revision; darkIcons = [:] }
+        if colorRevision != palette.revision { colorRevision = palette.revision; darkIcons = [:] }
         guard preferences.visible else { return }
         let rect = dirtyRect.offsetBy(dx: -origin.x, dy: -origin.y)
         let visibleGlyphs = layout.glyphRange(forBoundingRect: rect, in: container)
@@ -294,7 +297,7 @@ struct MergeLocatorBar: NSViewRepresentable {
             let frame = NSRect(x: fragment.minX + point.x + origin.x, y: fragment.minY + origin.y,
                                width: max(advance, box.width), height: fragment.height)
             guard frame.intersects(dirtyRect) else { continue }
-            MergePalette.whitespace.setStroke(); MergePalette.whitespace.setFill()
+            palette.whitespace.setStroke(); palette.whitespace.setFill()
             let path = NSBezierPath(); path.lineWidth = 1
             func line(_ x: CGFloat, _ y: CGFloat, _ a: CGFloat, _ b: CGFloat) { path.move(to: NSPoint(x: x, y: y)); path.line(to: NSPoint(x: a, y: b)) }
             let x = frame.minX, y = frame.midY, right = x + advance - 1
@@ -309,7 +312,7 @@ struct MergeLocatorBar: NSViewRepresentable {
                     switch style { case .cr: icon = .mergeEndingCR; case .lf: icon = .mergeEndingLF; case .crlf: icon = .mergeEndingCRLF; default: icon = nil }
                     if let icon {
                         let target = NSRect(x: x, y: frame.minY, width: frame.height, height: frame.height)
-                        if changed && highlightEndings { (removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded).setFill(); target.fill() }
+                        if changed && highlightEndings { (removal ? palette.inlineRemoved : palette.inlineAdded).setFill(); target.fill() }
                         if icons[style] == nil { icons[style] = icon.image(size: frame.height) }
                         let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
                         if dark, darkIcons[style] == nil, let original = icons[style] {
@@ -318,7 +321,7 @@ struct MergeLocatorBar: NSViewRepresentable {
                             // silhouette and use the native marker foreground.
                             var foreground = NSColor(calibratedWhite: 0.7, alpha: 1)
                             appearance.performAsCurrentDrawingAppearance {
-                                if let resolved = MergePalette.whitespace.usingColorSpace(.sRGB) { foreground = resolved.withAlphaComponent(1) }
+                                if let resolved = palette.whitespace.usingColorSpace(.sRGB) { foreground = resolved.withAlphaComponent(1) }
                             }
                             let tint = foreground
                             darkIcons[style] = NSImage(size: original.size, flipped: false) { bounds in
@@ -639,9 +642,10 @@ struct MergeLocatorBar: NSViewRepresentable {
 
 struct MergeLineStatisticsView: View {
     let statistics: MergeLineStatistics
+    var palette = MergePalette.Context()
     private func count(_ title:String,_ value:Int,_ state:MergeSourceState)->some View {
         HStack(spacing:4) {
-            Rectangle().fill(Color(nsColor:MergePalette.color(state))).overlay(Rectangle().stroke(.secondary,lineWidth:0.5)).frame(width:8,height:8).accessibilityHidden(true)
+            Rectangle().fill(Color(nsColor:palette.color(state))).overlay(Rectangle().stroke(.secondary,lineWidth:0.5)).frame(width:8,height:8).accessibilityHidden(true)
             Text("\(title): \(value)")
         }
     }
@@ -1047,6 +1051,7 @@ struct CurvedDiffConnections: NSViewRepresentable {
     func retire() { observations.forEach(NotificationCenter.default.removeObserver); observations = []; editors = { (nil,nil) } }
     deinit { observations.forEach(NotificationCenter.default.removeObserver) }
     override func layout() { super.layout(); needsDisplay = true }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     private func spans(_ scroll: NSScrollView?, ranges: [Range<Int>], characters: [NSRange]?) -> [NSRect?] {
         guard let text = scroll?.documentView as? NSTextView, let layout = text.layoutManager, let container = text.textContainer else { return ranges.map { _ in nil } }
         layout.ensureLayout(for: container)
@@ -1071,8 +1076,8 @@ struct CurvedDiffConnections: NSViewRepresentable {
         }
     }
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.textBackgroundColor.setFill(); bounds.fill()
         let (left, right) = editors()
+        (left?.backgroundColor ?? right?.backgroundColor ?? .textBackgroundColor).setFill(); bounds.fill()
         let a = spans(left, ranges: blocks, characters:leftRanges), b = spans(right, ranges: blocks, characters:rightRanges)
         for index in 0..<min(a.count,b.count) {
             guard let l = a[index], let r = b[index], max(l.maxY,r.maxY) >= 0, min(l.minY,r.minY) <= bounds.height else { continue }

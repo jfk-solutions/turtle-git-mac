@@ -42,10 +42,12 @@ uses the intended filtered role default instead.
 
 Source orange/yellow/red/green/purple/gray defaults and dark variants remain
 unchanged, including Normal dark #202020/#DDDDDD. Missing or invalid persisted
-colors fall back to source defaults. Renderers use an immutable palette snapshot
-protected by a lock; per-row drawing does not decode preferences. Apply replaces
-that snapshot before notifying open panes and does not change file contents or
-source encodings.
+colors fall back to source defaults. Renderers use an immutable palette snapshot;
+per-row drawing does not decode preferences. The later
+[appearance ownership batch](PATCH-COMPARISON-APPEARANCE-PARITY.md) gives each
+comparison model its own preferences-backed snapshot rather than replacing one
+process-wide private palette. Apply notifies open panes to read their own store
+and does not change file contents or source encodings.
 
 Both viewers consume supported-state foreground/background colors. Normal
 colors cover canvas/caret, locator stripes use state backgrounds, inline changes

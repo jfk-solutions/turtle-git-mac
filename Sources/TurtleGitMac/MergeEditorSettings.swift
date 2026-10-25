@@ -171,7 +171,7 @@ extension Notification.Name {
         preparedGeneral.save(to: preferences); preparedEditor.save(to: preferences); captured.comparison.save(to: preferences); captured.locator.save(to: preferences); captured.whitespace.save(to: preferences)
         MergeFileSaveOptions.saveBackupPreference(captured.backup, to: preferences)
         general = preparedGeneral; editor = preparedEditor; error = nil; revision = UUID()
-        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil); return true
+        NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: preferences); return true
     }
 }
 
@@ -387,8 +387,11 @@ private struct MergeEditorOwnerProbe: NSViewRepresentable {
     func apply() -> Bool {
         guard !retired else { return false }
         do {
-            try draft.save(to: preferences); editRevision = UUID(); MergePalette.reload(defaults: preferences)
-            NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
+            try draft.save(to: preferences); editRevision = UUID()
+            // The shared facade belongs to the standard application domain.
+            // Private settings windows must not replace another editor's palette.
+            MergePalette.reload()
+            NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: preferences)
             error = nil; return true
         } catch { self.error = error.localizedDescription; return false }
     }

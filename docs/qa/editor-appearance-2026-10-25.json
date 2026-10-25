@@ -1,0 +1,255 @@
+{
+  "date": "2026-10-25",
+  "status": "debug-and-six-native-case-engine-pairs-passed-after-recorded-repairs",
+  "base_revision": "e54b8175479083243456531eef54ea6b624a2a44",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_scope": [
+    "Embedded Commit patch inherits live owner appearance",
+    "Standalone patch follows app/system until explicit local override",
+    "Text/scroll/clip, caret, typing, selection and empty canvas palettes",
+    "Per-window comparison/merge color and font preferences, including inline/whitespace/locator/preview consumers",
+    "Own-store Settings Apply; equivalent preference suite instances supported; unrelated suites isolated"
+  ],
+  "core": "Unchanged; no Core tests repeated for this native-only batch.",
+  "failures_and_repairs": [
+    {
+      "kind": "production compile error",
+      "evidence": "patch-comparison-appearance-debug-2026-10-25.log",
+      "error": "CommitWindow model seed referred to nonexistent window; removed redundant seed because native views already inherit host scheme.",
+      "affected_recheck": "patch-comparison-appearance-debug-repair-2026-10-25.log",
+      "recheck_status": "BUILD SUCCEEDED"
+    },
+    {
+      "kind": "fixture compile error",
+      "evidence": "editor-appearance-native-2026-10-25.log",
+      "error": "SwiftUI colorSchemeContrast is read-only; attempted forced environment injection does not compile. No receiver launched.",
+      "repair_status": "Removed unsupported synthetic contrast injection; all executable behavior assertions retained. Physical Increase Contrast remains open. No production test seam or global accessibility change."
+    }
+  ],
+  "logs": [
+    {
+      "path": "build/qa/patch-comparison-appearance-debug-2026-10-25.log",
+      "sha256": "bce06c653aef888620ce99953e503c189edb72eb33fedd82bc5a31b3edfb541e"
+    },
+    {
+      "path": "build/qa/patch-comparison-appearance-debug-repair-2026-10-25.log",
+      "sha256": "1d9d8fda941853912ce17f84fd31bc1fde0fd27159851c661e06e91daf984985"
+    },
+    {
+      "path": "build/qa/editor-appearance-native-2026-10-25.log",
+      "sha256": "a029bec100d554d7d06299f4735fc9a2beef20445af6f3675c0c38f156909a61"
+    },
+    {
+      "path": "build/qa/editor-appearance-native-repair-2026-10-25.log",
+      "sha256": "121867deaa8b3b4bc0af65f8bfd24efb824733ff1e4320a02a636f7f16c2e44c"
+    }
+  ],
+  "remaining": [
+    "Physical Increase Contrast and VoiceOver",
+    "Every upstream state/dialog visual parity",
+    "Current signed installed application predates this batch",
+    "Minimum supported macOS and physical Intel execution",
+    "Complete hosted CI and App Store distribution signing/export/submission"
+  ],
+  "native": {
+    "cases": [
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "commit",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "compare",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "compare",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "merge",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "merge",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      }
+    ],
+    "receivers": [
+      {
+        "pid": 60916,
+        "independently_absent": true
+      },
+      {
+        "pid": 61053,
+        "independently_absent": true
+      },
+      {
+        "pid": 61164,
+        "independently_absent": true
+      },
+      {
+        "pid": 61200,
+        "independently_absent": true
+      },
+      {
+        "pid": 61215,
+        "independently_absent": true
+      },
+      {
+        "pid": 61287,
+        "independently_absent": true
+      }
+    ],
+    "scope": [
+      "Actual embedded empty/populated Commit patch light/dark, native message Undo, same-suite distinct defaults instance, unrelated-domain isolation, actual Stage/Unstage and unchanged HEAD/worktree witnesses",
+      "Editable standalone patch native Undo/selection/Find with local light/dark override",
+      "Actual long TextKit comparison, native edit/Undo/Redo, viewport/selection/Find, one-pane mode, two concurrent private palettes and real Settings Apply",
+      "Actual conflicted merge panes, native result edit/Undo/Redo, viewport/selection/Find and unchanged HEAD/index/worktree witnesses"
+    ]
+  },
+  "debug_repair": {
+    "status": "BUILD SUCCEEDED",
+    "contradictory_exit_zero_diagnostics": 0,
+    "limits": "Existing simulator/SDK and retained source diagnostics do not constitute a warning-free build."
+  },
+  "resources": {
+    "localization_check": {
+      "languages": 38,
+      "keys": 1321
+    },
+    "help_check": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3874341
+    },
+    "core_changed": false,
+    "site": {
+      "documents": 461,
+      "unresolved_fragments": 0,
+      "log": "build/qa/editor-appearance-site-2026-10-25.log"
+    },
+    "coverage_reconcile": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_controls": 85,
+      "mapped_controls": 1574,
+      "certified_complete": 0,
+      "note": "Not a feature completion percentage."
+    }
+  },
+  "captures": {
+    "method": "Public NSView cacheDisplay bitmap of alpha-zero offscreen owned content; custom private palettes",
+    "limitation": "SwiftUI/material regions and button labels are not fully captured. These files prove only bounded editor-canvas rendering; no complete compositor screenshot or full-dialog parity claim. Not marketing screenshots.",
+    "individually_inspected": [
+      "commit-populated-dark.png",
+      "commit-empty-light.png",
+      "compare-onepane-dark.png",
+      "merge-long-dark.png"
+    ],
+    "files": [
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/commit-empty-dark.png",
+        "sha256": "11be6c1f64b99262b61ef02f49da59fba3719ce6cb7e1c11eef98a577b5816e7"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/commit-empty-light.png",
+        "sha256": "1dde2516e23e3a95dd04b871541f2fb4e7e690e53b972278e770ce4743685769"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/commit-populated-dark.png",
+        "sha256": "aed06305d5b70d9cc6372b84863e3e3501036f055a586f027efdd8878ce9b494"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/commit-populated-light.png",
+        "sha256": "7da96733cb134e25a4c995bfe21a575b4c3ffa9aa412d8bf835a964dc38dc872"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/compare-long-dark.png",
+        "sha256": "a3b8eb4be332f4cc1231ed2078728494d43986cacc5b40267ddafa759ef00857"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/compare-long-light.png",
+        "sha256": "37e317ac6cf248c8a4578136b295c05cc1117e2a1ab07fbc9efd0bc9a566cc13"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/compare-onepane-dark.png",
+        "sha256": "3bbce7807453dce92775977cd569ee4c0b98d89b7cda0efdf427e1d63becd675"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/compare-onepane-light.png",
+        "sha256": "4b2dcd91d8aabebf4d6cf30b5dcf1d4a1923b5be2d12a2981a5d68c905217b06"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/merge-long-dark.png",
+        "sha256": "6d0d685bd70b4b87b53c20d7afb47e6bd544774192a9c2a7d590ca97ed764a65"
+      },
+      {
+        "path": "docs/qa/editor-appearance-2026-10-25/merge-long-light.png",
+        "sha256": "63292980377c7070238db67f54ca94eab3b47ab27b76b5746e45f7281d8b6f3a"
+      }
+    ]
+  },
+  "hosted_snapshot": {
+    "head": "e54b8175",
+    "pages": {
+      "run": 40181365921,
+      "status": "success"
+    },
+    "macos": {
+      "run": 40181365972,
+      "status": "pending"
+    },
+    "prior_macos": {
+      "run": 40177180575,
+      "head": "02e816a7",
+      "status": "in_progress"
+    },
+    "note": "One bounded observation before this batch commit; no complete hosted pass inferred."
+  },
+  "retained_contracts": {
+    "reason": "Older native fixtures explicitly installed one global private palette or compared window-owned colors with global color objects. They now use owner contexts and actual preferences notifications; assertions retained.",
+    "executed_checks": [
+      {
+        "case": "three-pane",
+        "status": "passed",
+        "receiver_pid": 61716,
+        "reaped_and_independently_absent": true,
+        "log": "build/qa/editor-appearance-retained-three-pane-2026-10-25.log",
+        "sha256": "12b88888afd7c052ca8147e69bc13d048216cd0afc95b31ee42a20f3a3ef1613"
+      },
+      {
+        "case": "presentation",
+        "status": "passed",
+        "receiver_pid": 61843,
+        "reaped_and_independently_absent": true,
+        "log": "build/qa/editor-appearance-retained-presentation-2026-10-25.log",
+        "sha256": "7c78b75360f9113595be3ce542a4c6a3932355714dbd0e975336e829e8335ca7"
+      }
+    ],
+    "limits": "Only the affected three-pane source aliases and standalone presentation cache were executed locally. Other adapted retained fixture families remain for hosted CI; the six passing new case/engine pairs were not repeated."
+  }
+}

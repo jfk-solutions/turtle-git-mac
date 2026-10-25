@@ -128,7 +128,7 @@ import TurtleGitCore
         precondition(reviewer.beforeScroll!.rulersVisible && (reviewer.beforeScroll!.verticalRulerView as! MergeLineRuler).sourceNumbers == [1])
         for (editor, state) in [(beforeEditor, MergeSourceState.removed), (afterEditor, .added)] {
             let actual = (editor.textStorage!.attribute(.backgroundColor, at: 0, effectiveRange: nil) as! NSColor).usingColorSpace(.deviceRGB)!
-            let expected = MergePalette.color(state).usingColorSpace(.deviceRGB)!
+            let expected = reviewer.editor!.palette.color(state).usingColorSpace(.deviceRGB)!
             precondition(abs(actual.redComponent - expected.redComponent) < 0.001 && abs(actual.greenComponent - expected.greenComponent) < 0.001 && abs(actual.blueComponent - expected.blueComponent) < 0.001)
         }
         reviewer.navigate(1); precondition(reviewer.difference == 0 && afterEditor.selectedRange().location == 0)

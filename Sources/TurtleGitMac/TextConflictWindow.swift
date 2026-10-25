@@ -742,8 +742,9 @@ private enum MergeSourceSide {
     var regexDefaults: UserDefaults = .standard
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
+    @Published private(set) var palette = MergePalette.Context()
     var comparisonDefaults: UserDefaults = .standard {
-        didSet { if document == nil {
+        didSet { palette = MergePalette.Context(defaults: comparisonDefaults); generalPreferences = .load(from: comparisonDefaults); if document == nil {
             showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
             showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
             editorPreferences = .load(from:comparisonDefaults)
@@ -1534,8 +1535,9 @@ private enum MergeSourceSide {
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         self.repository = repository; self.access = access; self.path = path
         preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
-            guard let self else { return }
+            guard let self, !self.retired else { return }
             self.paneTabEpoch = UUID()
+            self.palette = MergePalette.Context(defaults: self.comparisonDefaults)
             let next = MergeEditorPreferences.load(from:self.comparisonDefaults)
             self.showLineNumbers = next.showLineNumbers
             self.locatorPreferences = .load(from: self.comparisonDefaults)
@@ -2035,6 +2037,45 @@ private enum MergeSourceSide {
     init(_ view: NSScrollView) { self.view = view }
 }
 enum MergePalette {
+    /// A window owns its palette; a Settings page for another defaults suite
+    /// must not replace colors already captured by its editor and overlays.
+    final class Context: @unchecked Sendable {
+        let revision = UUID().hashValue
+        let preferences: MergeColorPreferences
+        let applied: Bool
+        private let lock = NSLock()
+        private var colors: [String: NSColor] = [:]
+        private func cached(_ key: String, make: () -> NSColor) -> NSColor {
+            lock.lock(); defer { lock.unlock() }
+            if let value = colors[key] { return value }
+            let value = make(); colors[key] = value; return value
+        }
+        init(defaults: UserDefaults = .standard) {
+            preferences = .load(from: defaults)
+            applied = defaults.data(forKey: "TurtleGitMerge.Colors") != nil
+        }
+        private func native(_ colors: @escaping @Sendable (Bool) -> UnifiedDiffColors, foreground: Bool) -> NSColor {
+            NSColor(name: nil) { appearance in
+                let value = colors(appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
+                let rgb = foreground ? value.foreground : value.background
+                return NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1)
+            }
+        }
+        func roleColor(_ role: MergeColorRole, foreground: Bool = false) -> NSColor {
+            let value = preferences
+            return cached("role:\(role.rawValue):\(foreground)") { native({ value.colors(role, dark: $0) }, foreground: foreground) }
+        }
+        func color(_ state: MergeSourceState) -> NSColor { stateColor(state, foreground: false) }
+        func foreground(_ state: MergeSourceState) -> NSColor { stateColor(state, foreground: true) }
+        private func stateColor(_ state: MergeSourceState, foreground: Bool) -> NSColor {
+            let value = preferences, applied = applied
+            return cached("state:\(state):\(foreground)") { native({ value.stateColors(state, dark: $0, applied: applied) }, foreground: foreground) }
+        }
+        var inlineCommon: NSColor { roleColor(.modified) }
+        var inlineAdded: NSColor { roleColor(.inlineAdded) }
+        var inlineRemoved: NSColor { roleColor(.inlineRemoved) }
+        var whitespace: NSColor { roleColor(.whitespace, foreground: true) }
+    }
     private final class Storage: @unchecked Sendable {
         let lock = NSLock(); var value = MergeColorPreferences.load(); var revision = 0
         var applied = UserDefaults.standard.data(forKey:"TurtleGitMerge.Colors") != nil
@@ -2105,7 +2146,7 @@ private struct TextConflictDialog: View {
             MergePaneHeader(title:headerTitle,location:headerLocation,modified:editable && model.dirty,active:model.activePresentationPane == paneRole,kind:.neutral,font:model.generalPreferences.nativeFont,enabled:model.sourceToolsAllowed,preferences:model.comparisonDefaults,activate:model.paneHeaderAction(paneRole))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
-            if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
+            if !counts.isEmpty {MergeLineStatisticsView(statistics:counts,palette:model.palette).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceMutationsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, legacyEncoding:model.legacyEncoding, showFormatDialog:formatDialog,
                     reloadEncoding:reloadEncoding,reloadAvailable:inputRequest != nil,inputEncoding:encoding,preferences:model.comparisonDefaults)
@@ -2182,7 +2223,7 @@ private struct TextConflictDialog: View {
                 HStack(spacing: 0) {
                     if model.locatorPreferences.visible {
                         MergeLocatorBar(map: model.locatorMap, viewport: model.locatorViewport, highlights: model.locatorHighlights, fishEye: model.locatorPreferences.fishEye,
-                                        enabled: !model.busy && !model.confirmingQuit, navigate: model.scrollLocator)
+                                        enabled: !model.busy && !model.confirmingQuit, navigate: model.scrollLocator,palette:model.palette)
                             .frame(width: 44).help("Theirs, merged result, and Mine overview; click or drag to scroll")
                     }
                     VSplitView {
@@ -2222,6 +2263,7 @@ private struct MergeConflictLineDiffBar: NSViewRepresentable {
     @ObservedObject var model: TextConflictWindowModel
     func makeNSView(context:Context) -> MergeLineDiffPreview { MergeLineDiffPreview() }
     func updateNSView(_ view:MergeLineDiffPreview,context:Context) {
+        view.palette = model.palette
         view.update(cells:model.lineDiffCells,pairedDiff:model.lineDiffComparison,font:model.generalPreferences.nativeFont,
             tabWidths:model.lineDiffTabWidths,maximumInlineLength:model.generalPreferences.maximumInlineLength,
             endingIcons:model.whitespaceDisplay.endingIcons,
@@ -2307,8 +2349,11 @@ private struct MergeEditor: NSViewRepresentable {
         let sourceCells = p4Pane != nil ? nil : editable ? model.alignedResultProjection?.cells : sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.mine : $0.theirs } } ?? self.sourceCells
         let text = editable ? (p4Pane == .result ? model.p4Projection.text:model.resultDisplayText) : sourceCells.map { $0.map(\.displayText).joined(separator:"\n") + ($0.isEmpty ? "" : "\n") } ?? self.text
         view.p4Pane=p4Pane
-        let background = p4Pane == nil ? MergePalette.color(MergeSourceState.normal) : NSColor.textBackgroundColor, foreground = p4Pane == nil ? MergePalette.foreground(.normal) : NSColor.labelColor
+        view.whitespaceRenderer.palette = model.palette
+        let background = p4Pane == nil ? model.palette.color(MergeSourceState.normal) : NSColor.textBackgroundColor, foreground = p4Pane == nil ? model.palette.foreground(.normal) : NSColor.labelColor
         if view.backgroundColor != background { view.backgroundColor = background }
+        scroll.drawsBackground = true; scroll.backgroundColor = background
+        scroll.contentView.drawsBackground = true; scroll.contentView.backgroundColor = background
         if view.insertionPointColor != foreground { view.insertionPointColor = foreground }
         if !model.wrapLines { DispatchQueue.main.async { model.refreshLocatorViewport() } }
         if p4Pane != nil {
@@ -2334,30 +2379,30 @@ private struct MergeEditor: NSViewRepresentable {
         view.setMergeTabWidth(tabWidth, font: font)
         let other = sourceSide.flatMap { side in model.sourceComparison?.rows.map { side == .mine ? $0.theirs : $0.mine } }
         let states = sourceCells?.map(\.state) ?? model.resultStates
-        let style = MergeEditorPresentationCache.Style(font: font, tabWidth: tabWidth, inline: model.showInlineDiff && !model.preparing, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: MergePalette.revision, mode: editable ? 3 : sourceSide == .mine ? 4 : 5)
+        let style = MergeEditorPresentationCache.Style(font: font, tabWidth: tabWidth, inline: model.showInlineDiff && !model.preparing, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: model.palette.revision, mode: editable ? 3 : sourceSide == .mine ? 4 : 5)
         let rendered = view.presentationCache.value(text: text, cells: sourceCells, peers: other, states: states, style: style) {
             var missingOffsets: [Int] = []
             let value = NSMutableAttributedString(string: text)
             let entire = NSRange(location: 0, length: (text as NSString).length)
-            value.addAttributes([.foregroundColor: MergePalette.foreground(.normal), .backgroundColor: MergePalette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
+            value.addAttributes([.foregroundColor: model.palette.foreground(.normal), .backgroundColor: model.palette.color(MergeSourceState.normal), .font: model.generalPreferences.nativeFont, .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
             if editable {
                 missingOffsets = []
                 let states = sourceCells?.map(\.state) ?? model.resultStates
                 for (index, range) in MergeLineEndings.lineRanges(in: text).enumerated() where states.indices.contains(index) {
-                    value.addAttributes([.backgroundColor: MergePalette.color(states[index]), .foregroundColor: MergePalette.foreground(states[index])], range: range)
+                    value.addAttributes([.backgroundColor: model.palette.color(states[index]), .foregroundColor: model.palette.foreground(states[index])], range: range)
                 }
             } else if let sourceCells {
                 var offset = 0
                 missingOffsets = []
                 for (row, cell) in sourceCells.enumerated() {
                     let length = (cell.displayText as NSString).length + 1
-                    value.addAttributes([.backgroundColor: MergePalette.color(cell.state), .foregroundColor: MergePalette.foreground(cell.state)], range: NSRange(location: offset, length: length))
+                    value.addAttributes([.backgroundColor: model.palette.color(cell.state), .foregroundColor: model.palette.foreground(cell.state)], range: NSRange(location: offset, length: length))
                     if let sourceSide, let diff = model.inlineDifference(row, mine: sourceSide == .mine) {
                         let left = sourceSide == .theirs
                         let removal = cell.state.isRemoval
-                        value.addAttribute(.backgroundColor, value: MergePalette.inlineCommon, range: NSRange(location: offset, length: length))
+                        value.addAttribute(.backgroundColor, value: model.palette.inlineCommon, range: NSRange(location: offset, length: length))
                         for range in left ? diff.base : diff.destination {
-                            value.addAttribute(.backgroundColor, value: removal ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
+                            value.addAttribute(.backgroundColor, value: removal ? model.palette.inlineRemoved : model.palette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length))
                         }
                         missingOffsets += (left ? diff.baseMissing : diff.destinationMissing).map { offset + $0 }
                     }
@@ -2656,6 +2701,13 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
         super.mouseDown(with: event)
     }
     let whitespaceRenderer = MergeWhitespaceRenderer()
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        layoutManager?.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: string.utf16.count))
+        needsDisplay = true; enclosingScrollView?.contentView.needsDisplay = true
+        enclosingScrollView?.verticalRulerView?.needsDisplay = true
+    }
+
     var inlineMissingOffsets: [Int] = []
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in:rect)
@@ -2785,10 +2837,10 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
         sourceCells = projection?.cells; sourceLayoutRevision = model.sourceLayoutRevision; resultPresentationRevision = model.resultPresentationRevision
         string = p4Pane == .result ? model.p4Projection.text:projection?.displayText ?? model.result
         let entire = NSRange(location:0,length:string.utf16.count)
-        textStorage?.addAttributes([.foregroundColor:MergePalette.foreground(.normal), .backgroundColor:MergePalette.color(.normal), .font:model.generalPreferences.nativeFont, .paragraphStyle:defaultParagraphStyle ?? NSParagraphStyle.default],range:entire)
+        textStorage?.addAttributes([.foregroundColor:model.palette.foreground(.normal), .backgroundColor:model.palette.color(.normal), .font:model.generalPreferences.nativeFont, .paragraphStyle:defaultParagraphStyle ?? NSParagraphStyle.default],range:entire)
         let states = sourceCells?.map(\.state) ?? model.resultStates
         for (index,range) in MergeLineEndings.lineRanges(in:string).enumerated() where states.indices.contains(index) {
-            textStorage?.addAttributes([.foregroundColor:MergePalette.foreground(states[index]), .backgroundColor:MergePalette.color(states[index])],range:range)
+            textStorage?.addAttributes([.foregroundColor:model.palette.foreground(states[index]), .backgroundColor:model.palette.color(states[index])],range:range)
         }
         model.updateFolding()
         if p4Pane == .result {p4Folding.update(unchanged:Array(repeating:false,count:MergeLineEndings.lineRanges(in:string).count))}

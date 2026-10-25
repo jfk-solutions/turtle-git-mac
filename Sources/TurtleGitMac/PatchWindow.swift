@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
@@ -62,7 +63,9 @@ import UniformTypeIdentifiers
         let window = PatchNSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 760),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.minSize = NSSize(width: 460, height: 500); window.isReleasedWhenClosed = false
-        window.appearance = NSAppearance(named: model.darkMode ? .darkAqua : .aqua)
+        // Follow the application's live appearance until this document receives
+        // an explicit File > Dark Mode choice. Embedded views inherit their host.
+        window.appearance = nil
         let host = NSHostingController(rootView: PatchDialog(model: model))
         // Patch content scrolls; its intrinsic size must not replace window limits.
         host.sizingOptions = []
@@ -142,6 +145,9 @@ import UniformTypeIdentifiers
     private let access: RepositoryAccessLease?
     let appearancePreferences: UserDefaults
     @Published var darkMode = false
+    @Published private(set) var appearanceRevision = 0
+    private var appearanceSettings:UnifiedDiffAppearance
+    private var appearanceChanges:[AnyCancellable]=[]
     @Published var document = GitPatch(text: "") { didSet { originalDiff = nil; findRevision=UUID() } }
     private var originalDiff: UnifiedDiffDocument?
     var usesSourceFindBar = false
@@ -293,6 +299,7 @@ import UniformTypeIdentifiers
     }
     func retire() {
         guard !retired else { return }; retired = true; generation += 1
+        appearanceChanges.removeAll()
         startupCancel?(); readCancellation?.cancel(); readTask?.cancel()
         sourceAttached={false};sourceSelection = { NSRange(location: 0, length: 0) }; selectSource = { _ in }; focusSource = {}; onFindBoundary = {}
         requestReplacement = nil; requestReload = nil; documentChanged = {};editBuffer=nil
@@ -304,7 +311,28 @@ import UniformTypeIdentifiers
     var onSettled: (Bool) -> Void = { _ in }
     init(repository: GitRepository?, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard, documentDirectory: URL? = nil) {
         self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences
+        appearanceSettings = .load(from:appearancePreferences)
         self.documentDirectory = documentDirectory ?? repository?.root ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+        for name in [UserDefaults.didChangeNotification,.unifiedDiffAppearanceChanged] {
+            appearanceChanges.append(NotificationCenter.default.publisher(for:name).sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self,!self.retired else{return}
+                    // Equivalent suite instances need not share object identity.
+                    // Always read this owner's store; decoded equality prevents
+                    // unrelated domains from publishing an appearance change.
+                    self.reloadAppearancePreferences()
+                }
+            })
+        }
+    }
+    private func reloadAppearancePreferences() {
+        guard !retired else{return}
+        let value=UnifiedDiffAppearance.load(from:appearancePreferences)
+        guard value != appearanceSettings else{return}
+        appearanceSettings=value;appearanceRevision += 1
+    }
+    func observedAppearance(dark:Bool) {
+        guard !retired,darkMode != dark else{return};darkMode=dark
     }
     var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: document.bytes,displayLegacyEncoding:document.displayLegacyEncoding) : UnifiedDiffDocument(bytes: document.bytes,displayLegacyEncoding:document.displayLegacyEncoding) }
     func copyPatch(to pasteboard: NSPasteboard = .general) {
@@ -393,6 +421,7 @@ import UniformTypeIdentifiers
 
 struct PatchDialog: View {
     @ObservedObject var model: PatchWindowModel
+    @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if model.readOnly { HStack {
@@ -408,9 +437,10 @@ struct PatchDialog: View {
             if model.loading { HStack { ProgressView(model.cancelling ? "Cancelling…" : "Loading patch…").controlSize(.small); Button("Cancel") { model.cancelRead() }.disabled(model.cancelling) } }
             if model.readOnly { Text(model.documentDirty ? "Modified patch document" : model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }.padding(model.readOnly ? 12 : 0).disabled(model.confirmingQuit)
-        .environment(\.colorScheme, model.darkMode ? .dark : .light)
+        .background(Color(nsColor:.windowBackgroundColor))
+        .onAppear {model.observedAppearance(dark:colorScheme == .dark)}
+        .onChange(of:colorScheme) {model.observedAppearance(dark:$0 == .dark)}
         .sheet(isPresented: $model.showPageSetup, onDismiss: { model.busy = false }) { PatchPageSetup(model: model) }
-        .onReceive(NotificationCenter.default.publisher(for: .unifiedDiffAppearanceChanged)) { _ in model.objectWillChange.send() }
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -468,6 +498,7 @@ private struct PartialPatchFindBar: View {
 struct PatchTextView: NSViewRepresentable {
     @ObservedObject var model: PatchWindowModel
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView {
         let text = PatchText()
@@ -515,11 +546,11 @@ struct PatchTextView: NSViewRepresentable {
         model.focusSource = { [weak text,weak model] in
             guard let text,let model,model.sourceCallbacksCurrent(identity,revision:callbackRevision),text.coordinator?.model === model else{return};text.window?.makeFirstResponder(text)
         }
-        let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = model.darkMode, highContrast = contrast == .increased
+        let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = colorScheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
         guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
-        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange()
+        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange(), scrollOrigin = scroll.contentView.bounds.origin
         cache.resetRevision = model.documentResetRevision; cache.needsStyling = false
         cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
         let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
@@ -527,6 +558,13 @@ struct PatchTextView: NSViewRepresentable {
         paragraph.defaultTabInterval = max(1, (" " as NSString).size(withAttributes: [.font: font]).width * CGFloat(settings.tabSize))
         func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
         text.backgroundColor = highContrast ? .textBackgroundColor : color(settings.colors(.context, dark: dark).background)
+        text.drawsBackground = true
+        scroll.drawsBackground = true;scroll.backgroundColor = text.backgroundColor
+        scroll.contentView.drawsBackground = true;scroll.contentView.backgroundColor = text.backgroundColor
+        if text.string.isEmpty {text.font = font}
+        text.textColor = highContrast ? .labelColor : color(settings.colors(.context,dark:dark).foreground)
+        text.typingAttributes = [.font:font,.paragraphStyle:paragraph,.foregroundColor:text.textColor ?? NSColor.labelColor,.backgroundColor:text.backgroundColor]
+        text.selectedTextAttributes = [.backgroundColor:NSColor.selectedTextBackgroundColor,.foregroundColor:NSColor.selectedTextColor]
         text.insertionPointColor = highContrast ? .labelColor : color(settings.colors(.context, dark: dark).foreground)
         text.whitespaceColor = highContrast ? .labelColor : dark ? NSColor(srgbRed: 180.0/255, green: 180.0/255, blue: 180.0/255, alpha: 1) : .secondaryLabelColor
         let value = NSMutableAttributedString(string: "")
@@ -550,6 +588,7 @@ struct PatchTextView: NSViewRepresentable {
             text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
         }
         (scroll as? PatchScrollView)?.updateDocumentExtent()
+        if !contentChanged {scroll.contentView.scroll(to:scrollOrigin);scroll.reflectScrolledClipView(scroll.contentView)}
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         if let text = scroll.documentView as? PatchText { text.delegate = nil; text.coordinator = nil }

@@ -84,7 +84,7 @@ import TurtleGitCore
                                 (0..<units[side]).allSatisfy { index in
                                     let changed = expected[side].contains { NSLocationInRange(index, $0) }
                                     let color = view.textStorage?.attribute(.backgroundColor, at: index, effectiveRange: nil) as? NSColor
-                                    return sameColor(color, changed ? (side == 0 ? MergePalette.inlineRemoved : MergePalette.inlineAdded) : MergePalette.inlineCommon, NSAppearance(named: name)!)
+                                    return sameColor(color, changed ? (side == 0 ? model.palette.inlineRemoved : model.palette.inlineAdded) : model.palette.inlineCommon, NSAppearance(named: name)!)
                                 }
                             }
                         }
@@ -97,7 +97,7 @@ import TurtleGitCore
                             for index in 0..<units[side] {
                                 let changed = expected[side].contains { NSLocationInRange(index, $0) }
                                 let color = preview.displayedAttributes[side].attribute(.backgroundColor, at: index, effectiveRange: nil) as? NSColor
-                                try MergeInlineNativeVerification.require(sameColor(color, changed ? (side == 0 ? MergePalette.inlineRemoved : MergePalette.inlineAdded) : MergePalette.inlineCommon, NSAppearance(named: name)!), "Preview did not use source tie highlight")
+                                try MergeInlineNativeVerification.require(sameColor(color, changed ? (side == 0 ? model.palette.inlineRemoved : model.palette.inlineAdded) : model.palette.inlineCommon, NSAppearance(named: name)!), "Preview did not use source tie highlight")
                             }
                         }
                     }
