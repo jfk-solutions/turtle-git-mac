@@ -1,6 +1,46 @@
 import AppKit
 import Combine
+import Carbon
+import os
 import TurtleGitCore
+
+/// The Settings-only SwiftUI scene does not forward GetURL Apple events to
+/// NSApplicationDelegate.open. Own that event explicitly; never forward the same
+/// event into AppKit again, and never deduplicate legitimate repeated requests.
+@MainActor private final class InboundURLAppleEvents: NSObject {
+    private static weak var current: InboundURLAppleEvents?
+    private weak var delegate: TurtleGitApplicationDelegate?
+    private var retired = false
+    private var received = 0
+    private static let log = Logger(subsystem: "org.turtlegit.macos", category: "InboundURL")
+    init(delegate: TurtleGitApplicationDelegate) { self.delegate = delegate }
+    func install(initial: Bool = false) {
+        guard !retired, initial || Self.current === self else { return }
+        Self.current = self
+        NSAppleEventManager.shared().setEventHandler(self,
+            andSelector: #selector(receive(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+    }
+    func retire() {
+        retired = true
+        guard Self.current === self else { return }
+        NSAppleEventManager.shared().removeEventHandler(forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+        Self.current = nil
+    }
+    @objc private func receive(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard !retired, Self.current === self else { return }
+        received += 1
+        guard event.eventClass == AEEventClass(kInternetEventClass), event.eventID == AEEventID(kAEGetURL),
+              let text = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              text.utf8.count <= 1_048_576, !text.contains("\0"),
+              let url = URL(string: text), WorkspaceOpenHandoff.accepts(url), let delegate else {
+            Self.log.notice("GetURL event rejected; count=\(self.received, privacy: .public)")
+            return
+        }
+        Self.log.notice("GetURL event accepted; count=\(self.received, privacy: .public)")
+        delegate.application(NSApp, open: [url])
+    }
+}
 
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
     private var menuImageObservers: [NSObjectProtocol] = []
@@ -29,6 +69,23 @@ import TurtleGitCore
     static var generalApplicationConfiguration:((TurtleGitApplicationDelegate)->Void)?
     var configureGeneralApplication:((TurtleGitApplicationDelegate)->Void)?
     private(set) var generalApplicationConfigured=false
+    private var inboundURLBridge: InboundURLAppleEvents?
+    private var inboundURLBridgeRetired = false
+    private var receivedURLLaunchIntent = false
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        installInboundURLBridge()
+    }
+    private func installInboundURLBridge() {
+        guard acceptingOpenURLs, !inboundURLBridgeRetired else { return }
+        if inboundURLBridge == nil {
+            let bridge = InboundURLAppleEvents(delegate: self)
+            inboundURLBridge = bridge; bridge.install(initial: true)
+        } else { inboundURLBridge?.install() }
+    }
+    func retireInboundURLBridge() {
+        inboundURLBridgeRetired = true
+        inboundURLBridge?.retire(); inboundURLBridge = nil
+    }
     private var defaultWorkspaceRequested=false
     private var isGeneralApplication:Bool {startupLaunchMode == .workspace || startupLaunchMode == .actionOnly}
     private func configureGeneralApplicationIfNeeded() {
@@ -37,7 +94,15 @@ import TurtleGitCore
         generalApplicationConfigured=true
         configure(self)
     }
+    // SwiftUI installs scene handlers during launch. Reassert our one owner
+    // after that setup and once at the next main-queue boundary. The deferred
+    // operation retains neither the delegate nor permission to create a new owner.
+    func finishInstallingInboundURLBridge() {
+        installInboundURLBridge()
+        DispatchQueue.main.async { [weak bridge = inboundURLBridge] in bridge?.install() }
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
+        finishInstallingInboundURLBridge()
         configureGeneralApplicationIfNeeded()
         installMenuImageVisibility()
         #if SWIFT_PACKAGE
@@ -161,6 +226,7 @@ import TurtleGitCore
     }()
     func application(_ application: NSApplication, open urls: [URL]) {
         guard acceptingOpenURLs else { return }
+        if urls.contains(where: WorkspaceOpenHandoff.accepts) { receivedURLLaunchIntent = true }
         if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit(urls) }
         else {
             for url in urls {
@@ -339,7 +405,7 @@ import TurtleGitCore
         deliverStartupCommand();deliverPendingOpenURLs();deliverPendingFinderService()
         // AppKit supplies authoritative launch intent. A missing key is not an
         // inferred default launch, and primary/tool commands never open a host.
-        if generalApplicationConfigured,startupLaunchMode == .workspace,defaultLaunch == true,!defaultWorkspaceRequested {
+        if generalApplicationConfigured,startupLaunchMode == .workspace,defaultLaunch == true,!receivedURLLaunchIntent,!defaultWorkspaceRequested {
             defaultWorkspaceRequested=true;requestWorkspace()
         }
     }
@@ -387,7 +453,7 @@ import TurtleGitCore
     private var confirmingQuit = false
     private var drainingUnifiedDiffQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; retireInboundURLBridge(); presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value

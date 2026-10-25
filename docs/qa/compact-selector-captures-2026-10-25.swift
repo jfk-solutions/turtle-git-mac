@@ -28,7 +28,37 @@ import TurtleGitCore
         return result
     }
     @MainActor static func main() async {do {try await run()}catch {NSApp.windows.forEach{$0.orderOut(nil);$0.close()};fputs("Primary capture failed: \(error)\n",stderr);exit(1)}}
+    @MainActor static func errorCaptures() async throws {
+        NSApp.setActivationPolicy(.accessory)
+        let output=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_PREVIEW_CAPTURE_DIR"]!)
+        try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        let short="Could not add the repository to TurtleGit.\nFinder cache update does not belong to its repository."
+        let long=short+"\n\n"+(1...80).map {"Repository /Volumes/Harbor/Workspace/Module\($0): a detailed diagnostic remains selectable and available without enlarging the entire window."}.joined(separator:"\n")
+        var receipts=[[String:Any]]()
+        for (name,appearance,message,isLong) in [("action-error-short-light",NSAppearance.Name.aqua,short,false),("action-error-short-dark",.darkAqua,short,false),("action-error-long-light",.aqua,long,true)] {
+            var closed=0
+            let owner=WorkspaceHandoffFailureController(message:message,heading:"TurtleGit could not complete the requested action",onClosed:{closed += 1})
+            defer {owner.close()}
+            guard let window=owner.window,let content=window.contentView else {throw Failure(description:"Owned error window missing")}
+            window.appearance=NSAppearance(named:appearance)
+            window.contentView?.layoutSubtreeIfNeeded()
+            let views=nativeViews(content)
+            guard let button=views.compactMap({$0 as? NSButton}).first(where:{$0.title=="OK"}),let text=views.compactMap({$0 as? NSTextView}).first(where:{$0.string==message}),let scroll=text.enclosingScrollView else {throw Failure(description:"Error text/default OK missing")}
+            let size=window.contentRect(forFrameRect:window.frame).size,buttonRect=button.convert(button.bounds,to:content)
+            guard abs(size.width-500)<0.5,size.height<=(isLong ? 540:240),buttonRect.minY>=14,buttonRect.minY<=24,buttonRect.maxX>=size.width-110,buttonRect.maxX<=size.width-18,window.defaultButtonCell === button.cell else {throw Failure(description:"Error content/footer did not fit: size=\(size) OK=\(buttonRect)")}
+            guard !text.isEditable,text.isSelectable,scroll.hasVerticalScroller==isLong,scroll.frame.height<=360 else {throw Failure(description:"Error diagnostic lost selectable/bounded scrolling behavior")}
+            try await png(window,output.appendingPathComponent(name+".png"))
+            button.performClick(nil)
+            try await wait {closed==1 && !window.isVisible && window.sheetParent==nil}
+            owner.close()
+            guard closed==1 else {throw Failure(description:"Error acknowledgment completed more than once")}
+            receipts.append(["name":name,"content_width":size.width,"content_height":size.height,"detail_viewport_height":scroll.frame.height,"default_OK":true,"close_callback_count":closed,"full_message_retained":text.string==message])
+        }
+        try JSONSerialization.data(withJSONObject:receipts,options:[.prettyPrinted,.sortedKeys]).write(to:output.appendingPathComponent("native-layout.json"))
+        print("Captured three real compact action error windows; default OK; selectable full details; bounded long diagnostic; callbacks exactly once; owned windows closed.")
+    }
     @MainActor static func run() async throws {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_CAPTURE_ONLY_ERRORS"] == "1" {try await errorCaptures();return}
         NSApp.setActivationPolicy(.accessory)
         let fixture=URL(fileURLWithPath:"/tmp/TurtleGit-Manual-"+UUID().uuidString.prefix(8)),root=fixture.appendingPathComponent("Harbor"),git=URL(fileURLWithPath:CommandLine.arguments[2])
         defer {try? FileManager.default.removeItem(at:fixture)}

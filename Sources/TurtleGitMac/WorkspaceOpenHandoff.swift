@@ -98,18 +98,50 @@ private enum WorkspaceHandoffFailure: LocalizedError {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 190), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.title = "TurtleGit for Mac"
         super.init(window: window); window.delegate = self
-        let heading = NSTextField(wrappingLabelWithString: heading)
-        heading.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        heading.preferredMaxLayoutWidth = 456
-        let detail = NSTextField(wrappingLabelWithString: message); detail.isSelectable = true; detail.preferredMaxLayoutWidth = 456
+        let contentWidth:CGFloat=456
+        let bodyFont=NSFont.systemFont(ofSize:NSFont.systemFontSize)
+        let headingFont=NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)
+        func textHeight(_ text:String,font:NSFont)->CGFloat {
+            let paragraph=NSMutableParagraphStyle();paragraph.lineBreakMode = .byWordWrapping
+            let bounds=NSAttributedString(string:text,attributes:[.font:font,.paragraphStyle:paragraph]).boundingRect(with:NSSize(width:contentWidth,height:CGFloat.greatestFiniteMagnitude),options:[.usesLineFragmentOrigin,.usesFontLeading])
+            return max(ceil(font.ascender-font.descender+font.leading),ceil(bounds.height))+4
+        }
+        let headingHeight=textHeight(heading,font:headingFont)
+        let title=NSTextField(wrappingLabelWithString:heading)
+        title.font=headingFont;title.preferredMaxLayoutWidth=contentWidth
+        let naturalDetailHeight=textHeight(message,font:bodyFont)
+        let availableHeight=NSScreen.main?.visibleFrame.height ?? 800
+        let maximumDetailHeight=max(80,min(360,availableHeight-headingHeight-140))
+        let detailHeight=min(naturalDetailHeight,maximumDetailHeight)
+        let detail=NSTextView(frame:NSRect(x:0,y:0,width:contentWidth,height:naturalDetailHeight))
+        detail.isEditable=false;detail.isSelectable=true;detail.drawsBackground=false
+        detail.font=bodyFont;detail.textColor = .labelColor;detail.string=message
+        detail.textContainerInset = .zero;detail.textContainer?.lineFragmentPadding=0
+        detail.isHorizontallyResizable=false;detail.isVerticallyResizable=true
+        detail.minSize = .zero;detail.maxSize=NSSize(width:contentWidth,height:CGFloat.greatestFiniteMagnitude)
+        detail.textContainer?.widthTracksTextView=true
+        detail.textContainer?.containerSize=NSSize(width:contentWidth,height:CGFloat.greatestFiniteMagnitude)
+        let scroll=NSScrollView();scroll.drawsBackground=false;scroll.borderType = .noBorder
+        scroll.hasVerticalScroller=naturalDetailHeight>detailHeight;scroll.autohidesScrollers=true
+        scroll.documentView=detail
         let button = NSButton(title: "OK", target: self, action: #selector(acknowledge(_:))); button.keyEquivalent = "\r"
+        window.defaultButtonCell=button.cell as? NSButtonCell
         let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let footer = NSStackView(views: [spacer, button]); footer.orientation = .horizontal
-        let stack = NSStackView(views: [heading, detail, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
+        let stack = NSStackView(views: [title, scroll, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
         window.contentView = NSView(); window.contentView!.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 22), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -22), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 22), stack.bottomAnchor.constraint(lessThanOrEqualTo: window.contentView!.bottomAnchor, constant: -18), footer.widthAnchor.constraint(equalTo: stack.widthAnchor)])
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo:window.contentView!.leadingAnchor,constant:22),
+            stack.trailingAnchor.constraint(equalTo:window.contentView!.trailingAnchor,constant:-22),
+            stack.topAnchor.constraint(equalTo:window.contentView!.topAnchor,constant:22),
+            stack.bottomAnchor.constraint(equalTo:window.contentView!.bottomAnchor,constant:-18),
+            title.widthAnchor.constraint(equalToConstant:contentWidth),title.heightAnchor.constraint(equalToConstant:headingHeight),
+            scroll.widthAnchor.constraint(equalToConstant:contentWidth),scroll.heightAnchor.constraint(equalToConstant:detailHeight),
+            footer.widthAnchor.constraint(equalToConstant:contentWidth),footer.heightAnchor.constraint(equalToConstant:button.fittingSize.height)
+        ])
+        window.setContentSize(NSSize(width:contentWidth+44,height:headingHeight+detailHeight+28+button.fittingSize.height+40))
         window.contentView!.layoutSubtreeIfNeeded()
-        window.setContentSize(NSSize(width: 500, height: max(190, stack.fittingSize.height + 44)))
+
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func present(owner: NSWindow?) {

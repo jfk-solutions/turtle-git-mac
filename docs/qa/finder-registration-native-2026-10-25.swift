@@ -228,6 +228,11 @@ private extension NSWindow {
         try require(c.manager.rows.contains{$0.path==c.source.root.path} && c.manager.backgroundService==nil,"Explicit Add did not publish owned watch status or enabled background mode")
     }
     static func publication(_ c:Context)async throws {
+        let nested=try await c.repo(c.source.root.lastPathComponent+"/Nested checkout")
+        let ignored=try await c.repo(c.source.root.lastPathComponent+"/Ignored checkout")
+        try Data("Ignored checkout/\n".utf8).write(to:c.source.root.appendingPathComponent(".gitignore"))
+        let raw=try await c.source.status(readPolicy:.automatic)
+        try require(raw.contains{$0.path=="Nested checkout/" && $0.state == .untracked} && raw.contains{$0.path=="Ignored checkout/" && $0.state == .ignored},"Actual Git directory-marker reproduction missing")
         let hold=c.root.appendingPathComponent("hold-status"),fail=c.root.appendingPathComponent("fail-status")
         try Data().write(to:hold);defer {c.unblock();try? FileManager.default.removeItem(at:hold);try? FileManager.default.removeItem(at:fail)}
         try await c.submit(c.source.root);c.answer(.OK)
@@ -239,6 +244,8 @@ private extension NSWindow {
         try require(c.workspace.error==nil && c.recent.repositories.contains{$0.lastKnownPath==c.source.root.path},"Successful first publication lost saved recent: \(c.workspace.error ?? "")")
         let published=FinderSnapshot.readLive(from:c.cache.url)
         try require(published?.roots.contains(c.source.root.path)==true && published?.roots.contains(c.other.root.path)==true,"Successful Add did not publish both actual repository roots")
+        try require(published?.states[nested.root.path] == .untracked && published?.states[ignored.root.path] == .ignored && published?.overlayEntries?[nested.root.path] == .untracked && published?.overlayEntries?[ignored.root.path] == .ignored,"Git directory markers were not published as canonical folder badges")
+        try require(published?.states[nested.root.path+"/"] == nil && published?.states[ignored.root.path+"/"] == nil,"Raw trailing directory markers escaped into shared Finder cache")
         try Data().write(to:fail)
         try await c.submit(c.third.root);if c.permissionReply != nil {c.answer(.OK)}
         try await wait {!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.manager.pendingOperations==0}

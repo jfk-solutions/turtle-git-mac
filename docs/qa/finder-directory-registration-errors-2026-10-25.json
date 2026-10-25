@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-25",
+  "status": "local_core_native_visual_and_signed_finder_acceptance_pass",
+  "problem": "Actual Git porcelain reports untracked nested repositories and ignored directory records with a trailing slash. A canonical Finder publication key must name the directory without that marker. The old snapshot builder retained it, and the strict publication validator rejected the update.",
+  "implementation": [
+    "Normalize exactly one trailing marker only for valid relative untracked/ignored status paths at the snapshot boundary. Original status records, literal UTF-8 identity and strict publication authority validation remain unchanged.",
+    "Own macOS GetURL Apple events for the Settings-only SwiftUI app and feed the existing command router. Repeated valid URLs are preserved; current-owner lifetime and deferred-retirement fences prevent duplicate or revived handlers.",
+    "Fit the shared action-error window to wrapped content; retain selectable full diagnostics inside a bounded scroll area and the trailing default OK/close callback."
+  ],
+  "core": {
+    "methods": 13,
+    "result": "pass",
+    "seconds": 2.869,
+    "scope": "Three new directory-publication methods plus retained Finder publication/status-policy methods; real Git nested/ignored marker reproduction, canonical badge publication, byte identities, unchanged HEAD/index, unsafe-path refusal and policy fences."
+  },
+  "debug": {
+    "result": "pass",
+    "scope": "macOS arm64 Debug; iOS simulator-version warning retained and unrelated to this Mac target."
+  },
+  "native": {
+    "result": "pass",
+    "pairs": 4,
+    "cases": [
+      "publication",
+      "launch"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "owned_receiver_pids": [
+      90559,
+      90680,
+      90901,
+      91020
+    ],
+    "independently_absent": true,
+    "unsigned_scope_warnings": 6,
+    "retained_initial_failure": "Fixture compile rejected optional AEDesc pointers and Int refcon. No receiver was launched. Guarded descriptors and a scoped owned pointer repaired only the fixture; cached app objects/Core tests were not rebuilt or rerun.",
+    "scope": "Actual public NSAppleEventManager in-process dispatch, cold/warm dialog routing, successor/retirement behavior and real nested-repository first status publication. This is not physical LaunchServices or signed sandbox acceptance."
+  },
+  "visual": {
+    "result": "root_reviewed_three_original_native_captures",
+    "receipt": "build/qa/action-error-captures-2026-10-25/capture.json",
+    "short_light_and_dark_content_points": [
+      500,
+      148
+    ],
+    "long_content_points": [
+      500,
+      472
+    ],
+    "long_detail_viewport_points": 360,
+    "default_OK": true,
+    "full_text_retained": true,
+    "close_callback_exactly_once": true,
+    "owned_windows_closed": true
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "80d5152f2bdc00455fb80a177ce04710c8ecb7adca90b1bddb515dbe376159a1",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "2d07532d0808325866961a52c2ed1cac8bb36877e88e4643d9b36ae6912cc4af",
+    "Sources/TurtleGitMac/WorkspaceOpenHandoff.swift": "897fef7cfba5b4af189d4f903dff7a192fe51e3b4df28de2fc8e5653b5ca7563",
+    "scripts/capture-compact-selectors.py": "811fe491762e8b61e0e54c898a32e23bbfb8b74b7983e53dc96e81b8856665ef",
+    "Tests/TurtleGitCoreTests/FinderDirectoryPublicationTests.swift": "b0329a62c781c60354ca5f858b9237f030b9c3ca85150a6b83e0e83ba2ab39df",
+    "docs/qa/dialog-launch-native-2026-10-25.swift": "106e7e5eeca7ac302a045eec0c6c4e1762eb75f32b218f77c9ca819fc9204a5f",
+    "docs/qa/finder-registration-native-2026-10-25.swift": "5c02313a081aef23de282b9d92f27b4e000ba5d1ec66e91a11d9b7834af20fe8",
+    "docs/qa/compact-selector-captures-2026-10-25.swift": "6e3732975ebed4c95429cfb6d81dd95353a0eb48252b5b409eec25edeee4e4e3"
+  },
+  "logs": {
+    "finder-directory-publication-core-2026-10-25.log": "30913d1a73ac0786706fd2abdbd604cadad16d78903a9b49d5c32a855a53b7ae",
+    "finder-registration-errors-debug-2026-10-25.log": "2f401490ee708bca868c4b9dd9efe0b2837ba48c2820f8af06eeace00ca6cc5c",
+    "finder-registration-errors-native-2026-10-25.log": "4e35f14684bac008d107ed8cd046abde50385f46e3212bdc5c1cf91765b09c21",
+    "finder-registration-errors-native-repair-2026-10-25.log": "7b83227fc1b903d51e8dd992ce22ce3ad69ef88e756eb845221e86f94dd70afd",
+    "finder-action-error-captures-2026-10-25.log": "27cc24e7af6470066448bd2c925e229b77f6aee9cb332836cea8736917bfbbc4"
+  },
+  "remaining": [
+    "Actual physical cold completion without the CUA reopen observer remains distinct from the verified pre-observer chooser and signed registration/badge outcome.",
+    "No complete hosted CI, App Store distribution or complete-port claim."
+  ],
+  "signed": {
+    "build": "6",
+    "version": "0.1.0",
+    "result": "pass",
+    "universal_components": 8,
+    "inventory_members": 6362,
+    "source_input_sha256": "48777e180a95602a2da53cf36a01ccb60a4debf66b857d4dbd6984d9a07bf2d6",
+    "application_sha256": "3136ac27e0dcfee2efcacf081b76033026421af40089753ca970021ad5ec3c1c",
+    "staged_source_equivalence": "All 1508 distribution input names, staged blob bytes and executable modes match the measured signed source.",
+    "strict_deep_seal": "pass",
+    "installed_path": "/Applications/TurtleGit for Mac.app",
+    "previous_build_preserved": true,
+    "finder_restarted": false,
+    "global_cache_reset": false,
+    "installed_extension_uuid": "17E36C91-353A-477C-BAAC-EF107BE2586A",
+    "duplicate_owned_candidate_registration_removed": true
+  },
+  "physical_finder": {
+    "result": "pass_for_actual_OS_URL_receipt_registration_publication_badges_and_repository_menus",
+    "owned_pid": 93713,
+    "actual_OS_GetURL_accepted_count": 1,
+    "fixture": "Private Harbor repository with modified README, untracked file, untracked nested repository and ignored nested repository.",
+    "cold_before_observer": "Read-only process/window inspection shows accessory mode and only the Allow repository folder access chooser; no workspace window.",
+    "observer_limitation": "CUA app selection sends an application reopen to access the folder chooser. A workspace appeared after this observer action; this is not evidence that the original Finder request opened a workspace.",
+    "permission": "Selected only the private Harbor folder in the actual signed app chooser.",
+    "publication": "Saved recent repository and canonical root/file/nested-directory shared cache keys; original trailing slash records reproduced in real Git.",
+    "visual": "Actual Finder icon view shows modified README badge and untracked file/nested-directory badges; repository context menu includes Commit, Diff, Log, Check for modifications, Blame and related actions.",
+    "cleanup": "Owned Finder window closed. UI Quit did not reap accessory process; exact PID/executable guarded SIGTERM, independently absent. No unrelated process or Finder terminated.",
+    "receipts": [
+      "build/qa/finder-url-signed6-private-publication-2026-10-25.json",
+      "build/qa/finder-url-signed6-owned-windows-93713-2026-10-25.json",
+      "build/qa/finder-url-signed6-owned-cleanup-2026-10-25.json"
+    ]
+  }
+}

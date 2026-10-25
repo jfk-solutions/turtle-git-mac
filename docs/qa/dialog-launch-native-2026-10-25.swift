@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Carbon
 import TurtleGitCore
 
 @MainActor enum DialogLaunchVerification {
@@ -14,11 +15,24 @@ import TurtleGitCore
         for controller in controllers {controller.close()}
         try await wait("owned dialog children drain") {TurtleGitAboutController.activeReads==0 && LogWindowModel.activeHistoryLoads==0 && controllers.allSatisfy{$0.window?.attachedSheet==nil && $0.window?.sheetParent==nil && $0.window?.isVisible != true}}
     }
+    /// Exercise the public event manager dispatch path, not the delegate method.
+    static func dispatchURL(_ text:String)throws {
+        let event=NSAppleEventDescriptor(eventClass:AEEventClass(kInternetEventClass),eventID:AEEventID(kAEGetURL),targetDescriptor:NSAppleEventDescriptor(processIdentifier:ProcessInfo.processInfo.processIdentifier),returnID:AEReturnID(kAutoGenerateReturnID),transactionID:AETransactionID(kAnyTransactionID))
+        event.setParam(NSAppleEventDescriptor(string:text),forKeyword:AEKeyword(keyDirectObject))
+        let reply=NSAppleEventDescriptor.null()
+        guard let rawEvent=event.aeDesc,let rawReply=reply.aeDesc else {
+            throw Failure(description:"Apple-event descriptor allocation failed")
+        }
+        var ownedRefCon:UInt8=0
+        _ = withUnsafeMutablePointer(to:&ownedRefCon) { pointer in
+            NSAppleEventManager.shared().dispatchRawAppleEvent(rawEvent,withRawReply:UnsafeMutablePointer(mutating:rawReply),handlerRefCon:UnsafeMutableRawPointer(pointer))
+        }
+    }
     static func verify(repository:GitRepository,existing:RepositoryModel,preferences:UserDefaults)async throws {
         let git=repository.executable,folder=repository.root
         var models=[RepositoryModel](),delegates=[TurtleGitApplicationDelegate](),settings=[SettingsPresentationService](),appearances=[AppAppearance]()
         defer {
-            for delegate in delegates {delegate.retireFinderServices();delegate.workspaceOpenHandoff.retire();delegate.actionErrorController?.close()}
+            for delegate in delegates {delegate.retireInboundURLBridge();delegate.retireFinderServices();delegate.workspaceOpenHandoff.retire();delegate.actionErrorController?.close()}
             for model in models {model.stopMonitoringForTermination()}
             for service in settings {service.controller?.close()}
         }
@@ -42,6 +56,70 @@ import TurtleGitCore
             delegate.configureStandaloneServices={workspace,_ in service.install(workspace:workspace,appearance:appearance)}
             delegate.startupDirectory=folder.path;delegates.append(delegate);return model
         }
+        // A URL launch may arrive without OpenConfiguration.arguments. Capture
+        // real Apple-event delivery before startup and refuse a default workspace.
+        let eventDelegate=TurtleGitApplicationDelegate(),eventModel=try configure(eventDelegate)
+        eventDelegate.startupArguments=[];eventDelegate.configureGeneralApplication={_ in}
+        var eventPresentations=0,eventURLs=[URL]()
+        eventDelegate.presentWorkspace={eventPresentations += 1}
+        eventDelegate.activateStandaloneApplication={}
+        eventDelegate.workspaceOpenHandler={target,url in
+            if target === eventModel {eventURLs.append(url)}
+        }
+        eventDelegate.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
+        let eventActions:[RepositoryAction]=[.registerRepository,.clone,.settings,.about,.help]
+        let eventURLsExpected=try eventActions.map {action -> URL in
+            guard let url=FinderRequest(action:action,paths:[folder]).url else {throw Failure(description:"Event action URL unavailable")}
+            return url
+        }
+        for url in eventURLsExpected {try dispatchURL(url.absoluteString)}
+        try require(eventURLs.isEmpty,"Cold GetURL bypassed startup ownership")
+        eventDelegate.startupDidFinishLaunching(defaultLaunch:true)
+        try require(eventURLs==eventURLsExpected && eventPresentations==0 && eventModel.workspaceWindow==nil,"Cold GetURL queue lost routing/order or created default workspace")
+        try dispatchURL(eventURLsExpected[0].absoluteString)
+        try dispatchURL(eventURLsExpected[0].absoluteString)
+        try require(eventURLs.count==eventURLsExpected.count+2,"Repeated warm GetURL was dropped or delivered twice")
+        for invalid in ["https://example.invalid/", "turtlegit://unknown", "turtlegit://workspace?unexpected=1", "turtlegit://workspace\0"] {try dispatchURL(invalid)}
+        try require(eventURLs.count==eventURLsExpected.count+2 && eventPresentations==0,"Malformed GetURL entered routing")
+        // Replacement owns the global event slot; retiring its predecessor must
+        // neither remove that slot nor steal it back at a deferred boundary.
+        eventDelegate.finishInstallingInboundURLBridge() // queues the actual launch reassertion
+        let successor=TurtleGitApplicationDelegate(),successorModel=try configure(successor)
+        successor.startupArguments=["--turtlegit-action-only"];successor.activateStandaloneApplication={}
+        var successorURLs=[URL]()
+        successor.workspaceOpenHandler={target,url in if target === successorModel {successorURLs.append(url)}}
+        successor.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
+        successor.startupDidFinishLaunching()
+        eventDelegate.retireInboundURLBridge()
+        eventDelegate.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
+        await Task.yield()
+        // Drain the queued launch reassertion before testing the successor.
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+        try dispatchURL(eventURLsExpected[0].absoluteString)
+        try require(successorURLs==[eventURLsExpected[0]] && eventURLs.count==eventURLsExpected.count+2,"Old handler retirement removed successor or redelivered URL")
+        successor.retireInboundURLBridge()
+        successor.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
+        try dispatchURL(eventURLsExpected[0].absoluteString)
+        try require(successorURLs.count==1,"Retired handler accepted late GetURL")
+        eventModel.stopMonitoringForTermination();successorModel.stopMonitoringForTermination()
+        // Tool processes hand every accepted external URL to their existing
+        // separate-host handoff, never to the waiting Git tool's own workspace.
+        for marker in ["--merge-tool","--unified-diff"] {
+            let tool=TurtleGitApplicationDelegate(),toolModel=try configure(tool)
+            tool.startupArguments=[marker];tool.activateStandaloneApplication={}
+            tool.startupCommandHandler={_,_,_ in}
+            var forwarded=[[URL]](),toolPresentations=0
+            tool.presentWorkspace={toolPresentations += 1}
+            tool.workspaceOpenHandoff.launch={urls,_,_,reply in forwarded.append(urls);reply(nil)}
+            tool.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
+            tool.startupDidFinishLaunching()
+            try dispatchURL(eventURLsExpected[0].absoluteString)
+            let patch=folder.appendingPathComponent("literal Café.patch")
+            try dispatchURL(patch.absoluteString)
+            try require(forwarded==[[eventURLsExpected[0]],[patch]] && toolPresentations==0 && toolModel.workspaceWindow==nil && !tool.workspaceOpenHandoff.hasPendingWork,"Tool GetURL escaped existing separate-host handoff: "+marker)
+            tool.retireInboundURLBridge();tool.workspaceOpenHandoff.retire();toolModel.stopMonitoringForTermination()
+        }
+
         let internalDelegate=TurtleGitApplicationDelegate(),internalModel=try configure(internalDelegate)
         var internalPresentations=0,internalActivations=0
         internalDelegate.startupArguments=["--turtlegit-action-only"]
@@ -94,10 +172,11 @@ import TurtleGitCore
         let originalRoot=existing.root,originalWindow=existing.workspaceWindow
         let delegate=TurtleGitApplicationDelegate(),privateModel=try configure(delegate)
         var requested=0;delegate.startupArguments=[];delegate.repositoryModel=existing;delegate.presentWorkspace={requested += 1};delegate.startupDidFinishLaunching()
+        delegate.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
         for action in [RepositoryAction.about,.settings,.log] {
             let baseline=Set(NSApp.windows.map(ObjectIdentifier.init)),before=requested
             guard let url=FinderRequest(action:action,paths:[folder]).url else{throw Failure(description:"Action URL unavailable")}
-            delegate.application(NSApp,open:[url])
+            try dispatchURL(url.absoluteString)
             try await wait("warm actual "+action.rawValue) {
                 switch action {
                 case .about:return children(since:baseline).contains{$0 is TurtleGitAboutController}

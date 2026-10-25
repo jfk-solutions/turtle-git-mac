@@ -345,7 +345,22 @@ public struct FinderSnapshot: Codable, Sendable {
         var states: GitPathMap<FileState> = [:]
         for path in tracked { states[root.path + "/" + path] = .normal }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
-        for change in changes { states[root.path + "/" + change.path] = change.state }
+        for change in changes {
+            var path=change.path
+            // Porcelain keeps a trailing directory marker for untracked nested
+            // repositories and ignored directories, even with --untracked-files=all.
+            // A Finder cache key names the directory itself. Remove exactly that
+            // marker only from a valid relative ??/!! path; malformed paths remain
+            // untouched so the publication authority validator still rejects them.
+            if (change.state == .untracked || change.state == .ignored),path.utf8.last==47 {
+                let candidate=String(decoding:path.utf8.dropLast(),as:UTF8.self)
+                let components=candidate.utf8.split(separator:47,omittingEmptySubsequences:false)
+                if !candidate.isEmpty,!candidate.utf8.contains(0),components.allSatisfy({!$0.isEmpty && !$0.elementsEqual([46]) && !$0.elementsEqual([46,46])}) {
+                    path=candidate
+                }
+            }
+            states[root.path + "/" + path] = change.state
+        }
         let files = states
         for (path, state) in files {
             // GitStatus::AdjustFolderStatus treats added/deleted children as
