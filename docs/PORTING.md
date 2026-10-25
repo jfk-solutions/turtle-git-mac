@@ -2,33 +2,64 @@
 
 ## Current installed checkpoint
 
-Build 6 is the recoverably installed Apple Development build for Intel and Apple
-silicon. Its 1,508 measured distribution inputs match commit `c47640a3`; strict
-signature checks and all eight universal components passed. The
-[Finder registration and compact error checkpoint](qa/finder-directory-registration-errors-2026-10-25.json)
-records actual OS URL delivery, folder permission, saved registration, canonical
-status publication, visible Finder badges and repository context commands for a
-private repository containing nested untracked and ignored checkouts. Short error
-windows were reviewed in light and dark appearances; long diagnostics remain
-selectable and scrollable. The record preserves the observer-reopen limitation
-and does not certify every Finder workflow or App Store distribution.
+Build 7 is the recoverably installed Apple Development build for Intel and Apple
+silicon. Its 1,509 clean measured distribution inputs match commit `d89ad1f6`;
+strict signatures and all eight universal components passed, and the 6,362-member
+source/staged/installed inventories agree. The
+[build 7 checkpoint](qa/signed-consolidation-build7-2026-10-25.json) retains the
+initial stale Metafile runtime refusal and the packaging-only repair after
+refreshing the pinned payload. Build 6 remains preserved for recovery.
+
+Actual installed three-way Merge authorized private inputs, displayed the source
+header menu with icons, and opened the correct read-only Base-versus-Incoming
+comparison. Closing removed its temporary snapshot; discarding the parent result
+preserved all original bytes. Physical acceptance found a temporary-path child
+title, a prominent left-side three-way interface selector and inaccessible header
+actions. Their subsequent source correction remains separate from installed
+build 7. The image launch failed before rendering, and the mail acceptance was
+deferred; neither has a new physical pass. Owned windows/processes were closed,
+and affected preferences, watch identity and timestamps were restored.
+
+The [Finder registration and compact error checkpoint](qa/finder-directory-registration-errors-2026-10-25.json)
+remains evidence for the earlier actual permission, canonical publication,
+visible badges and repository context commands with nested untracked/ignored
+checkouts. Build 7 includes that repair. The short error content is 148 points
+high; long details remain selectable and scrollable. A later screenshot's build
+is unidentified; no new cache defect was reproduced or namespace guard relaxed.
 
 The completed hosted macOS run at `c47640a3` failed during test compilation
-on Swift 6.1.2, before behavioral tests ran: a gradient pixel assertion exceeded
-the compiler's type-checking limit. The next source batch replaces that expression
-with equivalent explicitly typed channel arithmetic and retains the assertion.
-Its focused local Core check passes; the older hosted compiler still requires a
-new workflow result. The earlier Pages deployment at `c04799e0` passed. These
-results do not establish a complete current hosted macOS pass.
+on Swift 6.1.2, before behavioral tests ran. The subsequent typed gradient-assertion
+repair retains the behavioral assertion. At the latest observation, the
+`4b90f77a` macOS run is executing Git integration tests and `d89ad1f6` is pending. Pages for
+`d89ad1f6` succeeded. These results do not establish a current complete hosted
+macOS pass or App Store distribution acceptance.
 
 ## Latest source batches
+
+The connected [standalone authorization family](MERGE-AUTHORIZATION-PARITY.md)
+separates lexical Open roles from post-grant file validation and distinguishes
+normal CLI chooser cancellation, corrective selection and actual fresh-scope
+failure. Panels remain owned through detachment and late replies cannot revive
+retired preparation. Its [checkpoint](qa/merge-authorization-2026-10-25.json)
+records the actual focused Core/native scope and compiler-bridge repair.
+
+[Stored decisions](SAVED-DATA.md) now clears exact project-hook approvals and
+denials, refreshes an already loaded Hook Settings page, and preserves drafts,
+script permissions and accepted running hooks. The
+[reset checkpoint](qa/hook-decision-reset-2026-10-25.json) records eight focused
+Core methods, two retained hook engine cases and the native Saved Data case
+passing. The [pane-header acceptance correction](qa/merge-pane-acceptance-corrections-2026-10-25.json)
+records six final native scenario/engine pairs passing after repairing the real
+load-title overwrite and correcting the accessibility oracle. These corrections
+are newer source than installed build 7; their local checks do not establish
+new installed or full hosted acceptance.
 
 The [patch export-to-mail family](PATCH-EXPORT-DELIVERY-PARITY.md) replaces lossy
 attachment-list filtering in Sync and Format Patch with complete verified delivery.
 It retains actual Git completion/output, already-written files, owner cancellation
 and late-child refusal. The [grouped checkpoint](qa/patch-export-delivery-2026-10-25.json)
 passes 17 focused Core methods, one Debug build and four native case/engine pairs
-without a repair cycle; all owned receivers are absent. Installed build 6 predates
+without a repair cycle; all owned receivers are absent. Installed build 7 includes
 this source. Pages deployment for `4b90f77a` succeeded; its macOS workflow remains
 in progress at the observed application-build step, so full hosted acceptance
 remains unproven.
@@ -40,8 +71,8 @@ Debug build and six cumulative native case/engine pairs pass after recorded
 startup and fixture repairs. The [general path-gradient family](METAFILE-GENERAL-PATH-GRADIENT-PARITY.md)
 extends EMF+ rendering to cubic, multiple-figure and crossing boundaries against
 retained Windows references; 12 focused Core methods and two actual native
-Compare/Conflict engine workloads pass. These source changes are newer than
-installed build 6. Physical/full-dialog parity, current hosted CI, distribution
+Compare/Conflict engine workloads pass. Installed build 7 includes these source changes. Subsequent header
+acceptance corrections remain newer than that candidate. Physical/full-dialog parity, current hosted CI, distribution
 signing and App Store submission remain open.
 
 ## Earlier connected implementation checkpoints

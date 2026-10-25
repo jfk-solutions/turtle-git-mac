@@ -3,6 +3,23 @@ import AppKit
 import Darwin
 import TurtleGitCore
 
+private enum MergeToolAuthorizationFailure:LocalizedError {
+    case selection(URL,Bool),scope(URL,Bool)
+    var errorDescription:String? {
+        switch self {
+        case .selection(let url,let folder):return "Choose the requested "+(folder ? "folder":"file")+" to authorize TurtleGitMerge: "+url.path
+        case .scope(let url,let folder):return "TurtleGitMerge could not obtain access to the selected "+(folder ? "folder":"file")+": "+url.path+". Select it again in the authorization dialog."
+        }
+    }
+}
+@MainActor private final class MergeToolAuthorizationValidator:NSObject,NSOpenSavePanelDelegate {
+    let requested:URL,folder:Bool
+    init(requested:URL,folder:Bool){self.requested=requested;self.folder=folder}
+    func panel(_ sender:Any,validate url:URL)throws {
+        guard url.isFileURL,(folder || GitReferenceName.equal(url.standardizedFileURL.path,requested.standardizedFileURL.path)),RepositoryAccessLease.pathIsContained(requested,by:url) else{throw MergeToolAuthorizationFailure.selection(requested,folder)}
+    }
+}
+
 /// One command's grants, editors and completion stay owned until its real work drains.
 @MainActor final class MergeToolLaunchSession {
     static private(set) var activePreparations = 0
@@ -19,6 +36,15 @@ import TurtleGitCore
     private(set) var patch: ReviewPatchWorkflow?
     private var panel: NSOpenPanel?
     private var panelAnswer: ((URL?) -> Void)?
+    private var permissionValidator:MergeToolAuthorizationValidator?
+    private var retiringPermissionPanels:[NSOpenPanel]=[]
+    private var completed=false
+    var presentPermissionPanel:(NSOpenPanel,NSWindow?,@escaping(NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in
+        if let owner,owner.isVisible,owner.attachedSheet==nil {panel.beginSheetModal(for:owner,completionHandler:reply)}
+        else {panel.begin(completionHandler:reply)}
+    }
+    var selectedPermissionURL:(NSOpenPanel)->URL? = {$0.url}
+    var makePermissionLease:(URL)->RepositoryAccessLease = {RepositoryAccessLease(url:$0)}
     private(set) var outputPanel: NSSavePanel?
     private var outputAnswer: ((URL?) -> Void)?
     private var cleanupInputs: [MergeToolCleanupInput] = []
@@ -41,7 +67,7 @@ import TurtleGitCore
     var onError: (String) -> Void = { _ in }
     var onFinished: (Int32) -> Void = { _ in }
     var hasPendingWork: Bool {
-        preparing || finishing || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.model.mergeToolHasPendingWork == true ||
+        preparing || finishing || panel != nil || !retiringPermissionPanels.isEmpty || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.model.mergeToolHasPendingWork == true ||
         (editor as? TextConflictWindowController)?.model.mergeToolHasPendingWork == true ||
         (editor as? WorkingTreePatchWindowController)?.activeOperation == true || patch?.loading == true
     }
@@ -117,10 +143,13 @@ import TurtleGitCore
         else if !requiresScopes { lease = RepositoryAccessLease(url: url) }
         else {
             let selected = await pick(url, folder: folder)
-            lease = selected.map { RepositoryAccessLease(url: $0) }
+            if let selected {try MergeToolAuthorizationValidator(requested:url,folder:folder).panel(self,validate:selected)}
+            lease = selected.map(makePermissionLease)
         }
         try cancellation.check()
-        guard let lease, lease.contains(url), !requiresScopes || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        guard let lease else {cancellation.cancel();throw OperationCancellationFailure.cancelled}
+        guard lease.contains(url) else {throw MergeToolAuthorizationFailure.selection(url,folder)}
+        guard !requiresScopes || lease.hasSecurityScope else {throw MergeToolAuthorizationFailure.scope(url,folder)}
         grants.append(lease)
     }
     private func pick(_ url: URL, folder: Bool) async -> URL? {
@@ -129,20 +158,31 @@ import TurtleGitCore
         picker.title = "Authorize TurtleGitMerge file access"; picker.prompt = "Authorize"
         picker.directoryURL = folder ? url : url.deletingLastPathComponent(); picker.message = url.path
         if !folder { picker.nameFieldStringValue = url.lastPathComponent }
-        panel = picker
-        return await withCheckedContinuation { continuation in
-            var answered = false
-            let reply: (URL?) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
-            panelAnswer = reply
-            let completion: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-                guard let self else { reply(nil); return }
-                if self.panel === picker { self.panel = nil; self.panelAnswer = nil }
-                reply(!self.retired && response == .OK ? picker.url : nil)
+        let validator=MergeToolAuthorizationValidator(requested:url,folder:folder)
+        picker.delegate=validator;permissionValidator=validator;panel=picker
+        return await withCheckedContinuation {continuation in
+            var answered=false
+            let settle:(URL?)->Void = { [self] value in
+                guard !answered else{return};answered=true
+                if panel === picker {panel=nil;panelAnswer=nil;permissionValidator=nil}
+                retiringPermissionPanels.append(picker)
+                if let parent=picker.sheetParent {parent.endSheet(picker,returnCode:value == nil ? .cancel:.OK)}
+                picker.orderOut(nil);picker.close()
+                Task { @MainActor [self,validator] in
+                    while picker.sheetParent != nil || picker.isVisible {try? await Task.sleep(nanoseconds:5_000_000)}
+                    retiringPermissionPanels.removeAll {$0 === picker};picker.delegate=nil
+                    withExtendedLifetime(validator) {}
+                    continuation.resume(returning:!retired && !cancellation.isCancelled ? value:nil)
+                }
             }
-            if let owner, owner.isVisible, owner.attachedSheet == nil { picker.beginSheetModal(for: owner, completionHandler: completion) }
-            else { picker.begin(completionHandler: completion) }
+            panelAnswer=settle
+            presentPermissionPanel(picker,owner) { [weak self] response in
+                guard let self else{settle(nil);return}
+                settle(!self.retired && response == .OK ? self.selectedPermissionURL(picker):nil)
+            }
         }
     }
+
     private func present(_ controller: NSWindowController) {
         editor = controller
         installReplacementOwner(controller)
@@ -288,14 +328,14 @@ import TurtleGitCore
     func cancel() {
         cancellation.cancel(); retired = true; cancelOutputChoice()
         if let panel { panel.cancel(nil); if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }; panel.orderOut(nil) }
-        panel = nil; let answer = panelAnswer; panelAnswer = nil; answer?(nil)
+        panel = nil;permissionValidator=nil; let answer = panelAnswer; panelAnswer = nil; answer?(nil)
         opener?.close(); patch?.cancel(); editor?.close()
         finish(1)
     }
     private func finish(_ status: Int32) {
-        guard !finishing else { return }; finishing = true; retired = true
+        guard !finishing,!completed else { return }; finishing = true; retired = true
         Task {
-            while preparing || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.model.mergeToolHasPendingWork == true || (editor as? TextConflictWindowController)?.model.mergeToolHasPendingWork == true || (editor as? WorkingTreePatchWindowController)?.activeOperation == true || patch?.loading == true {
+            while preparing || panel != nil || !retiringPermissionPanels.isEmpty || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.model.mergeToolHasPendingWork == true || (editor as? TextConflictWindowController)?.model.mergeToolHasPendingWork == true || (editor as? WorkingTreePatchWindowController)?.activeOperation == true || patch?.loading == true {
                 try? await Task.sleep(nanoseconds: 10_000_000)
             }
             if invocation.deleteInputsOnClose {
@@ -305,7 +345,7 @@ import TurtleGitCore
             }
             if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
             grants = []; editor = nil; replacementOwner = nil; opener = nil; retiredOpeners = []; patch = nil; finishing = false
-            let callback = onFinished; onFinished = { _ in }; callback(status)
+            completed=true;let callback = onFinished; onFinished = { _ in }; callback(status)
         }
     }
 }

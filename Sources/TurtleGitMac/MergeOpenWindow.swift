@@ -4,6 +4,16 @@ import AppKit
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+@MainActor private final class MergeOpenAuthorizationValidation: NSObject, NSOpenSavePanelDelegate {
+    let requested: URL
+    init(requested: URL) { self.requested = requested }
+    func panel(_ sender: Any, validate url: URL) throws {
+        guard RepositoryAccessLease.pathIsContained(requested, by: url) else {
+            throw NSError(domain: "TurtleGit.MergeOpen", code: 1, userInfo: [NSLocalizedDescriptionKey: "Select the requested file or folder.", NSLocalizedRecoverySuggestionErrorKey: requested.path])
+        }
+    }
+}
+
 @MainActor final class MergeOpenPathField: NSTextField {
     var acceptURL: (URL) -> Bool = { _ in false }
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -35,6 +45,7 @@ import TurtleGitCore
     private let preferences: UserDefaults
     private let pasteboard: NSPasteboard
     private var picker: NSOpenPanel?
+    private var pickerValidation: MergeOpenAuthorizationValidation?
     private var clipboardMonitor: Timer?
     private var ownerObserver: NSObjectProtocol?
     private var clipboardChangeCount = -1
@@ -115,11 +126,12 @@ import TurtleGitCore
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
     }
     func acceptPath(_ url: URL, slot: Slot) -> Bool {
-        guard !retired, !busy, !accepting, field(slot).isEnabled, validPath(url, slot: slot) else { return false }
+        guard !retired, !busy, !accepting, field(slot).isEnabled, url.isFileURL, !url.path.contains("\0") else { return false }
         let lease = makeLease(url)
         if requiresScopes && !lease.hasSecurityScope {
             field(slot).stringValue = url.path; browse(slot,authorize:url); return true
         }
+        guard validPath(url, slot: slot) else { return false }
         retainGrant(lease); field(slot).stringValue = url.path; status.stringValue = ""; return true
     }
     func completionCandidates(for text: String, directoryOnly: Bool = false) -> [String] {
@@ -202,10 +214,11 @@ import TurtleGitCore
         Task { [self] in
             defer {
                 Self.activeChoices -= 1; pendingChoices -= 1
-                if choiceID == identity { choiceID = nil; picker = nil; busy = false; updateGates() }
+                if choiceID == identity { choiceID = nil; picker = nil; pickerValidation = nil; busy = false; updateGates() }
             }
             guard !retired, form == captured, self.window === window else { return }
             let chosen: URL?
+            var chosenLease: RepositoryAccessLease?
             if let choosePath { chosen = await choosePath(slot, existing) }
             else {
                 let panel = NSOpenPanel(); panel.canChooseDirectories = slot == .directory; panel.canChooseFiles = slot != .directory
@@ -217,6 +230,10 @@ import TurtleGitCore
                     panel.allowsOtherFileTypes = true
                 }
                 if let authorize { panel.message = "Select “\(authorize.lastPathComponent)” to grant access." }
+                if let authorize {
+                    let validation = MergeOpenAuthorizationValidation(requested: authorize)
+                    pickerValidation = validation; panel.delegate = validation
+                }
                 picker = panel
                 let response: NSApplication.ModalResponse = await withCheckedContinuation { continuation in
                     var answered = false
@@ -226,17 +243,26 @@ import TurtleGitCore
                     if let presentPicker { presentPicker(panel, window, reply) }
                     else { panel.beginSheetModal(for: window, completionHandler: reply) }
                 }
-                chosen = response == .OK ? selectedPath(panel) : nil
+                let selected = response == .OK ? selectedPath(panel) : nil
+                if !retired, choiceID == identity, form == captured, self.window === window, let selected {
+                    chosenLease = makeLease(selected)
+                }
+                // Retain the choice and its scope owner until AppKit has actually
+                // detached the sheet; an early completion cannot unlock Open.
+                while panel.sheetParent != nil || window.attachedSheet === panel {
+                    try? await Task.sleep(nanoseconds: 10_000_000)
+                }
+                chosen = selected
             }
             guard !retired, choiceID == identity, form == captured, self.window === window else { return }
             guard let chosen else { window.makeFirstResponder(field(slot)); return }
+            let lease = chosenLease ?? makeLease(chosen)
+            guard !requiresScopes || lease.hasSecurityScope else { status.stringValue = "File permission is required. Select this path with Browse."; return }
+            guard authorize == nil || lease.contains(authorize!) else { status.stringValue = "Select the requested file or folder."; return }
             guard validPath(chosen, slot: slot) else {
                 status.stringValue = slot == .directory ? "Select an existing directory." : "Select an existing regular file."
                 return
             }
-            let lease = makeLease(chosen)
-            guard !requiresScopes || lease.hasSecurityScope else { status.stringValue = "File permission is required. Select this path with Browse."; return }
-            guard authorize == nil || lease.contains(authorize!) else { status.stringValue = "Select the requested file or folder."; return }
             retainGrant(lease); field(slot).stringValue = chosen.path; status.stringValue = ""
             window.makeFirstResponder(field(slot))
         }
@@ -247,19 +273,21 @@ import TurtleGitCore
         do {
             let bytes = mode == .applyUnifiedDiff && clipboard.state == .on ? PatchClipboard.snapshot(from: pasteboard) : nil
             if mode == .applyUnifiedDiff && clipboard.state == .on && bytes == nil { status.stringValue = "The clipboard no longer contains a unified diff."; return }
-            let request = try MergeOpenRequest.selection(mode: mode, base: base.stringValue, theirs: theirs.stringValue, mine: mine.stringValue, diff: diff.stringValue, directory: directory.stringValue, clipboard: bytes)
+            let request = try MergeOpenRequest.lexicalSelection(mode: mode, base: base.stringValue, theirs: theirs.stringValue, mine: mine.stringValue, diff: diff.stringValue, directory: directory.stringValue, clipboard: bytes)
             let paths: [(Slot, URL)]
             switch request {
-            case .compare(let baseURL, let mineURL, _):
+            case .compare:
                 paths = Slot.allCases.prefix(3).compactMap { slot in
                     let value = field(slot).stringValue; guard !value.isEmpty else { return nil }
-                    let url = URL(fileURLWithPath: (value as NSString).expandingTildeInPath).standardizedFileURL
-                    return url == baseURL || url == mineURL ? (slot, url) : nil
+                    let expanded = (value as NSString).expandingTildeInPath
+                    let absolute = expanded.hasPrefix("/") ? expanded : FileManager.default.currentDirectoryPath + "/" + expanded
+                    return (slot, FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(absolute)))
                 }
             case .merge(let baseURL, let theirsURL, let mineURL): paths = [(.base, baseURL), (.theirs, theirsURL), (.mine, mineURL)]
             case .patch(let file, let directory, _): paths = [file.map { (.diff, $0) }, directory.map { (.directory, $0) }].compactMap { $0 }
             }
             if requiresScopes, let missing = paths.first(where: { item in !grants.contains { $0.hasSecurityScope && $0.contains(item.1) } }) { browse(missing.0, authorize: missing.1); return }
+            try request.validateFileSystem()
             accepting = true; updateGates()
             defer { accepting = false; updateGates() }
             try onAccepted(request, grants)
@@ -286,6 +314,7 @@ import TurtleGitCore
         choiceID = nil; busy = false; updateGates()
         if let picker { (picker.sheetParent ?? window)?.endSheet(picker, returnCode: .cancel); picker.orderOut(nil) }
         picker = nil
+        pickerValidation = nil
         if let window, let parent = window.sheetParent { parent.endSheet(window) }
         let finished = onClosed; onClosed = {}; onAccepted = { _, _ in }; finished()
     }

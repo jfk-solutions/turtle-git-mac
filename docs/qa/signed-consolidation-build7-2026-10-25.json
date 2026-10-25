@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-25",
+  "source_commit": "d89ad1f6740dde9cf0eaad4a064031f2ad34c2a2",
+  "installed_version": "0.1.0",
+  "installed_build": 7,
+  "development_signature_only": true,
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "source_input_count": 1509,
+  "source_input_sha256": "022e661fc8a92e467da77228eb5b79ca36f739a23e1649ada2ea8b728b7bd713",
+  "inventory_entries": 6362,
+  "source_stage_installed_inventories_equal": true,
+  "build_attempts": [
+    {
+      "result": "failed",
+      "exit": 65,
+      "reason": "Runtime embed rejected an older staged Metafile manifest; installed build6 preserved."
+    },
+    {
+      "result": "passed",
+      "exit": 0,
+      "repair": "Refreshed pinned Metafile runtime; repeated packaging without repeating SwiftCompile jobs."
+    }
+  ],
+  "static_checks": [
+    "Universal app and owned embedded components",
+    "Development signature seals and sandbox/App Group entitlements",
+    "Inherited Git, LibGit2 and Metafile representative tools",
+    "Installed Finder extension election matches build7"
+  ],
+  "physical_acceptance": {
+    "merge": {
+      "passed_bounded_flow": true,
+      "private_inputs_authorized": true,
+      "source_menu_icons_present": true,
+      "separate_readonly_comparison": "Base versus Incoming; correct texts",
+      "temporary_comparison_removed_on_close": true,
+      "result_changes_discarded": true,
+      "owned_pid": 6889,
+      "owned_pid_absent": true,
+      "fixture_original_hashes_preserved": true,
+      "findings": [
+        "Separate source window title exposed temporary snapshot path",
+        "Three-way interface selector remained prominent on the left",
+        "Header accessibility surfaced a static label instead of owning button"
+      ]
+    },
+    "images": {
+      "passed": false,
+      "reason": "Standalone permission renewal failed before image rendering; observer created a separate default workspace. No helper/render pass inferred.",
+      "original_pid": 7132,
+      "observer_workspace_pid": 7193,
+      "both_absent": true,
+      "observer_workspace_closed_via_normal_quit": true
+    },
+    "mail": {
+      "performed": false,
+      "reason": "Deferred while addressing acceptance findings; existing grouped native export-to-mail evidence remains separate."
+    }
+  },
+  "private_state_cleanup": {
+    "preferences_restored_semantically": true,
+    "recent_archive_unchanged": true,
+    "watch_identity_preserved_and_lastOpened_restored": true,
+    "action_log_unchanged": true,
+    "owned_windows_closed": true
+  },
+  "finder_error_report": {
+    "current_source_fix": "c47640a3 strips valid untracked/ignored Git directory markers before cache publication; original Git status retained.",
+    "current_error_content_height_points": 148,
+    "current_error_detail_height_points": 36,
+    "new_failure_reproduced": false,
+    "screenshot_build_identified": false,
+    "additional_repository_path_requested": true,
+    "namespace_validation_weakened": false
+  },
+  "limitations": [
+    "No App Store distribution/export/submission acceptance",
+    "No complete hosted macOS CI claim",
+    "No complete Finder or upstream dialog parity claim",
+    "Post-d89 source title/selector/accessibility corrections are separate from installed build7"
+  ]
+}

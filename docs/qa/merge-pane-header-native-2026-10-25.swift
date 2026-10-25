@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 import ObjectiveC
+import ApplicationServices
 import TurtleGitCore
 
 private extension NSWindow {
@@ -24,6 +25,51 @@ private extension NSWindow {
             result += views(unsafeBitCast(object,to:NSView.self))
         }
         return result
+    }
+    struct SystemHeader:@unchecked Sendable {
+        var element:AXUIElement?
+        var actions=[String:String]()
+        var control=false
+        var diagnostics=[String]()
+    }
+    // NSHostingView.accessibilityChildren is not the external AX hierarchy:
+    // an isolated standard SwiftUI Button is absent there too. Query only this
+    // owned process through the public AX server, from a background task while
+    // MainActor services accessibility callbacks. Never request TCC permission.
+    static func systemHeader(_ header:MergePaneHeaderView,in window:NSWindow?)async->SystemHeader {
+        let pid=getpid(),title=window?.title ?? "",label=header.accessibilityLabel() ?? "",help=header.accessibilityHelp() ?? ""
+        let expected=Set((header.accessibilityCustomActions() ?? []).map(\.name))
+        return await Task.detached {
+            var result=SystemHeader(),windows:CFTypeRef?
+            let status=AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid),kAXWindowsAttribute as CFString,&windows)
+            guard status == .success else{result.diagnostics=["Owned AX server error \(status.rawValue)"];return result}
+            var remaining=4096,seen=Set<CFHashCode>()
+            func value(_ element:AXUIElement,_ name:String)->CFTypeRef? {
+                var value:CFTypeRef?;return AXUIElementCopyAttributeValue(element,name as CFString,&value) == .success ? value:nil
+            }
+            func visit(_ element:AXUIElement,_ depth:Int) {
+                guard depth<48,remaining>0,seen.insert(CFHash(element)).inserted else{return};remaining-=1
+                let role=value(element,kAXRoleAttribute) as? String,caption=(value(element,kAXDescriptionAttribute) as? String) ?? (value(element,kAXTitleAttribute) as? String),location=value(element,kAXHelpAttribute) as? String
+                var raw:CFArray?;_ = AXUIElementCopyActionNames(element,&raw)
+                let names=raw as? [String] ?? []
+                if role==kAXButtonRole && caption=="Save" && names.contains(kAXPressAction){result.control=true}
+                if result.diagnostics.count<100 {result.diagnostics.append("depth=\(depth) role=\(String(reflecting:role)) caption=\(String(reflecting:caption)) help=\(String(reflecting:location))")}
+                if role==kAXButtonRole,caption==label,location==help {
+                    var described=[String:String]()
+                    for action in names {var description:CFString?;if AXUIElementCopyActionDescription(element,action as CFString,&description) == .success,let description {described[description as String]=action}}
+                    if expected.isSubset(of:Set(described.keys)) && names.contains(kAXShowMenuAction) {result.element=element;result.actions=described}
+                }
+                for child in value(element,kAXChildrenAttribute) as? [AXUIElement] ?? [] {visit(child,depth+1)}
+            }
+            for window in windows as? [AXUIElement] ?? [] where (value(window,kAXTitleAttribute) as? String)==title {visit(window,0)}
+            return result
+        }.value
+    }
+    static func requireAccessible(_ header:MergePaneHeaderView,in window:NSWindow?)async throws {
+        try require(header.isAccessibilityElement() && header.accessibilityRole() == .button && !header.titleField.isAccessibilityElement(),"Header is still exposed only as a static text child")
+        let actual=await systemHeader(header,in:window)
+        try require(actual.control,"System AX standard Save button control unavailable: \(actual.diagnostics)")
+        try require(header.accessibilityChildren()?.isEmpty != false && actual.element != nil,"Owning header button/ShowMenu/custom actions absent from actual system AX hierarchy: \(actual.diagnostics)")
     }
     static func wait(_ window:NSWindow?,line:UInt = #line,_ ready:()->Bool)async throws {
         for _ in 0..<2500 {window?.contentView?.layoutSubtreeIfNeeded();if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
@@ -114,6 +160,7 @@ private extension NSWindow {
         let owner=try await c.pair(),model=owner.model
         try await wait(owner.window){headers(owner).count==2}
         guard let left=headers(owner).first(where:{$0.toolTip?.contains(c.base.lastPathComponent)==true}) else{throw Failure(description:"Actual base header missing")}
+        try await requireAccessible(left,in:owner.window)
         var revealed=[URL]();model.revealPaneInFinder={revealed.append($0)}
         c.prefs.set(false,forKey:"ShowAppContextMenuIcons")
         let hidden=left.contextMenu();try require(hidden.items.count==2 && hidden.items.allSatisfy{$0.image==nil},"Private header icon-off ignored")
@@ -169,7 +216,17 @@ private extension NSWindow {
         try require(child.model.document?.base.bytes==c.original[0] && child.model.document?.destination.bytes==c.original[1] && model.result=="private unsaved result\n","Source header comparison used mutable merged text")
         let actualBaseTitle=child.model.mergeToolDescriptiveName(base:true),actualSideTitle=child.model.mergeToolDescriptiveName(base:false)
         try require(actualBaseTitle=="Captured Base" && actualSideTitle=="Captured Mine","Separate source comparison lost original descriptive titles: base=\(String(reflecting:actualBaseTitle)), side=\(String(reflecting:actualSideTitle)), parentBase=\(model.mergeToolPaneTitle("Base")), parentMine=\(model.mergeToolPaneTitle("Mine",mine:true))")
+        try require(child.window?.title=="Captured Mine – TurtleGitMerge" && child.window?.title.contains("TurtleGitSourceCompare-")==false,"Separate source frame exposed its private storage path instead of captured descriptive title: \(child.window?.title ?? "nil")")
         try require(!child.model.canTransfer(toBase:true) && !child.model.canTransfer(toBase:false),"Source comparison snapshot became writable")
+        let generation=child.model.alignmentGeneration
+        child.model.load();try await wait(child.window){child.model.alignmentGeneration>generation};try await pairReady(child)
+        try require(child.window?.title=="Captured Mine – TurtleGitMerge","Reload replaced descriptive source frame title with storage path")
+        try await wait(child.window){child.model.canSwitchSides}
+        child.model.switchSides();try await pairReady(child)
+        try require(child.model.sidesReversed && child.window?.title=="Captured Base – TurtleGitMerge" && child.model.mergeToolDescriptiveName(base:false)=="Captured Base","Side swap did not orient captured descriptions with immutable input identity")
+        try await wait(child.window){child.model.canSwitchSides}
+        child.model.switchSides();try await pairReady(child)
+        try require(!child.model.sidesReversed && child.window?.title=="Captured Mine – TurtleGitMerge" && child.model.document?.base.bytes==c.original[0] && child.model.document?.destination.bytes==c.original[1],"Round-trip side swap lost descriptive title or original input bytes")
         let temporary=child.model.snapshot.root;child.close()
         try await wait(nil){!child.model.mergeToolHasPendingWork && !FileManager.default.fileExists(atPath:temporary.path)}
         try require(!FileManager.default.fileExists(atPath:temporary.path),"Source header comparison leaked private files")
@@ -204,6 +261,7 @@ private extension NSWindow {
         c.prefs.set(true,forKey:"TurtleGit.Comparison.CurvedInterface");model.objectWillChange.send()
         try await wait(owner.window){model.nativeEditorReady && headers(owner).count==4 && headers(owner).contains(where:isMineHeader)}
         guard let compact=headers(owner).first(where:isMineHeader) else{throw Failure(description:"Actual compact P4 header missing")}
+        try await requireAccessible(compact,in:owner.window)
         try require(Data((compact.titleField.toolTip ?? "").utf8)==Data(expectedTooltip.utf8),"Compact header lost literal title+path tooltip")
         let before=revealed.count
         try require(oldClassic?.invoke()==false,"Old classic receipt retargeted new P4 pane")
@@ -241,8 +299,9 @@ private extension NSWindow {
         header.removeFromSuperview();parent.addSubview(header)
         try deliverRetained(detached);try require(reveals==0,"Detached/reused header revived old menu")
         try await wait(owner.window){header.window === owner.window && header.contextMenu().items.contains{$0.title=="Reveal in Finder" && $0.isEnabled}}
+        try await requireAccessible(header,in:owner.window)
         let fresh=header.accessibilityCustomActions()?.first(where:{$0.name=="Reveal in Finder"})
-        try require(fresh?.handler?()==true && reveals==1 && fresh?.handler?()==false,"Actual AX action missing or not one-shot")
+        try require(fresh?.handler?()==true && reveals==1 && fresh?.handler?()==false,"Actual discovered AX action missing or not one-shot")
         try await wait(owner.window){header.contextMenu().items.contains{$0.title=="Save this pane as…" && $0.isEnabled}}
         var pending:((URL?)->Void)?;model.chooseExportLocation={_,_,_ in await withCheckedContinuation {continuation in
             var answered=false
@@ -256,7 +315,7 @@ private extension NSWindow {
         try await c.witness()
     }
     static func main()async throws {
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        NSApplication.shared.setActivationPolicy(.prohibited);NSApp.finishLaunching()
         guard let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.headerVerificationOrder(_:relativeTo:))) else{throw Failure(description:"Private window ownership unavailable")}
         method_exchangeImplementations(original,replacement);defer{method_exchangeImplementations(original,replacement)}
         let c=try Context();try await c.seed()

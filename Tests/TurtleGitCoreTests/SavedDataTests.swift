@@ -97,4 +97,22 @@ final class SavedDataTests: XCTestCase {
             store.clear(.storedDecisions); XCTAssertFalse(store.summary(.storedDecisions).available)
         }
     }
+    func testStoredDecisionResetClearsHookApprovalsWithoutConfigurationOrPermissions() throws {
+        try fixture { defaults, store in
+            let approvals=Data(#"[{"approved":false}]"#.utf8)
+            defaults.set(approvals,forKey:SavedDataStore.hookApprovalsKey)
+            let neighbors=["hooks","ClientHooks.ScriptBookmarks","ClientHooks.Approvals.Other","TurtleGit.RepositoryBookmarks"]
+            for key in neighbors {defaults.set(Data([1,2,3]),forKey:key)}
+            XCTAssertEqual(store.summary(.storedDecisions),.init(entries:1,histories:1))
+            store.clear(.storedDecisions)
+            XCTAssertNil(defaults.object(forKey:SavedDataStore.hookApprovalsKey))
+            for key in neighbors {XCTAssertEqual(defaults.data(forKey:key),Data([1,2,3]),key)}
+            XCTAssertFalse(store.summary(.storedDecisions).available)
+            // Other saved-data groups must not forget an authorization answer.
+            defaults.set(approvals,forKey:SavedDataStore.hookApprovalsKey)
+            for category in [SavedDataCategory.urlHistory,.messageHistory,.dialogGeometry] {store.clear(category)}
+            XCTAssertEqual(defaults.data(forKey:SavedDataStore.hookApprovalsKey),approvals)
+        }
+    }
+
 }

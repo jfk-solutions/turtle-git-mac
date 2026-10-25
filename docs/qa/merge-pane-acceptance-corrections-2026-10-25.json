@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-25",
+  "status": "focused_local_native_pass",
+  "implementation": [
+    "One compact trailing three-way interface menu for Classic/P4",
+    "Captured descriptive child titles retained through load, reload and side swaps",
+    "Native pane-header element explicitly exposed as accessible button; visual label not duplicated"
+  ],
+  "native": {
+    "pairs": 6,
+    "cases": [
+      "compare",
+      "merge",
+      "ownership"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "result": "pass",
+    "receiver_pids": [
+      10406,
+      10444,
+      10476,
+      10502,
+      10524,
+      10554
+    ],
+    "independently_absent": {
+      "10406": true,
+      "10444": true,
+      "10476": true,
+      "10502": true,
+      "10524": true,
+      "10554": true
+    },
+    "public_system_AX": "Self-process AXUIElement tree after finishLaunching; existing standard Save button control, exact header role/description/help, Show Menu and complete named action set. No TCC prompt.",
+    "dispatch_scope": "Existing direct guarded custom/native actions; no separate external assistive-client dispatch claim."
+  },
+  "retained_failures": [
+    {
+      "reason": "In-process NSHostingView accessibilityChildren hid even a standard SwiftUI button; invalid hierarchy oracle. Isolated self AX probes established the correct public-system query.",
+      "repair": "Use owned self-process AXUIElement query after finishLaunching; remove unnecessary containment."
+    },
+    {
+      "reason": "Accepted child document load reset descriptive title to temporary snapshot path.",
+      "repair": "Shared title policy used in initial controller, configuration and accepted load; reload/round-trip swap witnesses added."
+    }
+  ],
+  "owned_probe_pids": [
+    8883,
+    8944,
+    9002,
+    9033,
+    9082
+  ],
+  "probe_scope_limit": "Probe9033 handler executed but async harness ended before full diagnostic; no dispatch-pass claim. All probe processes reaped.",
+  "source_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "abbe623c5047030af1c70d55d9d322099ce68c9c9925e616a44be3077c93b276",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "b3d4e8b114d285a2c6c81afb1768904f6accbeb3941c635dc4cd09e4cf5a190c",
+    "Sources/TurtleGitMac/MergePanePresentation.swift": "31920751563dad9ea19837bfc305d71b829d50452abbd31d9eed5b64143004c8",
+    "docs/qa/merge-pane-header-native-2026-10-25.swift": "e94c1ad0536cf2f5cb7d22003154fa79b56501a0d98e3aa27757bdb43d4bd9ec"
+  },
+  "log_sha256": "fade87a22bc062c9133d2c1ef5e5d0889c37d978567eb849859cca90a9d32c45",
+  "installed_build7_predates_corrections": true,
+  "remaining": [
+    "Installed signed acceptance of subsequent correction source",
+    "Physical VoiceOver/keyboard operation",
+    "Current complete hosted macOS integration pass",
+    "Full upstream dialog parity and distribution acceptance"
+  ],
+  "resource_and_documentation_checks": {
+    "localizations": "pass",
+    "bundled_help": "pass",
+    "dialog_coverage_reconciliation": "pass; family/control coverage, not completion certification",
+    "site_build": "pass",
+    "site_routes_and_links": "pass",
+    "site_search": "pass",
+    "log_sha256": {
+      "merge-owned-setup-localizations-2026-10-25.log": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc",
+      "merge-owned-setup-help-2026-10-25.log": "cd1b81f390c7a694c282d796336c4adf59475ed4609778d33d1cac4fd7128616",
+      "merge-owned-setup-coverage-2026-10-25.log": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651",
+      "merge-owned-setup-site-2026-10-25.log": "96003aca175d7b4aa28433f21f6dbe6d52dd10c2278e9f29d3582435b54c66ed",
+      "merge-owned-setup-site-links-2026-10-25.log": "f16cae58c6b366e65ee173b9bc2ed94f0e3d70246d2b47cfb87ebfc32acf7963",
+      "merge-owned-setup-site-search-2026-10-25.log": "d4e124ee1771fac404a14df30e82bdbce3cd4a1daa97cf17178347f683dbc5da"
+    }
+  }
+}

@@ -432,16 +432,23 @@ public enum MergeOpenRequest: Sendable {
     case patch(file: URL?, directory: URL?, clipboard: Data?)
     public static func selection(mode: MergeOpenMode, base: String, theirs: String, mine: String,
                                  diff: String, directory: String, clipboard: Data?) throws -> Self {
-        func url(_ value: String, folder: Bool = false) throws -> URL? {
+        let request = try lexicalSelection(mode: mode, base: base, theirs: theirs, mine: mine, diff: diff, directory: directory, clipboard: clipboard)
+        try request.validateFileSystem()
+        return request
+    }
+    /// Parse active fields before a sandbox owner asks for access. This does not
+    /// claim that the named files exist or that their contents are accessible.
+    public static func lexicalSelection(mode: MergeOpenMode, base: String, theirs: String, mine: String,
+                                        diff: String, directory: String, clipboard: Data?) throws -> Self {
+        func url(_ value: String) throws -> URL? {
             guard !value.isEmpty else { return nil }
             guard !value.contains("\0") else { throw RevisionComparisonFailure.selection }
-            let location = URL(fileURLWithPath: (value as NSString).expandingTildeInPath).standardizedFileURL
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory), isDirectory.boolValue == folder else { throw RevisionComparisonFailure.selection }
-            return location
+            let expanded = (value as NSString).expandingTildeInPath
+            let absolute = expanded.hasPrefix("/") ? expanded : FileManager.default.currentDirectoryPath + "/" + expanded
+            return FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(absolute))
         }
         if mode == .applyUnifiedDiff {
-            let target = try url(directory, folder: true)
+            let target = try url(directory)
             if let clipboard { guard !clipboard.isEmpty else { throw RevisionComparisonFailure.selection }; return .patch(file: nil, directory: target, clipboard: clipboard) }
             return .patch(file: try url(diff), directory: target, clipboard: nil)
         }
@@ -450,6 +457,21 @@ public enum MergeOpenRequest: Sendable {
         let files = [baseURL, theirsURL, mineURL].compactMap { $0 }
         guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
         return .compare(base: files[0], mine: files.last!, single: files.count == 1)
+    }
+    /// Call only after acquiring the active input grants. Missing inputs remain
+    /// invalid in Open; command-line future-file handling is a separate policy.
+    public func validateFileSystem() throws {
+        let paths: [(URL, Bool)]
+        switch self {
+        case .compare(let base, let mine, _): paths = [(base, false), (mine, false)]
+        case .merge(let base, let theirs, let mine): paths = [(base, false), (theirs, false), (mine, false)]
+        case .patch(let file, let directory, _): paths = (file.map { [($0, false)] } ?? [])
+            + (directory.map { [($0, true)] } ?? [])
+        }
+        for (url, folder) in paths {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue == folder else { throw RevisionComparisonFailure.selection }
+        }
     }
 }
 

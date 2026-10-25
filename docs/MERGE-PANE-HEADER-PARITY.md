@@ -101,3 +101,68 @@ all file-provider/sandbox grants, minimum-version/Intel behavior, signed install
 acceptance and full hosted CI remain separate acceptance work. Complete source
 menu/layout equivalence and all editor workflows are not established by this
 family.
+
+## Installed acceptance corrections
+
+Actual build 7 three-pane acceptance found three connected presentation gaps:
+the Merge interface selector still occupied a large labelled left-side control;
+the separate source comparison's window title exposed its private snapshot path;
+and the accessible hierarchy exposed a static label without its owning header
+menu. These findings supersede any inference of installed three-pane or
+VoiceOver acceptance from the earlier offscreen case passes.
+
+The authored correction gives both Classic and P4 three-pane layouts one compact,
+right-aligned menu selector using the same captured AppStorage setting and
+busy/Quit gates as Compare. Separate source frames now use the captured source
+descriptions in the title. `MainFrm.cpp::SetWindowTitle` (3117–3154) supplies the
+shortening/order policy: Mine first, Base as fallback, both only for distinct
+short names. Full descriptions remain pane labels; immutable physical paths
+remain locations/tooltips and identity, never replaced by descriptive metadata.
+The header explicitly participates as an accessible button; its visual label is
+ignored as a separate child. Show Menu, per-command custom actions and keyboard
+focus retain the existing one-shot/current-owner/modal/detachment fences.
+
+The existing native receiver now also checks the public accessibility hierarchy
+contains the owning header button in Compare and P4, rather than relying solely
+on direct action methods, and checks the separate frame's captured descriptive
+title. The correction checkpoint and new installed/physical/VoiceOver acceptance
+are pending; the earlier six native pairs do not validate these subsequent edits.
+
+The first correction checkpoint's Compare/system case failed the new
+in-process AX-tree oracle despite the header's direct native button properties;
+a containment retry failed the same oracle. Both attempts remain recorded. An
+isolated public AppKit/SwiftUI control showed that the in-process hosting-view
+children also omit a standard SwiftUI Button, while the actual system AX server
+exposes both that control and the explicitly accessible native header button and
+its named actions. `finishLaunching` is required for the receiver's system AX
+server; querying the in-process hosting-view tree is not equivalent.
+
+The unnecessary containment change was removed. The fixture now queries only
+its own process through public `AXUIElement` APIs, without requesting permission,
+and requires an existing standard Save button as a control before asserting the
+header's exact description/help, button role, Show Menu and complete named
+action set. Existing direct retained-action dispatch still checks one-shot and
+owner/detachment fences; this does not claim a separate external assistive
+client dispatched those actions. The affected grouped checkpoint remains pending.
+
+The first true-system-AX Compare/system case passed. The following Merge/system
+case found that accepted document loading still overwrote the previously
+configured source frame title with the private snapshot path. The repair now
+uses one computed title policy in initial controller creation, metadata setup
+and every accepted load, including reload and side swaps. Captured descriptions
+follow physical input identity when panes exchange; ordinary and image titles
+retain their previous path/IDiff policy. The existing source-child scenario now
+checks reload plus a round-trip side swap and original input bytes. This focused
+repair's checkpoint remains pending; earlier title assertions are not a pass.
+
+### Final local correction checkpoint
+
+The [correction receipt](qa/merge-pane-acceptance-corrections-2026-10-25.json)
+records the final grouped six scenario/engine pairs passing after the preserved
+AX-oracle and real load-title repairs. System and bundled Git pass Compare, Merge
+and ownership scenarios; all six receivers are independently absent. The actual
+self-process macOS AX tree exposes the button, Show Menu and named actions, with
+a standard Save button as a control. Direct guarded action dispatch remains
+separate from an external assistive-client interaction claim. Installed build 7
+predates these source corrections; signed/physical VoiceOver and full-dialog
+acceptance remain open.

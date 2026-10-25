@@ -149,7 +149,10 @@ struct MergePaneHeader:NSViewRepresentable {
         let leading=titleField.leadingAnchor.constraint(equalTo:leadingAnchor,constant:8),trailing=titleField.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-8)
         leadingInset=leading;trailingInset=trailing
         NSLayoutConstraint.activate([leading,trailing,titleField.centerYAnchor.constraint(equalTo:centerYAnchor)])
-        setAccessibilityRole(.button)
+        // NSView is otherwise ignored and AppKit exposes only the visual
+        // NSTextField as static text, hiding the owning menu/action receipts.
+        setAccessibilityElement(true);setAccessibilityRole(.button)
+        titleField.setAccessibilityElement(false);setAccessibilityChildren([])
     }
     required init?(coder:NSCoder){fatalError("init(coder:) has not been implemented")}
     deinit {if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)}}
@@ -180,7 +183,8 @@ struct MergePaneHeader:NSViewRepresentable {
         titleField.textColor=color(foreground:true)
         let raw=[title,location].filter{!$0.isEmpty}.joined(separator:"\n")
         toolTip=raw;titleField.toolTip=raw;titleField.setAccessibilityLabel(title);setAccessibilityLabel(title)
-        setAccessibilityValue(modified ? NSLocalizedString("Modified",comment:""):"");needsDisplay=true
+        setAccessibilityValue(modified ? NSLocalizedString("Modified",comment:""):"")
+        setAccessibilityHelp(location);setAccessibilityEnabled(enabled);needsDisplay=true
     }
     private func performActivation()->Bool {
         guard !retired,enabled,let window,window === originalWindow,window.attachedSheet==nil,NSApp.modalWindow==nil else{return false}
@@ -195,7 +199,7 @@ struct MergePaneHeader:NSViewRepresentable {
         (active ? NSColor.controlAccentColor:NSColor.separatorColor).setStroke()
         let border=NSBezierPath(rect:bounds.insetBy(dx:0.5,dy:0.5));border.lineWidth=active ? 2:1;border.stroke()
     }
-    func retire(){retired=true;enabled=false;activate={};actions=nil;actionRevision &+= 1;originalWindow=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil}
+    func retire(){retired=true;enabled=false;setAccessibilityEnabled(false);activate={};actions=nil;actionRevision &+= 1;originalWindow=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil}
 }
 
 /// Native fields keep the status observable without depending on SwiftUI's

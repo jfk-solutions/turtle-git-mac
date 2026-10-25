@@ -97,9 +97,14 @@ an edit is open requires Reload before it can be accepted as the new baseline.
 
 A sandboxed App Store build requires file/folder authorization for command-line
 paths, including a missing output's parent directory. A terminal path is not a
-security-scoped grant. The tool retains its input/output grants until the
-command finishes. Store distribution and physical signed acceptance remain
-separate release checks.
+security-scoped grant. Canceling an authorization chooser ends the waiting
+command unsuccessfully without a permission-renewal error. A wrong selection can
+be corrected in the chooser. Interactive Open authorizes typed role paths before
+checking their existence; it still rejects missing inputs after authorization.
+The tool retains its input/output grants until the command and owned panels
+finish. See [authorization behavior](MERGE-AUTHORIZATION-PARITY.md) for the
+connected workflow and verification scope. Store distribution and physical
+signed acceptance remain separate release checks.
 
 `--deletebasetheirsmineonclose` is intended for disposable tool inputs. It removes
 only explicitly supplied input objects whose identity and contents still match

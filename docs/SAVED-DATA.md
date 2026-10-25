@@ -20,7 +20,12 @@ questions appear again. The controls follow TortoiseGit's Saved Data page.
   files after an Abort/Proceed confirmation. See [temporary files](TEMPORARY-FILES.md).
 - **Stored decisions → Clear** forgets remembered answers and suppressed warnings.
   This includes Fetch/Rebase decisions, Stash Pop changes questions, Merge conflict
-  hints, Push All Branches confirmation and Commit cancellation/template hints.
+  hints, Push All Branches confirmation and Commit cancellation/template hints. It
+  also forgets approved and declined project-hook decisions. The next invocation
+  asks again; a hook already accepted and running continues under its existing
+  owner. Configured hook commands and remembered script-file permissions remain.
+  Open Hook Scripts settings refresh unchanged local decision rows while retaining
+  unrelated drafts and explicit unsaved enable/disable changes.
 - **Action log** has its own line limit, Show and Clear controls. See the
   [Action log guide](ACTION-LOG.md).
 
@@ -51,13 +56,23 @@ macOS preference names. Windows registry histories become native preferences.
 URL histories include Request Pull's existing native list; its other per-repository
 input defaults are preserved.
 
-Remaining Saved Data groups include authentication data and
-Show Log cache and future approved-hook decisions.
-Merge input-message history is implemented; see [Merge parity](MERGE-PARITY.md).
-Clearing both histories fixes the pinned source asymmetry in which Merge is counted
-but only Commit is deleted. The merge-editor reset key is
-included for future use, but its corresponding prompt is not implemented. No
-completion claim covers those groups or physical/signed UI acceptance.
+Authentication management and Show Log cache clearing are implemented in the
+native Saved Data page. Authentication management targets TurtleGit-owned SSH
+Keychain entries; it does not erase external Git HTTP credential-helper stores
+or Windows Subversion credentials. Merge input-message history is implemented;
+see [Merge parity](MERGE-PARITY.md). Clearing both histories fixes the pinned
+source asymmetry in which Merge is counted but only Commit is deleted.
+
+The merge-editor reset key `DeleteFileWhenEmpty` remains in the source catalogue.
+The pinned Merge save flow already asks Delete/Keep for an empty result, and the
+native editor has the corresponding owned question. Neither pinned prompt reads
+that legacy reset key; it does not establish a missing remembered-answer feature.
+
+The project-hook reset addition follows `SetSavedDataPage.cpp:395–397`, which
+removes the `approvedhooks` namespace. Native decisions use the exact
+`ClientHooks.Approvals` preference key. The [reset checkpoint](qa/hook-decision-reset-2026-10-25.json) records the
+actual focused Core and grouped native results separately. This guide makes no
+new signed-installation or full-port acceptance claim.
 
 Core tests check the source catalogue, reset scope, multiple Commit repositories,
 false/integer remembered answers and preserved neighboring keys. After a Debug

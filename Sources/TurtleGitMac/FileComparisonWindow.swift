@@ -169,9 +169,8 @@ private extension FileComparisonDocument {
     }
     private init(model: FileComparisonWindowModel) {
         self.model = model
-        let path = model.path
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
+        window.title = model.windowTitle; window.isReleasedWhenClosed = false
         let host = FileComparisonHostingController(rootView: FileComparisonDialog(model: model))
         host.sizingOptions = []
         window.contentViewController = host
@@ -433,9 +432,32 @@ private extension FileComparisonDocument {
         configureSourceLine(invocation.line); useInternalMergeViewer()
     }
     private var sourceComparisonTitles:[Bool:String]=[:]
+    /// One title policy for initial presentation and every accepted reload or
+    /// side swap. Captured descriptive names follow physical input identity;
+    /// private storage paths remain exclusively document/location authority.
+    var windowTitle:String {
+        guard !sourceComparisonTitles.isEmpty,standaloneImages==nil,imageComparison==nil else {
+            let name=standaloneImages == nil ? (sidesReversed ? document?.destination.path ?? path:path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")
+            return name+" – "+(imageComparison == nil ? "TurtleGitMerge":"TurtleGitIDiff")
+        }
+        // MainFrm::SetWindowTitle shortening/order, independent of full pane
+        // captions. storageSide maps the current right/left presentation.
+        func caption(_ value:String)->String {
+            var result=value
+            for separator in [" - "," : "] {if let range=result.range(of:separator){result=String(result[..<range.lowerBound])}}
+            return MergePanePresentation.display(result)
+        }
+        let mine=caption(sourceComparisonTitles[storageSide(false)] ?? ""),other=caption(sourceComparisonTitles[storageSide(true)] ?? "")
+        let title:String
+        if mine.isEmpty {title=other}
+        else if other.isEmpty || mine.caseInsensitiveCompare(other) == .orderedSame {title=mine}
+        else if mine.utf16.count<10 && other.utf16.count<10 {title=mine+" - "+other}
+        else {title=mine}
+        return title.isEmpty ? "TurtleGitMerge":title+" – TurtleGitMerge"
+    }
     func configureSourceComparisonTitles(base:String,side:String) {
         guard document==nil,!busy,!retired else{return}
-        sourceComparisonTitles=[true:base,false:side]
+        sourceComparisonTitles=[true:base,false:side];window?.title=windowTitle
     }
     func mergeToolDescriptiveName(base: Bool) -> String? {
         if let title=sourceComparisonTitles[storageSide(base)] {return title}
@@ -1769,7 +1791,7 @@ private extension FileComparisonDocument {
                 // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
                 imageComparison = decodedImages
                 if let images = imageComparison {retainedImageModel?.configureImages(base:images.base,destination:images.destination,force:true)}
-                window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
+                window?.title=windowTitle
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
                 if !transactional {activeBase = onePaneActive ? false : drafts?.preferredBase ?? false}
                 updateHistoryState()

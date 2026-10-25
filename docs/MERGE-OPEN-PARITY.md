@@ -156,3 +156,11 @@ replacement owners remain authoritative.
 All 24 resource controls have explicit partial mappings. The Debug build and all four grouped native families pass: source form/chooser ownership, standalone Open, text replacement and patch replacement. The affected source case passes again after the footer-spacing repair. Both raw light/dark captures were individually reviewed; all five receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-open-source-family-2026-10-17.json) for the fixture compile repair, captures, diagnostic warnings and acceptance limits. Physical sheets, keyboard/drop/completion,
 VoiceOver, source single-pane pruning, all replacement transitions and signed
 App Store authorization remain open; this is not complete dialog certification.
+
+## Authorization before typed-path validation
+
+The [connected authorization family](MERGE-AUTHORIZATION-PARITY.md) separates
+lexical role parsing from post-grant filesystem validation. Existing validating
+callers keep their contract; typed and dropped paths reach their owned chooser
+before inaccessible input metadata can reject them. Its new checkpoint remains
+separate from the historical Open source-control results above.

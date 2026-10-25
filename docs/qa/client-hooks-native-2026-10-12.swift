@@ -21,6 +21,10 @@ import TurtleGitCore
         }
         let script = root.appendingPathComponent("hook.sh")
         try Data("""
+        if [ -f "$2/hold-hook" ]; then
+          touch "$2/hook-started"
+          while [ ! -f "$2/release-hook" ]; do sleep 0.02; done
+        fi
         printf '%s\\n' "$1" >> "$2/hook-log"
         case "$1" in
         start_commit_hook) cat "$3" > "$2/start-hook-paths"; printf 'start message' > "$4" ;;
@@ -75,11 +79,87 @@ import TurtleGitCore
         session.approval = { _ in approvals += 1; return .init(approved:true,remember:true,cancelled:false) }
         let denied = try await session.run(.preCommit,repository:repo,access:nil,message:"draft")
         try require(denied == nil && approvals == 0,"Remembered rejection was executed or prompted")
-        try ClientHookPreferences.remember(values[0],approved:nil,preferences:prefs)
+        // Hold an actual project-config writer, then reset its unchanged denied
+        // row while a different local command and global draft are being saved.
+        func shell(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        let gate=root.appendingPathComponent("save-gate"),saveStarted=root.appendingPathComponent("save-started"),saveRelease=root.appendingPathComponent("save-release")
+        let wrappedGit=root.appendingPathComponent("held-config-git")
+        try Data(("#!/bin/sh\ncase \" $* \" in *' --replace-all '*) if [ -f "+shell(gate.path)+" ]; then touch "+shell(saveStarted.path)+"; while [ ! -f "+shell(saveRelease.path)+" ]; do sleep 0.02; done; fi;; esac\nexec "+shell(git.path)+" \"$@\"\n").utf8).write(to:wrappedGit)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrappedGit.path)
+        let saveRepo=GitRepository(root:repo.root,executable:wrappedGit),saveModel=HookSettingsModel(preferences:prefs)
+        defer {saveModel.invalidate();try? Data().write(to:saveRelease)}
+        saveModel.activate(repository:saveRepo,access:nil);try await wait {saveModel.loaded && !saveModel.busy}
+        let globalWhileSaving=ClientHook(type:.prePush,path:"*",command:"/bin/true",show:false)
+        saveModel.hooks.append(globalWhileSaving)
+        saveModel.hooks.append(ClientHook(type:.postCommit,path:repo.root.path,command:"/bin/true",show:false,local:true))
+        try Data().write(to:gate)
+        let saving=Task {await saveModel.apply()}
+        try await wait {saveModel.busy && FileManager.default.fileExists(atPath:saveStarted.path)}
+        SavedDataStore(preferences:UserDefaults(suiteName:suite)!).clear(.storedDecisions)
+        saveModel.refreshStoredDecisions()
+        try require(saveModel.hooks.first(where:{$0.type == .preCommit && $0.local})?.enabled == false,"Busy save mutated its captured row before drain")
+        try Data().write(to:saveRelease)
+        try require(await saving.value,"Held real project hook save failed")
+        try await wait {saveModel.hooks.first(where:{$0.type == .preCommit && $0.local})?.enabled == true}
+        try require(ClientHookPreferences.decision(values[0],preferences:prefs)==nil && saveModel.hooks.contains(globalWhileSaving) && !saveModel.modified,"Save acknowledged or recreated an unprojected reset")
+        try FileManager.default.removeItem(at:gate)
+        // Restore only this private fixture's original command inventory.
+        try await repo.saveProjectClientHooks(values);prefs.removeObject(forKey:"hooks")
+        try ClientHookPreferences.remember(values[0],approved:false,preferences:prefs)
+        let projection=HookSettingsModel(preferences:prefs)
+        defer {projection.invalidate()}
+        projection.activate(repository:repo,access:nil);try await wait {projection.loaded && !projection.busy}
+        try require(projection.hooks.first(where:{$0.local})?.enabled == false,"Remembered denial missing from visible Settings")
+        let draftGlobal=ClientHook(type:.prePush,path:"*",command:"/bin/true",show:false)
+        projection.hooks.append(draftGlobal)
+        let configurationBefore=try Data(contentsOf:repo.root.appendingPathComponent(".tgitconfig"))
+        let globalsBefore=prefs.object(forKey:"hooks") as? String
+        let privateGrant=Data([8,9,10])
+        try ClientHookScriptAccess.storeBookmark(privateGrant,for:script,preferences:prefs)
+        let grantWireBefore=prefs.data(forKey:"ClientHooks.ScriptAccess.v2")
+        try require(grantWireBefore != nil && ClientHookScriptAccess.bookmark(for:script,preferences:prefs)==privateGrant,"Actual script permission namespace was not seeded")
+        // Distinct instances of the same suite must refresh the live page;
+        // unrelated private domains must not alter its decisions.
+        let otherSuite="TurtleGit.Hooks.Other."+UUID().uuidString,other=UserDefaults(suiteName:otherSuite)!
+        defer {other.removePersistentDomain(forName:otherSuite)}
+        SavedDataStore(preferences:other).clear(.storedDecisions)
+        await Task.yield();projection.refreshStoredDecisions()
+        try require(projection.hooks.first(where:{$0.local})?.enabled == false,"Unrelated domain reset changed visible hook decision")
+        let sameSuite=UserDefaults(suiteName:suite)!
+        SavedDataStore(preferences:sameSuite).clear(.storedDecisions)
+        try await wait {projection.hooks.first(where:{$0.local})?.enabled == true}
+        try require(projection.hooks.contains(draftGlobal) && projection.modified,"Reset discarded unrelated unsaved hook draft")
+        try require(prefs.data(forKey:"ClientHooks.ScriptAccess.v2")==grantWireBefore && ClientHookScriptAccess.bookmark(for:script,preferences:prefs)==privateGrant && (prefs.object(forKey:"hooks") as? String)==globalsBefore,"Reset changed hook configuration or file permissions")
+        let configurationAfter=try Data(contentsOf:repo.root.appendingPathComponent(".tgitconfig"))
+        try require(configurationBefore==configurationAfter,"Reset changed project hook command")
+        try ClientHookPreferences.remember(values[0],approved:false,preferences:prefs)
+        projection.refreshStoredDecisions();projection.window=parent
+        projection.selection=[values[0].id];projection.configure()
+        try await wait {parent.attachedSheet?.delegate is HookConfigurationController}
+        let resetEditor=parent.attachedSheet!.delegate as! HookConfigurationController
+        SavedDataStore(preferences:UserDefaults(suiteName:suite)!).clear(.storedDecisions)
+        projection.refreshStoredDecisions()
+        try require(projection.hasEditor && projection.hooks.first(where:{$0.local})?.enabled == false,"Reset replaced an active configuration editor")
+        resetEditor.finish(nil)
+        try await wait {!projection.hasEditor && parent.attachedSheet==nil && projection.hooks.first(where:{$0.local})?.enabled == true}
+        try require(projection.hooks.contains(draftGlobal),"Deferred reset discarded unrelated draft")
         let accepted = try await session.run(.preCommit,repository:repo,access:nil,message:"draft")
         try require(accepted?.message == "hook commit message" && approvals == 1,"Approval/message readback differs")
         _ = try await session.run(.preCommit,repository:repo,access:nil,message:"draft")
         try require(approvals == 1,"Exact remembered script prompted twice")
+        let heldMarker=repo.root.appendingPathComponent("hold-hook"),startedMarker=repo.root.appendingPathComponent("hook-started"),releaseMarker=repo.root.appendingPathComponent("release-hook")
+        try Data().write(to:heldMarker)
+        defer {try? Data().write(to:releaseMarker)}
+        let running=Task {try await session.run(.preCommit,repository:repo,access:nil,message:"held")}
+        try await wait {FileManager.default.fileExists(atPath:startedMarker.path) && ClientHookProcessPool.shared.activeScripts>0}
+        SavedDataStore(preferences:UserDefaults(suiteName:suite)!).clear(.storedDecisions)
+        try require(ClientHookProcessPool.shared.activeScripts>0 && ClientHookPreferences.decision(values[0],preferences:prefs)==nil,"Reset canceled or retained approval of accepted running hook")
+        try Data().write(to:releaseMarker)
+        let heldResult=try await running.value
+        try require(heldResult?.message=="hook commit message" && approvals==1,"Reset altered accepted hook completion")
+        try FileManager.default.removeItem(at:heldMarker)
+        _ = try await session.run(.preCommit,repository:repo,access:nil,message:"after reset")
+        try require(approvals==2,"Subsequent hook failed to ask again after reset")
         let late = ClientHookSession(preferences:prefs)
         var pending:CheckedContinuation<ClientHookSession.Approval,Never>?
         try ClientHookPreferences.remember(values[0],approved:nil,preferences:prefs)

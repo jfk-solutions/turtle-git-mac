@@ -1,12 +1,123 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
 private struct MergeOpenCheckFailure: Error { let line: Int }
+private final class MergeOpenPrivateBookmarks: RepositoryBookmarkProvider {
+    var starts: [URL] = []
+    var stops: [URL] = []
+    func create(for url: URL) throws -> Data { Data(url.path.utf8) }
+    func resolve(_ data: Data) throws -> ResolvedBookmark { .init(url: FileTransferPaths.fileURL(String(decoding:data,as:UTF8.self)), stale:false) }
+    func startAccessing(_ url: URL) -> Bool { starts.append(url); return true }
+    func stopAccessing(_ url: URL) { stops.append(url) }
+}
 struct MergeOpenNativeVerification {
+    // Swift 6.4 crashes while generating the optional throwing ObjC-protocol
+    // bridge. Invoke the same public AppKit validation selector directly.
+    @MainActor private static func validation(_ panel: NSOpenPanel, _ url: URL) throws -> (Bool, NSError?) {
+        guard let delegate = panel.delegate, let type = object_getClass(delegate as AnyObject),
+              let method = class_getInstanceMethod(type, NSSelectorFromString("panel:validateURL:error:")) else { throw MergeOpenCheckFailure(line:#line) }
+        typealias Validate = @convention(c) (AnyObject, Selector, AnyObject, NSURL, UnsafeMutablePointer<Unmanaged<AnyObject>?>) -> ObjCBool
+        let call = unsafeBitCast(method_getImplementation(method), to:Validate.self)
+        var error: Unmanaged<AnyObject>?
+        let accepted = call(delegate as AnyObject, NSSelectorFromString("panel:validateURL:error:"), panel, url as NSURL, &error)
+        return (accepted.boolValue, error?.takeUnretainedValue() as? NSError)
+    }
     @MainActor static func require(_ value: @autoclosure () -> Bool, line: Int = #line) throws { if !value() { throw MergeOpenCheckFailure(line: line) } }
     @MainActor static func wait(_ condition: () -> Bool) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         throw MergeOpenCheckFailure(line: #line)
+    }
+    @MainActor static func verifyAuthorization(root: URL, prefs: UserDefaults, pasteboard: NSPasteboard) async throws {
+        let provider = MergeOpenPrivateBookmarks()
+        let typed = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { typed.close() }
+        typed.requiresScopes = true
+        typed.makeLease = { RepositoryAccessLease(url:$0,provider:provider) }
+        let first = FileTransferPaths.fileURL(root.path + "/Café\ntyped"), second = FileTransferPaths.fileURL(root.path + "/Cafe\u{301}\ntyped")
+        typed.base.stringValue = first.path; typed.mine.stringValue = second.path
+        var slots: [MergeOpenWindowController.Slot] = [], accepted = 0
+        var received: MergeOpenRequest?, retained: [RepositoryAccessLease] = []
+        typed.choosePath = { slot, requested in
+            slots.append(slot)
+            guard let requested else { return nil }
+            // The target deliberately does not exist until access is requested.
+            // An existence check before authorization would never reach here.
+            try? Data("authorized input\n".utf8).write(to:requested)
+            return requested
+        }
+        typed.onAccepted = { request, grants in accepted += 1; received = request; retained = grants }
+        typed.accept(); try await wait { !typed.busy }
+        try require(slots == [.base] && accepted == 0 && typed.status.stringValue.isEmpty)
+        typed.accept(); try await wait { !typed.busy }
+        // Canonical-equivalent paths may share the first grant, but their role
+        // spellings must still survive the submitted request unchanged.
+        if accepted == 0 { typed.accept() }
+        try require(accepted == 1 && !retained.isEmpty)
+        guard case .compare(let base,let mine,let single) = received else { throw MergeOpenCheckFailure(line:#line) }
+        try require(Data(base.path.utf8) == Data(first.path.utf8) && Data(mine.path.utf8) == Data(second.path.utf8) && !single)
+        try require(prefs.integer(forKey:"TurtleGitMerge.OpenRadio") == MergeOpenMode.merging.rawValue)
+        let cancelled = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { cancelled.close() }; cancelled.requiresScopes = true
+        cancelled.base.stringValue = root.appendingPathComponent("not-yet-authorized").path
+        var choices = 0
+        cancelled.choosePath = { _,_ in choices += 1; return nil }
+        cancelled.onAccepted = { _,_ in throw MergeOpenCheckFailure(line:#line) }
+        cancelled.accept(); try await wait { !cancelled.busy }
+        try require(choices == 1 && cancelled.status.stringValue.isEmpty && cancelled.base.stringValue.hasSuffix("not-yet-authorized"))
+        // Native validation keeps a wrong selection in the same authorization
+        // panel. Injected presenters must also pass the post-answer check.
+        let corrected = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { corrected.close() }; corrected.requiresScopes = true
+        corrected.makeLease = { RepositoryAccessLease(url:$0,provider:provider) }
+        corrected.base.stringValue = first.path
+        var validations = 0, pickerCount = 0
+        corrected.selectedPath = { _ in first }
+        corrected.presentPicker = { panel,_,reply in
+            pickerCount += 1
+            do {
+                let rejected = try validation(panel,root.appendingPathComponent("mine.txt"))
+                if !rejected.0 && rejected.1 != nil { validations += 1 } else { validations = -100 }
+                let accepted = try validation(panel,first)
+                if accepted.0 && accepted.1 == nil { validations += 1 } else { validations = -100 }
+            }
+            catch { validations = -100 }
+            reply(.OK); reply(.cancel)
+        }
+        var correctedAccepted = 0
+        corrected.onAccepted = { _,grants in correctedAccepted += 1; try require(grants.count == 1) }
+        corrected.accept(); try await wait { !corrected.busy }
+        try require(validations == 2 && pickerCount == 1 && correctedAccepted == 0)
+        corrected.accept(); try require(correctedAccepted == 1 && pickerCount == 1)
+        let wrong = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { wrong.close() }; wrong.requiresScopes = true
+        wrong.base.stringValue = first.path
+        wrong.makeLease = { RepositoryAccessLease(url:$0,provider:provider) }
+        var wrongReplies = 0, wrongAccepted = 0
+        wrong.choosePath = { _,_ in wrongReplies += 1; return wrongReplies == 1 ? root.appendingPathComponent("mine.txt") : first }
+        wrong.onAccepted = { _,grants in wrongAccepted += 1; try require(grants.count == 1) }
+        wrong.accept(); try await wait { !wrong.busy }
+        try require(wrongReplies == 1 && wrongAccepted == 0 && !wrong.status.stringValue.isEmpty && Data(wrong.base.stringValue.utf8) == Data(first.path.utf8))
+        wrong.accept(); try await wait { !wrong.busy }; wrong.accept()
+        try require(wrongAccepted == 1 && wrongReplies == 2)
+        let draining = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
+        defer { draining.close() }; draining.requiresScopes = true
+        draining.base.stringValue = first.path
+        draining.window?.alphaValue = 0; draining.window?.setFrameOrigin(NSPoint(x:-10000,y:-10000))
+        draining.makeLease = { RepositoryAccessLease(url:$0,provider:provider) }
+        draining.selectedPath = { _ in first }
+        var heldPanel: NSOpenPanel?, reply: ((NSApplication.ModalResponse)->Void)?
+        draining.presentPicker = { panel,owner,answer in
+            panel.alphaValue = 0; heldPanel = panel; reply = answer; owner.beginSheet(panel)
+        }
+        draining.accept(); try await wait { heldPanel?.sheetParent != nil && reply != nil }
+        reply?(.OK)
+        await Task.yield(); await Task.yield()
+        try require(draining.busy && draining.pendingChoices == 1 && !draining.ok.isEnabled)
+        if let panel = heldPanel { draining.window?.endSheet(panel,returnCode:.OK); panel.orderOut(nil) }
+        try await wait { !draining.busy && draining.pendingChoices == 0 }
+        try require(draining.status.stringValue.isEmpty)
+        retained = []
     }
     @MainActor static func verify() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitMergeOpenNative-" + UUID().uuidString)
@@ -16,6 +127,7 @@ struct MergeOpenNativeVerification {
         defer { prefs.removePersistentDomain(forName:suite); pasteboard.releaseGlobally(); try? FileManager.default.removeItem(at:root) }
         let base = root.appendingPathComponent("base.txt"), theirs = root.appendingPathComponent("theirs.txt"), mine = root.appendingPathComponent("mine.txt")
         for (url,text) in [(base,"a\nb\nc\n"),(theirs,"a\nb\nC\n"),(mine,"a\nB\nc\n")] { try Data(text.utf8).write(to:url) }
+        try await verifyAuthorization(root:root,prefs:prefs,pasteboard:pasteboard)
         let dropBoard = NSPasteboard(name:NSPasteboard.Name("TurtleGitMergeOpenDrop-" + UUID().uuidString))
         defer { dropBoard.releaseGlobally() }
         let paths = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard)
@@ -73,10 +185,12 @@ struct MergeOpenNativeVerification {
         // Captured picker result expires after its owning Open window closes.
         let late = MergeOpenWindowController(preferences:prefs,pasteboard:pasteboard); defer { late.close() }
         var continuation: CheckedContinuation<URL?,Never>?
+        var lateLeases = 0
+        late.makeLease = { url in lateLeases += 1; return RepositoryAccessLease(url:url) }
         late.choosePath = { _,_ in await withCheckedContinuation { continuation = $0 } }
         late.browse(.diff); try await wait { continuation != nil }; try require(late.busy && !late.ok.isEnabled)
         late.close(); continuation?.resume(returning:base); try await Task.sleep(nanoseconds:20_000_000)
-        try require(late.diff.stringValue.isEmpty)
+        try require(late.diff.stringValue.isEmpty && lateLeases == 0)
         // Open-created standalone three-pane model owns exact result and guarded Save.
         let working = try WorkingTextMerge(base:base,theirs:theirs,mine:mine)
         let context = GitRepository(root:root,executable:URL(fileURLWithPath:"/usr/bin/git"))

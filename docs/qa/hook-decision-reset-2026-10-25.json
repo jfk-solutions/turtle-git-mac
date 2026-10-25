@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-25",
+  "status": "focused_core_and_grouped_native_pass",
+  "scope": [
+    "Stored decisions removes exact hook approval/denial namespace",
+    "Open Hook Settings reconciles own preference domain and preserves drafts",
+    "Reset during real project save and attached editor is deferred safely",
+    "Accepted running hooks retain ownership; later invocation prompts again",
+    "Actual v2 script-permission serialized bytes and bookmark lookup remain intact"
+  ],
+  "core": {
+    "filter": "SavedDataTests",
+    "methods": 8,
+    "seconds": 0.027,
+    "result": "pass"
+  },
+  "native": {
+    "retained_hook_cases": 2,
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "saved_data_page_cases": 1,
+    "result": "pass",
+    "receiver_pids": [
+      10592,
+      11245,
+      11906
+    ],
+    "independently_absent": {
+      "10592": true,
+      "11245": true,
+      "11906": true
+    },
+    "scope": [
+      "Separate same-suite and unrelated-domain resets",
+      "Real held project hook writer and Cancel of attached configuration editor",
+      "Real accepted held hook survives reset and next invocation asks again",
+      "Existing actual Commit/Push/Rebase and non-wait cancellation cases retained",
+      "Existing private Saved Data history/reset scope and hidden host retained"
+    ]
+  },
+  "review_repair": "Static peer review found an in-flight save could acknowledge reset bytes without projecting rows or recreate unchanged denial. Preserve pending reset, avoid replaying unchanged local choices, then reconcile after actual writer drains.",
+  "validation_failures": [],
+  "source_sha256": {
+    "Sources/TurtleGitCore/SavedData.swift": "ff449a42684d50020963a2429c03af733a711806dc2759f52b79089a089e21b5",
+    "Sources/TurtleGitMac/HookSettings.swift": "a00184739462e173bf46e46406be8e838bb3f0027068e604416d32465cb98541",
+    "Tests/TurtleGitCoreTests/SavedDataTests.swift": "edca616fb9fa1c57c4e26dcc1695bf67cd6800949570cf82cf4f879be2a62188",
+    "docs/qa/client-hooks-native-2026-10-12.swift": "7c6dcf238ae4893f57614bf491806143575e524aeec243049352037e552eb31b",
+    "docs/qa/saved-data-native-2026-10-08.swift": "7026f73a2d5137d50e81e72a742dbae7c0fc19014f29c0cac735ab31f6e44940"
+  },
+  "logs_sha256": {
+    "merge-owned-setup-hook-reset-2026-10-25.log": "41e6b280294bc545c36d4bfebcea3d940131f19af359dd8236bb33f7213c926d",
+    "merge-owned-setup-saved-data-2026-10-25.log": "0cc67e38928945728a9d6bc9ae21906db8dc82cb4487fe309c70bf7246d08d4d",
+    "hook-decision-reset-core-2026-10-25.log": "3cc95cf50758b8b8d1cfb4770564f4b883e396717dbad995f80faebd489ea7c6"
+  },
+  "signed_installation": false,
+  "full_port_acceptance": false,
+  "warnings": "Existing unrelated Swift 6 language-mode warnings remain in the SwiftPM build output.",
+  "resource_and_documentation_checks": {
+    "localizations": "pass",
+    "bundled_help": "pass",
+    "dialog_coverage_reconciliation": "pass; family/control coverage, not completion certification",
+    "site_build": "pass",
+    "site_routes_and_links": "pass",
+    "site_search": "pass",
+    "log_sha256": {
+      "merge-owned-setup-localizations-2026-10-25.log": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc",
+      "merge-owned-setup-help-2026-10-25.log": "cd1b81f390c7a694c282d796336c4adf59475ed4609778d33d1cac4fd7128616",
+      "merge-owned-setup-coverage-2026-10-25.log": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651",
+      "merge-owned-setup-site-2026-10-25.log": "96003aca175d7b4aa28433f21f6dbe6d52dd10c2278e9f29d3582435b54c66ed",
+      "merge-owned-setup-site-links-2026-10-25.log": "f16cae58c6b366e65ee173b9bc2ed94f0e3d70246d2b47cfb87ebfc32acf7963",
+      "merge-owned-setup-site-search-2026-10-25.log": "d4e124ee1771fac404a14df30e82bdbce3cd4a1daa97cf17178347f683dbc5da"
+    }
+  }
+}

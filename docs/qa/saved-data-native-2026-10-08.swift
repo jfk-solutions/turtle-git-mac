@@ -40,7 +40,10 @@ import TurtleGitCore
         let patch = FormatPatchWindowModel(repository: repo, access: nil, preferences: prefs); precondition(patch.dirs.isEmpty)
         settings.clear(.messageHistory); precondition(history.entries.isEmpty && settings.summaries[.messageHistory]?.available == false)
         history.add("new after clear"); settings.refresh(); precondition(settings.summaries[.messageHistory]?.entries == 1)
+        prefs.set(Data([1,2,3]),forKey:SavedDataStore.hookApprovalsKey)
+        prefs.set("preserve hook configuration",forKey:"hooks")
         settings.clear(.storedDecisions)
+        precondition(prefs.object(forKey:SavedDataStore.hookApprovalsKey)==nil && prefs.string(forKey:"hooks")=="preserve hook configuration")
         for key in ["StashPop.ShowChanges", "OpenRebaseRemoteBranchEqualsHEAD", "MergeConflictsNeedsCommit", "Commit.SkipCancelConfirmation"] { precondition(prefs.object(forKey: key) == nil) }
         precondition(prefs.integer(forKey: "AutoCloseGitProgress") == 2 && store.exists)
         let clearedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(clearedIndex == beforeIndex)

@@ -16,6 +16,8 @@ public struct SavedDataSummary: Equatable, Sendable {
 public struct SavedDataStore {
     private let preferences: UserDefaults
     public init(preferences: UserDefaults = .standard) { self.preferences = preferences }
+    public static let storedDecisionsDidChange = Notification.Name("TurtleGit.StoredDecisionsDidChange")
+    public static let hookApprovalsKey = "ClientHooks.Approvals"
     public static let sourceDecisionKeys = [
         "OldMsysgitVersionWarning", "OpenRebaseRemoteBranchEqualsHEAD", "OpenRebaseRemoteBranchUnchanged",
         "OpenRebaseRemoteBranchFastForwards", "DaemonNoSecurityWarning", "NothingToCommitShowUnversioned",
@@ -35,7 +37,7 @@ public struct SavedDataStore {
                 || key.hasPrefix("History.PushURLS.")
         case .messageHistory: return key.hasPrefix("Commit.MessageHistory.") || key == MergeMessageHistory.key
         case .dialogGeometry: return WindowGeometryStore.owns(key)
-        case .storedDecisions: return Self.sourceDecisionKeys.contains(key) || Self.nativeDecisionKeys.contains(key)
+        case .storedDecisions: return Self.sourceDecisionKeys.contains(key) || Self.nativeDecisionKeys.contains(key) || key == Self.hookApprovalsKey
         }
     }
     public func summary(_ category: SavedDataCategory) -> SavedDataSummary {
@@ -47,5 +49,6 @@ public struct SavedDataStore {
         for key in preferences.dictionaryRepresentation().keys where matches(key, category: category) {
             preferences.removeObject(forKey: key)
         }
+        if category == .storedDecisions { NotificationCenter.default.post(name: Self.storedDecisionsDidChange, object: preferences) }
     }
 }

@@ -18,7 +18,15 @@ anchor, the same team and the exact app/helper identifiers.
 
 Select your real Apple developer team in Xcode. For a universal development
 candidate using an already installed Apple Development identity and existing
-profiles, use the shared App Store scheme:
+profiles, use the shared App Store scheme. Prepare the current pinned runtimes in
+this checkout first using the runtime build instructions in `scripts/build-git-runtime.py`,
+`scripts/build-libgit2-runtime.py` and `scripts/build-metafile-runtime.py`.
+In particular, after changing the Metafile pin or renderer patch, refresh it with
+`python3 scripts/build-metafile-runtime.py` before the app build. Runtime caches
+belong to the checkout; a cache in another worktree does not refresh this one.
+The embedding phase deliberately refuses a staged manifest that disagrees with
+the current pin. Refreshing that payload lets Xcode reuse already compiled app
+objects rather than cleaning and rebuilding them.
 
 ```bash
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
@@ -227,3 +235,21 @@ bundle inventory separately from later development. The original watched/recent
 repositories were retained, and temporary background registration was disabled
 after removing only the test fixture. This is bounded installed acceptance, not
 an App Store distribution export or complete Finder/dialog certification.
+
+## October 25 build 7 consolidation
+
+The [build 7 receipt](qa/signed-consolidation-build7-2026-10-25.json) records the
+recoverably installed universal Apple Development candidate at clean `d89ad1f6`
+inputs. Its strict signatures, peer identities, inherited helper layout and
+6,362-member source/staged/installed inventory agree. The first build refused an
+old staged Metafile manifest; refreshing the current pinned runtime allowed a
+packaging-only repair without repeated Swift compilation. No provisioning update,
+App Store export or submission was performed.
+
+Actual private three-way Merge grants and the separate read-only source comparison
+passed their bounded flow. Physical title, selector and accessibility findings
+are recorded separately from later source corrections. An image launch failed
+before rendering, and the mail flow was deferred; neither gains a new physical
+pass. Test-owned windows/processes were closed and affected private test state was
+restored. The earlier sandbox helper probes and Finder acceptance retain their own
+source revisions and scope.

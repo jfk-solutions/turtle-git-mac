@@ -2018,7 +2018,9 @@
       "parity_documents": [
         "docs/SAVED-DATA.md"
       ],
-      "qa_records": []
+      "qa_records": [
+        "docs/qa/hook-decision-reset-2026-10-25.json"
+      ]
     },
     {
       "resource": "src/Resources/TortoiseProcENG.rc",

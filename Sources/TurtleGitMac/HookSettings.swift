@@ -8,14 +8,14 @@ import TurtleGitCore
     struct Decision: Codable { let identity: ClientHookApprovalIdentity; let approved: Bool }
     static func globals(_ preferences:UserDefaults) -> [ClientHook] { ClientHookConfiguration.parse(preferences.string(forKey:"hooks") ?? "") }
     static func decision(_ hook:ClientHook,preferences:UserDefaults) -> Bool? {
-        guard let data = preferences.data(forKey:"ClientHooks.Approvals"), let decisions = try? JSONDecoder().decode([Decision].self,from:data) else { return nil }
+        guard let data = preferences.data(forKey:SavedDataStore.hookApprovalsKey), let decisions = try? JSONDecoder().decode([Decision].self,from:data) else { return nil }
         return decisions.last { $0.identity == hook.approvalIdentity }?.approved
     }
     static func remember(_ hook:ClientHook,approved:Bool?,preferences:UserDefaults) throws {
-        let old = preferences.data(forKey:"ClientHooks.Approvals").flatMap { try? JSONDecoder().decode([Decision].self,from:$0) } ?? []
+        let old = preferences.data(forKey:SavedDataStore.hookApprovalsKey).flatMap { try? JSONDecoder().decode([Decision].self,from:$0) } ?? []
         var values = old.filter { $0.identity != hook.approvalIdentity }
         if let approved { values.append(Decision(identity:hook.approvalIdentity,approved:approved)) }
-        preferences.set(try JSONEncoder().encode(values),forKey:"ClientHooks.Approvals")
+        preferences.set(try JSONEncoder().encode(values),forKey:SavedDataStore.hookApprovalsKey)
     }
 }
 
@@ -41,7 +41,31 @@ import TurtleGitCore
     private var editor:HookConfigurationController?
     var configureEditor:(HookConfigurationController)->Void = {_ in}
     weak var window:NSWindow?
-    init(preferences:UserDefaults = .standard) { self.preferences = preferences }
+    private var decisionObservation:NSObjectProtocol?
+    private var loadedApprovals:Data?
+    private var decisionsNeedRefresh=false
+    init(preferences:UserDefaults = .standard) {
+        self.preferences = preferences
+        decisionObservation=NotificationCenter.default.addObserver(forName:SavedDataStore.storedDecisionsDidChange,object:nil,queue:.main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refreshStoredDecisions() }
+        }
+    }
+    deinit {if let decisionObservation {NotificationCenter.default.removeObserver(decisionObservation)}}
+    // Always read this model's store: same-suite UserDefaults instances may be
+    // distinct objects; an unrelated suite's notification must not reset ours.
+    func refreshStoredDecisions() {
+        guard !invalidated else{return}
+        guard loaded,!busy,!hasEditor else{decisionsNeedRefresh=true;return}
+        let current=preferences.data(forKey:SavedDataStore.hookApprovalsKey)
+        guard current != loadedApprovals else{decisionsNeedRefresh=false;return}
+        objectWillChange.send()
+        for index in saved.indices where saved[index].local {
+            let prior=saved[index],enabled=ClientHookPreferences.decision(prior,preferences:preferences) ?? true
+            if let draft=hooks.firstIndex(where:{$0.id==prior.id}),hooks[draft].enabled==prior.enabled {hooks[draft].enabled=enabled}
+            saved[index].enabled=enabled
+        }
+        loadedApprovals=current;decisionsNeedRefresh=false
+    }
     var modified:Bool { loaded && hooks != saved }
     var editable:Bool { loaded && live && !busy && !hasEditor && !invalidated }
     var selected:[ClientHook] { hooks.filter { selection.contains($0.id) } }
@@ -53,12 +77,12 @@ import TurtleGitCore
         let epoch=editorGeneration
         DispatchQueue.main.async { [weak self] in guard let self,self.live,self.editorGeneration==epoch else{return};self.active=true }
         guard !busy || cancellation?.isCancelled == true else{return}
-        if loaded { return }
+        if loaded { refreshStoredDecisions();return }
         self.repository = repository; self.access = access
         let request = UUID(), token = OperationCancellation(); generation = request; cancellation = token; busy = true;Self.activeReads += 1
         Task { [self,access] in
             defer {Self.activeReads -= 1;withExtendedLifetime(access) {}}
-            defer { if generation == request { busy = false; cancellation = nil } }
+            defer { if generation == request { busy = false; cancellation = nil;if decisionsNeedRefresh {refreshStoredDecisions()} } }
             do {
                 var values = ClientHookPreferences.globals(preferences), local = false
                 if let repository {
@@ -69,16 +93,17 @@ import TurtleGitCore
                     values += project
                 }
                 guard !invalidated, generation == request, !token.isCancelled else { return }
-                hooks = ClientHookConfiguration.sorted(values); saved = hooks; loaded = true; localAvailable = local; error = nil
+                hooks = ClientHookConfiguration.sorted(values); saved = hooks; loadedApprovals=preferences.data(forKey:SavedDataStore.hookApprovalsKey);loaded = true; localAvailable = local; error = nil
             } catch { if !invalidated, generation == request, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func apply() async -> Bool {
         guard loaded, !busy, !hasEditor, !invalidated else { return false }
+        refreshStoredDecisions()
         if let validationError { error = validationError; return false }
         let snapshot = hooks, prior = saved, repository = repository, access = access, request = generation
         let token = OperationCancellation(); cancellation = token; busy = true;saving=true; Self.activeSaves += 1
-        defer { Self.activeSaves -= 1;saving=false; busy = false; cancellation = nil; withExtendedLifetime(access) {} }
+        defer { Self.activeSaves -= 1;saving=false; busy = false; cancellation = nil;if decisionsNeedRefresh {refreshStoredDecisions()}; withExtendedLifetime(access) {} }
         do {
             let globals = try ClientHookConfiguration.serialize(snapshot)
             if snapshot.filter(\.local) != prior.filter(\.local) {
@@ -88,13 +113,17 @@ import TurtleGitCore
                 func shared(_ values:[ClientHook]) -> [ClientHook] { values.filter(\.local).map { var value = $0; value.enabled = true; return value } }
                 if shared(snapshot) != shared(prior) { try await repository.saveProjectClientHooks(shared(snapshot),cancellation:token) }
                 guard !invalidated, generation == request, !token.isCancelled else { return false }
+                if preferences.data(forKey:SavedDataStore.hookApprovalsKey) != loadedApprovals {decisionsNeedRefresh=true}
                 for hook in snapshot where hook.local {
+                    // A command save must not recreate an unchanged decision
+                    // which Saved Data cleared while the Git writer was held.
+                    if let old=prior.first(where:{$0.approvalIdentity==hook.approvalIdentity}),old.enabled==hook.enabled {continue}
                     if !hook.enabled { try ClientHookPreferences.remember(hook,approved:false,preferences:preferences) }
                     else if ClientHookPreferences.decision(hook,preferences:preferences) == false { try ClientHookPreferences.remember(hook,approved:nil,preferences:preferences) }
                 }
             }
             guard !invalidated, generation == request, !token.isCancelled else { return false }
-            preferences.set(globals,forKey:"hooks"); saved = snapshot; error = nil; return true
+            preferences.set(globals,forKey:"hooks"); saved = snapshot;if !decisionsNeedRefresh {loadedApprovals=preferences.data(forKey:SavedDataStore.hookApprovalsKey)}; error = nil; return true
         } catch { if !invalidated, generation == request { self.error = error.localizedDescription }; return false }
     }
     func cancel() { guard !busy else { return }; closeEditor(); hooks = saved; selection = []; error = nil }
@@ -132,6 +161,7 @@ import TurtleGitCore
             guard let controller else{return}
             if editor === controller {editor=nil}
             if editor == nil {hasEditor=false}
+            defer {if !hasEditor,decisionsNeedRefresh {refreshStoredDecisions()}}
             guard !invalidated,live,editorGeneration==request,let value else{return}
             if !copy,let original {hooks.removeAll {$0.id==original.id}}
             hooks.removeAll {$0.id==value.id};hooks.append(value)

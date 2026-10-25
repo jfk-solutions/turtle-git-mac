@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-25",
+  "status": "focused_core_debug_and_grouped_native_pass",
+  "scope": [
+    "CLI quiet authorization Cancel, requested-path correction, fresh scope diagnostics and actual panel detachment",
+    "Interactive Open lexical active-role parsing before scopes and filesystem validation",
+    "Selected scope acquired before metadata validation; rejected type scope released without publishing a field",
+    "Private original bytes, waiting exit, once-only completion, current/retired-owner and captured-form guards"
+  ],
+  "core": {
+    "filter": "MergeOpenTests",
+    "methods": 13,
+    "seconds": 0.513,
+    "result": "pass",
+    "retained_selection_contract": true
+  },
+  "debug": {
+    "result": "pass",
+    "architecture": "arm64",
+    "configuration": "Debug",
+    "scope": "Combined authorization, hook-reset and pane-title/accessibility source candidate; signing disabled"
+  },
+  "native": {
+    "result": "pass",
+    "open_cases": [
+      "source",
+      "open",
+      "replacement",
+      "patch"
+    ],
+    "launch_engines": [
+      "system",
+      "bundled"
+    ],
+    "total_receiver_cases": 6,
+    "receiver_pids": [
+      12083,
+      12522,
+      12565,
+      12570,
+      12148,
+      12246
+    ],
+    "independently_absent": {
+      "12083": true,
+      "12522": true,
+      "12565": true,
+      "12570": true,
+      "12148": true,
+      "12246": true
+    },
+    "scope": [
+      "Actual private native panels with injected responses and explicit scope providers; no sandbox bypass from paths",
+      "Wrong requested path remains correctable; duplicate/retired replies cannot create a late editor",
+      "Early native reply retains pending ownership until actual sheet detaches",
+      "Typed Unicode/newline inputs can be created at authorization before existence checks",
+      "CLI missing input parent, all three Merge inputs/output parent, patch source/target, and unified-output parent grants",
+      "Existing same-window two/three/patch replacement, dirty Cancel/discard, Save and Git preparation ownership retained"
+    ]
+  },
+  "validation_failures": [
+    {
+      "reason": "Swift6.4 compiler SIG11 during IR generation for optional throwing NSOpenSavePanelDelegate validate call in both native fixtures. No receiver launched.",
+      "repair": "Fixture-only typed public Objective-C selector IMP with NSError out pointer; rejected and accepted assertions retained. No Core/app rebuild."
+    },
+    {
+      "reason": "Existing Open source fixture expected metadata type validation before scope acquisition. New required grant-before-metadata order intentionally changed those counts.",
+      "repair": "Scope-provider and weak-lease witnesses retain type rejection/unchanged fields and prove temporary rejected scopes release, accepted scope remains, Cancel/stale replies acquire none. Fixture only."
+    }
+  ],
+  "diagnostics": [
+    "Two sandbox_extension_consume operation-not-permitted lines retained in unsigned Open injected-scope fixture",
+    "Fixture-only weak variable never mutated warning retained",
+    "iOS simulator-version warning in Mac Debug build retained"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/TextConflict.swift": "3ebc708efd2a5189d5b4d9b6d922816eab0e4960f07a3460bd3c10fd36a1de20",
+    "Sources/TurtleGitMac/MergeOpenWindow.swift": "e3bd419adcd7153360ed5531823077ab124b07b218550c33b3f07e1006cf86ff",
+    "Sources/TurtleGitMac/MergeToolLaunchSession.swift": "a058346db6a8861da05b13c0b2e8e259b22c0bef6b126287b0ba6737d0cc9e15",
+    "Tests/TurtleGitCoreTests/MergeOpenTests.swift": "238b7a4fce5d619f13b11ca3511ff7a61b6e97d796c716971333175a6c86734a",
+    "docs/qa/merge-open-native-2026-10-12.swift": "1fc75b89f0415371236c7d002361e41e7862f9040c954f16e8cad124c1636d05",
+    "docs/qa/merge-open-source-native-2026-10-17.swift": "48f39e71e58c3b85f91f8acfa7b83a0e2125d165e781778505a8effc3471639b",
+    "docs/qa/merge-tool-launch-native-2026-10-18.swift": "42274af96dcfc23c1b0ae547474889d5b9e5bc206acc67e302475cfb89402622"
+  },
+  "logs_sha256": {
+    "merge-owned-setup-open-compiler-repair-2026-10-25.log": "2747f7206c371e090663c83365d9fcf113214e6bbf56f8689ddc14c2bf5fe2a1",
+    "merge-owned-setup-open-source-order-repair-2026-10-25.log": "9104229b9292732fbc754b5548c8a4bfb580a5622bc5424c85f8cdc815334d1b",
+    "merge-owned-setup-open-replacement-patch-2026-10-25.log": "3c5add66dbbd95822abdcfaeacc0f65769f6954cbb856f0570c00e39406f7519",
+    "merge-owned-setup-launch-compiler-repair-2026-10-25.log": "17bbfd8705401cec05076f584cd96cfb131bfbd24c78f587d2f7773f672fb99a",
+    "merge-authorization-core-2026-10-25.log": "a9075b24ac183b3d9b77a0e13c952320bd14977253a0883e975d1b2516d7d3f3",
+    "merge-authorization-hooks-header-debug-2026-10-25.log": "fcaf609db5fc9a6d15ad95e71474684dd103699ce4eefc1188af521ab442196d",
+    "merge-owned-setup-open-2026-10-25.log": "6efd171fd983e19da8da3f9407979fc83026567d9a7cced33aeaf094e2d8e2de",
+    "merge-owned-setup-open-remaining-2026-10-25.log": "8aeb13aba480d6a63e27a3323d6f43f7c6da12753f208edbc5f1ac6f9eeb3c5d",
+    "merge-owned-setup-launch-2026-10-25.log": "9d23c7ca2aaf3fc51d8e3efe2471b4ae68a5b3a07e8ce5dd5fb9e32eb241f90a"
+  },
+  "installed_build_7_predates_changes": true,
+  "remaining": [
+    "Actual external signed sandbox permission gestures",
+    "Physical/minimum-macOS/Intel and complete VoiceOver acceptance",
+    "Current complete hosted macOS integration pass",
+    "Full upstream port and App Store distribution acceptance"
+  ],
+  "resource_and_documentation_checks": {
+    "localizations": "pass",
+    "bundled_help": "pass",
+    "dialog_coverage_reconciliation": "pass; family/control coverage, not completion certification",
+    "site_build": "pass",
+    "site_routes_and_links": "pass",
+    "site_search": "pass",
+    "log_sha256": {
+      "merge-owned-setup-localizations-2026-10-25.log": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc",
+      "merge-owned-setup-help-2026-10-25.log": "cd1b81f390c7a694c282d796336c4adf59475ed4609778d33d1cac4fd7128616",
+      "merge-owned-setup-coverage-2026-10-25.log": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651",
+      "merge-owned-setup-site-2026-10-25.log": "96003aca175d7b4aa28433f21f6dbe6d52dd10c2278e9f29d3582435b54c66ed",
+      "merge-owned-setup-site-links-2026-10-25.log": "f16cae58c6b366e65ee173b9bc2ed94f0e3d70246d2b47cfb87ebfc32acf7963",
+      "merge-owned-setup-site-search-2026-10-25.log": "d4e124ee1771fac404a14df30e82bdbce3cd4a1daa97cf17178347f683dbc5da"
+    }
+  }
+}

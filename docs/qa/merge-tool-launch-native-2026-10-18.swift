@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
 enum MergeToolLaunchVerification {
@@ -158,6 +159,7 @@ enum MergeToolLaunchVerification {
         failed.model.error = nil; try await wait { failed.window?.attachedSheet == nil }
         failed.close(); try await wait { completions.count == 11 && workspace.mergeToolLaunches.isEmpty && failed.window?.isVisible == false }
         try require(completions.last == 1, "Failed comparison close returned success")
+        try await verifyInitialAuthorization(root:root,base:base,mine:mine,patchFile:patchFile,patchTarget:target,preferences:prefs,git:git)
         // Real startup dispatch chooses the Merge route once and uses injected process exit only after close.
         workspace.configureMergeToolLaunch = { session in
             session.requiresScopes = false; session.executable = { git }
@@ -174,4 +176,112 @@ enum MergeToolLaunchVerification {
         try require(exitStatus == 0 && startup.startupDelivered && started.window?.isVisible == false, "Startup Merge Quit did not deliver exact exit after close")
         print("PASS: Merge tool launch: source routing, labels, exact private grants, separate saved output, changed-input cleanup fencing, raw unified output, reverse/readonly patch entry, held cancellation drain, failed-load exit and one-shot startup process completion")
     }
+    private struct ScopeProvider:RepositoryBookmarkProvider {
+        let allowed:Bool
+        func create(for url:URL)throws->Data {Data(url.path.utf8)}
+        func resolve(_ data:Data)throws->ResolvedBookmark {ResolvedBookmark(url:URL(fileURLWithPath:String(decoding:data,as:UTF8.self)),stale:false)}
+        func startAccessing(_ url:URL)->Bool {allowed}
+        func stopAccessing(_ url:URL) {}
+    }
+    // Invoke the public AppKit validation selector without Swift 6.4's
+    // crashing optional-throwing protocol thunk; retain the actual NSError.
+    @MainActor private static func validation(_ panel:NSOpenPanel,_ url:URL)throws->(Bool,NSError?) {
+        guard let delegate=panel.delegate,let type=object_getClass(delegate as AnyObject),
+              let method=class_getInstanceMethod(type,NSSelectorFromString("panel:validateURL:error:")) else{throw Failure(description:"Missing authorization validator selector")}
+        typealias Validate = @convention(c) (AnyObject,Selector,AnyObject,NSURL,UnsafeMutablePointer<Unmanaged<AnyObject>?>)->ObjCBool
+        let call=unsafeBitCast(method_getImplementation(method),to:Validate.self)
+        var error:Unmanaged<AnyObject>?
+        let accepted=call(delegate as AnyObject,NSSelectorFromString("panel:validateURL:error:"),panel,url as NSURL,&error)
+        return(accepted.boolValue,error?.takeUnretainedValue() as? NSError)
+    }
+    @MainActor static func verifyInitialAuthorization(root:URL,base:URL,mine:URL,patchFile:URL,patchTarget:URL,preferences:UserDefaults,git:URL) async throws {
+        let owner=NSWindow(contentRect:NSRect(x:-12000,y:-12000,width:500,height:200),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        owner.isReleasedWhenClosed=false;owner.alphaValue=0;owner.orderFront(nil)
+        var sessions=[MergeToolLaunchSession]()
+        defer {sessions.forEach{$0.cancel()};owner.orderOut(nil);owner.close()}
+        func session(_ arguments:[String])throws->MergeToolLaunchSession {
+            guard let invocation=try MergeToolInvocation.parse(arguments:["--merge-tool"]+arguments,currentDirectory:root.path) else{throw Failure(description:"Missing authorization invocation")}
+            let next=MergeToolLaunchSession(invocation:invocation,preferences:preferences,owner:owner)
+            next.executable={git};sessions.append(next);return next
+        }
+        let args=["--base",base.path,"--mine",mine.path,"--readonly"]
+        let cancelled=try session(args);var cancelErrors=[String](),cancelResults=[Int32]()
+        cancelled.authorize={_,_ in nil};cancelled.onError={cancelErrors.append($0)};cancelled.onFinished={cancelResults.append($0)}
+        cancelled.start();try await wait {cancelResults.count==1 && !cancelled.hasPendingWork}
+        try require(cancelErrors.isEmpty && cancelResults==[1] && cancelled.editor==nil,"Initial chooser Cancel became a saved-permission error")
+        cancelled.cancel();await Task.yield();try require(cancelResults==[1],"Cancelled authorization finished twice")
+        let absentBase=root.appendingPathComponent("missing-authorization-base"),missing=try session(["--base",absentBase.path,"--mine",mine.path])
+        var missingRequest:(String,Bool)?,missingDone=false,missingErrors=[String]()
+        missing.authorize={url,folder in missingRequest=(url.path,folder);return nil};missing.onError={missingErrors.append($0)};missing.onFinished={_ in missingDone=true};missing.start()
+        try await wait {missingDone && !missing.hasPendingWork}
+        try require(missingRequest?.0==root.path && missingRequest?.1==true && missingErrors.isEmpty,"Missing input did not request cancellable parent-folder access")
+        let wrong=try session(args);var wrongErrors=[String](),wrongDone=false
+        wrong.requiresScopes=false;wrong.authorize={_,_ in RepositoryAccessLease(url:root.appendingPathComponent("unrelated"))}
+        wrong.onError={wrongErrors.append($0)};wrong.onFinished={_ in wrongDone=true};wrong.start()
+        try await wait {wrongDone && !wrong.hasPendingWork}
+        try require(wrongErrors.count==1 && wrongErrors[0].contains(base.path) && !wrongErrors[0].contains("renew"),"Wrong selection lost requested-path diagnostic")
+        let scope=try session(args);var scopeErrors=[String](),scopeDone=false
+        scope.requiresScopes=true;scope.authorize={url,_ in RepositoryAccessLease(url:url,provider:ScopeProvider(allowed:false))}
+        scope.onError={scopeErrors.append($0)};scope.onFinished={_ in scopeDone=true};scope.start()
+        try await wait {scopeDone && !scope.hasPendingWork}
+        try require(scopeErrors.count==1 && scopeErrors[0].contains(base.path) && scopeErrors[0].contains("obtain access") && !scopeErrors[0].contains("renew"),"Fresh scope failure was mislabeled as expired saved permission")
+        let corrective=try session(args);var panels=[NSOpenPanel](),replies=[(NSApplication.ModalResponse)->Void](),selected:URL?,correctedResults=[Int32](),correctedErrors=[String]()
+        corrective.requiresScopes=true;corrective.makePermissionLease={RepositoryAccessLease(url:$0,provider:ScopeProvider(allowed:true))}
+        corrective.presentPermissionPanel={panel,parent,reply in panel.alphaValue=0;panels.append(panel);replies.append(reply);parent!.beginSheet(panel,completionHandler:nil)}
+        corrective.selectedPermissionURL={_ in selected};corrective.onError={correctedErrors.append($0)};corrective.onFinished={correctedResults.append($0)}
+        corrective.presentation={$0.window?.alphaValue=0;$0.window?.orderFront(nil)}
+        corrective.start();try await wait {panels.count==1 && panels[0].sheetParent===owner}
+        try require(panels[0].canChooseFiles && !panels[0].canChooseDirectories && panels[0].alphaValue==0,"File authorization did not retain exact owned native panel")
+        let rejected=try validation(panels[0],mine)
+        try require(!rejected.0 && rejected.1?.localizedDescription.contains(base.path)==true && panels[0].sheetParent===owner && corrective.preparing,"Wrong file closed the corrective picker or lost its diagnostic")
+        let accepted=try validation(panels[0],base)
+        try require(accepted.0 && accepted.1==nil,"Correct requested file was rejected by the native picker")
+        selected=base;replies[0](.OK);replies[0](.OK)
+        try await wait {panels.count==2 && panels[1].sheetParent===owner && panels[0].sheetParent==nil}
+        selected=mine;replies[1](.OK)
+        try await wait {corrective.editor is FileComparisonWindowController && !corrective.preparing}
+        let comparison=corrective.editor as! FileComparisonWindowController
+        try await wait {!comparison.model.busy && comparison.model.document != nil}
+        try require(correctedErrors.isEmpty && owner.attachedSheet==nil && panels.allSatisfy{$0.sheetParent==nil && !$0.isVisible},"Editor published before authorization panels drained")
+        comparison.close();try await wait {correctedResults==[0] && !corrective.hasPendingWork}
+        let retired=try session(args);var lateReply:((NSApplication.ModalResponse)->Void)?,latePanel:NSOpenPanel?,retiredResults=[Int32](),retiredErrors=[String]()
+        retired.requiresScopes=true;retired.presentPermissionPanel={panel,parent,reply in latePanel=panel;lateReply=reply;panel.alphaValue=0;parent!.beginSheet(panel,completionHandler:nil)}
+        retired.selectedPermissionURL={_ in base};retired.onError={retiredErrors.append($0)};retired.onFinished={retiredResults.append($0)}
+        retired.start();try await wait {latePanel?.sheetParent===owner};retired.cancel()
+        try await wait {retiredResults==[1] && !retired.hasPendingWork && owner.attachedSheet==nil && latePanel?.sheetParent==nil}
+        lateReply?(.OK);await Task.yield()
+        try require(retiredResults==[1] && retiredErrors.isEmpty && retired.editor==nil,"Late authorization callback reopened a retired launch")
+        let theirs=root.appendingPathComponent("authorization-theirs"),mergeFolder=root.appendingPathComponent("authorization-result")
+        try Data("theirs\nshared\n".utf8).write(to:theirs);try FileManager.default.createDirectory(at:mergeFolder,withIntermediateDirectories:false)
+        let mergeOutput=mergeFolder.appendingPathComponent("result"),merge=try session(["--base",base.path,"--theirs",theirs.path,"--mine",mine.path,"--merged",mergeOutput.path])
+        var mergeRequests=[(String,Bool)](),mergeResults=[Int32](),mergeErrors=[String]()
+        merge.requiresScopes=true;merge.authorize={url,folder in mergeRequests.append((url.path,folder));return RepositoryAccessLease(url:url,provider:ScopeProvider(allowed:true))}
+        merge.presentation={$0.window?.alphaValue=0;$0.window?.orderFront(nil)};merge.onError={mergeErrors.append($0)};merge.onFinished={mergeResults.append($0)};merge.start()
+        try await wait {merge.editor is TextConflictWindowController && !merge.preparing}
+        let merged=merge.editor as! TextConflictWindowController
+        try await wait {!merged.model.busy && merged.model.document != nil}
+        try require(mergeErrors.isEmpty && mergeRequests.map{$0.0} == [base.path,theirs.path,mine.path,mergeFolder.path] && mergeRequests.map{$0.1} == [false,false,false,true],"Three-way initial roles or result-folder grant were conflated")
+        merged.close();try await wait {mergeResults==[1] && !merge.hasPendingWork}
+        try require(!FileManager.default.fileExists(atPath:mergeOutput.path),"Authorization alone wrote an unsaved merge output")
+        let patchLaunch=try session(["--diff",patchFile.path,"--patchpath",patchTarget.path,"--reversedpatch","--readonly"])
+        var patchRequests=[(String,Bool)](),patchResults=[Int32](),patchErrors=[String]()
+        patchLaunch.requiresScopes=true;patchLaunch.authorize={url,folder in patchRequests.append((url.path,folder));return RepositoryAccessLease(url:url,provider:ScopeProvider(allowed:true))}
+        patchLaunch.configurePatchWorkflow={$0.chooseBetterTarget={_,_ in .original}}
+        patchLaunch.presentation={$0.window?.alphaValue=0;$0.window?.orderFront(nil)};patchLaunch.onError={patchErrors.append($0)};patchLaunch.onFinished={patchResults.append($0)};patchLaunch.start()
+        try await wait {patchLaunch.editor is WorkingTreePatchWindowController && !patchLaunch.preparing}
+        let patchReview=patchLaunch.editor as! WorkingTreePatchWindowController
+        try await wait {!patchReview.model.busy && patchReview.model.review != nil}
+        try require(patchErrors.isEmpty && patchRequests.map{$0.0} == [patchFile.path,patchTarget.path] && patchRequests.map{$0.1} == [false,true] && patchReview.model.mergeToolReadOnly,"Patch input and target-folder permissions were conflated")
+        patchReview.close();try await wait {patchResults==[0] && !patchLaunch.hasPendingWork}
+        let unifiedOutput=root.appendingPathComponent("authorized-unified.patch"),unified=try session(["--createunifieddiff","--origfile",base.path,"--modifiedfile",mine.path,"--outfile",unifiedOutput.path])
+        var requests=[(String,Bool)](),unifiedResults=[Int32](),unifiedErrors=[String]()
+        unified.requiresScopes=true;unified.authorize={url,folder in requests.append((url.path,folder));return RepositoryAccessLease(url:url,provider:ScopeProvider(allowed:true))}
+        unified.onError={unifiedErrors.append($0)};unified.onFinished={unifiedResults.append($0)};unified.start()
+        try await wait {unifiedResults==[0] && !unified.hasPendingWork}
+        try require(unifiedErrors.isEmpty && requests.count==3 && requests[0].0==base.path && !requests[0].1 && requests[1].0==mine.path && !requests[1].1 && requests[2].0==unifiedOutput.deletingLastPathComponent().path && requests[2].1,"Unified input/output grant roles were not captured separately")
+        let unifiedBytes=try Data(contentsOf:unifiedOutput)
+        try require(String(decoding:unifiedBytes,as:UTF8.self).contains("+after"),"Authorized unified output did not contain actual input change")
+        print("PASS: initial CLI access Cancel/wrong selection/fresh scope failure, corrective native file picker, retired/double callback drain and exact unified-output parent grants")
+    }
+
 }

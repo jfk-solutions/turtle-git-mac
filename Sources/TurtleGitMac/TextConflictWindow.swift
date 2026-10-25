@@ -2200,7 +2200,15 @@ private struct TextConflictDialog: View {
         }
     }
     var body: some View {
-        Group {
+        VStack(spacing:0) {
+            HStack {
+                Spacer(minLength:0)
+                Picker("Interface",selection:$curvedInterface) {
+                    Text("Classic").tag(false);Text("P4Merge-style").tag(true)
+                }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
+                    .accessibilityLabel("Interface")
+                    .disabled(model.busy || model.confirmingQuit)
+            }.padding(.horizontal,10).padding(.top,6).padding(.bottom,4)
             if curvedInterface { P4MergeWorkspace(model:model) }
             else { classicBody }
         }
@@ -2246,9 +2254,6 @@ private struct TextConflictDialog: View {
             HStack {
                 MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible, lineDiffBar:model.showLineDiffBar, applyLineDiffBar:model.setLineDiffBar, lineNumbers:model.showLineNumbers, applyLineNumbers:model.setLineNumbers)
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)
-                Picker("Interface", selection: $curvedInterface) {
-                    Text("Classic").tag(false); Text("P4Merge-style").tag(true)
-                }.frame(width: 230)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
                     Button { model.selectRegexFilter(nil) } label: {
@@ -3405,12 +3410,10 @@ enum P4MergePane: CaseIterable {
 }
 private struct P4MergeWorkspace: View {
     @ObservedObject var model:TextConflictWindowModel
-    @AppStorage("TurtleGit.Comparison.CurvedInterface") private var active=true
     @AppStorage("TurtleGit.P4Merge.SourceFraction") private var sourceFraction=0.52
     @State private var dividerStart:Double?
     init(model:TextConflictWindowModel) {
         self.model=model
-        _active=AppStorage(wrappedValue:true,"TurtleGit.Comparison.CurvedInterface",store:model.comparisonDefaults)
         _sourceFraction=AppStorage(wrappedValue:0.52,"TurtleGit.P4Merge.SourceFraction",store:model.comparisonDefaults)
     }
     var body:some View {
@@ -3444,7 +3447,6 @@ private struct P4MergeWorkspace: View {
                     }
                     Button {model.showFormatDialog()} label:{Text("Result encoding and line endings…")}
                 }.fixedSize()
-                Picker("Interface",selection:$active) {Text("Classic").tag(false);Text("P4Merge-style").tag(true)}.frame(width:200)
             }.labelStyle(.iconOnly).buttonStyle(.borderless).controlSize(.small).padding(.horizontal,8).padding(.vertical,4).background(Color(nsColor:.controlBackgroundColor))
             Divider()
             HStack {
