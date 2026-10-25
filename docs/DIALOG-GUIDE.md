@@ -601,6 +601,12 @@ Retry clears it. A failed cleanup has its own Retry/Abort decision. See
 [execution recovery](REBASE-EXECUTION-RECOVERY-PARITY.md). Empty commits, conflicts
 and Edit/Squash pauses retain their separate paths.
 
+If a stopped message amendment fails while the tracked worktree and index are
+clean, **Retry** returns to the message editor so you can correct the problem.
+**Ignore** continues with the existing commit without repeating that amendment.
+Review the Git diagnostic before choosing. Changed tracked files keep the normal
+error/recovery path. See [amend-failure recovery](REBASE-AMEND-RECOVERY-PARITY.md).
+
 A retained commit with an empty subject warns when replay reaches it. After
 acknowledging the warning, review its applied result and enter a message before
 continuing. Its selected Pick/Edit/Squash action stays in the plan; skipped

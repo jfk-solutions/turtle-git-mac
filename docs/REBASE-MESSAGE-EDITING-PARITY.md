@@ -81,9 +81,10 @@ this implementation agent ran no builds or tests.
 
 ## Remaining boundaries
 
-This is not a visual audit of every Rebase control. Source clean-worktree amend
-failure Retry/Ignore presentation still uses the native owned error/retry path;
-an Ignore-and-continue handoff is not added here. Windows-only taskbar and
-Scintilla implementation details use existing macOS progress/editor controls.
+This is not a visual audit of every Rebase control. The connected
+[amend-failure recovery family](REBASE-AMEND-RECOVERY-PARITY.md) covers the
+clean-worktree Retry/Ignore decision separately, including its own validation
+boundary. Windows-only taskbar and Scintilla implementation details use existing
+macOS progress/editor controls.
 Physical acceptance, signed deployment and complete hosted CI are not established
 by this focused family fixture.

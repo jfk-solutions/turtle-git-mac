@@ -1,0 +1,243 @@
+{
+  "date": "2026-10-25",
+  "status": "core-debug-and-six-native-case-engine-pairs-passed-after-recorded-fixture-repairs",
+  "base_revision": "9c5a50821a65822f112557a4734a5831bea924d7",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseProc/RebaseDlg.cpp:1630-1745 stopped Edit/Squash message, failure, clean Retry/Ignore and next-group metadata",
+    "src/TortoiseProc/RebaseDlg.cpp:1480-1486 initial conflict commit failure stays ordinary error",
+    "src/TortoiseProc/RebaseDlg.cpp:1509-1533 subsequent conflict message amend clean Retry/Ignore",
+    "src/Git/Git.cpp:2618-2654 tracked index/worktree cleanliness excludes untracked/submodules"
+  ],
+  "implementation_scope": [
+    "Typed separate durable clean message-commit failure receipt, stopped occurrence/HEAD/session/plan witnesses",
+    "Checked Retry releases receipt, returns editor, no immediate Git rerun; pending Continue/amend cannot silently retry",
+    "Ignore uses actual HEAD, requested next-Squash accumulator and first-author metadata",
+    "Native fixup bookkeeping retired only for captured clean pending Squash, preventing implicit sequencer amend rerun",
+    "Version3 exact before/after metadata journal, interrupted recovery and cancellation-safe accepted Ignore resume with fresh cleanliness check",
+    "Adopted external future-empty warning protection established before failed message commit",
+    "Native critical Retry/Ignore sheet, diagnostic/access ownership, draft/Undo, close/Quit/cancel/late answer and pending Skip gates",
+    "Initial selected conflict commit failure remains ordinary; native checked selection combines source initial commit/message phases"
+  ],
+  "authored_checks": {
+    "core_file": "Tests/TurtleGitCoreTests/RebaseAmendRecoveryTests.swift",
+    "new_core_methods": 10,
+    "native_fixture": "docs/qa/rebase-amend-recovery-native-2026-10-25.swift",
+    "native_runner": "scripts/test-rebase-amend-recovery.py",
+    "native_cases": [
+      "sheet",
+      "modes",
+      "ownership"
+    ],
+    "planned_case_engine_pairs": 6,
+    "git_versions": {
+      "system": "2.54.0 (Apple Git-157)",
+      "bundled": "2.55.0"
+    }
+  },
+  "failures_and_repairs": [
+    {
+      "kind": "Core cancellation fixture contract",
+      "initial": "Two new cases caught OperationCancellationFailure only, but cancellation after streamed Git output throws GitCommandCancellationFailure at GitRepository.swift160.",
+      "repair": "Catch established command cancellation; assert cancelled token, exitCode130, delivered partial output and exact held marker; retain accepted receipt, dirty-resume, journal and no-rerun assertions. No production normalization.",
+      "affected_methods": [
+        "testAcceptedIgnoreCancellationReopensAndRefusesDirtyResumeWithoutReamend",
+        "testInterruptedAcceptedIgnoreJournalFinishesExactMessageBookkeeping"
+      ],
+      "status": "focused-two-method-recheck-passed"
+    },
+    {
+      "kind": "Native clean Squash fixture tree oracle",
+      "failure": "The fixture squashed both middle and last rows, then reset the final pending index to HEAD. It incorrectly expected both files absent, although Git could already have committed the middle member into HEAD.",
+      "passed_before_failure": "Actual HEAD/author/date unchanged and hook count exactly1 passed. System actual Retry/Ignore sheet case passed and will not be repeated.",
+      "repair": "Capture actual post-reset pre-failure tracked tree/index and file presence/bytes, then assert exact preservation after Ignore. No production change.",
+      "status": "modes-system-repair-and-all-remaining-pairs-passed; original-sheet-system-not-repeated"
+    }
+  ],
+  "resources": {
+    "localization_write": {
+      "languages": 38,
+      "keys": 1321
+    },
+    "help_write": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3874843
+    },
+    "localization_check": {
+      "languages": 38,
+      "keys": 1321
+    },
+    "help_check": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3874843
+    },
+    "site": {
+      "documents": 462,
+      "unresolved_fragments": 0,
+      "log": "build/qa/rebase-amend-recovery-site-2026-10-25.log"
+    },
+    "coverage_reconcile": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574,
+      "certified_complete": 0,
+      "note": "Counts are an audit ledger, not a feature completion percentage."
+    }
+  },
+  "remaining": [
+    "Physical keyboard and VoiceOver acceptance",
+    "Current signed installed app predates this batch",
+    "Minimum supported macOS and physical Intel execution",
+    "Complete hosted CI",
+    "Full Rebase/Cherry Pick source-dialog parity",
+    "App Store distribution signing/export/submission",
+    "Exact two-phase hook invocation equivalence for consolidated checked-file conflict commit/message backend"
+  ],
+  "core": {
+    "initial": {
+      "methods": 37,
+      "passed": 35,
+      "failures": 2,
+      "unexpected": 2,
+      "duration_seconds": 198.379,
+      "log": "build/qa/rebase-amend-recovery-core-2026-10-25.log"
+    },
+    "focused_repair": {
+      "methods": 2,
+      "passed": 2,
+      "failures": 0,
+      "duration_seconds": 10.129,
+      "log": "build/qa/rebase-amend-recovery-core-repair-2026-10-25.log"
+    },
+    "cumulative_distinct_methods_passed": 37,
+    "scope": [
+      "RebaseAmendRecoveryTests (10 new)",
+      "RebaseMessageEditingTests (3 retained)",
+      "RebasePendingActionTests (10 retained)",
+      "RebaseEmptyMessageTests (14 retained)"
+    ],
+    "limits": "One selected system-Git Core group; no complete Core suite or two-engine Core claim."
+  },
+  "debug": {
+    "initial": "BUILD SUCCEEDED",
+    "initial_source_scope": "Precedes final pending-failure Skip affordance gate edit; affected RebaseWindow rebuild required, not a passing test rerun.",
+    "affected_build": "BUILD SUCCEEDED",
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "logs": [
+    {
+      "path": "build/qa/rebase-amend-recovery-core-2026-10-25.log",
+      "sha256": "86298f5aa01ae61dc5284c0b78b62aa5cdd558a73b052cf1944521ae049c1275"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-core-repair-2026-10-25.log",
+      "sha256": "7fef36cecdcdfdf196c66c88ffa035f7031b2ce48301010b304f945786692dc1"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-debug-2026-10-25.log",
+      "sha256": "485a0475fa50d6a850bc1b8381344197f40adfddd285ced13b98efb2f81b524c"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-debug-gate-2026-10-25.log",
+      "sha256": "4c4d4e26831124835bb3f9a790227d520af806cc52a6158b9c6c9ee2c46189cb"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-native-2026-10-25.log",
+      "sha256": "1fb9dfb2e356e007e5af8f68c25af2ed31d0f8941668dde0c9648fc38cc67165"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-native-system-repair-2026-10-25.log",
+      "sha256": "a06132df480996cd7775596fb89113fd2ad42b1f93e1882bcf990b9c416a9d31"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-native-bundled-2026-10-25.log",
+      "sha256": "c6b7079a0da0cbe3e154a9bd652b0ef90b68a222a5c88777ee026738cd20e1ba"
+    },
+    {
+      "path": "build/qa/rebase-amend-recovery-site-2026-10-25.log",
+      "sha256": "6e71b218cee10d39466ffb986b8425896810843d6c36c8f988251fd731c35db0"
+    }
+  ],
+  "native_initial": {
+    "results": [
+      {
+        "git": "/usr/bin/git",
+        "case": "sheet",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "modes",
+        "returncode": 1,
+        "passed": false
+      }
+    ],
+    "log": "build/qa/rebase-amend-recovery-native-2026-10-25.log",
+    "reaped_pids": [
+      75358,
+      75910
+    ],
+    "independently_absent": true
+  },
+  "native": {
+    "cumulative_case_engine_pairs_passed": 6,
+    "cases": [
+      {
+        "git": "/usr/bin/git",
+        "case": "sheet",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "modes",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "sheet",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "modes",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "attempted_receiver_pids": [
+      75358,
+      75910,
+      76509,
+      77616,
+      79131,
+      79685,
+      80791
+    ],
+    "all_reaped_and_independently_absent": true,
+    "scope": "Actual controller-wired critical Retry/Ignore sheet, diagnostic/default-button/actions, retained message/Undo/HEAD/index/untracked bytes; real hook exit73 exactly once; clean discarded-final-Squash and advanced Cherry Pick author/date/attribution; dirty failure ordinary error; durable reopening, cancellation/retirement and stale-session answer refusal.",
+    "squash_fixture_boundary": "Ordinary pending Squash contains staged changes and does not qualify for clean Ignore. Fixture explicitly resets its private pending index/worktree to actual HEAD before installing the failing hook, then captures exact tree/index/working bytes. It does not claim ordinary dirty Squash supports Ignore.",
+    "limits": "Invisible/offscreen application receiver; no physical keyboard, compositor screenshot, VoiceOver, signed folder grant or installed-bundle acceptance."
+  }
+}

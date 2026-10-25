@@ -704,3 +704,12 @@ Actual hidden native warning content/default action, draft reopening, checked
 continuation and late-answer refusal are covered. Windows no-commit intermediate
 state identity, physical keyboard/VoiceOver, signed installed replay, complete
 hosted integration and complete source-dialog parity are not certified.
+
+## Clean amend-failure recovery — October 25, 2026
+
+The [amend-failure family](REBASE-AMEND-RECOVERY-PARITY.md) ports the source
+Retry/Ignore decision for a failed stopped-message amendment when tracked files
+and the index remain clean. It records the failure durably, returns Retry to the
+editor, and scopes Ignore to the actual HEAD and stopped session. Initial selected
+conflict-commit failures keep their ordinary error path. The linked family records
+its own grouped verification and remaining acceptance limits.

@@ -94,6 +94,21 @@ public struct RebaseEmptyMessageWarning:Codable,Equatable,Sendable {
     public let step:Int
     public let head:String
 }
+/// A failed message commit at a still-clean, stopped replay. Retry leaves the
+/// editor intact; Ignore consumes this exact receipt without running commit again.
+public struct RebaseCleanCommitFailure:Codable,Equatable,Sendable,LocalizedError {
+    public let id:String
+    public let identity:RebaseMessageIdentity
+    public let head:String
+    public let message:String
+    public let diagnostic:String
+    public let command:[String]
+    public let exitCode:Int32
+    fileprivate let sessionIdentity:String
+    fileprivate var files:[String:RebaseActionEditFile]
+    fileprivate var ignored:Bool
+    public var errorDescription:String? {diagnostic}
+}
 public struct RebaseState: Codable, Sendable {
     public let active: Bool
     public let isCherryPick: Bool
@@ -117,8 +132,15 @@ public struct RebaseState: Codable, Sendable {
     public let needsFileRecovery: Bool
     public let session: RebaseSessionContext?
     public var emptyMessageWarning:RebaseEmptyMessageWarning? = nil
+    public var cleanCommitFailure:RebaseCleanCommitFailure? = nil
+    public var hasIgnoredCleanCommitFailure = false
     public var hasFailedPickCleanup = false
-    public var canSplit: Bool { !hasFailedPickCleanup && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
+    // Recovery receipts are stored separately, not recursively embedded in older
+    // session/state journals. Reopening reconstructs them from the owned record.
+    private enum CodingKeys:String,CodingKey {
+        case active,isCherryPick,branch,originalHead,onto,stoppedEntryID,stoppedCommit,mergeParents,message,currentStep,total,conflicts,remainingCommands,squashMessage,stoppedAction,split,isEditPause,isStructuralMergeEdit,hasStructuralMergeResult,needsFileRecovery,session,emptyMessageWarning,hasFailedPickCleanup
+    }
+    public var canSplit: Bool { cleanCommitFailure == nil && !hasIgnoredCleanCommitFailure && !hasFailedPickCleanup && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
 /// Identifies the stopped occurrence and original session, not just its step number.
 public struct RebaseConflictIdentity:Equatable,Sendable {
@@ -153,7 +175,7 @@ public struct RebaseMessageIdentity: Codable, Equatable, Sendable {
     public let originalHead: String, branch: String, onto: String, entry: String, head: String, phase: String
     public let step: Int
     public init?(state: RebaseState, head: String) {
-        guard state.active, !state.hasFailedPickCleanup, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
+        guard state.active, !state.hasFailedPickCleanup,!state.hasIgnoredCleanCommitFailure, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
         originalHead = state.originalHead; branch = state.branch; onto = state.onto; entry = state.stoppedEntryID; self.head = head; step = state.currentStep
         phase = state.squashMessage != nil ? "squash" : state.split?.conflictRecovery == true ? "amend-selection" : state.split != nil ? "split" : state.isEditPause ? "edit" : "conflict"
     }
@@ -462,7 +484,7 @@ public enum RebaseEditor {
                     // native intermediate approval. That approved text is the
                     // source's next squash accumulator, not the stale section.
                     let firstMessage: String
-                    if let through = config.reviewedThrough, through > start + 1, through < step, let approved = config.reviewedMessage { firstMessage = approved.trimmingCharacters(in: .newlines) }
+                    if let through = config.reviewedThrough, through >= start + 1, through < step, let approved = config.reviewedMessage { firstMessage = approved.trimmingCharacters(in: .newlines) }
                     else { firstMessage = originalFirst }
                     let skippedURL = directory.appendingPathComponent("turtlegit-skipped-steps.json")
                     let skipped = FileManager.default.fileExists(atPath: skippedURL.path) ? try JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: skippedURL)) : []
@@ -592,6 +614,10 @@ extension GitRepository {
             result.emptyMessageWarning=RebaseEmptyMessageWarning(entryID:identity.id,commit:identity.hash,requestedAction:requested,step:index+1,head:try rebaseRevision("HEAD",cancellation:cancellation))
         }
         result.hasFailedPickCleanup = active && manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path)
+        if active,let failure=try cleanCommitFailureRecord(directory),
+           try cleanCommitFailureMatches(failure,state:result,directory:directory) {
+            if failure.ignored {result.hasIgnoredCleanCommitFailure=true} else {result.cleanCommitFailure=failure}
+        }
         return result
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
@@ -965,6 +991,8 @@ extension GitRepository {
               actual.stoppedEntryID == expected.stoppedEntryID, actual.stoppedCommit == expected.stoppedCommit,
               actual.currentStep == expected.currentStep, actual.stoppedAction == expected.stoppedAction,
               actual.emptyMessageWarning == expected.emptyMessageWarning,actual.hasFailedPickCleanup == expected.hasFailedPickCleanup, actual.isEditPause == expected.isEditPause, actual.remainingCommands == expected.remainingCommands,
+              actual.cleanCommitFailure == expected.cleanCommitFailure,
+              actual.hasIgnoredCleanCommitFailure == expected.hasIgnoredCleanCommitFailure,
               actual.mergeParents == expected.mergeParents, actual.total == expected.total,
               actual.isStructuralMergeEdit == expected.isStructuralMergeEdit, actual.hasStructuralMergeResult == expected.hasStructuralMergeResult,
               actual.conflicts.map({GitReferenceName($0)}) == expected.conflicts.map({GitReferenceName($0)}), actual.message == expected.message, sameSquash, sameSplit,
@@ -1007,6 +1035,17 @@ extension GitRepository {
         }
         guard state.active else { throw RebaseFailure.inactive }
         guard state.emptyMessageWarning == nil else { throw RebaseFailure.message }
+        if let ignored=try cleanCommitFailureRecord(rebasePath("rebase-merge")),ignored.ignored,
+           state.stoppedEntryID==ignored.identity.entry,state.currentStep==ignored.identity.step {
+            guard try cleanCommitFailureMatches(ignored,state:state,directory:rebasePath("rebase-merge")) else{throw RebaseFailure.changed}
+            guard try replayWorktreeIsClean() else{throw RebaseFailure.changed}
+            return try recoverRebase("--continue")
+        }
+        if let failure=state.cleanCommitFailure {throw failure}
+        // Arm future adopted rows before attempting the message commit, so its
+        // saved failure receipt includes those commands. Accepted Ignore never
+        // needs to mutate the future plan after publishing its completion.
+        if let editorExecutable {try protectAdoptedEmptyEntries(editorExecutable:editorExecutable)}
         if state.hasFailedPickCleanup {
             guard let recovery=try failedPickRecovery(after:.init(output:"",exitCode:1,state:state,witnessedHead:try rebaseRevision("HEAD"),witnessedSession:try failedPickSessionIdentity(rebasePath("rebase-merge")))) else {throw RebaseFailure.changed}
             return try recoverFailedPick(recovery,action:.retry)
@@ -1018,10 +1057,7 @@ extension GitRepository {
         var output = ""
         if state.isEditPause, state.split == nil || state.split?.conflictRecovery == true, state.squashMessage == nil, let editMessage {
             output = try amendRebaseCommit(message: editMessage)
-            if var continuation = state.split, continuation.conflictRecovery == true {
-                continuation.expectedHead = try rebaseRevision("HEAD")
-                try JSONEncoder().encode(continuation).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
-            }
+            try finishReplayMessage(state:state,message:editMessage)
         }
         if var pending = state.squashMessage {
             if let expectedSquashState {
@@ -1064,19 +1100,8 @@ extension GitRepository {
             let author=firstMetadata.author
             let authorEnvironment=Data(author.name.utf8)==author.nameBytes && Data(author.email.utf8)==author.emailBytes
                 ? ["GIT_AUTHOR_NAME":author.name,"GIT_AUTHOR_EMAIL":author.email]:[:]
-            output = try run(["commit", "--amend", "--cleanup=verbatim", "-F", messageFile.url.path, "--date", date] + (empty ? ["--allow-empty"] : []),environmentOverrides:authorEnvironment).text
-            try FileManager.default.removeItem(at: request)
-            try removePendingEmptyMarker(state.stoppedEntryID, applied: true)
-            let configURL = try rebasePath("rebase-merge/turtlegit-message-editor.json")
-            if FileManager.default.fileExists(atPath: configURL.path) {
-                var configuration = try JSONDecoder().decode(RebaseMessageConfiguration.self, from: Data(contentsOf: configURL))
-                configuration.reviewedThrough = state.currentStep
-                configuration.reviewedMessage = squashMessage
-                try JSONEncoder().encode(configuration).write(to: configURL, options: .atomic)
-            }
-        }
-        if let editorExecutable {
-            try protectAdoptedEmptyEntries(editorExecutable: editorExecutable)
+            output = try commitReplayMessage(["commit", "--amend", "--cleanup=verbatim", "-F", messageFile.url.path, "--date", date] + (empty ? ["--allow-empty"] : []),message:squashMessage,environment:authorEnvironment)
+            try finishReplayMessage(state:state,message:squashMessage)
         }
         let result = try recoverRebase("--continue")
         return RebaseExecution(output: output + result.output, exitCode: result.exitCode, state: result.state,witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
@@ -1084,6 +1109,7 @@ extension GitRepository {
     private func skipRebaseOwned(bookkeepingStep: Int? = nil) throws -> RebaseExecution {
         let before = try rebaseState()
         guard before.active else { throw RebaseFailure.inactive }
+        guard before.cleanCommitFailure == nil,!before.hasIgnoredCleanCommitFailure else{throw RebaseFailure.changed}
         if let warning = before.emptyMessageWarning {
             let directory = try rebasePath("rebase-merge")
             try withActionEditLock(directory) {
@@ -1182,12 +1208,14 @@ extension GitRepository {
     private func amendRebaseCommitOwned(message: String) throws -> String {
         guard try rebaseState().active else { throw RebaseFailure.inactive }
         let state = try rebaseState()
+        if let failure=state.cleanCommitFailure {throw failure}
+        guard !state.hasIgnoredCleanCommitFailure else{throw RebaseFailure.changed}
         guard state.isEditPause, state.squashMessage == nil && (state.split == nil || state.split?.conflictRecovery == true) else { throw RebaseFailure.plan }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
         let base = try commitComparisonBase(amendToParent: true)
         let originallyEmpty = try run(["diff", "--quiet", base, "HEAD", "--"], successfulExitCodes: 0...1).exitCode == 0
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
-        return try run(["commit", "--amend", "-F", messageFile.url.path] + (originallyEmpty ? ["--allow-empty"] : [])).text
+        return try commitReplayMessage(["commit", "--amend", "-F", messageFile.url.path] + (originallyEmpty ? ["--allow-empty"] : []),message:message)
     }
     private func beginRebaseSplitOwned() throws -> RebaseSplitState {
         let state = try rebaseState()
@@ -1210,6 +1238,7 @@ extension GitRepository {
     public func beginRebaseEditSelection(expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil) throws -> RebaseSplitState? {
         try withReplayIO(cancellation: cancellation, onOutput: nil) {
             let state = try rebaseState(); try requireRebaseContinuation(state, expected: expected, expectedHead: expectedHead)
+            guard state.cleanCommitFailure == nil,!state.hasIgnoredCleanCommitFailure else{throw RebaseFailure.changed}
             guard state.isEditPause, state.squashMessage == nil, state.split == nil else { throw RebaseFailure.plan }
             // Source1568 checks workdir-only readiness before opening Commit
             // for an ordinary Edit continuation; staged edits are incorporated
@@ -1239,7 +1268,7 @@ extension GitRepository {
     /// for the native amend loop; Git's original replay metadata remains in place.
     private func checkedRebaseRecovery(paths: GitPathSet, expected: RebaseState, expectedHead: String) throws -> (RebaseState, [StatusEntry]) {
         let state = try rebaseState()
-        guard state.active, state.needsFileRecovery, state.split == nil, state.conflicts.isEmpty, state.stoppedAction == .pick || state.stoppedAction == .edit,
+        guard state.active,state.cleanCommitFailure == nil,!state.hasIgnoredCleanCommitFailure, state.needsFileRecovery, state.split == nil, state.conflicts.isEmpty, state.stoppedAction == .pick || state.stoppedAction == .edit,
               state.currentStep == expected.currentStep, state.stoppedEntryID == expected.stoppedEntryID,
               state.originalHead == expected.originalHead, state.mergeParents == expected.mergeParents, try rebaseRevision("HEAD") == expectedHead else { throw RebaseFailure.changed }
         let changes = try status()
@@ -1283,7 +1312,7 @@ extension GitRepository {
     /// The first part replaces the stopped commit; later parts create children.
     private func commitRebaseSplitOwned(message: String, paths: GitPathSet, staging: Bool, options: CommitOptions, expected: RebaseSplitState) throws -> String {
         let state = try rebaseState()
-        guard let saved = state.split, state.canSplit || saved.conflictRecovery == true, saved.parts == expected.parts, saved.entryID == expected.entryID,
+        guard state.cleanCommitFailure == nil,!state.hasIgnoredCleanCommitFailure,let saved = state.split, state.canSplit || saved.conflictRecovery == true, saved.parts == expected.parts, saved.entryID == expected.entryID,
               saved.expectedHead == expected.expectedHead, saved.firstParents == expected.firstParents, try rebaseRevision("HEAD") == saved.expectedHead,
               options.newBranch == nil, options.amend == (saved.conflictRecovery == true || saved.parts == 0), saved.conflictRecovery == true ? options.amendDiffToLastCommit : saved.parts != 0 || !options.amendDiffToLastCommit else { throw RebaseFailure.changed }
         if saved.parts == 0, let parents = saved.firstParents {
@@ -1437,6 +1466,132 @@ private struct RebaseActionEditJournal: Codable {
 }
 
 extension GitRepository {
+    private static let cleanCommitFailureName="turtlegit-clean-commit-failure.json"
+    private static var cleanCommitFailureNames:[String] {Self.actionEditNames+["message","stopped-sha","amend","current-fixups","message-squash","message-fixup","orig-head","onto","head-name","turtlegit-session.json","turtlegit-split.json","turtlegit-squash-message.json","turtlegit-skipped-steps.json"]}
+    private func cleanCommitFailureFiles(_ directory:URL)throws->[String:RebaseActionEditFile] {
+        try Dictionary(uniqueKeysWithValues:Self.cleanCommitFailureNames.map {($0,try actionEditFile(directory,$0))})
+    }
+    private func cleanCommitFailureRecord(_ directory:URL)throws->RebaseCleanCommitFailure? {
+        guard let bytes=try actionEditFile(directory,Self.cleanCommitFailureName).bytes else{return nil}
+        let record=try JSONDecoder().decode(RebaseCleanCommitFailure.self,from:bytes)
+        guard UUID(uuidString:record.id) != nil,!record.message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,
+              record.exitCode != 0,GitCommandIdentity(record.command).command == "commit" else {throw RebaseFailure.plan}
+        return record
+    }
+    private func cleanCommitFailureMatches(_ failure:RebaseCleanCommitFailure,state:RebaseState,directory:URL)throws->Bool {
+        let identity=failure.identity
+        guard state.active,!state.hasFailedPickCleanup,state.emptyMessageWarning == nil,
+              state.originalHead==identity.originalHead,state.branch==identity.branch,state.onto==identity.onto,
+              state.stoppedEntryID==identity.entry,state.currentStep==identity.step,
+              try rebaseRevision("HEAD")==failure.head,
+              try failedPickSessionIdentity(directory)==failure.sessionIdentity,
+              try cleanCommitFailureFiles(directory)==failure.files else{return false}
+        return failure.ignored || RebaseMessageIdentity(state:state,head:failure.head)==identity
+    }
+    private func clearCleanCommitFailure()throws {
+        let url=try rebasePath("rebase-merge/"+Self.cleanCommitFailureName)
+        if FileManager.default.fileExists(atPath:url.path) {try FileManager.default.removeItem(at:url)}
+    }
+    private func commitReplayMessage(_ arguments:[String],message:String,environment:[String:String]=[:])throws->String {
+        let result:GitResult
+        do {
+            result=try run(arguments,environmentOverrides:environment)
+        } catch let failure as GitFailure {
+            try replayCancellation?.check()
+            // Pinned CheckCleanWorkTree ignores untracked files and submodules;
+            // it may refresh index stat metadata, so capture witnesses afterward.
+            guard try replayWorktreeIsClean() else{throw failure}
+            try replayCancellation?.check()
+            let state=try rebaseState(),head=try rebaseRevision("HEAD"),directory=try rebasePath("rebase-merge")
+            guard state.emptyMessageWarning == nil,let identity=RebaseMessageIdentity(state:state,head:head),state.isEditPause || state.squashMessage != nil else {throw failure}
+            let receipt=RebaseCleanCommitFailure(id:UUID().uuidString,identity:identity,head:head,message:message,
+                diagnostic:failure.message,command:failure.arguments,exitCode:failure.code,
+                sessionIdentity:try failedPickSessionIdentity(directory),files:try cleanCommitFailureFiles(directory),ignored:false)
+            try JSONEncoder().encode(receipt).write(to:directory.appendingPathComponent(Self.cleanCommitFailureName),options:.atomic)
+            throw receipt
+        }
+        try clearCleanCommitFailure()
+        return result.text
+    }
+    /// Completion shared by a successful Squash message commit and explicit
+    /// Ignore. The requested text remains the next Squash accumulator; metadata
+    /// is subsequently read from actual HEAD, exactly as the source does.
+    private func completedReplayMessageFiles(state:RebaseState,message:String,head:String,files:[String:RebaseActionEditFile])throws->[String:RebaseActionEditFile] {
+        var after=files
+        if var continuation=state.split,continuation.conflictRecovery == true {
+            continuation.expectedHead=head
+            after["turtlegit-split.json"] = .init(bytes:try JSONEncoder().encode(continuation))
+        }
+        if state.squashMessage != nil {
+            after["turtlegit-squash-message.json"] = .init(bytes:nil)
+            guard let bytes=files["git-rebase-todo"]?.bytes,let text=String(data:bytes,encoding:.utf8) else{throw RebaseFailure.plan}
+            var lines=text.components(separatedBy:"\n")
+            if let first=lines.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),RebaseEditor.emptyMessageID(RebaseEditor.canonicalLine(lines[first]),applied:true)==state.stoppedEntryID {lines.remove(at:first)}
+            after["git-rebase-todo"] = .init(bytes:Data(lines.joined(separator:"\n").utf8))
+        }
+        let next=state.remainingCommands.compactMap {$0.split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))}}.first {$0 != .skip}
+        if (state.squashMessage != nil || next == .squash),let bytes=files["turtlegit-message-editor.json"]?.bytes {
+            var configuration=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:bytes)
+            configuration.reviewedThrough=state.currentStep;configuration.reviewedMessage=message
+            after["turtlegit-message-editor.json"] = .init(bytes:try JSONEncoder().encode(configuration))
+        }
+        return after
+    }
+    private func finishReplayMessage(state:RebaseState,message:String)throws {
+        let directory=try rebasePath("rebase-merge")
+        try withActionEditLock(directory) {
+            let before=try cleanCommitFailureFiles(directory)
+            let after=try completedReplayMessageFiles(state:state,message:message,head:rebaseRevision("HEAD"),files:before)
+            for name in Self.cleanCommitFailureNames where name != "git-rebase-todo" && before[name] != after[name] {try actionEditWrite(after[name]!,directory:directory,name:name)}
+            if before["git-rebase-todo"] != after["git-rebase-todo"] {try actionEditWrite(after["git-rebase-todo"]!,directory:directory,name:"git-rebase-todo")}
+        }
+    }
+    public func retryRebaseCleanCommitFailure(_ failure:RebaseCleanCommitFailure,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil)throws->RebaseState {
+        try withReplayIO(cancellation:cancellation,onOutput:nil) {
+            let state=try rebaseState(),directory=try rebasePath("rebase-merge")
+            try requireRebaseContinuation(state,expected:expected,expectedHead:expectedHead)
+            guard state.cleanCommitFailure==failure,expectedHead==failure.head,
+                  try cleanCommitFailureMatches(failure,state:state,directory:directory) else {throw RebaseFailure.changed}
+            try clearCleanCommitFailure()
+            return try rebaseState()
+        }
+    }
+    public func ignoreRebaseCleanCommitFailure(_ failure:RebaseCleanCommitFailure,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,editorExecutable:URL?=nil)throws->RebaseExecution {
+        try withReplayIO(cancellation:cancellation,onOutput:onOutput) {
+            let state=try rebaseState(),directory=try rebasePath("rebase-merge")
+            try requireRebaseContinuation(state,expected:expected,expectedHead:expectedHead)
+            guard state.cleanCommitFailure==failure,expectedHead==failure.head,
+                  try cleanCommitFailureMatches(failure,state:state,directory:directory),
+                  try replayWorktreeIsClean() else {throw RebaseFailure.changed}
+            // A tiny protected publication records completed message bookkeeping
+            // before cancellable Git continuation. A cancelled continuation can
+            // therefore resume without ever retrying the rejected amend.
+            try withProtectedReplayIO(cancellation:nil,onOutput:nil) {
+                try withActionEditLock(directory) {
+                    try requireRebaseContinuation(rebaseState(),expected:state,expectedHead:failure.head)
+                    guard try cleanCommitFailureFiles(directory)==failure.files else{throw RebaseFailure.changed}
+                    var before=failure.files
+                    before[Self.cleanCommitFailureName] = try actionEditFile(directory,Self.cleanCommitFailureName)
+                    var after=try completedReplayMessageFiles(state:state,message:failure.message,head:failure.head,files:failure.files)
+                    if state.squashMessage != nil {
+                        // Git otherwise treats a clean, unchanged HEAD as a
+                        // skipped final fixup and can run commit again inside
+                        // --continue. Ignore has explicitly accepted actual HEAD;
+                        // retire that failed message command, never retry it.
+                        for name in ["amend","current-fixups","message-squash","message-fixup"] {after[name] = .init(bytes:nil)}
+                    }
+                    var ignored=failure;ignored.ignored=true;ignored.files=after
+                    after[Self.cleanCommitFailureName] = .init(bytes:try JSONEncoder().encode(ignored))
+                    let journal=directory.appendingPathComponent(Self.actionEditJournal)
+                    try JSONEncoder().encode(RebaseActionEditJournal(version:3,before:before,after:after)).write(to:journal,options:.atomic)
+                    for name in before.keys where name != "git-rebase-todo" {try actionEditWrite(after[name]!,directory:directory,name:name)}
+                    try actionEditWrite(after["git-rebase-todo"]!,directory:directory,name:"git-rebase-todo")
+                    try FileManager.default.removeItem(at:journal)
+                }
+            }
+            return try recoverRebase("--continue")
+        }
+    }
     private static let actionEditNames = ["git-rebase-todo", "done", "turtlegit-replay-identities.json", "turtlegit-message-editor.json", "turtlegit-cherry-pick.json", "turtlegit-adopted-plan.json"]
     private static let actionEditJournal = "turtlegit-action-edit.json"
     private func actionEditFile(_ directory: URL, _ name: String) throws -> RebaseActionEditFile {
@@ -1474,8 +1629,9 @@ extension GitRepository {
             let journal = try JSONDecoder().decode(RebaseActionEditJournal.self, from: bytes)
             let names=Set(journal.before.keys),ordinary=Set(Self.actionEditNames)
             let bases=[ordinary,ordinary.subtracting([Self.adoptedPlanName])]
-            guard (1...2).contains(journal.version),names == Set(journal.after.keys),
-                  bases.contains(where:{base in names==base || journal.version==2 && (names==base.union(["message","stopped-sha"]) || names==base.union([Self.failedPickIntentName]))}),
+            let cleanNames=Set(Self.cleanCommitFailureNames+[Self.cleanCommitFailureName])
+            guard (1...3).contains(journal.version),names == Set(journal.after.keys),
+                  (journal.version==3 ? names==cleanNames : bases.contains(where:{base in names==base || journal.version==2 && (names==base.union(["message","stopped-sha"]) || names==base.union([Self.failedPickIntentName]))})),
                   (journal.version==2 || journal.before["done"] == journal.after["done"]) else { throw RebaseFailure.plan }
             let actual=try Dictionary(uniqueKeysWithValues:names.map {($0,try actionEditFile(directory,$0))})
             let useNew = actual["git-rebase-todo"] == journal.after["git-rebase-todo"]
@@ -1493,6 +1649,7 @@ extension GitRepository {
         try withReplayIO(cancellation: cancellation, onOutput: nil) {
             let state = try rebaseState(), directory = try rebasePath("rebase-merge")
             guard state.active else { throw RebaseFailure.inactive }
+            guard state.cleanCommitFailure == nil,!state.hasIgnoredCleanCommitFailure else {throw RebaseFailure.changed}
             let head = try rebaseRevision("HEAD"), files = try actionEditFiles(directory)
             let identities=replayIdentities(directory)
             let adoption:RebaseAdoptionProjection? = identities.isEmpty || files[Self.adoptedPlanName]?.bytes != nil ? try adoptionProjection(directory,cancellation:cancellation):nil
@@ -1510,6 +1667,7 @@ extension GitRepository {
                                           editorExecutable: URL, retaining previous: RebaseConflictIdentity? = nil, cancellation: OperationCancellation? = nil) throws -> RebaseSessionSnapshot {
         try withReplayIO(cancellation: cancellation, onOutput: nil) {
             let directory = try rebasePath("rebase-merge")
+            guard expected.state.cleanCommitFailure == nil,!expected.state.hasIgnoredCleanCommitFailure else {throw RebaseFailure.changed}
             guard directory == expected.directory, Set(changes.keys).isSubset(of: ids), Set(mainlines.keys).isSubset(of: ids), !ids.isEmpty, ids.isSubset(of: Set(expected.replay.map(\.id))) else { throw RebaseFailure.plan }
             try withActionEditLock(directory) {
                 try requireRebaseContinuation(rebaseState(), expected: expected.state, expectedHead: expected.head)
