@@ -10,20 +10,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and run original scoped path-gradient reference
+      - name: Compile and run exact pinned Picture Bitmap consumer
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw "Windows C++ toolchain missing" }
           $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
-          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\PathGradientReference.cpp /Fe:PathGradientReference.exe /link gdiplus.lib gdi32.lib user32.lib`r`n"
+          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\PictureBitmapReference.cpp /Fe:PictureBitmapReference.exe /link gdiplus.lib gdi32.lib user32.lib`r`n"
           Set-Content -Path oracle-build.cmd -Value $compile -Encoding Ascii
           cmd /c oracle-build.cmd
           if ($LASTEXITCODE -ne 0) { throw "Reference compile failed" }
-          .\PathGradientReference.exe Tests/TurtleGitCoreTests/Fixtures/Metafile oracle-output scanline
+          .\PictureBitmapReference.exe Tests/TurtleGitCoreTests/Fixtures/Metafile oracle-output
           if ($LASTEXITCODE -ne 0) { throw "Reference execution failed" }
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
-          Get-FileHash scripts/oracles/PathGradientReference.cpp -Algorithm SHA256
+          Get-FileHash scripts/oracles/PictureBitmapReference.cpp -Algorithm SHA256
           Get-FileHash Tests/TurtleGitCoreTests/Fixtures/Metafile/path-gradient-*.emf -Algorithm SHA256 | Format-Table -AutoSize
       - uses: actions/upload-artifact@v4
         if: always()
