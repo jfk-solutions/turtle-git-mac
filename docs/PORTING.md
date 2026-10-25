@@ -1,5 +1,14 @@
 # TurtleGit for Mac — full port tracking
 
+The [Browser Git filename family](REPOSITORY-BROWSER-NAMESPACE-PARITY.md) preserves
+raw tree identities instead of rejecting a complete directory because one name
+is not UTF-8. It connects tree navigation and refresh, read-only stored-blob
+inspection, explicit path-action admission and recursive transfer preflight.
+Its [grouped checkpoint](qa/repository-browser-namespace-2026-10-25.json) passed
+33 focused Core methods and 14 native case/engine pairs after a recorded compile
+repair. Raw-byte filesystem operations, physical/signed acceptance and full
+Browser parity remain open; the installed signed candidate predates this batch.
+
 The [signed viewer-family checkpoint](qa/viewer-families-installed-2026-10-25.json)
 records the current recoverably installed Apple Development candidate: measured
 `8569ede1…` inputs at a955f566 with preserved dirty work, eight universal owned

@@ -6,7 +6,7 @@ import Darwin
 /// Git path identity is UTF-8 byte identity, not Swift's canonical String equality.
 public enum RepositoryBrowserPathIdentity {
     public static func equal(_ a:String,_ b:String) -> Bool { a.utf8.elementsEqual(b.utf8) }
-    public static func id(_ path:String) -> String { Data(path.utf8).base64EncodedString() }
+    public static func id(_ path:String) -> String { ((try? RepositoryBrowserGitPath(key:path).rawData) ?? Data(path.utf8)).base64EncodedString() }
 }
 public struct RepositoryBrowserPathMap<Value:Sendable>: Sendable, ExpressibleByDictionaryLiteral {
     public typealias Key = String
@@ -64,6 +64,15 @@ public struct RepositoryBrowserEntry: Identifiable, Equatable, Sendable {
     public let mode: String
     public let objectID: String
     public let size: Int64?
+    public init(path:String,name:String,mode:String,objectID:String,size:Int64?) {
+        self.path=path;self.name=name;self.mode=mode;self.objectID=objectID;self.size=size
+    }
+    public var rawPath:Data {(try? RepositoryBrowserGitPath(key:path).rawData) ?? Data(path.utf8)}
+    public var rawName:Data {rawPath.split(separator:47).last.map{Data($0)} ?? Data()}
+    public var displayPath:String {RepositoryBrowserGitPath.display(key:path)}
+    public var displayName:String {name}
+    public var isPathRepresentable:Bool {(try? RepositoryBrowserGitPath(key:path).isRepresentable) == true}
+    public var parentPathKey:String {(try? RepositoryBrowserGitPath(key:path).parentKey) ?? ""}
     public var id: String { RepositoryBrowserPathIdentity.id(path) }
     public static func ==(a:Self,b:Self)->Bool {
         RepositoryBrowserPathIdentity.equal(a.path,b.path) && RepositoryBrowserPathIdentity.equal(a.name,b.name)
@@ -81,6 +90,8 @@ public struct RepositoryBrowserSnapshot: Sendable {
     public let objectID: String?
     public let treeID: String?
     public let directory: String
+    public var displayDirectory:String {RepositoryBrowserGitPath.display(key:directory)}
+    public var isDirectoryRepresentable:Bool {(try? RepositoryBrowserGitPath(key:directory).isRepresentable) == true}
     public let bare: Bool
     public let entries: [RepositoryBrowserEntry]
     public let acceptedBackend:GitLibGit2Configuration?
@@ -119,24 +130,39 @@ public enum RepositoryBrowserListing {
             return descending ? order == .orderedDescending : order == .orderedAscending
         }
     }
+    // Shared filesystem/pathspec consumers require a real UTF-8 path, not an
+    // opaque browser selection key. Keep this original admission boundary.
     static func validPath(_ path: String, allowRoot: Bool) -> Bool {
-        if path.isEmpty { return allowRoot }
-        return !path.hasPrefix("/") && !path.utf8.contains(0) && path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." }
+        guard !path.utf8.contains(0),let value=try? RepositoryBrowserGitPath(rawData:Data(path.utf8)) else{return false}
+        return allowRoot || !value.rawData.isEmpty
+    }
+    static func validNamespaceKey(_ key:String,allowRoot:Bool)->Bool {
+        guard let value=try? RepositoryBrowserGitPath(key:key) else{return false}
+        return allowRoot || !value.rawData.isEmpty
     }
     static func parse(_ bytes: Data, directory: String, recursive:Bool=false) throws -> [RepositoryBrowserEntry] {
-        guard bytes.isEmpty || bytes.last == 0 else { throw RepositoryBrowserFailure.output }
-        return try bytes.split(separator: 0).map { record in
-            guard let tab = record.firstIndex(of: 9), let name = String(data: Data(record[record.index(after: tab)...]), encoding: .utf8),
-                  validPath(name, allowRoot: false), recursive || !name.contains("/") else { throw RepositoryBrowserFailure.output }
-            let fields = String(decoding: record[..<tab], as: UTF8.self).split(whereSeparator: { $0 == " " })
-            guard fields.count == 4, ["040000", "100644", "100755", "120000", "160000"].contains(String(fields[0])),
-                  [40, 64].contains(fields[2].count), fields[2].allSatisfy(\.isHexDigit) else { throw RepositoryBrowserFailure.output }
-            let mode = String(fields[0]), size = Int64(fields[3])
-            guard (mode == "040000" && fields[1] == "tree" || mode == "160000" && fields[1] == "commit") && fields[3] == "-" ||
-                  (["100644", "100755", "120000"].contains(mode) && fields[1] == "blob" && size != nil && size! >= 0) else { throw RepositoryBrowserFailure.output }
-            return RepositoryBrowserEntry(path: directory.isEmpty ? name : directory + "/" + name, name: recursive ? String(name.split(separator:"/").last!):name, mode: mode, objectID: String(fields[2]), size: size)
+        guard let parent=try? RepositoryBrowserGitPath(key:directory) else {throw RepositoryBrowserFailure.output}
+        if bytes.isEmpty {return []}
+        guard bytes.last==0,bytes.first != 0 else{throw RepositoryBrowserFailure.output}
+        var seen=Set<Data>()
+        return try bytes.dropLast().split(separator:0,omittingEmptySubsequences:false).map {record in
+            guard let tab=record.firstIndex(of:9) else{throw RepositoryBrowserFailure.output}
+            let rawName=Data(record[record.index(after:tab)...])
+            guard let relative=try? RepositoryBrowserGitPath(rawData:rawName),!rawName.isEmpty,
+                  recursive || !rawName.contains(47),seen.insert(rawName).inserted,
+                  let header=String(data:Data(record[..<tab]),encoding:.ascii) else{throw RepositoryBrowserFailure.output}
+            let fields=header.split(whereSeparator:{$0==" "})
+            guard fields.count==4,["040000","100644","100755","120000","160000"].contains(String(fields[0])),
+                  [40,64].contains(fields[2].utf8.count),fields[2].utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{throw RepositoryBrowserFailure.output}
+            let mode=String(fields[0]),size=Int64(fields[3])
+            guard (mode=="040000" && fields[1]=="tree" || mode=="160000" && fields[1]=="commit") && fields[3]=="-" ||
+                  (["100644","100755","120000"].contains(mode) && fields[1]=="blob" && size != nil && size!>=0) else{throw RepositoryBrowserFailure.output}
+            var full=parent.rawData;if !full.isEmpty {full.append(47)};full.append(rawName)
+            let path=try RepositoryBrowserGitPath(rawData:full)
+            return RepositoryBrowserEntry(path:path.key,name:relative.lastComponentDisplay,mode:mode,objectID:String(fields[2]),size:size)
         }
     }
+
 }
 extension GitRepository {
     /// RepositoryBrowser::ReadTree labels an exact object ID with the first
@@ -154,7 +180,7 @@ extension GitRepository {
     }
     public func browseRepository(revision: String = "HEAD", directory: String = "", cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> RepositoryBrowserSnapshot {
         try cancellation?.check()
-        guard RepositoryBrowserListing.validPath(directory, allowRoot: true) else { throw RepositoryBrowserFailure.directory }
+        guard RepositoryBrowserListing.validNamespaceKey(directory, allowRoot: true) else { throw RepositoryBrowserFailure.directory }
         guard !revision.isEmpty, !revision.utf8.contains(0) else { throw RepositoryBrowserFailure.revision }
         let selected=backend ?? libgit2Configuration ?? .load()
         let initialReader=try repositoryBrowserReader(selected,initialization:true,cancellation:cancellation)
@@ -170,7 +196,7 @@ extension GitRepository {
 
     public func browseRepositoryDirectory(_ snapshot: RepositoryBrowserSnapshot, directory: String, cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserSnapshot {
         try cancellation?.check()
-        guard snapshot.root == root, RepositoryBrowserListing.validPath(directory, allowRoot: true),
+        guard snapshot.root == root, RepositoryBrowserListing.validNamespaceKey(directory, allowRoot: true),
               let tree = snapshot.treeID, let object = snapshot.objectID else { throw RepositoryBrowserFailure.directory }
         return try browseRepositoryTree(revision: snapshot.revision, objectID: object, treeID: tree, directory: directory, bare: snapshot.bare, cancellation: cancellation,backend:snapshot.acceptedBackend ?? libgit2Configuration ?? .load())
     }
@@ -180,18 +206,10 @@ extension GitRepository {
     public func repositoryBrowserTransferInventory(_ snapshot:RepositoryBrowserSnapshot,directory:String="",maximumEntries:Int=100_000,cancellation:OperationCancellation?=nil)throws->[RepositoryBrowserEntry] {
         try cancellation?.check()
         guard snapshot.root==root,let tree=snapshot.treeID,snapshot.objectID != nil,
-              [40,64].contains(tree.utf8.count),tree.utf8.allSatisfy({(48...57).contains($0)||(97...102).contains($0)}),
-              RepositoryBrowserListing.validPath(directory,allowRoot:true),maximumEntries>0,maximumEntries<=100_000 else{throw RepositoryBrowserFailure.selection}
-        let subtree:String
-        if directory.isEmpty{subtree=tree}
-        else {
-            let listing=try browseRepositoryDirectory(snapshot,directory:directory,cancellation:cancellation)
-            guard listing.treeID==tree else{throw RepositoryBrowserFailure.directory}
-            let selected=snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
-            let reader=try repositoryBrowserReader(selected,initialization:true,cancellation:cancellation)
-            guard let value=try revisionLookup(tree+":"+directory,requirement:.tree,cancellation:cancellation,backend:reader).objectID else{throw RepositoryBrowserFailure.directory}
-            subtree=value
-        }
+              [40,64].contains(tree.utf8.count),tree.utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}),
+              RepositoryBrowserListing.validNamespaceKey(directory,allowRoot:true),maximumEntries>0,maximumEntries<=100_000 else{throw RepositoryBrowserFailure.selection}
+        let selected=snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
+        let subtree=try repositoryBrowserDirectoryTree(treeID:tree,directory:directory,cancellation:cancellation,backend:selected)
         var bytes=Data(),records=0
         _=try run(["ls-tree","-r","-t","-l","-z",subtree,"--"],cancellation:cancellation,retainStandardOutput:false,consumeOutput:{chunk in
             guard case .stdout=chunk.stream else{return}
@@ -202,15 +220,33 @@ extension GitRepository {
         })
         try cancellation?.check()
         let entries=try RepositoryBrowserListing.parse(bytes,directory:directory,recursive:true)
-        guard entries.allSatisfy({$0.path.split(separator:"/").count<=128}) else{throw RepositoryBrowserFailure.transferLimit}
+        guard entries.allSatisfy({$0.rawPath.split(separator:47).count<=128}) else{throw RepositoryBrowserFailure.transferLimit}
         return entries
     }
     private func browseRepositoryTree(revision:String,objectID:String,treeID:String,directory:String,bare:Bool,cancellation:OperationCancellation?,backend:GitLibGit2Configuration)throws->RepositoryBrowserSnapshot {
         try cancellation?.check()
-        let reader=try repositoryBrowserReader(backend,initialization:true,cancellation:cancellation)
-        guard let subtree=try revisionLookup(directory.isEmpty ? treeID:treeID+":"+directory,requirement:.tree,cancellation:cancellation,backend:reader).objectID else{throw RepositoryBrowserFailure.directory}
+        let subtree=try repositoryBrowserDirectoryTree(treeID:treeID,directory:directory,cancellation:cancellation,backend:backend)
         let entries=try RepositoryBrowserListing.parse(run(["ls-tree","-z","-l",subtree,"--"],cancellation:cancellation).stdout,directory:directory)
         return RepositoryBrowserSnapshot(root:root,revision:revision,objectID:objectID,treeID:treeID,directory:directory,bare:bare,entries:entries,acceptedBackend:backend)
+    }
+    private func repositoryBrowserDirectoryTree(treeID:String,directory:String,cancellation:OperationCancellation?,backend:GitLibGit2Configuration)throws->String {
+        guard [40,64].contains(treeID.utf8.count),treeID.utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{throw RepositoryBrowserFailure.directory}
+        let path=try RepositoryBrowserGitPath(key:directory)
+        let reader=try repositoryBrowserReader(backend,initialization:true,cancellation:cancellation)
+        if let utf8=path.utf8 {
+            guard let subtree=try revisionLookup(utf8.isEmpty ? treeID:treeID+":"+utf8,requirement:.tree,cancellation:cancellation,backend:reader).objectID else{throw RepositoryBrowserFailure.directory}
+            return subtree
+        }
+        // Only hexadecimal tree object IDs enter argv. Invalid name bytes are
+        // compared against parsed tree entries in memory, never re-encoded.
+        var tree=treeID
+        for component in path.rawData.split(separator:47) {
+            try cancellation?.check()
+            let entries=try RepositoryBrowserListing.parse(run(["ls-tree","-z","-l",tree,"--"],cancellation:cancellation).stdout,directory:"")
+            guard let entry=entries.first(where:{$0.rawName==Data(component)}),entry.kind == .directory else{throw RepositoryBrowserFailure.directory}
+            tree=entry.objectID
+        }
+        return tree
     }
     /// Export a displayed item, or the displayed directory when entry is nil.
     /// Adapts RepositoryBrowser.cpp RecursivelyAdd and GitDataObject.cpp historical
@@ -221,6 +257,11 @@ extension GitRepository {
         try cancellation?.check()
         guard snapshot.root == root, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
+        try RepositoryBrowserTransferPolicy.validate(snapshot,entries:entry.map{[$0]} ?? [])
+        if entry?.kind == .directory || entry == nil {
+            let inventory=try repositoryBrowserTransferInventory(snapshot,directory:entry?.path ?? snapshot.directory,cancellation:cancellation)
+            try RepositoryBrowserTransferPolicy.validate(snapshot,entries:inventory)
+        }
         let manager = FileManager.default
         let container = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitBrowserExport-" + UUID().uuidString, isDirectory: true)
         try manager.createDirectory(at: container, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -265,6 +306,7 @@ extension GitRepository {
     public func validateRepositoryBrowserWorkingPath(_ snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry,cancellation:OperationCancellation? = nil) throws {
         try cancellation?.check()
         guard snapshot.root == root, !snapshot.bare, snapshot.objectID != nil, snapshot.entries.contains(entry) else {throw RepositoryBrowserFailure.selection}
+        try RepositoryBrowserTransferPolicy.validate(snapshot,entries:[entry])
         _ = try restoreLocation(entry.path)
         let components=entry.path.split(separator:"/").map(String.init)
         var target:[String]=[],prefix=""
@@ -349,7 +391,6 @@ extension GitRepository {
         try cancellation?.check()
         guard snapshot.root == root, !snapshot.bare, try !isBare(cancellation: cancellation),
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind),
-              RepositoryBrowserListing.validPath(entry.path, allowRoot: false),
               let object = snapshot.objectID, [40, 64].contains(object.count), object.allSatisfy(\.isHexDigit) else { throw RepositoryBrowserFailure.selection }
         try validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
         _ = try restoreLocation(entry.path)
@@ -361,15 +402,24 @@ extension GitRepository {
         try cancellation?.check()
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
         if entry.kind == .submodule {
-            return ComparisonFileContent(path: entry.path + ".txt", revision: .revision(object), bytes: Data(("Subproject commit " + entry.objectID).utf8), mode: "100644")
+            return ComparisonFileContent(path: entry.displayPath + ".txt", revision: .revision(object), bytes: Data(("Subproject commit " + entry.objectID).utf8), mode: "100644")
         }
-        return ComparisonFileContent(path: entry.path, revision: .revision(object), bytes: try run(["cat-file", "blob", entry.objectID], cancellation: cancellation).stdout, mode: entry.mode)
+        return ComparisonFileContent(path: entry.displayPath, revision: .revision(object), bytes: try storedRepositoryBrowserBlob(snapshot,entry:entry,cancellation:cancellation), mode: entry.mode)
+    }
+    /// Stored bytes only: no smudge filters, attributes, pathspecs or native
+    /// filenames. The exact row/OID must belong to this pinned tree receipt.
+    public func storedRepositoryBrowserBlob(_ snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry,cancellation:OperationCancellation?=nil)throws->Data {
+        try cancellation?.check()
+        guard snapshot.root==root,snapshot.objectID != nil,snapshot.entries.contains(entry),![.directory,.submodule].contains(entry.kind),
+              [40,64].contains(entry.objectID.utf8.count),entry.objectID.utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{throw RepositoryBrowserFailure.selection}
+        return try run(["cat-file","blob",entry.objectID],cancellation:cancellation).stdout
     }
     public func materializedRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil,
                                                   backend: GitLibGit2Configuration? = nil) throws -> ComparisonFileContent {
         let backend = backend ?? snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
+        try RepositoryBrowserTransferPolicy.validate(snapshot,entries:[entry])
         if entry.kind == .submodule { return try repositoryBrowserFile(snapshot, entry: entry, cancellation: token) }
         return try materializedBlob(objectID: entry.objectID, path: entry.path, revision: object, mode: entry.mode, cancellation: token, backend: backend)
     }

@@ -1004,14 +1004,35 @@
       "certified_complete": false,
       "native_sources": [
         {
+          "path": "Sources/TurtleGitCore/RepositoryBrowser.swift",
+          "anchor": "public struct RepositoryBrowserEntry"
+        },
+        {
+          "path": "Sources/TurtleGitCore/RepositoryBrowserGitPath.swift",
+          "anchor": "public struct RepositoryBrowserGitPath"
+        },
+        {
+          "path": "Sources/TurtleGitCore/RepositoryBrowserTransferPolicy.swift",
+          "anchor": "public enum RepositoryBrowserTransferPolicy"
+        },
+        {
           "path": "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
-          "origin": "recorded-control-mapping"
+          "anchor": "final class RepositoryBrowserStoredBlobWindow"
+        },
+        {
+          "path": "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift",
+          "anchor": "struct RepositoryBrowserContentsTable"
+        },
+        {
+          "path": "Sources/TurtleGitMac/RepositoryBrowserDrag.swift",
+          "anchor": "enum RepositoryBrowserDrag"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
         "docs/HISTORICAL-WINDOW-IDENTITY-PARITY.md",
+        "docs/REPOSITORY-BROWSER-NAMESPACE-PARITY.md",
         "docs/REPOSITORY-BROWSER-PARITY.md",
         "docs/SYMLINK-BLAME-PARITY.md"
       ],
@@ -1028,6 +1049,7 @@
         "docs/qa/repository-browser-export-2026-10-05.json",
         "docs/qa/repository-browser-folder-tree-2026-10-15.json",
         "docs/qa/repository-browser-lifecycle-2026-10-13.json",
+        "docs/qa/repository-browser-namespace-2026-10-25.json",
         "docs/qa/repository-browser-paths-2026-10-16.json",
         "docs/qa/repository-browser-revert-2026-10-05.json",
         "docs/qa/repository-browser-submodule-2026-10-05.json",

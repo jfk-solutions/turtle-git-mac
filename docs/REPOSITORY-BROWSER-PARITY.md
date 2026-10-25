@@ -2,6 +2,9 @@
 
 This is a partial native replacement, not complete TortoiseGit parity.
 The pinned source is TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
+The [Git filename continuation](REPOSITORY-BROWSER-NAMESPACE-PARITY.md) covers
+raw tree names, navigation, stored-object inspection and transfer refusal without
+losing valid siblings. Its acceptance is recorded separately from older checks.
 The [upstream manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-repobrowser.html)
 and the source/resource controls were reviewed together.
 

@@ -816,6 +816,8 @@ jobs:
         run: python3 scripts/test-merge-toolbar.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Exact Unicode repository paths and browser actions
         run: python3 scripts/test-browser-paths.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Repository Browser raw Git names, stored objects and owned delivery
+        run: python3 scripts/test-repository-browser-namespace.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Captured reference menus and related native workflows
         run: python3 scripts/test-reference-menu-targets.py --only folders --only comparison --only tracking --only rename --only standalone --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Comparison savepoints, options, row edits and editor workflows

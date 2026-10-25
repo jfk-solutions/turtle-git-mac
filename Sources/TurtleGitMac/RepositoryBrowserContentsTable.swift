@@ -80,7 +80,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             let descriptor=NSSortDescriptor(key:key,ascending:sort?.order != .reverse)
             if table.sortDescriptors != [descriptor] { table.sortDescriptors=[descriptor] }
             NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumns.first{$0.identifier.rawValue=="name"},labelText:{[weak self] row in
-                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].name
+                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].displayName + (self.rows[row].isPathRepresentable ? "":" [raw]")
             },font:.systemFont(ofSize:12),leadingInset:25)
             // A native sheet can detach without publishing another model
             // update. Keep persistent enabled state model-driven; available
@@ -91,12 +91,16 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         }
         func numberOfRows(in tableView:NSTableView) -> Int { rows.count }
         func value(_ id:String,_ entry:RepositoryBrowserEntry) -> String {
-            switch id { case "name":return entry.name;case "extension":return entry.fileExtension;case "size":return model.sizeText(entry);default:return "" }
+            switch id { case "name":return entry.displayName + (entry.isPathRepresentable ? "":" [raw]");case "extension":return entry.fileExtension;case "size":return model.sizeText(entry);default:return "" }
         }
         func tableView(_ tableView:NSTableView,viewFor column:NSTableColumn?,row:Int) -> NSView? {
             guard rows.indices.contains(row),let column else { return nil }
             let entry=rows[row],id=column.identifier.rawValue,label=NSTextField(labelWithString:value(column.identifier.rawValue,rows[row]))
-            label.font = .systemFont(ofSize:12);label.lineBreakMode = .byTruncatingTail;label.maximumNumberOfLines=1;label.toolTip=entry.path+"\n"+entry.objectID
+            label.font = .systemFont(ofSize:12);label.lineBreakMode = .byTruncatingTail;label.maximumNumberOfLines=1;label.toolTip=entry.displayPath+"\n"+entry.objectID
+            if !entry.isPathRepresentable {
+                label.toolTip=(label.toolTip ?? "")+"\nRaw Git pathname (escaped bytes). "+RepositoryBrowserWindowModel.rawPathReason
+                label.setAccessibilityLabel(entry.displayName+" – Raw Git pathname (escaped bytes)")
+            }
             if id=="size" { label.alignment = .right };guard id=="name" else { return label }
             let cell=NSTableCellView();cell.textField=label;let icon=NSImageView()
             icon.image=[.directory,.submodule].contains(entry.kind) ? NSWorkspace.shared.icon(for:.folder) : NSWorkspace.shared.icon(for:UTType(filenameExtension:(entry.name as NSString).pathExtension) ?? .data)
@@ -161,13 +165,17 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         func menuNeedsUpdate(_ menu:NSMenu) {
             model.prepareComparisonMenu()
             menu.removeAllItems();let values=selected
-            func item(_ title:String,_ action:Selector,_ icon:MenuIcon,enabled:Bool=true) {
+            func item(_ title:String,_ action:Selector,_ icon:MenuIcon,enabled:Bool=true,requiresPath:Bool=true) {
                 let entry=NSMenuItem(title:title,action:#selector(invokeBrowserMenu(_:)),keyEquivalent:"");entry.target=self;entry.image=icon.contextImage(defaults:model.preferences)
                 if let target=model.menuTarget(values) { entry.representedObject=MenuInvocation(target:target,command:action) }
-                entry.isEnabled=available && enabled && entry.representedObject != nil;menu.addItem(entry)
+                let pathAvailable = !requiresPath || values.allSatisfy(\.isPathRepresentable)
+                entry.isEnabled=available && enabled && pathAvailable && entry.representedObject != nil
+                if !pathAvailable {entry.toolTip=RepositoryBrowserWindowModel.rawPathReason}
+                menu.addItem(entry)
             }
             if values.count==1,let entry=values.first,model.snapshot?.objectID != nil {
-                item("Open",#selector(open),.open)
+                item("Open",#selector(open),.open,requiresPath:entry.kind != .directory)
+                if !entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind) {item("View stored blob",#selector(inspectStoredBlob),.open,requiresPath:false)}
                 if entry.kind != .directory { item("Open With…",#selector(openWith),.open);item("View revision with alternative editor",#selector(alternativeEditor),.editor) }
                 menu.addItem(.separator())
                 if entry.kind != .directory && model.snapshot?.bare==false { item("Compare with working tree",#selector(compare),.compare);menu.addItem(.separator()) }
@@ -181,9 +189,9 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             if !values.isEmpty && model.snapshot?.bare==false && values.allSatisfy({ ![.directory,.submodule].contains($0.kind) }) { item("Revert to this revision",#selector(revert),.revert);menu.addItem(.separator()) }
             if values.count==1,let entry=values.first,![.directory,.submodule].contains(entry.kind) {
                 item("Mark for comparison",#selector(mark),.compare)
-                if let mark=model.comparisonMark { item("Compare with "+mark.label(for:entry.path),#selector(compareMarked),.compare,enabled:model.onPreparedFileCompare != nil) };menu.addItem(.separator())
+                if let mark=model.comparisonMark { item("Compare with "+mark.label(for:entry.displayPath),#selector(compareMarked),.compare,enabled:model.onPreparedFileCompare != nil) };menu.addItem(.separator())
             }
-            if !values.isEmpty { item("Copy to clipboard",#selector(copyNames),.copy);item("Copy hash",#selector(copyHashes),.copy) }
+            if !values.isEmpty { item(values.contains(where:{!$0.isPathRepresentable}) ? "Copy displayed names (escaped)":"Copy to clipboard",#selector(copyNames),.copy,requiresPath:false);item("Copy hash",#selector(copyHashes),.copy,requiresPath:false) }
         }
         private final class MenuInvocation: NSObject {
             let target: RepositoryBrowserWindowModel.MenuTarget
@@ -201,6 +209,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             if invocation.command == #selector(copyHashes) { model.copy(hashes:true,entries:entries); return }
             guard entries.count == 1, let entry=entries.first else { return }
             switch invocation.command {
+            case #selector(inspectStoredBlob): model.inspectStoredBlob(entry)
             case #selector(open): model.open(entry)
             case #selector(openWith): model.open(entry,action:.openWith)
             case #selector(alternativeEditor): model.open(entry,action:.alternativeEditor)
@@ -215,6 +224,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             }
         }
         private func one(_ operation:(RepositoryBrowserEntry)->Void) { guard available,selected.count==1,let entry=selected.first else { return };operation(entry) }
+        @objc func inspectStoredBlob() {one{model.inspectStoredBlob($0)}}
         @objc func open() { one { model.open($0) } }
         @objc func openWith() { one { model.open($0,action:.openWith) } }
         @objc func alternativeEditor() { one { model.open($0,action:.alternativeEditor) } }

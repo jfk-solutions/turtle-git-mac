@@ -1,0 +1,457 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-family-checkpoint-passed-after-compile-repair",
+  "base_commit": "e1ba9ca15664d378a1e22dc85994ccfc35d7f43a",
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "dialog": "src/Resources/TortoiseProcENG.rc / IDD_REPOSITORY_BROWSER",
+    "anchors": [
+      "src/TortoiseProc/RepositoryBrowser.cpp:368-425 tree enumeration, mode normalization, decoded name map",
+      "src/Utils/UnicodeUtils.cpp:228-241 zero-flags Unicode conversion",
+      "src/TortoiseProc/RepositoryBrowser.h:53-62 reconstructed display-name paths"
+    ],
+    "distinction": "Source continues a directory listing despite replacement-decoded names; native previously rejected the entire directory. Lossless byte identities are a native extension beyond that map."
+  },
+  "implementation": {
+    "scope": [
+      "Lossless raw tree names, collision-safe selection/cache identities, valid siblings remain available.",
+      "Raw directory traversal by matched component bytes and verified hexadecimal tree OIDs; parent navigation and refresh preserve exact identities.",
+      "Parent-owned read-only stored blob text/hex inspection with explicit 8 MiB display limit, inherited appearance/opacity, closed-child release and retired-read suppression.",
+      "Menu and dispatcher representability admission for path actions; displayed-name Copy and exact object hash Copy.",
+      "Complete descendant preflight before folder export creation, no skipped raw children, no opaque-key filename/pathspec/pasteboard, valid sibling transfers unchanged."
+    ],
+    "shared_boundary": "Generic materialization, FileListDrag and RevisionArchive retain string-only validPath; Browser traversal alone admits validNamespaceKey.",
+    "canonical_modes": "Actual raw tree 100664/100775 fixture returns canonical 100644/100755, consistent with source filemode API.",
+    "inputs": [
+      {
+        "path": "Sources/TurtleGitCore/RepositoryBrowser.swift",
+        "sha256": "a12c29b0bc588a8071ccf22719fcdd93ee3fbe72f552b4db9c31c81ba9ed0288"
+      },
+      {
+        "path": "Sources/TurtleGitCore/RepositoryBrowserGitPath.swift",
+        "sha256": "7b1aad8f91985244a7fddb4cab47c2fea722fea4c73c852aad6e90d3cf37d47c"
+      },
+      {
+        "path": "Sources/TurtleGitCore/RepositoryBrowserTransferPolicy.swift",
+        "sha256": "e762c455b0cfd5a6b7de9b1144fd417ce38d84a14097e5901075f91f086295f0"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
+        "sha256": "f6e1c45eb83e1b6ba65b099b52b70aee21d34ada8e218fa6915eb47c78831386"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift",
+        "sha256": "cb99a8014b288ce25e4d2fb74e1c6a79ae669db5fa6061912ee249d06fd149d0"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryBrowserDrag.swift",
+        "sha256": "8bbbdb0e4c54bb2e7141d98f3ac2c86bc8a3bd999a9dcdd11dd719ede0a0134c"
+      },
+      {
+        "path": "TurtleGitMac.xcodeproj/project.pbxproj",
+        "sha256": "3b8b32ea9bdda1ab2c71bb6a1758503efec5b506ec4ad490591fbcb6ac85c398"
+      }
+    ],
+    "new_checks": [
+      {
+        "path": "Tests/TurtleGitCoreTests/RepositoryBrowserNamespaceTests.swift",
+        "sha256": "8aaed95cdddf5e51dcc6f4d3435924ce4e0fa1eda6ca76070038528c58ee2f85"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/RepositoryBrowserNamespaceTransferTests.swift",
+        "sha256": "d6efea2917e394fab35d573eb2b840af57a98a35927e761d2a6aeb14f9bd70d2"
+      },
+      {
+        "path": "docs/qa/repository-browser-namespace-native-2026-10-25.swift",
+        "sha256": "1dbb1c0be5fd6e69c8c848680b999f9aadaeee7f86c0a9113ec53e5e71c08541"
+      },
+      {
+        "path": "scripts/test-repository-browser-namespace.py",
+        "sha256": "ea125354f646f861c68dbad508d710a1d9702b952bbe3ec5e14a207361a69347"
+      }
+    ]
+  },
+  "validation": {
+    "localizations_write": {
+      "exit_code": 0,
+      "languages": 38,
+      "keys": 1320,
+      "scope": "Generator ran before build; no generated resource content changed. Missing native captions retain English fallback."
+    },
+    "project_generation": {
+      "exit_code": 0,
+      "tool": "xcodegen generate",
+      "scope": "Registered two new Core production files."
+    },
+    "debug_attempts": [
+      {
+        "session": 31311,
+        "exit_code": 65,
+        "log": {
+          "path": "build/qa/browser-namespace-debug-2026-10-25.log",
+          "sha256": "bfd276f763d5f50b330c1273b362da840ef45b3140bbe08364e01b0e461da669"
+        },
+        "failure": "New catch shadowed model error property; immutable implicit Error assignment. Fixed one line to self.error."
+      },
+      {
+        "session": 82474,
+        "exit_code": 0,
+        "log": {
+          "path": "build/qa/browser-namespace-debug-repair-2026-10-25.log",
+          "sha256": "82d5edbec0a4bb9995459a1c745008ccf07fbcbe2d0baffc6b47a1663984e5d7"
+        },
+        "generic_exit_zero_diagnostics": 35,
+        "scope": "Current unsigned local Debug app and Core. Generic command-failed-with-exit-zero diagnostics retained; no BUILD FAILED marker in successful repair log."
+      }
+    ],
+    "core": {
+      "session": 68541,
+      "exit_code": 0,
+      "filter": "RepositoryBrowser(Tests|TransferTests|WorkingIdentityTests|NamespaceTests|NamespaceTransferTests)",
+      "methods": 33,
+      "new_methods": 9,
+      "failures": 0,
+      "duration_seconds": 40.812,
+      "passed_methods": [
+        {
+          "class": "RepositoryBrowserNamespaceTests",
+          "method": "testMalformedTreeMetadataAndMissingRawDirectoriesDoNotBecomeRows"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTests",
+          "method": "testMixedRawNamespacePreservesSiblingsAndNavigatesDirectoriesByObjectID"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTests",
+          "method": "testNoncanonicalRegularPermissionsRemainCanonicalSourceListingModes"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTests",
+          "method": "testRawPathKeysRemainLosslessAndNeverBecomeSharedPathspecs"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTests",
+          "method": "testStoredBlobInspectionIsPinnedAndAllPathDependentActionsRefuseRawNames"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTransferTests",
+          "method": "testFolderPreflightRejectsRawDescendantAndEntireMixedSelection"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTransferTests",
+          "method": "testGoodSubtreeIgnoresUnrelatedRawInventoryAndPreservesLiteralUnicode"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTransferTests",
+          "method": "testRawEmptyDirectoryAndValidLeafUnderRawParentCannotBecomeNativePaths"
+        },
+        {
+          "class": "RepositoryBrowserNamespaceTransferTests",
+          "method": "testValidSiblingAndLiteralDisplayLookingNamesDeliverOriginalBytes"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testBareTagsTreesAndUnbornHead"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testBytePathCollectionsAndEntryIdentity"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testCancellationReachesEveryBrowserOperationWithoutMutatingRepository"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testExportPreservesPinnedRecursiveNamesBytesAndSkipsGitlinks"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testExportRejectsForeignGitlinkAndCancelledSelection"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testLiteralTreeEntriesModesAndExactBlobContents"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testNativeColumnsNormalizeAndPersistIndependentLayout"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testPinnedDirectoryDoesNotFollowMovedReference"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testRevertLockFailureLeavesFileAndIndexUnchangedThenCanResume"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testRevertRejectsForeignFoldersSubmodulesBareAndEscapedAncestors"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testRevertRestoresPinnedBytesModesAndIndexWithoutMovingHead"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testRevertSupportsSHA256PinnedCommit"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testRevisionLabelAnnotatedTreeFallbackCancellationAndForeignScope"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testRevisionLabelUsesSourceReferenceOrderWithoutChangingSnapshot"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testSortingAndMalformedTreeRecords"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testStandaloneTreesSupportComparisonMarksPatchesAndHistoricalReadsWithoutInventingHistory"
+        },
+        {
+          "class": "RepositoryBrowserTests",
+          "method": "testUnicodeAliasTreesKeepHistoricalBytesAndRefuseWorkingAliasMutation"
+        },
+        {
+          "class": "RepositoryBrowserTransferTests",
+          "method": "testInventoryBoundCancellationAndForeignSnapshotDoNotMutateInputs"
+        },
+        {
+          "class": "RepositoryBrowserTransferTests",
+          "method": "testInventoryPinsPeeledTreeAndPreservesLiteralLeavesAndModes"
+        },
+        {
+          "class": "RepositoryBrowserTransferTests",
+          "method": "testSmallSubtreeRemainsAvailableWhenWholeInventoryExceedsBudget"
+        },
+        {
+          "class": "RepositoryBrowserTransferTests",
+          "method": "testSubtreeArgumentsRetainDistinctCanonicalUnicodeIdentity"
+        },
+        {
+          "class": "RepositoryBrowserWorkingIdentityTests",
+          "method": "testExactPinnedRevertCancellationAndContainment"
+        },
+        {
+          "class": "RepositoryBrowserWorkingIdentityTests",
+          "method": "testTrackedAliasesUseActualVolumeIdentity"
+        },
+        {
+          "class": "RepositoryBrowserWorkingIdentityTests",
+          "method": "testUntrackedIgnoredUnicodeAndCaseAliasesIncludingDirectoryPrefixes"
+        }
+      ],
+      "log": {
+        "path": "build/qa/browser-namespace-core-2026-10-25.log",
+        "sha256": "ee1708f4df73f75c6171423bfc289a50a9a0c0553bbecbcdcf556ac8cb79c321"
+      },
+      "scope": "Focused Browser group only; no full Core suite or hosted CI claim."
+    },
+    "native_namespace": {
+      "session": 20840,
+      "exit_code": 0,
+      "cases": [
+        {
+          "git": "/usr/bin/git",
+          "case": "listing",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "navigation",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "actions",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "listing",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "navigation",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "actions",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "log": {
+        "path": "build/qa/browser-namespace-native-2026-10-25.log",
+        "sha256": "1f94130c762799baa54942adff05c6d651efb3134486bff8f4420f08401d08a6"
+      },
+      "reaped_receivers": [
+        116,
+        157,
+        215,
+        265,
+        317,
+        355,
+        411,
+        452
+      ]
+    },
+    "retained_selection_drags": {
+      "session": 62874,
+      "exit_code": 0,
+      "cases": [
+        {
+          "git": "/usr/bin/git",
+          "case": "list",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "tree",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "list",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "tree",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "log": {
+        "path": "build/qa/browser-namespace-retained-drags-2026-10-25.log",
+        "sha256": "1adabcfd4fc05d3e7555b581b9f866679c64d5a973166c612d0fc333f2d199b2"
+      },
+      "reaped_receivers": [
+        517,
+        626,
+        705,
+        783,
+        868,
+        933
+      ]
+    },
+    "cleanup": {
+      "remaining_owned_receivers_or_debug_app": [],
+      "private_inputs": "Runners use private repositories, preference domains, config/HOME/XDG/temp roots, unique pasteboards, invisible/offscreen windows, injected external responses and exact owned helper cleanup.",
+      "protected_human_work_preserved": [
+        {
+          "path": "scripts/test-native-reference-batch.py",
+          "sha256": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+        },
+        {
+          "path": "docs/qa/reflog-capture-native-2026-10-13.swift",
+          "sha256": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+        }
+      ],
+      "unrelated_apps_or_finder_terminated": false
+    },
+    "documentation": {
+      "coverage_reconciliation": {
+        "exit_code": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_controls": 85,
+        "certified_complete": 0,
+        "scope": "Review coverage counts, not feature-completion measures."
+      },
+      "site": {
+        "session": 32761,
+        "exit_code": 0,
+        "documents": 454,
+        "unresolved_fragments": [],
+        "log": {
+          "path": "build/qa/browser-namespace-site-2026-10-25.log",
+          "sha256": "204d9364dbb38610df04dc52fa507fc6390d89dd8d51a5a50545a87c3296838e"
+        }
+      },
+      "localizations_check": {
+        "session": 68024,
+        "exit_code": 0,
+        "languages": 38,
+        "keys": 1320
+      },
+      "bundled_help": "No included Help topic document or additional guide changed; no Help regeneration required.",
+      "whitespace_check": "git diff --check passed"
+    }
+  },
+  "actual_vs_injected": {
+    "actual": [
+      "Raw byte mktree/tree object writes; ls-tree and stored cat-file reads.",
+      "Real native contents/menu dispatch, folder navigation and refresh.",
+      "Exact stored bytes in text/hex inspector; child close release and appearance inheritance.",
+      "Actual valid sibling file promise destination bytes and existing folder/list recursive delivery.",
+      "HEAD/index/config and working path preservation assertions."
+    ],
+    "controlled": [
+      "Held read continuation and owner close test retirement rather than physical user timing.",
+      "No physical Finder drag or external application launch acceptance in this checkpoint."
+    ]
+  },
+  "distribution": {
+    "installed_main_sha256": "db75298fd5d10f655e0f9ac4ae90a4e2015e988ef80803e29ca2c620f2b6e5ba",
+    "installed_checkpoint": "bdd482b3 equivalent signed viewer repair; current Browser batch and preceding inaccessible-repository changes are not installed.",
+    "signed_or_appstore_build_run": false
+  },
+  "hosted_ci_observed": {
+    "observed_older_mac_run": 40144518697,
+    "job": 121026295722,
+    "status": "in_progress",
+    "step": "Git integration tests",
+    "latest_pushed_mac_run": 40149645648,
+    "latest_pushed_status": "pending",
+    "latest_pushed_pages_run": 40149645645,
+    "latest_pushed_pages_conclusion": "success",
+    "scope": "Prior e1ba9ca1 and older revisions at observation, not this uncommitted Browser batch."
+  },
+  "remaining": [
+    "Raw-byte filesystem checkout/save/history routing and delivery are explicitly unavailable; stored inspection is the supported route.",
+    "Physical gestures/VoiceOver, signed sandbox grants, receiving application and Finder delivery acceptance.",
+    "Consolidated current signed build, complete hosted CI, Intel/distribution and App Store acceptance.",
+    "Complete upstream Browser visual/behavioral parity and whole-port acceptance."
+  ]
+}

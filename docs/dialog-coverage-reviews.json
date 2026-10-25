@@ -1021,6 +1021,38 @@
       ],
       "parity_document": "docs/SYNCHRONIZATION-PARITY.md",
       "status": "partial"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_REPOSITORY_BROWSER",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitCore/RepositoryBrowser.swift",
+          "anchor": "public struct RepositoryBrowserEntry"
+        },
+        {
+          "path": "Sources/TurtleGitCore/RepositoryBrowserGitPath.swift",
+          "anchor": "public struct RepositoryBrowserGitPath"
+        },
+        {
+          "path": "Sources/TurtleGitCore/RepositoryBrowserTransferPolicy.swift",
+          "anchor": "public enum RepositoryBrowserTransferPolicy"
+        },
+        {
+          "path": "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
+          "anchor": "final class RepositoryBrowserStoredBlobWindow"
+        },
+        {
+          "path": "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift",
+          "anchor": "struct RepositoryBrowserContentsTable"
+        },
+        {
+          "path": "Sources/TurtleGitMac/RepositoryBrowserDrag.swift",
+          "anchor": "enum RepositoryBrowserDrag"
+        }
+      ],
+      "parity_document": "docs/REPOSITORY-BROWSER-NAMESPACE-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

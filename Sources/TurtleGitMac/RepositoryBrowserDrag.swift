@@ -29,8 +29,12 @@ private final class RepositoryBrowserWeakRetention {
 
 @MainActor enum RepositoryBrowserDrag {
     static func provider(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?, name: String, folder: Bool,backend:GitLibGit2Configuration? = nil) -> NSItemProvider {
-        let provider = NSItemProvider(); provider.suggestedName = name
-        let type = folder ? UTType.folder : UTType(filenameExtension: (name as NSString).pathExtension) ?? .data
+        let provider = NSItemProvider()
+        // A display label is not a delivery filename. Invalid direct callers
+        // still receive a typed refusal from load, without advertising a key.
+        let deliveryName=try? RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:entry,directory:directory)
+        provider.suggestedName = deliveryName
+        let type = folder ? UTType.folder : deliveryName.flatMap { UTType(filenameExtension: ($0 as NSString).pathExtension) } ?? .data
         let payload = RepositoryBrowserDragPayload(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory,backend:backend)
         provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
             let cancellation = OperationCancellation(), progress = Progress(totalUnitCount: 1)
@@ -40,6 +44,20 @@ private final class RepositoryBrowserWeakRetention {
             return progress
         }
         return provider
+    }
+}
+
+/// The metadata name and eventual file delivery share the same admission rule.
+/// Never derive a native path from an escaped label or an opaque selection key.
+private enum RepositoryBrowserDelivery {
+    static func name(repository:GitRepository,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry?,directory:String?) throws -> String {
+        try RepositoryBrowserTransferPolicy.validate(snapshot,entries:entry.map{[$0]} ?? [])
+        if let entry,let name=String(data:entry.rawName,encoding:.utf8) {return name}
+        let key=directory ?? snapshot.directory
+        try RepositoryBrowserTransferPolicy.validateDirectory(key)
+        let path=try RepositoryBrowserGitPath(key:key)
+        guard let value=path.utf8 else {throw RepositoryBrowserTransferFailure.unrepresentablePath(path.display)}
+        return value.isEmpty ? repository.root.lastPathComponent : String(value.split(separator:"/").last!)
     }
 }
 
@@ -60,6 +78,7 @@ private final class RepositoryBrowserWeakRetention {
         defer { withExtendedLifetime(access) {} }
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            _ = try RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:entry,directory:directory)
             let current: RepositoryBrowserSnapshot
             if let directory { current = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) }
             else { current = snapshot }
@@ -84,7 +103,7 @@ private final class RepositoryBrowserWeakRetention {
     let name:String
     init(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry? = nil,directory:String? = nil,backend:GitLibGit2Configuration? = nil) {
         self.repository=repository;self.access=access;self.snapshot=snapshot;self.entry=entry;self.directory=directory;self.backend=backend ?? repository.libgit2Configuration ?? .load()
-        self.name=entry?.name ?? (directory.map { $0.isEmpty ? repository.root.lastPathComponent : ($0 as NSString).lastPathComponent } ?? repository.root.lastPathComponent)
+        self.name=(try? RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:entry,directory:directory)) ?? "historical-item"
     }
     func provider() -> NSFilePromiseProvider {
         let type=entry == nil || entry?.kind == .directory || directory != nil ? UTType.folder : UTType(filenameExtension:(name as NSString).pathExtension) ?? .data
@@ -108,6 +127,7 @@ private final class RepositoryBrowserWeakRetention {
         guard url.isFileURL else { throw RepositoryBrowserFailure.selection }
         if cancellation?.isCancelled == true { throw OperationCancellationFailure.cancelled }
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+        _ = try RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:entry,directory:directory)
         let listing: RepositoryBrowserSnapshot
         if let directory { listing = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) } else { listing = snapshot }
         let export = try await repository.exportRepositoryBrowser(listing, entry: entry, cancellation: cancellation,backend:backend)
@@ -137,10 +157,11 @@ private final class RepositoryBrowserWeakRetention {
     private let access:RepositoryAccessLease?
     init?(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,selected:[RepositoryBrowserEntry],inventory:[RepositoryBrowserEntry]?,backend:GitLibGit2Configuration) {
         guard let revision=snapshot.objectID,let treeID=snapshot.treeID,!selected.isEmpty else{return nil}
+        guard (try? RepositoryBrowserTransferPolicy.validateSelection(snapshot,selected:selected,inventory:inventory)) != nil else{return nil}
         var children:RepositoryBrowserPathMap<[RepositoryBrowserEntry]>=[:]
         if let inventory {
             for entry in inventory {
-                let parent=(entry.path as NSString).deletingLastPathComponent
+                let parent=entry.parentPathKey
                 var values=children[parent] ?? [];values.append(entry);children[parent]=values
             }
         }
@@ -159,7 +180,7 @@ private final class RepositoryBrowserWeakRetention {
         self.paths=paths;self.text=paths.map{$0+"\r\n"}.joined();self.revision=revision;self.treeID=treeID;self.access=access
         let real=selected.filter{$0.kind != .submodule}
         self.promises=real.map{RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,entry:$0.kind == .directory ? nil : $0,directory:$0.kind == .directory ? $0.path : nil,backend:backend)}
-        self.names=real.map(\.name)
+        self.names=real.map{String(data:$0.rawName,encoding:.utf8)!}
         let textItem=RepositoryBrowserTextWriter(text:text,access:access)
         self.writers=[textItem]+promises.map{$0.provider()}
         let textProvider=NSItemProvider()
@@ -167,7 +188,7 @@ private final class RepositoryBrowserWeakRetention {
             completion(Data(textItem.text.utf8),nil);withExtendedLifetime(textItem){};return nil
         }
         self.textProvider=textProvider
-        self.providers=real.map{RepositoryBrowserDrag.provider(repository:repository,access:access,snapshot:snapshot,entry:$0.kind == .directory ? nil : $0,directory:$0.kind == .directory ? $0.path : nil,name:$0.name,folder:$0.kind == .directory,backend:backend)}
+        self.providers=real.map{RepositoryBrowserDrag.provider(repository:repository,access:access,snapshot:snapshot,entry:$0.kind == .directory ? nil : $0,directory:$0.kind == .directory ? $0.path : nil,name:String(data:$0.rawName,encoding:.utf8)!,folder:$0.kind == .directory,backend:backend)}
     }
     func write(to pasteboard:NSPasteboard)->Bool {pasteboard.clearContents();return pasteboard.writeObjects(writers)}
 }
