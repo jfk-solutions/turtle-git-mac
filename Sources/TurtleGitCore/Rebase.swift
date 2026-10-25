@@ -3,6 +3,22 @@ import Darwin
 
 public enum RebaseAction: String, CaseIterable, Codable, Sendable { case pick, skip = "drop", edit, squash }
 public enum RebaseEntryProgress: Sendable { case pending, current, completed }
+/// Logical source rows, independent of Git's sequencer command count.
+public struct RebaseProgressEntry: Sendable, Equatable {
+    public let id:String
+    public let action:RebaseAction
+}
+public struct RebaseProgress: Sendable, Equatable {
+    public let sessionID:String
+    public let head:String
+    public let entries:[RebaseProgressEntry]
+    public let currentEntryID:String?
+    public let currentStep:Int
+    public let completed:Int
+    public var total:Int {entries.count}
+    public let finished:Bool
+}
+
 public enum RebaseEmptyChoice: Sendable { case commit, skip, cancel }
 public enum RebaseSquashDate: Int, Codable, Sendable { case first = 0, latest = 1, current = 2 }
 public struct RebaseSquashMessage: Codable, Sendable {
@@ -537,6 +553,107 @@ private struct RebaseReplayIdentity: Codable {
     var executionAction:String? {emptySubject == true && action != RebaseAction.skip.rawValue && action != RebaseAction.squash.rawValue ? RebaseAction.edit.rawValue:action}
     var id: String { occurrence == 0 ? hash : hash + ":" + String(occurrence) }
 }
+/// Runs synchronously on the owning repository's command-drain loop. Sampling
+/// never launches Git and never mutates replay metadata. Inconsistent/transient
+/// reads are omitted rather than turned into guessed progress.
+final class RebaseProgressObservation: @unchecked Sendable {
+    private let directory:URL,headFile:URL,cancellation:OperationCancellation?
+    private let callback:@Sendable(RebaseProgress)->Void
+    private let planned:[RebaseProgressEntry]?,plannedBase:String?,plannedOnto:String?
+    private var directoryIdentity:String?,sessionFiles:[Data]?,identityBytes:Data?
+    private var last:RebaseProgress?,retired=false,lastSample:TimeInterval=0
+    private var lastSignature:[String]?
+    private var sessionID=UUID().uuidString
+    init(directory:URL,headFile:URL,plan:RebasePlan?,cancellation:OperationCancellation?,callback:@escaping @Sendable(RebaseProgress)->Void) {
+        self.directory=directory;self.headFile=headFile;self.cancellation=cancellation;self.callback=callback
+        planned=plan?.entries.map{.init(id:$0.id,action:$0.action)};plannedBase=plan?.branchHash;plannedOnto=plan?.ontoHash
+        // An existing directory belongs to this operation, not a later replay.
+        directoryIdentity=Self.identity(directory)
+    }
+    private static func identity(_ url:URL)->String? {
+        var info=stat();guard lstat(url.path,&info)==0,info.st_mode & S_IFMT==S_IFDIR else{return nil}
+        return "\(info.st_dev):\(info.st_ino):\(info.st_birthtimespec.tv_sec):\(info.st_birthtimespec.tv_nsec)"
+    }
+    private func read(_ url:URL,limit:Int=32*1024*1024)->Data? {
+        var info=stat();guard lstat(url.path,&info)==0,info.st_mode & S_IFMT==S_IFREG,info.st_size>=0,info.st_size<=limit else{return nil}
+        return try? Data(contentsOf:url)
+    }
+    private func file(_ name:String)->Data? {read(directory.appendingPathComponent(name))}
+    private func signature()->[String] {
+        let paths=["orig-head","onto","head-name","turtlegit-replay-identities.json","done","git-rebase-todo","turtlegit-cherry-pick.json","turtlegit-structural-plan","turtlegit-skipped-steps.json","turtlegit-update-refs","update-refs","turtlegit-adopted-plan.json"].map {directory.appendingPathComponent($0)}+[headFile]
+        return paths.map {path in
+            var info=stat();guard lstat(path.path,&info)==0 else{return "missing"}
+            return "\(info.st_dev):\(info.st_ino):\(info.st_mode):\(info.st_size):\(info.st_mtimespec.tv_sec):\(info.st_mtimespec.tv_nsec):\(info.st_ctimespec.tv_sec):\(info.st_ctimespec.tv_nsec)"
+        }
+    }
+    func retire(){retired=true}
+    func sample(force:Bool=false) {
+        guard !retired,cancellation?.isCancelled != true else{return}
+        let now=Date.timeIntervalSinceReferenceDate
+        guard force || now-lastSample>=0.05 else{return};lastSample=now
+        guard let directoryID=Self.identity(directory) else{return}
+        if let directoryIdentity,directoryIdentity != directoryID {retire();return}
+        let observedSignature=signature()
+        guard observedSignature != lastSignature else{return}
+        guard let original=file("orig-head"),let onto=file("onto"),let branch=file("head-name"),
+              let encoded=file("turtlegit-replay-identities.json"),let done=file("done"),let todo=file("git-rebase-todo"),let head=read(headFile,limit:4096),
+              let identities=try? JSONDecoder().decode([RebaseReplayIdentity].self,from:encoded),!identities.isEmpty,
+              let text=String(data:done,encoding:.utf8),let headText=String(data:head,encoding:.utf8)?.trimmingCharacters(in:.newlines),GitLocalReferenceProtocol.validOID(headText) else{return}
+        let immutable=[original,onto,branch]
+        if let sessionFiles,sessionFiles != immutable {retire();return}
+        if let identityBytes,identityBytes != encoded {retire();return}
+        let entries=identities.compactMap {identity->RebaseProgressEntry? in
+            guard let action=identity.action.flatMap(RebaseAction.init(rawValue:)) else{return nil}
+            return .init(id:identity.id,action:action)
+        }
+        guard entries.count==identities.count,Set(entries.map(\.id)).count==entries.count else{return}
+        if let planned {
+            guard entries==planned,String(decoding:original,as:UTF8.self).trimmingCharacters(in:.newlines)==plannedBase,
+                  String(decoding:onto,as:UTF8.self).trimmingCharacters(in:.newlines)==plannedOnto else{retire();return}
+        }
+        let mappingBytes=file("turtlegit-cherry-pick.json"),adoptedBytes=file("turtlegit-adopted-plan.json"),structuralBytes=file("turtlegit-structural-plan")
+        let mapping=mappingBytes.flatMap{try? JSONDecoder().decode([String:String].self,from:$0)} ?? [:]
+        var cursor=0,current=0
+        let resumed=RebaseEditor.rescheduledPick(in:directory)
+        let adopted=adoptedBytes.flatMap {try? JSONDecoder().decode(RebaseAdoptedPlan.self,from:$0)}
+        let structural=structuralBytes != nil || adopted?.structural==true
+        for raw in text.split(separator:"\n") {
+            let line=RebaseEditor.canonicalLine(String(raw)),fields=line.split(separator:" ").map(String.init)
+            if let id=RebaseEditor.emptyMessageID(line) ?? RebaseEditor.emptyMessageID(line,applied:true),let index=entries.firstIndex(where:{$0.id==id}) {current=index+1;continue}
+            guard let command=fields.first else{continue}
+            if command.hasPrefix("#") {continue}
+            guard RebaseAction(rawValue:command) != nil || ["label","reset","merge","break","update-ref","noop"].contains(command) else{return}
+            var token:String?
+            if RebaseAction(rawValue:command) != nil,fields.count>=2 {token=fields[1]}
+            else if structural,command=="merge",fields.count>=3 {token=fields[2]}
+            else if structural,command=="label",fields.count==2,fields[1].hasPrefix("turtlegit-") {token=String(fields[1].dropFirst("turtlegit-".count))}
+            else if structural,command=="reset",fields.count==2 {token=fields[1]}
+            guard let token else{continue}
+            let original=mapping[token] ?? token
+            let adoptedToken: String? = identities.indices.contains(cursor) ? adopted?.originals[identities[cursor].id].flatMap {saved in
+                let fields=RebaseEditor.canonicalLine(saved).split(separator:" ").map(String.init)
+                return fields.first=="merge" ? (fields.count>=3 ? fields[2]:nil):(fields.count>=2 ? fields[1]:nil)
+            }:nil
+            let approvedAbbreviation=adoptedToken==token && original.utf8.count>=4 && original.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
+            if identities.indices.contains(cursor),(GitReferenceName.equal(identities[cursor].hash,original) || approvedAbbreviation && identities[cursor].hash.hasPrefix(original)) {cursor += 1;current=cursor}
+            else if (RebaseAction(rawValue:command) != nil || command=="merge") && resumed == nil {return}
+        }
+        if let resumed {current=resumed.step}
+        guard current<=entries.count,mappingBytes==file("turtlegit-cherry-pick.json"),adoptedBytes==file("turtlegit-adopted-plan.json"),structuralBytes==file("turtlegit-structural-plan"),done==file("done"),todo==file("git-rebase-todo"),encoded==file("turtlegit-replay-identities.json"),
+              immutable==[file("orig-head"),file("onto"),file("head-name")].compactMap({$0}),head==read(headFile,limit:4096),Self.identity(directory)==directoryID,signature()==observedSignature else{return}
+        directoryIdentity=directoryID;sessionID=directoryID;sessionFiles=immutable;identityBytes=encoded;lastSignature=observedSignature
+        let receipt=RebaseProgress(sessionID:sessionID,head:headText,entries:entries,currentEntryID:current>0 ? entries[current-1].id:nil,currentStep:current,completed:max(0,current-1),finished:false)
+        publish(receipt)
+    }
+    func finish(head:String) {
+        guard !retired,cancellation?.isCancelled != true,GitLocalReferenceProtocol.validOID(head),let entries=last?.entries ?? planned else{return}
+        // A replaced directory invalidates the observer even if Git returned 0.
+        if let actual=Self.identity(directory),let directoryIdentity,actual != directoryIdentity {retire();return}
+        publish(.init(sessionID:sessionID,head:head,entries:entries,currentEntryID:nil,currentStep:entries.count,completed:entries.count,finished:true));retire()
+    }
+    private func publish(_ value:RebaseProgress){guard value != last else{return};last=value;callback(value)}
+}
+
 extension GitRepository {
     private func rebaseRevision(_ name: String, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
@@ -1037,8 +1154,8 @@ extension GitRepository {
         }
     }
     /// Approval is tied to the reached occurrence and unchanged pre-application HEAD.
-    public func acknowledgeRebaseEmptyMessage(_ warning: RebaseEmptyMessageWarning, expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) {
+    public func acknowledgeRebaseEmptyMessage(_ warning: RebaseEmptyMessageWarning, expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) {
             let actual = try rebaseState()
             try requireRebaseContinuation(actual, expected: expected, expectedHead: expectedHead)
             guard actual.emptyMessageWarning == warning, warning.head == expectedHead else { throw RebaseFailure.changed }
@@ -1343,6 +1460,8 @@ extension GitRepository {
             let done = state.active ? (try? String(contentsOf: rebasePath("rebase-merge/done"), encoding: .utf8)) : nil
             let last = done?.split(separator: "\n").last.map(String.init)
             let intentionalEdit = state.isEditPause && last.flatMap { RebaseEditor.emptyMessageID($0, applied: true) } == state.stoppedEntryID
+            replayProgressObservation?.sample(force:true)
+            if exitCode==0,!state.active,!arguments.contains("--abort") {replayProgressObservation?.finish(head:head ?? "")}
             return RebaseExecution(output:output,exitCode:intentionalEdit ? 0 : exitCode,state:state,witnessedHead:head,witnessedSession:session)
         }
         do {return try execution(run(arguments,environmentOverrides:environment).text,0)}
@@ -1556,55 +1675,64 @@ extension GitRepository {
         let previous = replayCancellation; replayCancellation = nil
         defer { replayCancellation = previous }; return try operation()
     }
-    private func withProtectedReplayIO<T>(cancellation: OperationCancellation?, onOutput: (@Sendable (GitOutputChunk) -> Void)?, operation: () throws -> T) throws -> T {
+    private func withProtectedReplayIO<T>(cancellation: OperationCancellation?, onOutput: (@Sendable (GitOutputChunk) -> Void)?, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil, operation: () throws -> T) throws -> T {
         let token = cancellation ?? replayCancellation; try token?.check()
-        let result = try replayUncancelled { try withReplayIO(cancellation: nil, onOutput: onOutput, operation: operation) }
+        let guardedProgress:(@Sendable(RebaseProgress)->Void)?=onProgress.map { callback in {value in if token?.isCancelled != true {callback(value)}} }
+        let result = try replayUncancelled { try withReplayIO(cancellation:nil,onOutput:onOutput,onProgress:guardedProgress,operation:operation) }
         try token?.check(); return result
     }
-    private func withReplayIO<T>(cancellation: OperationCancellation?, onOutput: (@Sendable (GitOutputChunk) -> Void)?, operation: () throws -> T) throws -> T {
-        let previousToken = replayCancellation, previousOutput = replayOutput
+    private func withReplayIO<T>(cancellation: OperationCancellation?, onOutput: (@Sendable (GitOutputChunk) -> Void)?, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil, progressPlan:RebasePlan? = nil, operation: () throws -> T) throws -> T {
+        let previousToken = replayCancellation, previousOutput = replayOutput, previousProgress=replayProgressObservation
+        let acceptedProgress=try onProgress.map {callback in
+            try (cancellation ?? previousToken)?.check()
+            return RebaseProgressObservation(directory:try rebasePath("rebase-merge"),headFile:try rebasePath("HEAD"),plan:progressPlan,cancellation:cancellation ?? previousToken,callback:callback)
+        }
         replayCancellation = cancellation ?? previousToken; replayOutput = onOutput ?? previousOutput
-        defer { replayCancellation = previousToken; replayOutput = previousOutput }
-        try replayCancellation?.check(); return try operation()
+        replayProgressObservation=acceptedProgress ?? previousProgress
+        defer {
+            if replayProgressObservation !== previousProgress {replayProgressObservation?.retire()}
+            replayCancellation = previousToken; replayOutput = previousOutput;replayProgressObservation=previousProgress
+        }
+        try replayCancellation?.check();replayProgressObservation?.sample();return try operation()
     }
-    public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false, fromLog: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try startRebaseOwned(plan, editorExecutable: editorExecutable, afterFetch: afterFetch, autoStart: autoStart, fromLog: fromLog) }
+    public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false, fromLog: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress,progressPlan:plan) { try startRebaseOwned(plan, editorExecutable: editorExecutable, afterFetch: afterFetch, autoStart: autoStart, fromLog: fromLog) }
     }
-    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil, expectedReplayState: RebaseState? = nil, expectedReplayHead: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, editorExecutable: URL? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try continueRebaseOwned(editorExecutable: editorExecutable, squashMessage: squashMessage, editMessage: editMessage, emptySquashChoice: emptySquashChoice, expectedSquashHead: expectedSquashHead, expectedSquashState: expectedSquashState, expectedReplayState: expectedReplayState, expectedReplayHead: expectedReplayHead) }
+    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil, expectedReplayState: RebaseState? = nil, expectedReplayHead: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, editorExecutable: URL? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try continueRebaseOwned(editorExecutable: editorExecutable, squashMessage: squashMessage, editMessage: editMessage, emptySquashChoice: emptySquashChoice, expectedSquashHead: expectedSquashHead, expectedSquashState: expectedSquashState, expectedReplayState: expectedReplayState, expectedReplayHead: expectedReplayHead) }
     }
-    public func skipRebase(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try skipRebaseOwned() }
+    public func skipRebase(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try skipRebaseOwned() }
     }
-    public func abortRebase(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try abortRebaseOwned() }
+    public func abortRebase(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try abortRebaseOwned() }
     }
-    public func amendRebaseCommit(message: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try amendRebaseCommitOwned(message: message) }
+    public func amendRebaseCommit(message: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> String {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try amendRebaseCommitOwned(message: message) }
     }
-    public func beginRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseSplitState {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try beginRebaseSplitOwned() }
+    public func beginRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseSplitState {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try beginRebaseSplitOwned() }
     }
-    public func rebaseSquashIsEmpty(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> Bool {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try rebaseSquashIsEmptyOwned() }
+    public func rebaseSquashIsEmpty(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> Bool {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try rebaseSquashIsEmptyOwned() }
     }
-    public func rebaseConflictSelectionIsEmpty(paths selection: some Sequence<String>, expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> Bool {
+    public func rebaseConflictSelectionIsEmpty(paths selection: some Sequence<String>, expected: RebaseState, expectedHead: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> Bool {
         let paths = GitPathSet(selection)
-        return try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try rebaseConflictSelectionIsEmptyOwned(paths: paths, expected: expected, expectedHead: expectedHead) }
+        return try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try rebaseConflictSelectionIsEmptyOwned(paths: paths, expected: expected, expectedHead: expectedHead) }
     }
-    public func commitRebaseConflictSelection(message: String, paths selection: some Sequence<String>, expected: RebaseState, expectedHead: String, allowEmpty: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> RebaseExecution {
+    public func commitRebaseConflictSelection(message: String, paths selection: some Sequence<String>, expected: RebaseState, expectedHead: String, allowEmpty: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseExecution {
         let paths = GitPathSet(selection)
-        return try withProtectedReplayIO(cancellation: cancellation, onOutput: onOutput) { try commitRebaseConflictSelectionOwned(message: message, paths: paths, expected: expected, expectedHead: expectedHead, allowEmpty: allowEmpty) }
+        return try withProtectedReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try commitRebaseConflictSelectionOwned(message: message, paths: paths, expected: expected, expectedHead: expectedHead, allowEmpty: allowEmpty) }
     }
-    public func rebaseSplitHasRemainingChanges(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> Bool {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try rebaseSplitHasRemainingChangesOwned() }
+    public func rebaseSplitHasRemainingChanges(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> Bool {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try rebaseSplitHasRemainingChangesOwned() }
     }
-    public func cancelUnstartedRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> Void {
-        try withReplayIO(cancellation: cancellation, onOutput: onOutput) { try cancelUnstartedRebaseSplitOwned() }
+    public func cancelUnstartedRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> Void {
+        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try cancelUnstartedRebaseSplitOwned() }
     }
-    public func commitRebaseSplit(message: String, paths selection: some Sequence<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    public func commitRebaseSplit(message: String, paths selection: some Sequence<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> String {
         let paths = GitPathSet(selection)
-        return try withProtectedReplayIO(cancellation: cancellation, onOutput: onOutput) { try commitRebaseSplitOwned(message: message, paths: paths, staging: staging, options: options, expected: expected) }
+        return try withProtectedReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try commitRebaseSplitOwned(message: message, paths: paths, staging: staging, options: options, expected: expected) }
     }
 }
 
@@ -1729,12 +1857,12 @@ extension GitRepository {
         let finished=try finishConflictMessage(phase,state:state,returnAppliedReview:returnAppliedReview)
         return .init(output:output+finished.output,exitCode:finished.exitCode,state:finished.state,witnessedHead:finished.witnessedHead,witnessedSession:finished.witnessedSession)
     }
-    public func beginRebaseConflictMessage(rawMessage:String,paths selection:some Sequence<String>,expected:RebaseState,expectedHead:String,allowEmpty:Bool=false,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,indexPolicy:CommitCheckboxIndexPolicy?=nil)throws->RebaseExecution {
+    public func beginRebaseConflictMessage(rawMessage:String,paths selection:some Sequence<String>,expected:RebaseState,expectedHead:String,allowEmpty:Bool=false,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,indexPolicy:CommitCheckboxIndexPolicy?=nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil)throws->RebaseExecution {
         let paths=GitPathSet(selection)
-        return try withProtectedReplayIO(cancellation:cancellation,onOutput:onOutput) {try beginRebaseConflictMessageOwned(rawMessage:rawMessage,paths:paths,expected:expected,expectedHead:expectedHead,allowEmpty:allowEmpty,indexPolicy:indexPolicy)}
+        return try withProtectedReplayIO(cancellation:cancellation,onOutput:onOutput,onProgress:onProgress) {try beginRebaseConflictMessageOwned(rawMessage:rawMessage,paths:paths,expected:expected,expectedHead:expectedHead,allowEmpty:allowEmpty,indexPolicy:indexPolicy)}
     }
-    public func completeRebaseConflictMessage(amendMessage:String?,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,editorExecutable:URL?=nil,rawMessage:String?=nil)throws->RebaseExecution {
-        try withReplayIO(cancellation:cancellation,onOutput:onOutput) {try completeRebaseConflictMessageOwned(amendMessage:amendMessage,expected:expected,expectedHead:expectedHead,editorExecutable:editorExecutable,rawMessage:rawMessage)}
+    public func completeRebaseConflictMessage(amendMessage:String?,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,editorExecutable:URL?=nil,rawMessage:String?=nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil)throws->RebaseExecution {
+        try withReplayIO(cancellation:cancellation,onOutput:onOutput,onProgress:onProgress) {try completeRebaseConflictMessageOwned(amendMessage:amendMessage,expected:expected,expectedHead:expectedHead,editorExecutable:editorExecutable,rawMessage:rawMessage)}
     }
     private static let cleanCommitFailureName="turtlegit-clean-commit-failure.json"
     private static var cleanCommitFailureNames:[String] {Self.actionEditNames+["message","stopped-sha","amend","current-fixups","message-squash","message-fixup","orig-head","onto","head-name","turtlegit-session.json","turtlegit-split.json","turtlegit-squash-message.json","turtlegit-skipped-steps.json",Self.conflictMessageName]}
@@ -1828,8 +1956,8 @@ extension GitRepository {
             return try rebaseState()
         }
     }
-    public func ignoreRebaseCleanCommitFailure(_ failure:RebaseCleanCommitFailure,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,editorExecutable:URL?=nil)throws->RebaseExecution {
-        try withReplayIO(cancellation:cancellation,onOutput:onOutput) {
+    public func ignoreRebaseCleanCommitFailure(_ failure:RebaseCleanCommitFailure,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,editorExecutable:URL?=nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil)throws->RebaseExecution {
+        try withReplayIO(cancellation:cancellation,onOutput:onOutput,onProgress:onProgress) {
             let state=try rebaseState(),directory=try rebasePath("rebase-merge")
             try requireRebaseContinuation(state,expected:expected,expectedHead:expectedHead)
             guard state.cleanCommitFailure==failure,expectedHead==failure.head,
@@ -2238,8 +2366,8 @@ extension GitRepository {
         try actionEditWrite(.init(bytes:sign ? Data("-S\n".utf8):nil),directory:directory,name:"gpg_sign_opt")
     }
     public func recoverFailedPick(_ expected: RebaseFailedPickRecovery, action requested: RebaseFailedPickAction,
-                                  cancellation: OperationCancellation? = nil,onOutput: (@Sendable (GitOutputChunk)->Void)? = nil) throws -> RebaseExecution {
-        try withReplayIO(cancellation:cancellation,onOutput:onOutput) {
+                                  cancellation: OperationCancellation? = nil,onOutput: (@Sendable (GitOutputChunk)->Void)? = nil,onProgress: (@Sendable (RebaseProgress)->Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation:cancellation,onOutput:onOutput,onProgress:onProgress) {
             let directory=try rebasePath("rebase-merge")
             guard directory==expected.directory,try failedPickSessionIdentity(directory)==expected.sessionIdentity else {throw RebaseFailure.changed}
             try requireRebaseContinuation(rebaseState(),expected:expected.state,expectedHead:expected.head)

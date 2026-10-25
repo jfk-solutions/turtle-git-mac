@@ -47,6 +47,11 @@ recovery. Git removes the metadata when the session completes or aborts.
 See [session recovery](REBASE-SESSION-CONTEXT.md).
 Full application and Rebase parity are still incomplete.
 
+The [live progress/completion family](REBASE-LIVE-COMPLETION-PARITY.md) adds source
+result-tab cleanup and automatic Finish for successful automatic Fetch→Rebase.
+It retains the manual post-action sets described here and uses the same owned
+stash restoration before closing. Its grouped validation is recorded separately.
+
 
 The completion split control is now shared with the source-ordered bulk action
 control. Captured menu callbacks are one-use and reject changed completion phases

@@ -37,6 +37,12 @@ It hosts the actual view without displaying windows; screenshots, focus,
 accessibility interaction and selected-row contrast still require displayed QA.
 
 Full progress recovery relies on TurtleGit's custom replay metadata. External
-sessions without that metadata and structural Preserve Merges currently retain
-the earlier pending-row recovery behavior. Advanced Log commands and further
-post-operation controls also remain incomplete.
+sessions without that metadata retain their available stopped-state information.
+Recognized external and structural session projection now has its separate
+[adoption audit](REBASE-SESSION-ADOPTION-PARITY.md).
+
+The [live progress/completion family](REBASE-LIVE-COMPLETION-PARITY.md) now connects
+logical count receipts, live current-row styling and scrolling, result tabs,
+automatic Finish and ordinary Show log access. Its evidence is separate from this
+older stopped/finished-row checkpoint. Advanced Log commands and full displayed
+acceptance remain incomplete.

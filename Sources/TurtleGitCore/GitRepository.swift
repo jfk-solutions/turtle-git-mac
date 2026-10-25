@@ -38,6 +38,7 @@ public actor GitRepository {
     // Nested helpers inherit the owned token; explicit caller tokens still win.
     var replayCancellation: OperationCancellation?
     var replayOutput: (@Sendable (GitOutputChunk) -> Void)?
+    var replayProgressObservation: RebaseProgressObservation?
     public nonisolated let diffDetection: GitDiffDetection
     public nonisolated let libgit2Configuration: GitLibGit2Configuration?
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load(), libgit2Configuration: GitLibGit2Configuration? = nil) {
@@ -53,6 +54,7 @@ public actor GitRepository {
     public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, executorOverride: URL? = nil) throws -> GitResult {
         let cancellation = cancellation ?? replayCancellation
         let onOutput = onOutput ?? replayCommandOutput(arguments)
+        let replayObservation=["rebase","commit","reset","cherry-pick"].contains(GitCommandIdentity(arguments).command ?? "") ? replayProgressObservation:nil
         try cancellation?.check()
         // The parent retains the global Shell-status fence through process
         // cancellation and drain. It is deliberately close-on-exec and does not
@@ -120,7 +122,7 @@ public actor GitRepository {
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
         var outputWasDelivered=false
-        if cancellation != nil || onOutput != nil || consumeOutput != nil {
+        if cancellation != nil || onOutput != nil || consumeOutput != nil || replayObservation != nil {
             let outputReader = try FileHandle(forReadingFrom: out), errorReader = try FileHandle(forReadingFrom: err)
             defer { try? outputReader.close(); try? errorReader.close() }
             // Synchronous consumers run on this repository actor, so bounded
@@ -128,7 +130,8 @@ public actor GitRepository {
             var consumerError:Error?
             let processCancellation = consumeOutput == nil ? (cancellation ?? OperationCancellation()) : OperationCancellation()
             func read(_ reader: FileHandle, stream: GitOutputChunk.Stream, drain: Bool = false) {
-                guard consumerError==nil,onOutput != nil || consumeOutput != nil else { return }
+                guard consumerError==nil,onOutput != nil || consumeOutput != nil || replayObservation != nil else { return }
+                replayObservation?.sample()
                 repeat {
                     let bytes = (try? reader.read(upToCount:64 * 1024)) ?? Data()
                     if bytes.isEmpty {

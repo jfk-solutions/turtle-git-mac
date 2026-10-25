@@ -16,6 +16,7 @@ final class HistoryContextMenuPolicyTests: XCTestCase {
         }
         XCTAssertTrue(HistoryContextMenuPolicy.rebase.contains(.createPatch))
         XCTAssertTrue(HistoryContextMenuPolicy.rebase.contains(.copyClipboard))
+        XCTAssertTrue(HistoryContextMenuPolicy.rebase.showsLog(hasReferences: false, isStash: false, extended: false))
     }
     func testExclusiveShowIntersectsRatherThanEnablingMaskedCommands() {
         var policy = HistoryContextMenuPolicy.log

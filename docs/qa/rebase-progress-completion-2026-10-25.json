@@ -1,0 +1,223 @@
+{
+  "date": "2026-10-25",
+  "base_revision": "284e29e5",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused-grouped-checkpoint-passed-full-parity-open",
+  "source_anchors": [
+    "RebaseDlg.cpp:1920-1972 UpdateProgress handled counts/current-row marker/EnsureVisible",
+    "RebaseDlg.cpp:1132-1190 ordinary result Log-only tabs and automatic Finish intent; Cherry Pick early return",
+    "RebaseDlg.cpp:2497-2514 Done consumes automatic Finish",
+    "RebaseDlg.cpp:1861-1865 source Show log list policy"
+  ],
+  "scope": [
+    "Typed filesystem-only coherent logical progress during owned command drain, no human-output counter parsing",
+    "Stable source occurrence/action/session/HEAD witnesses, bounded metadata signatures and unknown-plan omission",
+    "Determinate footer/Dock progress, current-row style/scroll without changing selection",
+    "Owned result receipt mailbox and late callback rejection",
+    "Ordinary success Progress-only tabs and guarded automatic Fetch-Rebase Finish through existing stash restore",
+    "Ordinary unnamed source-row Show log icon and captured target"
+  ],
+  "checks": {
+    "status": "cumulative-pass",
+    "core_file": "Tests/TurtleGitCoreTests/RebaseProgressTests.swift",
+    "new_core_methods": 4,
+    "native_fixture": "docs/qa/rebase-progress-completion-native-2026-10-25.swift",
+    "native_runner": "scripts/test-rebase-progress-completion.py",
+    "native_families": [
+      "progress",
+      "completion",
+      "ownership"
+    ],
+    "planned_native_pairs": 6,
+    "resources": {
+      "localizations_write": {
+        "languages": 38,
+        "keys": 1321
+      },
+      "help_write": {
+        "documents": 58,
+        "topics": 51,
+        "files": 80,
+        "bytes": 3877021
+      },
+      "localizations_check": {
+        "languages": 38,
+        "keys": 1321
+      },
+      "help_check": {
+        "documents": 58,
+        "topics": 51,
+        "files": 80,
+        "bytes": 3877021
+      }
+    },
+    "native_skip_regression": "Explicit completed Skip presentation override during real held step2 to step3 progress; does not prove actual Git --skip execution.",
+    "core_attempts": [
+      {
+        "log": "build/qa/rebase-progress-completion-core-2026-10-25.log",
+        "result": "test compilation failed: async wait helper non-escaping closure; no methods ran",
+        "repair": "test helper closure explicitly escaping"
+      },
+      {
+        "log": "build/qa/rebase-progress-completion-core-repair-2026-10-25.log",
+        "methods": 24,
+        "passed": 23,
+        "failed": 1,
+        "seconds": 33.507,
+        "failure": "Repeated Cherry Pick fixture called unique-selection constructor with a duplicate hash",
+        "repair": "Construct unique newest-first selection, then existing addingRebaseCommits for repeated occurrence"
+      },
+      {
+        "log": "build/qa/rebase-progress-completion-core-repeat-repair-2026-10-25.log",
+        "result": "test compilation failed before execution: repair redeclared original fixture variable",
+        "repair": "Rename new originalPlan binding"
+      },
+      {
+        "log": "build/qa/rebase-progress-completion-core-repeat-final-2026-10-25.log",
+        "methods": 1,
+        "passed": 1,
+        "failed": 0,
+        "seconds": 0.869
+      }
+    ],
+    "core_distinct_cumulative_passed": 24,
+    "core_full_suite_run": false,
+    "native_fixture_repairs_before_first_run": [
+      "Repeated Cherry Pick plan now loads unique newest-first selection then actual model.addCommits; matching observed Core constructor contract"
+    ],
+    "debug_build": {
+      "log": "build/qa/rebase-progress-completion-debug-2026-10-25.log",
+      "result": "BUILD SUCCEEDED",
+      "configuration": "Debug arm64",
+      "attempts": 1,
+      "notes": "Existing SDK/Swift warnings present; not a warning-free or signed distribution acceptance claim."
+    },
+    "native_attempts": [
+      {
+        "log": "build/qa/rebase-progress-completion-native-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "progress",
+            "git": "/usr/bin/git",
+            "passed": true,
+            "pid": 25932
+          },
+          {
+            "case": "completion",
+            "git": "/usr/bin/git",
+            "passed": false,
+            "pid": 26333
+          }
+        ],
+        "owned_receivers_reaped": [
+          25932,
+          26333
+        ],
+        "failure": "Fixture expected automatic Stash Pop success to wait manual Close; existing mode0 correctly auto-closes. Real child completion ownership regression being corrected."
+      },
+      {
+        "log": "build/qa/rebase-progress-completion-native-system-repair-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "completion",
+            "git": "/usr/bin/git",
+            "passed": true,
+            "pid": 26966
+          },
+          {
+            "case": "ownership",
+            "git": "/usr/bin/git",
+            "passed": false,
+            "pid": 27714
+          }
+        ],
+        "owned_receivers_reaped": [
+          26966,
+          27714
+        ],
+        "failure": "Fixture awaited native failed-Pick recovery question without answering. Supported injected Cancel now asserts exactly one real question and active unsuccessful replay."
+      },
+      {
+        "log": "build/qa/rebase-progress-completion-native-system-ownership-final-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "ownership",
+            "git": "/usr/bin/git",
+            "passed": true,
+            "pid": 28601
+          }
+        ],
+        "owned_receivers_reaped": [
+          28601
+        ]
+      },
+      {
+        "log": "build/qa/rebase-progress-completion-native-bundled-2026-10-25.log",
+        "pairs": [
+          {
+            "case": "progress",
+            "git": "build/git-runtime/Git/bin/git",
+            "passed": true,
+            "pid": 29382
+          },
+          {
+            "case": "completion",
+            "git": "build/git-runtime/Git/bin/git",
+            "passed": true,
+            "pid": 29718
+          },
+          {
+            "case": "ownership",
+            "git": "build/git-runtime/Git/bin/git",
+            "passed": true,
+            "pid": 30486
+          }
+        ],
+        "owned_receivers_reaped": [
+          29382,
+          29718,
+          30486
+        ]
+      }
+    ],
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574,
+      "certified_complete": 0
+    },
+    "native_distinct_cumulative_passed_pairs": 6,
+    "owned_receivers_attempted_and_independently_absent": [
+      25932,
+      26333,
+      26966,
+      27714,
+      28601,
+      29382,
+      29718,
+      30486
+    ],
+    "cleanup": "All eight attempted receivers reaped and independently absent; runner verified no owned helper cleanup fallback needed on successful scenarios. No main app or XCTest process remains; unrelated Finder extension host retained.",
+    "git_versions": {
+      "system": "2.54.0 (Apple Git-157)",
+      "bundled": "2.55.0"
+    },
+    "native_rebuild_scope": "Current Debug app objects linked once, fixture-only recompiles after concrete fixture repairs, final bundled group reused unchanged receiver.",
+    "site": {
+      "log": "build/qa/rebase-progress-completion-site-2026-10-25.log",
+      "documents": 464,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Physical scrolling/focus/VoiceOver and full source layout/contrast",
+    "Current signed installed app predates this batch",
+    "Minimum supported macOS and physical Intel execution",
+    "All custom/external plans and complete hosted CI",
+    "Source commands while running retain existing native busy guards",
+    "Completion Mail still uses separate Format Patch/output-directory adaptation",
+    "Full Rebase/Cherry Pick/app parity and App Store distribution signing/export/submission"
+  ]
+}

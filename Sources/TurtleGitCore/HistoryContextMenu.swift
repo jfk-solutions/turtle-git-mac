@@ -33,7 +33,7 @@ public struct HistoryContextMenuPolicy: Equatable, Sendable {
     ])
     public static let rebase = Self(commands: log.commands.subtracting([
         .cherryPick, .checkout, .reset, .revert, .merge, .rebase, .revertToRevision, .combine, .rollup
-    ]))
+    ]).union([.showLog]))
     public mutating func hide(_ commands: Set<HistoryContextCommand>, exclusivelyShow: Bool = false) {
         if exclusivelyShow { self.commands.formIntersection(commands) }
         else { self.commands.subtract(commands) }

@@ -191,6 +191,12 @@ Successful Rebase now exposes upstream completion commands through a native
 split control. [Completion actions](REBASE-COMPLETION-ACTIONS.md) records direct
 and after-Fetch behavior, mail/export adaptation and remaining acceptance.
 
+Live source-row counts, current-occurrence scrolling, result-tab cleanup and
+automatic Finish now have a connected [progress/completion family](REBASE-LIVE-COMPLETION-PARITY.md).
+The same family exposes ordinary unnamed rows' Show log command without Shift.
+Its grouped checkpoint and remaining limits are separate from earlier row and
+completion reviews.
+
 Active session context now restores original options and Fetch/Pull completion
 origin after reopening. [Session context](REBASE-SESSION-CONTEXT.md) records
 versioned metadata, fallback and verification limits.

@@ -601,6 +601,13 @@ Retry clears it. A failed cleanup has its own Retry/Abort decision. See
 [execution recovery](REBASE-EXECUTION-RECOVERY-PARITY.md). Empty commits, conflicts
 and Edit/Squash pauses retain their separate paths.
 
+During replay, the progress bar counts handled commits and follows the current
+source row. Repeated commits remain separate rows. Successful ordinary Rebase
+shows its Progress result; an automatic Fetch→Rebase finishes through the existing
+stash-restoration workflow. Manual Rebase keeps its completion choices. Show log
+is also available for ordinary unnamed rows when the owner is available. See
+[live replay and completion](REBASE-LIVE-COMPLETION-PARITY.md).
+
 If a stopped message amendment fails while the tracked worktree and index are
 clean, **Retry** returns to the message editor so you can correct the problem.
 **Ignore** continues with the existing commit without repeating that amendment.

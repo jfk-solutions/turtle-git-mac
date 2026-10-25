@@ -948,6 +948,8 @@ jobs:
         run: python3 scripts/test-rebase-amend-recovery.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Rebase two-phase conflict messages and recovery
         run: python3 scripts/test-rebase-conflict-message.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native Rebase live progress and completion ownership
+        run: python3 scripts/test-rebase-progress-completion.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch cancellation
         run: python3 scripts/test-fetch-cancellation.py
       - name: Native Pull and Fetch clipboard input
