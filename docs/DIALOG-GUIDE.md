@@ -607,6 +607,14 @@ clean, **Retry** returns to the message editor so you can correct the problem.
 Review the Git diagnostic before choosing. Changed tracked files keep the normal
 error/recovery path. See [amend-failure recovery](REBASE-AMEND-RECOVERY-PARITY.md).
 
+For checked Pick/Edit conflict resolution, Continue first creates the selected
+commit using its original message. A changed draft is applied by a separate
+message amendment, so hooks may run for both commands. A changed empty draft is
+reported after the first commit; correcting it resumes message review. An initial
+commit failure remains an ordinary error. Ignoring a clean second-message failure
+keeps the existing commit and the original Edit/Pick outcome. Reopening preserves
+the pending phase. See [conflict-message phases](REBASE-CONFLICT-MESSAGE-PARITY.md).
+
 A retained commit with an empty subject warns when replay reaches it. After
 acknowledging the warning, review its applied result and enter a message before
 continuing. Its selected Pick/Edit/Squash action stays in the plan; skipped

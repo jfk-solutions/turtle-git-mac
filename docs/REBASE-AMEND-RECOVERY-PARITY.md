@@ -23,10 +23,11 @@ The native port reuses the existing replay-inspection implementation.
 
 The earlier conflict path has a separate boundary: initial commit failure at
 1480–1486 always reports an error. Only a subsequent message amendment at
-1509–1533 offers the clean Retry/Ignore choice. The native checked-file backend
-combines selection and message in one commit; its initial commit failure must
-remain an ordinary error. Subsequent stopped-message amendment uses the shared
-recovery contract.
+1509–1533 offers the clean Retry/Ignore choice. This checkpoint predates the
+native separation of those two commands. See the subsequent
+[conflict-message family](REBASE-CONFLICT-MESSAGE-PARITY.md) for that implementation
+and its independent validation boundary. Initial commit failure remains an
+ordinary error.
 
 ## Native ownership and persistence
 
@@ -71,10 +72,10 @@ The clean Squash case explicitly discards its private pending changes before the
 failure; ordinary dirty Squash does not qualify for Ignore. Actual hook counts
 remain exactly one through Ignore, including native sequencer continuation.
 
-The native checked-file path still consolidates the source's initial original-
-message commit and subsequent rewritten-message amendment. This batch preserves
-its initial-failure behavior; complete two-phase hook invocation equivalence for
-that consolidated path remains open.
+At this checkpoint the native checked-file path still consolidated the source's
+initial original-message commit and subsequent rewritten-message amendment.
+The subsequent [conflict-message family](REBASE-CONFLICT-MESSAGE-PARITY.md)
+addresses that boundary; its evidence must be assessed separately.
 
 Physical keyboard/VoiceOver, signed installed replay, minimum supported macOS,
 physical Intel execution, complete hosted CI and full source-dialog parity remain

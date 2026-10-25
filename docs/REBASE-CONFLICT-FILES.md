@@ -25,11 +25,24 @@ available.
 All listed files start checked. Uncheck files to exclude them from the first
 resolution commit; row highlighting and checkboxes are independent. The Commit
 Message tab lets you edit the resolution message. Continue requires every conflict
-to be resolved and commits the checked whole-file contents against destination
-HEAD using a separate index. It retains the source author and original author-date
-timezone and leaves unchecked index entries and working contents available.
+to be resolved. It first commits the checked whole-file contents against
+destination HEAD using the original commit's message and author metadata. If the
+trimmed raw draft differs from that original message, it then attempts a separate
+message amendment. Hooks can therefore run once for each phase. A changed empty
+draft reports an error after the first commit; correcting it continues the
+message phase without recreating the first commit.
 
-When tracked changes remain, the full native Commit sheet opens in Amend Last
+Unchecked files follow the source reset/removal queues and the inherited
+Advanced **ReaddUnselectedAddedFilesAfterCommit** preference. Their working contents
+remain available. Unselected staged content is excluded from the message-only
+amendment. Pending message review and restoration survive reopening; an uncertain
+published result requires inspection or Abort rather than an automatic repeat.
+Initial commit failure is an ordinary error. A clean second-message failure offers
+Retry or Ignore; Ignore accepts the actual commit, retains an Edit pause for an
+Edit action and continues a Pick. See
+[the command phases and recovery adaptation](REBASE-CONFLICT-MESSAGE-PARITY.md).
+
+When tracked changes remain during applied-commit recovery, the full native Commit sheet opens in Amend Last
 Commit mode, comparing against the applied commit. It keeps amending that commit
 until the tracked tree is clean, matching upstream's non-Split recovery loop.
 The continuation record captures the replay step, entry ID and expected HEAD.

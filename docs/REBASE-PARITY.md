@@ -35,7 +35,11 @@ applies it. Split opens full Commit selection dialogs, with durable part recover
 See [Edit/Split workflow](REBASE-SPLIT.md) and
 [Conflict Files](REBASE-CONFLICT-FILES.md). Pick/Edit conflict Continue now
 commits checked files and preserves unchecked changes through a recoverable
-native amend loop. Squash checkbox interaction, advanced group/reference recovery, full
+native amend loop. The native checked path now separates the original-message
+commit and optional edited-message amendment; see the
+[conflict-message family](REBASE-CONFLICT-MESSAGE-PARITY.md) for source command
+order, durable recovery adaptations and its validation boundary.
+Squash checkbox interaction, advanced group/reference recovery, full
 row menus, completed-row display and post-operation controls still need porting
 and comparison.
 

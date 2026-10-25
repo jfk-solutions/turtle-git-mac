@@ -1,0 +1,301 @@
+{
+  "date": "2026-10-25",
+  "status": "47-focused-core-methods-and-six-native-case-engine-pairs-cumulatively-passed-final-debug-passed",
+  "base_revision": "e8cb5d17",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseProc/RebaseDlg.cpp:1375-1565 conflict validation, file queues, initial -C commit, raw comparison, optional -F amend, restoration and Edit/Pick outcome",
+    "src/TortoiseProc/AppUtils.cpp:2210-2264 message cleanup/encoding after raw comparison"
+  ],
+  "scope": [
+    "Selected original-message commit followed by optional message-only amendment",
+    "Initial failure stays ordinary; second clean failure uses owned Retry/Ignore",
+    "Durable phase, draft/Undo, ownership, cancellation, reopening and stale-state guards",
+    "Source unchecked-file preparation/restoration preference; excluded staged content cannot leak into message-only amendment",
+    "Actual-HEAD author and requested next-Squash message retain separate roles"
+  ],
+  "adaptations": [
+    "Durable no-duplicate initial phase replaces source Retry re-entry risk",
+    "Pick tracked leftovers enter existing checked Commit amendment review before native sequencer continuation",
+    "Older combined Core convenience API retains explicit applied-review return contract"
+  ],
+  "checks": {
+    "status": "passed-after-recorded-focused-repairs",
+    "native_fixture": "docs/qa/rebase-conflict-message-native-2026-10-25.swift",
+    "native_runner": "scripts/test-rebase-conflict-message.py",
+    "planned_native_pairs": 6,
+    "core_log": "build/qa/rebase-conflict-message-core-2026-10-25.log",
+    "native_log": "build/qa/rebase-conflict-message-native-repair-2026-10-25.log",
+    "new_core_methods": 11,
+    "git_versions": {
+      "system": "2.54.0 (Apple Git-157)",
+      "bundled": "2.55.0"
+    },
+    "native_initial_log": "build/qa/rebase-conflict-message-native-2026-10-25.log",
+    "native_note": "Six cumulative ordinary conflict case/engine pairs; later bridge repair exercised separately by Core and final Debug build. No full hosted CI claim.",
+    "new_core_files": [
+      "Tests/TurtleGitCoreTests/RebaseConflictMessageTests.swift",
+      "Tests/TurtleGitCoreTests/RebaseConflictIndexPhaseTests.swift"
+    ]
+  },
+  "hosted_snapshot": {
+    "pages": {
+      "run": 40184792655,
+      "revision": "e8cb5d17",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 40184792573,
+      "revision": "e8cb5d17",
+      "status": "pending"
+    },
+    "note": "Read-only snapshot; does not establish current worktree validation or complete hosted integration."
+  },
+  "remaining": [
+    "Physical keyboard/VoiceOver and full displayed layout",
+    "Current signed installed app predates these changes",
+    "Minimum supported macOS and physical Intel execution",
+    "Complete hosted CI",
+    "Remaining source conflict menus and full Rebase/Cherry Pick parity",
+    "App Store distribution signing, export and submission",
+    "Hook bridge repeated-hash, structural/forced-empty groups, configured-relative/default invocation and arbitrary asynchronous hook combinations are not fully established."
+  ],
+  "resources": {
+    "localization_write": {
+      "languages": 38,
+      "keys": 1321
+    },
+    "help_write": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3876484
+    },
+    "localization_check": {
+      "languages": 38,
+      "keys": 1321
+    },
+    "help_check": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3876484
+    },
+    "coverage_reconcile": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574,
+      "note": "Audit coverage, not a feature completion percentage."
+    },
+    "site": {
+      "documents": 463,
+      "unresolved_fragments": 0,
+      "log": "build/qa/rebase-conflict-message-site-2026-10-25.log"
+    }
+  },
+  "builds": {
+    "initial": {
+      "exit_code": 0,
+      "result": "BUILD SUCCEEDED",
+      "log": "build/qa/rebase-conflict-message-debug-2026-10-25.log",
+      "scope": "Frozen initial candidate; predates subsequent static empty-subject applied-review repair."
+    },
+    "affected_repair": {
+      "exit_code": 0,
+      "result": "BUILD SUCCEEDED",
+      "log": "build/qa/rebase-conflict-message-debug-repair-2026-10-25.log",
+      "scope": "Final empty-subject applied-review correction; no contradictory exit-zero compiler diagnostic observed."
+    },
+    "hook_timing": {
+      "exit_code": 0,
+      "result": "BUILD SUCCEEDED",
+      "log": "build/qa/rebase-conflict-message-debug-hooks-2026-10-25.log",
+      "scope": "Compiled deferred hook bridge; predates subsequent literal hook invocation spelling repair."
+    },
+    "final": {
+      "exit_code": 0,
+      "result": "BUILD SUCCEEDED",
+      "log": "build/qa/rebase-conflict-message-debug-final-2026-10-25.log",
+      "scope": "Final literal hook invocation repair; no contradictory exit-zero compiler diagnostic observed. Existing SDK/simulator warnings are not a warning-free build claim."
+    }
+  },
+  "failures_and_repairs": [
+    {
+      "kind": "Static production review",
+      "finding": "Requested Pick with empty original subject could advance after first original-message commit without mandatory applied Edit review.",
+      "repair": "Require applied review for exact empty first line while retaining requested action; fixtures cover empty message and empty subject with body.",
+      "status": "affected-builds-and-mandatory-review-runtime-method-passed"
+    },
+    {
+      "kind": "Static native fixture admission",
+      "finding": "Writing resolved contents alone did not clear unmerged index stages.",
+      "repair": "Explicit private staging and actual conflict-free state/row assertions before Continue; parent Resolve routing is outside this fixture.",
+      "status": "fixture-repaired-before-first-run"
+    },
+    {
+      "kind": "Static trace fixture repository context",
+      "finding": "Wrapper trace reads needed explicit private -C root.",
+      "repair": "All trace HEAD/tree/object reads use the private root.",
+      "status": "fixture-repaired-before-first-run"
+    },
+    {
+      "kind": "Native fixture compilation",
+      "finding": "Misplaced parenthesis in dirty-hook ternary interpolation prevented receiver compilation; no receiver launched.",
+      "repair": "Correct the interpolation only; all behavior assertions retained; app unchanged.",
+      "status": "fixture-recompiled-all-six-native-pairs-cumulatively-passed"
+    },
+    {
+      "kind": "Legacy combined API empty-tree amendment",
+      "finding": "Two retained methods expect explicit allowEmpty to retain an empty selected commit; source-exact secondary amendment omitted --allow-empty and rejected it.",
+      "repair": "Private secondary allowEmptyAmend forwarded only by old combined API; native two-phase API remains source-exact. All original assertions retained.",
+      "status": "both-retained-methods-passed"
+    },
+    {
+      "kind": "Raw original-message fixture normalization",
+      "finding": "Git -C skips leading blank message lines before prepare-commit-msg; original LF-body message remains28bytes but actual hook/result is27bytes.",
+      "repair": "Independently assert raw source object and stored original exactly, expected Git-C normalization at actual hook/result, mandatory empty-subject review and one hook; zero-byte and legacy encoded payloads remain exact.",
+      "status": "focused-method-passed"
+    },
+    {
+      "kind": "Next Squash hook timing",
+      "finding": "Expected pending combined-message receipt missing after failed secondary message Ignore; prepare-commit-msg may run during native sequencer preparation before owned editor interception.",
+      "status": "original-failed-method-and-new-contiguous-nested-hook-method-pass-system-and-bundled-git",
+      "repair": "Scoped owned deferred-message hook bridge, exact session/metadata/done-occurrence guards, original hook forwarding and inherited config restoration; no persistent override."
+    },
+    {
+      "kind": "Native fixture outstanding error alert",
+      "finding": "Existing initial-conflict NSAlert was still attached when fixture programmatically requested Continue. Exact pending read showed token not cancelled, same owner, no other blockers, and attached NSAlert. Production correctly refused continuation.",
+      "repair": "Acknowledge actual owned error alert through enabled native OK action and wait for detach before Continue, including empty-draft correction. No production guard change. Diagnostic injection removed; all workflow assertions retained.",
+      "status": "focused-system-phases-passed"
+    },
+    {
+      "kind": "Original hook literal invocation path",
+      "finding": "Actual direct original hook received configured /var path, but bridge exec used Git-resolved /private/var alias. Same file identity but different $0; exact assertion intentionally retained.",
+      "diagnostic_log": "build/qa/rebase-conflict-message-hook-path-2026-10-25.log",
+      "repair": "Preserve separately framed configured hooksPath for exec; use resolved URL for discovery only, default raw Git hook path when unset.",
+      "status": "focused-system-method-and-bundled-two-method-group-passed-final-debug-passed"
+    }
+  ],
+  "core": {
+    "initial": {
+      "methods": 46,
+      "passed_methods": 42,
+      "failed_methods": 4,
+      "failure_assertions": 5,
+      "unexpected_failures": 2,
+      "duration_seconds": 218.787,
+      "log": "build/qa/rebase-conflict-message-core-2026-10-25.log"
+    },
+    "affected_recheck": {
+      "methods": 4,
+      "passed_methods": 3,
+      "failed_methods": 1,
+      "failure_assertions": 1,
+      "unexpected_failures": 0,
+      "duration_seconds": 23.074,
+      "log": "build/qa/rebase-conflict-message-core-repair-2026-10-25.log",
+      "remaining": "next Squash prepare-message hook timing"
+    },
+    "cumulative_passed_distinct_methods": 47,
+    "remaining_failing_methods": [],
+    "hook_timing_recheck": {
+      "methods": 2,
+      "passed_methods": 1,
+      "failed_methods": 1,
+      "duration_seconds": 11.551,
+      "log": "build/qa/rebase-conflict-message-core-hooks-2026-10-25.log",
+      "passed": "Original next-Squash accumulator/author/hook-count method",
+      "failed": "New contiguous forwarding hook literal invocation assertion"
+    },
+    "literal_path_recheck": {
+      "methods": 1,
+      "passed_methods": 1,
+      "duration_seconds": 6.988,
+      "log": "build/qa/rebase-conflict-message-hook-path-repair-2026-10-25.log"
+    },
+    "bundled_bridge_recheck": {
+      "methods": 2,
+      "passed_methods": 2,
+      "duration_seconds": 8.246,
+      "log": "build/qa/rebase-conflict-message-core-hooks-bundled-2026-10-25.log"
+    },
+    "scope": "Initial46 methods with system Git, affected-only repairs, one additional contiguous hook method; both bridge methods also pass bundled Git. No full Core suite or complete hosted CI."
+  },
+  "native": {
+    "status": "six-case-engine-pairs-cumulatively-passed",
+    "attempted_receiver_pids": [
+      91588,
+      95906,
+      1519,
+      3070,
+      4133,
+      5603,
+      7201,
+      9396,
+      10834,
+      12427
+    ],
+    "attempted_receivers_reaped_and_independently_absent": true,
+    "completed_pairs": 6,
+    "logs": [
+      "build/qa/rebase-conflict-message-native-2026-10-25.log",
+      "build/qa/rebase-conflict-message-native-repair-2026-10-25.log",
+      "build/qa/rebase-conflict-message-phases-diagnostic-2026-10-25.log",
+      "build/qa/rebase-conflict-message-phases-owner-2026-10-25.log",
+      "build/qa/rebase-conflict-message-phases-admission-2026-10-25.log",
+      "build/qa/rebase-conflict-message-phases-acknowledged-2026-10-25.log",
+      "build/qa/rebase-conflict-message-native-system-remaining-2026-10-25.log",
+      "build/qa/rebase-conflict-message-native-bundled-2026-10-25.log"
+    ],
+    "pairs": [
+      {
+        "git": "/usr/bin/git",
+        "case": "phases",
+        "returncode": 0,
+        "passed": true,
+        "receiver_pid": 4133
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "failures",
+        "returncode": 0,
+        "passed": true,
+        "receiver_pid": 5603
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true,
+        "receiver_pid": 7201
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "phases",
+        "returncode": 0,
+        "passed": true,
+        "receiver_pid": 9396
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "failures",
+        "returncode": 0,
+        "passed": true,
+        "receiver_pid": 10834
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true,
+        "receiver_pid": 12427
+      }
+    ],
+    "note": "Cumulative checks of ordinary Pick/Edit conflict phases, clean Retry/Ignore and ownership. These fixtures do not exercise the still-open next-Squash prepare-hook repair."
+  },
+  "installed_app": "Unchanged: installed signed Finder/menu candidate predates this batch. No current signed, full hosted CI, Intel/minimum-OS or App Store distribution acceptance claimed."
+}

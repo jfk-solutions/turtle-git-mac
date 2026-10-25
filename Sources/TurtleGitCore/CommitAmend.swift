@@ -373,11 +373,11 @@ extension GitRepository {
         let tree = try run(["write-tree"], environmentOverrides: environment).text
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil, willCommit:() -> Void = {}) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil, reusingMessageFrom:String?=nil,usePreparedRealIndex:Bool=false, willCommit:() -> Void = {}) throws -> String {
         try cancellation?.check()
         var selectedIndexBytes=preparedIndexBytes
         if !sourcePrepared {selectedIndexBytes=try prepareCLICommitIndex(changes:checked,checked:GitPathSet(checked.map(\.path)),policy:nil,base:base,cancellation:cancellation,onOutput:onOutput,expectedIndex:options.expectedIndex,fileModes:fileModes).index}
-        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
+        let messageFile = reusingMessageFrom == nil ? try makeCommitMessageFile(message):nil; defer { messageFile?.remove() }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -385,13 +385,23 @@ extension GitRepository {
         if let preservedAuthorDate { environment["GIT_AUTHOR_DATE"] = preservedAuthorDate }
         _ = try populateCommitSelectionIndex(checked:checked,base:base,fileModes:fileModes,environment:environment,cancellation:cancellation,sourcePrepared:true,preparedIndexBytes:selectedIndexBytes)
         try prepareCommitBranch(options.newBranch,cancellation:cancellation)
-        var args = ["commit", "-F", messageFile.url.path]
+        var args:[String]
+        if let reusingMessageFrom {args=["commit","--allow-empty-message","-C",reusingMessageFrom]}
+        else {args=["commit","-F",messageFile!.url.path]}
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         if options.resetAuthorDate { args.append("--date=now") }
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
+        if usePreparedRealIndex {
+            // Only the source conflict queues opt in. The independent selected
+            // tree must equal the real prepared index before source hooks may
+            // mutate that real index; unchecked entries cannot enter by accident.
+            guard sourcePrepared,reusingMessageFrom != nil,
+                  try run(["write-tree"],cancellation:cancellation).stdout == run(["write-tree"],environmentOverrides:environment,cancellation:cancellation).stdout else {throw commitIndexChanged()}
+            environment.removeValue(forKey:"GIT_INDEX_FILE")
+        }
         try cancellation?.check();willCommit()
         return try run(args, environmentOverrides: environment, cancellation: cancellation, onOutput: onOutput).text
     }
