@@ -903,7 +903,8 @@ installed extension in macOS. The page shows its activation status when you retu
 Open a repository in TurtleGit and authorize its folder to publish initial status.
 From a previously unknown folder, the Finder submenu offers **Clone…**, **Create
 repository…** and **Add to TurtleGit…**. Add saves an authorized existing repository
-in Recents and Watched Repositories without replacing the open workspace. A
+in Recents and Watched Repositories and publishes its initial status without
+opening or replacing a workspace. A
 successful Clone registers its resulting repository automatically. These actions
 retain the existing opt-in for background refresh after Quit; see
 [first-use registration](FINDER-REGISTRATION-PARITY.md).

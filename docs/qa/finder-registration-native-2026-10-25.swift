@@ -136,6 +136,86 @@ private extension NSWindow {
         try require(refused.model.error==nil && refused.model.output != nil && FileManager.default.fileExists(atPath:second.appendingPathComponent(".git").path),"Registration failure discarded successful Clone")
         try require(refused.model.completionWarning?.contains("Finder registration") == true && !c.watched.repositories.contains {$0.lastKnownPath==second.path},"Registration failure was silent or saved through retired watch owner")
     }
+    static func services(_ c:Context)async throws {
+        let selected=NSPasteboard.withUniqueName();defer{selected.releaseGlobally()}
+        let paths=[c.source.root.appendingPathComponent("file"),c.third.root]
+        selected.writeObjects(paths.map {url in let item=NSPasteboardItem();item.setString(url.absoluteString,forType:.fileURL);return item})
+        let original=selected.changeCount,expected=try FinderServiceCommand.status.request(paths:paths).paths
+        var opens=[[URL]](),legacy=[FinderRequest]()
+        let provider=TurtleGitFinderServicesProvider(open:{opens.append($0)},submit:{legacy.append($0)})
+        var error:NSString?
+        provider.openInTurtleGit(selected,userData:"open",error:&error)
+        try require(error==nil && opens.count==1 && opens[0].map{Data($0.path.utf8)}==expected.map{Data($0.path.utf8)} && selected.changeCount==original,"Single public Service did not capture literal selected file/folder URLs")
+        let wire=try TurtleGitFinderServicesProvider.openSelectionURL(expected),decoded=try TurtleGitFinderServicesProvider.openSelection(from:wire)
+        try require(decoded.map{Data($0.path.utf8)}==expected.map{Data($0.path.utf8)},"Standalone generic Open forwarding changed selected paths")
+        error=nil;provider.openInTurtleGit(selected,userData:"log",error:&error)
+        try require(error != nil && opens.count==1,"Generic public Service accepted arbitrary command UserData")
+        let one=NSPasteboard.withUniqueName();defer{one.releaseGlobally()};one.writeObjects([c.source.root as NSURL])
+        error=nil;provider.performFinderAction(one,userData:"log",error:&error)
+        try require(error==nil && legacy.count==1 && legacy[0].action == .log,"Unregistered legacy handler compatibility changed")
+        provider.retire();error=nil;provider.openInTurtleGit(selected,userData:"open",error:&error)
+        try require(error != nil && opens.count==1,"Retired public Service delivered late selection")
+        let malformed=NSPasteboard.withUniqueName();defer{malformed.releaseGlobally()};malformed.setString("plain text is not a file URL",forType:.string)
+        let fresh=TurtleGitFinderServicesProvider(open:{opens.append($0)},submit:{legacy.append($0)});defer{fresh.retire()}
+        error=nil;fresh.openInTurtleGit(malformed,userData:"open",error:&error)
+        try require(error != nil && opens.count==1,"Public Service silently admitted text-only pasteboard")
+        let actual=TurtleGitFinderServicesProvider(open:{paths in
+            guard c.workspace.handleOpenServiceSelection(paths) else{throw Failure(description:"Actual generic Open refused")}
+        },submit:{_ in throw Failure(description:"Generic Open entered legacy action route")});defer{actual.retire()}
+        let fileBoard=NSPasteboard.withUniqueName();defer{fileBoard.releaseGlobally()};fileBoard.writeObjects([c.source.root.appendingPathComponent("file") as NSURL])
+        c.selected=c.source.root;c.permissionReply=nil;error=nil
+        actual.openInTurtleGit(fileBoard,userData:"open",error:&error)
+        try await wait{c.permissionReply != nil}
+        try require(error==nil && c.workspace.root==nil && c.workspace.error==nil && c.parent.attachedSheet is NSOpenPanel,"Ungrantable first-use selection did not enter owned Open Repository chooser")
+        c.answer(.cancel);try await wait{!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy}
+        try require(c.workspace.root==nil && c.recent.repositories.isEmpty,"Cancelled generic Open adopted repository or persisted permission")
+        error=nil;actual.openInTurtleGit(fileBoard,userData:"open",error:&error);try await wait{c.permissionReply != nil};c.answer(.OK)
+        try await wait{!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.workspace.root?.path==c.source.root.path}
+        try require(error==nil && c.workspace.error==nil && c.workspace.workspaceWindow===c.parent,"Explicit generic Open failed to adopt chosen repository in existing workspace")
+    }
+    static func launch(_ c:Context)async throws {
+        // Exercise the actual cold Finder URL -> private action router, not just
+        // RepositoryModel's registration method. Permission remains explicit.
+        let action=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:c.git,libgit2Configuration:.init(enabled:false))},snapshotWriter:{_ in true},finderWatches:c.manager,savedAccessStore:c.recent)
+        action.requiresRepositoryScope=true;action.repositoryBookmarkProvider=c.provider;action.fileComparisonPreferences=c.prefs
+        action.selectedFinderServiceFolderURL={_ in c.selected}
+        action.presentFinderServiceFolderPanel={panel,_,reply in c.panels += 1;c.permissionReply=reply;panel.orderFront(nil)}
+        let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=["--turtlegit-action-only"];delegate.makeStandaloneWorkspace={action};delegate.configureStandaloneServices={_,_ in}
+        var presentations=0,activations=0;delegate.presentWorkspace={presentations += 1};delegate.activateStandaloneApplication={activations += 1}
+        defer{delegate.retireFinderServices();action.stopMonitoringForTermination()}
+        delegate.startupDidFinishLaunching()
+        let baselineWindows=Set(NSApp.windows.map(ObjectIdentifier.init)),baselineWatches=c.watched.repositories.map(\.id)
+        c.selected=c.third.root;c.permissionReply=nil
+        guard let url=FinderRequest(action:.registerRepository,paths:[c.third.root]).url else{throw Failure(description:"Cold registration URL unavailable")}
+        delegate.application(NSApp,open:[url])
+        try await wait{c.permissionReply != nil}
+        try require(action.root==nil && action.workspaceWindow==nil && presentations==0 && activations==0,"Cold registration opened workspace before folder grant")
+        c.answer(.cancel)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy}
+        try require(action.root==nil && action.workspaceWindow==nil && presentations==0 && activations==0 && c.recent.repositories.isEmpty && c.watched.repositories.map(\.id)==baselineWatches && action.error==nil && delegate.actionErrorController==nil,"Cancelled cold registration saved/presented a workspace or surfaced an error")
+        delegate.application(NSApp,open:[url]);try await wait{c.permissionReply != nil}
+        c.answer(.OK)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.manager.pendingOperations==0}
+        try require(delegate.actionRepositoryModel === action && action.root==nil && action.workspaceWindow==nil && presentations==0 && activations==0 && action.error==nil && delegate.actionErrorController==nil,"Cold registration adopted/presented a workspace or failed")
+        try require(c.watched.repositories.contains{$0.lastKnownPath==c.third.root.path} && baselineWatches.allSatisfy{old in c.watched.repositories.contains{$0.id==old}} && c.manager.rows.contains{$0.path==c.third.root.path},"Cold registration failed exact watch/status publication")
+        try require(c.recent.repositories.count==1 && c.recent.repositories[0].lastKnownPath==c.third.root.path && action.recentRepositories.contains{$0.lastKnownPath==c.third.root.path} && c.manager.backgroundService==nil && NSApp.windows.filter{!baselineWindows.contains(ObjectIdentifier($0))}.allSatisfy{!$0.isVisible && $0.sheetParent==nil},"Cold registration failed captured recent record, enabled background service or retained permission window")
+        delegate.retireFinderServices();action.stopMonitoringForTermination()
+        c.workspace.open(c.other.root);try await wait{!c.workspace.busy && c.workspace.root?.path==c.other.root.path}
+        try await DialogLaunchVerification.verify(repository:c.source,existing:c.workspace,preferences:c.prefs)
+    }
+    static func warmRegistration(_ c:Context)async throws {
+        c.workspace.open(c.other.root)
+        try await wait{!c.workspace.busy && c.workspace.root?.path==c.other.root.path}
+        let originalRoot=c.workspace.root,originalWindow=c.workspace.workspaceWindow,originalWatch=c.watched.repositories[0]
+        let windowCount=NSApp.windows.filter(\.isVisible).count
+        try await c.submit(c.source.root)
+        if c.permissionReply != nil {c.answer(.OK)}
+        try await wait{!c.workspace.hasPendingFinderServiceWork && !c.workspace.busy && c.manager.pendingOperations==0}
+        try require(c.workspace.error==nil && c.workspace.root==originalRoot && c.workspace.workspaceWindow===originalWindow,"Explicit Add adopted/switched the live workspace")
+        try require(NSApp.windows.filter(\.isVisible).count==windowCount && c.parent.isVisible,"Explicit Add presented a duplicate workspace")
+        try require(c.watched.repositories.contains{$0.lastKnownPath==c.source.root.path} && c.watched.repositories.contains{$0.id==originalWatch.id && $0.bookmark==originalWatch.bookmark},"Explicit Add did not retain exact new/unrelated watches")
+        try require(c.manager.rows.contains{$0.path==c.source.root.path} && c.manager.backgroundService==nil,"Explicit Add did not publish owned watch status or enabled background mode")
+    }
     static func ownership(_ c:Context)async throws {
         try c.block();let mutating=Task {await c.manager.add(c.other.root)};defer {c.unblock()}
         try await wait {c.manager.busy && FileManager.default.fileExists(atPath:c.started.path)}
@@ -152,7 +232,7 @@ private extension NSWindow {
         NSApp.setActivationPolicy(.prohibited)
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.registrationOrder(_:relativeTo:))) {method_exchangeImplementations(original,replacement)}
         var context:Context?
-        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
+        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
         catch {try? await context?.cleanup();fputs("Finder registration failed: \(error)\n",stderr);exit(1)}
     }
 }

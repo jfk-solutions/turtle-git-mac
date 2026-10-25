@@ -130,7 +130,8 @@ import os
             let captured = await FinderPatchReviewCapture.request(request, pasteboard: .general, store: .current)
             guard let url = captured.url else { return }
             let configuration = NSWorkspace.OpenConfiguration()
-            configuration.activates = true; configuration.createsNewApplicationInstance = false
+            configuration.activates = request.action != .registerRepository; configuration.createsNewApplicationInstance = false
+            configuration.arguments = ["--turtlegit-action-only"]
             NSWorkspace.shared.open([url], withApplicationAt: application, configuration: configuration) { _, error in
                 if let error {
                     Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)")

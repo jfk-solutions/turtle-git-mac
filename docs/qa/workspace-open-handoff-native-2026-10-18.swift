@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func handoffHiddenOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;setFrameOrigin(NSPoint(x:-24000,y:-24000))
+        handoffHiddenOrder(mode,relativeTo:number)
+    }
+}
 
 enum WorkspaceOpenHandoffVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
@@ -10,6 +18,12 @@ enum WorkspaceOpenHandoffVerification {
         throw Failure(description: "Workspace handoff timeout at \(line)")
     }
     @MainActor static func verify() async throws {
+        // Preserve real AppKit visibility/ownership assertions without exposing
+        // receiver-owned failure windows or sheets on the user's desktop.
+        let ordered=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.handoffHiddenOrder(_:relativeTo:)))!
+        method_exchangeImplementations(ordered,hidden)
+        defer {method_exchangeImplementations(ordered,hidden)}
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let suite = "TurtleGit.ExternalHandoff." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
@@ -23,7 +37,7 @@ enum WorkspaceOpenHandoffVerification {
         var configurationChecks = 0
         broker.launch = { urls, app, configuration, reply in
             launches.append(urls); replies.append(reply)
-            if configuration.createsNewApplicationInstance && configuration.activates && configuration.arguments.isEmpty && app.lastPathComponent == "Owned App.app" { configurationChecks += 1 }
+            if configuration.createsNewApplicationInstance && configuration.activates && configuration.arguments == ["--turtlegit-action-only"] && app.lastPathComponent == "Owned App.app" { configurationChecks += 1 }
         }
         broker.submit([web, invalid, root.appendingPathComponent("not-patch.txt")])
         try require(launches.isEmpty && !broker.hasPendingWork, "Unsupported URL launched a workspace")
@@ -61,9 +75,11 @@ enum WorkspaceOpenHandoffVerification {
         // Normal startup owns queued events once, with no second Scene URL path.
         let normal = TurtleGitApplicationDelegate(); normal.startupArguments = []; normal.startupDirectory = root.path
         let normalModel = RepositoryModel(startMonitoring: false, initializePreferences: false)
+        let actionModel=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        normal.makeStandaloneWorkspace={actionModel}
         var sequence: [String] = []
         normal.startupCommandHandler = { _, _, _ in sequence.append("startup") }
-        normal.workspaceOpenHandler = { model, url in if model === normalModel { sequence.append(url.absoluteString) } }
+        normal.workspaceOpenHandler = { model, url in if model === actionModel { sequence.append(url.absoluteString) } }
         normal.application(NSApp, open: [finder, patch]); normal.startupDidFinishLaunching()
         try require(sequence.isEmpty, "Open events ran before workspace ownership")
         normal.repositoryModel = normalModel
@@ -78,7 +94,7 @@ enum WorkspaceOpenHandoffVerification {
         }
         normal.application(NSApp, open: [finder, patch])
         try require(reentrant == [finder, patch, nested], "Reentrant event delivery overtook an older received URL")
-        normalModel.stopMonitoringForTermination()
+        normalModel.stopMonitoringForTermination();actionModel.stopMonitoringForTermination()
 
         // Closing the Git editor cannot exit before an accepted external launch
         // and its failure acknowledgment, nor rewrite the captured Git status.
@@ -97,7 +113,7 @@ enum WorkspaceOpenHandoffVerification {
         var exitStatus: Int32?, toolReply: ((Error?) -> Void)?, toolAck: (() -> Void)?
         tool.startupMergeToolExit = { exitStatus = $0 }
         tool.workspaceOpenHandoff.launch = { urls, _, config, reply in
-            if urls == [finder] && config.createsNewApplicationInstance && config.arguments.isEmpty { toolReply = reply }
+            if urls == [finder] && config.createsNewApplicationInstance && config.arguments == ["--turtlegit-action-only"] { toolReply = reply }
         }
         tool.workspaceOpenHandoff.presentFailure = { _, reply in toolAck = reply }
         tool.application(NSApp, open: [finder]); tool.startupDidFinishLaunching()

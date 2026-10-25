@@ -6,6 +6,9 @@ Native Git tools for macOS, inspired by [TortoiseGit](https://tortoisegit.org/).
 Browse history, review changes, commit your work and resolve conflicts in native
 Mac windows, with Git commands and status badges in Finder.
 
+The macOS port is authored by **Jochen Kühner**. See [AUTHORS.md](AUTHORS.md)
+for port and upstream attribution.
+
 TurtleGit is an independent, unofficial project based on TortoiseGit. It is under
 development and requires macOS 13 or later. Distribution is planned through the
 Mac App Store; the app is not yet available for purchase.

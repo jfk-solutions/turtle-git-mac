@@ -13,8 +13,11 @@ enum MergeToolSceneVerification {
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
         let suite = "TurtleGit.MergeToolScene." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
-        for args in [[String](), ["/tmp/file"], ["--command=log", "--path", root.path], ["--command=diff", "--base", "ignored"]] {
+        for args in [[String](), ["/tmp/file"]] {
             try require(TurtleGitLaunchMode.resolve(arguments: args, currentDirectory: root.path) == .workspace, "Standalone scene consumed normal/repository launch")
+        }
+        for args in [["--command=log","--path",root.path],["--command=diff","--base","ignored"],["--turtlegit-action-only"]] {
+            try require(TurtleGitLaunchMode.resolve(arguments:args,currentDirectory:root.path) == .actionOnly,"Primary action selected workspace or Merge tool scene")
         }
         for args in [["--merge-tool"], ["/base:a", "/mine:b"], ["--merge-tool", "--line", "0"], ["--merge-tool", "--unknown"]] {
             try require(TurtleGitLaunchMode.resolve(arguments: args, currentDirectory: root.path) == .mergeTool, "Recognized or malformed tool request selected workspace")

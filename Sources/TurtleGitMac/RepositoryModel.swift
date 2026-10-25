@@ -874,6 +874,56 @@ private enum TransportBatchPresentationContext {
     private func makeRepository(_ url: URL) throws -> GitRepository {
         try repositoryFactory?(url) ?? GitRepository(root:url,executable:GitRuntime.executable())
     }
+    /// A command router has no workspace view. Reuse real saved authority and
+    /// the live publisher when a workspace exists, without adopting its root.
+    private var actionRoutingAccessEnabled=false
+    /// Only the production delegate factory opts into loading application
+    /// bookmarks. Injected/direct model consumers keep their supplied stores.
+    func enableActionRoutingAccess() {actionRoutingAccessEnabled=true}
+    func configureActionRouting(from workspace:RepositoryModel? = nil,loadSavedAccess:Bool = true) {
+        if accessStore == nil {
+            if let store=workspace?.accessStore {accessStore=store}
+            else if loadSavedAccess && actionRoutingAccessEnabled {do {accessStore=try RepositoryAccessStore(storageURL:RepositoryAccessStore.defaultStorageURL)} catch {self.error=error.localizedDescription}}
+            recentRepositories=accessStore?.repositories ?? []
+        }
+        if finderWatches == nil {finderWatches=workspace?.finderWatches}
+    }
+    /// The public Service opens a workspace, not an implicit Status operation.
+    /// An unknown selection starts an explicit folder chooser before Git reads.
+    @discardableResult func handleOpenServiceSelection(_ submitted:[URL])->Bool {
+        guard !retired,!confirmingQuit,!busy,!hasPendingRepositoryWork,workspaceWindow?.attachedSheet == nil else{return false}
+        let paths:[URL]
+        do {paths=try FinderServiceCommand.status.request(paths:submitted).paths} catch {self.error=error.localizedDescription;return false}
+        configureActionRouting()
+        if let root,let activeAccess,paths.allSatisfy({RepositoryAccessLease.pathIsContained($0,by:root) && activeAccess.contains($0)}),!requiresRepositoryScope || activeAccess.hasSecurityScope {
+            openSession(activeAccess,requestedLocation:paths[0]);return true
+        }
+        if let store=accessStore {
+            for saved in store.repositories where paths.allSatisfy({RepositoryAccessLease.pathIsContained($0,by:URL(fileURLWithPath:saved.lastKnownPath))}) {
+                if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),paths.allSatisfy({lease.contains($0)}) {openSession(lease,requestedLocation:paths[0]);return true}
+            }
+        }
+        let owner=RepositoryWindowOwner(window:workspaceWindow),generation=adoptionGeneration
+        let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
+        finderServiceOwner=owner;finderServiceFolderChoice=choice;finderServiceWorkers += 1;busy=true
+        panel.title="Open Repository";panel.prompt="Open repository"
+        panel.message="Choose a repository folder to open in TurtleGit. The selected files or folders do not grant repository access."
+        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
+        panel.directoryURL=paths.first.map{$0.hasDirectoryPath ? $0:$0.deletingLastPathComponent()};panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+        choice.onFinished={ [weak self,weak choice] selected in
+            guard let self,let choice else{return}
+            Task { @MainActor [self,choice] in
+                defer {self.finderServiceWorkers -= 1;if self.finderServiceFolderChoice === choice {self.finderServiceFolderChoice=nil};if self.finderServiceOwner === owner {self.finderServiceOwner=nil}}
+                while choice.panel.sheetParent != nil || choice.panel.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+                guard !self.retired,!self.confirmingQuit,!owner.cancellation.isCancelled,generation==self.adoptionGeneration else{return}
+                self.busy=false
+                guard let selected else{return}
+                self.openSession(RepositoryAccessLease(url:selected,provider:self.repositoryBookmarkProvider),handoffOwner:owner)
+            }
+        }
+        choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
+        return true
+    }
     func chooseRepository(preferred: URL? = nil) {
         guard !busy, !confirmingQuit else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
@@ -1494,17 +1544,22 @@ private enum TransportBatchPresentationContext {
             }
         }
     }
+    var onFinderRegistrationSaved:()->Void = {}
+    func refreshRegisteredRepositories() {guard !retired else{return};recentRepositories=accessStore?.repositories ?? []}
     /// Persist only the captured repository and metadata grants. Neither route
     /// grants authority from a Finder URL nor changes unrelated watch records.
     private func saveFinderRegistration(_ repository:GitRepository,access:RepositoryAccessLease,additionalFolders:[URL],cancellation:OperationCancellation) async throws {
-        try cancellation.check();guard !retired,let store=accessStore,let watches=finderWatches else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+        configureActionRouting()
+        if finderWatches == nil && actionRoutingAccessEnabled {let manager=try FinderWatchManager.production();finderWatches=manager;manager.restore()}
+        guard let store=accessStore,let watches=finderWatches else {throw RepositoryAccessFailure.securityScopeUnavailable}
         _=try await watches.register(root:repository.root,access:access,additionalFolders:additionalFolders,cancellation:cancellation)
         // A completed watch publication remains completed if Cancel arrives as
         // its receipt returns. Finish its paired recent record without recasting
         // the successful persistence as an unchanged/cancelled operation.
         let saved=try store.remember(repository.root)
         for folder in additionalFolders where !RepositoryAccessLease.pathIsContained(folder,by:repository.root) {try store.addPermission(saved.id,url:folder)}
-        recentRepositories=store.repositories
+        recentRepositories=store.repositories;onFinderRegistrationSaved()
     }
     private func registerFinderRepository(_ candidate:URL,access:RepositoryAccessLease,owner:RepositoryWindowOwner,generation:Int,completed:@escaping ()->Void) {
         let token=owner.cancellation
@@ -4800,6 +4855,7 @@ private enum TransportBatchPresentationContext {
               let command=FinderServiceCommand(rawValue:submitted.action.rawValue) else{return false}
         let request:FinderRequest
         do{request=try command.request(paths:submitted.paths,alternateTool:submitted.alternateTool)}catch{self.error=error.localizedDescription;return false}
+        if !request.action.isApplicationUtility {configureActionRouting()}
         if command.selectionRoute == .patchImport {
             let folders=request.paths.filter{(try? FileManager.default.attributesOfItem(atPath:$0.path)[.type]) as? FileAttributeType == .typeDirectory}
             guard command.isEligible(paths:request.paths,snapshot:FinderSnapshot(roots:[],states:[:])) || request.paths.count==1 && !folders.isEmpty else{error="Select patch files or one repository folder to apply patches.";return false}
@@ -4884,6 +4940,7 @@ private enum TransportBatchPresentationContext {
     func handle(_ url: URL) {
         if url.isFileURL { openPatchDocument(url); return }
         guard !confirmingQuit, let request = FinderRequest(url: url) else { return }
+        if !request.action.isApplicationUtility {configureActionRouting()}
         let choice=request.alternateTool ?? ComparisonToolInvocation.capture
         ComparisonToolInvocation.$alternate.withValue(choice) {handleFinderRequest(request)}
     }
@@ -5131,6 +5188,7 @@ private enum TransportBatchPresentationContext {
         if invocation.request.action == .autotextTest { onAutotextTest(); return }
         if invocation.request.action == .introduction { onIntroduction(); return }
         if invocation.request.action == .about { onAbout(); return }
+        if !invocation.request.action.isApplicationUtility {configureActionRouting()}
         if invocation.request.action == .help { onCommandHelp(); return }
         if invocation.request.action == .firstStartWizard { onFirstStart(invocation.wizardPage ?? 0); return }
         if invocation.request.action.isDropTransfer { prepareCommandTransfer(invocation, cancellation: cancellation); return }

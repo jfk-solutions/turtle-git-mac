@@ -2,6 +2,20 @@
 import AppKit
 import TurtleGitCore
 
+// This legacy workflow receiver injects its instrumented action owner through
+// makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
+// current dialog-launch receiver, rather than inferred from this private host.
+
+@MainActor private func verifyPublicOpenService(_ entries:[[String:Any]])throws {
+    guard entries.count==1,let entry=entries.first,
+          entry["NSMessage"] as? String=="openInTurtleGit",entry["NSUserData"] as? String=="open",
+          entry["NSPortName"] as? String=="TurtleGit",entry["NSSendFileTypes"] as? [String]==["public.item"],
+          entry["NSRestricted"] as? Bool==true,(entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,
+          (entry["NSMenuItem"] as? [String:String])?["default"]=="Open in TurtleGit" else {
+        throw NSError(domain:"TurtleGit.NativeServicesInventory",code:1,userInfo:[NSLocalizedDescriptionKey:"Expected one restricted Open in TurtleGit item Service"])
+    }
+}
+
 private struct FinderServicesScopes:RepositoryBookmarkProvider {
     func create(for url:URL)throws->Data {Data(url.path.utf8)}
     func resolve(_ data:Data)throws->ResolvedBookmark {.init(url:URL(fileURLWithPath:String(decoding:data,as:UTF8.self)),stale:false)}
@@ -71,14 +85,8 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         receiver.retire();try require(invoke(receiver,modern,"log") != nil && packets.count==count,"Retired provider dispatched")
         let plist=try PropertyListSerialization.propertyList(from:Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[3])),format:nil) as! [String:Any]
         let services=plist["NSServices"] as? [[String:Any]] ?? []
-        try require(services.count==FinderServiceCommand.allCases.count && Set(services.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"Plist commands differ from provider")
-        let selector=NSSelectorFromString("performFinderAction:userData:error:")
-        try require(receiver.responds(to:selector),"Declared Objective-C selector is unavailable")
-        for service in services {
-            let folderService=["registerRepository","clone","initialize","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule","reflog","referenceBrowser","repositoryBrowser","export","formatPatch","requestPull"].contains(service["NSUserData"] as? String ?? "")
-            try require(service["NSMessage"] as? String=="performFinderAction" && (service["NSSendFileTypes"] as? [String])==[folderService ? "public.folder":"public.item"],"Plist Services selector/input type mismatch")
-            try require((service["NSMenuItem"] as? [String:String])?["default"]?.contains("TurtleGit")==true,"Service menu lacks TurtleGit branding")
-        }
+        try verifyPublicOpenService(services)
+        try require(receiver.responds(to:NSSelectorFromString("performFinderAction:userData:error:")) && receiver.responds(to:NSSelectorFromString("openInTurtleGit:userData:error:")),"Public/legacy Objective-C selectors unavailable")
         // An invocation accepted before the workspace exists is delivered once,
         // after startup, through the same ordered open-URL queue.
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false})
@@ -88,7 +96,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         try require(invoke(delegate.finderServicesProvider,modern,"log")==nil && sequence.isEmpty,"Cold service escaped startup queue")
         try require(invoke(delegate.finderServicesProvider,modern,"commit") != nil && delegate.pendingFinderServiceRequest?.action == .log,"Second cold service overwrote accepted request")
         delegate.startupDidFinishLaunching();try require(sequence.isEmpty,"Service dispatched before workspace ownership")
-        delegate.repositoryModel=workspace
+        delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace
         try require(sequence==["startup",RepositoryAction.log.rawValue],"Startup did not precede once-only service delivery")
         try require(invoke(delegate.finderServicesProvider,modern,"commit")==nil && sequence.last==RepositoryAction.commit.rawValue,"Warm Services delivery failed")
         let envelope=try FinderServiceCommand.status.serviceURL(paths:[first])
@@ -102,7 +110,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         try require(invoke(delegate.finderServicesProvider,modern,"log") != nil && sequence==delivered,"Retired delegate accepted service")
         workspace.stopMonitoringForTermination()
         let queued=TurtleGitApplicationDelegate(),queuedWorkspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false})
-        queued.startupArguments=[];queued.startupCommandHandler={model,_,_ in model.busy=true}
+        queued.makeStandaloneWorkspace={queuedWorkspace};queued.startupArguments=[];queued.startupCommandHandler={model,_,_ in model.busy=true}
         var queuedCalls=0;queued.workspaceServiceHandler={_,_ in queuedCalls += 1;return true}
         try require(invoke(queued.finderServicesProvider,modern,"log")==nil,"Cold queued request was refused")
         queued.repositoryModel=queuedWorkspace;queued.startupDidFinishLaunching()
@@ -122,7 +130,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         var launches:[[URL]]=[],reply:((Error?)->Void)?
         tool.workspaceOpenHandoff.launch={urls,_,configuration,completion in
             launches.append(urls);reply=completion
-            precondition(configuration.createsNewApplicationInstance && configuration.arguments.isEmpty)
+            precondition(configuration.createsNewApplicationInstance && configuration.arguments == ["--turtlegit-action-only"])
         }
         try require(invoke(tool.finderServicesProvider,modern,"diff")==nil && launches.count==1 && tool.workspaceOpenHandoff.hasPendingWork,"Standalone tool swallowed Services request")
         let decoded=try launches[0].map{try FinderServiceCommand.request(serviceURL:$0)}
@@ -160,7 +168,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         }
         workspace.logWindowPresentation={owner in owner.window?.alphaValue=0}
         workspace.open(b.root);try await wait("initial workspace B") {!workspace.busy && workspace.root?.path==b.root.path}
-        let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching();defer {delegate.retireFinderServices()}
+        let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching();defer {delegate.retireFinderServices()}
         let files=[a.root.appendingPathComponent("second café.txt"),a.root.appendingPathComponent("first 雪\n.txt")],selection=board(files);defer {selection.releaseGlobally()}
         try require(invoke(delegate.finderServicesProvider,selection,"log")==nil,"Real Services Log request rejected")
         try await wait("real selected repo A Log") {!workspace.busy && workspace.root?.path==a.root.path && logs.count==1 && !logs[0].model.busy}

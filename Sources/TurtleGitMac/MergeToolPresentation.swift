@@ -20,12 +20,16 @@ import TurtleGitCore
 /// but malformed Merge request still belongs to the tool, so its error exits
 /// without briefly opening a repository workspace.
 enum TurtleGitLaunchMode: Equatable {
-    case workspace, mergeTool, unifiedDiff
+    case workspace, mergeTool, unifiedDiff, actionOnly
     static func resolve(arguments: [String], currentDirectory: String) -> Self {
         do { if try UnifiedDiffInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) != nil { return .unifiedDiff } }
         catch { return .unifiedDiff }
-        do { return try MergeToolInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) == nil ? .workspace : .mergeTool }
+        do { if try MergeToolInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) != nil { return .mergeTool } }
         catch { return .mergeTool }
+        if arguments == ["--turtlegit-action-only"] { return .actionOnly }
+        do { if try PrimaryCommandInvocation.parse(arguments:arguments,currentDirectory:currentDirectory) != nil { return .actionOnly } }
+        catch { return .actionOnly }
+        return .workspace
     }
 }
 

@@ -3,6 +3,20 @@ import AppKit
 import ObjectiveC
 import TurtleGitCore
 
+// This legacy workflow receiver injects its instrumented action owner through
+// makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
+// current dialog-launch receiver, rather than inferred from this private host.
+
+@MainActor private func verifyPublicOpenService(_ entries:[[String:Any]])throws {
+    guard entries.count==1,let entry=entries.first,
+          entry["NSMessage"] as? String=="openInTurtleGit",entry["NSUserData"] as? String=="open",
+          entry["NSPortName"] as? String=="TurtleGit",entry["NSSendFileTypes"] as? [String]==["public.item"],
+          entry["NSRestricted"] as? Bool==true,(entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,
+          (entry["NSMenuItem"] as? [String:String])?["default"]=="Open in TurtleGit" else {
+        throw NSError(domain:"TurtleGit.NativeServicesInventory",code:1,userInfo:[NSLocalizedDescriptionKey:"Expected one restricted Open in TurtleGit item Service"])
+    }
+}
+
 private struct FilesystemServiceScopes: RepositoryBookmarkProvider {
     func create(for url: URL) throws -> Data { Data(url.path.utf8) }
     func resolve(_ data: Data) throws -> ResolvedBookmark { .init(url: URL(fileURLWithPath: String(decoding: data, as: UTF8.self)), stale: false) }
@@ -74,7 +88,7 @@ private actor FilesystemServiceReadGate {
                 Task { @MainActor in await Task.yield(); completion(.OK) }
             }
             workspace.selectedFinderServiceFolderURL = { _ in root }
-            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         }
         func finish() {
             windows.forEach { $0.1.close() }; delegate.retireFinderServices(); workspace.stopMonitoringForTermination(); host.close(); defaults.removePersistentDomain(forName: suite)
@@ -136,11 +150,7 @@ private actor FilesystemServiceReadGate {
         try require(selection.changeCount == count, "Services altered private pasteboard")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3])), format: nil) as! [String: Any]
         let services = plist["NSServices"] as? [[String: Any]] ?? []
-        try require(services.count == 56 && Set(services.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "56 registered Services differ from Core commands")
-        for command in commands {
-            let entries = services.filter { $0["NSUserData"] as? String == command }
-            try require(entries.count == 1 && entries[0]["NSMessage"] as? String == "performFinderAction" && entries[0]["NSSendFileTypes"] as? [String] == [command == "clean" ? "public.folder":"public.item"], "filesystem service declaration invalid")
-        }
+        try verifyPublicOpenService(services)
         provider.retire(); let total = received.count
         try require(invoke(provider, selection, "remove") != nil && received.count == total, "retired provider dispatched filesystem mutation")
         print("PASS: filesystem Services registration, private literal-path envelopes, source cardinality and retired-provider refusal")

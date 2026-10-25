@@ -413,24 +413,23 @@ final class FinderServiceCommandTests: XCTestCase {
 
     func testFilesystemServiceRegistrationPreservesExistingOrderAndSelectorContract() throws {
         let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
-        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
+        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist")),format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
-        XCTAssertEqual(services.count,56)
-        let names=services.compactMap{$0["NSUserData"] as? String}
-        XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
-        XCTAssertEqual(Set(names),Set(FinderServiceCommand.allCases.map(\.rawValue)))
-        let originalOrder=["pull","fetch","push","synchronize","commit","diff","log","status","rebase","stash","stashApply","stashPop","stashList","switchBranch","merge","branch","tag","clone","initialize","add","revert","resolve","resolveCurrent","resolveMine","resolveTheirs","blame","previousDiff","editConflict","ignore","ignoreMask","ignoreDelete","ignoreDeleteMask"]
-        XCTAssertEqual(Array(names.prefix(32)),originalOrder)
-        for entry in services[32..<36] {
-            let command=try XCTUnwrap(entry["NSUserData"] as? String)
-            XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction")
-            XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
-            XCTAssertEqual(entry["NSSendFileTypes"] as? [String],command == "clean" ? ["public.folder"]:["public.item"])
-            XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
-            XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
-            XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
-        }
+        XCTAssertEqual(services.count,1)
+        let entry=try XCTUnwrap(services.first)
+        XCTAssertEqual(entry["NSMessage"] as? String,"openInTurtleGit")
+        XCTAssertEqual(entry["NSUserData"] as? String,"open")
+        XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
+        XCTAssertEqual(entry["NSSendFileTypes"] as? [String],["public.item"])
+        XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
+        XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
+        XCTAssertEqual((entry["NSMenuItem"] as? [String:String])?["default"],"Open in TurtleGit")
+        // Legacy typed handlers remain supported, without public menu clutter.
+        let catalog=FinderServiceCommand.allCases
+        XCTAssertEqual(catalog.count,56)
+        XCTAssertEqual(catalog[6],.registerRepository)
+        let legacy=catalog.filter{$0 != .registerRepository}.map(\.rawValue)
+        XCTAssertEqual(Array(legacy[32..<36]),["rename","remove","removeKeep","clean"])
     }
 
     func testLinkedRepositoryServicesPreserveLiteralScopesAndExplicitContextCardinality() throws {
@@ -509,21 +508,23 @@ final class FinderServiceCommandTests: XCTestCase {
 
     func testLinkedServiceRegistrationAppendsSixFolderActionsWithoutChangingPriorDeclarations() throws {
         let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
-        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
+        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist")),format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
-        let names=services.compactMap{$0["NSUserData"] as? String}
-        XCTAssertEqual(services.count,56);XCTAssertEqual(Set(names).count,56)
-        XCTAssertEqual(Array(names[36..<42]),["worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
-        XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
-        for entry in services[36..<42] {
-            XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction")
-            XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
-            XCTAssertEqual(entry["NSSendFileTypes"] as? [String],["public.folder"])
-            XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
-            XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
-            XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
-        }
+        XCTAssertEqual(services.count,1)
+        let entry=try XCTUnwrap(services.first)
+        XCTAssertEqual(entry["NSMessage"] as? String,"openInTurtleGit")
+        XCTAssertEqual(entry["NSUserData"] as? String,"open")
+        XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
+        XCTAssertEqual(entry["NSSendFileTypes"] as? [String],["public.item"])
+        XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
+        XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
+        XCTAssertEqual((entry["NSMenuItem"] as? [String:String])?["default"],"Open in TurtleGit")
+        // Legacy typed handlers remain supported, without public menu clutter.
+        let catalog=FinderServiceCommand.allCases
+        XCTAssertEqual(catalog.count,56)
+        XCTAssertEqual(catalog[6],.registerRepository)
+        let legacy=catalog.filter{$0 != .registerRepository}.map(\.rawValue)
+        XCTAssertEqual(Array(legacy[36..<42]),["worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
     }
 
     func testHistoryServicesCaptureExactlyOneLiteralSelectionWithoutExtraAuthority() throws {
@@ -624,19 +625,23 @@ final class FinderServiceCommandTests: XCTestCase {
 
     func testHistoryServiceRegistrationAppendsFiveActionsAndPreservesAllPriorDeclarations() throws {
         let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
-        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
-        let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]]),names=services.compactMap{$0["NSUserData"] as? String}
-        let expected=["reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"]
-        XCTAssertEqual(services.count,56);XCTAssertEqual(Set(names).count,56);XCTAssertEqual(Array(names[42..<47]),expected)
-        XCTAssertEqual(Array(names[32..<42]),["rename","remove","removeKeep","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
-        for entry in services[42..<47] {
-            let command=try XCTUnwrap(entry["NSUserData"] as? String)
-            XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction");XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
-            XCTAssertEqual(entry["NSSendFileTypes"] as? [String],[expected.prefix(3).contains(command) ? "public.folder":"public.item"])
-            XCTAssertEqual(entry["NSRestricted"] as? Bool,true);XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
-            XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
-        }
+        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist")),format:nil) as? [String:Any])
+        let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
+        XCTAssertEqual(services.count,1)
+        let entry=try XCTUnwrap(services.first)
+        XCTAssertEqual(entry["NSMessage"] as? String,"openInTurtleGit")
+        XCTAssertEqual(entry["NSUserData"] as? String,"open")
+        XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
+        XCTAssertEqual(entry["NSSendFileTypes"] as? [String],["public.item"])
+        XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
+        XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
+        XCTAssertEqual((entry["NSMenuItem"] as? [String:String])?["default"],"Open in TurtleGit")
+        // Legacy typed handlers remain supported, without public menu clutter.
+        let catalog=FinderServiceCommand.allCases
+        XCTAssertEqual(catalog.count,56)
+        XCTAssertEqual(catalog[6],.registerRepository)
+        let legacy=catalog.filter{$0 != .registerRepository}.map(\.rawValue)
+        XCTAssertEqual(Array(legacy[42..<47]),["reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"])
     }
 
 }

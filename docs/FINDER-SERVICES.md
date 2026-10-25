@@ -1,10 +1,45 @@
-# TurtleGit selected-file Services
+# TurtleGit Finder commands and selected-file Service
 
-TurtleGit advertises fifty-six macOS Services for selected files and folders. They give
-users an entry point outside Finder Sync's monitored repositories, through the
-system's **Services** menu. They also work with file selections supplied by other
-apps that support macOS Services. Availability and ordering are controlled by
-macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
+The app advertises one macOS Service: **Open in TurtleGit**. Select a file or
+folder in Finder or another app supporting file Services, then choose this entry
+from **Services**. It opens the repository in the workspace, requesting folder
+access when needed. A selection outside a repository starts the repository
+chooser at that location. Selecting a path is not itself sandbox authorization.
+
+The full Git command list belongs in Finder's **TurtleGit** submenu. It is no
+longer duplicated as dozens of entries in the system Services menu. macOS controls
+Services visibility and caches installed declarations; installing an updated app
+may not immediately remove old entries from an already open menu. The unbundled
+SwiftPM executable does not register bundle Services.
+
+Finder **Add to TurtleGit…** authorizes and registers an existing repository,
+publishes its status for badges and enables repository commands in the submenu.
+It does not open or replace a workspace. Clone registers its successful result
+automatically. Refresh after quitting remains a separate opt-in preference.
+See [first-use registration](FINDER-REGISTRATION-PARITY.md).
+
+Finder and command-line requests for About, Settings and Git dialogs use a
+separate action launch route, so they do not need to show the workspace first.
+An existing workspace keeps its current repository. Explicit **Open in
+TurtleGit**, Open Repository and ordinary application opening remain workspace
+entry points. The action route retains the same folder-permission, cancellation,
+Git-eligibility and operation-owner checks as its dialog workflow.
+
+`Configuration/App-Info.plist` declares a single restricted file Service with
+`NSMessage=openInTurtleGit`, `NSUserData=open` and `public.item` input. The provider
+captures selected file URLs from the caller's private pasteboard, preserves path
+characters and requests access before repository discovery. Legacy typed command
+handlers remain internal compatibility routes, rather than public Services menu
+entries. Their historical validation records below describe the implementation
+at the date recorded, not the current public menu inventory.
+
+## Historical command-handler implementation and validation
+
+The following sections document the earlier expanded Services implementation.
+The operation handlers and their selection checks are retained; the fifty-six
+public menu declarations described here have been replaced by the single entry
+above. Historical physical-integration limitations are not current acceptance
+claims. Current launch behavior is tracked separately in the implementation batch.
 
 | Service | Captured operation |
 | --- | --- |

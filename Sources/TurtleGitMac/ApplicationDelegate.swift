@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import TurtleGitCore
 
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
@@ -28,15 +29,21 @@ import TurtleGitCore
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMenuImageVisibility()
         #if SWIFT_PACKAGE
-        if let file = Bundle.module.url(forResource: "ApplicationIcon", withExtension: "png", subdirectory: "Branding"), let icon = NSImage(contentsOf: file) { NSApp.applicationIconImage = icon }
+        let iconBundle = Bundle.module
+        #else
+        let iconBundle = Bundle.main
         #endif
+        if let file = iconBundle.url(forResource:"ApplicationIcon",withExtension:"png",subdirectory:"Branding"),let icon=NSImage(contentsOf:file) {NSApp.applicationIconImage=icon}
         TurtleGitHelp.install()
         startupDidFinishLaunching()
         if startupLaunchMode == .workspace { SupportReportService.shared.checkForPreviousCrash() }
         installFinderServices()
     }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
-    lazy var finderServicesProvider = TurtleGitFinderServicesProvider { [weak self] request in
+    lazy var finderServicesProvider = TurtleGitFinderServicesProvider(open: { [weak self] paths in
+        guard let self else {throw TurtleGitFinderServicesProvider.Failure.unavailable}
+        try self.submitOpenServiceSelection(paths)
+    }) { [weak self] request in
         guard let self else { throw TurtleGitFinderServicesProvider.Failure.unavailable }
         try self.submitServiceRequest(request)
     }
@@ -44,6 +51,8 @@ import TurtleGitCore
     private var finderServicesInstalled = false
     var workspaceServiceHandler: (RepositoryModel, FinderRequest) -> Bool = { $0.handleFinderService($1) }
     private(set) var pendingFinderServiceRequest: FinderRequest?
+    private(set) var pendingOpenServiceSelection:[URL]?
+    var workspaceOpenSelectionHandler:(RepositoryModel,[URL])->Bool = {$0.handleOpenServiceSelection($1)}
     private var pendingFinderServiceError: String?
     func installFinderServices() {
         guard !finderServicesInstalled, acceptingOpenURLs else { return }
@@ -53,7 +62,7 @@ import TurtleGitCore
     }
     func retireFinderServices() {
         finderServicesProvider.retire()
-        pendingFinderServiceRequest = nil; pendingFinderServiceError = nil
+        pendingFinderServiceRequest = nil; pendingOpenServiceSelection=nil; pendingFinderServiceError = nil
         guard finderServicesInstalled else { return }
         finderServicesInstalled = false
         if (NSApp.servicesProvider as AnyObject?) === finderServicesProvider {
@@ -61,43 +70,47 @@ import TurtleGitCore
         }
         previousFinderServicesProvider = nil
     }
-    func submitServiceRequest(_ request: FinderRequest) throws {
-        guard acceptingOpenURLs, !finderServicesProvider.retired, !confirmingQuit,
-              repositoryModel?.confirmingQuit != true else { throw TurtleGitFinderServicesProvider.Failure.unavailable }
-        guard let command = FinderServiceCommand(rawValue: request.action.rawValue) else { throw TurtleGitFinderServicesProvider.Failure.command }
-        let captured = try command.request(paths: request.paths, alternateTool: request.alternateTool)
+    func submitOpenServiceSelection(_ paths:[URL])throws {
+        guard acceptingOpenURLs,!finderServicesProvider.retired,!confirmingQuit,repositoryModel?.confirmingQuit != true else{throw TurtleGitFinderServicesProvider.Failure.unavailable}
+        let captured=try FinderServiceCommand.status.request(paths:paths).paths
         if startupLaunchMode != .workspace {
-            // Keep the service origin across the separate workspace launch; its
-            // typed decoder must choose the owned Services permission workflow.
-            let url = try command.serviceURL(paths: captured.paths, alternateTool: captured.alternateTool)
-            workspaceOpenHandoff.submit([url]); return
+            workspaceOpenHandoff.submit([try TurtleGitFinderServicesProvider.openSelectionURL(captured)]);return
         }
-        if let repositoryModel, repositoryModel.busy || repositoryModel.hasPendingRepositoryWork {
-            throw TurtleGitFinderServicesProvider.Failure.busy
+        guard pendingOpenServiceSelection==nil,pendingFinderServiceRequest==nil,repositoryModel?.busy != true,repositoryModel?.hasPendingRepositoryWork != true else{throw TurtleGitFinderServicesProvider.Failure.busy}
+        pendingOpenServiceSelection=captured;deliverPendingFinderService()
+    }
+    func submitServiceRequest(_ request: FinderRequest) throws {
+        guard acceptingOpenURLs,!finderServicesProvider.retired,!confirmingQuit else {throw TurtleGitFinderServicesProvider.Failure.unavailable}
+        guard let command=FinderServiceCommand(rawValue:request.action.rawValue) else {throw TurtleGitFinderServicesProvider.Failure.command}
+        let captured=try command.request(paths:request.paths,alternateTool:request.alternateTool)
+        if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff {
+            workspaceOpenHandoff.submit([try command.serviceURL(paths:captured.paths,alternateTool:captured.alternateTool)]);return
         }
-        guard pendingFinderServiceRequest == nil else { throw TurtleGitFinderServicesProvider.Failure.busy }
-        if startupReady, startupDelivered, let repositoryModel, workspaceDeliveryReady() {
-            guard workspaceServiceHandler(repositoryModel, captured) else { throw TurtleGitFinderServicesProvider.Failure.busy }
-        } else {
-            pendingFinderServiceRequest = captured
-        }
+        guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
+        if startupReady,startupDelivered {
+            let target=actionRoutingModel()
+            guard !target.busy,!target.hasPendingRepositoryWork,!target.confirmingQuit,workspaceServiceHandler(target,captured) else {throw TurtleGitFinderServicesProvider.Failure.busy}
+        } else {pendingFinderServiceRequest=captured}
     }
     private func deliverPendingFinderService() {
-        guard acceptingOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace,
-              let repositoryModel, workspaceDeliveryReady() else { return }
-        if let request = pendingFinderServiceRequest {
-            pendingFinderServiceRequest = nil
-            if confirmingQuit || repositoryModel.confirmingQuit || repositoryModel.busy || repositoryModel.hasPendingRepositoryWork || !workspaceServiceHandler(repositoryModel, request) {
-                pendingFinderServiceError = "TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."
-            }
+        guard acceptingOpenURLs,startupReady,startupDelivered,let repositoryModel else{return}
+        if pendingOpenServiceSelection != nil,startupLaunchMode == .workspace,workspaceDeliveryReady(),let paths=pendingOpenServiceSelection {
+            pendingOpenServiceSelection=nil
+            if confirmingQuit || !workspaceOpenSelectionHandler(repositoryModel,paths) {pendingFinderServiceError=TurtleGitFinderServicesProvider.Failure.busy.localizedDescription}
         }
-        if let message = pendingFinderServiceError { pendingFinderServiceError = nil; repositoryModel.error = message }
+        if let request=pendingFinderServiceRequest {
+            pendingFinderServiceRequest=nil
+            let target=actionRoutingModel()
+            if confirmingQuit || target.confirmingQuit || target.busy || target.hasPendingRepositoryWork || !workspaceServiceHandler(target,request) {pendingFinderServiceError="TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."}
+        }
+        if let message=pendingFinderServiceError {pendingFinderServiceError=nil;actionRoutingModel().error=message}
     }
     weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService() } }
     // Installed by the identified workspace scene. A standalone Merge process
     // never installs this route or creates a repository window for incoming URLs.
     var presentWorkspace: (() -> Void)?
     private var workspacePresentationRequested = false
+    private var pendingWorkspaceRepositoryChoice = false
     private func workspaceDeliveryReady() -> Bool {
         guard let presentWorkspace else { return true } // Injected/headless owners.
         guard repositoryModel?.workspaceWindow != nil else {
@@ -112,7 +125,7 @@ import TurtleGitCore
     func workspaceWindowDidAttach() {
         guard acceptingOpenURLs, startupLaunchMode == .workspace, repositoryModel?.workspaceWindow != nil else { return }
         workspacePresentationRequested = false
-        deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService()
+        deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService();deliverWorkspaceRepositoryChoice()
     }
     var startupArguments = Array(CommandLine.arguments.dropFirst())
     var startupDirectory = FileManager.default.currentDirectoryPath
@@ -132,10 +145,13 @@ import TurtleGitCore
     }()
     func application(_ application: NSApplication, open urls: [URL]) {
         guard acceptingOpenURLs else { return }
-        if startupLaunchMode != .workspace { workspaceOpenHandoff.submit(urls) }
+        if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit(urls) }
         else {
             for url in urls {
-                if url.scheme == "turtlegit", url.host == "service" {
+                if url.scheme=="turtlegit",url.host=="service-open" {
+                    do {try submitOpenServiceSelection(TurtleGitFinderServicesProvider.openSelection(from:url))}
+                    catch {pendingFinderServiceError=error.localizedDescription}
+                } else if url.scheme == "turtlegit", url.host == "service" {
                     do { try submitServiceRequest(FinderServiceCommand.request(serviceURL: url)) }
                     catch { pendingFinderServiceError = error.localizedDescription }
                 } else { pendingOpenURLs.append(url) }
@@ -144,15 +160,85 @@ import TurtleGitCore
         }
     }
     private func deliverPendingOpenURLs() {
-        guard acceptingOpenURLs, !deliveringOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace, let repositoryModel, workspaceDeliveryReady() else { return }
-        deliveringOpenURLs = true; defer { deliveringOpenURLs = false }
-        while acceptingOpenURLs, !pendingOpenURLs.isEmpty {
-            let urls = pendingOpenURLs; pendingOpenURLs.removeAll()
+        guard acceptingOpenURLs,!deliveringOpenURLs,startupReady,startupDelivered,let repositoryModel else{return}
+        deliveringOpenURLs=true;defer{deliveringOpenURLs=false}
+        while acceptingOpenURLs,!pendingOpenURLs.isEmpty {
+            // Reentrant handlers append to the next cohort; finish this cohort
+            // first so nested requests cannot overtake already received URLs.
+            let urls=pendingOpenURLs;pendingOpenURLs.removeAll()
             for url in urls {
-                guard acceptingOpenURLs else { return }
-                workspaceOpenHandler(repositoryModel, url)
+                guard acceptingOpenURLs else{return}
+                if ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains(url.absoluteString) {
+                    requestWorkspace(openRepository:url.query == "open=repository")
+                } else if FinderRequest(url:url) != nil || url.isFileURL {
+                    workspaceOpenHandler(actionRoutingModel(),url)
+                } else {workspaceOpenHandler(repositoryModel,url)}
             }
         }
+    }
+    /// Dialog requests have a retained routing owner but no repository scene.
+    /// Its scoped Settings service cannot evict the user's workspace Settings.
+    private(set) var actionRepositoryModel:RepositoryModel?
+    private var actionSettingsService:SettingsPresentationService?
+    private var actionAppearance:AppAppearance?
+    private var actionErrors:AnyCancellable?
+    private(set) var actionErrorController:WorkspaceHandoffFailureController?
+    private var queuedActionErrors:[String]=[]
+    private func actionRoutingModel()->RepositoryModel {
+        if let actionRepositoryModel {return actionRepositoryModel}
+        let model:RepositoryModel
+        if startupLaunchMode == .actionOnly,let standaloneWorkspace {model=standaloneWorkspace}
+        else {
+            model=makeStandaloneWorkspace()
+            let appearance=AppAppearance(preferences:model.fileComparisonPreferences),service=SettingsPresentationService()
+            actionAppearance=appearance;actionSettingsService=service
+            service.install(workspace:model,appearance:appearance)
+        }
+        model.configureActionRouting(from:repositoryModel === model ? nil:repositoryModel,loadSavedAccess:false)
+        actionRepositoryModel=model
+        model.onFinderRegistrationSaved={ [weak self,weak model] in
+            guard let self,let model,self.actionRepositoryModel === model,!model.isRetired else{return}
+            if self.repositoryModel !== model {self.repositoryModel?.refreshRegisteredRepositories()}
+        }
+        actionErrors=model.$error.compactMap{$0}.sink { [weak self,weak model] message in
+            Task { @MainActor in
+                guard let self,let model,self.acceptingOpenURLs,!model.isRetired,self.actionRepositoryModel === model else{return}
+                self.queuedActionErrors.append(message);self.showNextActionError()
+            }
+        }
+        return model
+    }
+    private func showNextActionError() {
+        guard acceptingOpenURLs,!confirmingQuit,actionErrorController == nil,!queuedActionErrors.isEmpty else{return}
+        let message=queuedActionErrors.removeFirst()
+        let controller=WorkspaceHandoffFailureController(message:message,heading:"TurtleGit could not complete the requested action") { [weak self] in
+            guard let self else{return};self.actionErrorController=nil
+            if self.actionRepositoryModel?.error == message {self.actionRepositoryModel?.error=nil}
+            self.showNextActionError()
+        }
+        actionErrorController=controller;controller.present(owner:nil)
+    }
+    func requestWorkspace(openRepository:Bool = false) {
+        guard acceptingOpenURLs,!confirmingQuit else{return}
+        if startupLaunchMode == .workspace {
+            pendingWorkspaceRepositoryChoice = pendingWorkspaceRepositoryChoice || openRepository
+            if !workspaceDeliveryReady() {return}
+            presentWorkspace?();deliverWorkspaceRepositoryChoice()
+        } else if let url=URL(string:openRepository ? "turtlegit://workspace?open=repository":"turtlegit://workspace") {workspaceOpenHandoff.submit([url])}
+    }
+    private func deliverWorkspaceRepositoryChoice() {
+        guard pendingWorkspaceRepositoryChoice,startupLaunchMode == .workspace,let repositoryModel,workspaceDeliveryReady() else{return}
+        pendingWorkspaceRepositoryChoice=false
+        repositoryModel.chooseRepository()
+    }
+    private var routingModels:[RepositoryModel] {
+        var models:[RepositoryModel]=[]
+        for model in [repositoryModel,actionRepositoryModel].compactMap({$0}) where !models.contains(where:{$0 === model}) {models.append(model)}
+        return models
+    }
+    private func setRoutingQuitConfirmation(_ value:Bool) {for model in routingModels {model.confirmingQuit=value};if !value {showNextActionError()}}
+    private func shutdownRoutingModels() async {
+        for model in routingModels {model.stopMonitoringForTermination();await model.finderWatches?.shutdown();await model.shutdownFinderPublication()}
     }
     private func finishMergeToolStartup(_ status: Int32) {
         guard pendingMergeToolExit == nil, !completingMergeToolExit, !mergeToolExitDelivered else { return }
@@ -191,10 +277,15 @@ import TurtleGitCore
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
     }
-    var makeStandaloneWorkspace: () -> RepositoryModel = { RepositoryModel(startMonitoring: false, initializePreferences: false) }
+    var makeStandaloneWorkspace: () -> RepositoryModel = {
+        let model=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        model.enableActionRoutingAccess()
+        return model
+    }
     var configureStandaloneServices: (RepositoryModel, AppAppearance) -> Void = { workspace, appearance in
         appearance.apply()
         SettingsPresentationService.shared.install(workspace: workspace, appearance: appearance)
+        FirstStartWizardService.shared.install();ReleaseUpdateService.shared.install()
     }
     func bootstrapStandaloneToolIfNeeded() {
         guard startupLaunchMode != .workspace, repositoryModel == nil, standaloneWorkspace == nil else { return }
@@ -205,17 +296,20 @@ import TurtleGitCore
     }
     func startupDidFinishLaunching() {
         bootstrapStandaloneToolIfNeeded(); startupReady = true
-        if standaloneWorkspace != nil, !standaloneActivationRequested {
+        if standaloneWorkspace != nil, startupArguments != ["--turtlegit-action-only"], !standaloneActivationRequested {
             standaloneActivationRequested = true; activateStandaloneApplication()
         }
-        deliverStartupCommand(); deliverPendingFinderService()
+        if startupLaunchMode == .actionOnly {_ = actionRoutingModel()}
+        deliverStartupCommand();deliverPendingOpenURLs();deliverPendingFinderService()
     }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { startupLaunchMode == .workspace }
     // Closing the workspace must not end an owned Git/editor child or stop
     // Finder routing. Reopen and the next external request use the same scene.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        guard startupLaunchMode == .workspace, acceptingOpenURLs, !confirmingQuit else { return false }
+        guard acceptingOpenURLs,!confirmingQuit else{return false}
+        if startupLaunchMode == .actionOnly {requestWorkspace();return false}
+        guard startupLaunchMode == .workspace else{return false}
         guard let presentWorkspace else { return true }
         // openWindow targets the single identified scene even when only a child
         // workflow is visible, or the user closed the workspace earlier.
@@ -228,6 +322,7 @@ import TurtleGitCore
         startupDelivered = true
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {
+          if startupArguments == ["--turtlegit-action-only"] {deliverPendingOpenURLs();deliverPendingFinderService();return}
           if startupLaunchMode == .unifiedDiff {
             // Unified Diff uses ordinary document Quit decisions. The Merge
             // flag instead drains MergeToolLaunchSession's accepted outputs.
@@ -246,7 +341,7 @@ import TurtleGitCore
     private var confirmingQuit = false
     private var drainingUnifiedDiffQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
@@ -263,6 +358,11 @@ import TurtleGitCore
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // A scoped action Settings owner retains drafts just like the workspace
+        // service. Refuse Quit and focus its existing owner until it is settled.
+        for service in [SettingsPresentationService.shared,actionSettingsService].compactMap({$0}) {
+            if !service.prepareContextChange() {return .terminateCancel}
+        }
         if drainingUnifiedDiffQuit { return .terminateLater }
         if UnifiedDiffInputSession.activeOperations > 0 {
             drainingUnifiedDiffQuit = true
@@ -274,9 +374,9 @@ import TurtleGitCore
             }
             return .terminateLater
         }
-        if pendingFinderServiceRequest != nil { return .terminateCancel }
+        if pendingFinderServiceRequest != nil || pendingOpenServiceSelection != nil { return .terminateCancel }
         if MergeExternalReloadCoordinator.activeRequests > 0 { return .terminateCancel }
-        if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
+        if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || routingModels.contains(where:{$0.hasPendingRepositoryWork}) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if RepositoryModel.activeInaccessiblePreparations > 0 || InaccessibleRepositoryWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? InaccessibleRepositoryWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.sourceExporter.hasPendingWork }) { return .terminateCancel }
@@ -523,7 +623,7 @@ import TurtleGitCore
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }.filter { $0.model.copyCommandsAllowed }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.hasPendingWork || $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
+        guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.hasPendingWork || $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), !routingModels.contains(where:{$0.busy}), !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
         guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.hasUnsavedEditorWork }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) || presentations.contains(where: { $0.model.revision.isDirty }) else { return finishBackgroundWatches(sender) }
         confirmingQuit = true
         for controller in patchDocuments { controller.model.confirmingQuit = true }
@@ -560,7 +660,7 @@ import TurtleGitCore
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
         for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = true }
-        setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
+        setTransferQuitConfirmation(sender, true); setRoutingQuitConfirmation(true)
         for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
@@ -632,7 +732,7 @@ import TurtleGitCore
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() };for presentation in presentations {presentation.discardAfterApprovedQuit()} }
             if allowQuit, startupMergeToolActive { repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return }
-            if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown();await repositoryModel?.shutdownFinderPublication() }
+            if allowQuit {await shutdownRoutingModels()}
             for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
             for conflict in submoduleConflicts { conflict.model.confirmingQuit = false }
@@ -648,7 +748,7 @@ import TurtleGitCore
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }
             for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = false }
-            setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
+            setTransferQuitConfirmation(sender, false); setRoutingQuitConfirmation(false)
             for controller in controllers { controller.model.confirmingQuit = false }
             for controller in imports { controller.setQuitConfirmation(false) }
             for controller in reviews { controller.setQuitConfirmation(false) }
@@ -692,13 +792,14 @@ import TurtleGitCore
         if startupMergeToolActive {
             confirmingQuit = true; repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return .terminateLater
         }
-        repositoryModel?.stopMonitoringForTermination()
-        let manager=repositoryModel?.finderWatches
-        let pending=(manager?.pendingOperations ?? 0)+(manager?.backgroundService?.busy == true ? 1 : 0)
-        manager?.retire()
+        for model in routingModels {model.stopMonitoringForTermination()}
+        var managers:[FinderWatchManager]=[]
+        for model in routingModels {if let manager=model.finderWatches,!managers.contains(where:{$0 === manager}) {managers.append(manager)}}
+        let pending=managers.reduce(0) {$0+$1.pendingOperations+($1.backgroundService?.busy == true ? 1:0)}
+        for manager in managers {manager.retire()}
         // A live foreground writer must be retired before process exit even if
         // its last scan finished and no watched-root operation remains.
-        guard pending>0 || manager?.hasPendingFinderPublication == true || repositoryModel?.hasPendingFinderPublication == true else { return .terminateNow }
+        guard pending>0 || routingModels.contains(where:{$0.hasPendingFinderPublication || $0.finderWatches?.hasPendingFinderPublication == true || ($0.finderWatches?.pendingOperations ?? 0)>0}) else { return .terminateNow }
         confirmingQuit=true
         let historyReplays = sender.windows.compactMap { $0.delegate as? RebaseWindowController }
         let referenceBrowsers = sender.windows.compactMap { $0.delegate as? ReferenceBrowserWindowController }
@@ -772,9 +873,9 @@ import TurtleGitCore
         for controller in submoduleConflicts { controller.model.confirmingQuit = true }
         for controller in updateProgress { controller.model.confirmingQuit = true }
         for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = true }
-        setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
+        setTransferQuitConfirmation(sender, true); setRoutingQuitConfirmation(true)
         Task {
-            await manager?.shutdown();await repositoryModel?.shutdownFinderPublication()
+            await shutdownRoutingModels()
             for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
             for controller in referenceBrowsers { controller.model.confirmingQuit = false }
             for controller in blames { controller.model.confirmingQuit = false }
@@ -811,7 +912,7 @@ import TurtleGitCore
             for controller in submoduleConflicts { controller.model.confirmingQuit = false }
             for controller in updateProgress { controller.model.confirmingQuit = false }
             for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = false }
-            setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
+            setTransferQuitConfirmation(sender, false); setRoutingQuitConfirmation(false)
             confirmingQuit=false;replyToTermination(sender,true)
         }
         return .terminateLater
@@ -838,8 +939,30 @@ import TurtleGitCore
     private static let maximumItems = FinderServiceCommand.maximumPaths, maximumBytes = FinderServiceCommand.maximumRequestBytes
     private(set) var retired = false
     private var submit: (FinderRequest) throws -> Void
-    init(submit: @escaping (FinderRequest) throws -> Void) { self.submit = submit; super.init() }
-    func retire() { retired = true; submit = { _ in throw Failure.unavailable } }
+    private var openSelection:([URL])throws->Void
+    init(open:@escaping([URL])throws->Void = {_ in throw Failure.unavailable},submit: @escaping (FinderRequest) throws -> Void) { self.submit = submit;openSelection=open; super.init() }
+    func retire() { retired = true; submit = { _ in throw Failure.unavailable };openSelection={_ in throw Failure.unavailable} }
+    @objc(openInTurtleGit:userData:error:)
+    func openInTurtleGit(_ pasteboard:NSPasteboard,userData:String?,error:AutoreleasingUnsafeMutablePointer<NSString?>) {
+        do {
+            guard !retired else{throw Failure.unavailable}
+            guard userData=="open" else{throw Failure.command}
+            let paths=try FinderServiceCommand.status.request(paths:Self.selection(from:pasteboard)).paths
+            try openSelection(paths)
+        }catch let failure {error.pointee=failure.localizedDescription as NSString}
+    }
+    static func openSelectionURL(_ paths:[URL])throws->URL {
+        let paths=try FinderServiceCommand.status.request(paths:paths).paths
+        var parts=URLComponents();parts.scheme="turtlegit";parts.host="service-open"
+        parts.queryItems=paths.map{URLQueryItem(name:"path",value:$0.absoluteString)}
+        guard let url=parts.url,url.absoluteString.utf8.count<=maximumBytes else{throw Failure.tooLarge};return url
+    }
+    static func openSelection(from url:URL)throws->[URL] {
+        guard let parts=URLComponents(url:url,resolvingAgainstBaseURL:false),parts.scheme=="turtlegit",parts.host=="service-open",parts.path.isEmpty,parts.user==nil,parts.password==nil,parts.port==nil,parts.fragment==nil,
+              let items=parts.queryItems,!items.isEmpty,items.allSatisfy({$0.name=="path" && $0.value != nil}),items.count<=maximumItems,url.absoluteString.utf8.count<=maximumBytes else{throw Failure.command}
+        let paths=try items.map{item->URL in guard let value=item.value,let path=URL(string:value) else{throw Failure.selection};return path}
+        return try FinderServiceCommand.status.request(paths:paths).paths
+    }
     @objc(performFinderAction:userData:error:)
     func performFinderAction(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
         do {

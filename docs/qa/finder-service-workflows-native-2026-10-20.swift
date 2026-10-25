@@ -3,6 +3,20 @@ import AppKit
 import Darwin
 import TurtleGitCore
 
+// This legacy workflow receiver injects its instrumented action owner through
+// makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
+// current dialog-launch receiver, rather than inferred from this private host.
+
+@MainActor private func verifyPublicOpenService(_ entries:[[String:Any]])throws {
+    guard entries.count==1,let entry=entries.first,
+          entry["NSMessage"] as? String=="openInTurtleGit",entry["NSUserData"] as? String=="open",
+          entry["NSPortName"] as? String=="TurtleGit",entry["NSSendFileTypes"] as? [String]==["public.item"],
+          entry["NSRestricted"] as? Bool==true,(entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,
+          (entry["NSMenuItem"] as? [String:String])?["default"]=="Open in TurtleGit" else {
+        throw NSError(domain:"TurtleGit.NativeServicesInventory",code:1,userInfo:[NSLocalizedDescriptionKey:"Expected one restricted Open in TurtleGit item Service"])
+    }
+}
+
 private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
     func create(for url: URL) throws -> Data { Data(url.path.utf8) }
     func resolve(_ data: Data) throws -> ResolvedBookmark { .init(url: URL(fileURLWithPath: String(decoding: data, as: UTF8.self)), stale: false) }
@@ -40,12 +54,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         try require(packets.count == commands.count && selection.changeCount == initial, "provider mutated pasteboard or duplicated dispatch")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3])), format: nil) as! [String: Any]
         let services = plist["NSServices"] as? [[String: Any]] ?? []
-        try require(services.count == FinderServiceCommand.allCases.count && Set(services.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "plist/provider commands differ")
-        for command in commands {
-            let matching = services.filter { $0["NSUserData"] as? String == command }
-            try require(matching.count == 1 && matching[0]["NSMessage"] as? String == "performFinderAction", "missing/duplicate ObjC Services selector for \(command)")
-            try require((matching[0]["NSMenuItem"] as? [String: String])?["default"]?.contains("TurtleGit") == true, "unbranded Service \(command)")
-        }
+        try verifyPublicOpenService(services)
         for command in ["fetch", "branch", "stashList"] {
             let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, snapshotWriter: { _ in false })
             let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []
@@ -54,7 +63,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
             delegate.workspaceServiceHandler = { model, request in if model === workspace { sequence.append(request.action.rawValue) }; return true }
             defer { delegate.retireFinderServices(); workspace.stopMonitoringForTermination() }
             try require(invoke(delegate.finderServicesProvider, selection, command) == nil && sequence.isEmpty, "cold \(command) escaped queue")
-            delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
             try require(sequence == ["startup", command] && delegate.pendingFinderServiceRequest == nil, "cold \(command) was not delivered exactly once after startup")
             workspace.busy = true
             try require(invoke(delegate.finderServicesProvider, selection, command) != nil && sequence == ["startup", command], "busy \(command) queued unexpectedly")
@@ -65,7 +74,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         var handed: [URL] = [], completion: ((Error?) -> Void)?
         tool.workspaceOpenHandoff.launch = { urls, _, configuration, reply in
             handed = urls; completion = reply
-            precondition(configuration.createsNewApplicationInstance && configuration.arguments.isEmpty)
+            precondition(configuration.createsNewApplicationInstance && configuration.arguments == ["--turtlegit-action-only"])
         }
         defer { tool.retireFinderServices(); tool.workspaceOpenHandoff.retire(); completion?(nil) }
         try require(invoke(tool.finderServicesProvider, selection, "push") == nil && handed.count == 1, "standalone tool lost Push handoff")
@@ -131,7 +140,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         diagnostic = { "root=\(String(describing: workspace.root)), busy=\(workspace.busy), pending=\(workspace.hasPendingFinderServiceWork), error=\(String(describing: workspace.error)), opened=\(opened.map { $0.0.rawValue })" }
         defer { opened.forEach { $0.1.close() }; host.close(); workspace.stopMonitoringForTermination(); diagnostic = { "" } }
         workspace.open(b.root); try await wait("open initial B") { !workspace.busy && workspace.root?.path == b.root.path }
-        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         defer { delegate.retireFinderServices() }
         func launch(_ name: String, path: URL, accepted: Bool = true) async throws -> NSWindowController? {
             try await wait("workspace idle before \(name)") { !workspace.busy && !workspace.hasPendingFinderServiceWork }
@@ -292,7 +301,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
             panels.append(panel); reply = completion; panel.alphaValue = 0; panel.setFrameOrigin(NSPoint(x: -20000, y: -20000)); parent?.beginSheet(panel, completionHandler: nil)
         }
         workspace.selectedFinderServiceFolderURL = { _ in b.root }
-        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         diagnostic = { "batch roots=\(roots), busy=\(workspace.busy), pending=\(workspace.hasPendingFinderServiceWork), reads=\(FetchWindowModel.activePreparationReads), error=\(String(describing: workspace.error)), panels=\(panels.count)" }
         defer {
             try? Data().write(to: released); reply?(.cancel)

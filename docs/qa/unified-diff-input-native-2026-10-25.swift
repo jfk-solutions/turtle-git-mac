@@ -157,7 +157,7 @@ private extension NSWindow {
     }
     static func command(_ c:Context)async throws {
         try require(TurtleGitLaunchMode.resolve(arguments:["--unified-diff","--stdin"],currentDirectory:c.root.path) == .unifiedDiff,"Native startup did not select standalone scene")
-        try require(TurtleGitLaunchMode.resolve(arguments:["/command:log","/p"],currentDirectory:c.root.path) == .workspace,"Standalone grammar intercepted repository command")
+        try require(TurtleGitLaunchMode.resolve(arguments:["/command:log","/p"],currentDirectory:c.root.path) == .actionOnly,"Repository command did not retain its separate action-only scene")
         c.preferences.set("custom",forKey:"TurtleGit.GitEngine")
         c.preferences.set(c.root.appendingPathComponent("missing-git").path,forKey:"TurtleGit.GitExecutable")
         var repositoryRequests=0

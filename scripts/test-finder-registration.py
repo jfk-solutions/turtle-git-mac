@@ -60,16 +60,16 @@ def retire_owned_helpers(context, approved_images):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['registration', 'clone', 'ownership'], action='append')
+parser.add_argument('--only', choices=['registration', 'clone', 'ownership', 'warm', 'services', 'launch'], action='append')
 args = parser.parse_args()
 root = next(parent for parent in Path(__file__).resolve().parents if (parent / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/finder-registration-native-sources'
 generated.mkdir(parents=True, exist_ok=True)
-receiver = build_receiver(root, [root / 'docs/qa/finder-registration-native-2026-10-25.swift'], generated)
+receiver = build_receiver(root, [root / 'docs/qa/finder-registration-native-2026-10-25.swift', root / 'docs/qa/dialog-launch-native-2026-10-25.swift'], generated)
 results = []
 for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
     git = git.absolute()
-    for case in args.only or ['registration', 'clone', 'ownership']:
+    for case in args.only or ['registration', 'clone', 'ownership', 'warm', 'services', 'launch']:
         with tempfile.TemporaryDirectory(prefix='turtlegit-finder-registration-' + case + '-') as temporary:
             # Canonicalize the private test root once, before argv/environment
             # construction; literal Unicode leaf assertions remain unchanged.

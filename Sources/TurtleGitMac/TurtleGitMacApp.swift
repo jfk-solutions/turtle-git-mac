@@ -17,8 +17,28 @@ import UniformTypeIdentifiers
             TurtleGitUnifiedDiffApp.main()
         } else if launch == .mergeTool {
             TurtleGitMergeToolApp.main()
+        } else if launch == .actionOnly {
+            TurtleGitActionApp.main()
         } else {
             TurtleGitMacApp.main()
+        }
+    }
+}
+
+/// Finder/primary dialog entry points own AppKit windows, never a bootstrap
+/// workspace. Explicit Open and Dock reopen can still request the normal app.
+struct TurtleGitActionApp: App {
+    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
+    var body: some Scene {
+        Settings { EmptyView() }
+            .commands { AppUtilityCommands(); ActionWorkspaceCommands(applicationDelegate:applicationDelegate) }
+    }
+}
+@MainActor private struct ActionWorkspaceCommands: Commands {
+    let applicationDelegate:TurtleGitApplicationDelegate
+    var body:some Commands {
+        CommandGroup(replacing:.newItem) {
+            Button("Open Repository…") { applicationDelegate.requestWorkspace(openRepository:true) }.keyboardShortcut("o")
         }
     }
 }

@@ -1,0 +1,123 @@
+{
+  "kind": "TurtleGitPortAuthorAndIconTrace",
+  "date": "2026-10-25",
+  "status": "Credits built/installed; application About visually observed with green artwork and port author; live Dock display remains unverified",
+  "scope": {
+    "request": "Credit Jochen Kühner as macOS port author and trace the gray Dock icon report using existing green TurtleGit artwork",
+    "author": "Jochen Kühner",
+    "author_scope": "macOS port authorship only; no claim to upstream/component authorship or seller/legal identity",
+    "author_surfaces": [
+      "README.md",
+      "NOTICE introduction",
+      "AUTHORS.md",
+      "all five shared About variants in SettingsNavigation.swift",
+      "copied Version Information",
+      "website author metadata/body/footer",
+      "App Store draft description and port_author field",
+      "Configuration/App-Info.plist: TurtleGitPortAuthor and NSHumanReadableCopyright",
+      "Configuration/Finder-Info.plist: TurtleGitPortAuthor and NSHumanReadableCopyright",
+      "Configuration/Cache-Info.plist: TurtleGitPortAuthor and NSHumanReadableCopyright"
+    ],
+    "about_layout": "Selectable wrapping credit, localized role prefix with literal author name, default/minimum heights increased by 28 points; actual all-size rendering not executed in this task",
+    "source_credits_and_licenses": "Existing upstream tool credits and license texts retained"
+  },
+  "dock_target_read": {
+    "method": "read com.apple.dock preference export and output only TurtleGit matching entries",
+    "matching_entry": {
+      "group": "recent-apps",
+      "label": "TurtleGit for Mac",
+      "bundle_identifier": "org.turtlegit.macos",
+      "url": "file:///Applications/TurtleGit%20for%20Mac.app/"
+    },
+    "finding": "Matching entry targets installed app, not an older Release build path"
+  },
+  "bundles_inspected": [
+    {
+      "path": "/Applications/TurtleGit for Mac.app",
+      "version": "0.1.0",
+      "build": "2",
+      "role": "existing installed bundle"
+    },
+    {
+      "path": "build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+      "version": "0.1.0",
+      "build": "3",
+      "role": "5951 signed development candidate, now superseded by pending authorship/startup changes"
+    },
+    {
+      "path": "build/Build/Products/Debug/TurtleGitMac.app",
+      "version": "0.1.0",
+      "build": "2",
+      "role": "existing Debug bundle"
+    }
+  ],
+  "all_three_resource_observations": {
+    "CFBundleIconName": "AppIcon",
+    "CFBundleIconFile": "AppIcon",
+    "Contents/Resources/AppIcon.icns": {
+      "bytes": 99143,
+      "sha256": "16adbe309e7c3e7a715bb86e75c9797b39b4832e8e8fe1a6b47c1418d64fa25c"
+    },
+    "Contents/Resources/Assets.car": {
+      "bytes": 1910760,
+      "sha256": "d10c87c45e6bb050120b8de99624e4e8f75bb7e7e8f58764230dbe33c2c4f840"
+    },
+    "Contents/Resources/Branding/ApplicationIcon.png": {
+      "bytes": 835743,
+      "sha256": "a2de390dadf61b5ebf3ad7daacdf79f2e24eb66d5c61191b523939e4d3d68264",
+      "matches": "source 1024px custom green artwork"
+    }
+  },
+  "rendered_inspection": {
+    "method": "iconutil extracted existing installed ICNS into ignored QA directory; view_image inspected extracted frame and source slot",
+    "extraction": "build/qa/icon-trace-2026-10-25/installed.iconset",
+    "viewed_installed_frame": "icon_128x128@2x.png",
+    "installed_frame_sha256": "7fb4a2d6a49ead46d63bb391164a40cc4397cac7b4c89e47d51e802ac60155b3",
+    "viewed_source_slot": "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_256x256.png",
+    "source_slot_sha256": "7fb4a2d6a49ead46d63bb391164a40cc4397cac7b4c89e47d51e802ac60155b3",
+    "visible_artwork": "Both show the custom green turtle with white Git shell lettering; not the gray upstream turtle",
+    "source_slot_inventory": 10,
+    "no_new_logo_generated": true
+  },
+  "bounded_source_trace": {
+    "asset_catalog": "project.yml resources includes ApplicationAssets.xcassets; ASSETCATALOG_COMPILER_APPICON_NAME is AppIcon",
+    "launch_at_observation": "ApplicationDelegate assigned Branding/ApplicationIcon.png only under SWIFT_PACKAGE; packaged app used system bundle icon",
+    "progress": "DockProgressPresenter uses NSApp.applicationIconImage; no gray upstream replacement found in that path",
+    "finding": "No source asset or inspected installed ICNS branding defect established",
+    "authored_runtime_icon_assignment": "ApplicationDelegate.applicationDidFinishLaunching now loads existing Branding/ApplicationIcon.png from Bundle.module for SwiftPM or Bundle.main for the packaged app, and assigns NSApp.applicationIconImage. Combined build and live Dock acceptance remain pending; no cache cause is asserted."
+  },
+  "user_session": {
+    "parent_reported_running_pid": 49750,
+    "path": "/Applications/TurtleGit for Mac.app",
+    "user_owned": true,
+    "terminated_or_modified_by_this_task": false
+  },
+  "actions_not_performed": [
+    "No build or test run",
+    "No user UI automation or new window capture",
+    "No app launch or termination",
+    "No Dock/Finder restart",
+    "No global icon-cache clearing",
+    "No installed bundle mutation",
+    "No new artwork generation",
+    "No website publication or App Store submission"
+  ],
+  "limits": [
+    "No live Dock visual acceptance was performed",
+    "A stale macOS icon cache remains a possible explanation, not a proven cause",
+    "Matching compiled Assets.car hashes are provenance observations, not an exhaustive decoded rendition audit",
+    "Authorship and authored packaged runtime icon assignment require the next combined build and focused About/startup acceptance",
+    "The earlier signed candidate is not a build of the new author/startup changes"
+  ],
+  "bounded_final_static_review": {
+    "method": "Read-only source review; no build, check or UI action",
+    "settings_quit": "ApplicationDelegate now calls prepareContextChange on shared and scoped action Settings services before termination, refusing dirty/busy contexts and preserving the existing owner. No new blocker found in this bounded review.",
+    "runtime_icon": "Conditional bundle selection preserves SwiftPM resources while adding packaged Bundle.main assignment of the existing green artwork. Live Dock rendering is unverified.",
+    "bundle_author_values": "All three Configuration Info plists declare Jochen Kühner as TurtleGitPortAuthor and retain explicit upstream NOTICE attribution in NSHumanReadableCopyright."
+  },
+  "installed_acceptance": {
+    "build": "0.1.0 (3)",
+    "evidence": "dialog-launch-2026-10-25.json",
+    "surfaces": "Application About banner, author label and Version Information observed; bundle author metadata verified for app/Finder/cache; no all-tool-layout or live Dock claim"
+  }
+}

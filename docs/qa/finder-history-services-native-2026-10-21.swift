@@ -4,6 +4,20 @@ import ObjectiveC
 import Darwin
 import TurtleGitCore
 
+// This legacy workflow receiver injects its instrumented action owner through
+// makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
+// current dialog-launch receiver, rather than inferred from this private host.
+
+@MainActor private func verifyPublicOpenService(_ entries:[[String:Any]])throws {
+    guard entries.count==1,let entry=entries.first,
+          entry["NSMessage"] as? String=="openInTurtleGit",entry["NSUserData"] as? String=="open",
+          entry["NSPortName"] as? String=="TurtleGit",entry["NSSendFileTypes"] as? [String]==["public.item"],
+          entry["NSRestricted"] as? Bool==true,(entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,
+          (entry["NSMenuItem"] as? [String:String])?["default"]=="Open in TurtleGit" else {
+        throw NSError(domain:"TurtleGit.NativeServicesInventory",code:1,userInfo:[NSLocalizedDescriptionKey:"Expected one restricted Open in TurtleGit item Service"])
+    }
+}
+
 private struct HistoryServiceScopes: RepositoryBookmarkProvider {
     func create(for url: URL) throws -> Data { Data(url.path.utf8) }
     func resolve(_ data: Data) throws -> ResolvedBookmark { .init(url: URL(fileURLWithPath: String(decoding:data,as:UTF8.self)),stale:false) }
@@ -119,7 +133,7 @@ private final class HistoryServiceDaemonGate: @unchecked Sendable {
             delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in}
             if ready{activate()}
         }
-        func activate(){delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()}
+        func activate(){delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()}
         func finish() async throws {
             gates.forEach{$0.release()};delegate.retireFinderServices();workspace.stopMonitoringForTermination()
             windows.forEach{$0.1.close()};logs.forEach{$0.close()}
@@ -180,7 +194,7 @@ private final class HistoryServiceDaemonGate: @unchecked Sendable {
             let generation=board.changeCount
             try require(invoke(delegate.finderServicesProvider,board,command)==nil && delegate.pendingFinderServiceRequest?.action.rawValue==command,"cold Service did not queue typed request")
             try require(invoke(delegate.finderServicesProvider,board,command) != nil && received.isEmpty,"cold duplicate was silently accepted")
-            delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
+            delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
             try await wait("cold provider delivery"){received.count==1}
             try require(received[0].action.rawValue==command && received[0].paths.map(\.path)==[selected.path] && delegate.pendingFinderServiceRequest==nil && board.changeCount==generation,"cold provider changed captured action/path/pasteboard")
             try require(invoke(delegate.finderServicesProvider,board,command)==nil && received.count==2,"active Service did not deliver")
@@ -190,13 +204,8 @@ private final class HistoryServiceDaemonGate: @unchecked Sendable {
         }
         let plist=try PropertyListSerialization.propertyList(from:Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[3])),format:nil) as! [String:Any]
         let entries=plist["NSServices"] as? [[String:Any]] ?? []
-        try require(entries.count==56 && Set(entries.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"56 registered Services do not match actual typed commands")
-        try require(Array(entries.dropFirst(42).prefix(5)).compactMap{$0["NSUserData"] as? String}==commands,"history Services changed committed registration order")
-        for command in commands {
-            let entry=entries.filter{$0["NSUserData"] as? String==command}
-            try require(entry.count==1 && entry[0]["NSMessage"] as? String=="performFinderAction" && entry[0]["NSSendFileTypes"] as? [String]==[(["revisionGraph","daemon"].contains(command) ? "public.item":"public.folder")],"history Service UTI/provider contract changed")
-        }
-        print("PASS: five cold/active Services,56 declarations, provider install/restore/retirement, literal singleton capture and folder/item UTIs")
+        try verifyPublicOpenService(entries)
+        print("PASS: five cold/active Services,one public declaration and legacy handlers, provider install/restore/retirement, literal singleton capture and folder/item UTIs")
     }
     @MainActor static func routes()async throws {
         let context=try Context(root:URL(fileURLWithPath:CommandLine.arguments[1]),git:URL(fileURLWithPath:CommandLine.arguments[2]),ready:false)

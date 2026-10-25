@@ -19,17 +19,19 @@ import TurtleGitCore
         let delegate = TurtleGitApplicationDelegate()
         delegate.startupArguments = []; delegate.startupDirectory = root.path
         let model = RepositoryModel(startMonitoring: false, initializePreferences: false)
+        let actionModel = RepositoryModel(startMonitoring:false,initializePreferences:false)
+        delegate.makeStandaloneWorkspace={actionModel}
         var windows: [NSWindow] = [], delivered: [String] = [], presentations = 0
         defer {
             delegate.presentWorkspace = nil
             for window in windows { window.close() }
-            model.stopMonitoringForTermination()
+            model.stopMonitoringForTermination();actionModel.stopMonitoringForTermination()
         }
         delegate.presentWorkspace = { presentations += 1 }
         delegate.startupCommandHandler = { owner, _, _ in if owner === model { delivered.append("startup") } }
-        delegate.workspaceOpenHandler = { owner, url in if owner === model { delivered.append(url.lastPathComponent) } }
+        delegate.workspaceOpenHandler = { owner, url in if owner === actionModel { delivered.append(url.lastPathComponent) } }
         delegate.workspaceServiceHandler = { owner, request in
-            if owner === model && request.action == .status { delivered.append("service"); return true }; return false
+            if owner === actionModel && request.action == .status { delivered.append("service"); return true }; return false
         }
         delegate.repositoryModel = model
         delegate.startupDidFinishLaunching()
@@ -49,7 +51,9 @@ import TurtleGitCore
         try require(model.workspaceWindow === initial && delegate.startupDelivered && delegate.pendingFinderServiceRequest == nil, "Native workspace did not own queued one-shot delivery")
         initial.close(); try await wait { model.workspaceWindow == nil }
         delegate.application(NSApp, open: [root.appendingPathComponent("after-close.diff")])
-        try require(presentations == 2 && delivered.count == 4, "External delivery after close reused a retired native owner")
+        try require(presentations == 1 && delivered.count == 5 && delivered.last == "after-close.diff" && model.workspaceWindow == nil && delegate.actionRepositoryModel === actionModel, "Dialog delivery after close opened/reused a workspace or lost the private action owner")
+        delegate.application(NSApp,open:[URL(string:"turtlegit://workspace")!])
+        try require(presentations == 2 && model.workspaceWindow == nil,"Explicit Open did not request the identified workspace")
         try require(!delegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false) && presentations == 3, "Dock reopen did not use the same identified presentation route")
         let reopened = attach()
         try await wait { delivered.last == "after-close.diff" && delivered.count == 5 }

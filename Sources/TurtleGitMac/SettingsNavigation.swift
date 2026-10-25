@@ -747,6 +747,8 @@ private struct DialogsBehaviorSettings: View {
 enum TurtleGitAboutTool: String, CaseIterable {
     case application, merge, blame, image, unified
     static var tools: [Self] { [.merge, .blame, .image, .unified] }
+    static let portAuthor="Jochen Kühner"
+    static var portAuthorCredit:String {NSLocalizedString("macOS port author",comment:"")+": "+portAuthor}
     var title: String {
         switch self { case .application: return "TurtleGit for Mac"; case .merge: return "TurtleGitMerge"; case .blame: return "TurtleGitBlame"; case .image: return "TurtleGitIDiff"; case .unified: return "TurtleGitUDiff" }
     }
@@ -760,7 +762,7 @@ enum TurtleGitAboutTool: String, CaseIterable {
     func artwork(size:CGFloat)->NSImage? {MenuIcon.originalImage(resource:artworkName,size:size)}
     var hasBanner:Bool {self == .application || self == .merge}
     var aboutSize:NSSize {
-        switch self {case .application,.merge:return .init(width:680,height:600);case .blame:return .init(width:640,height:520);case .image,.unified:return .init(width:620,height:480)}
+        switch self {case .application,.merge:return .init(width:680,height:628);case .blame:return .init(width:640,height:548);case .image,.unified:return .init(width:620,height:508)}
     }
     var credits: String {
         switch self {
@@ -829,7 +831,7 @@ enum TurtleGitAboutTool: String, CaseIterable {
         #else
         let architecture="x86_64"
         #endif
-        return tool.title+"\n"+runtimeText+"\n"+information.versionText+"\nmacOS: "+ProcessInfo.processInfo.operatingSystemVersionString+"\nArchitecture: "+architecture+"\nDistribution: "+(GitRuntime.isAppStoreBuild ? "App Store":"Desktop")
+        return tool.title+"\n"+TurtleGitAboutTool.portAuthorCredit+"\n"+runtimeText+"\n"+information.versionText+"\nmacOS: "+ProcessInfo.processInfo.operatingSystemVersionString+"\nArchitecture: "+architecture+"\nDistribution: "+(GitRuntime.isAppStoreBuild ? "App Store":"Desktop")
     }
     var onClosed:()->Void = {}
     var open:(URL)->Void = {NSWorkspace.shared.open($0)}
@@ -855,6 +857,10 @@ enum TurtleGitAboutTool: String, CaseIterable {
             NSLayoutConstraint.activate([icon.widthAnchor.constraint(equalToConstant:48),icon.heightAnchor.constraint(equalToConstant:48)])
             items.append(header)
         }
+        let portAuthor=NSTextField(wrappingLabelWithString:TurtleGitAboutTool.portAuthorCredit)
+        portAuthor.font = .systemFont(ofSize:NSFont.systemFontSize,weight:.medium);portAuthor.isSelectable=true
+        portAuthor.identifier = .init("TurtleGit.About.PortAuthor")
+        portAuthor.setContentCompressionResistancePriority(.required,for:.vertical);items.append(portAuthor)
         let credits=NSTextField(wrappingLabelWithString:tool.credits);credits.isSelectable=true;items.append(credits)
         func link(_ title:String,_ target:String)->NSButton {
             let button=NSButton(title:title,target:self,action:#selector(openLink(_:)));button.bezelStyle = .inline
@@ -897,7 +903,7 @@ enum TurtleGitAboutTool: String, CaseIterable {
             item.translatesAutoresizingMaskIntoConstraints=false
             NSLayoutConstraint.activate([item.leadingAnchor.constraint(equalTo:stack.leadingAnchor),item.trailingAnchor.constraint(equalTo:stack.trailingAnchor)])
         }
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:20),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-20),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:20),stack.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-20),content.widthAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 600:560),content.heightAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 540:440)])
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:20),stack.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-20),stack.topAnchor.constraint(equalTo:content.topAnchor,constant:20),stack.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-20),content.widthAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 600:560),content.heightAnchor.constraint(greaterThanOrEqualToConstant:tool.hasBanner ? 568:468)])
         window.setContentSize(tool.aboutSize);window.initialFirstResponder=ok;window.defaultButtonCell=ok.cell as? NSButtonCell;window.center()
     }
     func reportGitFailure(_ message:String) {

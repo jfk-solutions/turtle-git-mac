@@ -36,7 +36,7 @@ import TurtleGitCore
         if url.isFileURL {
             return !url.path.contains("\0") && ["patch", "diff"].contains(url.pathExtension.lowercased())
         }
-        return FinderRequest(url: url) != nil || (try? FinderServiceCommand.request(serviceURL:url)) != nil
+        return ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains(url.absoluteString) || FinderRequest(url: url) != nil || (try? FinderServiceCommand.request(serviceURL:url)) != nil || (try? TurtleGitFinderServicesProvider.openSelection(from:url)) != nil
     }
     func submit(_ urls: [URL]) {
         guard !retired else { return }
@@ -45,7 +45,13 @@ import TurtleGitCore
         let id = UUID(), receipt = Receipt(accepted)
         receipts[id] = receipt; onStateChanged()
         let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true; configuration.activates = true; configuration.arguments = []
+        configuration.createsNewApplicationInstance = true
+        let needsWorkspace=accepted.contains { $0.host == "service-open" || ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains($0.absoluteString) }
+        configuration.arguments=needsWorkspace ? []:["--turtlegit-action-only"]
+        configuration.activates=accepted.contains { url in
+            let action=FinderRequest(url:url)?.action ?? (try? FinderServiceCommand.request(serviceURL:url))?.action
+            return action != .registerRepository
+        }
         launch(accepted, applicationURL(), configuration) { [weak self, weak receipt] error in
             guard let self, let receipt, self.receipts[id] === receipt, !receipt.awaitingFailure else { return }
             guard !self.retired, let error else { self.finish(id); return }
@@ -84,15 +90,15 @@ private enum WorkspaceHandoffFailure: LocalizedError {
 
 /// A non-modal, owned acknowledgment works even if the original Merge window
 /// has already closed while Launch Services was starting the workspace.
-@MainActor private final class WorkspaceHandoffFailureController: NSWindowController, NSWindowDelegate {
+@MainActor final class WorkspaceHandoffFailureController: NSWindowController, NSWindowDelegate {
     var onClosed: () -> Void
     private var ownerObserver: NSObjectProtocol?
-    init(message: String, onClosed: @escaping () -> Void) {
+    init(message: String, heading:String = "Unable to open the TurtleGit workspace", onClosed: @escaping () -> Void) {
         self.onClosed = onClosed
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 190), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.title = "TurtleGit for Mac"
         super.init(window: window); window.delegate = self
-        let heading = NSTextField(wrappingLabelWithString: "Unable to open the TurtleGit workspace")
+        let heading = NSTextField(wrappingLabelWithString: heading)
         heading.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
         heading.preferredMaxLayoutWidth = 456
         let detail = NSTextField(wrappingLabelWithString: message); detail.isSelectable = true; detail.preferredMaxLayoutWidth = 456

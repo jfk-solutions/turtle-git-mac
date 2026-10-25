@@ -55,7 +55,7 @@ in its context menu. **Clone…** opens the clone form with that destination;
 **Create repository…** opens the creation form. For a repository already on disk,
 choose **Add to TurtleGit…**. The app requests folder access when needed, validates
 the repository and saves it in Open Recent and Watched Repositories. Registration
-does not replace the repository already open in your workspace.
+runs without opening a workspace and does not replace a repository already open there.
 
 A successful Clone also registers its resulting repository using the destination
 permission you already granted. A registration failure is reported separately from
@@ -65,7 +65,7 @@ Watched Repositories → Refresh after TurtleGit quits**. Registering or cloning
 repository does not change that background preference.
 
 If Finder Sync is disabled or macOS does not show its submenu, select the folder
-and use **Services → TurtleGit: Clone…** or **TurtleGit: Add to TurtleGit…**.
+and use **Services → Open in TurtleGit** to open the repository or its folder chooser.
 Finder controls extension/menu placement. These commands do not grant access to
 other repositories or cause a scan of your Mac. See the
 [registration workflow](FINDER-REGISTRATION-PARITY.md) for scope and current

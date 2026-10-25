@@ -316,10 +316,12 @@ import TurtleGitCore
         for modelFirst in [false,true] {
             let delegate=TurtleGitApplicationDelegate();var calls=0
             delegate.startupArguments=["/command:log"];delegate.startupDirectory=root.path
+            delegate.makeStandaloneWorkspace={workspace};delegate.configureStandaloneServices={_,_ in};delegate.activateStandaloneApplication={}
+            try require(delegate.startupLaunchMode == .actionOnly && !delegate.applicationShouldOpenUntitledFile(NSApp),"Primary command requested workspace startup")
             delegate.startupCommandHandler={model,args,cwd in precondition(model === workspace && args==["/command:log"] && cwd==root.path);calls += 1}
             if modelFirst {delegate.repositoryModel=workspace;try require(calls==0,"Premature startup delivery")}
             delegate.startupDidFinishLaunching()
-            if !modelFirst {try require(calls==0,"Startup lost model readiness");delegate.repositoryModel=workspace}
+            if !modelFirst {try require(calls==1 && delegate.standaloneWorkspace === workspace,"Action-only startup did not acquire/deliver its owned routing model");delegate.repositoryModel=workspace}
             delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
             try require(calls==1 && delegate.startupDelivered,"Startup command delivered twice")
         }
@@ -383,8 +385,17 @@ import TurtleGitCore
         try require(resolve.model.entries.count==1 && resolve.model.entries.first?.path==path,"Resolve launch lost requested conflict")
         resolve.close()
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==conflictIndex,"Resolve launch staged without review")
+        // Silent is now a supported source option; it still opens review and
+        // cannot stage a conflict until the user accepts that review.
         invoke(["/command:resolve","/silent"])
-        try require(workspace.error?.contains("Unsupported")==true,"Unsupported mutation shortcut was silently accepted")
+        try await wait {!workspace.busy && windows(ResolveWindowController.self).first?.model.busy == false}
+        let silentReview=windows(ResolveWindowController.self).first!
+        try require(silentReview.model.commandOptions?.silent == true && silentReview.model.commandOptions?.noQuestion == false && silentReview.model.entries.contains{$0.path==path},"Silent Resolve lost review/options/captured conflict")
+        silentReview.close()
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==conflictIndex,"Silent Resolve staged without accepted review")
+        invoke(["/command:resolve","/force"])
+        try require(workspace.error?.contains("force")==true && workspace.error?.contains("not valid")==true && windows(ResolveWindowController.self).isEmpty,"Command-specific mutation shortcut was accepted or misdiagnosed: "+(workspace.error ?? "no error"))
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==conflictIndex,"Rejected Resolve option changed the conflict index")
         let cancelled = RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true})
         defer {cancelled.stopMonitoringForTermination()}
         cancelled.commandLineRepositoryPermission={_ in nil}

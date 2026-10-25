@@ -25,8 +25,10 @@ external metadata permissions, then saves the repository in its private recent
 and watch archives. Existing workspace contents stay open. Duplicate registration
 retains the existing watch identity and unrelated grants. Cancellation, retirement
 and delayed answers are fenced by the request's ownership. URL payloads convey no
-security scope or arbitrary Git command. A parallel macOS Service exposes the same
-one-folder request when Finder Sync is disabled or unavailable.
+security scope or arbitrary Git command. Registration runs without opening a
+workspace; an existing workspace retains its repository. The single public
+**Open in TurtleGit** Service is an explicit workspace entry point when Finder
+Sync is disabled or unavailable. Git commands remain in the Finder submenu.
 
 ## Successful Clone
 

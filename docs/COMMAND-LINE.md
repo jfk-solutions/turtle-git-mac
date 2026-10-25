@@ -3,7 +3,9 @@
 TurtleGit accepts the primary TortoiseProc dialog commands through its macOS app
 executable. These open the existing native dialogs with the same Git operations,
 menus, original command icons, review steps and cancellation ownership as normal
-app entry. Launching a dialog does not accept its Commit, Revert or Resolve action.
+app entry. Dialog commands use a standalone launch route: About, Settings and
+Git dialogs do not first open the repository workspace. Launching a dialog does
+not accept its Commit, Revert or Resolve action.
 
 Use a new Launch Services instance when invoking an installed application from a
 shell. `open` does not reliably deliver new startup arguments to an already running
@@ -847,8 +849,8 @@ read to drain; a late reply cannot populate a retired wizard.
 `settings` accepts one selected path plus an optional source `page` name. It
 looks for repository markers within available folders before requiring Git.
 Outside a repository it opens Global Settings and leaves the current checkout
-unchanged. Inside a repository it resolves/authorizes metadata and uses normal
-workspace adoption/rollback, unless already in that repository. Modified/active
+unchanged. Inside a repository it resolves/authorizes metadata in its captured
+settings context without replacing an existing workspace repository. Modified/active
 Settings can refuse a different context. Defaults are Git inside a repository
 and General outside; unknown or unavailable page names retain those defaults.
 

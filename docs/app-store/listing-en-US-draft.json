@@ -1,0 +1,47 @@
+{
+  "status": "DRAFT_NOT_SUBMITTED",
+  "draft_date": "2026-10-25",
+  "locale": "en-US",
+  "name": "TurtleGit for Mac",
+  "subtitle": "Git history, commits and diffs",
+  "keywords": "repository,version control,branches,merge,blame,patch,clone,staging,ssh,submodules",
+  "description": "TurtleGit brings everyday Git work to native Mac windows and Finder.\n\nExplore repository history with a revision graph, commit details, changed paths and Blame. Compare changes, review patches, stage the files or lines you intend to commit, and manage branches, tags and remote synchronization.\n\nStart from Finder: clone a repository or add an existing local repository to TurtleGit. Registered repositories appear in the app, and optional background watching keeps Finder status available while the main window is closed. Folder access stays under your control.\n\nBuilt-in tools support text comparison, three-way conflict resolution and editable Unified Diff documents. Open a patch file or pass a diff through the explicit command-line viewer mode. Export commits as patches and prepare email through your configured mail workflow.\n\nChoose light or dark appearance and use the bundled offline help. The Mac App Store configuration includes its Git engine; Homebrew and Xcode command-line tools are not required for ordinary local Git work.\n\nRequires macOS 13 or later. Remote Git services, SSH authentication and email may require your own server accounts and configuration. Optional Microsoft Office integration requires the relevant separately installed applications and macOS Automation permission.\n\nThe macOS port is authored by Jochen Kühner. TurtleGit is an independent, unofficial project based on TortoiseGit. It is distributed under GPL v2 with the included notices and corresponding source information. This description does not claim complete compatibility with every upstream feature or external tool.",
+  "proposed_primary_category": "Developer Tools",
+  "proposed_secondary_category": "Utilities",
+  "marketing_url": "https://jfk-solutions.github.io/turtle-git-mac/",
+  "support_url_candidate": "https://jfk-solutions.github.io/turtle-git-mac/",
+  "support_url_approval": "pending owner contact details; homepage currently links technical issue tracker",
+  "privacy_policy_url_candidate": "https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html",
+  "privacy_policy_approval": "pending exact release/publisher review",
+  "url_observation": {
+    "date": "2026-10-25",
+    "method": "direct HTTPS GET",
+    "homepage_status": 200,
+    "privacy_status": 200
+  },
+  "measured_copy_lengths": {
+    "name_characters": 17,
+    "subtitle_characters": 30,
+    "keywords_ascii_bytes": 82,
+    "description_characters": 1615
+  },
+  "owner_decisions_pending": [
+    "listing approval and localizations",
+    "publisher/copyright/support contact",
+    "seller identity, SKU and actual Connect app record",
+    "price, territories and release method",
+    "privacy questionnaire",
+    "encryption/export determination and any required documentation",
+    "age-rating questionnaire and any override",
+    "license/distribution terms clearance",
+    "final version/build availability and distribution signing",
+    "current final screenshots and reviewer sample attachment"
+  ],
+  "submission_performed": false,
+  "account_changes_performed": false,
+  "port_author": {
+    "name": "Jochen Kühner",
+    "role": "Author of the macOS port",
+    "scope": "Port credit only; seller/legal entity and copyright ownership require separate owner confirmation"
+  }
+}

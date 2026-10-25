@@ -2,6 +2,20 @@
 import AppKit
 import TurtleGitCore
 
+// This legacy workflow receiver injects its instrumented action owner through
+// makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
+// current dialog-launch receiver, rather than inferred from this private host.
+
+@MainActor private func verifyPublicOpenService(_ entries:[[String:Any]])throws {
+    guard entries.count==1,let entry=entries.first,
+          entry["NSMessage"] as? String=="openInTurtleGit",entry["NSUserData"] as? String=="open",
+          entry["NSPortName"] as? String=="TurtleGit",entry["NSSendFileTypes"] as? [String]==["public.item"],
+          entry["NSRestricted"] as? Bool==true,(entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,
+          (entry["NSMenuItem"] as? [String:String])?["default"]=="Open in TurtleGit" else {
+        throw NSError(domain:"TurtleGit.NativeServicesInventory",code:1,userInfo:[NSLocalizedDescriptionKey:"Expected one restricted Open in TurtleGit item Service"])
+    }
+}
+
 private struct DeliveryRepositoryScopes:RepositoryBookmarkProvider {
     func create(for url:URL)throws->Data {Data(url.path.utf8)}
     func resolve(_ bytes:Data)throws->ResolvedBookmark {.init(url:URL(fileURLWithPath:String(decoding:bytes,as:UTF8.self)),stale:false)}
@@ -100,7 +114,7 @@ enum FinderDeliveryRepositoryVerification {
             let generation=board.changeCount
             try require(invoke(delegate.finderServicesProvider,board,name)==nil && delegate.pendingFinderServiceRequest?.action.rawValue==name,"cold delivery did not retain typed action")
             try require(invoke(delegate.finderServicesProvider,board,name) != nil && received.isEmpty,"cold duplicate accepted")
-            delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
+            delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
             try await wait("cold delivery did not drain"){received.count==1}
             try require(received[0].action.rawValue==name && received[0].paths.map{Data($0.path.utf8)}==[Data(selected.path.utf8)] && delegate.pendingFinderServiceRequest==nil && board.changeCount==generation,"cold action/path/pasteboard capture changed")
             try require(received[0].sources.isEmpty && received[0].clipboardPatch==nil && received[0].requestPullEnd==nil && received[0].requestPullURL==nil,"provider invented an execution preset")
@@ -115,18 +129,8 @@ enum FinderDeliveryRepositoryVerification {
             try require(invoke(delegate.finderServicesProvider,board,name) != nil && received.count==count,"retired provider delivered")
         }
         let document=try requirePlist(plist),entries=try XCTEntries(document)
-        try require(entries.count==56 && Set(entries.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"56 declarations differ from actual Core actions")
-        try require(entries.last?["NSUserData"] as? String=="registerRepository" && entries.last?["NSSendFileTypes"] as? [String]==["public.folder"],"appended native registration declaration invalid")
-        try require(entries.prefix(47).compactMap{$0["NSUserData"] as? String}==originalNames,"original47 declaration order changed")
-        try require(entries[42..<47].compactMap{$0["NSUserData"] as? String}==["reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"],"original history positions changed")
-        try require(entries.prefix(55).suffix(8).compactMap{$0["NSUserData"] as? String}==names,"delivery declarations were not appended")
-        for entry in entries.prefix(55).suffix(8) {
-            guard let name=entry["NSUserData"] as? String else{throw Failure(description:"missing delivery UserData")}
-            try require(entry["NSMessage"] as? String=="performFinderAction" && entry["NSPortName"] as? String=="TurtleGit" && entry["NSRestricted"] as? Bool==true && (entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,"delivery selector/restriction changed")
-            try require(entry["NSSendFileTypes"] as? [String]==[folderNames.contains(name) ? "public.folder":"public.item"],"delivery selection UTI changed")
-        }
-        try require(entries.prefix(55).filter{($0["NSSendFileTypes"] as? [String])==["public.folder"]}.count==15,"folder declaration count changed")
-        print("PASS: eight cold/active/retired typed delivery Services,56 declarations and captured private pasteboards")
+        try verifyPublicOpenService(entries)
+        print("PASS: eight cold/active/retired typed delivery Services,one public declaration and legacy handlers and captured private pasteboards")
     }
     private static func requirePlist(_ url:URL)throws->[String:Any] {
         guard let value=try PropertyListSerialization.propertyList(from:Data(contentsOf:url),format:nil) as? [String:Any] else{throw Failure(description:"invalid app plist")};return value
@@ -172,7 +176,7 @@ enum FinderDeliveryRepositoryVerification {
                 parent?.beginSheet(panel,completionHandler:nil);Task{@MainActor in await Task.yield();reply(.OK)}
             }
             workspace.selectedCommandImportFolderURL={ [weak self] _ in self?.grantURL}
-            delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
+            delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
         }
         func make(_ name:String)async throws->GitRepository {
             let directory=root.appendingPathComponent(name,isDirectory:true);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)

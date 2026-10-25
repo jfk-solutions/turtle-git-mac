@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-25",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "Implementation batch validated, signed development build3 installed; physical About observed and acceptance processes closed; whole port remains incomplete",
+  "scope": [
+    "Finder and primary command-line dialogs select action-only scene before SwiftUI scene creation",
+    "warm actions preserve existing workspace using private retained routing model",
+    "registration persists watch/recent and publishes status without workspace adoption",
+    "single public Open in TurtleGit Service with explicit workspace permission route",
+    "scoped Settings preserves existing Settings and participates in Quit preflight",
+    "owned visible errors and cancellation/quit drain for both routing owners",
+    "port author metadata/About/README/repository/site",
+    "install packaged green icon as runtime application icon"
+  ],
+  "core_attempts": [
+    {
+      "result": "compile failed before tests",
+      "log": "build/qa/services-launch-core-2026-10-25.log",
+      "detail": "nested Task in new generic Open chooser required explicit self; production syntax repaired without changing assertions"
+    },
+    {
+      "result": "4 tests executed; 5 fixture assertion failures",
+      "log": "build/qa/services-launch-core-repair1-2026-10-25.log",
+      "detail": "public inventory assertions incorrectly assumed registration appended last; unchanged Core enum inserts registration at index 6. Corrected fixture retains original 55-entry catalog order/slice assertions."
+    },
+    {
+      "result": "pass",
+      "tests": 4,
+      "failures": 0,
+      "log": "build/qa/services-launch-core-repair2-2026-10-25.log",
+      "scope": "four affected public inventory/order methods; no full Core suite rerun"
+    }
+  ],
+  "generated": {
+    "localization": {
+      "languages": 38,
+      "keys": 1321,
+      "write": "pass",
+      "check": "pass"
+    },
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3880075,
+      "write": "pass",
+      "check": "pass"
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_control_reviews": 85,
+      "certified_complete": 0
+    },
+    "final_checks": "localizations/help/coverage pass after final source/doc freeze"
+  },
+  "remaining_gaps": [
+    "arbitrary third-party cold turtlegit URL without action launch argument may create default SwiftUI workspace",
+    "injected native receivers do not establish actual Finder gestures or signed grant acceptance",
+    "whole-port layout/source behavior and App Store distribution acceptance remain open"
+  ],
+  "user_processes": {
+    "installed_app_pid_observed": 49750,
+    "ownership": "user; do not terminate for checks"
+  },
+  "protected_worktree_files": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "site": {
+    "result": "pass",
+    "documents": 467,
+    "unresolved_fragments": 0,
+    "log": "build/qa/dialog-launch-site-2026-10-25.log",
+    "final_result": "pass",
+    "final_log": "build/qa/dialog-launch-site-final-2026-10-25.log"
+  },
+  "diff_check": "pass",
+  "debug_attempts": [
+    {
+      "result": "exit 65; embedding failed",
+      "log": "build/qa/dialog-launch-debug-build-2026-10-25.log",
+      "detail": "Author credit changed NOTICE; cached Metafile runtime reconstruction provenance still pinned previous NOTICE hash. Rebuilding only that runtime package before affected incremental Debug build recheck."
+    },
+    {
+      "result": "exit 65; subsequent embedding stage failed",
+      "log": "build/qa/dialog-launch-debug-repair1-2026-10-25.log",
+      "detail": "Metafile provenance now current; LibGit2 cached package also pinned previous root NOTICE. Checked all runtime provenance NOTICE entries before rebuilding only LibGit2. No app source/behavior change and no Core rerun."
+    },
+    {
+      "result": "pass",
+      "log": "build/qa/dialog-launch-debug-repair2-2026-10-25.log",
+      "detail": "Only affected embedding/build checkpoint repeated after both stale NOTICE packages refreshed; existing SDK/Swift concurrency warnings retained."
+    },
+    {
+      "result": "pass",
+      "log": "build/qa/dialog-launch-debug-queue-repair-2026-10-25.log",
+      "detail": "Affected Debug build repeated after actual FIFO/access-initialization repairs; no Core inventory rerun required."
+    }
+  ],
+  "runtime_notice_refresh": [
+    {
+      "runtime": "Metafile",
+      "result": "pass",
+      "validation": "structure only, universal reconstruction",
+      "log": "build/qa/dialog-launch-metafile-notice-refresh-2026-10-25.log"
+    },
+    {
+      "runtime": "LibGit2",
+      "result": "pass",
+      "log": "build/qa/dialog-launch-libgit2-notice-refresh-2026-10-25.log",
+      "validation": "structure only; native C archives reused, universal helper/package reconstructed"
+    }
+  ],
+  "native": {
+    "result": "6 distinct case/engine pairs cumulatively pass",
+    "cases": [
+      "warm registration",
+      "public Service",
+      "cold/warm standalone dialog launch, registration Cancel/retry and explicit Open"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "logs": [
+      "build/qa/dialog-launch-native-2026-10-25.log",
+      "build/qa/dialog-launch-native-repair1-2026-10-25.log",
+      "build/qa/dialog-launch-native-bundled-rest-2026-10-25.log"
+    ],
+    "initial_failure": {
+      "pid": 54884,
+      "result": "fixture blocked in unprovided NSOpenPanel repository authorization; verified-owned receiver terminated with SIGTERM and reaped by runner",
+      "sample": "build/qa/dialog-launch-native-progress-2026-10-25.sample.txt",
+      "repair": "Private persisted bookmark/grant and bounded commandLineRepositoryPermission injected for CLI/Finder action model; no shipping source changes"
+    },
+    "reaped_pids": [
+      54671,
+      54798,
+      54884,
+      55221,
+      55457,
+      55709,
+      55796
+    ],
+    "independently_absent": true,
+    "diagnostics": "sandbox_extension_consume failed:1 emitted for private injected fixture grants; behavioral assertions pass",
+    "not_rerun": "Seven older Services effect suites only had public inventory/action-owner injection aligned; their full workflows were not rerun. Already passed system warm/Services cases were not repeated.",
+    "fixture_permission_repair_scope": "Persisted private exact repository bookmark/lease plus bounded CLI permission injection; cold CLI and warm Finder use saved authority; no assertions removed."
+  },
+  "signed_candidate": {
+    "status": "superseded and cancelled before installation",
+    "log": "build/qa/dialog-launch-signed-build-2026-10-25.log",
+    "inputs": "build/qa/dialog-launch-signed-inputs-2026-10-25.json",
+    "input_sha256": "37c135d1ea2a37461e652f450d9db04435a5db1ab69783a7a664fc4103f7a9a4",
+    "configuration": "AppStore",
+    "signing": "Apple Development",
+    "team": "A49SCA5S8K",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "build_number": "3",
+    "prior_5951_candidate": "Superseded without installing; old build log/measurement retained separately.",
+    "exit_code": 75,
+    "reason": "Retained handoff fixture exposed reentrant URL cohort not draining; source repaired before release. This earlier measured candidate is not accepted."
+  },
+  "source_repairs_after_initial_native_pass": [
+    {
+      "issue": "nested synchronous URL queued during delivery could remain undrained",
+      "repair": "Restore FIFO cohort while-loop with retirement checks; retained finder/patch/nested order assertion"
+    },
+    {
+      "issue": "universal lazy access setup could cause isolated direct-model fixtures to use the default user archive",
+      "repair": "Enable lazy archive/watch initialization only in default production action-router factory; custom/direct models retain explicit private persistence or prior unavailable behavior",
+      "real_archive_audit": "Read-only audit: real repositories.json mtime predates native run, no fixture prefix/initial launch path found; no user archive cleanup performed"
+    }
+  ],
+  "affected_native_recheck": {
+    "result": "pass",
+    "scope": [
+      "launch ×system/bundled after source repair",
+      "FIFO reentrant handoff, native failure ownership and Git tool Quit/status",
+      "workspace explicit opening and retirement",
+      "standalone Merge scene",
+      "Unified Diff startup",
+      "primary startup readiness plus six native command dialogs, supported Silent Resolve review and rejected command-specific force"
+    ],
+    "distinct_lifecycle_cases": 6,
+    "launch_engine_pairs_repeated_for_actual_source_change": 2,
+    "core_inventory_not_repeated": true,
+    "logs": [
+      "build/qa/dialog-launch-affected-handoff-2026-10-25.log",
+      "build/qa/dialog-launch-affected-handoff-repair1-2026-10-25.log",
+      "build/qa/dialog-launch-affected-merge-scene-2026-10-25.log",
+      "build/qa/dialog-launch-affected-primary-repair1-2026-10-25.log",
+      "build/qa/dialog-launch-affected-primary-repair2-2026-10-25.log",
+      "build/qa/dialog-launch-affected-primary-startup-2026-10-25.log",
+      "build/qa/dialog-launch-affected-unified-startup-2026-10-25.log",
+      "build/qa/dialog-launch-affected-workspace-2026-10-25.log",
+      "build/qa/dialog-launch-native-queue-repair-2026-10-25.log"
+    ],
+    "fixture_failures": [
+      {
+        "log": "build/qa/dialog-launch-affected-handoff-2026-10-25.log",
+        "reason": "Second injected launch callback still expected empty arguments; corrected to exact action-only marker, ownership assertion retained."
+      },
+      {
+        "log": "build/qa/dialog-launch-affected-primary-startup-2026-10-25.log",
+        "reason": "Historical fixture incorrectly rejected now-supported Resolve silent flag. Added review/options and unchanged-index assertions; unsupported force remains rejected."
+      },
+      {
+        "log": "build/qa/dialog-launch-affected-primary-repair1-2026-10-25.log",
+        "reason": "Force is rejected with not-valid-for-command diagnostic, not global Unsupported option wording. Assert correct option-specific error, no dialog and unchanged index."
+      }
+    ],
+    "all_receiver_pids": [
+      54671,
+      54798,
+      54884,
+      55221,
+      55457,
+      55709,
+      55796,
+      56789,
+      57030,
+      57262,
+      57365,
+      57378,
+      57409,
+      57614,
+      57633,
+      57649,
+      58097,
+      58543
+    ],
+    "all_independently_absent": true,
+    "scope_limit": "Other primary workflow cases compiled as receiver dependencies but were not executed. Seven legacy Services effect suites were aligned, not rerun. No full Core or hosted CI pass claimed.",
+    "primary_repair2": "pass: build/qa/dialog-launch-affected-primary-repair2-2026-10-25.log"
+  },
+  "signed_final_candidate": {
+    "status": "pass and installed",
+    "log": "build/qa/dialog-launch-signed-final-2026-10-25.log",
+    "inputs": "build/qa/dialog-launch-signed-final-inputs-2026-10-25.json",
+    "input_sha256": "7af52380a8a1f9051e4fb2ee464b084dea28c84cae73a8435b4b9b86c3f984e8",
+    "configuration": "AppStore",
+    "signing": "Apple Development",
+    "team": "A49SCA5S8K",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "build_number": "3",
+    "exit_code": 0,
+    "build_files": 6356,
+    "unchanged_inputs": true,
+    "deep_strict_codesign": "pass",
+    "same_team_app_finder_cache": "A49SCA5S8K",
+    "universal_code_components": 8,
+    "runtime_layout_code_items": 206,
+    "public_services": 1,
+    "audit": "build/qa/dialog-launch-signed-final-audit-2026-10-25.json",
+    "installed_receipt": "build/qa/dialog-launch-installed-2026-10-25.json",
+    "finder_registration": "build/qa/dialog-launch-finder-registration-2026-10-25.json",
+    "backup": "build/qa/dialog-launch-displaced-installed-2026-10-25"
+  },
+  "physical_acceptance": {
+    "platform": "macOS 27.0.1 arm64",
+    "installed_build": "0.1.0 (3)",
+    "initial_attempt": {
+      "pid": 61198,
+      "result": "private HOME/CFFIXED launch did not complete and owned watchdog terminated/reaped it after90s; no cause certified",
+      "receipt": "build/qa/dialog-launch-physical-2026-10-25/process.json",
+      "ui_selection_side_effect": "CUA selection exposed/launched normal instance PID61230 with blank workspace/update window; closed by UI Quit, independently absent"
+    },
+    "retry": {
+      "pid": 61417,
+      "environment": "normal installed sandbox container; Git global/system configs disabled for this read-only About check",
+      "observed": "About TurtleGit for Mac with action-only menu set, green TurtleGit/Git banner, Jochen Kühner port credit, retained upstream credits, build3 and packaged Git2.55.0 path/version",
+      "screenshot": "CUA emitted About-window screenshot in conversation; no local PNG saved and no App Store screenshot claim",
+      "receipt": "build/qa/dialog-launch-physical-retry1-2026-10-25/process.json",
+      "returncode": 0,
+      "reaped": true,
+      "later_ax_queries": "unavailable after application ended; no extra acceptance app left running"
+    },
+    "limits": [
+      "application About only; not all five tool About layouts",
+      "no physical Finder Add/folder grant or public Services gesture for this candidate",
+      "live Dock icon cache not separately visually inspected",
+      "not a Distribution-signed export or App Store submission"
+    ],
+    "all_acceptance_pids_absent": [
+      61198,
+      61230,
+      61417
+    ]
+  },
+  "final_source_inputs_unchanged": true
+}

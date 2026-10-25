@@ -68,6 +68,7 @@ for baseline and update rules.
 ## Build, distribution and verification
 
 - [Distributing TurtleGit for Mac](DISTRIBUTION.md)
+- [App Store submission dossier — draft](APP-STORE-SUBMISSION-DRAFT.md)
 - [Privacy in TurtleGit for Mac](PRIVACY.md)
 - [Testing TurtleGit for Mac](TESTING.md)
 - [Replay Git compatibility](REPLAY-GIT-COMPATIBILITY.md)
@@ -176,7 +177,8 @@ for baseline and update rules.
 
 ## Finder integration
 
-- [Selected-file macOS Services outside watched repositories](FINDER-SERVICES.md)
+- [Finder commands and the Open in TurtleGit Service](FINDER-SERVICES.md)
+- [Standalone dialog launch ownership](DIALOG-LAUNCH-PARITY.md)
 - [Finder creation workflows](FINDER-CREATION-PARITY.md)
 - [Finder command order and separators](FINDER-MENU-LAYOUT-PARITY.md)
 - [Finder path and selection conditions](FINDER-PATH-CONDITIONS-PARITY.md)

@@ -3,6 +3,20 @@ import AppKit
 import ObjectiveC
 import TurtleGitCore
 
+// This legacy workflow receiver injects its instrumented action owner through
+// makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
+// current dialog-launch receiver, rather than inferred from this private host.
+
+@MainActor private func verifyPublicOpenService(_ entries:[[String:Any]])throws {
+    guard entries.count==1,let entry=entries.first,
+          entry["NSMessage"] as? String=="openInTurtleGit",entry["NSUserData"] as? String=="open",
+          entry["NSPortName"] as? String=="TurtleGit",entry["NSSendFileTypes"] as? [String]==["public.item"],
+          entry["NSRestricted"] as? Bool==true,(entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,
+          (entry["NSMenuItem"] as? [String:String])?["default"]=="Open in TurtleGit" else {
+        throw NSError(domain:"TurtleGit.NativeServicesInventory",code:1,userInfo:[NSLocalizedDescriptionKey:"Expected one restricted Open in TurtleGit item Service"])
+    }
+}
+
 private struct LinkedServiceScopes: RepositoryBookmarkProvider {
     func create(for url: URL) throws -> Data { Data(url.path.utf8) }
     func resolve(_ data: Data) throws -> ResolvedBookmark { .init(url: URL(fileURLWithPath: String(decoding: data, as: UTF8.self)), stale: false) }
@@ -66,7 +80,7 @@ private actor LinkedServiceReadGate {
                 Task { @MainActor in await Task.yield(); completion(.OK) }
             }
             workspace.selectedFinderServiceFolderURL = { _ in root }
-            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         }
         func finish() {
             windows.forEach { $0.1.close() }; delegate.retireFinderServices(); workspace.stopMonitoringForTermination(); host.close(); defaults.removePersistentDomain(forName: suite)
@@ -130,14 +144,10 @@ private actor LinkedServiceReadGate {
         try require(selected.changeCount == count, "linked Services changed private pasteboard")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3])), format: nil) as! [String: Any]
         let declarations = plist["NSServices"] as? [[String: Any]] ?? []
-        try require(declarations.count == 56 && Set(declarations.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "56 registered Services differ from actual Core commands")
-        for command in commands {
-            let entries = declarations.filter { $0["NSUserData"] as? String == command }
-            try require(entries.count == 1 && entries[0]["NSMessage"] as? String == "performFinderAction" && entries[0]["NSSendFileTypes"] as? [String] == ["public.folder"], "linked Service folder declaration invalid")
-        }
+        try verifyPublicOpenService(declarations)
         provider.retire(); let total = received.count
         try require(invoke(provider, selected, "submoduleSync") != nil && received.count == total, "retired linked Service provider dispatched")
-        print("PASS: six linked Services,56 declarations, literal directory capture, folder UTIs and source cardinality")
+        print("PASS: six linked Services,one public declaration and legacy handlers, literal directory capture, folder UTIs and source cardinality")
     }
     static func bytes(_ repository: GitRepository, _ path: String) throws -> Data { try Data(contentsOf: repository.root.appendingPathComponent(path)) }
     static func value(_ repository: GitRepository, _ args: [String]) async throws -> String { try await repository.run(args).text.trimmingCharacters(in: .newlines) }

@@ -1,10 +1,39 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>TurtleGit selected-file Services</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="turtlegit-selected-file-services">TurtleGit selected-file Services</h1>
-<p>TurtleGit advertises fifty-six macOS Services for selected files and folders. They give
-users an entry point outside Finder Sync's monitored repositories, through the
-system's <strong>Services</strong> menu. They also work with file selections supplied by other
-apps that support macOS Services. Availability and ordering are controlled by
-macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.</p>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>TurtleGit Finder commands and selected-file Service</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="turtlegit-finder-commands-and-selected-file-service">TurtleGit Finder commands and selected-file Service</h1>
+<p>The app advertises one macOS Service: <strong>Open in TurtleGit</strong>. Select a file or
+folder in Finder or another app supporting file Services, then choose this entry
+from <strong>Services</strong>. It opens the repository in the workspace, requesting folder
+access when needed. A selection outside a repository starts the repository
+chooser at that location. Selecting a path is not itself sandbox authorization.</p>
+<p>The full Git command list belongs in Finder's <strong>TurtleGit</strong> submenu. It is no
+longer duplicated as dozens of entries in the system Services menu. macOS controls
+Services visibility and caches installed declarations; installing an updated app
+may not immediately remove old entries from an already open menu. The unbundled
+SwiftPM executable does not register bundle Services.</p>
+<p>Finder <strong>Add to TurtleGit…</strong> authorizes and registers an existing repository,
+publishes its status for badges and enables repository commands in the submenu.
+It does not open or replace a workspace. Clone registers its successful result
+automatically. Refresh after quitting remains a separate opt-in preference.
+See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-REGISTRATION-PARITY.html">first-use registration</a>.</p>
+<p>Finder and command-line requests for About, Settings and Git dialogs use a
+separate action launch route, so they do not need to show the workspace first.
+An existing workspace keeps its current repository. Explicit <strong>Open in
+TurtleGit</strong>, Open Repository and ordinary application opening remain workspace
+entry points. The action route retains the same folder-permission, cancellation,
+Git-eligibility and operation-owner checks as its dialog workflow.</p>
+<p><code>Configuration/App-Info.plist</code> declares a single restricted file Service with
+<code>NSMessage=openInTurtleGit</code>, <code>NSUserData=open</code> and <code>public.item</code> input. The provider
+captures selected file URLs from the caller's private pasteboard, preserves path
+characters and requests access before repository discovery. Legacy typed command
+handlers remain internal compatibility routes, rather than public Services menu
+entries. Their historical validation records below describe the implementation
+at the date recorded, not the current public menu inventory.</p>
+<h2 id="historical-command-handler-implementation-and-validation">Historical command-handler implementation and validation</h2>
+<p>The following sections document the earlier expanded Services implementation.
+The operation handlers and their selection checks are retained; the fifty-six
+public menu declarations described here have been replaced by the single entry
+above. Historical physical-integration limitations are not current acceptance
+claims. Current launch behavior is tracked separately in the implementation batch.</p>
 <table>
 <thead>
 <tr>
