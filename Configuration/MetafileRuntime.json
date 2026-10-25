@@ -92,5 +92,35 @@
     "scope": "Ordered individual EMF+ paints with independent geometry, SourceCopy/SourceOver saved graphics state and Clear replacement",
     "display_profile": "Premultiplied eight-bit sRGB source replacement; source already contains edge/clip coverage; destination retained outside independent coverage",
     "limits": "Existing raster checkpoint authority, cumulative pixel/work/markup/memory and output budgets remain enforced"
+  },
+  "path_gradient_painting": {
+    "implementation": "Original TurtleGit bounded gradient playback (GPL-2.0-or-later)",
+    "scope": "EMF+ polygon/canonical-ellipse path brushes, surrounding colors, captured centers, focus scales and gamma through shared fill/pen/glyph/clip/SourceCopy consumers; source-backed linear gamma and associated-alpha interpolation",
+    "semantics": [
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/cfe9439a-f2b6-4663-9032-67ce8feea5aa",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/0008fc6a-b678-41a6-ab99-9be99fc14092",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/d90f9243-3d44-48e5-9baa-1db4ae5394b4",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/1ab04f60-1c58-410f-a29e-d725f5eb9b0f",
+      "https://learn.microsoft.com/en-us/windows/win32/api/gdipluspath/nf-gdipluspath-pathgradientbrush-setfocusscales",
+      "https://learn.microsoft.com/en-us/windows/win32/gdiplus/-gdiplus-applying-gamma-correction-to-a-gradient-use",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/83b32511-b093-4e26-adf7-1538df304265",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/08ea5d19-dbd9-4056-9db3-424d8f47c3c1"
+    ],
+    "windows_reference": "docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json",
+    "documentation": "docs/METAFILE-PATH-GRADIENT-PARITY.md",
+    "third_party_code_copied": false,
+    "aliased_pen_coverage": "Conversion-scoped exact native stroke-outline receipts and binary device-lattice masks; geometric coverage remains independent of brush alpha."
+  },
+  "emf_natural_canvas": {
+    "implementation": "Original TurtleGit inclusive EMF canvas extent; record/device coordinates are not rescaled",
+    "profile": "Round the physical frame extent in device pixels, then include the final edge pixel; leave WMF extents unchanged",
+    "reference_consumer": "Pinned TortoiseIDiff Picture.cpp Bitmap(filename,FALSE)",
+    "evidence": "docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json",
+    "windows_assays": [
+      40217872337,
+      40218480653
+    ],
+    "scope": "Four original file-consumer controls plus four independent fractional-frame probes; not an exhaustive survey of malformed headers or printer devices",
+    "third_party_code_copied": false
   }
 }

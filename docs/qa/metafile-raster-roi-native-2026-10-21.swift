@@ -14,7 +14,7 @@ import TurtleGitCore
     static func gray(_ image:ComparisonImage?,_ samples:[(Int,Int,Int)],_ label:String)throws {
         guard let image else{throw Failure(message:"Missing decoded image: "+label)}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==64 && height==64,"Incorrect raster canvas: "+label)
+        try require(width==65 && height==65,"Incorrect raster canvas: "+label)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes{buffer in
             guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{throw Failure(message:"Cannot inspect native image pixels")}

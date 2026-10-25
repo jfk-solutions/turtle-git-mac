@@ -113,9 +113,11 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
          const cw = this.canvas.width || 800;
          const ch = this.canvas.height || 600;
 diff --git a/src/turtleGit.js b/src/turtleGit.js
+new file mode 100644
+index 0000000..466f760
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,524 @@
+@@ -0,0 +1,542 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -127,7 +129,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function i32(b,o) { return u32(b,o)|0; }
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
 +  let conversion=null;
-+  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','GdiMaskBytes','GdiRegionRectangles','GradientPixels','ImageMarkup','ImageTiles','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
++  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
 +  function shareBudgets(ctx) {
 +    const counters=conversion.counters;
 +    for(const suffix of sharedCounters){const key='_turtle'+suffix;Object.defineProperty(ctx,key,{get(){return counters[key]||0;},set(value){if(!Number.isFinite(value)||value<0)fail('invalid shared rendering budget');counters[key]=value;}});}
@@ -157,15 +159,15 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    return text;
 +  }
-+  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],compositing:0,textHint:0,saves:[],objectParts:null}); }
++  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],compositing:0,textHint:0,smoothingMode:0,antialias:false,saves:[],objectParts:null}); }
 +  function baseMatrix(d) {
 +    const t=d.coordinateTransformer, o=t.transform(0,0), x=t.transform(1,0), y=t.transform(0,1);
 +    return [x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
 +  }
 +  function currentMatrix(d) { const s=state(d); return mul(baseMatrix(d),mul([s.page,0,0,s.page,0,0],s.world)); }
 +  function unitScale(unit,dpi) { const scales={0:1,1:dpi/75,2:1,3:dpi/72,4:dpi,5:dpi/300,6:dpi/25.4}; if(!(unit in scales)) fail('unsupported page unit '+unit); return scales[unit]; }
-+  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip,renderingOrigin:s.renderingOrigin.slice(),compositing:s.compositing,textHint:s.textHint}); }
-+  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.renderingOrigin=old.renderingOrigin.slice();s.compositing=old.compositing;s.textHint=old.textHint;s.saves.length=index; }
++  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip,renderingOrigin:s.renderingOrigin.slice(),compositing:s.compositing,textHint:s.textHint,smoothingMode:s.smoothingMode,antialias:s.antialias}); }
++  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.renderingOrigin=old.renderingOrigin.slice();s.compositing=old.compositing;s.textHint=old.textHint;s.smoothingMode=old.smoothingMode;s.antialias=old.antialias;s.saves.length=index; }
 +  function updateWorld(d,m,flags) { const s=state(d); s.world=flags&0x2000 ? mul(m,s.world):mul(s.world,m); matrix(s.world); }
 +  // Clips live in device coordinates: later world changes cannot move an existing clip.
 +  // SVG luminance masks express all six GDI+ combine operations without region approximation.
@@ -308,6 +310,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    switch(type) {
 +      case 0x4001: if(data.length<16) fail('truncated EMF+ header'); s.dpiX=u32(data,8)||96;s.dpiY=u32(data,12)||96;return;
 +      case 0x401D: if(data.length!==8)fail('invalid rendering origin');s.renderingOrigin=[i32(data,0),i32(data,4)];return;
++      case 0x401E: if(data.length!==0||((flags>>>1)&127)>5)fail('invalid smoothing mode');s.smoothingMode=(flags>>>1)&127;s.antialias=!!(flags&1);return;
 +      case 0x4025: if(data.length!==4)fail('invalid EMF+ saved graphics record');snapshot(this,u32(data,0),false);return;
 +      case 0x4026: if(data.length!==4)fail('invalid EMF+ saved graphics record');restore(this,u32(data,0),false);return;
 +      case 0x4028: if(data.length!==4)fail('invalid EMF+ saved graphics record');snapshot(this,u32(data,0),true);return;
@@ -577,11 +580,28 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(format&&format!=='auto'&&format==='wmf'&&!/wmf/.test(parsed.fileType))fail('format mismatch');
 +    let bounds=parsed.header.bounds||parsed.header.placeableHeader;
 +    let width=bounds?bounds.right-bounds.left:0,height=bounds?bounds.bottom-bounds.top:0;
-+    if(parsed.header.bounds&&parsed.header.frame){
-+      const header=parsed.header,device=header.szlDevice,mm=header.szlMillimeters,frame=header.frame;
-+      const dx=device&&mm&&device.cx>0&&mm.cx>0?device.cx*25.4/mm.cx:96;
-+      const dy=device&&mm&&device.cy>0&&mm.cy>0?device.cy*25.4/mm.cy:96;
-+      if(frame.right>frame.left&&frame.bottom>frame.top){width=Math.round((frame.right-frame.left)*dx/2540);height=Math.round((frame.bottom-frame.top)*dy/2540);const left=frame.left*dx/2540,top=frame.top*dy/2540;parsed.header.bounds={left,top,right:left+width,bottom:top+height};bounds=parsed.header.bounds;}
++    if((parsed.fileType==='emf'||parsed.fileType==='emf+')&&bounds){
++      const header=parsed.header,frame=header.frame;
++      // A file-backed GDI+ Bitmap has an inclusive natural canvas. Embedded
++      // metafile objects retain their established logical frame profile, also
++      // used by the isolated native-display texture extension. These are not
++      // interchangeable source rectangles or texture periods.
++      if(frame&&frame.right>frame.left&&frame.bottom>frame.top){
++        const device=header.szlDevice,mm=header.szlMillimeters;
++        const dx=child&&device&&mm&&device.cx>0&&mm.cx>0?device.cx*25.4/mm.cx:96;
++        const dy=child&&device&&mm&&device.cy>0&&mm.cy>0?device.cy*25.4/mm.cy:96;
++        const inclusive=child?0:1;
++        width=Math.round((frame.right-frame.left)*dx/2540)+inclusive;
++        height=Math.round((frame.bottom-frame.top)*dy/2540)+inclusive;
++        const left=frame.left*dx/2540,top=frame.top*dy/2540;
++        parsed.header.bounds={left,top,right:left+width,bottom:top+height};
++      } else if(!child) {
++        // With no usable physical frame, the file Bitmap falls back to the
++        // inclusive rclBounds. Embedded fallback bounds remain unchanged.
++        width+=1;height+=1;
++        parsed.header.bounds={left:bounds.left,top:bounds.top,right:bounds.left+width,bottom:bounds.top+height};
++      }
++      bounds=parsed.header.bounds;
 +    }
 +    if(parsed.header.placeableHeader){const inch=parsed.header.placeableHeader.inch;if(!inch)fail('invalid WMF units');width=Math.abs(width);height=Math.abs(height);}
 +    else if(/wmf/.test(parsed.fileType)) {const ext=parsed.records.find(r=>r.functionId===0x20c);if(ext&&ext.data.length>=4){width=Math.abs((ext.data[2]|ext.data[3]<<8)<<16>>16);height=Math.abs((ext.data[0]|ext.data[1]<<8)<<16>>16);}}
@@ -1040,9 +1060,11 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +  }};
 +};
 diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
+new file mode 100644
+index 0000000..dc80a8b
 --- /dev/null
 +++ b/src/turtleGitPaint.js
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,678 @@
 +// TurtleGit EMF+ gradient, hatch and bitmap texture painting. MIT, see repository LICENSE.
 +// Canonical hatch cell data is isolated in LGPL-2.1-or-later turtleGitHatch.js.
 +// Geometry remains in local drawing coordinates; the record's world/page/device
@@ -1099,20 +1121,20 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +  function optional(r,flags,start,end,radial) {
 +    const transform=flags&2?r.transform():identity();
 +    if((flags&4) && (flags&24)) fail('conflicting gradient blend data');
-+    let stops;
++    let stops,factors=null;
 +    if(flags&4) stops=samples(r,true).map(s=>({position:s.position,color:s.value}));
 +    else {
 +      // Serialized optional data places vertical factors before horizontal ones.
 +      // Windows ignores V: V alone has the default ramp; H+V equals H.
 +      if(flags&16) samples(r,false);
-+      if(flags&8) stops=samples(r,false).map(s=>({position:s.position,color:blend(start,end,s.value)}));
++      if(flags&8) {factors=samples(r,false);stops=factors.map(s=>({position:s.position,color:blend(start,end,s.value)}));}
 +      else stops=[{position:0,color:start},{position:1,color:end}];
 +    }
 +    // GDI+ PathGradientBrush preset/blend positions run boundary -> center.
 +    // SVG radial stops run center -> boundary. Default colors already have
 +    // center -> boundary ordering and therefore need no reversal.
 +    if(radial && (flags&12)) stops=stops.reverse().map(s=>({position:1-s.position,color:s.color}));
-+    return {transform,stops};
++    return {transform,stops,factors};
 +  }
 +  function stopMarkup(stops,transparentOutside) {
 +    let result=stops.map(s=>'<stop offset="'+s.position+'" stop-color="rgb('+s.color.slice(0,3).join(',')+')" stop-opacity="'+s.color[3]+'"/>').join('');
@@ -1125,10 +1147,10 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    }
 +    return result;
 +  }
-+  function ellipse(d,data,offset,size) {
++  function ellipse(d,data,offset,size,decoded) {
 +    if(size<12||size>data.length-offset)fail('invalid path-gradient boundary extent');
 +    version(data,offset);
-+    const path=paths.decode(d,data.subarray(offset+4,offset+size),{maxPoints:13});
++    const path=decoded||paths.decode(d,data.subarray(offset+4,offset+size),{maxPoints:13});
 +    if(path.count!==13)fail('unsupported path-gradient boundary path');
 +    const p=path.points.map(p=>[p.x,p.y]);
 +    for(let i=0;i<13;i++)if(path.pointTypes[i] !== (i===0?0:i===12?0x83:3))fail('path gradient requires one closed cubic ellipse');
@@ -1149,6 +1171,298 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    const tolerance=Math.max(canonicalAllowance,coordinateAllowance);
 +    for(let i=0;i<13;i++) for(let axis=0;axis<2;axis++) if(Math.abs(p[i][axis]-(c[axis]+coefficients[i][0]*u[axis]+coefficients[i][1]*v[axis]))>tolerance) fail('unsupported non-ellipse path gradient');
 +    return {center:c,tolerance,transform:nonsingular([u[0],u[1],v[0],v[1],c[0],c[1]])};
++  }
++  // One explicit closed figure is the bounded polygon profile. It is decoded
++  // by the same C/R/RLE-aware EmfPlusPath reader used for ordinary geometry.
++  // Windows writes/replays point-array constructors as closed line polygons.
++  // That observed wire behavior is handled explicitly below; no cardinal-spline
++  // tension or curve is invented from the specification's inconsistent label.
++  function polygonBoundary(d,path) {
++    if(path.count<3||path.count>4096)fail('path-gradient polygon point limit');
++    const comparisons=path.count*(path.count-1)/2;
++    d.ctx._turtlePathGradientBoundaryWork=(d.ctx._turtlePathGradientBoundaryWork||0)+comparisons;
++    if(d.ctx._turtlePathGradientBoundaryWork>16777216)fail('aggregate path-gradient boundary work limit');
++    const points=path.points.map(p=>[p.x,p.y]);
++    for(let i=0;i<path.count;i++) {
++      const expected=i===0?0:i===path.count-1?0x81:1;
++      if((path.pointTypes[i]&0x8f)!==expected)fail('unsupported path-gradient boundary figure');
++    }
++    let area=0;
++    const edge=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
++    for(let i=0;i<points.length;i++) {
++      const a=points[i],b=points[(i+1)%points.length];
++      if(a[0]===b[0]&&a[1]===b[1])fail('degenerate path-gradient polygon edge');
++      area+=a[0]*b[1]-b[0]*a[1];
++      for(let j=i+2;j<points.length;j++) {
++        if(i===0&&j===points.length-1)continue;
++        const c=points[j],e=points[(j+1)%points.length];
++        const abC=edge(a,b,c),abE=edge(a,b,e),ceA=edge(c,e,a),ceB=edge(c,e,b);
++        // Collinear touching/nonadjacent overlap is outside this simple-boundary
++        // profile as well; accepting it would invent a triangulation/fill rule.
++        const box=!(Math.max(a[0],b[0])<Math.min(c[0],e[0])||Math.max(c[0],e[0])<Math.min(a[0],b[0])||Math.max(a[1],b[1])<Math.min(c[1],e[1])||Math.max(c[1],e[1])<Math.min(a[1],b[1]));
++        if(box&&abC*abE<=0&&ceA*ceB<=0)fail('unsupported intersecting path-gradient boundary');
++      }
++    }
++    if(!Number.isFinite(area)||area===0)fail('degenerate path-gradient polygon area');
++    return {kind:'polygon',points,bounds:[Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))]};
++  }
++  function pathGradient(d,r,data,flags,wrap) {
++    if(flags&~0xcf)fail('unsupported path-gradient brush flags');
++    if((flags&4)&&(flags&8))fail('conflicting path-gradient blend data');
++    const centerColor=color(r.uint()),center=[r.float(),r.float()],count=r.uint();
++    if(count<1||count>4096)fail('invalid path-gradient surrounding color count');
++    const surround=Array.from({length:count},()=>color(r.uint()));
++    let path,boundary;
++    if(flags&1) {
++      const size=r.uint();
++      if(size<12||size>data.length-r.offset)fail('invalid path-gradient boundary extent');
++      version(data,r.offset);
++      path=paths.decode(d,data.subarray(r.offset+4,r.offset+size),{maxPoints:4096});
++      if(path.count===13&&path.pointTypes[1]===3) {
++        boundary={kind:'ellipse',...ellipse(d,data,r.offset,size,path)};
++        if(count!==1)fail('unsupported multicolor cubic path-gradient boundary');
++      }
++      r.offset+=size;
++    } else {
++      // Windows GDI+ writes its point-array polygon constructor in this wire
++      // form, and replays it identically to an explicit line path. MS-EMFPLUS
++      // calls it a cardinal spline; do not invent a tension/curve absent on wire.
++      const n=r.uint();if(n<3||n>4096)fail('path-gradient boundary point limit');
++      d.ctx._turtleDecodedPathPoints=(d.ctx._turtleDecodedPathPoints||0)+n;
++      if(d.ctx._turtleDecodedPathPoints>1048576)fail('aggregate decoded path point limit');
++      path={count:n,points:Array.from({length:n},()=>({x:r.float(),y:r.float()})),pointTypes:Uint8Array.from({length:n},(_,i)=>i===0?0:i===n-1?0x81:1)};
++    }
++    if(!boundary) {
++      boundary=polygonBoundary(d,path);
++      if(count!==1) {
++        // Serialized GDI+ data initializes unspecified vertices to opaque white;
++        // entries beyond the boundary's vertex count have no corresponding point.
++        const supplied=surround.slice();surround.length=path.count;
++        for(let i=0;i<path.count;i++)surround[i]=supplied[i]||[255,255,255,1];
++      }
++    }
++    const transform=flags&2?r.transform():identity();
++    const preset=flags&4?samples(r,true):null;
++    const factors=flags&8?samples(r,false):null;
++    let focus=[0,0];
++    if(flags&0x40) {
++      if(r.uint()!==2)fail('invalid path-gradient focus count');
++      focus=[r.float(),r.float()];
++      if(focus.some(value=>value<0||value>1))fail('invalid path-gradient focus scale');
++    }
++    r.finish();
++    if(boundary.kind==='ellipse') {
++      boundary.inverse=inverse(boundary.transform);
++      const back=boundary.inverse;
++      boundary.focusCenter=[back[0]*center[0]+back[2]*center[1]+back[4],back[1]*center[0]+back[3]*center[1]+back[5]];
++      const m=boundary.transform,rx=Math.hypot(m[0],m[2]),ry=Math.hypot(m[1],m[3]);
++      boundary.bounds=[m[4]-rx,m[5]-ry,m[4]+rx,m[5]+ry];
++    } else if(focus[0]||focus[1])boundary.focusPoints=boundary.points.map(p=>[center[0]+(p[0]-center[0])*focus[0],center[1]+(p[1]-center[1])*focus[1]]);
++    return {kind:'pathGradient',transform,wrap,center,centerColor,surround,boundary,preset,factors,focus,gamma:!!(flags&0x80)};
++  }
++  function ellipseRay(center,x,y,scaleX=1,scaleY=1) {
++    if(scaleX===0||scaleY===0)return [];
++    const cx=center[0]/scaleX,cy=center[1]/scaleY,dx=(x-center[0])/scaleX,dy=(y-center[1])/scaleY;
++    const a=dx*dx+dy*dy,b=2*(cx*dx+cy*dy),c=cx*cx+cy*cy-1;
++    if(a===0)return [];
++    const discriminant=b*b-4*a*c;
++    if(discriminant<0)return [];
++    const root=Math.sqrt(Math.max(0,discriminant));
++    return [(-b-root)/(2*a),(-b+root)/(2*a)].filter(value=>value>=0);
++  }
++  function polygonRay(points,center,x,y) {
++    const dx=x-center[0],dy=y-center[1],hits=[];
++    for(let i=0;i<points.length;i++) {
++      const a=points[i],b=points[(i+1)%points.length],ex=b[0]-a[0],ey=b[1]-a[1];
++      const denominator=dx*ey-dy*ex;
++      if(denominator===0)continue;
++      const ax=a[0]-center[0],ay=a[1]-center[1],distance=(ax*ey-ay*ex)/denominator,position=(ax*dy-ay*dx)/denominator;
++      if(distance>=0&&position>=0&&position<=1)hits.push({distance,position,edge:i});
++    }
++    return hits;
++  }
++  function mixColor(a,b,t,gamma) {
++    const aw=a[3]*(1-t),bw=b[3]*t,alpha=aw+bw;
++    if(alpha<=0)return [0,0,0,0];
++    return [0,1,2].map(i=>{
++      const av=gamma?Math.pow(a[i]/255,2.2):a[i]/255,bv=gamma?Math.pow(b[i]/255,2.2):b[i]/255;
++      const value=(av*aw+bv*bw)/alpha;
++      return 255*(gamma?Math.pow(Math.max(0,value),1/2.2):value);
++    }).concat(alpha);
++  }
++  function mixLinearColor(a,b,t,gamma) {
++    if(!gamma)return mixColor(a,b,t,false);
++    // Native linear gamma uses sixteen factor intervals. Interpolate the
++    // associated-alpha gamma colors at the interval endpoints, rather than
++    // applying an exact transfer curve independently at every pixel.
++    const coordinate=Math.max(0,Math.min(1,t))*16,index=Math.min(15,Math.floor(coordinate));
++    return mixColor(mixColor(a,b,index/16,true),mixColor(a,b,(index+1)/16,true),coordinate-index,false);
++  }
++  function gradientSample(stops,t,colors,gamma,linear=false) {
++    if(t<stops[0].position)return stops[0].value;
++    let low=0,high=stops.length;
++    while(low<high){const middle=(low+high)>>>1;if(stops[middle].position<=t)low=middle+1;else high=middle;}
++    if(low===stops.length)return stops[stops.length-1].value;
++    const a=stops[low-1],b=stops[low],fraction=(t-a.position)/(b.position-a.position);
++    return colors?(linear?mixLinearColor(a.value,b.value,fraction,gamma):mixColor(a.value,b.value,fraction,gamma)):a.value*(1-fraction)+b.value*fraction;
++  }
++  function lineFocus(points,center,x,y) {
++    const dx=x-center[0],dy=y-center[1];
++    if(dx===0&&points.every(p=>p[0]===center[0])&&dy!==0)return Math.max(0,...points.map(p=>(p[1]-center[1])/dy));
++    if(dy===0&&points.every(p=>p[1]===center[1])&&dx!==0)return Math.max(0,...points.map(p=>(p[0]-center[0])/dx));
++    return 0;
++  }
++  function lastFan(hits) {
++    let result=null;for(const hit of hits)if(hit.distance>=1)result=hit;return result;
++  }
++  function farthest(hits) {
++    let result=null;for(const hit of hits)if(!result||hit.distance>result.distance)result=hit;return result;
++  }
++  function fanScanline(d,device,y,gouraud=false) {
++    const point=(p,weight)=>({x:device[0]*p[0]+device[2]*p[1]+device[4],y:device[1]*p[0]+device[3]*p[1]+device[5],weight});
++    const center=point(d.center,[1,0,0]),spans=[];
++    function rawEdge(a,b) {
++      if(a.y>b.y)[a,b]=[b,a];
++      if(a.y===b.y||y<a.y||y>=b.y)return null;
++      return {x:a.x+(b.x-a.x)*(y-a.y)/(b.y-a.y),a,b};
++    }
++    function endpoint(edge,left) {
++      const {a,b}=edge,dx=b.x-a.x,dy=b.y-a.y;
++      let t=0;
++      if(gouraud) {
++        // GDI+ uses integer-distance counters along the major device axis.
++        // The left endpoint owns the fractional-endpoint carry; coverage is
++        // independently determined from the original floating-point edges.
++        const horizontal=Math.abs(dx)>Math.abs(dy),distance=Math.trunc(horizontal?dx:dy);
++        if(distance===0)fail('unsupported subpixel path-gradient fan edge');
++        const start=horizontal?Math.trunc(a.x):Math.floor(a.y),end=horizontal?Math.trunc(b.x):Math.floor(b.y);
++        const carry=distance-(end-start),position=horizontal?Math.ceil(edge.x):y;
++        t=Math.abs((position-start+(left?carry:0))/distance);
++      }
++      return {x:Math.ceil(edge.x),weight:a.weight.map((v,i)=>v+(b.weight[i]-v)*t)};
++    }
++    for(let i=0;i<d.boundary.points.length;i++) {
++      const a=point(d.boundary.points[i],[0,1,0]),b=point(d.boundary.points[(i+1)%d.boundary.points.length],[0,0,1]);
++      const intersections=[rawEdge(center,a),rawEdge(a,b),rawEdge(b,center)].filter(edge=>edge!==null).sort((a,b)=>a.x-b.x);
++      if(intersections.length<2)continue;
++      const left=endpoint(intersections[0],true),right=endpoint(intersections[intersections.length-1],false);
++      if(right.x<=left.x)continue;
++      spans.push({edge:i,left,right,start:left.x,end:right.x});
++    }
++    return spans;
++  }
++  function sampleFan(d,spans,x) {
++    let selected=null;
++    for(const span of spans)if(x>=span.start&&x<span.end)selected=span;
++    if(!selected)return null;
++    const {left,right,edge}=selected,t=(x-left.x)/(right.x-left.x);
++    const weights=left.weight.map((v,i)=>v+(right.weight[i]-v)*t),center=Math.max(0,Math.min(1,weights[0])),boundary=weights[1]+weights[2];
++    if(d.preset)return gradientSample(d.preset,1-center,true,d.gamma);
++    const surround=boundary>0?mixColor(d.surround[edge],d.surround[(edge+1)%d.surround.length],Math.max(0,Math.min(1,weights[2]/boundary)),d.gamma):d.centerColor;
++    const factor=d.factors?gradientSample(d.factors,center,false,false):center;
++    return mixColor(surround,d.centerColor,factor,d.gamma);
++  }
++  function polynomialRoots(coefficients) {
++    const scale=Math.max(...coefficients.map(Math.abs));if(scale===0)return [0];
++    const p=coefficients.map(v=>v/scale);while(p.length>1&&p[p.length-1]===0)p.pop();
++    if(p.length===1)return [];
++    if(p.length===2){const root=-p[0]/p[1];return root>=0&&root<=1?[root]:[];}
++    const evaluate=x=>{let value=0;for(let i=p.length-1;i>=0;i--)value=value*x+p[i];return value;};
++    const critical=polynomialRoots(p.slice(1).map((v,i)=>v*(i+1))),points=[0,...critical.filter(x=>x>0&&x<1),1].sort((a,b)=>a-b),roots=[];
++    for(let i=0;i<points.length;i++) {
++      const x=points[i],value=evaluate(x);if(Math.abs(value)<1e-12)roots.push(x);
++      if(i===0)continue;
++      let low=points[i-1],high=x,lower=evaluate(low);if(lower*value>=0)continue;
++      for(let step=0;step<36;step++) {const middle=(low+high)/2,next=evaluate(middle);if(lower*next<=0)high=middle;else{low=middle;lower=next;}}
++      roots.push((low+high)/2);
++    }
++    return roots;
++  }
++  function ellipseFocus(d,x,y) {
++    const back=d.boundary.inverse,c=d.boundary.focusCenter,dx=x-d.center[0],dy=y-d.center[1],fx=d.focus[0],fy=d.focus[1],gx=1-fx,gy=1-fy;
++    const m=d.boundary.transform;
++    if(fx===0&&x===d.center[0]&&Math.abs(y-(d.center[1]+fy*(m[5]-d.center[1])))<=fy*Math.hypot(m[1],m[3]))return 0;
++    if(fy===0&&y===d.center[1]&&Math.abs(x-(d.center[0]+fx*(m[4]-d.center[0])))<=fx*Math.hypot(m[0],m[2]))return 0;
++    const product=[fx*fy,fx*gy+fy*gx,gx*gy];
++    const nx=product.map(v=>c[0]*v),ny=product.map(v=>c[1]*v);
++    nx[0]+=back[0]*dx*fy+back[2]*dy*fx;nx[1]+=back[0]*dx*gy+back[2]*dy*gx;
++    ny[0]+=back[1]*dx*fy+back[3]*dy*fx;ny[1]+=back[1]*dx*gy+back[3]*dy*gx;
++    const polynomial=[0,0,0,0,0];
++    for(let i=0;i<3;i++)for(let j=0;j<3;j++)polynomial[i+j]+=nx[i]*nx[j]+ny[i]*ny[j]-product[i]*product[j];
++    if(fx>0&&fy>0&&polynomial[0]<=0)return 0;
++    const roots=polynomialRoots(polynomial).filter(t=>(fx+gx*t)>0&&(fy+gy*t)>0);
++    return roots.length?Math.min(...roots):null;
++  }
++  function focusPatch(points,center,focus,x,y) {
++    const dx=x-center[0],dy=y-center[1],fx=focus[0],fy=focus[1],gx=1-fx,gy=1-fy;
++    let best=null;
++    for(let i=0;i<points.length;i++) {
++      const a=points[i],b=points[(i+1)%points.length],ex=b[0]-a[0],ey=b[1]-a[1],ax=a[0]-center[0],ay=a[1]-center[1];
++      const cross=ax*ey-ay*ex;
++      const aa=-cross*gx*gy,bb=dx*ey*gy-dy*ex*gx-cross*(fx*gy+fy*gx),cc=dx*ey*fy-dy*ex*fx-cross*fx*fy;
++      let roots;
++      if(aa===0)roots=bb===0?[]:[-cc/bb];
++      else {
++        const discriminant=bb*bb-4*aa*cc;if(discriminant<0)continue;
++        const root=Math.sqrt(discriminant),q=-.5*(bb+(bb>=0?root:-root));
++        roots=q===0?[-bb/(2*aa)]:[q/aa,cc/q];
++      }
++      for(const t of roots) {
++        if(t<0||t>1)continue;
++        const sx=fx+gx*t,sy=fy+gy*t;if(sx===0||sy===0)continue;
++        const ux=dx/sx,uy=dy/sy;
++        const position=Math.abs(ex)>=Math.abs(ey)?(ux-ax)/ex:(uy-ay)/ey;
++        if(position<0||position>1)continue;
++        best=t;
++      }
++    }
++    return best;
++  }
++  function samplePathGradient(d,x,y,selectedEdge=null) {
++    if(d.wrap===4)return samplePathGradientCore(d,x,y,selectedEdge);
++    const b=d.boundary.bounds,width=b[2]-b[0],height=b[3]-b[1],columns=Math.ceil(width),rows=Math.ceil(height);
++    if(width<=0||height<=0||columns<1||rows<1||columns*rows>16777216)fail('invalid path-gradient tile extent');
++    const u=(x-b[0])*columns/width,v=(y-b[1])*rows/height,ix=Math.floor(u),iy=Math.floor(v),fx=u-ix,fy=v-iy;
++    function index(value,size,flip) {
++      const period=Math.floor(value/size),local=value-period*size;
++      return flip&&Math.abs(period%2)===1?size-1-local:local;
++    }
++    function texel(dx,dy) {
++      const column=index(ix+dx,columns,d.wrap===1||d.wrap===3),row=index(iy+dy,rows,d.wrap===2||d.wrap===3);
++      return samplePathGradientCore(d,b[0]+column*width/columns,b[1]+row*height/rows)||[0,0,0,0];
++    }
++    // Filter the brush texel lattice across the actual repeated/reflected
++    // neighbors. Reflection duplicates the edge texel; a continuous fold alone
++    // cannot reproduce native seams or the two-dimensional center sample.
++    return mixColor(mixColor(texel(0,0),texel(1,0),fx,false),mixColor(texel(0,1),texel(1,1),fx,false),fy,false);
++  }
++  function samplePathGradientCore(d,x,y,selectedEdge=null) {
++    const boundary=d.boundary,center=d.center;
++    if(x===center[0]&&y===center[1])return d.preset?d.preset[d.surround.length>1?0:d.preset.length-1].value:d.centerColor;
++    let hit,inner=0,surround=d.surround[0];
++    if(boundary.kind==='ellipse') {
++      const back=boundary.inverse,q=[back[0]*x+back[2]*y+back[4],back[1]*x+back[3]*y+back[5]],c=boundary.focusCenter;
++      const hits=ellipseRay(c,q[0],q[1]);
++      if(!hits.length)return null;
++      const distance=Math.max(...hits);if(distance<1)return null;
++      hit={distance};
++
++    } else {
++      hit=lastFan(polygonRay(boundary.points,center,x,y).filter(hit=>selectedEdge===null||hit.edge===selectedEdge));
++      if(!hit||hit.distance<1)return null;
++      if(d.surround.length>1)surround=mixColor(d.surround[hit.edge],d.surround[(hit.edge+1)%boundary.points.length],hit.position,d.gamma);
++      if(d.surround.length===1&&boundary.focusPoints){const h=farthest(polygonRay(boundary.focusPoints,center,x,y));if(h)inner=h.distance;else inner=lineFocus(boundary.focusPoints,center,x,y);}
++    }
++    let t=1/hit.distance;
++    if(d.surround.length===1&&(d.focus[0]||d.focus[1])) {
++      if(boundary.kind==='polygon') {
++        if(inner>=1)t=0;else {const patch=focusPatch(boundary.points,center,d.focus,x,y);if(patch!==null)t=patch;}
++      } else {const patch=ellipseFocus(d,x,y);if(patch!==null)t=patch;}
++    }
++    t=Math.max(0,Math.min(1,t));
++    if(d.preset)return gradientSample(d.preset,d.surround.length>1?t:1-t,true,d.gamma);
++    const factor=d.factors?gradientSample(d.factors,1-t,false,false):1-t;
++    return mixColor(surround,d.centerColor,factor,d.gamma);
 +  }
 +  function textureBitmap(data,offset) {
 +    if(data.length-offset<8) fail('missing texture brush image');
@@ -1206,7 +1520,7 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    let definition, descriptor;
 +    const name='turtle-gradient-'+this.ctx._defs.length;
 +    if(type===4) {
-+      if(flags&~0x1e) fail('unsupported linear-gradient brush flags (including gamma correction)');
++      if(flags&~0x9e) fail('unsupported linear-gradient brush flags');
 +      const x=r.float(),y=r.float(),width=r.float(),height=r.float();
 +      if(width<=0 || height<=0) fail('invalid linear-gradient rectangle');
 +      const first=r.uint(),last=r.uint();
@@ -1215,22 +1529,12 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +      // GDI+ playback uses the brush rectangle's horizontal axis. Y reflection
 +      // does not change a linear ramp; X reflection reverses alternate tiles.
 +      const spread=wrap===4?'pad':(wrap===1||wrap===3?'reflect':'repeat');
-+      descriptor={kind:'linear',transform:paint.transform,stops:paint.stops,wrap,x,width};
++      const gamma=!!(flags&0x80);
++      descriptor={kind:'linear',transform:paint.transform,stops:paint.stops,wrap,x,width,gamma,gammaStops:paint.stops.map(stop=>({position:stop.position,value:stop.color})),factors:paint.factors,first:color(first),last:color(last)};
 +      definition='<linearGradient id="'+name+'" gradientUnits="userSpaceOnUse" x1="'+x+'" y1="'+y+'" x2="'+(x+width)+'" y2="'+y+'" spreadMethod="'+spread+'" color-interpolation="sRGB" gradientTransform="matrix('+matrix(paint.transform)+')">'+stopMarkup(paint.stops,false)+'</linearGradient>';
 +    } else {
-+      if(flags&~0xf || !(flags&1)) fail('unsupported path-gradient brush flags/boundary (including focus/gamma)');
-+      if(wrap!==4) fail('unsupported tiled path gradient');
-+      const centerColor=color(r.uint()),center=[r.float(),r.float()],count=r.uint();
-+      if(count<1 || count>4096) fail('invalid path-gradient surrounding color count');
-+      const surround=r.uint();
-+      for(let i=1;i<count;i++) if(r.uint()!==surround) fail('unsupported multicolor path-gradient boundary');
-+      const size=r.uint(),boundary=ellipse(this,data,r.offset,size);r.offset+=size;
-+      if(center.some((value,i)=>Math.abs(value-boundary.center[i])>boundary.tolerance)) fail('unsupported off-center path gradient');
-+      // For radial factors, start/end are boundary/center according to GDI+.
-+      const paint=optional(r,flags,flags&8?color(surround):centerColor,flags&8?centerColor:color(surround),true);r.finish();
-+      const transform=nonsingular(mul(paint.transform,boundary.transform));
-+      descriptor={kind:'radial',transform,stops:paint.stops,wrap};
-+      definition='<radialGradient id="'+name+'" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1" fx="0" fy="0" spreadMethod="pad" color-interpolation="sRGB" gradientTransform="matrix('+matrix(transform)+')">'+stopMarkup(paint.stops,true)+'</radialGradient>';
++      descriptor=pathGradient(this,r,data,flags,wrap);
++      definition='<g id="'+name+'"/>';
 +    }
 +    this.ctx._defs.push(definition);
 +    this.emfPlusObjects[id]={type:'turtleGradientBrush',paint:'url(#'+name+')',descriptor};
@@ -1283,10 +1587,26 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    if(d.cached && d.cached.key===key) return {href:d.cached.href,world,left,top,width:logicalWidth,height:logicalHeight};
 +    ctx._turtleGradientPixels=(ctx._turtleGradientPixels||0)+width*height;
 +    if(ctx._turtleGradientPixels>67108864) fail('aggregate gradient raster budget exceeded');
++    if(d.kind==='pathGradient') {
++      const edges=d.boundary.kind==='polygon'?d.boundary.points.length:1;
++      const focused=d.surround.length===1&&(d.focus[0]||d.focus[1]);
++      const cost=(d.boundary.kind==='polygon'?(focused?4:3):(focused?512:1))*(d.wrap===4?1:4);
++      const work=width*height*edges*cost;
++      ctx._turtlePathGradientRasterWork=(ctx._turtlePathGradientRasterWork||0)+work;
++      if(!Number.isSafeInteger(work)||ctx._turtlePathGradientRasterWork>67108864)fail('aggregate path-gradient raster work limit');
++    }
 +    const inv=d.kind==='hatch'?identity():inverse(mul(world,d.transform));
 +    const pixels=new Uint8Array(width*height*4);
-+    for(let y=0;y<height;y++) for(let x=0;x<width;x++) {
-+      const px=left+(x+.5)/scale,py=top+(y+.5)/scale;
++    const polygon=d.kind==='pathGradient'&&d.boundary.kind==='polygon'&&d.wrap===4;
++    const fan=polygon&&d.surround.length>1;
++    const device=polygon?mul(world,d.transform):null;
++    for(let y=0;y<height;y++) {
++      const spans=polygon?fanScanline(d,device,top+y,fan):null;
++      for(let x=0;x<width;x++) {
++      // Native GDI+ path-gradient scan conversion samples its integer device
++      // lattice, as does the native linear sampler. Hatch/radial sampling stays unchanged.
++      const sample=d.kind==='pathGradient'||d.kind==='linear'?0:.5;
++      const px=left+(x+sample)/scale,py=top+(y+sample)/scale;
 +      if(d.kind==='hatch') {
 +        // Canonical cells use bottom-up rows and high-bit-first columns.
 +        // RenderingOrigin is device-pixel phase and does not inherit world scale.
@@ -1297,15 +1617,22 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +        pixels[i]=Math.round(c[2]);pixels[i+1]=Math.round(c[1]);pixels[i+2]=Math.round(c[0]);pixels[i+3]=Math.round(c[3]*255);continue;
 +      }
 +      const bx=inv[0]*px+inv[2]*py+inv[4],by=inv[1]*px+inv[3]*py+inv[5];
++      if(d.kind==='pathGradient') {
++        let edge=null;if(polygon){for(const span of spans)if(px>=span.start&&px<span.end)edge=span.edge;if(edge===null)continue;}
++        const c=fan?sampleFan(d,spans,px):samplePathGradient(d,bx,by,edge);if(!c)continue;
++        const i=(y*width+x)*4;
++        pixels[i]=Math.round(c[2]);pixels[i+1]=Math.round(c[1]);pixels[i+2]=Math.round(c[0]);pixels[i+3]=Math.round(c[3]*255);continue;
++      }
 +      let t=d.kind==='radial'?Math.sqrt(bx*bx+by*by):(bx-d.x)/d.width;
 +      if(d.kind==='radial' && t>1) continue;
-+      if(d.kind==='linear' && d.wrap!==4) {
++      if(d.kind==='linear') {
 +        const period=Math.floor(t);t-=period;
 +        if((d.wrap===1||d.wrap===3) && Math.abs(period%2)===1) t=1-t;
 +      }
 +      t=Math.max(0,Math.min(1,t));
-+      const c=interpolate(d.stops,t),i=(y*width+x)*4;
++      const c=d.kind==='linear'?(d.factors?mixLinearColor(d.first,d.last,gradientSample(d.factors,t,false,false),d.gamma):gradientSample(d.gammaStops,t,true,d.gamma,true)):interpolate(d.stops,t),i=(y*width+x)*4;
 +      pixels[i]=Math.round(c[2]);pixels[i+1]=Math.round(c[1]);pixels[i+2]=Math.round(c[0]);pixels[i+3]=Math.round(c[3]*255);
++    }
 +    }
 +    const href=globalThis.__turtleBitmap(pixels,width,height,width*4,0x26200A);
 +    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')) fail('native gradient raster encoding failed');
@@ -1373,6 +1700,7 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +  for(const method of ['fill','fillRect','fillText','fillGlyphPaths']) {
 +    const original=SvgContext.prototype[method];
 +    SvgContext.prototype[method]=function(...args) {
++      this._turtleAliasedPaintCoverage=null;
 +      const receipt=this._turtlePaints && this._turtlePaints.get(this.fillStyle);
 +      if(!receipt) return original.apply(this,args);
 +      const first=this._nodes.length,paint=this.fillStyle;
@@ -1384,6 +1712,19 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +      const texture=receipt.brush.descriptor.kind==='texture';
 +      const image=texture?texturePaint(this,receipt,bounds):rasterPaint(this,receipt,bounds);
 +      if(!image)return;
++      if(method==='fillGlyphPaths'&&receipt.brush.descriptor.kind==='pathGradient'&&args[0].coverageID!==undefined) {
++        if(typeof globalThis.__turtleStrokeCoverage!=='function')fail('native aliased stroke coverage unavailable');
++        const coverage=__turtleStrokeCoverage(args[0].coverageID,{left:image.left,top:image.top,width:image.width,height:image.height,world:image.world});
++        if(!coverage||coverage.width!==image.width||coverage.height!==image.height||typeof coverage.href!=='string'||!coverage.href.startsWith('data:image/png;base64,'))fail('invalid native aliased stroke coverage');
++        const id='turtle-gradient-aliased-'+this._defs.length,back=matrix(inverse(image.world));
++        const mask='<image x="'+image.left+'" y="'+image.top+'" width="'+image.width+'" height="'+image.height+'" preserveAspectRatio="none" href="'+escape(coverage.href)+'"/>';
++        this._turtleMaskBytes=(this._turtleMaskBytes||0)+mask.length+512;
++        if(this._turtleMaskBytes>64*1024*1024||this._defs.length>=65536)fail('aliased stroke mask markup budget exceeded');
++        this._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" x="'+image.left+'" y="'+image.top+'" width="'+image.width+'" height="'+image.height+'" style="mask-type:luminance">'+mask+'</mask>');
++        this._nodes.push('<g transform="matrix('+back+')"><image x="'+image.left+'" y="'+image.top+'" width="'+image.width+'" height="'+image.height+'" preserveAspectRatio="none" opacity="'+Math.max(0,Math.min(1,this.globalAlpha))+'" href="'+image.href+'" mask="url(#'+id+')"/></g>');
++        this._turtleAliasedPaintCoverage={method,argument:args[0],start:first,end:this._nodes.length,coverage:['<g transform="matrix('+back+')">'+mask+'</g>']};
++        return;
++      }
 +      const id='turtle-gradient-clip-'+this._defs.length;
 +      // AppKit ignores grouped children/text inside clipPath and evaluates an
 +      // image clip in its parent's local user space before the image transform.
@@ -1493,9 +1834,11 @@ diff --git a/src/turtleGitPaths.js b/src/turtleGitPaths.js
 +  return {decode,trace,svg};
 +};
 diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
+new file mode 100644
+index 0000000..cf3cee4
 --- /dev/null
 +++ b/src/turtleGitPens.js
-@@ -0,0 +1,198 @@
+@@ -0,0 +1,201 @@
 +// Original TurtleGit EMF+ pen playback, MIT. MS-EMFPLUS 2.2.1.7,
 +// 2.2.2.33/34 and drawing records. Native outlines are painted by the existing
 +// bounded solid/gradient/hatch/texture pipeline; no pen becomes a guessed color.
@@ -1591,8 +1934,11 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +    const receipt=this._turtleStrokeReceipt;if(!receipt)return stroke.apply(this,args);
 +    const path=this._d();if(!path)return;
 +    if(path.length>8*1024*1024||typeof globalThis.__turtleStrokePath!=='function')fail('native pen outline adapter unavailable or path budget exceeded');
-+    const outline=__turtleStrokePath(path,receipt.options);
++    const paint=this._turtlePaints&&this._turtlePaints.get(receipt.color);
++    const aliased=paint&&paint.brush.descriptor.kind==='pathGradient'&&!state(paint.owner).antialias;
++    const outline=__turtleStrokePath(path,aliased?{...receipt.options,retainAliasedCoverage:true}:receipt.options);
 +    if(!outline||typeof outline.path!=='string'||outline.path.length>32*1024*1024||!Array.isArray(outline.bounds)||outline.bounds.length!==4||outline.bounds.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('invalid native pen outline');
++    if(aliased&&(typeof outline.coverageID!=='string'||!outline.coverageID.length||outline.coverageID.length>128))fail('native aliased stroke coverage receipt unavailable');
 +    const saved=this.fillStyle;this.fillStyle=receipt.color;
 +    try {this.fillGlyphPaths(outline);}finally{this.fillStyle=saved;}
 +  };
@@ -3043,9 +3389,11 @@ diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
 +  };
 +};
 diff --git a/src/turtleGitSourceCopy.js b/src/turtleGitSourceCopy.js
+new file mode 100644
+index 0000000..7cc8a67
 --- /dev/null
 +++ b/src/turtleGitSourceCopy.js
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,96 @@
 +// Original TurtleGit EMF+ alpha replacement, MIT.
 +// MS-EMFPLUS 2.3.6.2 / 2.1.1.5. Source alpha is paint, never coverage.
 +module.exports=function installSourceCopy({EmfPlusDrawer,SvgContext,fail,escape,matrix,currentMatrix,masked,raw}) {
@@ -3071,6 +3419,10 @@ diff --git a/src/turtleGitSourceCopy.js b/src/turtleGitSourceCopy.js
 +      const start=this._nodes.length;
 +      let result;batch.depth++;
 +      try {result=paint.apply(this,args);}finally{batch.depth--;}
++      const aliased=this._turtleAliasedPaintCoverage;
++      if(aliased&&aliased.method===name&&aliased.argument===args[0]&&aliased.start===start&&aliased.end===this._nodes.length) {
++        remember(this,batch,start,aliased.coverage,name==='fillGlyphPaths'?args[0].bounds:null);return result;
++      }
 +      // Generate the identical concrete primitive once in opaque white. Never
 +      // infer shape coverage from source alpha or inspect generated SVG strings.
 +      const nodes=this._nodes,style=this.fillStyle,alpha=this.globalAlpha;

@@ -16,7 +16,7 @@ import TurtleGitCore
     static func pixel(_ image: ComparisonImage?, _ samples: [Sample], _ label: String) throws {
         guard let image else { throw Failure(message: "Missing actual decoded image " + label) }
         let width = image.pixels.width, height = image.pixels.height
-        try require(width == 64 && height == 64, "Incorrect actual helper canvas " + label)
+        try require(width == 65 && height == 65, "Incorrect actual helper canvas " + label)
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         try bytes.withUnsafeMutableBytes { storage in
             guard let space = CGColorSpace(name: CGColorSpace.sRGB), let context = CGContext(data: storage.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else { throw Failure(message: "Could not inspect helper pixels") }

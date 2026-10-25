@@ -89,7 +89,9 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 }
                 try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return descendants(owner.window!.contentView!).filter {$0 is ImageComparisonScrollView}.count == 2}
                 try require(!descendants(owner.window!.contentView!).contains {($0 as? NSTextView).map {["Base file","Destination file"].contains($0.accessibilityLabel() ?? "")} == true},"IDiff installed a Merge text editor")
-                let dimensions=(compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? (64,64) : sample.lastPathComponent.hasPrefix("plus-formatted-") ? (240,180):(96,64)
+                let interiorDimensions=(compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? (64,64) : sample.lastPathComponent.hasPrefix("plus-formatted-") ? (240,180):(96,64)
+                let emf=sample.pathExtension.lowercased()=="emf"
+                let dimensions=(interiorDimensions.0+(emf ? 1:0),interiorDimensions.1+(emf ? 1:0))
                 try require(owner.model.imageComparison?.base?.pixels.width == dimensions.0 && owner.model.imageComparison?.base?.pixels.height == dimensions.1 && owner.window?.title.hasSuffix("TurtleGitIDiff") == true,"Metafile \(sample.lastPathComponent) was not rendered at its expected \(dimensions.0)x\(dimensions.1) dimensions in native IDiff; actual=\(owner.model.imageComparison?.base?.pixels.width ?? -1)x\(owner.model.imageComparison?.base?.pixels.height ?? -1); title=\(owner.window?.title ?? "none")")
                 try require(owner.model.document?.base.bytes == inputs[index] && owner.model.document?.destination.bytes == bad && (try Data(contentsOf:left)) == inputs[index] && (try Data(contentsOf:right)) == bad,"Metafile rendering rewrote original bytes")
                 if classicPatternBrushes,let image=owner.model.imageComparison?.base?.pixels {
@@ -117,7 +119,12 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
                     pair.model.load();try await wait{!pair.model.busy && pair.model.document != nil}
                     guard let a=pair.model.imageComparison?.base?.pixels,let b=pair.model.imageComparison?.destination?.pixels else{throw Failure(message:"Embedded independent control failed; \(comparisonState(pair))")}
-                    try require(try raster(a)==raster(b),"Embedded native independent pixel control mismatch: \(names)")
+                    if names[1].hasSuffix(".png") {
+                        try require(a.width==65 && a.height==65 && b.width==64 && b.height==64,"EMF natural extent and independent PNG extent differ from their source contracts")
+                        try require(try raster(a,interior:CGSize(width:64,height:64))==raster(b),"Embedded native independent top-left pixel control mismatch: \(names)")
+                    } else {
+                        try require(try raster(a)==raster(b),"Embedded native independent pixel control mismatch: \(names)")
+                    }
                     try require(pair.model.document?.base.bytes==leftBytes && pair.model.document?.destination.bytes==rightBytes,"Embedded comparison replaced original wire bytes")
                     pair.close()
                 }
@@ -269,7 +276,12 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try await wait {!conflict.model.busy}
             let conflictWidth=(compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? 64:96
             let conflictDimensions=ImageConflictSide.allCases.map {side in "\(side)=\(conflict.model.panes[side]?.currentImage(base:true)?.pixels.width ?? -1)x\(conflict.model.panes[side]?.currentImage(base:true)?.pixels.height ?? -1)"}.joined(separator:", ")
-            try require(conflict.model.images.count == 3 && ImageConflictSide.allCases.allSatisfy {conflict.model.canSelect($0) && conflict.model.panes[$0]?.currentImage(base:true)?.pixels.width == conflictWidth && conflict.model.panes[$0]?.currentImage(base:true)?.pixels.height == 64},"Three-side metafile conflict failed expected \(conflictWidth)x64 decode; samples=\([samples[wmfIndex].lastPathComponent,samples[classicIndex].lastPathComponent,samples[plusIndex].lastPathComponent]); actual \(conflictDimensions); error=\(conflict.model.error ?? "none")")
+            let sourceIndices:[ImageConflictSide:Int]=[.base:wmfIndex,.theirs:classicIndex,.mine:plusIndex]
+            try require(conflict.model.images.count == 3 && ImageConflictSide.allCases.allSatisfy {side in
+                guard let source=sourceIndices[side] else{return false}
+                let emf=samples[source].pathExtension.lowercased()=="emf",width=conflictWidth+(emf ? 1:0),height=64+(emf ? 1:0)
+                return conflict.model.canSelect(side) && conflict.model.panes[side]?.currentImage(base:true)?.pixels.width==width && conflict.model.panes[side]?.currentImage(base:true)?.pixels.height==height
+            },"Three-side metafile conflict failed expected \(conflictWidth)x64 decode; samples=\([samples[wmfIndex].lastPathComponent,samples[classicIndex].lastPathComponent,samples[plusIndex].lastPathComponent]); actual \(conflictDimensions); error=\(conflict.model.error ?? "none")")
             conflict.model.reload();try await wait {!conflict.model.busy}
             try require(conflict.model.images.count == 3,"Metafile conflict reload lost an image")
             try require(conflict.model.document.contents[.base]==inputs[wmfIndex] && conflict.model.document.contents[.theirs]==inputs[classicIndex] && conflict.model.document.contents[.mine]==inputs[plusIndex],"Metafile conflict decoding rewrote source stage encodings")
@@ -290,7 +302,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             let patternHead=try await patternRepo.run(["rev-parse","HEAD"]).stdout,patternIndex=try Data(contentsOf:patternWork.appendingPathComponent(".git/index")),patternWorking=try Data(contentsOf:patternFile)
             let patternConflict=track(ImageConflictWindowController(repository:patternRepo,access:nil,document:patternDocument,preferences:prefs))
             try await wait {!patternConflict.model.busy}
-            try require(patternConflict.model.images.count==3 && ImageConflictSide.allCases.allSatisfy {patternConflict.model.canSelect($0) && patternConflict.model.panes[$0]?.currentImage(base:true)?.pixels.width==96 && patternConflict.model.panes[$0]?.currentImage(base:true)?.pixels.height==64},"Region/hatch/texture conflict panes failed to decode: \(patternConflict.model.error ?? "none")")
+            try require(patternConflict.model.images.count==3 && ImageConflictSide.allCases.allSatisfy {patternConflict.model.canSelect($0) && patternConflict.model.panes[$0]?.currentImage(base:true)?.pixels.width==97 && patternConflict.model.panes[$0]?.currentImage(base:true)?.pixels.height==65},"Region/hatch/texture conflict panes failed to decode: \(patternConflict.model.error ?? "none")")
             try require(patternConflict.model.document.contents[.base]==regionBytes && patternConflict.model.document.contents[.theirs]==hatchBytes && patternConflict.model.document.contents[.mine]==textureBytes,"Region/pattern conflict decoding rewrote original stages")
             patternConflict.model.reload();try await wait {!patternConflict.model.busy}
             try require(patternConflict.model.images.count==3,"Region/pattern conflict reload lost a side")
@@ -313,7 +325,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             let rawHead=try await rawRepo.run(["rev-parse","HEAD"]).stdout,rawIndex=try Data(contentsOf:rawWork.appendingPathComponent(".git/index")),rawWorking=try Data(contentsOf:rawFile)
             let rawConflict=track(ImageConflictWindowController(repository:rawRepo,access:nil,document:rawDocument,preferences:prefs))
             try await wait {!rawConflict.model.busy}
-            try require(rawConflict.model.images.count==3 && ImageConflictSide.allCases.allSatisfy {rawConflict.model.canSelect($0) && rawConflict.model.panes[$0]?.currentImage(base:true)?.pixels.width==96 && rawConflict.model.panes[$0]?.currentImage(base:true)?.pixels.height==64},"Indexed/16-bit/texture conflict panes failed to decode: \(rawConflict.model.error ?? "none")")
+            try require(rawConflict.model.images.count==3 && ImageConflictSide.allCases.allSatisfy {rawConflict.model.canSelect($0) && rawConflict.model.panes[$0]?.currentImage(base:true)?.pixels.width==97 && rawConflict.model.panes[$0]?.currentImage(base:true)?.pixels.height==65},"Indexed/16-bit/texture conflict panes failed to decode: \(rawConflict.model.error ?? "none")")
             try require(rawConflict.model.document.contents[.base]==indexedBytes && rawConflict.model.document.contents[.theirs]==packedBytes && rawConflict.model.document.contents[.mine]==rawTextureBytes,"Indexed/16-bit conflict decoding rewrote original stages")
             rawConflict.model.reload();try await wait {!rawConflict.model.busy}
             try require(rawConflict.model.images.count==3,"Indexed/16-bit conflict reload lost a side")
@@ -389,7 +401,12 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         let p=(y*image.width+x)*4,actual=Array(bytes[p..<p+4]).map(Int.init)
         try require(zip(actual.prefix(3),expected).allSatisfy{pair in abs(pair.0-pair.1)<=3} && actual[3]==255,label+" sample(\(x),\(y))=\(actual), expected=\(expected)")
     }
-    private static func raster(_ image:CGImage)throws->Data {
+    private static func raster(_ source:CGImage,interior:CGSize?=nil)throws->Data {
+        let image:CGImage
+        if let interior {
+            guard let cropped=source.cropping(to:CGRect(origin:.zero,size:interior)),cropped.width==Int(interior.width),cropped.height==Int(interior.height) else{throw Failure(message:"Cannot inspect exact top-left reference region")}
+            image=cropped
+        } else {image=source}
         var bytes=Data(count:image.width*image.height*4)
         let rendered=bytes.withUnsafeMutableBytes { storage -> Bool in
             guard let context=CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return false}

@@ -31,7 +31,7 @@ private extension NSWindow {
     static func pixels(_ image:ComparisonImage?,_ expected:[Sample],_ name:String)throws {
         guard let image else {throw Failure(message:"Missing actual bundled decoder image "+name)}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==64 && height==64 && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
+        try require(width==65 && height==65 && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes { buffer in
             guard let color=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:color,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(message:"Pixel inspection failed")}

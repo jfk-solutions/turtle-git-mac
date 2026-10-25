@@ -237,7 +237,10 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 - Native dark appearance, signed Finder invocation and Store security scopes.
 - Full signed/physical cancellation acceptance; the October 13 lifecycle batch
   adds Git token propagation, process reaping and closed-window request ownership.
-- Invalid UTF-8 path bytes and nonstandard tree modes need a defined native policy.
+- The earlier invalid UTF-8 path/mode policy gap is superseded by the
+  [namespace continuation](REPOSITORY-BROWSER-NAMESPACE-PARITY.md): byte identity,
+  tree-OID navigation, stored-object inspection and explicit unrepresentable
+  filesystem-action refusal are implemented. Full raw-byte delivery remains open.
 
 The source inventory keeps this dialog and command files partial. The complete
 application, all source commands and App Store distribution remain unfinished.

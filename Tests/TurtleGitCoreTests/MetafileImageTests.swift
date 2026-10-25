@@ -10,6 +10,14 @@ final class MetafileImageTests: XCTestCase {
     private let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/Metafile")
     private func data(_ name: String) throws -> Data { try Data(contentsOf: fixtures.appendingPathComponent(name)) }
     private func image(_ name: String) throws -> ComparisonImage { try XCTUnwrap(ComparisonImage(bytes: data(name)), "Could not render \(name)") }
+    /// Natural EMF extents include GDI+'s final device pixel. Geometry oracles
+    /// below retain their original top-left viewport; crop, never rescale it.
+    private func interior(_ image:ComparisonImage,width:Int,height:Int,emf:Bool = true,name:String = "")throws->CGImage {
+        let edge=emf ? 1:0
+        XCTAssertEqual(image.pixels.width,width+edge,name)
+        XCTAssertEqual(image.pixels.height,height+edge,name)
+        return try XCTUnwrap(image.pixels.cropping(to:CGRect(x:0,y:0,width:width,height:height)),name)
+    }
     private func rgb(_ image: ComparisonImage, _ x: Int, _ y: Int) throws -> [CGFloat] {
         // NSBitmapImageRep.colorAt can return generic calibrated RGB despite an
         // sRGB CGImage profile; converting that NSColor changes pure magenta.
@@ -139,7 +147,8 @@ final class MetafileImageTests: XCTestCase {
     func testWMFAndEMFRenderCapturedVectorColorsAtIntrinsicSize() throws {
         for name in ["clip-vector.wmf","classic-vector.emf"] {
             let value = try image(name)
-            XCTAssertEqual(value.size,CGSize(width:96,height:64))
+            let edge=name.hasSuffix(".emf") ? 1:0
+            XCTAssertEqual(value.size,CGSize(width:96+edge,height:64+edge))
             try primary(value,0,12,12)
             if name.hasSuffix("wmf") {
                 let outside = try rgb(value,35,35)
@@ -149,7 +158,7 @@ final class MetafileImageTests: XCTestCase {
     }
     func testFrameAndDeviceMetadataDetermineSizeAndDPI() throws {
         let physical = try image("physical-frame.emf")
-        XCTAssertEqual(physical.size,CGSize(width:192,height:128))
+        XCTAssertEqual(physical.size,CGSize(width:193,height:129))
         XCTAssertEqual(try XCTUnwrap(physical.dpiX),96,accuracy:0.1)
         XCTAssertEqual(try XCTUnwrap(physical.dpiY),96,accuracy:0.1)
         let wmf = try image("clip-144dpi.wmf")
@@ -159,7 +168,7 @@ final class MetafileImageTests: XCTestCase {
     }
     func testEMFPlusTransformsClipsAndIndexedRestoreRenderDifferentTargets() throws {
         let value = try image("plus-transform.emf")
-        XCTAssertEqual(value.size,CGSize(width:96,height:64))
+        XCTAssertEqual(value.size,CGSize(width:97,height:65))
         try primary(value,0,20,12)
         try primary(value,2,58,12)
         let outside = try rgb(value,34,12)
@@ -181,7 +190,7 @@ final class MetafileImageTests: XCTestCase {
     func testClassicAndPlusBitmapsDecodeOriginalChannelOrderAndKeepTextFace() throws {
         for name in ["classic-bitmap.emf","plus-bitmap-text.emf"] {
             let value = try image(name)
-            XCTAssertEqual(value.size,CGSize(width:96,height:64))
+            XCTAssertEqual(value.size,CGSize(width:97,height:65))
             // Sample the source-pixel centers after each captured destination
             // transform; shared coordinates would sample different interpolation.
             let first = name.hasPrefix("classic") ? 16 : 12
@@ -211,7 +220,7 @@ final class MetafileImageTests: XCTestCase {
     }
     func testLinearGradientPresetColorsComposeBrushAndWorldTransforms() throws {
         let value = try image("plus-gradient-transform.emf")
-        XCTAssertEqual(value.size, CGSize(width: 96, height: 64))
+        XCTAssertEqual(value.size, CGSize(width: 97, height: 65))
         // Normalized horizontal-axis fractions through brush [0,48,-24,0,64,4]
         // then world Translate(8,4), independent of renderer-generated SVG.
         try primary(value, 0, 70, 10)
@@ -262,16 +271,16 @@ final class MetafileImageTests: XCTestCase {
         let paints=try embeddedPaints("plus-gradient-wrap.emf")
         XCTAssertEqual(paints.count,2)
         if paints.count==2{
-            // x24.5 is .5/16 into period1 after world translation8.
-            // Three equally spaced red/green/blue stops give red15/16
-            // for Tile and blue15/16 for FlipX, with green1/16.
+            // Independent Windows linear-gradient controls establish integer device
+            // sampling. x24 is exactly period1 after world translation8:
+            // Tile restarts at red; FlipX starts at the reflected blue endpoint.
             for (index,y) in [(0,20),(1,52)]{
-                let raw=try paints[index].sample(24,y),expected:[CGFloat]=index==0 ? [15.0/16,1.0/16,0,1]:[0,1.0/16,15.0/16,1]
+                let raw=try paints[index].sample(24,y),expected:[CGFloat]=index==0 ? [1,0,0,1]:[0,0,1,1]
                 for channel in 0..<4{XCTAssertEqual(raw[channel],expected[channel],accuracy:1.0/255,"Wrapped source pixel differs before native SVG: \(paints[index].diagnostic)")}
             }
         }
         let value = try image("plus-gradient-wrap.emf")
-        // Each sample is just inside the second period at the same normalized
+        // Each sample is at the second period boundary at the same normalized
         // horizontal position: Tile restarts red; TileFlipX reflects from blue.
         try primary(value, 0, 24, 20)
         try primary(value, 2, 24, 52)
@@ -341,7 +350,7 @@ final class MetafileImageTests: XCTestCase {
         ]
         func check(_ name: String, _ expected: [Bool]) throws {
             let value = try image(name)
-            XCTAssertEqual(value.size, CGSize(width: 96, height: 64))
+            XCTAssertEqual(value.size, CGSize(width: 97, height: 65))
             for (x, painted) in zip(samples, expected) {
                 if painted { try primary(value, 0, x, 24) }
                 else { XCTAssertTrue(try rgb(value, x, 24).allSatisfy { $0 > 0.9 }, "\(name) painted excluded x=\(x)") }
@@ -676,12 +685,12 @@ final class MetafileImageTests: XCTestCase {
     /// Pixel geometry is measured from actual final output, independently of the
     /// CoreText layout bridge. No native glyph-path/bounds API is used as oracle.
     private func textInk(_ name:String,colored:Bool=false)throws->TextInk {
-        let value=try image("plus-formatted-"+name+".emf"),width=value.pixels.width,height=value.pixels.height
-        XCTAssertEqual(width,240);XCTAssertEqual(height,180)
+        let value=try image("plus-formatted-"+name+".emf"),width=240,height=180
+        let cropped=try interior(value,width:width,height:height,name:name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes{storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none;context.draw(value.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+            context.interpolationQuality = .none;context.draw(cropped,in:CGRect(x:0,y:0,width:width,height:height))
         }
         let points=Set((0..<(width*height)).filter{let offset=$0*4;return bytes[offset+3]>128 && (colored ? bytes[offset+1]<128 : bytes[offset]<128 && bytes[offset+1]<128 && bytes[offset+2]<128)})
         return TextInk(width:width,height:height,points:points)
@@ -837,7 +846,7 @@ final class MetafileImageTests: XCTestCase {
     /// independent Boolean geometry oracle. No generated SVG path/mask is parsed.
     private func classicClip(_ name: String, _ expected: (Int, Int) -> Bool) throws {
         let value = try image("classic-clip-" + name + ".emf")
-        XCTAssertEqual(value.pixels.width, 96, name); XCTAssertEqual(value.pixels.height, 64, name)
+        let cropped=try interior(value,width:96,height:64,name:name)
         var rgba = [UInt8](repeating: 0, count: 96 * 64 * 4)
         try rgba.withUnsafeMutableBytes { storage in
             let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
@@ -845,7 +854,7 @@ final class MetafileImageTests: XCTestCase {
                 bitsPerComponent: 8, bytesPerRow: 96 * 4, space: space,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
             context.interpolationQuality = .none
-            context.draw(value.pixels, in: CGRect(x: 0, y: 0, width: 96, height: 64))
+            context.draw(cropped, in: CGRect(x: 0, y: 0, width: 96, height: 64))
         }
         var wrong: [String] = []
         for y in stride(from: 2, to: 64, by: 4) {
@@ -970,8 +979,8 @@ extension MetafileImageTests {
     }
     private func metafilePixels(_ name:String) throws -> PenPixels {
         let value = try image(name)
-        let width = value.pixels.width, height = value.pixels.height
-        XCTAssertEqual(width, 96, name); XCTAssertEqual(height, 64, name)
+        let width=96,height=64
+        let cropped=try interior(value,width:width,height:height,emf:name.hasSuffix(".emf"),name:name)
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         try bytes.withUnsafeMutableBytes { storage in
             let context = try XCTUnwrap(CGContext(data: storage.baseAddress, width: width, height: height,
@@ -979,7 +988,7 @@ extension MetafileImageTests {
                 space: try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB)),
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
             context.interpolationQuality = .none
-            context.draw(value.pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
+            context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
         return .init(width: width, height: height, bytes: bytes)
     }
@@ -1424,12 +1433,12 @@ extension MetafileImageTests {
         for name in ["path-cubic-count","path-rle-overrun","overlong-inset","object-truncated"] {XCTAssertNil(ComparisonImage(bytes:try data("unsupported-pen-custom-"+name+".emf")),name)}
     }
     private func positionedInk(_ bytes:Data)throws->TextInk {
-        let rendered=try XCTUnwrap(ComparisonImage(bytes:bytes)),width=rendered.pixels.width,height=rendered.pixels.height
-        XCTAssertEqual(width,96);XCTAssertEqual(height,64)
+        let rendered=try XCTUnwrap(ComparisonImage(bytes:bytes)),width=96,height=64
+        let cropped=try interior(rendered,width:width,height:height)
         var rgba=[UInt8](repeating:0,count:width*height*4)
         try rgba.withUnsafeMutableBytes { storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
-            context.draw(rendered.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+            context.draw(cropped,in:CGRect(x:0,y:0,width:width,height:height))
         }
         return TextInk(width:width,height:height,points:Set((0..<width*height).filter{let p=$0*4;return rgba[p+3]>128 && rgba[p]<128 && rgba[p+1]<128 && rgba[p+2]<128}))
     }
@@ -1585,12 +1594,12 @@ extension MetafileImageTests {
         try booleanPixels(image(name),name:name)
     }
     private func booleanPixels(_ value:ComparisonImage,name:String)throws->PenPixels {
-        let width=value.pixels.width,height=value.pixels.height
-        XCTAssertEqual(width,64,name);XCTAssertEqual(height,64,name)
+        let width=64,height=64
+        let cropped=try interior(value,width:width,height:height,emf:name.hasSuffix(".emf"),name:name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes {storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none;context.draw(value.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+            context.interpolationQuality = .none;context.draw(cropped,in:CGRect(x:0,y:0,width:width,height:height))
         }
         return .init(width:width,height:height,bytes:bytes)
     }

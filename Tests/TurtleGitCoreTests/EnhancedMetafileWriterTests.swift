@@ -23,13 +23,16 @@ final class EnhancedMetafileWriterTests: XCTestCase {
     }
     private func pixels(_ bytes: Data) throws -> [UInt8] {
         let image = try XCTUnwrap(ComparisonImage(bytes: bytes), "Actual metafile reader refused exported EMF")
-        XCTAssertEqual(image.pixels.width, 64); XCTAssertEqual(image.pixels.height, 64)
+        XCTAssertEqual(image.pixels.width, 65); XCTAssertEqual(image.pixels.height, 65)
+        // File-backed EMF display includes the final edge pixel. Keep the
+        // authored 64x64 geometry oracle at 1:1 scale without that extra edge.
+        let playback = try XCTUnwrap(image.pixels.cropping(to: CGRect(x: 0, y: 0, width: 64, height: 64)))
         var rgba = [UInt8](repeating: 0, count: 64 * 64 * 4)
         try rgba.withUnsafeMutableBytes { memory in
             let context = try XCTUnwrap(CGContext(data: memory.baseAddress, width: 64, height: 64, bitsPerComponent: 8,
                 bytesPerRow: 256, space: try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB)),
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none; context.draw(image.pixels, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+            context.interpolationQuality = .none; context.draw(playback, in: CGRect(x: 0, y: 0, width: 64, height: 64))
         }
         return rgba
     }

@@ -617,6 +617,8 @@ private final class NativeStrokeGeometry {
         }
     }
     private var inputPoints=0, outlinePoints=0, markupBytes=0, primitives=0
+    private var coveragePaths:[String:CGPath]=[:]
+    private var coveragePoints=0, coveragePixels=0
     private let maximumPoints=1_048_576
     private static func invalid(_ text:String)->ConversionError {.invalid("Metafile pen: "+text)}
     private func number(_ options:JSValue,_ name:String,_ fallback:Double)->Double {
@@ -1120,7 +1122,44 @@ private final class NativeStrokeGeometry {
         }
         if let serializationError {throw serializationError}
         let bounds=transformed.boundingBoxOfPath
-        return ["path":commands.joined(separator:" "),"bounds":transformed.isEmpty ? [0.0,0.0,0.0,0.0]:[Double(bounds.minX),Double(bounds.minY),Double(bounds.maxX),Double(bounds.maxY)]]
+        var receipt:[String:Any] = ["path":commands.joined(separator:" "),"bounds":transformed.isEmpty ? [0.0,0.0,0.0,0.0]:[Double(bounds.minX),Double(bounds.minY),Double(bounds.maxX),Double(bounds.maxY)]]
+        if options.forProperty("retainAliasedCoverage")?.toBool()==true {
+            guard coveragePaths.count<4096,coveragePoints<=maximumPoints-finalPoints else {throw Self.invalid("retained stroke coverage limit")}
+            coveragePoints += finalPoints
+            let id=UUID().uuidString
+            coveragePaths[id]=transformed
+            receipt["coverageID"]=id
+        }
+        return receipt
+    }
+    /// Binary device-lattice coverage of the exact native pen outline. This is
+    /// separate from brush alpha so SourceCopy clears only geometric coverage.
+    func coverage(_ id:String,options:JSValue)throws->[String:Any] {
+        guard options.isObject,let path=coveragePaths[id] else {throw Self.invalid("unknown stroke coverage receipt")}
+        let left=number(options,"left",.nan),top=number(options,"top",.nan),w=number(options,"width",.nan),h=number(options,"height",.nan)
+        guard left.isFinite,top.isFinite,abs(left)<=1e9,abs(top)<=1e9,w.isFinite,h.isFinite,w>=1,h>=1,w<=32768,h<=32768,w.rounded()==w,h.rounded()==h,w*h<=16777216 else {throw Self.invalid("invalid stroke coverage viewport")}
+        let width=Int(w),height=Int(h),pixels=width*height
+        guard coveragePixels<=67108864-pixels else {throw Self.invalid("aggregate stroke coverage raster limit")}
+        coveragePixels += pixels
+        let m=try array(options,"world",[1,0,0,1,0,0])
+        guard m.count==6,m.allSatisfy({$0.isFinite && abs($0)<=1e9}),abs(m[0]*m[3]-m[1]*m[2])>1e-14 else {throw Self.invalid("invalid stroke coverage transform")}
+        guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:nil,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else {throw Self.invalid("cannot allocate stroke coverage")}
+        context.setAllowsAntialiasing(false)
+        context.setShouldAntialias(false)
+        context.translateBy(x:0,y:CGFloat(height))
+        context.scaleBy(x:1,y:-1)
+        // GDI+ default aliased coverage samples integer device coordinates.
+        context.translateBy(x:CGFloat(-left+0.5),y:CGFloat(-top+0.5))
+        context.concatenate(CGAffineTransform(a:m[0],b:m[1],c:m[2],d:m[3],tx:m[4],ty:m[5]))
+        context.addPath(path)
+        context.setFillColor(red:1,green:1,blue:1,alpha:1)
+        context.fillPath(using:.winding)
+        guard let image=context.makeImage() else {throw Self.invalid("cannot prepare stroke coverage")}
+        let data=NSMutableData()
+        guard let encoder=CGImageDestinationCreateWithData(data,UTType.png.identifier as CFString,1,nil) else {throw Self.invalid("cannot encode stroke coverage")}
+        CGImageDestinationAddImage(encoder,image,nil)
+        guard CGImageDestinationFinalize(encoder),data.length<=32*1024*1024 else {throw Self.invalid("stroke coverage PNG exceeds limit")}
+        return ["href":"data:image/png;base64,"+(data as Data).base64EncodedString(),"width":width,"height":height]
     }
 }
 
@@ -1695,6 +1734,11 @@ private func run() throws {
         catch ConversionError.invalid(let message) { nativeError(message); return [:] }
         catch { nativeError("Metafile pen geometry failed: " + String(describing: error)); return [:] }
     }
+    let strokeCoverage:@convention(block)(String,JSValue)->NSDictionary = { id,options in
+        do {return try strokeGeometry.coverage(id,options:options) as NSDictionary}
+        catch ConversionError.invalid(let message) {nativeError(message);return [:]}
+        catch {nativeError("Metafile stroke coverage failed: "+String(describing:error));return [:]}
+    }
     let regionGeometry=NativeRegionGeometry()
     let regionPath:@convention(block)(JSValue,Double,Double,Bool)->NSDictionary = {rectangles,width,height,frame in
         do{return try regionGeometry.path(rectangles,width,height,frame) as NSDictionary}
@@ -1873,6 +1917,7 @@ private func run() throws {
     context.setObject(layoutText, forKeyedSubscript: "__turtleLayoutText" as NSString)
     context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
+    context.setObject(strokeCoverage,forKeyedSubscript:"__turtleStrokeCoverage" as NSString)
     context.setObject(regionPath,forKeyedSubscript:"__turtleRegionPath" as NSString)
     context.setObject(floodCoverage,forKeyedSubscript:"__turtleFloodCoverage" as NSString)
     context.setObject(embeddedScope,forKeyedSubscript:"__turtleMetafileScope" as NSString)

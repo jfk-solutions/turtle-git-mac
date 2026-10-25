@@ -45,7 +45,7 @@ final class MetafileHighDepthBitmapTests:XCTestCase {
     }
     private func display(_ name:String)throws->Raster {
         let input=try bytes(name),original=input,image=try XCTUnwrap(ComparisonImage(bytes:input),"Native image refused \(name)")
-        XCTAssertEqual(image.size,CGSize(width:64,height:64))
+        XCTAssertEqual(image.size,CGSize(width:65,height:65))
         XCTAssertEqual(try bytes(name),original)
         return try raster(image.pixels)
     }

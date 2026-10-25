@@ -12,7 +12,7 @@ final class MetafileClassicGradientTests:XCTestCase {
     }
     private func raster(_ name:String)throws->Raster {
         let original=try bytes(name),image=try XCTUnwrap(ComparisonImage(bytes:original),name)
-        XCTAssertEqual(image.size,CGSize(width:64,height:64),name)
+        XCTAssertEqual(image.size,CGSize(width:65,height:65),name)
         let width=image.pixels.width,height=image.pixels.height
         var rgba=[UInt8](repeating:0,count:width*height*4)
         try rgba.withUnsafeMutableBytes {buffer in

@@ -11,10 +11,11 @@ import TurtleGitCore
     }
     static func views(_ view:NSView?)->[NSView]{guard let view else{return []};return [view]+view.subviews.flatMap{views($0)}}
     static func drained()->Bool{FileListComparisonSession.activeOperations==0 && ImageConflictWindowModel.activeOperations==0 && ImageComparisonViewModel.activeFileReads==0 && ImageLoadWindowController.activeReleases==0}
-    static func gray(_ image:ComparisonImage?,_ samples:[(Int,Int,Int)],_ label:String)throws {
+    static func gray(_ image:ComparisonImage?,_ samples:[(Int,Int,Int)],_ label:String,emf:Bool=true)throws {
         guard let image else{throw Failure(message:"Missing decoded image: "+label)}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==64 && height==64,"Incorrect raster canvas: "+label)
+        let extent=emf ? 65:64
+        try require(width==extent && height==extent,"Incorrect natural raster canvas: "+label)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes{buffer in
             guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{throw Failure(message:"Cannot inspect native image pixels")}
@@ -57,7 +58,7 @@ import TurtleGitCore
             owner.model.load()
             try await wait{owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.document != nil && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==2}
             try require(owner.model.viewerSelection == .image && owner.window?.title.hasSuffix("TurtleGitIDiff")==true,"ROP inputs did not reach actual native IDiff panes: \(owner.model.error ?? "none")")
-            try gray(owner.model.imageComparison?.base,leftSamples,leftName);try gray(owner.model.imageComparison?.destination,rightSamples,rightName)
+            try gray(owner.model.imageComparison?.base,leftSamples,leftName,emf:left.pathExtension.lowercased()=="emf");try gray(owner.model.imageComparison?.destination,rightSamples,rightName,emf:right.pathExtension.lowercased()=="emf")
             try require(owner.model.document?.base.bytes==context.inputs[left] && owner.model.document?.destination.bytes==context.inputs[right],"Native comparison replaced original WMF/EMF bytes")
             try require(!views(owner.window?.contentView).contains{($0 as? NSTextView).map{["Base file","Destination file"].contains($0.accessibilityLabel() ?? "")}==true},"Native ROP input fell back to text editor")
             owner.close();try await wait{FileListComparisonSession.activeOperations==0}
@@ -104,7 +105,7 @@ import TurtleGitCore
         let owner=context.track(ImageConflictWindowController(repository:repo,access:nil,document:document,preferences:context.prefs))
         try await wait{owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.images.count==3 && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==3}
         try require(ImageConflictSide.allCases.allSatisfy{owner.model.canSelect($0)},"One Boolean metafile stage is not selectable")
-        for side in [ImageConflictSide.base,.theirs] {try gray(owner.model.panes[side]?.currentImage(base:true),[(16,16,102),(4,4,170),(40,16,204)],"Conflict "+side.rawValue)}
+        for side in [ImageConflictSide.base,.theirs] {try gray(owner.model.panes[side]?.currentImage(base:true),[(16,16,102),(4,4,170),(40,16,204)],"Conflict "+side.rawValue,emf:side != .base)}
         try gray(owner.model.panes[.mine]?.currentImage(base:true),[(12,12,240),(30,30,255),(52,12,255)],"Conflict mine")
         try require(owner.model.document.contents[.base]==base && owner.model.document.contents[.theirs]==theirs && owner.model.document.contents[.mine]==mine,"Conflict rendering changed exact stage bytes")
         let prior=owner.model.images.mapValues(\.id),decoder=owner.model.decodeImages

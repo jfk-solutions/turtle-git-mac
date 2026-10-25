@@ -1,0 +1,223 @@
+{
+  "kind": "OriginalPathGradientWireCorpus",
+  "canvas": [
+    64,
+    64
+  ],
+  "notes": "No expected pixels are calculated by the generator. The independent Windows-reference JSON binds sampled cases to exact source bytes. Native-recorded alpha controls are retained separately.",
+  "cases": [
+    {
+      "file": "path-gradient-square.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-triangle.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-quad-offcenter.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-quad-multicolor.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-triangle-multicolor.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-concave.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-center-outside.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-focus-zero.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-focus-xy.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-focus-one.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-focus-offcenter.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-focus-multicolor.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-preset-multicolor.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-blend-multicolor.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-surround-two.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-surround-excess.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-concave-outsidekernel.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-linear-gamma-off.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-linear-gamma-on.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-gamma.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-alpha.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-gamma-alpha.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-brush-transform.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-world-transform.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-sheared.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-wrap-0.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-wrap-1.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-wrap-2.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-wrap-3.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-preset.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-blend.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-cardinal-boundary.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-pen.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-glyph.emf",
+      "classification": "supported-candidate"
+    },
+    {
+      "file": "path-gradient-clip.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-sourcecopy.emf",
+      "classification": "supported-windows-reference"
+    },
+    {
+      "file": "path-gradient-refused-colors-empty.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-surround-excess-after-paint.emf",
+      "classification": "supported-derived-after-paint",
+      "previousDraftName": "path-gradient-refused-colors-excess.emf",
+      "relatedWindowsCase": "path-gradient-surround-excess.emf",
+      "independentlyWindowsRendered": false
+    },
+    {
+      "file": "path-gradient-refused-path-truncated.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-center-nonfinite.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-focus-truncated.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-focus-nonfinite.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-wrap-invalid.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-transform-singular.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-preset-unsorted.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-blend-unsorted.emf",
+      "classification": "malformed"
+    },
+    {
+      "file": "path-gradient-refused-self-crossing.emf",
+      "classification": "valid-unsupported-candidate"
+    },
+    {
+      "file": "path-gradient-refused-multi-subpath.emf",
+      "classification": "valid-unsupported-candidate"
+    },
+    {
+      "file": "path-gradient-refused-raster-work-budget.emf",
+      "classification": "bounded-work-budget",
+      "canvas": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "path-gradient-native-linear-alpha-off.emf",
+      "classification": "supported-windows-reference",
+      "generation": "Retained Windows synthetic recording; not regenerated by this Python wire author"
+    },
+    {
+      "file": "path-gradient-native-linear-alpha-on.emf",
+      "classification": "supported-windows-reference",
+      "generation": "Retained Windows synthetic recording; not regenerated by this Python wire author"
+    }
+  ]
+}

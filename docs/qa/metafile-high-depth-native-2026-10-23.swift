@@ -29,7 +29,7 @@ private extension NSWindow {
     static func pixels(_ image:ComparisonImage?,_ expected:[Sample],_ name:String)throws {
         guard let image else {throw Failure(message:"Missing actual rebuilt decoder image "+name)}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==64 && height==64 && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
+        try require(width==65 && height==65 && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes { buffer in
             guard let color=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:color,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(message:"Pixel inspection failed")}
@@ -49,7 +49,7 @@ private extension NSWindow {
         let source=try c.input("high-depth-argb64-control.emf")
         guard let image=ComparisonImage(bytes:try Data(contentsOf:source)) else{throw Failure(message:"Independent32-bit native alpha control refused")}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==64 && height==64,"Native alpha control extent changed")
+        try require(width==65 && height==65,"Native alpha control extent changed")
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes {storage in
             guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{throw Failure(message:"Native alpha reference raster failed")}

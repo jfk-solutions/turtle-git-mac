@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-Windows-reference-complete; Mac implementation verification pending",
+  "repository": "jfk-solutions/turtle-git-mac",
+  "branch": "codex/metafile-rendering-oracle",
+  "platform": "Windows Server 2022 Datacenter 10.0.20348, runner image 20261022.344.1",
+  "primary_sources": [
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/cfe9439a-f2b6-4663-9032-67ce8feea5aa",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/0008fc6a-b678-41a6-ab99-9be99fc14092",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/d90f9243-3d44-48e5-9baa-1db4ae5394b4",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/1ab04f60-1c58-410f-a29e-d725f5eb9b0f",
+    "https://learn.microsoft.com/en-us/windows/win32/api/gdipluspath/nf-gdipluspath-pathgradientbrush-setfocusscales",
+    "https://learn.microsoft.com/en-us/windows/win32/gdiplus/-gdiplus-applying-gamma-correction-to-a-gradient-use",
+    "https://learn.microsoft.com/en-us/windows/win32/gdiplus/-gdiplus-creating-a-path-gradient-use"
+  ],
+  "method": "Original authored EMF+ records plus independent public native C++ GDI+ constructor and native-recorded playback controls. 64x64 96dpi ARGB bitmap, explicit source/destination 64-pixel rectangle. GetPixel is straight RGBA, top-left; full raw files are row-major RGBA. Expected colors were never produced by the Mac renderer.",
+  "assays": [
+    {
+      "commit": "98f4dd60748e062d013880f1b1545a7c10d86bd2",
+      "run": 40211592419,
+      "job": 121223778351,
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40211592419",
+      "terminal": "success",
+      "cases": 88,
+      "rendered": 87,
+      "scope": "36 authored wires +26 native path controls +26 native-recorded replays. Original authored printer-default framing retained as diagnostic, not final exact expectations. Native controls remain valid.",
+      "artifact": 12605792693,
+      "artifact_sha256": "b5e0ccc909919e216b19004b1b1ef02fed02e7d7f658af810755d4f066a51e79",
+      "artifact_local": "build/qa/path-gradient-windows-2026-10-25/artifact",
+      "samples_sha256": "ce48b8a04eed52612bf75969a62c2ff2da55bf1421de66ff49438b8a098151e4",
+      "log": "build/qa/path-gradient-windows-2026-10-25.log",
+      "log_sha256": "c96d8275e1a3215cac4483ff5c15b3174ede502a8c880ffeededbdfcd243e4fe"
+    },
+    {
+      "commit": "3e12e8b544d1e2b9b5279a53020893e0b72468bc",
+      "run": 40212332279,
+      "job": 121226044661,
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40212332279",
+      "terminal": "success",
+      "cases": 54,
+      "rendered": 53,
+      "scope": "6 framing probes +one corrected36-wire candidate +6 new native linear gamma/RGB/alpha/black-white controls +6 linear replays. Prior26 native path controls were not repeated.",
+      "artifact": 12605504650,
+      "artifact_sha256": "3c913814a53a907893a1c17002814ac31f77a6795b2e5b07a8d2dcc55bf89e7e",
+      "artifact_local": "build/qa/path-gradient-windows-framing-repair-2026-10-25/artifact",
+      "samples_sha256": "b0ef761aee875ce60224ee653585bfd524e2b0e2c727b289a8244f63422054fe",
+      "log": "build/qa/path-gradient-windows-framing-repair-2026-10-25.log",
+      "log_sha256": "e29ca4143d5103585ca62ef249ca166e210a7611d15bf4f0292655a100081e84"
+    },
+    {
+      "commit": "6d55fd8bd0c7c49746a8c2c9d0a553b225ad448b",
+      "run": 40215837603,
+      "job": 121236652147,
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40215837603",
+      "terminal": "success",
+      "cases": 12,
+      "rendered": 12,
+      "scope": "Six new independent native triangle controls (integer, vertices X/Y half-phase, center X/Y half-phase, steep center) and their exact recorded replays. No prior88/54 cases repeated. Authorized after actual Mac checkpoint exposed general Gouraud initialization mismatch.",
+      "artifact": 12607069772,
+      "artifact_sha256": "7590f19ce57ebb33f5824ff3fed7fdb290eafcc99d897a5e27958627a6eb6890",
+      "artifact_local": "build/qa/path-gradient-windows-scanline-2026-10-25/artifact",
+      "samples_sha256": "38361935b1621da40eb313ee76a5cf813f4b402e5a338598cab5c0e4745d8a59",
+      "log": "build/qa/path-gradient-windows-scanline-2026-10-25.log",
+      "log_sha256": "b41511230cd3aac0afbb48ffd7f322153edf3bf04250060248d8b09f78dccc57",
+      "discriminator_rows": "build/qa/path-gradient-windows-scanline-2026-10-25/discriminator-rows.json",
+      "discriminator_rows_sha256": "2fa0bb1ad713102b2198944fe319955a5f0aadc33b9a63cadfd2bf6283f98c91"
+    },
+    {
+      "commit": "6505b69f83a04c5b2990e926d31163403638f074",
+      "run": 40217872337,
+      "job": 121242851242,
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40217872337",
+      "terminal": "completed",
+      "cases": 4,
+      "rendered": 4,
+      "scope": "Four original wires, exact pinned Picture Bitmap natural consumer; existing explicit-reference pixelregions independently compared.",
+      "artifact": 12607913982,
+      "artifact_sha256": "b839cd485be0c255e00e3c87d7e35b4f69b6f8dd5de84c50aa055e8eee95fb23",
+      "receipt": "build/qa/picture-bitmap-windows-2026-10-25/receipt.json",
+      "receipt_sha256": "8fa65c3e7a7c523243bb67bf8ad8eb0dbe262175fc868bb46f442e29c258a87a"
+    },
+    {
+      "commit": "23b120aaeb61592d51f79468a488875faba118e2",
+      "run": 40218480653,
+      "job": 121244674894,
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40218480653",
+      "terminal": "success",
+      "cases": 4,
+      "rendered": 4,
+      "scope": "Four new physical-frame-only square controls, exact pinned Picture Bitmap natural consumer; no priorcases repeated.",
+      "artifact": 12607494805,
+      "artifact_sha256": "19782675befeb42c4c6b5dce9afb0750a2544b90286f59d94918f9236bfc8b5c",
+      "receipt": "build/qa/picture-frame-rounding-windows-2026-10-25/receipt.json",
+      "receipt_sha256": "1a03aa0d25e106d5bbcfcd4da7390d4e2109f3946e005a2d58c39ebb50e510e8"
+    }
+  ],
+  "normalized_expectations": {
+    "file": "Tests/TurtleGitCoreTests/Fixtures/Metafile/path-gradient-windows-reference.json",
+    "sha256": "127291c84337d2e0b79361c88aea5924d4d248ba7e0a270f9a77353c766d8b27",
+    "cases": 37,
+    "samples": 10693,
+    "input_binding": "35 current authored sourceSHA256 values match corrected Windows-played wire bytes; two native-recorded alpha binaries match actual Windows recording and recorded replay samples. Glyph excluded.",
+    "tolerance": 3,
+    "native_alpha_recordings_added": 2,
+    "initial_authored_snapshot": {
+      "sha256": "80b39b81a0cb1de531347cb5386a3adf8572d158ba3bf7839be72277aed01ba1",
+      "cases": 35,
+      "samples": 10115
+    }
+  },
+  "observations": {
+    "framing": "Explicit UnitPixel or native display-header flag independently removes printer-default scaling. Square interior RGB becomes byte-identical to native direct control (max error zero). Bounds63 alone leaves initial mean RGB error9.15/max23. Corrected candidate uses display header, explicit pixel scale1 and inclusive63 bounds. Metafile natural bounds are64.9874 and reported65px; assay deliberately uses explicit64px playback and makes no natural-size claim.",
+    "boundary_points": "Four-point BoundaryPointData and explicit closed-line PathData square agree in all4096 pixels. Both native AddPolygon and point constructor record BoundaryPointData flags0 and agree bytewise. MS specification calls that representation cardinal; actual Windows recorder/playback establishes the bounded polygon compatibility observation.",
+    "focus": "Focus(0,0) matches default; (1,1) fills painted region with center color. Offcenter(20.5,24.5), focus(.3,.7) yields pure-center x17..31, consistent with scaling around configured center rather than bounding centroid. Endpoint support is observed Windows behavior beyond specification exclusive-endpoint prose.",
+    "gamma_alpha": "Native path opaque gamma is consistent with power2.2 (mean0.325/max1 versus quantized baseline over1920pixels); this is empirical, not a normative formula claim. Path and separately measured linear alpha interpolate associated color/alpha, then expose straight GetPixel RGB. Example native path at(20,24) normal=[163,0,88,95], gamma=[209,0,158,95]; native linear at(32,32) normal=[170,0,81,97], gamma=[212,0,152,97].",
+    "compositing": "SourceCopy on a larger target rectangle clears outside the path-gradient domain to transparent RGBA0; it does not preserve prior white there.",
+    "nonconvex_and_outside_center": "An outside center paints beyond the original polygon toward that center. A concave outside-kernel case paints part of the notch. Strict original-polygon containment would reject observed painted points. Farthest center-ray/fan interpretation is a mathematical inference to be validated by actual samples.",
+    "partial_colors": "Native SetSurroundColors with2 colors on4 vertices records4 colors by repeating the last. Authored wire with2 colors and authored excess5 colors both render; they must not be called structurally malformed merely from count!=vertexcount. Wire interpretation remains bound to recorded samples, not native setter expansion assumptions.",
+    "wrap": "Tile and flip modes paint beyond original boundary; Clamp does not, except outside-center/fan extension. Reflection pixel phase and multicolor interpolation differ from a naive unquantized radial formula; final painter must meet actual independent samples.",
+    "gouraud_integer_distance_model": {
+      "kind": "Original numeric reconstruction from actual independent native full-frame pixels; not copied Wine code",
+      "algorithm": "Coverage uses ceil intersections of original device edges. Endpoint color weights use absolute integer-distance counters on the major device axis, truncating the axis extent. The left span endpoint owns the carry between truncated extent and separately truncated endpoints. Horizontal color interpolation then uses integer covered endpoints. Uniform-color path shading retains its distinct analytic profile.",
+      "proof": "build/qa/path-gradient-major-axis-proof-2026-10-25.json",
+      "proof_sha256": "0b0fa672ecabe03953519eb91bc20b847710d88a9002a93fca738a2c5aa5319f",
+      "verified_multicolor_full_frames": 10,
+      "maximum_channel_difference": 1,
+      "samples_above_existing_tolerance_3": 0,
+      "limits": "Numeric candidate proof only; the unchanged37-case production runtime checkpoint remains required. Positive subpixel major-axis length below1 is explicitly refused when its integer counter denominator is zero."
+    },
+    "natural_canvas": {
+      "consumer": "Pinned Picture.cpp Bitmap(filename,FALSE)",
+      "policy": "The inclusive round(frame extent at 96 dpi)+1 policy applies only to the top-level file Bitmap consumer. Embedded metafiles retain their prior logical frame extent and captured device DPI, consistently for inspection, live replay and isolated rasterization. WMF remains unchanged.",
+      "source": "Central renderDocument distinguishes original file input from a declared embedded image. Fresh parsing applies the appropriate profile once.",
+      "source_sha256": "48bc67be8b493717c01a1b86d97d122e94b5f7fd8589c9c987ceec3c643a4e08",
+      "canonical_patch_sha256": "4b30c8d498b30f3fbaae6b317fb128db6353530a7371b0e602fbd83c20dba966",
+      "evidence": "Authored natural dimensions are 65 by 65; native alpha recordings are 64 by 64. Raw extents 64.1008, 64.4031, 64.5921 and 64.8945 produce dimensions 65, 65, 66 and 66. All natural top-left 64 by 64 regions are byte-identical to the earlier reference. No rescale or tolerance revision.",
+      "validation": "Production helper/Core/native validation pending root checkpoint.",
+      "initial_global_policy_source_sha256": "7dcc3cdca375446a7e04024c6439ff54c4f3549341df669df77ffe1a8cec2f6d",
+      "initial_global_policy_canonical_patch_sha256": "5264e79f055f9a4af03ed43ce5f56ee642a1d404cdbd754f7a85dde186a021ea",
+      "actual_global_child_regression": {
+        "log": "build/qa/metafile-path-gradient-inclusive-core-2026-10-25.log",
+        "cause": "The first global inclusive implementation also enlarged embedded children, changing texture periods and isolated raster dimensions. Independent raw-bitmap comparisons for wrap modes 0\u20133 and stroke/copy exposed maximum deltas of 255.",
+        "repair": "Use the original child logical-frame/captured-DPI profile. No raw-bitmap control pixels or tolerances changed. This is preservation of the documented native display extension, not invented Windows GetWidth evidence.",
+        "validation": "Affected helper/Core recheck pending root checkpoint."
+      }
+    },
+    "remaining_gamma_and_tile_repair": {
+      "linear_gamma": "Sixteen factor intervals: associated-alpha/power-2.2 node colors followed by color interpolation. Path gamma remains unchanged.",
+      "path_wrapping": "Bilinear sampling of an integer brush texel lattice, with repeated or reflected neighbor indices. Four-sample work is charged to the existing budget.",
+      "probe": "build/qa/path-gradient-gamma-tile-source-probe-2026-10-25.json",
+      "probe_sha256": "ce6a42622ab58602cc26ce512256d1af52eb6d19deb1ef4d4828b01dacf4c54e",
+      "scope": "Actual current JavaScript functions compared with frozen Windows data: four wrap full frames and opaque/alpha gamma rows have maximum channel error 1, with no errors above 3. This is not complete helper, Core or native verification."
+    }
+  },
+  "excluded": [
+    {
+      "case": "path-gradient-glyph.emf",
+      "reason": "Windows DrawImage returned GDI+ status9 in both assays; no cross-platform font/glyph exact expected pixels enrolled."
+    },
+    {
+      "case": "path-gradient-refused-raster-work-budget.emf",
+      "reason": "Added after original48-wire snapshot; refused-work-budget input only, not Windows assayed."
+    }
+  ],
+  "limits": [
+    "Five bounded Windows reference runs: initial assay, framing repair, six new triangle controls, exact Picture consumer on four wires, and four new physical-frame rounding controls. Each affected assay scope is retained; this task did not run a complete Mac Core suite, native receiver or shipping app verification.",
+    "No whole Windows corpus, arbitrary curved path, font outline, color-managed-device, signed sandbox or complete antialias equality claim.",
+    "Original C++ source, original generator snapshot and reference-only framing reconstruction script are retained on the immutable oracle branch commits. Main application/workflow source and protected user WIP were not changed by the oracle."
+  ],
+  "fixture_name_history": [
+    {
+      "original": "path-gradient-refused-colors-excess.emf",
+      "current": "path-gradient-surround-excess-after-paint.emf",
+      "measurement": "Skipped by Windows assay; positive compatibility derivative of sampled path-gradient-surround-excess.emf, with prior red primitive. Not an independent measured pixel oracle."
+    }
+  ],
+  "native_recorded_alpha_enrollment": {
+    "cases": [
+      "path-gradient-native-linear-alpha-off.emf",
+      "path-gradient-native-linear-alpha-on.emf"
+    ],
+    "source": "repair assay native-linear-2.emf/native-linear-3.emf byte-for-byte",
+    "expected": "actual replay-native-linear-2/3 samples",
+    "imageSize": [
+      64,
+      64
+    ],
+    "dpi": [
+      95.9764,
+      96.0946
+    ],
+    "bounds": [
+      0,
+      0,
+      63.9892,
+      63.9911
+    ],
+    "boundsUnit": 2
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded_profile_core_and_native_passed_signed_and_complete_format_parity_unproven",
+  "scope": "Path-gradient actual decoder checkpoint; no repaired native workflow or signed installation acceptance claimed.",
+  "logs": {
+    "metafile-path-gradient-core-2026-10-25.log": {
+      "path": "build/qa/metafile-path-gradient-core-2026-10-25.log",
+      "sha256": "10d3cf08ae313447d7cea0450ea81bbcce31d432b7d6b3567b1203e074f0ca52"
+    },
+    "metafile-path-gradient-runtime-repair-2026-10-25.log": {
+      "path": "build/qa/metafile-path-gradient-runtime-repair-2026-10-25.log",
+      "sha256": "f5f2c9315efb444ff5a5688ce402a809cc7cd656537557bd99b725511fabb3b0"
+    },
+    "metafile-path-gradient-core-repair-2026-10-25.log": {
+      "path": "build/qa/metafile-path-gradient-core-repair-2026-10-25.log",
+      "sha256": "6b2ed4ef81e4c0fca5ad0f1577691172b4a33866f9a48701ef991f138a31b82e"
+    }
+  },
+  "initial_checkpoint": {
+    "methods": 10,
+    "assertion_failures": 2515,
+    "result": "failed",
+    "retained_methods": "all five passed",
+    "new_refusal_method": "passed"
+  },
+  "repaired_checkpoint": {
+    "command": "swift test --filter 'MetafilePathGradientTests|MetafileImageTests.testLinearGradient'",
+    "methods": 8,
+    "assertion_failures": 256,
+    "unexpected_failures": 0,
+    "elapsed_test_seconds": 7.665,
+    "result": "failed",
+    "passed": [
+      "three retained linear methods, including independently corrected integer-lattice endpoint expectation",
+      "line polygons, off-center origins and independent surrounding colors",
+      "malformed/unsupported whole-image refusal with original bytes retained",
+      "shared pen, glyph, clip and SourceCopy paint"
+    ],
+    "remaining": {
+      "reflected_path_tile_seams": {
+        "assertions": 122,
+        "maximum_channel_delta": 6
+      },
+      "linear_gamma_on": {
+        "assertions": 34,
+        "maximum_channel_delta": 20
+      },
+      "native_linear_alpha_gamma_on": {
+        "assertions": 32,
+        "maximum_channel_delta": 7
+      },
+      "two_native_recorded_canvas_sizes": {
+        "size_assertions": 2,
+        "sample_bounds_assertions": 66,
+        "actual": "63 by 63",
+        "reference_destination": "64 by 64"
+      }
+    }
+  },
+  "runtime_reconstruction": {
+    "result": "pass",
+    "scope": "Clean pinned patch application, universal helper compile and SDK-only dependency/provenance structure; not pixel behavior."
+  },
+  "source_inputs_at_repaired_checkpoint": {
+    "patches/metafile-renderer.patch": "d99bd917899dd88b03aff20fe817d73dcd4df5ebbc1ab72b6b3ffafdb02dd624",
+    "Sources/TurtleGitMetafile/main.swift": "9c924469759d0da020f6bfe6dd3d878bb17997a808ab581738f6859f1b5d9d33",
+    "Configuration/MetafileRuntime.json": "f1f72a1d95fce1c19eba73678c7671cf8d69d4eb9e8cb618c06ead25c1f5ca4b"
+  },
+  "expectations": "Independent Windows sample values and per-sample tolerance unchanged. Existing Tile/Flip endpoint test changed from speculative half-pixel fractions to independently measured integer-lattice endpoints; all channel assertions retained.",
+  "shipping": "Unvalidated renderer remains excluded from clean Finder registration fix build.",
+  "inclusive_checkpoint": {
+    "command": "swift test --filter Metafile",
+    "result": "failed",
+    "methods": 167,
+    "passing_methods": 162,
+    "failing_methods": 5,
+    "assertion_failures": 12,
+    "unexpected_failures": 0,
+    "test_elapsed_seconds": 131.501,
+    "log": "build/qa/metafile-path-gradient-inclusive-core-2026-10-25.log",
+    "log_sha256": "e3ac1a4e7c3d6ea828e5ebebf36f09d637b3e2a618bc511991ff7534adb8e193",
+    "passed": "All five new PathGradient methods, all 100 retained MetafileImage methods, and all ClassicGradient/CompressedRaster/DirectScanline/DrawingState/HighDepth/RasterROI/SourceCopy suites.",
+    "failures": {
+      "EnhancedMetafileWriterTests": "Two methods retained old64 canvas assertion and resized65->64 in fixture; six assertions. Corrected separate natural65 assertion + exact top-left64 crop; all pixel values/tolerances retained.",
+      "MetafileEmbeddedImageTests": "Three methods, six assertions: applying file-backed Bitmap inclusive canvas to embedded Metafile logical texture altered tile periods. Restored original child captured-DPI logical-frame policy; no independent rawbitmap controls changed."
+    },
+    "next_scope": "Rebuild actual helper then recheck only all13 methods in the two affected suites; then new native workflow. No full-suite repeat."
+  },
+  "runtime_inclusive_checkpoint": {
+    "result": "pass",
+    "scope": "Pinned reconstruction, universal helper and SDK-only structure. Pixel behavior is separately recorded.",
+    "log": "build/qa/metafile-path-gradient-inclusive-runtime-2026-10-25.log"
+  },
+  "affected_child_profile_recheck": {
+    "command": "swift test --filter 'MetafileEmbeddedImageTests|EnhancedMetafileWriterTests'",
+    "result": "pass",
+    "methods": 13,
+    "assertion_failures": 0,
+    "unexpected_failures": 0,
+    "elapsed_test_seconds": 5.304,
+    "log": "build/qa/metafile-path-gradient-child-profile-core-2026-10-25.log",
+    "log_sha256": "23d1c498e85c0d2acdbffab01e2d4f6541aa9c0e15e864b6df1e5618294bf580",
+    "scope": "Affected child profile and export fixture repair only; the other154 methods from prior checkpoint were not rerun."
+  },
+  "runtime_child_profile_checkpoint": {
+    "result": "pass",
+    "log": "build/qa/metafile-path-gradient-child-profile-runtime-2026-10-25.log",
+    "cache_key": "e8f29ffc5afd18404d71f28d5e2ff3a2962aac4c6e810c1608f530c7b1e639d0"
+  },
+  "native_initial_preflight": {
+    "result": "stale-app-objects-rejected-before-any-receiver-launch",
+    "log": "build/qa/metafile-path-gradient-native-2026-10-25.log",
+    "next": "One affected main Debug app build, then first actual new path-gradient native workflow; no receiver existed to reap in preflight."
+  },
+  "native_after_debug": {
+    "result": "pass",
+    "command": "python3 scripts/test-metafile-workflows.py --only path-gradients --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "pairs": 2,
+    "owned_receiver_pids": [
+      88088,
+      88216
+    ],
+    "both_reaped": true,
+    "independently_ps_absent": true,
+    "scope": "Actual original-byte helper through image compare/conflict consumers, raw-byte preservation, malformed/unsupported refusal, permission and cancellation/quit ownership; synthetic private repositories/preferences. Only new path-gradient workflow ran.",
+    "log": "build/qa/metafile-path-gradient-native-after-debug-2026-10-25.log",
+    "log_sha256": "69b3fbb1574cb557b9d1379f54bc14cc8b83fc562fddb6e378e6c8678cefec25"
+  },
+  "debug_checkpoint": {
+    "result": "pass",
+    "command": "xcodebuild -jobs 4 -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+    "log": "build/qa/metafile-path-gradient-debug-2026-10-25.log",
+    "scope": "Main Debug app rebuilt after preflight rejected five stale objects. No signed renderer install acceptance.",
+    "log_sha256": "53c32ffb4243225d733343a4a870adf70ecbab116e6522db766309b44cedbc03"
+  },
+  "final_source_inputs": {
+    "patches/metafile-renderer.patch": "4b30c8d498b30f3fbaae6b317fb128db6353530a7371b0e602fbd83c20dba966",
+    "Sources/TurtleGitMetafile/main.swift": "9c924469759d0da020f6bfe6dd3d878bb17997a808ab581738f6859f1b5d9d33",
+    "Configuration/MetafileRuntime.json": "31515462aeac05ac1ae0387508245179381b6439499025621243d9a4e1d9341b",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/path-gradient-windows-reference.json": "7a998cea263b349283166e75b116e11a104d94ea8c257a651c46f847075034f4"
+  },
+  "final_runtime_cache_key": "e8f29ffc5afd18404d71f28d5e2ff3a2962aac4c6e810c1608f530c7b1e639d0",
+  "remaining": [
+    "Complex/noncanonical curved path-gradient boundaries, multiple contours and self-intersections remain explicit whole-image refusals.",
+    "Serialized embedded-metafile texture brushes retain the documented Mac extension behavior, not Windows native serialization parity.",
+    "The signed installed build5 intentionally retains the prior stable renderer; this new renderer has not passed signed installed or physical visual acceptance.",
+    "A focused local pass is not a complete hosted CI pass or whole-dialog/whole-port completion."
+  ]
+}

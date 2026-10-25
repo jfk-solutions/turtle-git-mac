@@ -15,14 +15,18 @@ final class MetafileDirectScanlineTests: XCTestCase {
     private func painting(_ filename: String) throws -> Painting {
         let url = directory.appendingPathComponent(filename), original = try Data(contentsOf: url)
         let image = try XCTUnwrap(ComparisonImage(bytes: original), "Direct scanline image refused: \(filename)")
-        XCTAssertEqual(image.pixels.width, 64, filename); XCTAssertEqual(image.pixels.height, 64, filename)
+        let naturalExtent = filename.hasSuffix(".emf") ? 65 : 64
+        XCTAssertEqual(image.pixels.width,naturalExtent,filename);XCTAssertEqual(image.pixels.height,naturalExtent,filename)
+        // Preserve the independent 64x64 playback samples without rescaling the
+        // inclusive natural EMF canvas measured with Windows Bitmap(filename,FALSE).
+        let playback = try XCTUnwrap(image.pixels.cropping(to:CGRect(x:0,y:0,width:64,height:64)))
         var bytes = [UInt8](repeating: 0, count: 64 * 64 * 4)
         try bytes.withUnsafeMutableBytes { storage in
             let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
             let context = try XCTUnwrap(CGContext(data: storage.baseAddress, width: 64, height: 64, bitsPerComponent: 8,
                 bytesPerRow: 256, space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
             context.interpolationQuality = .none
-            context.draw(image.pixels, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+            context.draw(playback, in: CGRect(x: 0, y: 0, width: 64, height: 64))
         }
         XCTAssertEqual(try Data(contentsOf: url), original, "Rendering changed source bytes: \(filename)")
         return Painting(bytes: bytes)

@@ -12,11 +12,15 @@ final class MetafileDrawingStateTests:XCTestCase {
     private func pixels(_ name:String)throws->[UInt8] {
         let file=directory.appendingPathComponent(name),original=try Data(contentsOf:file)
         let svg=try XCTUnwrap(MetafileImageDecoder.convert(original,executable:helper)),image=try XCTUnwrap(ComparisonImage(bytes:svg),name)
-        XCTAssertEqual(image.pixels.width,64);XCTAssertEqual(image.pixels.height,64)
+        let naturalExtent = name.hasSuffix(".emf") ? 65 : 64
+        XCTAssertEqual(image.pixels.width,naturalExtent,name);XCTAssertEqual(image.pixels.height,naturalExtent,name)
+        // Preserve the independent 64x64 playback samples without rescaling the
+        // inclusive natural EMF canvas measured with Windows Bitmap(filename,FALSE).
+        let playback = try XCTUnwrap(image.pixels.cropping(to:CGRect(x:0,y:0,width:64,height:64)))
         var result=[UInt8](repeating:0,count:64*64*4)
         try result.withUnsafeMutableBytes {storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:64,height:64,bitsPerComponent:8,bytesPerRow:256,space:CGColorSpace(name:CGColorSpace.sRGB)!,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none;context.draw(image.pixels,in:CGRect(x:0,y:0,width:64,height:64))
+            context.interpolationQuality = .none;context.draw(playback,in:CGRect(x:0,y:0,width:64,height:64))
         }
         XCTAssertEqual(try Data(contentsOf:file),original,"Decoder changed original encoded bytes")
         return result

@@ -12,11 +12,15 @@ final class MetafileRasterROITests: XCTestCase {
         let helper=ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_METAFILE_HELPER"].map{URL(fileURLWithPath:$0)}
         let svg=try XCTUnwrap(MetafileImageDecoder.convert(original,executable:helper))
         let image=try XCTUnwrap(ComparisonImage(bytes:svg),name)
-        XCTAssertEqual(image.pixels.width,64);XCTAssertEqual(image.pixels.height,64)
+        let naturalExtent = name.hasSuffix(".emf") ? 65 : 64
+        XCTAssertEqual(image.pixels.width,naturalExtent,name);XCTAssertEqual(image.pixels.height,naturalExtent,name)
+        // Preserve the independent 64x64 playback samples without rescaling the
+        // inclusive natural EMF canvas measured with Windows Bitmap(filename,FALSE).
+        let playback = try XCTUnwrap(image.pixels.cropping(to:CGRect(x:0,y:0,width:64,height:64)))
         var bytes=[UInt8](repeating:0,count:64*64*4)
         try bytes.withUnsafeMutableBytes { storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:64,height:64,bitsPerComponent:8,bytesPerRow:256,space:CGColorSpace(name:CGColorSpace.sRGB)!,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none;context.draw(image.pixels,in:CGRect(x:0,y:0,width:64,height:64))
+            context.interpolationQuality = .none;context.draw(playback,in:CGRect(x:0,y:0,width:64,height:64))
         }
         XCTAssertEqual(try Data(contentsOf:file),original)
         return bytes

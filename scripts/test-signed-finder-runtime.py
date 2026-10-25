@@ -29,7 +29,7 @@ def metafile_request():
     originals={}
     for case in cases:
         path=folder/case['name'];data=path.read_bytes();digest=hashlib.sha256(data).hexdigest();originals[path]=digest
-        case.update(bytes=base64.b64encode(data).decode(),sha256=digest,width=96,height=64)
+        case.update(bytes=base64.b64encode(data).decode(),sha256=digest,width=97 if path.suffix.lower()=='.emf' else 96,height=65 if path.suffix.lower()=='.emf' else 64)
     payload=base64.b64encode(json.dumps(cases,separators=(',',':')).encode()).decode()
     if len(payload)>192*1024:raise ValueError('Signed metafile payload exceeds bounded argv transport')
     return payload,originals
