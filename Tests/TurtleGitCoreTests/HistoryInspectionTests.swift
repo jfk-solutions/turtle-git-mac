@@ -51,7 +51,27 @@ final class HistoryInspectionTests:XCTestCase {
         do {_ = try await repo.browserDeletionConfirmation("refs/remotes/origin/one");XCTFail("Browser remote branch bypassed selected engine")}catch{}
         _ = try await repo.browserDeletionConfirmation("refs/tags/one")
         let multiple=try await repo.browserDeletionConfirmation(["refs/heads/one","refs/heads/two"]);XCTAssertTrue(multiple.uncheckedMerge)
-        let remote=try await repo.prepareHistoryReferenceDeletion("refs/remotes/origin/one");XCTAssertFalse(remote.unmerged)
+        // Shared deletion now captures a selected-engine object receipt even
+        // though remote references still skip the local-head merge warning.
+        do {_ = try await repo.prepareHistoryReferenceDeletion("refs/remotes/origin/one");XCTFail("Shared remote lookup bypassed missing selected engine")}catch GitLibGit2Failure.runtimeMissing{}
+        let helper=try XCTUnwrap(configuration().executor(for:.mergeBase))
+        let trace=root.appendingPathComponent("remote-inspection-trace")
+        let selective=try script(root,"""
+        for argument in "$@"; do
+          case "$argument" in
+            turtlegit-*) printf '%s\\n' "$argument" >> \(quote(trace.path)) ;;
+          esac
+          case "$argument" in
+            turtlegit-merge-base|turtlegit-check-clean) printf 'unexpected-inspection\\n'; exit 0 ;;
+          esac
+        done
+        exec \(quote(helper.path)) "$@"
+        """)
+        let selected=captured(base,configuration(helper:selective))
+        let remote=try await selected.prepareHistoryReferenceDeletion("refs/remotes/origin/one");XCTAssertFalse(remote.unmerged)
+        let commands=try String(contentsOf:trace,encoding:.utf8).split(separator:"\n").map(String.init)
+        XCTAssertTrue(commands.contains("turtlegit-revision-lookup"))
+        XCTAssertFalse(commands.contains("turtlegit-merge-base"));XCTAssertFalse(commands.contains("turtlegit-check-clean"))
         var rows=entries;rows[1].references=[.init(name:"refs/tags/one")]
         let ordinary=try await repo.historyJump(entries:rows,selected:[rows[2].hash],kind:.tag,up:true);XCTAssertEqual(ordinary,1)
         do {_ = try await repo.historyJump(entries:rows,selected:[rows[2].hash],kind:.tagFF,up:true);XCTFail("FF jump bypassed selected engine")}catch{}
@@ -137,14 +157,62 @@ final class HistoryInspectionTests:XCTestCase {
     func testInspectionProtocolFailureAndCancellationNeverBecomeDeletionWarningsOrCombineApproval() async throws {
         let(root,base,entries)=try await HistoryWorkflowTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
         _ = try await base.run(["update-ref","refs/heads/other",entries[1].hash])
-        let wrapper=try script(root,"printf 'not-a-private-frame\\n'"),repo=captured(base,configuration(helper:wrapper))
+        let helper=try XCTUnwrap(configuration().executor(for:.mergeBase)),trace=root.appendingPathComponent("protocol-inspection-trace")
+        // Corrupt the protocol under test, while allowing the independent
+        // selected revision preflight to reach the actual inspection boundary.
+        let wrapper=try script(root,"""
+        for argument in "$@"; do
+          case "$argument" in
+            turtlegit-*) printf '%s\\n' "$argument" >> \(quote(trace.path)) ;;
+          esac
+          case "$argument" in
+            turtlegit-merge-base|turtlegit-check-clean) printf 'not-a-private-frame\\n'; exit 0 ;;
+          esac
+        done
+        exec \(quote(helper.path)) "$@"
+        """),repo=captured(base,configuration(helper:wrapper))
         do {_ = try await repo.browserDeletionConfirmation("refs/heads/other");XCTFail("Invalid metadata became a warning")}catch is GitReplayInspectionFailure{}
         do {_ = try await repo.prepareHistoryReferenceDeletion("refs/heads/other");XCTFail("Invalid metadata became a shared warning")}catch is GitReplayInspectionFailure{}
         do {_ = try await repo.prepareHistoryCombine(hashes:entries.prefix(2).map(\.hash),firstOffset:0,expectedHead:entries[0].hash);XCTFail("Invalid clean metadata accepted")}catch is GitReplayInspectionFailure{}
+        let commands=try String(contentsOf:trace,encoding:.utf8).split(separator:"\n").map(String.init)
+        XCTAssertTrue(commands.contains("turtlegit-revision-lookup"));XCTAssertTrue(commands.contains("turtlegit-merge-base"));XCTAssertTrue(commands.contains("turtlegit-check-clean"))
         let token=OperationCancellation();token.cancel()
         do {_ = try await repo.browserDeletionConfirmation("refs/heads/other",cancellation:token);XCTFail("Cancelled warning accepted")}catch is OperationCancellationFailure{}
         do {_ = try await repo.prepareHistoryCombine(hashes:entries.prefix(2).map(\.hash),firstOffset:0,expectedHead:entries[0].hash,cancellation:token);XCTFail("Cancelled preparation accepted")}catch is OperationCancellationFailure{}
         let head=try await base.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines);XCTAssertEqual(head,entries[0].hash)
+    }
+    func testMalformedSelectedRevisionPreflightNeverBecomesDeletionApproval() async throws {
+        let(root,base,entries)=try await HistoryWorkflowTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let names=["refs/heads/other","refs/remotes/origin/other","refs/tags/other"]
+        for name in names {_ = try await base.run(["update-ref",name,entries[1].hash])}
+        let helper=try XCTUnwrap(configuration().executor(for:.mergeBase)),trace=root.appendingPathComponent("revision-preflight-trace")
+        let wrapper=try script(root,"""
+        for argument in "$@"; do
+          case "$argument" in
+            turtlegit-*) printf '%s\\n' "$argument" >> \(quote(trace.path)) ;;
+          esac
+          case "$argument" in
+            turtlegit-revision-lookup) printf 'not-a-private-frame\\n'; exit 0 ;;
+          esac
+        done
+        exec \(quote(helper.path)) "$@"
+        """)
+        let repo=captured(base,configuration(helper:wrapper))
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let head=try Data(contentsOf:root.appendingPathComponent(".git/HEAD"))
+        let config=try Data(contentsOf:root.appendingPathComponent(".git/config"))
+        for name in names {
+            do {_ = try await repo.prepareHistoryReferenceDeletion(name);XCTFail("Malformed selected revision metadata became deletion approval for \(name)")}catch GitRevisionLookupFailure.output{}
+            let oid=try await base.run(["rev-parse","--verify",name]).text.trimmingCharacters(in:.newlines)
+            XCTAssertEqual(oid,entries[1].hash)
+        }
+        let commands=try String(contentsOf:trace,encoding:.utf8).split(separator:"\n").map(String.init)
+        XCTAssertEqual(commands.filter{$0=="turtlegit-revision-lookup"}.count,names.count)
+        XCTAssertFalse(commands.contains("turtlegit-merge-base"));XCTAssertFalse(commands.contains("turtlegit-check-clean"))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/HEAD")),head)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/config")),config)
+        let actualHead=try await base.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines);XCTAssertEqual(actualHead,entries[0].hash)
     }
     func testExplicitDeletionBackendControlsWarningRevalidationAndKeepsCapturedCAS() async throws {
         let(root,base,entries)=try await HistoryWorkflowTests().fixture();defer{try? FileManager.default.removeItem(at:root)}

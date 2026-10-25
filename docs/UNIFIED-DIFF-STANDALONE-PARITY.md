@@ -150,3 +150,19 @@ Full menu/keyboard/VoiceOver/visual source
 acceptance, signed sandbox grants, all exceptional stream/filesystem conditions,
 complete hosted CI and App Store delivery remain open. Existing repository patch
 and standalone Merge workflows retain their separate acceptance scopes.
+
+## Subsequent installed signed check
+
+The [aggregate signed checkpoint](qa/viewer-families-installed-2026-10-25.json)
+records actual installed stdin/title, native Save with matching raw bytes,
+window-local Dark Mode and Command-Q. It found a duplicate custom Close beside
+the standard macOS command. The custom item and unused context guard were
+removed, then signed/static/recoverable installation repeated only for that
+repair. The installed menu's accessibility text shows exactly one `Schließen`
+with `performClose:`; `Alle schließen` is the separate standard Close All.
+Clicking Close exited and reaped the viewer. The screenshot request returned no
+image, so no repaired-menu PNG is claimed. A post-close CUA accessibility request
+reopened a workspace; it was separately quit and shell inspection confirmed no
+main app. Known two geometry preference keys were restored absent without
+resetting other preferences. This selected signed acceptance does not certify
+the complete source menu/visual or every signed file grant.

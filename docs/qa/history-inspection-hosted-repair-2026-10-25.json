@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-25",
+  "status": "focused-fixture-repair-passed-hosted-rerun-pending",
+  "scope": "HistoryInspectionTests fixture isolation after selected-backend historical reference preflight; no production changes.",
+  "original_hosted_failure": {
+    "repository": "jfk-solutions/turtle-git-mac",
+    "job_id": 121010362142,
+    "commit": "de7535613acaaec52e138dc3adeecc4ac65e9de7",
+    "result": "failed",
+    "tests": 2836,
+    "skipped": 2,
+    "unexpected_failures": 2,
+    "full_suite_duration_approximate_minutes": 57,
+    "failed_methods": [
+      "testMissingSelectedHelperFailsEligibleReadsButDoesNotGateTagsMultipleOrOrdinaryJump",
+      "testInspectionProtocolFailureAndCancellationNeverBecomeDeletionWarningsOrCombineApproval"
+    ],
+    "errors": [
+      "GitLibGit2Failure.runtimeMissing during shared remote reference revision preflight",
+      "GitRevisionLookupFailure.output before the malformed inspection fixture reached replay inspection"
+    ],
+    "excerpt": "build/qa/de753-hosted-history-failures-2026-10-25.log"
+  },
+  "source_basis": {
+    "pinned_tortoisegit_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/TortoiseProc/AppUtils.cpp:3788-3862 CAppUtils::DeleteRef remote path and local-head-only merge warning",
+      "src/Git/Git.cpp:1306-1320 CGit::GetHash master-selected symbolic revision resolution"
+    ],
+    "native_boundary": [
+      "Sources/TurtleGitCore/HistoryReferenceDeletion.swift prepareHistoryReferenceDeletion captures selected existing-object receipt before the heads-only merge warning",
+      "Sources/TurtleGitCore/GitRevisionLookup.swift revisionLookup selected helper errors remain strict",
+      "Sources/TurtleGitCore/ReferenceBrowser.swift browserDeletionConfirmation skips merge inspection for tags and multiple selection"
+    ],
+    "distinction": "Native deletion preflight captures a CAS object identity; absence of a source merge warning does not imply absence of a selected revision read."
+  },
+  "repair": {
+    "changed_file": "Tests/TurtleGitCoreTests/HistoryInspectionTests.swift",
+    "strict_assertions": [
+      "Missing selected helper still fails shared remote revision lookup with runtimeMissing; no CLI fallback.",
+      "Browser tag/multiple selection and ordinary Jump keep their original no-inspection assertions.",
+      "A selective wrapper forwards actual revision lookup while refusing merge-base/clean inspection; shared remote preparation succeeds with unmerged=false and recorded absence of those inspection verbs.",
+      "The inspection protocol fixture corrupts only merge-base and clean replies, forwards real revision lookup, and verifies all intended boundaries were reached; exact inspection-error and cancellation assertions remain.",
+      "A separate malformed revision fixture rejects local, remote and tag deletion preflight with the exact revision output error before inspections; references, HEAD, index and configuration remain unchanged."
+    ],
+    "production_changes": false,
+    "backend_mask_weakened": false,
+    "broad_error_fallback_added": false
+  },
+  "focused_validation": {
+    "result": "passed",
+    "process_session": 12430,
+    "exit_code": 0,
+    "tests": 3,
+    "failures": 0,
+    "duration_seconds": 6.11,
+    "suite": "HistoryInspectionTests",
+    "methods": [
+      "testMissingSelectedHelperFailsEligibleReadsButDoesNotGateTagsMultipleOrOrdinaryJump",
+      "testInspectionProtocolFailureAndCancellationNeverBecomeDeletionWarningsOrCombineApproval",
+      "testMalformedSelectedRevisionPreflightNeverBecomesDeletionApproval"
+    ],
+    "log": "build/qa/hosted-history-inspection-repair-core-2026-10-25.log",
+    "cli_engine": "/usr/bin/git (inherited GitPatchTests fixture default)",
+    "helper": "Actual selected libgit2 helper, selectively forwarded by private test wrappers.",
+    "engine_matrix": false,
+    "note": "These methods do not loop both Git executables and do not read TURTLEGIT_TEST_GIT."
+  },
+  "artifacts": [
+    {
+      "path": "build/qa/hosted-history-inspection-repair-core-2026-10-25.log",
+      "sha256": "c82a1a62652eb893e49d6ae7d15b2efbfe4455ff98097a5ba5d3ae91970ee7d6"
+    },
+    {
+      "path": "build/qa/de753-hosted-history-failures-2026-10-25.log",
+      "sha256": "30be1bd6bdf2a24d6b38fd44f101406cd478c294ea112e43d5c5285c3955a97d"
+    },
+    {
+      "path": "Tests/TurtleGitCoreTests/HistoryInspectionTests.swift",
+      "sha256": "69f98e10d755f3b480c737c381b0161853541150f4592c411416990e078a876c"
+    }
+  ],
+  "limits": [
+    "No current full hosted CI pass claimed.",
+    "No full Core suite, bundled CLI engine matrix, native receiver, app rebuild or signed artifact rebuild was performed for this fixture-only repair.",
+    "Historical hosted failure remains recorded; the local focused pass covers only the two affected methods and the new strict preflight method."
+  ]
+}

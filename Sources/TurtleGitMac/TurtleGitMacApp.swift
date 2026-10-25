@@ -37,7 +37,6 @@ struct UnifiedDiffBaseCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("Open…") { context.openDocument() }.keyboardShortcut("o").disabled(!context.documentAvailable)
-            Button("Close") { context.close() }.keyboardShortcut("w").disabled(!context.closeAvailable)
         }
         CommandGroup(replacing: .appSettings) { }
         CommandGroup(replacing: .appInfo) {

@@ -1,12 +1,25 @@
 # TurtleGit for Mac — full port tracking
 
+The [signed viewer-family checkpoint](qa/viewer-families-installed-2026-10-25.json)
+records the current recoverably installed Apple Development candidate: measured
+`8569ede1…` inputs at a955f566 with preserved dirty work, eight universal owned
+components, 206 runtime items and matching 6,356-member inventory. Actual signed
+stdin/title, native Save with exact bytes, window-local Dark Mode and Quit passed.
+That acceptance found duplicate Close commands; the repaired signed candidate
+then passed static/install checks and its actual File menu has one standard
+Close. Its Close exit passed; a later CUA accessibility observation reopened a
+workspace, which was separately quit and shell-verified absent. Final menu
+evidence is accessibility text only because no screenshot was returned. Existing
+helper functional sandbox modes were not rerun. Full source visual/physical,
+external signed grants, current hosted CI and App Store delivery remain open.
+
 The [standalone Unified Diff family](UNIFIED-DIFF-STANDALONE-PARITY.md) adds
 explicit file, empty-document and raw stdin entry without Git or a repository
 workspace. It retains source titles, bounded bytes, owned cancellation and Quit
 drain, regular-file admission, explicit sandbox file selection and per-window
 Dark Mode. Existing document editing and Save/Apply workflows are reused, with
 Git resolved only for Apply. The checkpoint records 17 cumulative Core method
-passes, four native cases and a real executable pipe launch/close. The Unicode
+passes, five native cases and a real executable pipe launch/close. The Unicode
 path repair and fixture compile failure remain recorded; complete viewer visual
 parity, signed grants and App Store deployment remain open.
 
@@ -21,7 +34,7 @@ six-pair checkpoint plus focused consumers with both Git executables, and
 physical Log dark/light checks show complete labels. Failed fixture and physical
 attempts remain recorded. Owned receivers are reaped and final cleanup restores
 preferences/grants. Six original offscreen images remain diagnostic only.
-Full visual acceptance of all three consumers, a new signed installation, full
+Full visual acceptance of all three consumers, external signed grants, full
 hosted CI and App Store delivery remain open.
 
 The [status refresh ownership family](STATUS-REFRESH-OWNERSHIP-PARITY.md) keeps
@@ -1200,14 +1213,15 @@ require review; a dialog count is not a count of all upstream UI.
 
 ## Current integration verification
 
-The [1cfadcc3 hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39494884494)
+The historical [1cfadcc3 hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39494884494)
 completed its Core stage with 2,489 tests, two skipped and two failures. The
 legacy failed-Pick receipt incompatibility has a focused two-method local repair
-pass, retaining all recovery guards. MaskBlt matrix rendering is under diagnosis;
-no complete hosted pass follows from the scoped local checks.
+pass, retaining all recovery guards. MaskBlt matrix rendering was under diagnosis
+at that checkpoint; later graphics family records above supersede that status.
+No complete current hosted pass follows from those historical scoped checks.
 [Evidence](qa/ci-1cfadcc3-core-failures-2026-10-21.json) records both failures.
 
-The latest complete local SwiftPM suite passed **980 tests, zero failures**, with
+A historical complete local SwiftPM suite passed **980 tests, zero failures**, with
 one optional MX probe skipped, on October 11, 2026. The system Git 2.50.1 / Swift
 6.3.3 process exited normally after 874.897 seconds. It covers the recorded Core
 checkpoint, including generated change-set comparison, but not native app UI.
@@ -1219,68 +1233,100 @@ workflow records; these do not expand the Core result's scope.
 These checks do not prove full dialog parity, activated Finder behavior, signed
 sandbox execution, passing hosted CI on the latest source or App Store readiness.
 
-## Architecture replacements
+## Current component and workflow state — October 25, 2026
 
-| Upstream component | macOS replacement | Current state |
+This consolidated table supersedes the old first-pass feature backlog. It uses
+implemented consumer paths and the dated family checkpoints linked below;
+“implemented” does not certify every upstream control, visual state, physical
+interaction or signed deployment. Full-port completion is not claimed, and the
+resource ledger is not a feature percentage. The newer family records at the
+top of this document retain failed attempts and the exact scope of later passes.
+
+### Architecture replacements
+
+| Upstream component | Implemented macOS replacement and bounded evidence | Remaining boundary |
 | --- | --- | --- |
-| TortoiseProc / MFC | SwiftUI windows, AppKit text views and file dialogs | First status, commit, log and operation views |
-| Revision Graph | Separate decoration-simplified query, pinned universal OGDF layout adapter and native AppKit canvas/Filter/Find | Repository scopes, reduction, boundary nodes, pointer retention, colored boxes, selection, zoom/overview and Filter lifecycle implemented with focused native checks and light/dark captures. SVG/Graphviz and native raster/PDF exports implemented. Complete menus, export-panel grants, persistence and signed Finder acceptance pending. See REVISION-GRAPH-PARITY.md and GRAPH-LAYOUT-RUNTIME.md |
-| src/Git | TurtleGitCore repository actor and installed Git | Basic status, mutation and patch operations |
-| TortoiseShell / COM | Finder Sync extension and URL routing | Compiles; signed end-to-end behavior unverified |
-| TGitCache | App Group snapshot, directory badge aggregation | Active repository polling; independent daemon pending |
-| TortoiseMerge | Native three-pane UTF-8 conflict editor | Partial stage extraction, block choices and guarded saves; full view/menu parity pending. See TEXT-MERGE-PARITY.md |
-| TortoiseGitBlame | Historical annotation reader and native annotated source window | Partial columns, age colors, Find/Go To Line and origin-aware Log; full menus, syntax, encodings and signed acceptance pending. See BLAME-PARITY.md |
-| TortoiseIDiff | Native image comparison and three-pane conflict selection windows | Partial Load Images, linked sizing, overlay/XOR, transparency colors and frame playback; full source parity and signed acceptance pending. See IMAGE-COMPARISON-PARITY.md |
-| TortoiseUDiff | Native patch window with highlighted text, find, appearance settings and printing | Partial File/View/menu behavior; full parity and signed acceptance pending |
-| SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Private agent, encrypted response, key/file grants and Clone/Fetch/Pull/Push/browse auto-load; pinned universal OpenSSH embedding and packaged Git client selection; remaining consumers, real authentication and signed acceptance pending |
-| GitWCRev / COM | Native TurtleGitWCRev CLI, byte/UTF-16 templates and JSON automation | Repository/status/submodule reads, all source keywords and switches implemented; packaging added. Signed execution, exact libgit2 pathspec/locale behavior and broader automation acceptance pending; see WORKING-COPY-REVISION.md |
-| TortoiseGitSetup | Signed app, extension registration, notarized distribution | Pinned universal Git build/embedding added; signed runtime and distribution acceptance pending |
-| Languages / ResText | String catalogs and native localized resources | Pending |
+| TortoiseProc / MFC | SwiftUI/AppKit repository windows, native menus, progress/confirmation and owned child workflows across the families below; source artwork and status colors retained | Source-complete per-dialog layout/controls, physical/accessibility and signed acceptance remain separate |
+| src/Git | Repository actors, captured Git execution and bundled universal libgit2 helpers; selected diff/transport/metadata/revision readers and unconditional source Notes path. [Backend metadata](BACKEND-METADATA-PARITY.md), [revision lookup](REVISION-LOOKUP-PARITY.md), [Notes](NOTES-BACKEND-PARITY.md) | Backend/source-policy differences and exceptional object/encoding states remain bounded by each record; this is more than basic status/mutation, not universal source equivalence |
+| TortoiseShell / COM | Finder Sync menus/badges, URL/Services dispatch and captured repository/file grants; actual installed scoped Commit/Log/two-file Diff and background badge transitions are recorded in [installed evidence](qa/installed-current-family-2026-10-24.json) and [workspace continuation](WORKSPACE-REPORT-OWNERSHIP-PARITY.md) | Selected installed commands passed, not all shell commands/modifiers/grants or distribution acceptance; Finder Sync is the platform replacement for Explorer/COM |
+| TGitCache | Embedded independent cache agent, persisted watched roots, FSEvents, recursive status collection and shared App Group publication. [Runtime](FINDER-CACHE-SERVICE-RUNTIME.md), [deployment](FINDER-SERVICE-DEPLOYMENT.md), [persistence](FINDER-CACHE-PERSISTENCE.md) | Independent operation is implemented; wider authenticated/signed grant, login/minimum-OS and failure acceptance remains scoped |
+| TortoiseMerge | Encoding-aware comparison and three-pane conflict editors with block operations, menus, guarded saves and standalone tool entry. [Text Merge](TEXT-MERGE-PARITY.md), [Merge entry](MERGE-TOOL-ENTRY-PARITY.md), [literal tool configuration](LITERAL-TOOL-CONFIGURATION-PARITY.md) | Every source editor/format/protocol combination and physical/signed acceptance remain open; not an UTF-8-only initial editor |
+| TortoiseGitBlame | Historical annotation, Lexilla syntax, source/settings/properties panes, Find/line navigation, embedded Log and captured menus. [Blame dated continuations](BLAME-PARITY.md), [embedded history](BLAME-HISTORY-PRESENTATION-PARITY.md) | Every lexer/encoding/menu/focus state and physical/signed acceptance remain open; syntax and embedded history are implemented |
+| TortoiseIDiff | Native comparison/conflict panes, overlay/XOR, sizing/zoom/transparency/playback, input inspection and Windows-container/metafile readers. [Image comparison](IMAGE-COMPARISON-PARITY.md), [metafile scope](IMAGE-METAFILE-PARITY.md) | Remaining graphics-format behavior and exhaustive Windows-rendering identity need their explicit records; no blanket format parity |
+| TortoiseUDiff | Editable byte-preserving document viewer, Find/appearance/printing/settings and standalone file/stdin input. [Viewer](UNIFIED-DIFF-VIEWER-PARITY.md), [standalone entry](UNIFIED-DIFF-STANDALONE-PARITY.md) | Native entry/error differences are explicit; five native cases and a bounded physical pipe check do not certify every menu/encoding/signed grant |
+| Revision Graph | Universal OGDF layout plus native canvas, filters/search, node commands, navigation and vector/raster/PDF/EMF export. [Graph dated continuations](REVISION-GRAPH-PARITY.md) | All layout/export/gesture/permission combinations and physical/signed acceptance remain bounded |
+| SshAskPass / TortoisePlink | OpenSSH, private agent, askpass/Keychain/key grants and connected transport loading. [SSH transport](SSH-TRANSPORT-PARITY.md), [agent](SSH-AGENT-PARITY.md) | Native OpenSSH replaces Windows Plink dialogs; actual external authentication, every consumer and signed grants remain separate |
+| GitWCRev / COM | Native CLI, byte/UTF-16 templates, source keywords/switches and JSON automation; packaged universal execution is recorded in [WCRev](WORKING-COPY-REVISION.md) | Exact pathspec/locale/automation cases remain scoped; Windows COM is replaced rather than reproduced |
+| Setup / distribution | Universal app/helper packaging, Apple Development signed candidates and recoverable installed Finder registration. [Current refresh installation](STATUS-REFRESH-OWNERSHIP-PARITY.md), [release gates](RELEASE-BLOCKERS.md) | Distribution signing/notarization, current archive/export/submission and App Store approval remain open. A newer signed build is not automatically an installed acceptance |
+| Languages / ResText | Bundled source-derived Localizable.xcstrings; latest recorded check covers 38 locales/1,318 labels | Missing/fuzzy/ambiguous entries retain English fallback; resource counts do not prove complete UI translation |
 
-## Behavioral parity backlog
+### Connected workflows
 
-This table began as a first-pass snapshot. Later dated family sections supersede
-its older findings; an entry here alone is not evidence that a feature is still
-missing. The Commit row was checked against current code on October 20, 2026.
-
-| Workflow | First-pass implementation | Remaining upstream behavior |
+| Workflow family | Current implemented behavior and dated evidence | Remaining implementation differences or acceptance |
 | --- | --- | --- |
-| Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
-| Add | Native scoped checked list, ignored defaults, direct-file progress route, original icons/watermark, tracked history/Blame/base, unified diff, two-file comparison and temporary restoration/Revert menus, cancellable private-index add and index-only executable/symlink post-actions | Full menus, native visual/gesture/signed acceptance; see ADD-PARITY.md |
-| Commit | Native checked-file dialog and optional staging; amend and identity controls; source action menus, message history and completions, client hooks, detached/new-branch handling and ReCommit; offline and HTTP issue-provider callbacks | Vendor-specific provider integrations beyond the embedded adapters; remaining file-type and source-layout/physical/signed acceptance; see ISSUE-PROVIDERS.md and later Commit family sections |
-| Log | Native three-pane window; graph, refs, search/date filters, lazy action icons and metadata columns, working-tree row, per-parent file groups, comparisons and revision actions; scoped Add/Commit/Revert, index flags, Ignore/Delete and submodule history routes with actual receiver checks | Full reference chooser/search/walk/view/statistics controls, remaining context commands, group styling and selection-mark gestures, displayed light/dark/keyboard/VoiceOver acceptance and signed handoffs; see LOG-PARITY.md |
-| Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
-| Clone | Native Git/SSH/SVN option groups, captured progress/retry/cancellation, private-agent key loading and remote-key storage, URL/destination history, real Git tests and Log handoff | Full upstream progress, physical picker/Cancel/sheet QA, actual SSH authentication, real SVN/LFS, signed scopes and bare adoption; see CLONE-PARITY.md |
-| Init | Native upstream Bare/text/buttons, .git default, destination warnings, real Git tests and normal/bare creation; bare workspace/Log | Picker confirmation, immediate adoption/recents, full bare menu behavior and signed integration; see INIT-PARITY.md |
-| Fetch | Native remote/URL and three-state tags/prune, remote branch browser, shallow depth; real Git and native fetch checks | Full Rebase post-operation choices, settings/history, progress, authentication and broader UI QA; see FETCH-PARITY.md |
-| Rebase | Native branch/action/list/tabs window; real Start/Skip and recovered Edit/Amend; tested persistent backend | Fetch/Pull handoffs verified; full recovery/advanced UI and conflict controls pending; see REBASE-PARITY.md |
-| Pull | Native shared options window, squash/no commit and fast-forward choices; Git integration and native fast-forward/error checks | Interactive rebase, progress, full recovery and broader native QA; see PULL-PARITY.md |
-| Push | Native upstream control order, branch/tag scope, remote/URL, force/lease, tags, upstream, recursion, server option; local Git tests and native branch/tag pushes | Full choosers/settings, progress, cancellation, authentication and broader UI QA; see PUSH-PARITY.md |
-| Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
-| Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
-| Merge | Native revision/options/message/history/choosers; real Git options/conflicts, source-style completed output and timing, retained result progress, owned conflict/kill/delete questions and drained captured recovery/post-action handoffs | Full physical/visual/accessibility and signed acceptance, all merge/post-action combinations and remaining upstream parity; see MERGE-PARITY.md |
-| RefLog | Native five-column list, modeless Find, Log/Browser/Branch/Tag/Export revision handoffs, working-tree, selected-entry and previous-revision comparisons, clipboard formats, stash Apply and guarded general/stash deletion with partial-failure continuation | Full context menus/order, persistence, physical window/menu acceptance and broader native QA; see REFLOG-PARITY.md |
-| Stash | Native Save options/warning plus direct Apply/Pop result prompts and Working Tree handoff; Git effects verified | RefLog list/inspection/selected Apply, guarded Drop/Clear and native replay Save/Pop implemented; reopened-session restoration, displayed acceptance and signed runtime QA pending; see STASH-PARITY.md |
-| Finder | Original icons, separate menu preferences, cache badges, selection dispatch, scoped Diff/Log, source file/folder/selection clauses, direct two-file comparisons, recursive foreground submodule caches and root Rename/Remove, folder creation entries and targetless toolbar creation routing | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
-| Settings | Native 52-row Advanced draft editor with source defaults/validation and Apply/Cancel; Appearance and partial Merge Editor General: saved indentation and line-number defaults with Apply/Cancel; native Email delivery/server/port/encryption/auth controls and immediate app-private Keychain adapter | Remaining merge General/Colors, Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
-| Rename | Native source/name/browse/OK/Cancel, original artwork, versioned-file menus and guarded Git mv; mixed-file effects verified | Native browse, post-close restoration, submodules, shared-dialog consumers and signed Finder QA; see RENAME-PARITY.md |
-| Clipboard / Copy and Add | Native URL clipboard, captured Paste Move, multi-file copy with collision and copied-repository choices, ordinary staging and owned streamed cancellation | Finder clipboard destination menu added with captured URLs and owned source authorization; physical gestures, drag menus, filesystem metadata and signed acceptance remain open; see FILE-TRANSFER-PARITY.md and FINDER-TRANSFER-PARITY.md |
-| File Move / Move-Rename | Same-worktree destination picker, collision name sheet, ordered Git mv, Ignore/Abort, captured Commit/Working Tree remapping and streamed owned progress | Finder drag/clipboard and copy consumers, physical UI and signed acceptance; see FILE-MOVE-PARITY.md |
-| Delete / keep local | Native confirmation, per-item Remove/Ignore/Abort, original icon and guarded Git removal; retained-copy commits/amendments tested | Native normal-delete execution, submodules, complete Finder conditions and signed QA; see REMOVE-PARITY.md |
-| Ignore | Native five-radio upstream layout, original icon, app/Finder name/extension actions and Delete-and-ignore keep-local flow; real Git and native checks | Full menu conditions, native recovery/No/refresh and signed permissions; see IGNORE-PARITY.md |
-| Reset | Native upstream revision/type groups, Log dispatch and initialized submodule reset/resume; real modes and native Mixed/Soft verified | Full chooser/diff-list, progress, native Hard/recovery and signed QA; see RESET-PARITY.md |
-| Delete/modify conflict | Native fourteen-control conflict layout, keep/delete/Abort and side Log; exact Git effects and native keep/comparison/history verified | Full diff editor, Created/rebase/error/native Delete QA, parent restoration and signed scope; see DELETE-CONFLICT-PARITY.md |
-| Resolve | Native checked list, current/mine/theirs, original icon and app/Finder dispatch; real Git and native checked-current/Cancel verified | Full conflict editor, remaining submodule chooser edge cases, progress, signed Finder and broader QA pending; see RESOLVE-PARITY.md |
-| Send Patch | Source-style Core mail preparation: original headers/body, four inline/attachment and separate/combined modes, ordered checked inputs, To/CC and captured attachment bytes; MIME headers/body/attachments with independent parser and Git am checks | Native Send Patch options/checked-list/history foundation added; complete caller routing, patch-list production viewer/review/apply routing and signed drop grants; source sender capture API and native Email settings/credential adapter added, transport capture routing, broader MIME encoding/address acceptance, configured-server Core SMTP transport added with real loopback/TLS/authentication checks; ordered configured-server queue/retry added; configured sender/credential capture orchestration added; native configured Format/Import caller routing and progress added; native Action/Path notifications added; shared progress variants, direct MX, Mail client and actual signed Keychain acceptance remain pending; see SEND-PATCH-PARITY.md |
-| Export | Native upstream ZIP/TAR/TAR.GZ/custom archive, revision/scope options and separate result; verbose streaming, source-colored output/footer, Close/Abort, original Explore action, retained grants and atomic destination replacement; real Git and hidden native cancellation/owner checks | Physical options/sheets/keyboard/themes, full progress behavior, signed destination grants/Finder acceptance; see EXPORT-PARITY.md |
-| Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean |
-| Patch workflows | Native Format Patch dialog and three repository export modes; progress and mail handoff compile | Native export/mail acceptance, apply patches, am continuation/abort, full review and email workflows |
-| Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, live working/historical marks, one-shot contents focus, volume-aware working-path checks, captured child Log/Browser/Update and comparison routes, historical Revert and drag representations | Raw invalid-UTF8 filenames, validation/use race, multi-file Revert acceptance, actual Finder drops, broader submodule acceptance, physical/visual coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
-| Submodule Add | Native source groups/history/browse, Branch/Force, explicit SSH key loading and child remote setting, app/Finder action | Clipboard defaults, displayed UI, complete progress, signed grants and real network; see SUBMODULE-ADD-PARITY.md |
-| Submodule Sync | Original icon/app/Finder action, source non-recursive directory sequence, local URL config effects, owned live progress/cancellation and failure continuation | Displayed/full progress, signed parent/child access and Finder acceptance; broader SyncDlg remains separate; see SUBMODULE-SYNC-PARITY.md |
-| Submodule Update | Native scoped options and separate owned progress, live output/cancellation, captured auto-close and successful bisect post-actions | Full progress and physical/signed/transfer acceptance; explicit command batches and partial recovery are covered in SUBMODULE-UPDATE-RECOVERY-PARITY.md; see SUBMODULE-UPDATE-PARITY.md |
-| Advanced repositories | Native New Worktree and Worktree List with create/lock/unlock/remove/prune; partial submodule workflows | Native column gestures/appearance, Finder drop creation, native/signed acceptance, full submodules, git-svn and LFS |
-| Helper apps | Partial native Blame, text Merge and unified Diff windows | Full helper parity, image diff, revision graph, askpass and revision/template tools |
+| Working Tree / Add / Commit | Scoped checked lists, source options/staging/actions, message and identity controls, issue/hooks, owned results/Push continuation, file menus/drag/layout and fresh read-only status/statistics. [Status](STATUS-PARITY.md), [Add](ADD-PARITY.md), [Commit scope/report/Push](COMMIT-SCOPE-REPORT-PARITY.md), [refresh ownership](STATUS-REFRESH-OWNERSHIP-PARITY.md), [shared lists](NATIVE-LIST-INTERACTIONS-PARITY.md) | Vendor-specific issue-provider adapters and remaining file-type/source-layout combinations; full physical/accessibility/signed coverage. Generic menus/progress/cancellation/preferences are not absent foundations |
+| Log / RefLog / Notes / Browser | Front graph/ref labels, search/date/walk/working-tree views, changed-file groups and revision operations; exact named RefLog actions, editable Notes, lazy pinned historical Browser and gitlink navigation. [Log](LOG-PARITY.md), [RefLog identity](REFLOG-REFERENCE-IDENTITY-PARITY.md), [Notes](NOTES-BACKEND-PARITY.md), [historical navigation](HISTORICAL-NAVIGATION-PARITY.md) | Raw invalid-UTF-8 Browser filenames and recorded exceptional object/encoding cases; full source visual/gesture/VoiceOver and signed handoffs remain open. Older “full chooser/search controls missing” text is not a current inventory |
+| Diff / comparison / document tools | Side-by-side text and encoding controls, syntax, external tool routing, image comparison, text conflicts, patch viewing and document-specific comparison workflows. [Text Merge](TEXT-MERGE-PARITY.md), [image](IMAGE-COMPARISON-PARITY.md), [literal tools](LITERAL-TOOL-CONFIGURATION-PARITY.md), [standalone UDiff](UNIFIED-DIFF-STANDALONE-PARITY.md) | Format/lexer/encoding compatibility has explicit remaining limits; standalone entry differences and complete visual/physical/signed behavior remain open |
+| Fetch / Pull / Push / Sync | Remote/URL options and histories, literal refspec/destination forwarding, source choosers, captured streamed progress/Retry/cancellation, SSH loading, Rebase continuation and Sync split actions/lists. [Fetch/Pull refspecs](FETCH-REFSPEC-PARITY.md), [Push destinations](PUSH-DESTINATION-PARITY.md), [Sync](SYNCHRONIZATION-PARITY.md), [literal Sync refs](SYNC-LITERAL-REFERENCE-PARITY.md), [reference refresh](REFERENCE-REFRESH-PARITY.md) | Actual public authentication/transport and every recovery/options combination, physical/VoiceOver and signed grants remain scoped; progress/settings/handoffs are implemented |
+| Rebase / cherry-pick / revert / merge | Interactive action plans, reorder/add/recovery/conflict workflows, owned reference/catalog refresh and real Git continuation/abort/results. [Rebase](REBASE-PARITY.md), [reference refresh](REFERENCE-REFRESH-PARITY.md), [cherry-pick](CHERRY-PICK-PARITY.md), [revert](REVERT-PARITY.md), [Merge](MERGE-PARITY.md) | Complete structural/conflict/post-action combinations and source visual/physical/signed acceptance remain open; interactive Rebase and conflict continuation are implemented |
+| Clone / Init / Branch / Tag / Switch | Native source option groups, exact revisions/reference collisions, captured progress/result and repository adoption routes. [Clone](CLONE-PARITY.md), [repository creation](REPOSITORY-CREATION-SETUP-PARITY.md), [branch/tag](BRANCH-TAG-PARITY.md), [Switch](SWITCH-OPERATION-PARITY.md), [revision lookup](REVISION-LOOKUP-PARITY.md) | Network/SVN/LFS/signing and picker/grant/adoption variants need their separate acceptance; reference choosers and operation progress are implemented |
+| Reset / Resolve / conflicts / Stash | Source options, owned streamed result/recovery, reference/file pickers, conflict editors and stash Save/Apply/Pop/List/Drop/Clear. [Reset](RESET-OPERATION-PARITY.md), [Resolve](RESOLVE-PARITY.md), [submodule conflict](SUBMODULE-CONFLICT-PARITY.md), [Stash](STASH-OPERATION-PARITY.md) | Exceptional conflict/submodule/reopened-session combinations, full displayed/keyboard/signed acceptance remain scoped; full editor/progress foundations are not missing |
+| Rename / Copy / Move / Remove / Ignore | Real guarded Git/file effects, captured source/destination authority, collisions, delete/keep-local, menus and streamed recovery. [Rename](RENAME-PARITY.md), [transfer](FILE-TRANSFER-PARITY.md), [Finder transfer](FINDER-TRANSFER-PARITY.md), [Move](FILE-MOVE-PARITY.md), [Remove](REMOVE-PARITY.md), [Ignore](IGNORE-PARITY.md) | Filesystem metadata/type/collision edge cases, real drag gestures/modifiers and signed grants remain scoped |
+| Patch / mail / export | Format/import/apply serial/review workflows, continuation/abort, source Send Mail modes, MIME/SMTP/certificate handling and configured queue/retry; native archive/export workflows. [Format Patch](FORMAT-PATCH-PARITY.md), [Review Patch](REVIEW-PATCH-PARITY.md), [Send Patch](SEND-PATCH-PARITY.md), [Export](EXPORT-PARITY.md) | Actual external delivery/Keychain and wider encoding/address/drop-grant acceptance remain open; Apply and mail are implemented, not future foundations |
+| Submodules / worktrees | Add, Sync, Update, conflict/comparison/history, command batches and partial recovery; worktree create/list/lock/unlock/remove/prune. [Submodule actions](SUBMODULE-DIALOG-ACTIONS-PARITY.md), [Update recovery](SUBMODULE-UPDATE-RECOVERY-PARITY.md), [worktrees](WORKTREE-PARITY.md) | Network/permission/exceptional nested repository and physical/signed cases remain scoped; independent cache recursion and historical pins are implemented |
+| Bisect / Clean / repository services | Native options and owned operations for Bisect, Clean, Request Pull, daemon and related Log/Finder entry points. [Bisect](BISECT-OPERATION-PARITY.md), [Clean](CLEAN-PARITY.md), [Request Pull](REQUEST-PULL-PARITY.md) | Full source-option combinations, external clients/transports and physical/signed acceptance remain open; these commands are no longer wholly unimplemented |
+| Settings / First Start | Native retained page tree, Git/Remote, tools/hooks/credentials/network, overlays/dialog/color/editor pages and owned Apply/OK/Cancel/failure/retirement. [Settings](SETTINGS-NAVIGATION-PARITY.md), [completion](SETTINGS-COMPLETION-PARITY.md), [literal tools](LITERAL-TOOL-CONFIGURATION-PARITY.md) | Per-page control/hierarchy mapping and full source visual/physical/signed acceptance remain explicit; Git identity/tools/hooks/network are not entirely absent. Native bundled translations replace Windows language-pack installation |
+| Finder / Services / watched roots | Source icons/selection clauses, scoped command delivery, separate menu/overlay preferences, foreground/background cache, persisted roots and selected installed workflows. [Services](FINDER-DELIVERY-SERVICES-PARITY.md), [cache deployment](FINDER-SERVICE-DEPLOYMENT.md), [installed checkpoint](WORKSPACE-REPORT-OWNERSHIP-PARITY.md) | Remaining physical commands/multiselection/modifiers, external grants/authenticated service and minimum-OS/distribution cases remain open; daemon/FSEvents/watched-root management are implemented |
+
+### Open work versus platform mappings
+
+One newly confirmed missing active workflow is **Inaccessible repository**:
+upstream `TortoiseShell/MenuInfo.cpp:29–30` exposes the command,
+`TortoiseShell/ContextMenu.cpp:964,1006–1011` preserves its inaccessible-root
+route, and `TortoiseProc/Commands/Command.cpp:294–296` constructs
+`InaccessibleCommand`. Its `Execute` at
+`TortoiseProc/Commands/InaccessibleCommand.cpp:25–77` diagnoses the failed root
+and conditionally offers an explicit global/XDG `safe.directory` trust action.
+Native Finder has an inaccessible-state flag, but the corresponding command,
+diagnostic/trust controls and recovery workflow are not implemented. Automatic
+retry/adoption would be an additional native adaptation, not source behavior.
+This is a real end-user gap, not a Windows-only resource or merely an acceptance
+task; finding it does not imply it is the only remaining workflow.
+
+Confirmed implementation differences remain in the linked families; the table
+above is not an exhaustive missing-control inventory. Examples that must not be
+hidden behind acceptance language include Browser's raw invalid-UTF-8 filenames,
+provider-specific integrations outside the embedded adapters, recorded graphics/
+encoding compatibility limits, and UDiff's explicit native entry behavior
+(no-input marker opens empty; stdin needs a switch; unmarked filenames are not a
+standalone mode in the combined app). The dated records distinguish deliberate
+native adaptation from unsupported behavior; none amounts to complete parity.
+
+Acceptance is a separate workload: every source dialog/control and exceptional
+Git state, physical keyboard/VoiceOver/drag/focus, full visual comparison,
+current complete hosted CI, signed external grants/authentication, Intel/minimum
+OS and distribution/App Store archive/export/submission. Selected local/native/
+installed passes do not close these global gates. No new test/build is required
+merely to update this state summary.
+
+The older de753 hosted run reached 2,836 Core methods with two skips and two
+unexpected History Inspection failures. Their protocol fixtures were stale;
+the repair retains existing assertions and adds a strict malformed-revision
+case, with three focused methods passing in session 12430. See
+[the hosted fixture repair](qa/history-inspection-hosted-repair-2026-10-25.json).
+This is focused local evidence, not a complete latest hosted green run.
+
+The pending resource ledger likewise is not a queue of ten missing user dialogs.
+Its ten currently pending resources are five Windows CrashServer dialogs, a
+Windows 11 context-registration dialog, testCache, a contributed example wait
+label, the Windows Plink login resource (native OpenSSH/askpass replaces it), and
+the dormant URL dialog with no active caller. Other unmapped controls include
+Explorer process/elevation/registry slots, drive-letter exclusions, hidden
+Cygwin/MSYS/animation and language-pack installer controls. The source's
+statistics file-changes-per-unit controls have inactive presentation updates;
+the shared patch-view editor already has native continuations. These bounded
+source findings need their mapping rationale, not invented active workflows.
+They do not excuse skipping genuine user-facing differences in partial families.
 
 ## Porting method
 

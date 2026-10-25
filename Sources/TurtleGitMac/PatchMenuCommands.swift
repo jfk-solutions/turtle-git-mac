@@ -7,7 +7,6 @@ import TurtleGitCore
 /// Repository, Settings and other editors must not act on a background diff.
 @MainActor final class PatchMenuContext: ObservableObject {
     @Published private(set) var available = false
-    @Published private(set) var closeAvailable = false
     @Published private(set) var darkMode = false
     @Published private(set) var documentAvailable = false
     @Published private(set) var documentVisible = false
@@ -51,8 +50,6 @@ import TurtleGitCore
         if darkMode != dark { darkMode = dark }
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil && NSApp.modalWindow == nil } ?? false
         if available != enabled { available = enabled }
-        let closable = controller.map { !$0.model.retired && !$0.model.confirmingQuit && $0.window?.attachedSheet == nil && (!$0.model.busy || $0.startupInput?.isReading == true) } ?? false
-        if closeAvailable != closable { closeAvailable = closable }
         let visible = controller?.documentSession.enabled == true
         if documentVisible != visible { documentVisible = visible }
         let document = enabled && visible
@@ -78,7 +75,6 @@ import TurtleGitCore
     func copyPatch() { refresh(); guard available else { return }; current?.model.copyPatch() }
     func saveDocument() { refresh(); guard documentAvailable else { return }; current?.documentSession.saveDocument() }
     func openDocument() { refresh(); guard documentAvailable else { return }; current?.documentSession.openDocument() }
-    func close() { refresh(); guard closeAvailable else { return }; current?.window?.performClose(nil) }
     func applyPatch() { refresh(); guard documentAvailable else { return }; current?.documentSession.applyPatch() }
     func showSettings() { refresh(); guard documentAvailable else { return }; current?.documentSession.showSettings() }
     func saveAs() { refresh(); guard available else { return }; current?.model.saveAs() }

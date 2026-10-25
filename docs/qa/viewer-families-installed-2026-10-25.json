@@ -1,0 +1,282 @@
+{
+  "family": "Aggregated signed installed viewer families: shared native lists and standalone Unified Diff",
+  "date": "2026-10-25",
+  "status": "bounded_signed_static_installed_viewer_acceptance_passed_after_Close_repair",
+  "base_commit": "a955f5661c034184ffcf5277d98dd6cf45a7559e",
+  "related_implementation_records": [
+    "docs/qa/native-list-interactions-2026-10-25.json",
+    "docs/qa/unified-diff-standalone-2026-10-25.json"
+  ],
+  "first_candidate": {
+    "inputs": {
+      "path": "build/qa/viewer-families-inputs-2026-10-25.json",
+      "sha256": "d307f8add580e1e026fa2623c351c6f9f654972ef04de6b253d337e05c0f9d21"
+    },
+    "inputs_sha256": "cf6d97c126837bd9cf13220d7cb4a7ca04f412deea67e60e806300521a7b6e99",
+    "dirty_inputs": true,
+    "protected_user_script_wip_preserved": true,
+    "signed_build": {
+      "path": "build/qa/viewer-families-signed-build-2026-10-25.log",
+      "sha256": "b643fa83c1c3b02325521aa8dc48f3f0ca93d8765a93aad5de835a996319443d",
+      "session": 63666,
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 3
+    },
+    "static": {
+      "path": "build/qa/viewer-families-static-2026-10-25.json",
+      "sha256": "47bc5a6ab1d35283e490bf34d6fc6957386276c644639cc643c3b3a72aedd8d8",
+      "session": 69672,
+      "exit_code": 0
+    },
+    "static_log": {
+      "path": "build/qa/viewer-families-static-2026-10-25.log",
+      "sha256": "9246d9808bbfdc062175a4e22bd456e398b0814543cf84b5676ea56e40ca4f30"
+    },
+    "static_summary": {
+      "source_inputs_unchanged": true,
+      "build_inputs_sha256": "cf6d97c126837bd9cf13220d7cb4a7ca04f412deea67e60e806300521a7b6e99",
+      "runtime_code_items": 206,
+      "bundle_inventory_members": 6356,
+      "bundle_inventory_sha256": "03cf48ef07eb56b81a3a212779a856281320387f0a7b7ec423ae235d5b359d5d",
+      "identity": {
+        "bundle_identifier": "org.turtlegit.macos",
+        "marketing_version": "0.1.0",
+        "build_number": "2",
+        "peers": {
+          "finder": {
+            "bundle_identifier": "org.turtlegit.macos.finder",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          },
+          "cache": {
+            "bundle_identifier": "org.turtlegit.macos.cache",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          }
+        }
+      },
+      "team": "A49SCA5S8K",
+      "group": "A49SCA5S8K.org.turtlegit.macos",
+      "actual_peer_signatures": 3,
+      "packaged_git_libgit2_metafile_inherited_signatures": true,
+      "functional_runtime_cases_executed": 0
+    },
+    "universal_owned_components": 8
+  },
+  "first_install": {
+    "path": "build/qa/viewer-families-install-2026-10-25.json",
+    "sha256": "f477d66cdce3bb81d6248b1a76919b544d67a5aa6312bddc0384aa34ab8474ca",
+    "session": 18746,
+    "exit_code": 0,
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "main_executable_sha256": "e84a3626be9540c1fb5899ea2c1e385f10d5037ba8a6355c739803373e6e1dcf",
+    "matches_static_inventory": true,
+    "recoverable_previous_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/viewer-families-displaced-installed-2026-10-25",
+    "previous_main_executable_sha256": "dd67f67fcff7aa2b52309906c69d99dccec62e7e5b73b1a9a05960a3b55aeb1b",
+    "finder_binary_changed": true,
+    "finder_directly_killed": false,
+    "receipt_registration_pending_superseded_by_later_registration": true
+  },
+  "registration": {
+    "record": {
+      "path": "build/qa/viewer-families-finder-registration-2026-10-25.json",
+      "sha256": "196a9f72e1228f978ccfcab970f2340472974c7f55f27fa3ab1119790a59c358"
+    },
+    "initial_attempts": [
+      {
+        "operation": "Unregister build candidate",
+        "exit_code": 0
+      },
+      {
+        "operation": "Unregister displaced backup",
+        "exit_code": 1,
+        "stderr_retained": false,
+        "reason": "Backup path was not registered; inventory inspected before continuing"
+      }
+    ],
+    "subsequent_supported_operations": "Remove installed entry, add installed path, elect use; each exit0; one installed elected entry",
+    "old_finder_pid": 77954,
+    "old_finder_retired_naturally": true,
+    "new_finder_pid": 88873,
+    "no_direct_finder_kill": true
+  },
+  "first_physical": {
+    "record": {
+      "path": "build/qa/viewer-families-installed-physical-2026-10-25.json",
+      "sha256": "a109accf59be091e9977f826d616d60ea880d27a136d08825867b49787807f74"
+    },
+    "session": 14581,
+    "pid": 88966,
+    "exit_code": 0,
+    "reaped": true,
+    "observations": [
+      "Actual installed signed app pipe/title opens only editable viewer",
+      "Command-S invokes native Save panel; owned temporary changes.patch exact expected bytes",
+      "File Dark Mode click changes to Light; composed screenshot and accessibility captured",
+      "Command-Q exits0 and process reaped"
+    ],
+    "saved_patch_sha256": "ff01fcb6eb5cc026c7df165ede1c54ba098c87869db5bb68d7d49a6bf98cc023",
+    "light_png": {
+      "path": "build/qa/viewer-families-installed-light-2026-10-25.png",
+      "sha256": "7f03a78dc70012a1a5947a9e631da396d0407f8654df39b199878a6a7164eff6"
+    },
+    "light_accessibility": {
+      "path": "build/qa/viewer-families-installed-light-2026-10-25.txt",
+      "sha256": "62f89dac62c2e455ae953243cd7e249147dbd4d0e5888a794469bc439b767008"
+    },
+    "private_environment_boundary": "HOME/CFFIXED_USER_HOME/TMPDIR supplied; persisted preference isolation not proven"
+  },
+  "preferences": {
+    "baseline": {
+      "path": "build/qa/viewer-families-sandbox-preferences-baseline-2026-10-25.json",
+      "sha256": "edeb707791c11ab0c9b4e4644fa7475640ebaefbf3d59283b176f5dd161ec0df"
+    },
+    "restoration": "Targeted defaults deletion of only these two keys after run; other keys preserved",
+    "two_baseline_keys_absent": [
+      "PartialPatchWindowWidth",
+      "TurtleGit.DialogGeometry.PatchWindowController"
+    ]
+  },
+  "confirmed_ui_defect": {
+    "description": "Two Close items in actual File menu: custom Close plus macOS standard Close",
+    "found_by": "Actual installed File menu acceptance",
+    "production_repair": "Remove custom Close and unused context published guard/API; preserve standard Close",
+    "status": "custom_Close_removed_and_actual_installed_single_standard_Close_verified"
+  },
+  "repair_candidate": {
+    "inputs": {
+      "path": "build/qa/viewer-close-repair-inputs-2026-10-25.json",
+      "sha256": "67a891034c2d68d1c51af239a46f928a66ae3991feacc42d2bfb5e614be38cc2"
+    },
+    "inputs_sha256": "8569ede11db21c8efe01c519bbd181b6152278b80e1e6e3625542573ffa66867",
+    "base_commit": "a955f5661c034184ffcf5277d98dd6cf45a7559e",
+    "dirty_inputs": true,
+    "signed_session": 95712,
+    "signed_log": "build/qa/viewer-close-repair-signed-build-2026-10-25.log",
+    "status": "signed_static_installed_and_focused_Close_acceptance_passed",
+    "static": {
+      "path": "build/qa/viewer-close-repair-static-2026-10-25.json",
+      "sha256": "c9aa92db35185159dad69c680d0f43d226a9691d78f849b67bfb68c816798fe4",
+      "session": 31702,
+      "exit_code": 0
+    },
+    "recoverable_install": {
+      "path": "build/qa/viewer-close-repair-install-2026-10-25.json",
+      "sha256": "bb961b1c7fe70a15ae558f199ce490610824da8d6336d6997e0b73cdc6988696",
+      "session": 94222,
+      "exit_code": 0
+    },
+    "final_physical": {
+      "record": {
+        "path": "build/qa/viewer-close-repair-installed-physical-2026-10-25.json",
+        "sha256": "075dde2d5489cd4a4cfeeb4b257fd0551598c6538fa468120234fad8f17f1934"
+      },
+      "menu_accessibility": {
+        "path": "build/qa/viewer-close-repair-installed-menu-2026-10-25.txt",
+        "sha256": "e399605fcb40d0a5e42ff8490dae79cd9ab4a8156c38410662dd1ed691bd6b8b"
+      },
+      "session": 43140,
+      "pid": 91444,
+      "exit_code": 0,
+      "reaped": true,
+      "pipe_sha256": "ff01fcb6eb5cc026c7df165ede1c54ba098c87869db5bb68d7d49a6bf98cc023",
+      "menu": "Exactly one Schlie\u00dfen with performClose:; Alle schlie\u00dfen closeAll: is a distinct standard command",
+      "Close_clicked": true,
+      "screenshot_returned": false,
+      "png_exists": false,
+      "no_png_capture_claimed": true,
+      "preference_isolation_claimed": false,
+      "observation_artifact": "Calling getAXState after Close reopened workspace via CUA as PID91508; that observation-created app was quit using Command-Q and shell independently confirmed no MainApp; no AX request after final Quit"
+    },
+    "signed_build": {
+      "path": "build/qa/viewer-close-repair-signed-build-2026-10-25.log",
+      "sha256": "eaaf8fabf3591e085ef3ef9f5fa81da945e1cf5bcb7d8877dcb7753c873b3e4c",
+      "session": 95712,
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 3
+    },
+    "static_log": {
+      "path": "build/qa/viewer-close-repair-static-2026-10-25.log",
+      "sha256": "59778dfc57f3c22a20c17ca25f7106755b05bea3616a5119bfb0d51ec0588ec8"
+    },
+    "static_summary": {
+      "source_inputs_unchanged": true,
+      "build_inputs_sha256": "8569ede11db21c8efe01c519bbd181b6152278b80e1e6e3625542573ffa66867",
+      "runtime_code_items": 206,
+      "bundle_inventory_members": 6356,
+      "bundle_inventory_sha256": "f45d4ce4461d821f3892d574e0caa7629ae17cc35af380c0803346d28e4a98f2",
+      "identity": {
+        "bundle_identifier": "org.turtlegit.macos",
+        "marketing_version": "0.1.0",
+        "build_number": "2",
+        "peers": {
+          "finder": {
+            "bundle_identifier": "org.turtlegit.macos.finder",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          },
+          "cache": {
+            "bundle_identifier": "org.turtlegit.macos.cache",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          }
+        }
+      },
+      "team": "A49SCA5S8K",
+      "group": "A49SCA5S8K.org.turtlegit.macos",
+      "actual_peer_signatures": 3,
+      "packaged_git_libgit2_metafile_inherited_signatures": true,
+      "functional_runtime_cases_executed": 0
+    },
+    "universal_owned_components": 8,
+    "install_log": {
+      "path": "build/qa/viewer-close-repair-install-2026-10-25.log",
+      "sha256": "bb961b1c7fe70a15ae558f199ce490610824da8d6336d6997e0b73cdc6988696"
+    },
+    "installed_main_executable_sha256": "db75298fd5d10f655e0f9ac4ae90a4e2015e988ef80803e29ca2c620f2b6e5ba",
+    "matches_static_inventory": true,
+    "recoverable_previous_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/viewer-close-repair-displaced-installed-2026-10-25",
+    "previous_main_executable_sha256": "e84a3626be9540c1fb5899ea2c1e385f10d5037ba8a6355c739803373e6e1dcf",
+    "registration": {
+      "record": {
+        "path": "build/qa/viewer-close-repair-finder-registration-2026-10-25.json",
+        "sha256": "fd44ca4e2b110e12c291b24784d2ce04dd91f8456c38c3a9571e7ccef2a9e742"
+      },
+      "all_four_operations_exit_zero": true,
+      "single_elected_installed_uuid": "8A2A0727-5B90-4556-BE29-F42D3A95C453",
+      "old_finder_pid": 88873,
+      "old_finder_retired_naturally": true,
+      "new_finder_pid": 91509,
+      "finder_directly_killed": false,
+      "original_install_receipt_pending_flag_superseded_by_registration_receipt": true
+    },
+    "preferences_restored": {
+      "path": "build/qa/viewer-close-repair-sandbox-preferences-restored-2026-10-25.json",
+      "sha256": "648d623c958cad539791ee989b5f5ed162005d128b7b876fcfb274a4e5c249d4"
+    }
+  },
+  "unchanged_helper_functional_scope": {
+    "record": "docs/qa/signed-history-family-2026-10-24.json",
+    "rerun_this_family": false,
+    "current_checkpoint": "Static signatures/placement/universal inventory only; prior helper functional modes are separate dated evidence"
+  },
+  "limits": [
+    "Prior and current original receipts/backups retained",
+    "Selected installed viewer checks do not prove complete source visual/menu/keyboard parity",
+    "No App Store archive/export/submission or distribution notarization",
+    "Complete current hosted CI remains pending",
+    "Final repaired menu acceptance has accessibility text only; screenshot API returned no image",
+    "An observation-created workspace was explicitly quit; that artifact is not part of pipe-only startup",
+    "Signed environment variables do not prove private persisted preference isolation",
+    "Unchanged Git/libgit2/metafile functional sandbox modes were not rerun; static signatures/inventory only"
+  ],
+  "final_cleanup": {
+    "known_two_geometry_keys_absent": true,
+    "other_preferences_not_reset": true,
+    "main_app_absent_confirmed_by_shell": true,
+    "post_Close_CUA_observation_reopened_workspace_then_quit": true,
+    "final_finder_pid": 91509,
+    "no_direct_finder_kill": true,
+    "no_post_Quit_AX_request": true
+  }
+}
