@@ -20,7 +20,7 @@ jobs:
           Set-Content -Path oracle-build.cmd -Value $compile -Encoding Ascii
           cmd /c oracle-build.cmd
           if ($LASTEXITCODE -ne 0) { throw "Reference compile failed" }
-          .\PathGradientReference.exe Tests/TurtleGitCoreTests/Fixtures/Metafile oracle-output framing
+          .\PathGradientReference.exe Tests/TurtleGitCoreTests/Fixtures/Metafile oracle-output scanline
           if ($LASTEXITCODE -ne 0) { throw "Reference execution failed" }
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
           Get-FileHash scripts/oracles/PathGradientReference.cpp -Algorithm SHA256
