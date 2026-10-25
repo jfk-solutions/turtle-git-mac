@@ -104,11 +104,13 @@ source comparisons, verification and remaining work.
 
 The Commit window in light appearance:
 
-![Commit in light mode: message, author options and checked files](site/assets/mac-commit-light-2026-10-25.png)
+Choose **Classic** or **Git Gui-style staging** from the compact dropdown at the upper right. TurtleGit remembers your choice.
+
+![Commit in light mode: message, author options and checked files](site/assets/mac-commit-compact-light-2026-10-25.png)
 
 The same window in dark appearance:
 
-![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-dark-2026-10-25.png)
+![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-compact-dark-2026-10-25.png)
 
 ## Choose a commit window
 
@@ -293,6 +295,14 @@ Use **Merging** and select Base, Their and My files. Two selected files open a
 comparison; three open a three-pane merge. You can drop a file onto a path field
 or use **Browse…**. Path suggestions follow accessible folders; App Store builds
 require file/folder authorization for paths outside the app container.
+
+For two-file comparisons, choose **Classic** or **P4Merge-style** from the compact
+dropdown at the upper right. The selected layout is remembered; changing it does
+not save either file.
+
+![Two-file comparison in light mode with the compact Classic selector](site/assets/mac-compare-compact-light-classic-2026-10-25.png)
+
+![Two-file comparison in dark mode with the compact P4Merge-style selector](site/assets/mac-compare-compact-dark-p4merge-2026-10-25.png)
 
 Three-file results start unnamed. **Save** asks for a destination; later Save
 uses that file. **Save As…** chooses another destination, and Cancel keeps the

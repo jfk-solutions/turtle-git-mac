@@ -1,0 +1,75 @@
+{
+  "method": "ScreenCaptureKit desktopIndependentWindow; actual native windows offscreen, original PNG bytes",
+  "repository": "Synthetic offline Harbor with branch merge, staged/unstaged files and draft; fixture commits only before capture baseline",
+  "preferences": "private suite removed; private HOME/CFFIXED_USER_HOME env",
+  "network": false,
+  "owned_receiver_reaped": true,
+  "assets": [
+    {
+      "raw_path": "build/qa/compact-selector-captures-2026-10-25/commit-compact-light.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 423597,
+      "sha256": "81aeff8a5eaf733a01015972ee9d5af9a055a39443a230ca21beda8222ae9c4e",
+      "site_path": "docs/site/assets/mac-commit-compact-light-2026-10-25.png"
+    },
+    {
+      "raw_path": "build/qa/compact-selector-captures-2026-10-25/commit-compact-dark.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 428326,
+      "sha256": "06a3750e9ae978b6d71ab6cc143aa1009e3026f5fa47a86e3bbdd986930ef38d",
+      "site_path": "docs/site/assets/mac-commit-compact-dark-2026-10-25.png"
+    },
+    {
+      "raw_path": "build/qa/compact-selector-captures-2026-10-25/compare-compact-light-classic.png",
+      "width": 2400,
+      "height": 1606,
+      "bytes": 765427,
+      "sha256": "358bec7828323603bc6768fe17b794336fbf3fe156c34614458fc202c796b70a",
+      "site_path": "docs/site/assets/mac-compare-compact-light-classic-2026-10-25.png"
+    },
+    {
+      "raw_path": "build/qa/compact-selector-captures-2026-10-25/compare-compact-dark-p4merge.png",
+      "width": 2400,
+      "height": 1606,
+      "bytes": 744447,
+      "sha256": "ec20f333d2aecca28f0fb8f335887bc3d21bfeb55eb149e7f0bdd4c792688d9d",
+      "site_path": "docs/site/assets/mac-compare-compact-dark-p4merge-2026-10-25.png"
+    }
+  ],
+  "clean_debug_root": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac",
+  "assets_not_published_pending_visual_acceptance": false,
+  "stdout_sha256": "e7fca0f4a7265832d182c3e3269ea0101fbbae497058a5d39d662b6d04fe3440",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "attempts": [
+    {
+      "receiver_pid": 80948,
+      "result": "Commit captures produced; comparison-only native NSPopUpButton lookup fixture failed because SwiftUI menu is not exposed as that class; windows closed and receiver reaped.",
+      "logs": [
+        "build/qa/compact-selector-capture-driver-attempt1-2026-10-25.log",
+        "build/qa/compact-selector-captures-2026-10-25/attempt1-stdout.txt",
+        "build/qa/compact-selector-captures-2026-10-25/attempt1-stderr.txt"
+      ]
+    },
+    {
+      "receiver_pid": 81128,
+      "result": "Focused comparison-only capture passed; actual AppStorage preference changed in private suite; no synthetic native menu/action claim.",
+      "log": "build/qa/compact-selector-capture-driver-2026-10-25.log"
+    }
+  ],
+  "owned_pids_independently_absent": true,
+  "limitations": [
+    "Original native captures only, no image editing/compositing.",
+    "No actual popup keyboard/menu action acceptance claim; native SwiftUI Picker source preserves standard semantics.",
+    "First Commit images and later comparison images use separate private fixture runs; no Commit/apply action after each baseline."
+  ],
+  "root_visual_acceptance": "All four original screenshots accepted by root; compact top-right selectors readable and unclipped.",
+  "source_hashes": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "ee93043e05afd9d71ba23572e159b300e3652116e35d8c6216a2f3e2e9ef9dfb",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "ff42d2c52c4905dd64ccbd59315ceea9c0c5ad518258d79f505c0220d9661db0",
+    "docs/qa/compact-selector-captures-2026-10-25.swift": "b42dd9ac7977283a0caeda4626e9e58ecd834fced79f86ba6fcd3c08813ae68f",
+    "scripts/capture-compact-selectors.py": "73a7a26c2644fce062e3419432c674e7bcac15e9ce193d9f3f228f082b88e013"
+  },
+  "publication_note": "Original raw captures preserved; website assets are byte-for-byte copies. Comparison choices exercised through actual private AppStorage preference, not a fabricated menu action."
+}

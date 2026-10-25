@@ -1,0 +1,91 @@
+{
+  "scope": "Documentation-only ready overlay into existing clean ca7c08d1 snapshot; no dirty renderer guides copied",
+  "base": "ca7c08d1f94d3c722c89d041667cca9036154ca1",
+  "root_visual_acceptance": "All four original native compact selector captures accepted",
+  "capture_receipt": "docs/qa/compact-selector-captures-2026-10-25.json",
+  "snapshot": "build/qa/manual-site-ready-snapshot-2026-10-25",
+  "overlay": {
+    "README.md": "b67d85f80b6f813a38e4231aeb4fa26b17de2e7d94d224ba2e08afc3c3c2d1f7",
+    "docs/GETTING-STARTED.md": "d85a504b7d06ba964b82f0e3bc3e971f3de89e689fa3997c144a0d16e4697ac1",
+    "docs/site/index.html": "fdd700f51b5c7f4a323139f2b77192791708aafce1b34f571fd2bd961b25fe5a",
+    "docs/site/style.css": "03396c4150484f60b5eac1b4a30325390ad094a9a044c08485ddfcf8ccd95973",
+    "scripts/site_docs.py": "d2d241b1674beb214c94c875f4f9f33fd63b9316fb230d015669775cb0ca74ce",
+    "scripts/build-help.py": "55e08749e7e10a121bb232dbb8764722eb124cbb64beeb33e6cf47c787eaed73",
+    "docs/site/assets/mac-log-light-2026-10-25.png": "f691df2e7ef014fdf3b475f2a8dadf412250e4cf8c092713ac22272228e48f00",
+    "docs/site/assets/mac-log-dark-2026-10-25.png": "1277334484766740f8e20e2d6a5fc33b3bc66cfa9f4f0b7dcea3ea370477fe47",
+    "docs/site/assets/mac-commit-light-2026-10-25.png": "5ddca9d207b35101fe7d84ee64670deea369a8f2540884bed5592c7d53be0b02",
+    "docs/site/assets/mac-commit-dark-2026-10-25.png": "05839da2273ba68fe11b5efd9251c9d7e5db1a964132a5c59ffda26e99ba0ece",
+    "docs/qa/compact-selector-captures-2026-10-25.json": "03803151a63df7adfb6e7c54ad97cb5571ff0ebf0e5ae9fcb9a4b9fe17de18ae",
+    "docs/qa/compact-selector-captures-2026-10-25.swift": "b42dd9ac7977283a0caeda4626e9e58ecd834fced79f86ba6fcd3c08813ae68f",
+    "scripts/capture-compact-selectors.py": "73a7a26c2644fce062e3419432c674e7bcac15e9ce193d9f3f228f082b88e013",
+    "docs/site/assets/mac-commit-compact-light-2026-10-25.png": "81aeff8a5eaf733a01015972ee9d5af9a055a39443a230ca21beda8222ae9c4e",
+    "docs/site/assets/mac-commit-compact-dark-2026-10-25.png": "06a3750e9ae978b6d71ab6cc143aa1009e3026f5fa47a86e3bbdd986930ef38d",
+    "docs/site/assets/mac-compare-compact-light-classic-2026-10-25.png": "358bec7828323603bc6768fe17b794336fbf3fe156c34614458fc202c796b70a",
+    "docs/site/assets/mac-compare-compact-dark-p4merge-2026-10-25.png": "ec20f333d2aecca28f0fb8f335887bc3d21bfeb55eb149e7f0bdd4c792688d9d"
+  },
+  "overlay_sha256": "9c4f8c06ee223945f873e5eefd7fa50025696dd9f344974b67511d8a3d2f4d66",
+  "results": {
+    "site_documents": 467,
+    "unresolved_fragments": 0,
+    "site_tests": 2,
+    "help_documents": 58,
+    "help_topics": 51,
+    "help_files": 86,
+    "help_bytes": 7387941,
+    "write_and_check": "PASS",
+    "compact_inline_images": [
+      "../assets/mac-commit-compact-light-2026-10-25.png",
+      "../assets/mac-commit-compact-dark-2026-10-25.png",
+      "../assets/mac-compare-compact-light-classic-2026-10-25.png",
+      "../assets/mac-compare-compact-dark-p4merge-2026-10-25.png"
+    ]
+  },
+  "generated_help_ready_to_copy": "build/qa/manual-site-ready-snapshot-2026-10-25/Sources/TurtleGitMac/Resources/TurtleGitHelp.help",
+  "generated_help_manifest_sha256": "cfb48f29091e5784f7af75ac8a4ab41e5c6476f57abd1bd826617155cd84ecde",
+  "generated_help_not_copied_by_this_checkpoint": true,
+  "main_edited_files": [
+    "docs/GETTING-STARTED.md",
+    "docs/qa/compact-selector-captures-2026-10-25.json",
+    "docs/site/assets/mac-compare-compact-light-classic-2026-10-25.png",
+    "docs/site/assets/mac-compare-compact-dark-p4merge-2026-10-25.png"
+  ],
+  "logs": {
+    "build/qa/compact-selector-site-2026-10-25.log": {
+      "sha256": "127cf6e05e2fc949b1d39fbc08861c832f46de38d2ea373bdb381065f16c8284",
+      "text": "{\n  \"documents\": 467,\n  \"unresolved_fragments\": []\n}\n/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/manual-site-ready-snapshot-2026-10-25/build/site\n"
+    },
+    "build/qa/compact-selector-site-tests-2026-10-25.log": {
+      "sha256": "7b73082a354d4688e4cf6d8cea7033aeee23878b451356c556d93658a71bb81e",
+      "text": "..\n----------------------------------------------------------------------\nRan 2 tests in 7.661s\n\nOK\n"
+    },
+    "build/qa/compact-selector-help-2026-10-25.log": {
+      "sha256": "2653c542b370471910acbf8ab26f911bbf69ab1891df99bb460d8669105ade9a",
+      "text": "{\"documents\": 58, \"topics\": 51, \"files\": 86, \"bytes\": 7387941, \"mode\": \"write\"}\n"
+    },
+    "build/qa/compact-selector-help-check-2026-10-25.log": {
+      "sha256": "7229425a3fa79d1833f91bbc942c5e53c9a65a65443948c2dfdd73807704d721",
+      "text": "{\"documents\": 58, \"topics\": 51, \"files\": 86, \"bytes\": 7387941, \"mode\": \"check\"}\n"
+    }
+  },
+  "limits": [
+    "No app/native/Core tests or builds.",
+    "Original raw captures and old website screenshots preserved.",
+    "Choice captures use actual private AppStorage persistence, not fabricated native menu actions."
+  ],
+  "final_main_checkpoint": {
+    "scope": "Ready compact guide/site/assets plus validated bounded renderer documentation; current main generated Help synchronized before next app build.",
+    "help_write_and_check": "pass;58 guides51topics86files7389499bytes",
+    "site": "468 documents,zero unresolved fragments",
+    "site_tests": "2 passed after site build finished",
+    "retained_initial_site_test_failure": "Root incorrectly started the generated-site reader in parallel with the site writer. It read a transient missing generated file and failed; no content repair. Sequential affected reader-only recheck passed.",
+    "logs": {
+      "metafile-compact-help-2026-10-25.log": "ef6d845e1e769352ecae20e481dad2b678d3ce9fda01f873921117ed89047459",
+      "metafile-compact-help-check-2026-10-25.log": "aa76d30f8d32608aecced111fbbd6b5562c255e1f0ee8c79ea767bdae350e776",
+      "metafile-compact-site-2026-10-25.log": "f6e42861675acb4240259de692bade039ca3971380743313d32619fb2263aeab",
+      "metafile-compact-site-tests-2026-10-25.log": "454b444c5913888e4f04a7195c88141957b1126d55ca711b56998ca8a80d892a",
+      "metafile-compact-site-tests-after-build-2026-10-25.log": "11025bc9abe23c75b46b8d6144965c07d296c0c95db7e06b4a599ef47f482821"
+    },
+    "main_help_manifest_sha256": "afb1333738a40724b7922b8755e43b24d5b73053766d9340706f8f3fada00e99",
+    "signed_installed_help": "Build5 retains prior generated Help; current generated Help belongs to the next app build."
+  }
+}
