@@ -136,7 +136,7 @@ private actor FilesystemServiceReadGate {
         try require(selection.changeCount == count, "Services altered private pasteboard")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3])), format: nil) as! [String: Any]
         let services = plist["NSServices"] as? [[String: Any]] ?? []
-        try require(services.count == 55 && Set(services.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "55 registered Services differ from Core commands")
+        try require(services.count == 56 && Set(services.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "56 registered Services differ from Core commands")
         for command in commands {
             let entries = services.filter { $0["NSUserData"] as? String == command }
             try require(entries.count == 1 && entries[0]["NSMessage"] as? String == "performFinderAction" && entries[0]["NSSendFileTypes"] as? [String] == [command == "clean" ? "public.folder":"public.item"], "filesystem service declaration invalid")

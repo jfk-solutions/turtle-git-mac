@@ -130,14 +130,14 @@ private actor LinkedServiceReadGate {
         try require(selected.changeCount == count, "linked Services changed private pasteboard")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3])), format: nil) as! [String: Any]
         let declarations = plist["NSServices"] as? [[String: Any]] ?? []
-        try require(declarations.count == 55 && Set(declarations.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "55 registered Services differ from actual Core commands")
+        try require(declarations.count == 56 && Set(declarations.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "56 registered Services differ from actual Core commands")
         for command in commands {
             let entries = declarations.filter { $0["NSUserData"] as? String == command }
             try require(entries.count == 1 && entries[0]["NSMessage"] as? String == "performFinderAction" && entries[0]["NSSendFileTypes"] as? [String] == ["public.folder"], "linked Service folder declaration invalid")
         }
         provider.retire(); let total = received.count
         try require(invoke(provider, selected, "submoduleSync") != nil && received.count == total, "retired linked Service provider dispatched")
-        print("PASS: six linked Services,55 declarations, literal directory capture, folder UTIs and source cardinality")
+        print("PASS: six linked Services,56 declarations, literal directory capture, folder UTIs and source cardinality")
     }
     static func bytes(_ repository: GitRepository, _ path: String) throws -> Data { try Data(contentsOf: repository.root.appendingPathComponent(path)) }
     static func value(_ repository: GitRepository, _ args: [String]) async throws -> String { try await repository.run(args).text.trimmingCharacters(in: .newlines) }

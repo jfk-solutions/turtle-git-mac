@@ -1,5 +1,29 @@
 import AppKit
 
+/// AppKit 27 hides command images automatically unless visibility is explicit.
+/// Use the public Objective-C accessor dynamically so older build SDKs remain
+/// supported. Image producers still own the user's icon preference and artwork.
+public enum MenuImageVisibility {
+    public static func apply(to menu: NSMenu) {
+        for item in menu.items {
+            apply(to: item)
+            if let submenu = item.submenu { apply(to: submenu) }
+        }
+    }
+    public static func apply(to item: NSMenuItem) {
+        guard item.image != nil else { return }
+        if #available(macOS 27.0, *) {
+            let key = "preferredImageVisibility"
+            guard item.responds(to: NSSelectorFromString(key)),
+                  item.responds(to: NSSelectorFromString("setPreferredImageVisibility:")) else { return }
+            // NSMenuItemImageVisibilityVisible is 1 in the public AppKit API.
+            if (item.value(forKey: key) as? NSNumber)?.intValue != 1 {
+                item.setValue(NSNumber(value: 1), forKey: key)
+            }
+        }
+    }
+}
+
 public enum MenuPresentationSettings {
     public static func applicationContextIcons(defaults: UserDefaults = .standard) -> Bool {
         (defaults.object(forKey: "ShowAppContextMenuIcons") as? NSNumber)?.boolValue ?? true
@@ -229,6 +253,7 @@ extension RepositoryAction {
         case .autotextTest: return .settingsDialogs
         case .introduction: return .help
         case .settings: return .settings
+        case .registerRepository: return .turtle
         case .help: return .help
         case .about, .firstStartWizard: return .about
         case .status: return .status

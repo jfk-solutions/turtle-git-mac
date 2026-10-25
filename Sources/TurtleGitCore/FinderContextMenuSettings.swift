@@ -261,6 +261,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     /// One preference controls every command sharing the source menu ID.
     public static func entry(for action: RepositoryAction) -> Self? {
         switch action {
+        case .registerRepository: return nil // Native folder permission/watch entry, not a source menu-mask bit.
         case .properties: return nil // macOS entry replaces Explorer's property-sheet tab, not a MenuInfo bit.
         case .showCompare, .cat, .commitIsOnRefs: return nil // Internal history commands have no Explorer menu preference bit.
         case .lfs, .lfsLocks, .lfsLock, .lfsUnlock: return .lfs

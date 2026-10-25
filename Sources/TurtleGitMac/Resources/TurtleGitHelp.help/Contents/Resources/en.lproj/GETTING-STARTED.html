@@ -38,6 +38,25 @@ the Git repository remains created and you do not need to repeat Init or Clone.<
 Bare repositories support history and remote operations but do not have a
 working tree to edit or commit. If saved folder access cannot be renewed, select
 the folder again through Open Repository.</p>
+<h2 id="start-from-finder">Start from Finder</h2>
+<p>With the signed Finder extension enabled, select a folder and open <strong>TurtleGit</strong>
+in its context menu. <strong>Clone…</strong> opens the clone form with that destination;
+<strong>Create repository…</strong> opens the creation form. For a repository already on disk,
+choose <strong>Add to TurtleGit…</strong>. The app requests folder access when needed, validates
+the repository and saves it in Open Recent and Watched Repositories. Registration
+does not replace the repository already open in your workspace.</p>
+<p>A successful Clone also registers its resulting repository using the destination
+permission you already granted. A registration failure is reported separately from
+the successful Git clone, so you can retry registration without cloning again.
+To continue badge updates after quitting, enable <strong>Settings → Icon Overlays →
+Watched Repositories → Refresh after TurtleGit quits</strong>. Registering or cloning a
+repository does not change that background preference.</p>
+<p>If Finder Sync is disabled or macOS does not show its submenu, select the folder
+and use <strong>Services → TurtleGit: Clone…</strong> or <strong>TurtleGit: Add to TurtleGit…</strong>.
+Finder controls extension/menu placement. These commands do not grant access to
+other repositories or cause a scan of your Mac. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-REGISTRATION-PARITY.html">registration workflow</a> for scope and current
+verification limits.</p>
 <h2 id="commit-with-checked-files">Commit with checked files</h2>
 <p>Open <strong>Commit</strong> for the current repository. The message sits above the changed
 file list. With <strong>Staging support (EXPERIMENTAL)</strong> off, check the files whose

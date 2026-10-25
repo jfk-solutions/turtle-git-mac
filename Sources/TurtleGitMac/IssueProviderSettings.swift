@@ -82,7 +82,7 @@ struct IssueProviderSettingsPage: View {
                 TableColumn("Provider") { row in Text(NativeIssueProviderRegistry.descriptor(identifier:row.provider)?.name ?? row.provider) }
                 TableColumn("Parameters", value: \.parameters)
             }.disabled(model.hasChild || !model.loaded || model.saving)
-            .contextMenu(forSelectionType: UUID.self) { _ in Button("Edit…") { model.edit() }.disabled(model.chosen == nil) } primaryAction: { ids in model.selection = ids; model.edit() }
+            .contextMenu(forSelectionType: UUID.self) { _ in TurtleGitContextMenu { Button { model.edit() } label: { CommandLabel(title:"Edit…",icon:.editor) }.disabled(model.chosen == nil) }.defaultAppStorage(model.preferences) } primaryAction: { ids in model.selection = ids; model.edit() }
             HStack {
                 Button { model.add(root: workspace.root) } label: { CommandLabel(title: "Add…", icon: .add) }
                 Button("Edit…") { model.edit() }.disabled(model.chosen == nil)

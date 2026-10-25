@@ -115,6 +115,8 @@ public struct FinderCreationMenuContext: Sendable {
         self.folderInGit = folderInGit ?? versioned; self.bare = bare
         self.ignored = ignored; self.inaccessible = inaccessible; self.extended = extended
     }
+    /// Explicit macOS first-use registration is independent of source Git menu eligibility.
+    public var registrationAction: RepositoryAction? { directory ? .registerRepository:nil }
     public var actions: [RepositoryAction] {
         guard directory else { return [] }
         let ordinary = !versioned && !folderInGit && !bare && !inaccessible
@@ -391,7 +393,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case inaccessible
+    case inaccessible, registerRepository
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
@@ -400,6 +402,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .registerRepository: return "Add to TurtleGit…"
         case .inaccessible: return "Inaccessible…"
         case .updateCheck: return "Check for Updates…"
         case .autotextTest: return "Autotext Tester…"

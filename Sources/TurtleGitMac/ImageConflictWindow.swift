@@ -55,6 +55,7 @@ import TurtleGitCore
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
+    var presentationPreferences:UserDefaults {preferences}
     @Published private(set) var document: ImageConflictDocument
     @Published var nativeToolbarInstalled = false
     @Published var vertical = false

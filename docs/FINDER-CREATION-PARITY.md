@@ -40,10 +40,12 @@ Create repository folder-picker flow. Only these two URL actions may omit paths;
 all repository actions still require selection. No synthetic filesystem target is
 substituted. Context-menu icon settings do not remove the toolbar image.
 
-Context menus remain restricted to Finder Sync's monitored directories. The toolbar
-is the native entry point outside those directories; activated appearance, placement
-and signed permission behavior have not been verified. macOS Finder Sync replaces
-Explorer integration and does not supply its global Explorer context-menu API.
+The October 25 [registration workflow](FINDER-REGISTRATION-PARITY.md) adds a
+command-discovery namespace for first-use Clone/Create/Add menus outside published
+repositories. Its explicit native entry points ask the app to obtain permission
+and validate the destination. Status requests, watches and badges remain limited
+to published repository roots. The original source-condition and toolbar checks
+below remain historical; expanded installed coverage needs its own evidence.
 
 ## Verification
 

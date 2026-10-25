@@ -47,7 +47,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
             try require(packets.last?.action==action && packets.last?.paths.map(\.path)==[second.path,first.path],"Services lost action, order or newline/Unicode URL")
         }
         let folderBoard=board([directory]);defer {folderBoard.releaseGlobally()}
-        for (name,action) in [("clone",RepositoryAction.clone),("initialize",.initialize)] {
+        for (name,action) in [("clone",RepositoryAction.clone),("initialize",.initialize),("registerRepository",.registerRepository)] {
             try require(invoke(receiver,folderBoard,name)==nil && packets.last?.action==action && packets.last?.paths.map(\.path)==[directory.path],"Folder service request changed")
         }
         let legacy=NSPasteboard.withUniqueName();defer {legacy.releaseGlobally()}
@@ -75,7 +75,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         let selector=NSSelectorFromString("performFinderAction:userData:error:")
         try require(receiver.responds(to:selector),"Declared Objective-C selector is unavailable")
         for service in services {
-            let folderService=["clone","initialize","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule","reflog","referenceBrowser","repositoryBrowser"].contains(service["NSUserData"] as? String ?? "")
+            let folderService=["registerRepository","clone","initialize","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule","reflog","referenceBrowser","repositoryBrowser","export","formatPatch","requestPull"].contains(service["NSUserData"] as? String ?? "")
             try require(service["NSMessage"] as? String=="performFinderAction" && (service["NSSendFileTypes"] as? [String])==[folderService ? "public.folder":"public.item"],"Plist Services selector/input type mismatch")
             try require((service["NSMenuItem"] as? [String:String])?["default"]?.contains("TurtleGit")==true,"Service menu lacks TurtleGit branding")
         }

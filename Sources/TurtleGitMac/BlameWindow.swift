@@ -1613,6 +1613,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             let menu=NSMenu();menu.autoenablesItems=false
             func item(_ id:String,_ title:String,_ selector:Selector)->NSMenuItem {
                 let item=NSMenuItem(title:title,action:selector,keyEquivalent:"");item.target=self
+                item.image=(id=="reset" ? MenuIcon.restore:.settingsDialogs).contextImage(defaults:model.labelDefaults)
                 item.representedObject=HeaderInvocation(model,header:headerEpoch,lifetime:lifetime,id:id,style:styleKey);item.isEnabled=available;return item
             }
             menu.addItem(item("reset","Reset columns",#selector(resetHeader(_:))));menu.addItem(.separator())
@@ -2031,7 +2032,7 @@ private struct BlameTable: NSViewRepresentable {
             item("Show log","log",.log,enabled:model.onLog != nil);menu.addItem(.separator())
             item("Copy SHA-1 to clipboard","hash",.copy);item("Copy log to clipboard","details",.copy)
             menu.addItem(.separator());item("Copy source line","line",.copy)
-            item("Copy","selection",.copy,enabled:!target.selectionText.isEmpty);item("Select All","all",nil,enabled:!model.lines.isEmpty)
+            item("Copy","selection",.copy,enabled:!target.selectionText.isEmpty);item("Select All","all",.mergeMarked,enabled:!model.lines.isEmpty)
         }
         @objc func invokeSource(_ sender:NSMenuItem) {
             guard sender.isEnabled,let action=sender.representedObject as? SourceInvocation,!action.used,model.acceptsSource(action.target) else {return}

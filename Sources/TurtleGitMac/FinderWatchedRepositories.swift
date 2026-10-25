@@ -6,8 +6,13 @@ import SwiftUI
 import TurtleGitCore
 
 private enum FinderWatchFailure:LocalizedError {
-    case duplicate
-    var errorDescription:String? { "This repository is already watched." }
+    case duplicate, unavailable
+    var errorDescription:String? {
+        switch self {
+        case .duplicate:return "This repository is already watched."
+        case .unavailable:return "Finder repository watches are unavailable. Open Icon Overlays settings and retry."
+        }
+    }
 }
 
 struct FinderWatchRow:Identifiable {
@@ -197,6 +202,36 @@ struct FinderWatchRow:Identifiable {
         } catch {
             if active,!token.isCancelled { self.error=error.localizedDescription;if let id,sessions[id]==nil { attach(id) };render() }
         }
+    }
+    /// Register a root using an already accepted live folder grant. Unlike the
+    /// Settings Add action this must not silently discard a completed Clone
+    /// while another watch mutation is draining.
+    @discardableResult func register(root:URL,access:RepositoryAccessLease,additionalFolders:[URL] = [],cancellation:OperationCancellation) async throws -> UUID {
+        while busy {
+            try cancellation.check();guard active else {throw FinderWatchFailure.unavailable}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        try cancellation.check();guard active else {throw FinderWatchFailure.unavailable}
+        guard access.contains(root),!requireScope || access.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        busy=true;pendingOperations += 1;error=nil;mutation=cancellation
+        defer {if mutation === cancellation {mutation=nil};pendingOperations -= 1;busy=false;withExtendedLifetime(access) {}}
+        let discovered=try await repositoryFactory(root).discoverRoot(cancellation:cancellation)
+        try cancellation.check();guard active else {throw FinderWatchFailure.unavailable}
+        guard GitReferenceName.equal(discovered.standardizedFileURL.resolvingSymlinksInPath().path,root.standardizedFileURL.resolvingSymlinksInPath().path) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(discovered.path)}
+        // Persist the child bookmark while its accepted parent lease is alive;
+        // this does not require another folder picker or enable the service.
+        for folder in additionalFolders {
+            guard access.permittedFolders(requireSecurityScope:requireScope).contains(where:{RepositoryAccessLease.pathIsContained(folder,by:$0)}) else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        }
+        let saved=try permissions.remember(root)
+        do {
+            for folder in additionalFolders where !RepositoryAccessLease.pathIsContained(folder,by:root) {try permissions.addPermission(saved.id,url:folder)}
+        } catch {
+            serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id);render()
+            self.error=error.localizedDescription;throw error
+        }
+        serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id);render()
+        return saved.id
     }
     func remove(_ id:UUID) async {
         guard active,!busy,let saved=permissions.repositories.first(where:{ $0.id==id }) else { return }

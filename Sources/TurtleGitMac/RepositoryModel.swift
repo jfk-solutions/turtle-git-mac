@@ -584,7 +584,8 @@ private enum TransportBatchPresentationContext {
     private var finderServiceImportOwner:RepositoryWindowOwner?
     private var finderServiceFolderChoice:RepositoryCreationFolderChoice?
     private var finderServiceWorkers=0
-    var hasPendingFinderServiceWork:Bool {finderServiceOwner != nil || finderServiceImportOwner != nil || finderServiceFolderChoice != nil || finderServiceWorkers>0}
+    private var finderRegistrations:[UUID:OperationCancellation]=[:]
+    var hasPendingFinderServiceWork:Bool {!finderRegistrations.isEmpty || finderServiceOwner != nil || finderServiceImportOwner != nil || finderServiceFolderChoice != nil || finderServiceWorkers>0}
     private func cancelFinderServicePreparation(){finderServiceOwner?.cancellation.cancel();finderServiceImportOwner?.cancellation.cancel();finderServiceFolderChoice?.cancel();if finderServiceImportOwner != nil{commandImportFolderChoice?.cancel()};finderServiceTransportStep?.cancel()}
     var presentCreationFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     var selectedCreationFolderURL: (NSOpenPanel) -> URL? = { $0.url }
@@ -714,7 +715,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -1301,6 +1302,8 @@ private enum TransportBatchPresentationContext {
                 if panel.runModal() == .OK, let file = panel.url { handleComparisonMark(file: file, permission: RepositoryAccessLease(url: file)) }
             }
         case .clearComparisonMark: clearComparisonMark()
+        case .registerRepository:
+            if let root {_ = handleFinderService(FinderRequest(action:.registerRepository,paths:[root]))}
         case .clone: showClone()
         case .initialize: showCreateRepository()
         case .rename:
@@ -1473,14 +1476,73 @@ private enum TransportBatchPresentationContext {
             self.showLog(repository: repository, access: access, paths: [], preferences: preferences, presentation: model.handoffPresentation)
         }
         let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
-        controller.model.onCloned = { [weak self] repo, access, keyAccess, _, result in
-            guard let self, !self.retired, !handoffOwner.cancellation.isCancelled else { return }
+        controller.model.onCloned = { [weak self,weak model=controller.model] repo, access, keyAccess, _, result in
+            guard let self, !self.retired else { return }
             if let keyAccess {
                 self.cloneKeyAccess[repo.root.path] = keyAccess
                 do { UserDefaults.standard.set(try SystemRepositoryBookmarkProvider().create(for: keyAccess.url), forKey: "Clone.KeyBookmark." + repo.root.path) }
                 catch { self.error = "The clone completed, but its SSH-key permission could not be saved.\n" + error.localizedDescription }
             }
-            self.adoptRepository(repo, access: access, output: result, owner: handoffOwner)
+            let generation=self.adoptionGeneration
+            self.registerCompletedClone(repo,access:access,model:model) { [weak self] in
+                guard let self,!handoffOwner.cancellation.isCancelled,self.adoptionGeneration==generation else {return}
+                self.adoptRepository(repo,access:access,output:result,owner:handoffOwner)
+            }
+        }
+    }
+    /// Persist only the captured repository and metadata grants. Neither route
+    /// grants authority from a Finder URL nor changes unrelated watch records.
+    private func saveFinderRegistration(_ repository:GitRepository,access:RepositoryAccessLease,additionalFolders:[URL],cancellation:OperationCancellation) async throws {
+        try cancellation.check();guard !retired,let store=accessStore,let watches=finderWatches else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        _=try await watches.register(root:repository.root,access:access,additionalFolders:additionalFolders,cancellation:cancellation)
+        // A completed watch publication remains completed if Cancel arrives as
+        // its receipt returns. Finish its paired recent record without recasting
+        // the successful persistence as an unchanged/cancelled operation.
+        let saved=try store.remember(repository.root)
+        for folder in additionalFolders where !RepositoryAccessLease.pathIsContained(folder,by:repository.root) {try store.addPermission(saved.id,url:folder)}
+        recentRepositories=store.repositories
+    }
+    private func registerFinderRepository(_ candidate:URL,access:RepositoryAccessLease,owner:RepositoryWindowOwner,generation:Int,completed:@escaping ()->Void) {
+        let token=owner.cancellation
+        finderServiceWorkers += 1;busy=true
+        Task { [self,access,owner] in
+            defer {finderServiceWorkers -= 1;if finderServiceOwner === owner {busy=false};completed();withExtendedLifetime(access) {}}
+            do {
+                try token.check();guard !retired,!confirmingQuit,generation==adoptionGeneration else {throw OperationCancellationFailure.cancelled}
+                var directory:ObjCBool=false
+                guard FileManager.default.fileExists(atPath:candidate.path,isDirectory:&directory),directory.boolValue else {throw PrimaryCommandInvocation.Failure("Select a repository folder to add to TurtleGit.")}
+                let prepared=try await prepareRepositoryMetadataAccess(at:candidate,primary:access,cancellation:token)
+                let accepted=access.retainingRelatedScopes(prepared.scopes)
+                let repository=try makeRepository(candidate),root=try await repository.discoverRoot(cancellation:token)
+                try token.check();guard !retired,!confirmingQuit,generation==adoptionGeneration else {throw OperationCancellationFailure.cancelled}
+                guard accepted.contains(root) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path)}
+                let captured=try makeRepository(root)
+                let folders=prepared.newFolders+accepted.permittedFolders(requireSecurityScope:requiresRepositoryScope).filter { !RepositoryAccessLease.pathIsContained(root,by:$0) }
+                try await saveFinderRegistration(captured,access:accepted,additionalFolders:folders,cancellation:token)
+                guard !retired,!token.isCancelled,generation==adoptionGeneration else {return}
+                output="Added repository to TurtleGit: "+root.path
+            } catch {if !retired,!token.isCancelled {self.error="Could not add this repository to TurtleGit.\n"+error.localizedDescription}}
+        }
+    }
+    private func registerCompletedClone(_ repository:GitRepository,access:RepositoryAccessLease,model:CloneWindowModel?,completed:@escaping ()->Void) {
+        let id=UUID(),token=OperationCancellation();finderRegistrations[id]=token
+        Task { [self,access,repository,weak model] in
+            defer {finderRegistrations.removeValue(forKey:id);if !retired {completed()};withExtendedLifetime(access) {}}
+            do {
+                try token.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+                // Clone completion already owns its destination/parent grant.
+                // Validate the captured scopes without launching a second
+                // permission chooser after a successful transport or during Quit.
+                let allowed=access.permittedFolders(requireSecurityScope:requiresRepositoryScope)
+                let missing=try await Task.detached {try RepositoryMetadataAccess.next(at:repository.root,authorizedFolders:allowed,cancellation:token)}.value
+                if let missing {throw RepositoryAccessFailure.repositoryRootOutsidePermission(missing.folder.path)}
+                let folders=allowed.filter { !RepositoryAccessLease.pathIsContained(repository.root,by:$0) }
+                try await saveFinderRegistration(repository,access:access,additionalFolders:folders,cancellation:token)
+            } catch {
+                guard !retired else {return}
+                let warning="The clone completed, but its Finder registration could not be saved. Open Icon Overlays settings and add this repository.\n"+error.localizedDescription
+                self.error=warning;model?.reportFinderRegistrationFailure(warning)
+            }
         }
     }
     private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, output: String, owner: RepositoryWindowOwner) {
@@ -4734,11 +4796,13 @@ private enum TransportBatchPresentationContext {
         let owner=RepositoryWindowOwner(window:workspaceWindow),generation=adoptionGeneration
         finderServiceOwner=owner;error=nil
         let creation=request.action == .clone || request.action == .initialize
+        let registration=request.action == .registerRepository
         let transportBatch=request.paths.count>1 && [RepositoryAction.fetch,.pull,.push].contains(request.action)
         // Repository commands name Git paths; a selected symlink leaf belongs
         // to its parent, while a two-file Diff reads the actual target bytes.
         let filePair=request.action == .diff && request.paths.count==2
         var targets=request.paths.map { item in
+            if registration {return item}
             let symlink=(try? FileManager.default.attributesOfItem(atPath:item.path))?[.type] as? FileAttributeType == .typeSymbolicLink
             return !creation && !filePair && symlink ? item.deletingLastPathComponent():item
         }
@@ -4751,7 +4815,8 @@ private enum TransportBatchPresentationContext {
             guard permissionTargets.allSatisfy({lease.contains($0)}),!requiresRepositoryScope || lease.hasSecurityScope else{error=RepositoryAccessFailure.securityScopeUnavailable.localizedDescription;finish();return}
             if transportBatch {launchFinderServiceTransportBatch(request,command:command,leases:[lease],owner:owner);return}
             ComparisonToolInvocation.$alternate.withValue(tool){
-                if request.action == .clone {showClone(directory:request.paths[0],directoryAccess:lease);finish()}
+                if registration {registerFinderRepository(request.paths[0],access:lease,owner:owner,generation:generation,completed:finish)}
+                else if request.action == .clone {showClone(directory:request.paths[0],directoryAccess:lease);finish()}
                 else if request.action == .initialize {presentCreateRepository(folder:request.paths[0],lease:lease,owner:owner);finish()}
                 else if request.action == .diff,request.paths.count==2 {handleFilePair(paths:request.paths,serviceAccess:lease);finish()}
                 else {openSession(lease,selected:request,action:request.action,onFinished:{_ in finish()},handoffOwner:owner,serviceCommand:command,servicePreferences:preferences)}
@@ -5783,6 +5848,9 @@ private enum TransportBatchPresentationContext {
         defer { if !handedOff { completion?(false) } }
         guard commandCancellation?.isCancelled != true else { return }
         let action = request.action
+        if action == .registerRepository {
+            handedOff=handleFinderService(request);if handedOff {completion?(true)};return
+        }
         if action == .inaccessible {
             guard request.paths.count == 1 else { error = "Select one inaccessible repository folder."; return }
             handedOff = true

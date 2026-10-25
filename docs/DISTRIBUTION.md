@@ -67,8 +67,8 @@ installed and full-port acceptance work separately.
 
 ## October 24 signed development candidate
 
-The local Apple Development candidate at
-`build/signed-development/Build/Products/AppStore/TurtleGitMac.app` now uses
+The October 24 local Apple Development checkpoint at
+`build/signed-development/Build/Products/AppStore/TurtleGitMac.app` used
 measured `9a8e37ce` inputs, version `0.1.0`, build `2`. App, Finder extension and
 cache service identities agree. Its eight application components are universal,
 its runtime layout contains 206 code items, and its complete 6,356-member bundle
@@ -90,6 +90,30 @@ editor group was repeated for this sandbox-only checkpoint. The October 23 ZIP
 and unsigned archive above remain separate older artifacts. This check does not
 establish installed shipping-GUI/Finder acceptance, external repository grants,
 distribution signing, archive export or App Store submission.
+
+## October 25 signed consolidation and installed Finder check
+
+The [dated receipt](qa/signed-consolidation-2026-10-25.json) records a universal
+Apple Development AppStore build from measured `5b315808` inputs, followed by
+strict signatures/layout checks and six disposable signed sandbox cases. Its
+6,356-member bundle inventory matched the installed app exactly. The previous
+installed bundle was retained for recovery. Existing signing profiles were used
+without requesting provisioning updates.
+
+The actual installed app accepted an external repository through its real folder
+chooser, loaded status without changing index bytes, displayed native Remote
+rows, and closed Settings through Cancel and OK. Finder's file menu reopened the
+app into file-scoped Log, with graph and Notes. Saving a Note succeeded through
+the signed GUI. After normal app Quit, the background helper alone updated a
+private folder badge Normal → Modified → Normal. The private watch and saved
+permission were removed; the original repository/watch IDs were retained and the
+background setting restored. Owned main/cache processes were absent at cleanup.
+
+This receipt predates the subsequent macOS 27 menu-image and first-use Finder
+registration batch. It does not establish their acceptance, a full hosted CI
+pass, every dialog's appearance, Intel execution, distribution signing or an App
+Store export/submission. The compiler warnings remain recorded. Earlier preview
+ZIPs and unsigned archive receipts remain separate artifacts.
 
 ## Build channels
 
@@ -230,13 +254,32 @@ the launch-agent Mach service uses the corresponding `.cache` suffix. Runtime
 identity comes from the actual signing team, and unsigned processes refuse
 container access. See the [signed Finder development guide](SIGNED-FINDER-DEVELOPMENT.md).
 
-The AppStore configuration uses these capabilities:
+The main app's AppStore configuration declares the following capabilities in
+`Configuration/AppStore.entitlements`:
 
-- `com.apple.security.app-sandbox`
-- `com.apple.security.files.user-selected.read-write`
-- `com.apple.security.files.bookmarks.app-scope`
-- `com.apple.security.network.client`
-- The shared application group
+- `com.apple.security.app-sandbox`.
+- `com.apple.security.files.user-selected.read-write` and
+  `com.apple.security.files.bookmarks.app-scope` for selected files/folders and
+  persistent app-owned access.
+- `com.apple.security.network.client` and `com.apple.security.network.server`.
+  Both network capabilities are currently declared; their necessity and scope
+  must be included in distribution review.
+- `com.apple.security.application-groups`, containing the team-qualified
+  `org.turtlegit.macos` group shared with Finder and the cache service.
+- `com.apple.security.automation.apple-events` and
+  `com.apple.security.temporary-exception.apple-events` for the declared Office
+  targets `com.microsoft.Word`, `com.microsoft.Excel` and
+  `com.microsoft.Powerpoint`, used by Office comparison integrations.
+- `com.apple.security.scripting-targets`, declaring the `com.apple.mail.compose`
+  scripting access group on `com.apple.mail` for Mail composition.
+
+The Finder extension declares sandbox and the shared group in
+`Configuration/Finder.entitlements`. The cache service additionally declares
+app-scoped bookmarks in `Configuration/Cache.entitlements`. These are distinct
+peer entitlement sets, not a copy of every main-app capability. Declared
+entitlements do not establish user consent, successful automation or App Review
+acceptance; the Office exceptions and all requested capabilities remain part of
+the distribution review.
 
 The bundled Git executables use `Configuration/GitHelper.entitlements`,
 which contains sandbox and sandbox-inheritance keys. Parent file permissions must

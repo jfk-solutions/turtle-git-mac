@@ -4553,7 +4553,7 @@ struct RevisionTable: NSViewRepresentable {
                 menu.autoenablesItems = false
                 columnReceipt?.consumed=true;columnReceipt=captureColumns()
                 let reset=NSMenuItem(title:"Reset columns",action:#selector(columnCommand(_:)),keyEquivalent:"")
-                reset.target=self;reset.identifier = .init("Log.Columns.Reset");reset.isEnabled=columnReceipt != nil
+                reset.image=MenuIcon.reset.contextImage(defaults:model.colorPreferences);reset.target=self;reset.identifier = .init("Log.Columns.Reset");reset.isEnabled=columnReceipt != nil
                 if let columnReceipt{reset.representedObject=ColumnCommand(columnReceipt,nil)}
                 menu.addItem(reset);menu.addItem(.separator())
                 for definition in LogRevisionColumns.definitions where definition.id != "graph" {
@@ -4617,7 +4617,7 @@ struct RevisionTable: NSViewRepresentable {
                     let modes:[(String,LogRevisionDiffMode)]=[("All Parents",.allParents),("Only Merged Files",.combined),("Show extra changes after merge",.extraMergeChanges)] + model.parentChoices(for:revision).map{($0.title,.parent($0.number))}
                     for(title,mode) in modes {
                         let child=NSMenuItem(title:title,action:#selector(showParentDiff(_:)),keyEquivalent:"")
-                        child.target=self;child.isEnabled=unified.isEnabled;child.representedObject=mode;choices.addItem(child)
+                        child.image=MenuIcon.unifiedDiff.contextImage(defaults:model.colorPreferences);child.target=self;child.isEnabled=unified.isEnabled;child.representedObject=mode;choices.addItem(child)
                     }
                 }
                 if revision.parents.count==1 {
@@ -4627,7 +4627,7 @@ struct RevisionTable: NSViewRepresentable {
                     let parents=NSMenu();parents.autoenablesItems=false;previous.submenu=parents
                     for choice in model.parentChoices(for:revision) {
                         let child=NSMenuItem(title:choice.title,action:#selector(compareParent(_:)),keyEquivalent:"")
-                        child.target=self;child.isEnabled=previous.isEnabled;child.representedObject=NSNumber(value:choice.number);parents.addItem(child)
+                        child.image=MenuIcon.compare.contextImage(defaults:model.colorPreferences);child.target=self;child.isEnabled=previous.isEnabled;child.representedObject=NSNumber(value:choice.number);parents.addItem(child)
                     }
                 }
             } else if model.selected.count>=2 {
@@ -4668,7 +4668,7 @@ struct RevisionTable: NSViewRepresentable {
                     let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
                     for reference in switchBranches {
                         let choice = NSMenuItem(title: reference.label, action: #selector(switchBranchReference(_:)), keyEquivalent: "")
-                        choice.target = self; choice.isEnabled = parent.isEnabled
+                        choice.image=MenuIcon.checkout.contextImage(defaults:model.colorPreferences);choice.target = self; choice.isEnabled = parent.isEnabled
                         choice.representedObject = LogReferenceMenuTarget(hash: revision.hash, name: reference.name); submenu.addItem(choice)
                     }
                 }
@@ -4697,7 +4697,7 @@ struct RevisionTable: NSViewRepresentable {
                         let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
                         for choice in model.parentChoices(for: revision) {
                             let child = NSMenuItem(title: choice.title, action: #selector(revertCaptured(_:)), keyEquivalent: "")
-                            child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = RevertTarget([revision], mainline: choice.number); submenu.addItem(child)
+                            child.image=MenuIcon.revert.contextImage(defaults:model.colorPreferences);child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = RevertTarget([revision], mainline: choice.number); submenu.addItem(child)
                         }
                         parent.submenu = submenu; menu.addItem(parent)
                     } else {
@@ -4713,7 +4713,7 @@ struct RevisionTable: NSViewRepresentable {
                     let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
                     for choice in model.parentChoices(for: revision) {
                         let child = NSMenuItem(title: choice.title, action: #selector(revertParent), keyEquivalent: "")
-                        child.tag = choice.number; child.target = self; child.isEnabled = model.canRevertRevision; submenu.addItem(child)
+                        child.image=MenuIcon.revert.contextImage(defaults:model.colorPreferences);child.tag = choice.number; child.target = self; child.isEnabled = model.canRevertRevision; submenu.addItem(child)
                     }
                     parent.submenu = submenu; menu.addItem(parent)
                 } else { item("Revert change by this commit", #selector(revert), icon: .revert, enabled: model.canRevertRevision) }
@@ -4775,14 +4775,14 @@ struct RevisionTable: NSViewRepresentable {
                     let parent = item("Delete branch/tag", #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy)
                     let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
                     for ref in deletable {
-                        let child = NSMenuItem(title: ref.name, action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = [target(ref)]; submenu.addItem(child)
+                        let child = NSMenuItem(title: ref.name, action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); child.image=MenuIcon.remove.contextImage(defaults:model.colorPreferences);child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = [target(ref)]; submenu.addItem(child)
                     }
-                    let all = NSMenuItem(title: "All", action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.target = self; all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
+                    let all = NSMenuItem(title: "All", action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.image=MenuIcon.remove.contextImage(defaults:model.colorPreferences);all.target = self; all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
                 }
             }
             if one { menu.addItem(.separator()) }
             if model.canToggleRollup {
-                let rollup = NSMenuItem(title: model.rollupTitle, action: #selector(toggleRollup), keyEquivalent: ""); rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
+                let rollup = NSMenuItem(title: model.rollupTitle, action: #selector(toggleRollup), keyEquivalent: ""); rollup.image=MenuIcon.log.contextImage(defaults:model.colorPreferences);rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
             }
             appendClipboardAndFind(menu,pointed:pointed,one:one)
             if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }

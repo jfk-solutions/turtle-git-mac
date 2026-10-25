@@ -150,6 +150,10 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     @Published var output: String?
     @Published var completed: URL?
     @Published private(set) var completionWarning:String?
+    func reportFinderRegistrationFailure(_ warning:String) {
+        guard !invalidated else {return}
+        completionWarning=completionWarning.map {$0+"\n\n"+warning} ?? warning
+    }
     private var pendingInspection:(CloneOutcome,CloneOptions,URL,RepositoryAccessLease,RepositoryAccessLease?)?
     var canShowLog:Bool {clonedRepository != nil}
     @Published var error: String?

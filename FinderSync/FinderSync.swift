@@ -12,6 +12,7 @@ import os
     private static let handoffLog = Logger(subsystem: "org.turtlegit.macos.finder", category: "handoff")
     private let liveReader = FinderIntegration.snapshotURL.map { FinderSnapshotLiveReader(url:$0) }
     private var snapshot: FinderSnapshot?
+    private var contextDiscovery=FinderContextDiscovery(snapshot:nil)
     private var badges: GitPathMap<FinderOverlayBadge> = [:]
     private var iconSet: FinderOverlayIconSet?
     private var badgeLanguage: String?
@@ -30,11 +31,15 @@ import os
     @objc private func reload() { install(try? liveReader?.read()) }
     @objc private func statusPolicyChanged() {reload();for path in observedDirectories {requestStatus(path,force:true)}}
     private func requestStatus(_ path:String,force:Bool=false) {
+        guard contextDiscovery.permitsStatus(path) else{return}
         guard let policy=statusPolicy,policy.cacheMode == .shell || policy.cacheMode == .shellExtended else{return}
         guard !policy.blockStatus || !FinderStatusOperationLease.isBlocked() else{return}
         statusQueries.request(path,force:force)
     }
-    override func beginObservingDirectory(at url:URL) {if observedDirectories.count<4096 {observedDirectories.insert(url.path)};requestStatus(url.path,force:true)}
+    override func beginObservingDirectory(at url:URL) {
+        guard contextDiscovery.permitsStatus(url.path) else{return}
+        if observedDirectories.count<4096 {observedDirectories.insert(url.path)};requestStatus(url.path,force:true)
+    }
     override func endObservingDirectory(at url:URL) {observedDirectories.remove(url.path)}
     private func revalidateLivePublication() {
         let live = try? liveReader?.read()
@@ -46,6 +51,7 @@ import os
     private func install(_ live: FinderSnapshot?) {
         let old = badges
         snapshot = live
+        contextDiscovery=FinderContextDiscovery(snapshot:live)
         let settings = FinderOverlaySettings.read(), changedIcons = iconSet != settings.iconSet
         statusPolicy=try? FinderStatusPolicy.read()
         let controller = FIFinderSyncController.default()
@@ -64,9 +70,12 @@ import os
                 isDirectory: fileSystem.isDirectory, caseSensitive: { fileSystem.volume($0).caseSensitive },statusPolicy:policy)
         } else { badges = [:] }
         badgeLookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: { snapshot?.overlayCaseSensitive(for:$0,fallback:fileSystem.volume($0).caseSensitive) ?? fileSystem.volume($0).caseSensitive })
-        controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
+        // This namespace enables first-use commands; it grants no repository access.
+        controller.directoryURLs = FinderContextDiscovery.commandDirectories
+        observedDirectories=GitPathSet(observedDirectories.filter{contextDiscovery.permitsStatus($0)})
         let paths = GitPathSet(old.keys).union(GitPathSet(badges.keys))
         for path in paths where changedIcons || old[path] != badges[path] {
+            guard contextDiscovery.permitsStatus(path) else {controller.setBadgeIdentifier("",for:FileTransferPaths.fileURL(path));continue}
             if changedIcons { controller.setBadgeIdentifier("", for: FileTransferPaths.fileURL(path)) }
             controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: snapshot?.overlayCaseSensitive(for:path,fallback:fileSystem.volume(path).caseSensitive) ?? fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: FileTransferPaths.fileURL(path))
         }
@@ -75,6 +84,9 @@ import os
         // A publisher can exit without a distributed notification. Revalidate
         // process leases before serving a previously cached badge.
         revalidateLivePublication()
+        guard contextDiscovery.permitsStatus(url.path) else {
+            FIFinderSyncController.default().setBadgeIdentifier("",for:url);return
+        }
         requestStatus(url.path)
         let blocked=statusPolicy.map {($0.cacheMode == .shell || $0.cacheMode == .shellExtended) && $0.blockStatus && FinderStatusOperationLease.isBlocked()} ?? true
         let sensitive=snapshot?.overlayCaseSensitive(for:url.path,fallback:fileSystem.volume(url.path).caseSensitive) ?? fileSystem.volume(url.path).caseSensitive
@@ -101,6 +113,8 @@ import os
             target: self, actionSelector: #selector(openAction(_:)), creationDirectory: creation,
             extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu,
             sourceSelection: menuKind == .contextualMenuForItems ? selection : [],
+            registrationCandidate: paths.count == 1 ? paths.first:nil,
+            cloneDirectory: selection.count == 1 && selection[0].hasDirectoryPath ? selection[0]:targetURL,
             clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [])
         menuDispatch.install(menu)
         return menu
@@ -125,6 +139,42 @@ import os
             }
         }
     }
+}
+
+/// Broad Finder registration is for menu discovery only. All status traffic
+/// remains inside the byte-exact roots supplied by authorized publishers.
+struct FinderContextDiscovery {
+    static var commandDirectories:Set<URL> {[URL(fileURLWithPath:"/",isDirectory:true)]}
+    private let snapshot:FinderSnapshot?
+    private let foldedRoots:[String:GitPathSet]
+    init(snapshot:FinderSnapshot?) {
+        self.snapshot=snapshot
+        var roots=[String:GitPathSet]()
+        for root in snapshot?.roots ?? [] {roots[Self.fold(root),default:[]].insert(root)}
+        foldedRoots=roots
+    }
+    private static func fold(_ path:String)->String {
+        path.precomposedStringWithCanonicalMapping.folding(options:.caseInsensitive,locale:Locale(identifier:"en_US_POSIX"))
+    }
+    func permitsStatus(_ path:String)->Bool {
+        guard let snapshot,path.hasPrefix("/"),!path.utf8.contains(0) else{return false}
+        if snapshot.overlayRepositoryRoot(for:path) != nil {return true}
+        var ancestor=FileTransferPaths.lexicalPath(path)
+        // The cached namespace resolver prefers exact bytes, then unique Unicode
+        // aliases. New children can resolve through a cached ancestor. Folded
+        // roots additionally require the publisher's insensitive-volume policy.
+        // No directory enumeration, resource lookup or filesystem probe occurs.
+        for _ in 0..<1024 {
+            if snapshot.repositoryRoot(for:FileTransferPaths.fileURL(ancestor)) != nil {return true}
+            if let matches=foldedRoots[Self.fold(ancestor)],matches.count == 1,let root=matches.first,
+               snapshot.overlayPolicies[root]?.caseSensitive == false {return true}
+            if ancestor == "/" {return false}
+            let next=FileTransferPaths.lexicalPath((ancestor as NSString).deletingLastPathComponent)
+            guard !GitReferenceName.equal(next,ancestor) else{return false};ancestor=next
+        }
+        return false
+    }
+    static func permitsStatus(_ path:String,snapshot:FinderSnapshot?)->Bool {Self(snapshot:snapshot).permitsStatus(path)}
 }
 
 /// Finder hosts the menu in another process. Keep the immutable requests in the
@@ -164,6 +214,9 @@ final class FinderMenuCommand: NSObject {
     init(action: RepositoryAction, paths: [URL]) { request = FinderRequest(action: action, paths: paths) }
     init(request: FinderRequest) { self.request = request }
     func url(control: Bool = false, alternate: Bool? = nil) -> URL? {
+        // Registration has no comparison-tool choice. Preserve its strict
+        // request shape when Finder supplies either state of Shift/Control.
+        if request.action == .registerRepository {return request.url}
         if control && request.action == .diffLater {
             return FinderRequest(action: .clearComparisonMark, paths: request.paths).url
         }
@@ -204,8 +257,11 @@ enum FinderShellMenuLayout {
     static func arrange(_ menu: NSMenu) {
         let ordered = menu.items.enumerated().filter { !$0.element.isSeparatorItem }.map { entry in
             let action = action(entry.element)
-            let group = groups.firstIndex { action.map($0.contains) ?? false } ?? groups.count
-            let rank = action.flatMap { groups.indices.contains(group) ? groups[group].firstIndex(of: $0) : nil } ?? Int.max
+            // The Mac registration action has no source mask/order entry.
+            // Place it beside Clone without changing the pinned source groups.
+            let group = action == .registerRepository ? 0 : groups.firstIndex { action.map($0.contains) ?? false } ?? groups.count
+            let sourceRank = action.flatMap { groups.indices.contains(group) ? groups[group].firstIndex(of: $0) : nil }
+            let rank = action == .registerRepository ? 3 : sourceRank.map{$0 * 2} ?? Int.max
             return (item: entry.element, group: group, rank: rank, offset: entry.offset)
         }.sorted {
             if $0.group != $1.group { return $0.group < $1.group }
@@ -228,12 +284,37 @@ enum FinderMenuBuilder {
     }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
-                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, sourceSelection: [URL] = [], clipboardSources: [URL] = [], localizationBundle: Bundle? = nil) -> NSMenu {
+                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, sourceSelection: [URL] = [], registrationCandidate:URL? = nil, cloneDirectory:URL? = nil, clipboardSources: [URL] = [], localizationBundle: Bundle? = nil) -> NSMenu {
         let captions = FinderMenuCaptions(language: settings.language, bundle: localizationBundle ?? Bundle(for: FinderSync.self))
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit"); menu.autoenablesItems = false
+        defer { MenuImageVisibility.apply(to:menu) }
         let normalizedPaths = FinderRequest.normalizedSelection(paths)
         if normalizedPaths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
+        // First-use discovery cannot depend on reading an ungranted directory,
+        // cached Git metadata, or successful directory resource lookup. The app
+        // receives the candidate and obtains its own folder grant before use.
+        let candidate=registrationCandidate.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{candidate in normalizedPaths.count == 1 && GitReferenceName.equal(normalizedPaths[0].path,candidate.path) ? candidate:nil}
+        let clone=cloneDirectory.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{!$0.pathComponents.contains(".git") && settings.allowsPath($0.path) ? $0:nil}
+        if candidate != nil || clone != nil, !normalizedPaths.contains(where:{snapshot?.repositoryRoot(for:$0) != nil}) {
+            guard normalizedPaths.allSatisfy({settings.allowsPath($0.path)}) else{return menu}
+            let choices=NSMenu(title:"TurtleGit");choices.autoenablesItems=false
+            func add(_ action:RepositoryAction,_ path:URL?) {
+                let item=NSMenuItem(title:captions.label(action.title),action:actionSelector,keyEquivalent:"")
+                item.target=target;item.image=image(action.icon);item.representedObject=FinderMenuCommand(action:action,paths:path.map{[$0]} ?? []);choices.addItem(item)
+            }
+            if let clone {
+                if settings.visible(.clone,extended:extended) {add(.clone,clone)}
+                if settings.visible(.createRepo,extended:extended) {add(.initialize,clone)}
+            }
+            if let candidate {add(.registerRepository,candidate)}
+            for action in [RepositoryAction.settings,.help,.about] {
+                if let entry=FinderShellMenuLayout.preferenceEntry(action),settings.visible(entry,extended:extended) {add(action,nil)}
+            }
+            if toolbar {MenuImageVisibility.apply(to:choices);return choices}
+            if !choices.items.isEmpty {let parent=NSMenuItem(title:"TurtleGit",action:nil,keyEquivalent:"");parent.image=image(.turtle);parent.submenu=choices;menu.addItem(parent)}
+            return menu
+        }
         let originalPaths = normalizedPaths
         let paths = normalizedPaths.filter { path in
             let knownRoot = snapshot?.repositoryRoot(for: path)
@@ -255,6 +336,10 @@ enum FinderMenuBuilder {
             item.image=image(RepositoryAction.inaccessible.icon);item.target=target
             item.representedObject=FinderMenuCommand(action:.inaccessible,paths:[selected]);submenu.addItem(item)
         }
+        if let candidate {
+            let item=NSMenuItem(title:captions.label(RepositoryAction.registerRepository.title),action:actionSelector,keyEquivalent:"")
+            item.image=image(RepositoryAction.registerRepository.icon);item.target=target;item.representedObject=FinderMenuCommand(action:.registerRepository,paths:[candidate]);submenu.addItem(item)
+        }
         let creationActions = creationDirectory.map {
             FinderCreationMenuContext.read(directory: $0, snapshot: snapshot, extended: extended).actions
         } ?? (toolbar ? [.clone, .initialize] : [])
@@ -263,10 +348,14 @@ enum FinderMenuBuilder {
             item.image = image(action.icon); item.target = target
             item.representedObject = FinderMenuCommand(action: action, paths: creationDirectory.map { [$0] } ?? []); submenu.addItem(item)
         }
+        if let clone,!submenu.items.contains(where:{FinderShellMenuLayout.action($0) == .clone}),settings.visible(.clone,extended:extended) {
+            let item=NSMenuItem(title:captions.label(RepositoryAction.clone.title),action:actionSelector,keyEquivalent:"")
+            item.image=image(RepositoryAction.clone.icon);item.target=target;item.representedObject=FinderMenuCommand(action:.clone,paths:[clone]);submenu.addItem(item)
+        }
         let knownRepository = paths.first.flatMap { snapshot?.repositoryRoot(for: $0) } != nil
         let sharedRepository = snapshot?.commonRepositoryRoot(for: paths) != nil
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
-        for action in RepositoryAction.allCases.filter({ $0 != .inaccessible && $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && $0 != .transferFiles && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .registerRepository && $0 != .inaccessible && $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && $0 != .transferFiles && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
             guard (knownRepository || action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             if action == .diff && paths.count == 2 && paths.contains(where: { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) { continue }
             let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")
@@ -351,7 +440,7 @@ enum FinderMenuBuilder {
             if !settings.visible(entry, extended: extended) { submenu.removeItem(item) }
         }
         FinderShellMenuLayout.arrange(submenu)
-        if toolbar { return submenu }
+        if toolbar { MenuImageVisibility.apply(to:submenu);return submenu }
         let firstLevel = NSMenu(title: "TurtleGit")
         for item in submenu.items {
             guard let action = FinderShellMenuLayout.action(item), let entry = FinderShellMenuLayout.preferenceEntry(action), settings.firstLevel(entry) else { continue }

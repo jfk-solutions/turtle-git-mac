@@ -121,12 +121,12 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 guard let self else {return false}
                 return !consumed && self.available && self.popupEpoch==epoch && self.layoutRevision==revision && self.model.generation==generation
             }
-            func add(_ title:String,state:NSControl.StateValue = .off,action:@escaping () -> Void) {
+            func add(_ title:String,state:NSControl.StateValue = .off,icon:MenuIcon?=nil,action:@escaping () -> Void) {
                 let target=ReferenceLogTableCommand(allowed:live) {consumed=true;action()}
                 let item=NSMenuItem(title:title,action:#selector(ReferenceLogTableCommand.invokeCommand(_:)),keyEquivalent:"")
-                item.target=target;item.representedObject=target;item.state=state;item.isEnabled=live();menu.addItem(item)
+                item.image=icon?.contextImage(defaults:model.preferences);item.target=target;item.representedObject=target;item.state=state;item.isEnabled=live();menu.addItem(item)
             }
-            add("Reset column order") { [weak self] in
+            add("Reset column order",icon:.reset) { [weak self] in
                 guard let self else {return}
                 self.model.requestColumnReset { [weak self] in
                     guard let self,!self.retired,self.layoutRevision==revision,let table=self.table,table.window != nil else {return}

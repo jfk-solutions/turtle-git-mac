@@ -16,21 +16,26 @@ anchor, the same team and the exact app/helper identifiers.
 
 ## Build a development candidate
 
-Select your real Apple developer team in Xcode. Alternatively, use the shared
-App Store scheme with an installed Apple Development identity:
+Select your real Apple developer team in Xcode. For a universal development
+candidate using an already installed Apple Development identity and existing
+profiles, use the shared App Store scheme:
 
 ```bash
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
-  -configuration AppStore -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath build/signed-development -allowProvisioningUpdates \
+  -configuration AppStore -destination 'generic/platform=macOS' \
+  -derivedDataPath build/signed-development \
+  ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO \
   DEVELOPMENT_TEAM=YOUR_TEAM_ID CODE_SIGN_IDENTITY='Apple Development' build
 ```
 
-Replace `YOUR_TEAM_ID` with your team's identifier. Xcode may create or update its
-managed development profiles for the app, Finder extension and cache service.
-Development profiles can expire; this candidate is not an App Store export or a
+Replace `YOUR_TEAM_ID` with your team's identifier. This command does not request
+provisioning updates. If your team needs new or renewed managed development
+profiles for the app, Finder extension or cache service, configure them in Xcode;
+adding `-allowProvisioningUpdates` is a separate provisioning-enabled build choice.
+Development profiles can expire. This candidate is not an App Store export or a
 notarized Developer ID release. Distribution signing, licensing clearance and
-submission remain separate release requirements.
+submission remain separate release requirements. A successful build also needs
+its own measured-input, signature and runtime evidence before acceptance claims.
 
 The launch-agent embedding phase expands the service name using the same build
 team without changing the already signed helper. Do not hand-edit only one peer's
@@ -211,3 +216,14 @@ transport, physical Intel/minimum macOS behavior or every current metafile case.
 The private App Group repository does not establish permission for arbitrary user
 repositories. Distribution export and submission remain separate from this
 Apple Development build and scoped probe.
+
+## October 25 installed consolidation
+
+The [5b315808 consolidation receipt](qa/signed-consolidation-2026-10-25.json) adds
+actual installed-app folder grants, native Commit/Settings/Remote checks, Finder
+file-menu Log/Notes delivery and helper-only Normal → Modified → Normal badge
+refresh after normal application Quit. It retains the measured signed source and
+bundle inventory separately from later development. The original watched/recent
+repositories were retained, and temporary background registration was disabled
+after removing only the test fixture. This is bounded installed acceptance, not
+an App Store distribution export or complete Finder/dialog certification.

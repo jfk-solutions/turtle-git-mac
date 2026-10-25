@@ -1,0 +1,501 @@
+{
+  "date": "2026-10-25",
+  "status": "focused-core-debug-native-and-bounded-signed-installed-finder-acceptance-passed-after-recorded-repairs",
+  "source_revision": "5b31580811a2890dec751652592074deee2d229d",
+  "build_inputs_sha256": "b05d8f2d599d9c7dcf8947dd7bfdadf6692270efea05493e65ce0ab06a645169",
+  "dirty_inputs_at_measurement": true,
+  "scope": [
+    "Explicit public macOS27 menu-image visibility for assigned images, including lazy SwiftUI items and preference ownership",
+    "Missing command/submenu artwork across history/reference/replay/browser/Sync and other native workflow families",
+    "Finder first-use Clone and Add to TurtleGit selection requests outside published cache roots; restricted background status/badge observation",
+    "Owned registration persists independent recent/watch archives and metadata grants without replacing the current workspace or enabling background service",
+    "Successful Clone registers the captured destination before optional adoption; failed registration retains successful Clone outcome and warning",
+    "Single-folder registration Service appended after original55 declarations; source menu preference mask/creation rules remain unchanged"
+  ],
+  "debug": {
+    "final": {
+      "path": "build/qa/context-registration-debug-build-manifest-repair-2026-10-25.log",
+      "sha256": "eb3e3493c5f402a9b6695ad11038086cf71a1856309e8e032390ddbf7d31908e",
+      "receiver_pids_reaped": []
+    },
+    "result": "BUILD SUCCEEDED",
+    "contradictory_exit_zero_diagnostics": 0,
+    "limits": "Simulator-version mismatch remains in the build log; not a warning-free build claim."
+  },
+  "core": {
+    "initial_executed": 63,
+    "initial_assertion_failures": 8,
+    "initial_failed_methods": 4,
+    "initial_passed_methods": 59,
+    "focused_manifest_recheck": 30,
+    "focused_recheck_failures": 0,
+    "cumulative_distinct_methods_passed": 63,
+    "initial": {
+      "path": "build/qa/context-registration-core-repair2-2026-10-25.log",
+      "sha256": "4ddc2987ee322f349e2c5281511e2137a2505ff578df957147313217279b0e35",
+      "receiver_pids_reaped": []
+    },
+    "focused": {
+      "path": "build/qa/context-registration-core-manifest-repair-2026-10-25.log",
+      "sha256": "1a696b0ce59cad1909a9960f7bf036bb7dacab2fb60377fc9b82744458adea4c",
+      "receiver_pids_reaped": []
+    },
+    "limits": "Selected Core classes only; not a complete hosted integration result."
+  },
+  "native": {
+    "registration": {
+      "cases": [
+        "registration",
+        "clone",
+        "ownership"
+      ],
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_pairs_passed": 6,
+      "log": {
+        "path": "build/qa/context-registration-native-registration-canonical-repair-2026-10-25.log",
+        "sha256": "cd6398c855bfdbbc30a44a5d28d81035ebf5ae6b3e8c303671a00407eb60e465",
+        "receiver_pids_reaped": [
+          30857,
+          30941,
+          31034,
+          31136,
+          31213,
+          31298
+        ]
+      },
+      "actual_results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "registration",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "clone",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "registration",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "clone",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "ownership",
+          "returncode": 0,
+          "passed": true
+        }
+      ]
+    },
+    "menu_images": {
+      "result": "PASS",
+      "log": {
+        "path": "build/qa/context-registration-native-images-2026-10-25.log",
+        "sha256": "99f76bfa7add400d07979c6b3ce1fcfdd0d6687b3a48da8b793b4e15abd7cdc0",
+        "receiver_pids_reaped": [
+          29969
+        ]
+      },
+      "scope": "Actual Log command tree, lazy images, private preference isolation and observer retirement"
+    },
+    "finder_builder": {
+      "result": "PASS",
+      "log": {
+        "path": "build/qa/context-registration-native-finder-menu-2026-10-25.log",
+        "sha256": "02f31f48108b0a1ed33aaea205311964a986086c960335d24c9de1d18ed21c57",
+        "receiver_pids_reaped": [
+          30042
+        ]
+      },
+      "limits": "Actual compiled menu builder; no installed extension activation"
+    },
+    "service_provider": {
+      "result": "PASS after fixture-only UTI classification repair",
+      "log": {
+        "path": "build/qa/context-registration-native-service-provider-repair-2026-10-25.log",
+        "sha256": "7184ade75bd65c783dc77bd0c9cf6652f1eb2e352338a54a07d7d9708847201d",
+        "receiver_pids_reaped": [
+          30377
+        ]
+      },
+      "scope": "Private modern/legacy NSPasteboard delivery, actual registration packet, strict payloads and lifecycle",
+      "diagnostics": "Eight sandbox_extension_consume Operation not permitted diagnostics retained; successful private receiver does not establish signed bookmark acceptance."
+    },
+    "cleanup": "Listed receiver PIDs were reaped by their owning runners. No independent process inventory was executed by this documentation task."
+  },
+  "failures_and_repairs": [
+    {
+      "kind": "production compile",
+      "detail": "New RepositoryAction needed explicit non-configurable FinderContextMenuSettings mapping; initial Core/Debug stopped before tests.",
+      "logs": [
+        {
+          "path": "build/qa/context-registration-core-2026-10-25.log",
+          "sha256": "94d7db8b49841e407e5d25ba1be5a07e5f09a5f8b7c296806f48d81da93070df",
+          "receiver_pids_reaped": []
+        },
+        {
+          "path": "build/qa/context-registration-debug-build-2026-10-25.log",
+          "sha256": "f9016c751e4828b52daaa0109ccb259c93e1902525df28410ee449a0525f9cfc",
+          "receiver_pids_reaped": []
+        }
+      ]
+    },
+    {
+      "kind": "production compile",
+      "detail": "RebaseColumnLayout needed TurtleGitCore import for new icon; Finder builder needed correct actor boundary for public menu visibility helper.",
+      "logs": [
+        {
+          "path": "build/qa/context-registration-core-repair-2026-10-25.log",
+          "sha256": "9127856138fd0ef2c61a114086a472875fa1af55bc9da0455e6850ebc9fd5990",
+          "receiver_pids_reaped": []
+        },
+        {
+          "path": "build/qa/context-registration-debug-build-repair-2026-10-25.log",
+          "sha256": "4861db7614db518e392dfc4ac808b6445cf8c8f98dde9304a702f74f27e7574b",
+          "receiver_pids_reaped": []
+        }
+      ]
+    },
+    {
+      "kind": "manifest defect",
+      "detail": "Malformed App-Info plist nesting caused four Core methods/eight assertions and ProcessInfoPlistFile failure. Fixed declaration structure; original55 order and appended registration entry assertions retained.",
+      "logs": [
+        {
+          "path": "build/qa/context-registration-debug-build-repair2-2026-10-25.log",
+          "sha256": "57b607c5a8c664489f1147bcf8e4c7774fbd9b70b7a43f1038b03691e60eec33",
+          "receiver_pids_reaped": []
+        }
+      ]
+    },
+    {
+      "kind": "native fixture compile",
+      "detail": "Private RegistrationBookmarks type required compatible property visibility; no receiver/case ran on this attempt.",
+      "log": {
+        "path": "build/qa/context-registration-native-registration-2026-10-25.log",
+        "sha256": "2fca1d24a8df6268db1cebcd673494144ca01b957c2a42fb8585095032472e1d",
+        "receiver_pids_reaped": []
+      }
+    },
+    {
+      "kind": "native stale fixture",
+      "detail": "Services all-declaration folder UTI list omitted existing Export/Format Patch/Request Pull; corrected classification while preserving selector/payload assertions.",
+      "log": {
+        "path": "build/qa/context-registration-native-service-provider-2026-10-25.log",
+        "sha256": "fb69f5794d84cbda4edc16706673aab64c7bd8230ce7aed83b3a35ac794e2a0b",
+        "receiver_pids_reaped": [
+          30188
+        ]
+      }
+    },
+    {
+      "kind": "native canonical-path oracle",
+      "detail": "Initial registration and diagnostic attempts observed both recent/watch metadata grants persisted, but compared /private/var fixture spelling against existing standardized /var receipt paths. Corrected expected standardized path contract while retaining literal Unicode leaf and both-store grant assertions; no production workaround.",
+      "logs": [
+        {
+          "path": "build/qa/context-registration-native-registration-fixture-repair-2026-10-25.log",
+          "sha256": "eecd7c66aaacda1a2b2a81e03c9b311792d2227bbc7b088aa53d54f0725a88c6",
+          "receiver_pids_reaped": [
+            30427
+          ]
+        },
+        {
+          "path": "build/qa/context-registration-native-registration-diagnostic-2026-10-25.log",
+          "sha256": "5a0ed5c0c87811faa657a4c1e0036cdffe23d011b441ec4993b502e8e1d2e738",
+          "receiver_pids_reaped": [
+            30656
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "actual signed installed Add handoff failure",
+      "detail": "Finder action callback always supplied alternateTool=false. Registration deliberately permits no tool field, so strict URL creation failed before app handoff despite the callback arriving. FinderMenuCommand.url now returns the captured registration request URL unchanged for all four control/alternate modifier combinations.",
+      "physical": {
+        "path": "build/qa/context-registration-gui-2026-10-25.json",
+        "sha256": "11de6aef00ac23ae0393ccf2347a9666fc58d1ab0111321e1cf010f60a875a6d"
+      },
+      "focused_builder_recheck": {
+        "path": "build/qa/context-registration-native-finder-menu-modifier-repair-2026-10-25.log",
+        "sha256": "d92e1510cea94d795884a34195a8425bbfec07777889631c1da145a1c9f9210c"
+      },
+      "receiver_pid_reaped": 34284,
+      "result": "PASS all four modifier combinations in actual compiled builder; physical repaired installed Add still pending."
+    }
+  ],
+  "signed_and_installed": {
+    "status": "bounded-acceptance-passed",
+    "final_static": {
+      "status": "static-checkpoint-passed",
+      "app": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+      "build_head": "5b31580811a2890dec751652592074deee2d229d",
+      "build_inputs_sha256": "97acd353b9f43f828a91f1c7a950e30ab993575d2bc07463879d397df777cb0b",
+      "source_inputs_unchanged": true,
+      "identity": {
+        "bundle_identifier": "org.turtlegit.macos",
+        "marketing_version": "0.1.0",
+        "build_number": "2",
+        "peers": {
+          "finder": {
+            "bundle_identifier": "org.turtlegit.macos.finder",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          },
+          "cache": {
+            "bundle_identifier": "org.turtlegit.macos.cache",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          }
+        }
+      },
+      "team": "A49SCA5S8K",
+      "group": "A49SCA5S8K.org.turtlegit.macos",
+      "architectures": {
+        "Contents/MacOS/TurtleGitMac": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/MacOS/TurtleGitWCRev": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "runtime_code_items": 206,
+      "bundle_inventory_members": 6356,
+      "bundle_inventory_sha256": "dd695810c6b8a62f88a6df49e08cd970fa3480eef4800d1739b8eaf5fa2353d7",
+      "actual_peer_signatures": 3,
+      "packaged_git_libgit2_metafile_inherited_signatures": true,
+      "functional_runtime_cases_executed": 0,
+      "shipping_gui_launched": false,
+      "installed_application_modified": false,
+      "extension_or_service_registration_changed": false
+    },
+    "final_install": {
+      "status": "installed-measured-signed-repair",
+      "installed": "/Applications/TurtleGit for Mac.app",
+      "recoverable_previous_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/context-registration-modifier-repair-displaced-installed-2026-10-25",
+      "build_inputs_sha256": "97acd353b9f43f828a91f1c7a950e30ab993575d2bc07463879d397df777cb0b",
+      "installed_executable_sha256": "5a13677b0f1726df36e4ce33b70257b1b2219f07a215ba535451df8acee126f9",
+      "candidate_executable_sha256": "5a13677b0f1726df36e4ce33b70257b1b2219f07a215ba535451df8acee126f9",
+      "installed_bundle_matches_static_inventory": true,
+      "finder_executable_unchanged": false,
+      "finder_process_directly_killed": false,
+      "registration_update_pending": true
+    },
+    "incremental_modifier_repair_build": {
+      "succeeded": true,
+      "warning_lines": 73,
+      "log_sha256": "8a6c5d3b97499de2997b5501462e21e3aa30824414736c3d6023f0a72c87485a"
+    },
+    "physical_acceptance": {
+      "fixture": "/private/tmp/TurtleGit-first-use-2cbde2c4",
+      "first_candidate_executable_sha256": "b8fa24c25da3e8fac57c2f176f31053bd76b4f00001ed5af03159b91eae0b7a2",
+      "finder_pid": 34068,
+      "main_pid_reaped_after_normal_quit": 34069,
+      "first_use_menu_observed": true,
+      "physical_finder_icons_visible": true,
+      "physical_log_context_icons_visible": true,
+      "clone": {
+        "local_source": "/private/tmp/TurtleGit-first-use-2cbde2c4/source",
+        "destination": "/private/tmp/TurtleGit-first-use-2cbde2c4/destination/cloned",
+        "actual_destination_parent_picker": true,
+        "actual_local_source_picker": true,
+        "success": true,
+        "recent_id": "D8508EFA-52FE-4414-9A67-F6CE82539BFC",
+        "watch_id": "8245B6EC-9203-4E6E-B2F1-37E5EA4451D0",
+        "extra_registration_picker": false
+      },
+      "failure": {
+        "actual_add_callback_received": true,
+        "handoff": false,
+        "cause": "tool modifier false supplied to strict registration URL which requires nil",
+        "repair_pending_installed_acceptance": false
+      },
+      "background_service_enabled": false,
+      "cleanup_pending": false,
+      "repaired_add": {
+        "success": true,
+        "actual_folder_picker": true,
+        "workspace_still_unselected": true,
+        "paired_archives": {
+          "repositories.json": [
+            {
+              "id": "E8BF4D58-92C5-420B-A3FB-BE5F3E59BB80",
+              "path": "/tmp/TurtleGit-first-use-2cbde2c4/source"
+            },
+            {
+              "id": "D8508EFA-52FE-4414-9A67-F6CE82539BFC",
+              "path": "/tmp/TurtleGit-first-use-2cbde2c4/destination/cloned"
+            }
+          ],
+          "watched-repositories.json": [
+            {
+              "id": "741E25CE-FE02-4CF1-85AF-E3E4FB7B6454",
+              "path": "/tmp/TurtleGit-first-use-2cbde2c4/source"
+            },
+            {
+              "id": "8245B6EC-9203-4E6E-B2F1-37E5EA4451D0",
+              "path": "/tmp/TurtleGit-first-use-2cbde2c4/destination/cloned"
+            }
+          ]
+        },
+        "normal_quit_main_pid_reaped": 36732
+      },
+      "cleanup": {
+        "archives": {
+          "repositories.json": {
+            "retained_ids": [
+              "5D2D10EB-B129-4AEB-A7C6-303A57007612"
+            ],
+            "count": 1
+          },
+          "watched-repositories.json": {
+            "retained_ids": [],
+            "count": 0
+          }
+        },
+        "clone_preference_keys_restored": 5,
+        "main_and_cache_helper_absent": true,
+        "owned_finder_window_closed": true,
+        "unrelated_recents_window_preserved": true,
+        "fixture_repository_files_preserved": true
+      }
+    },
+    "extension_registration": "Four supported pluginkit operations succeeded for each candidate; Finder/extension processes were not directly killed."
+  },
+  "remaining": [
+    "Physical Finder behavior on other volumes, network/cloud providers and older macOS versions",
+    "Modifiers and VoiceOver beyond the focused four registration-modifier payload cases; complete source/UI parity remains open",
+    "Background refresh remains opt-in; this batch preserved disabled state and did not repeat previous helper acceptance",
+    "Complete latest hosted CI, Intel execution, App Store archive/export/submission"
+  ],
+  "documentation_task": "Agent initially aggregated existing logs; root subsequently appended measured signed build/install, CUA physical acceptance and cleanup results.",
+  "signed_build": {
+    "result": "BUILD SUCCEEDED",
+    "configuration": "AppStore",
+    "identity": "Apple Development",
+    "team": "A49SCA5S8K",
+    "provisioning_updates_requested": false,
+    "compiler_warning_lines": 764,
+    "error_lines": 0,
+    "log_sha256": "a41d2e7c607f3115a5f7d1a85cebbb8c93fe90c176e6424c656043db7930872a",
+    "executable_sha256": "b8fa24c25da3e8fac57c2f176f31053bd76b4f00001ed5af03159b91eae0b7a2"
+  },
+  "first_signed_installed_checkpoint": {
+    "static": {
+      "path": "build/qa/context-registration-static-2026-10-25.json",
+      "sha256": "e6bc0fd605e732b0902319f90b28c8f3e827597f28db206eb2ee745e453292e1"
+    },
+    "install": {
+      "path": "build/qa/context-registration-install-2026-10-25.json",
+      "sha256": "f50d52b4ce35890ec1360551292e02d9e1884e84a230f7a0121622aa3a3bd5b2"
+    },
+    "physical_receipt": {
+      "path": "build/qa/context-registration-first-candidate-gui-2026-10-25.json",
+      "sha256": "11de6aef00ac23ae0393ccf2347a9666fc58d1ab0111321e1cf010f60a875a6d"
+    },
+    "actual": {
+      "fixture": "/private/tmp/TurtleGit-first-use-2cbde2c4",
+      "first_candidate_executable_sha256": "b8fa24c25da3e8fac57c2f176f31053bd76b4f00001ed5af03159b91eae0b7a2",
+      "finder_pid": 34068,
+      "main_pid_reaped_after_normal_quit": 34069,
+      "first_use_menu_observed": true,
+      "physical_finder_icons_visible": true,
+      "physical_log_context_icons_visible": true,
+      "clone": {
+        "local_source": "/private/tmp/TurtleGit-first-use-2cbde2c4/source",
+        "destination": "/private/tmp/TurtleGit-first-use-2cbde2c4/destination/cloned",
+        "actual_destination_parent_picker": true,
+        "actual_local_source_picker": true,
+        "success": true,
+        "recent_id": "D8508EFA-52FE-4414-9A67-F6CE82539BFC",
+        "watch_id": "8245B6EC-9203-4E6E-B2F1-37E5EA4451D0",
+        "extra_registration_picker": false
+      },
+      "failure": {
+        "actual_add_callback_received": true,
+        "handoff": false,
+        "cause": "tool modifier false supplied to strict registration URL which requires nil",
+        "repair_pending_installed_acceptance": true
+      },
+      "background_service_enabled": false,
+      "cleanup_pending": true
+    },
+    "images": [
+      {
+        "path": "docs/qa/context-registration-2026-10-25/finder-first-use.png",
+        "sha256": "450cf44e8848ee34b2b286a366f666c9fab7d014d96d99bf7c66aa5f9f1c3615"
+      },
+      {
+        "path": "docs/qa/context-registration-2026-10-25/clone-success.png",
+        "sha256": "1f25be1df307be5cc10b29f43173442fdca763588583a8c472046dbcae6b7970"
+      },
+      {
+        "path": "docs/qa/context-registration-2026-10-25/log-context-icons.png",
+        "sha256": "6a4880d8b3202942bc3be3ad21a95ae08f7ee04e59b9c2be0ad33be183d67b47"
+      }
+    ],
+    "accepted_scope": "Actual signed installed off-root Finder Clone/Create/Add menu and colorful icons; real Clone through source/destination-parent panels succeeded and automatically saved Recent+Watch without another registration chooser; actual Log context images visible. This is the first candidate, before Add callback repair.",
+    "limits": "Historical first-candidate checkpoint before repair and cleanup. Actual Add failed there; final repaired installed acceptance and cleanup are recorded in signed_and_installed."
+  },
+  "final_build_inputs_sha256": "97acd353b9f43f828a91f1c7a950e30ab993575d2bc07463879d397df777cb0b",
+  "screenshots": {
+    "log-context-icons.png": {
+      "sha256": "6a4880d8b3202942bc3be3ad21a95ae08f7ee04e59b9c2be0ad33be183d67b47",
+      "bytes": 334382
+    },
+    "clone-success.png": {
+      "sha256": "1f25be1df307be5cc10b29f43173442fdca763588583a8c472046dbcae6b7970",
+      "bytes": 113081
+    },
+    "add-registration.png": {
+      "sha256": "5350e45575d1338e0a6ed13d16f8b7ad2fb28638d9e441ec2d4b8f52d8c46f75",
+      "bytes": 162509
+    },
+    "finder-first-use.png": {
+      "sha256": "450cf44e8848ee34b2b286a366f666c9fab7d014d96d99bf7c66aa5f9f1c3615",
+      "bytes": 469796
+    }
+  }
+}

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>TurtleGit selected-file Services</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="turtlegit-selected-file-services">TurtleGit selected-file Services</h1>
-<p>TurtleGit advertises fifty-five macOS Services for selected files and folders. They give
+<p>TurtleGit advertises fifty-six macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's <strong>Services</strong> menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -28,6 +28,10 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 <tr>
 <td>TurtleGit: Diff…</td>
 <td>Two selected regular files use direct comparison; other selection counts use the existing repository Diff workflow</td>
+</tr>
+<tr>
+<td>TurtleGit: Add to TurtleGit…</td>
+<td>Authorize and register one selected repository for Recents and Finder watches</td>
 </tr>
 <tr>
 <td>TurtleGit: Clone…</td>
@@ -213,7 +217,7 @@ handoff receipt until Launch Services replies. Its private
 <code>turtlegit://service</code> envelope selects the owned Services route and conveys no
 permission.</p>
 <h2 id="registration-and-source-scope">Registration and source scope</h2>
-<p><code>Configuration/App-Info.plist</code> supplies the fifty-five <code>NSServices</code> declarations.
+<p><code>Configuration/App-Info.plist</code> supplies the fifty-six <code>NSServices</code> declarations.
 <code>ApplicationDelegate.swift</code> installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute

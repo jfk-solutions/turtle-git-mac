@@ -1,4 +1,5 @@
 import AppKit
+import TurtleGitCore
 import SwiftUI
 
 /// Persist the native replay table columns while preserving occurrence selection
@@ -90,7 +91,7 @@ struct RebaseColumnLayout: NSViewRepresentable {
         }
         func headerMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
-            let reset = NSMenuItem(title:"Reset columns",action:#selector(requestReset(_:)),keyEquivalent:""); reset.target = self; reset.isEnabled = available; menu.addItem(reset); menu.addItem(.separator())
+            let reset = NSMenuItem(title:"Reset columns",action:#selector(requestReset(_:)),keyEquivalent:""); reset.image=MenuIcon.reset.contextImage(defaults:model?.columnPreferences ?? .standard); reset.target = self; reset.isEnabled = available; menu.addItem(reset); menu.addItem(.separator())
             for (index,name) in Self.names.enumerated() where columnAvailable(index) {
                 let item = NSMenuItem(title:name,action:#selector(toggle(_:)),keyEquivalent:""); item.target = self; item.tag = index
                 item.state = columns.indices.contains(index) && !columns[index].isHidden ? .on : .off

@@ -15,6 +15,14 @@ private extension MergeBlockChoice {
     }
 }
 extension MergeLineEnding {
+    var menuIcon: MenuIcon {
+        switch self {
+        case .crlf: return .mergeEndingCRLF
+        case .cr: return .mergeEndingCR
+        case .lf: return .mergeEndingLF
+        default: return .mergeLineWhitespace
+        }
+    }
     var menuTitle: String {
         switch self {
         case .crlf: return "CRLF"
@@ -43,6 +51,7 @@ struct MergeFormatControls: View {
     var reloadEncoding: ((ComparisonTextEncoding) -> Void)? = nil
     var reloadAvailable = false
     var inputEncoding: ComparisonTextEncoding? = nil
+    var preferences:UserDefaults = .standard
     private var styles: Set<MergeLineEnding> { text.map(MergeLineEndings.styles) ?? [] }
     private var endingTitle: String {
         guard text != nil else { return "—" }
@@ -54,7 +63,7 @@ struct MergeFormatControls: View {
         HStack(spacing: 8) {
             if editable || reloadEncoding != nil {
                 MergeEncodingPopup(label:label,encoding:encoding,legacyEncoding:legacyEncoding,editable:editable,
-                    reloadAvailable:reloadAvailable,changeEncoding:changeEncoding,reloadEncoding:reloadEncoding,inputEncoding:inputEncoding)
+                    reloadAvailable:reloadAvailable,changeEncoding:changeEncoding,reloadEncoding:reloadEncoding,inputEncoding:inputEncoding,preferences:preferences)
                     .frame(maxWidth:230)
             } else { Text(encoding?.rawValue ?? "—") }
             if editable {
@@ -63,10 +72,10 @@ struct MergeFormatControls: View {
                     ForEach(MergeLineEnding.allCases, id: \.rawValue) { value in
                         Button { changeEnding(value) } label: {
                             if styles == [value] { Label(value.menuTitle, systemImage: "checkmark") }
-                            else { Text(value.menuTitle) }
+                            else { CommandLabel(title:value.menuTitle,icon:value.menuIcon,localized:false) }
                         }
                     }
-                }.fixedSize().accessibilityLabel("\(label) line endings: \(endingTitle)")
+                }.environment(\.turtleGitContextMenu,true).defaultAppStorage(preferences).fixedSize().accessibilityLabel("\(label) line endings: \(endingTitle)")
             } else {
                 Text(endingTitle)
             }
@@ -83,6 +92,7 @@ struct MergeEncodingPopup: NSViewRepresentable {
     let changeEncoding:(ComparisonTextEncoding)->Void
     let reloadEncoding:((ComparisonTextEncoding)->Void)?
     var inputEncoding:ComparisonTextEncoding? = nil
+    var preferences:UserDefaults = .standard
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeNSView(context:Context)->NSPopUpButton {
         let view=NSPopUpButton(frame:.zero,pullsDown:false);view.controlSize = .small
@@ -122,7 +132,7 @@ struct MergeEncodingPopup: NSViewRepresentable {
             let values=MergeFormatSelection.encodingChoices(legacy:next.encoding?.legacyCodePage != nil ? next.encoding! : next.legacyEncoding)
             func item(_ value:ComparisonTextEncoding,reload:Bool)->NSMenuItem {
                 let item=NSMenuItem(title:value.rawValue,action:#selector(choose(_:)),keyEquivalent:"")
-                item.target=self;item.representedObject=Choice(value,reload:reload,epoch:epoch)
+                item.target=self;item.representedObject=Choice(value,reload:reload,epoch:epoch);item.image=MenuIcon.editor.contextImage(defaults:next.preferences)
                 item.state=value==(reload ? next.inputEncoding ?? next.encoding:next.encoding) ? .on:.off;return item
             }
             for value in values {menu.addItem(item(value,reload:false))}
@@ -130,7 +140,7 @@ struct MergeEncodingPopup: NSViewRepresentable {
                 menu.addItem(.separator());let reload=NSMenuItem(title:"Reload with encoding",action:nil,keyEquivalent:"")
                 let children=NSMenu();children.autoenablesItems=false
                 for value in values {let child=item(value,reload:true);child.isEnabled=next.reloadAvailable;children.addItem(child)}
-                reload.submenu=children;reload.isEnabled=next.reloadAvailable;menu.addItem(reload)
+                reload.submenu=children;reload.isEnabled=next.reloadAvailable;reload.image=MenuIcon.mergeReload.contextImage(defaults:next.preferences);menu.addItem(reload)
             }
             if let index=values.firstIndex(where:{$0==next.encoding}) {view?.selectItem(at:index)}
         }
@@ -1413,7 +1423,7 @@ private enum MergeSourceSide {
         let current:ComparisonTextEncoding?
         switch role {case .base:current=document?.baseEncoding;case .mine:current=document?.mineEncoding;case .theirs:current=document?.theirsEncoding}
         for value in MergeFormatSelection.encodingChoices(legacy:current?.legacyCodePage != nil ? current! : legacyEncoding) {
-            let item=NSMenuItem(title:value.rawValue,action:nil,keyEquivalent:"");item.state=value==current ? .on:.off;item.isEnabled=request != nil
+            let item=NSMenuItem(title:value.rawValue,action:nil,keyEquivalent:"");item.image=MenuIcon.editor.contextImage(defaults:comparisonDefaults);item.state=value==current ? .on:.off;item.isEnabled=request != nil
             if let request {let action=InputEncodingAction(model:self,request:request,value:value);item.target=action;item.representedObject=action;item.action=#selector(InputEncodingAction.chooseInputEncoding(_:))}
             menu.addItem(item)
         }
@@ -2098,7 +2108,7 @@ private struct TextConflictDialog: View {
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceMutationsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, legacyEncoding:model.legacyEncoding, showFormatDialog:formatDialog,
-                    reloadEncoding:reloadEncoding,reloadAvailable:inputRequest != nil,inputEncoding:encoding)
+                    reloadEncoding:reloadEncoding,reloadAvailable:inputRequest != nil,inputEncoding:encoding,preferences:model.comparisonDefaults)
                 Spacer()
                 MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.applyTabCommand(tabCommand,pane:title,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,pane:title,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,pane:title,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,pane:title,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
@@ -2934,7 +2944,7 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
         editingItem("Next difference", #selector(nextDifference(_:)), MenuIcon.mergeNextDifference.contextImage(defaults:defaults), model?.canNavigateBlock(1,conflictsOnly:false) == true)
         editingItem("Previous conflict", #selector(previousConflict(_:)), MenuIcon.mergePreviousConflict.contextImage(defaults:defaults), model?.canNavigateBlock(-1,conflictsOnly:true) == true)
         editingItem("Next conflict", #selector(nextConflict(_:)), MenuIcon.mergeNextConflict.contextImage(defaults:defaults), model?.canNavigateBlock(1,conflictsOnly:true) == true)
-        let inspection = NSMenuItem(title:"View",action:nil,keyEquivalent:"")
+        let inspection = NSMenuItem(title:"View",action:nil,keyEquivalent:"");inspection.image=MenuIcon.compare.contextImage(defaults:defaults)
         let inspectionMenu = NSMenu(title:"View"); inspectionMenu.autoenablesItems = false
         for (title,action,checked) in [("Line diff bar",#selector(toggleLineDiffBar(_:)),model?.showLineDiffBar == true),("Line numbers",#selector(toggleLineNumbers(_:)),model?.showLineNumbers == true)] {
             let item = NSMenuItem(title:title,action:action,keyEquivalent:"")
@@ -2975,7 +2985,7 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
         menu.addItem(.separator())
         for (index, command) in MergeWhitespaceCommand.allCases.enumerated() {
             let item = NSMenuItem(title: command.rawValue, action: #selector(changeWhitespace(_:)), keyEquivalent: "")
-            item.target = self; item.tag = index; item.isEnabled = writable && model.canChangeWhitespace(command,tabWidth:mergeTabWidth); menu.addItem(item)
+            item.target = self; item.tag = index; item.image=MenuIcon.mergeWhitespace.contextImage(defaults:defaults); item.isEnabled = writable && model.canChangeWhitespace(command,tabWidth:mergeTabWidth); menu.addItem(item)
         }
         let endingsItem = NSMenuItem(title: "Line endings", action: nil, keyEquivalent: "")
         let endingsMenu = NSMenu(title: "Line endings")
@@ -2983,18 +2993,18 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
         for (index, ending) in MergeLineEnding.allCases.enumerated() {
             let item = NSMenuItem(title: ending.menuTitle, action: #selector(convertLineEndings(_:)), keyEquivalent: "")
             item.target = self; item.tag = index
-            item.state = styles == [ending] ? .on : .off; item.isEnabled = writable
+            item.image=ending.menuIcon.contextImage(defaults:defaults); item.state = styles == [ending] ? .on : .off; item.isEnabled = writable
             endingsMenu.addItem(item)
         }
-        endingsItem.submenu = endingsMenu; menu.addItem(endingsItem)
+        endingsItem.image=MenuIcon.mergeEndingLF.contextImage(defaults:defaults); endingsItem.submenu = endingsMenu; menu.addItem(endingsItem)
         let encodingsItem = NSMenuItem(title: "File Encoding", action: nil, keyEquivalent: "")
         let encodingsMenu = NSMenu(title: "File Encoding")
         for (index, encoding) in MergeFormatSelection.encodingChoices(legacy:model.encoding.legacyCodePage != nil ? model.encoding : model.legacyEncoding).enumerated() {
             let item = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
-            item.target = self; item.tag = index; item.representedObject = encoding.rawValue; item.state = model.encoding == encoding ? .on : .off; item.isEnabled = writable
+            item.target = self; item.tag = index; item.image=MenuIcon.editor.contextImage(defaults:defaults); item.representedObject = encoding.rawValue; item.state = model.encoding == encoding ? .on : .off; item.isEnabled = writable
             encodingsMenu.addItem(item)
         }
-        encodingsItem.submenu = encodingsMenu; menu.addItem(encodingsItem)
+        encodingsItem.image=MenuIcon.editor.contextImage(defaults:defaults); encodingsItem.submenu = encodingsMenu; menu.addItem(encodingsItem)
         return menu
     }
     @objc private func toggleLineDiffBar(_ sender: Any?) {
@@ -3386,7 +3396,7 @@ private struct P4MergeWorkspace: View {
             HStack {
                 Text(model.hasUnresolvedConflicts ? "Colored symbols are included; gray symbols are excluded. = marks identical source text.":"No remaining conflicts").font(.caption).foregroundStyle(model.hasUnresolvedConflicts ? Color.red:Color.secondary)
                 Spacer()
-                MergeFormatControls(label:"Merge result",encoding:model.encoding,text:model.result,editable:model.sourceMutationsAllowed,changeEncoding:model.changeEncoding,changeEnding:model.changeLineEnding)
+                MergeFormatControls(label:"Merge result",encoding:model.encoding,text:model.result,editable:model.sourceMutationsAllowed,changeEncoding:model.changeEncoding,changeEnding:model.changeLineEnding,preferences:model.comparisonDefaults)
                 Button("Mark as resolved") {model.save(markResolved:true)}.disabled(!model.repositoryResolutionAllowed || model.hasUnresolvedConflicts)
             }.controlSize(.mini).padding(.horizontal,6).padding(.vertical,3)
         }.disabled(model.busy || model.confirmingQuit || model.formatPending || model.externalReloadBlocksCommands || model.preservingSourceCopies)

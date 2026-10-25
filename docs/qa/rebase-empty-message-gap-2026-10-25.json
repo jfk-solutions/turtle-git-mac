@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-25",
+  "status": "confirmed-source-control-flow-gap-not-implemented-or-runtime-tested",
+  "native_revision_at_review": "5b31580811a2890dec751652592074deee2d229d",
+  "pinned_upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Bounded static review of active Rebase/Cherry Pick message recovery; not a full Rebase parity audit.",
+  "source": [
+    {
+      "path": ".upstream/TortoiseGit/src/TortoiseProc/RebaseDlg.cpp",
+      "lines": "2048-2051",
+      "behavior": "Skip returns before the empty-subject warning; skipped rows must remain skipped."
+    },
+    {
+      "path": ".upstream/TortoiseGit/src/TortoiseProc/RebaseDlg.cpp",
+      "lines": "2091-2094",
+      "behavior": "For a retained row with GetSubject().IsEmpty(), display IDS_PROC_REBASE_EMPTYCOMMITMSG and change the local execution mode to Edit. This does not assign a new action to the stored list row."
+    },
+    {
+      "path": ".upstream/TortoiseGit/src/TortoiseProc/RebaseDlg.cpp",
+      "lines": "2368-2371",
+      "behavior": "Successful Edit execution enters the Edit stage and stops replay for user review."
+    }
+  ],
+  "native": [
+    {
+      "path": "Sources/TurtleGitCore/Rebase.swift",
+      "lines": "734-746",
+      "behavior": "rebaseTodo serializes the selected action and sanitized subject without an empty-subject execution-mode override."
+    },
+    {
+      "path": "Sources/TurtleGitCore/Rebase.swift",
+      "lines": "850-864",
+      "behavior": "Actual replay todo similarly preserves selected actions. The default GIT_EDITOR is /usr/bin/true; the separate message editor is configured for Squash, not empty-subject Pick."
+    },
+    {
+      "path": "Sources/TurtleGitCore/Rebase.swift",
+      "lines": "786-790",
+      "behavior": "Structural replay uses the requested action and only emits a merge Edit break for an explicitly selected Edit; it has no empty-subject review override."
+    }
+  ],
+  "gap": {
+    "current": "No equivalent empty-subject warning and forced Edit review transition exists in the inspected native execution paths. A retained Pick is submitted to Git as Pick.",
+    "required": "Preserve source Skip behavior, warn for retained empty-subject rows, and route execution into the existing owned Edit/message recovery workflow rather than relying on Git's version-specific empty-message behavior.",
+    "proposed_connected_scope": [
+      "Ordinary Rebase, Cherry Pick and structural replay execution-mode handling with occurrence identity retained",
+      "Source warning plus editable message, Continue/Split/Abort and author metadata through the existing stopped-session workflow",
+      "Squash-neighbor and explicit action interactions traced against source ordering before implementation",
+      "Cancellation, retired owner and changed-session refusal for any delayed warning answer"
+    ]
+  },
+  "related_behavior_already_implemented": [
+    "Preserve-merges Add is deliberately disabled by source RebaseDlg.cpp:1850 and native RebaseWindow.swift:1347; it is not a missing Add workflow.",
+    "Source RebaseDlg.cpp:2195-2201 rejects squashing a merge commit; native Rebase.swift:754 retains this restriction.",
+    "Existing native failed-pick Retry/Skip recovery is present at RebaseWindow.swift:2318 onward; it does not supply the missing empty-subject warning/Edit transition.",
+    "Existing Rebase bulk actions, ordering, F5, Split and message-recovery controls must be reused rather than counted as absent foundations."
+  ],
+  "limitations": [
+    "No production changes, builds, tests, Git mutations or GUI actions were performed for this audit.",
+    "Actual behavior of a specific Git version when replaying an empty-message commit was not executed; the confirmed divergence is the missing explicit source warning and execution-mode transition.",
+    "This record identifies a bounded implementation gap, not several independent missing Rebase features or complete source/visual/signed certification."
+  ]
+}

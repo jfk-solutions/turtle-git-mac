@@ -7,7 +7,7 @@ public enum FinderServiceSelectionRoute:Hashable,Sendable {
     case repository,comparisonFile,comparisonMarkClear,patchReview,mailFiles,patchImport
 }
 public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
-    case log,commit,status,diff,clone,initialize
+    case log,commit,status,diff,clone,initialize,registerRepository
     case pull,fetch,push,synchronize,rebase,stash,stashApply,stashPop,stashList,switchBranch,merge,branch,tag
     case add,revert,resolve,resolveCurrent,resolveMine,resolveTheirs,blame,previousDiff,editConflict,ignore,ignoreMask,ignoreDelete,ignoreDeleteMask
     case rename,remove,removeKeep,clean
@@ -38,7 +38,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     /// behavior. New repository Services apply MenuInfo's actual state clauses
     /// after the app obtains access and reads fresh repository/status metadata.
     public var requiresSourceEligibility:Bool {
-        switch self {case .log,.commit,.status,.diff,.clone,.initialize:return false;default:return true}
+        switch self {case .log,.commit,.status,.diff,.clone,.initialize,.registerRepository:return false;default:return true}
     }
     /// Services has no separate Explorer folder context. Worktree List therefore
     /// requires one explicit folder even though MenuInfo permits a bare context
@@ -47,7 +47,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     /// they cannot borrow Explorer's separate bare-repository folder context.
     public var requiresSingleSelection:Bool {
         switch self {
-        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule,.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon,.diffLater,.clearComparisonMark,.export,.formatPatch,.reviewPatch,.requestPull:return true
+        case .registerRepository,.clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule,.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon,.diffLater,.clearComparisonMark,.export,.formatPatch,.reviewPatch,.requestPull:return true
         default:return false
         }
     }
@@ -92,6 +92,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     }
     public func request(paths:[URL],alternateTool:Bool?=nil)throws->FinderRequest {
         guard !paths.isEmpty,paths.count<=Self.maximumPaths else{throw Failure("Select between 1 and 10,000 files or folders for TurtleGit.")}
+        guard self != .registerRepository || paths.count == 1 else{throw Failure("Select one folder to add to TurtleGit.")}
         guard capturesAlternateTool || alternateTool == nil else{throw Failure("The tool choice is valid only for Diff, Diff with previous version, Edit conflicts, or Mark for comparison.")}
         for path in paths {
             guard path.isFileURL,let parts=URLComponents(url:path,resolvingAgainstBaseURL:false),
@@ -112,6 +113,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
                 throw Failure("Select one existing directory for Clone or Create repository.")
             }
         }
+        if self == .registerRepository,normalized[0].path == "/" {throw Failure("Choose a repository folder rather than the filesystem root.")}
         let request=FinderRequest(action:action,paths:normalized,alternateTool:alternateTool)
         _=try Self.envelope(request)
         return request
@@ -211,6 +213,9 @@ public struct FinderRequest: Sendable {
               fields.filter({ $0.name == "command" }).count == 1,
               let command = fields.first(where: { $0.name == "command" })?.value,
               let action = RepositoryAction(rawValue: command), !action.isMenuHeader else { return nil }
+        if action == .registerRepository {
+            guard url.user==nil,url.password==nil,url.port==nil,url.fragment==nil,url.path.isEmpty,fields.allSatisfy({["command","path"].contains($0.name)}),fields.filter({$0.name=="path"}).count==1 else{return nil}
+        }
         let toolFields=fields.filter {$0.name=="alternate"}
         guard toolFields.count <= 1,toolFields.allSatisfy({$0.value=="0" || $0.value=="1"}) else {return nil}
         let alternateTool=toolFields.first.map {$0.value=="1"}
@@ -226,6 +231,9 @@ public struct FinderRequest: Sendable {
         let paths = fields.filter { $0.name == "path" }.compactMap(\.value)
         guard (!paths.isEmpty || action.allowsEmptySelection), paths.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               paths.count == fields.filter({ $0.name == "path" }).count else { return nil }
+        if action == .registerRepository {
+            guard paths[0] != "/",!FileTransferPaths.fileURL(paths[0]).pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else{return nil}
+        }
         let sourceFields = fields.filter { $0.name == "source" }, sources = sourceFields.compactMap(\.value)
         guard sources.count == sourceFields.count, sources.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               Self.validTransferPayload(action: action, paths: paths.map { FileTransferPaths.fileURL($0) }, sources: sources.map { FileTransferPaths.fileURL($0) }),
@@ -234,6 +242,7 @@ public struct FinderRequest: Sendable {
         self.init(action: action, paths: paths.map { FileTransferPaths.fileURL($0) }, sources: sources.map { FileTransferPaths.fileURL($0) }, alternateTool:alternateTool, requestPullEnd: endFields.first?.value, requestPullURL: urlFields.first?.value, clipboardPatch: clipboardFields.first?.value)
     }
     public var url: URL? {
+        guard action != .registerRepository || (paths.count==1 && sources.isEmpty && alternateTool==nil && paths[0].isFileURL && (paths[0].host == nil || paths[0].host == "" || paths[0].host?.lowercased() == "localhost") && paths[0].user == nil && paths[0].password == nil && paths[0].port == nil && paths[0].query == nil && paths[0].fragment == nil && paths[0].path != "/" && !paths[0].pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame})) else{return nil}
         guard clipboardPatch == nil || (action == .reviewPatch && paths.count == 1 && (clipboardPatch == FinderPatchHandoff.unavailable || FinderPatchHandoff.validReceipt(clipboardPatch!))) else { return nil }
         guard !action.isMenuHeader, !paths.isEmpty || action.allowsEmptySelection,
               action == .requestPull || (requestPullEnd == nil && requestPullURL == nil),

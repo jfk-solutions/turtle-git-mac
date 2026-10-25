@@ -178,7 +178,7 @@ struct MergeToolbarState {
         for command in commands where states(command) != nil {
             let item = NSMenuItem(title: command.title, action: #selector(invoke(_:)), keyEquivalent: "")
             item.target = self; item.tag = MergeToolbarCommand.allCases.firstIndex(of: command)!
-            item.image = command.icon.image(); item.isEnabled = !retired && states(command)?.enabled == true
+            item.image = command.icon.contextImage(defaults:preferences); item.isEnabled = !retired && states(command)?.enabled == true
             item.state = states(command)?.checked == true ? .on : .off; menu.addItem(item)
         }
         return menu
@@ -189,7 +189,7 @@ struct MergeToolbarState {
         if let button = item.view as? NSButton { button.isEnabled = item.isEnabled; button.state = state?.checked == true ? .on : .off }
         if let group = item as? NSMenuToolbarItem, let choices = menus[command] { group.menu = menu(choices) }
         let overflow = NSMenuItem(title: command.title, action: #selector(invoke(_:)), keyEquivalent: "")
-        overflow.target = self; overflow.tag = item.tag; overflow.image = command.icon.image(); overflow.isEnabled = item.isEnabled
+        overflow.target = self; overflow.tag = item.tag; overflow.image = command.icon.contextImage(defaults:preferences); overflow.isEnabled = item.isEnabled
         overflow.state = state?.checked == true ? .on : .off
         if let choices = menus[command] { overflow.submenu = menu(choices) }
         item.menuFormRepresentation = overflow
@@ -476,7 +476,7 @@ enum MergeViewportScrollCommand:String,CaseIterable,Hashable {
         if scroll.submenu?.items.isEmpty==false {view.addItem(scroll);contributed.append(scroll)}
         if state(.regex(nil)) != nil || state(.configureRegex) != nil {
         let filters = NSMenuItem(title:"Filter Regexes",action:nil,keyEquivalent:"")
-        filters.submenu = NSMenu(title:"Filter Regexes");view.addItem(filters);contributed.append(filters)
+        filters.image=MenuIcon.historyFind.image();filters.submenu = NSMenu(title:"Filter Regexes");view.addItem(filters);contributed.append(filters)
         rebuildFilters(filters.submenu!)
         }
         append([.toolbar(.help),.about],to:root("Help",in:main))
@@ -677,6 +677,10 @@ enum MergeViewportScrollCommand:String,CaseIterable,Hashable {
         case .findNext,.findPrevious,.gotoLine,.clearSearch:return .mergeFind
         case .findSelectionNext:return .jumpDown;case .findSelectionPrevious:return .jumpUp
         case .settings,.configureRegex:return .settings;case .about:return .merge
+        case .regex:return .historyFind
+        case .nextPane,.previousPane:return .mergeSwitch
+        case .toolbarVisible,.statusVisible,.lineNumbers:return .settingsDialogs
+        case .lineDiff:return .mergeInline;case .locator,.fishEye:return .mergeFind
         case .moved:return .mergeMoved;case .whitespace,.ignoreComments,.ignoreEndings,.ignoreCase:return .compare
         default:return nil
         }

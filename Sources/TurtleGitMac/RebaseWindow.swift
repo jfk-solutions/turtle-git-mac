@@ -2456,6 +2456,7 @@ struct RebaseSplitControl:NSViewRepresentable {
     let enabled:Bool
     let primary:()->Void
     let captureMenu:()->((String)->Void)?
+    var preferences:UserDefaults = .standard
     @Environment(\.isEnabled) private var environmentEnabled
     func makeCoordinator()->Coordinator {Coordinator()}
     func makeNSView(context:Context)->NSSegmentedControl {
@@ -2476,11 +2477,11 @@ struct RebaseSplitControl:NSViewRepresentable {
             let menu=NSMenu();menu.delegate=coordinator;menu.autoenablesItems=false
             for (name,icon) in items {
                 let item=NSMenuItem(title:name,action:#selector(Coordinator.chosen(_:)),keyEquivalent:"")
-                item.target=coordinator;item.representedObject=name;item.image=icon.image();menu.addItem(item)
+                item.target=coordinator;item.representedObject=name;item.image=icon.contextImage(defaults:preferences);menu.addItem(item)
             }
             control.setMenu(menu,forSegment:1)
         }
-        for item in control.menu(forSegment:1)?.items ?? [] {item.state=item.title==title ? .on:.off;item.isEnabled=control.isEnabled}
+        for (index,item) in (control.menu(forSegment:1)?.items ?? []).enumerated() {item.state=item.title==title ? .on:.off;item.isEnabled=control.isEnabled;if items.indices.contains(index) {item.image=items[index].1.contextImage(defaults:preferences)}}
     }
     static func dismantleNSView(_ control:NSSegmentedControl,coordinator:Coordinator) {
         (control as? RebaseNativeSplitControl)?.lifetime.retire()
@@ -2605,7 +2606,7 @@ struct RebaseDialog: View {
                     RebaseReplayTable(model: model, dates: dates)
                         .background(RebaseColumnLayout(model: model)).background(RebaseListInteraction(model: model))
                     HStack {
-                        RebaseSplitControl(title:model.bulkAction.rawValue,items:RebaseBulkAction.allCases.map {($0.rawValue,$0.action.icon)},label:"Rebase bulk actions",enabled:model.canUseBulkActions,primary:{model.chooseBulkAction(model.bulkAction)},captureMenu:model.captureBulkAction).frame(width:158,height:24)
+                        RebaseSplitControl(title:model.bulkAction.rawValue,items:RebaseBulkAction.allCases.map {($0.rawValue,$0.action.icon)},label:"Rebase bulk actions",enabled:model.canUseBulkActions,primary:{model.chooseBulkAction(model.bulkAction)},captureMenu:model.captureBulkAction,preferences:model.columnPreferences).frame(width:158,height:24)
                         Button("Up") { model.move(up:true,toEnd:NSEvent.modifierFlags.contains(.shift),context:context) }.disabled(!model.canMove(up: true, toEnd: true))
                         Button("Down") { model.move(up:false,toEnd:NSEvent.modifierFlags.contains(.shift),context:context) }.disabled(!model.canMove(up: false, toEnd: true))
                         Button { model.add(context) } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canAdd)
@@ -2649,7 +2650,7 @@ struct RebaseDialog: View {
             HStack {
                 if model.completionActions.isEmpty { Text(model.status).font(.caption) }
                 else {
-                    RebaseSplitControl(title:model.completionAction.rawValue,items:model.completionActions.map {($0.rawValue,$0.icon)},label:"Rebase completion actions",enabled:model.canPerformCompletionAction(model.completionAction),primary:{model.performCompletionAction(model.completionAction)},captureMenu:model.captureCompletionAction).frame(width:158,height:24)
+                    RebaseSplitControl(title:model.completionAction.rawValue,items:model.completionActions.map {($0.rawValue,$0.icon)},label:"Rebase completion actions",enabled:model.canPerformCompletionAction(model.completionAction),primary:{model.performCompletionAction(model.completionAction)},captureMenu:model.captureCompletionAction,preferences:model.columnPreferences).frame(width:158,height:24)
                 }
                 Spacer()
                 if model.state?.canSplit == true {Toggle("Edit/Split commit",isOn:model.splitBinding(context)).disabled(!model.canSplit || model.state?.split != nil)}
@@ -2741,7 +2742,7 @@ struct RebaseConflictFiles: View {
                     Button {model.revertConflictFiles(menu)} label:{CommandLabel(title:"Revert",icon:.revert)}
                 }
                 ForEach(IndexFlagAction.allCases,id:\.self) { action in
-                    if model.canSetConflictFlags(action,menu:menu) {Button(action.rawValue) {model.setConflictFlags(action,menu:menu)}}
+                    if model.canSetConflictFlags(action,menu:menu) {Button {model.setConflictFlags(action,menu:menu)} label:{CommandLabel(title:action.rawValue,icon:.settings)}}
                 }
                 Divider()
                 ForEach([StatusFileCommand.open, .openWith, .editor, .reveal, .export], id: \.self) { command in

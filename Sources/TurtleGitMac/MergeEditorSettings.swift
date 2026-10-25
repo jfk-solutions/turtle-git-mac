@@ -470,6 +470,7 @@ struct NativeSettingsPaletteChoice: NSViewRepresentable {
 
 /// Source color-button behavior shared by the native settings pages.
 struct NativeSettingsColorChoice: NSViewRepresentable {
+    @AppStorage("ShowAppContextMenuIcons") private var showMenuIcons=true
     @Environment(\.isEnabled) private var enabled
     var namespace = "MergeColors"
     let value: UInt32, automatic: UInt32
@@ -478,7 +479,7 @@ struct NativeSettingsColorChoice: NSViewRepresentable {
     let changed: (UInt32) -> Void
     func makeNSView(context: Context) -> MergeColorChoiceView { MergeColorChoiceView() }
     func updateNSView(_ view: MergeColorChoiceView, context: Context) {
-        view.configure(value:value, automatic:automatic, label:label, identifier:identifier, namespace:namespace, enabled:enabled, contextIdentity:contextIdentity, changed:changed)
+        view.configure(value:value, automatic:automatic, label:label, identifier:identifier, namespace:namespace, enabled:enabled, contextIdentity:contextIdentity, showMenuIcons:showMenuIcons, changed:changed)
     }
     static func dismantleNSView(_ view: MergeColorChoiceView, coordinator: ()) { view.retire() }
 }
@@ -496,6 +497,7 @@ enum SettingsColorValue {
     let arrow = NSButton()
     let choices = NSMenu()
     private var automatic: UInt32 = 0
+    private var showMenuIcons=true
     private var changed: ((UInt32) -> Void)?
     private var ownerObserver: NSObjectProtocol?
     private var retired = false
@@ -524,13 +526,13 @@ enum SettingsColorValue {
         arrow.frame = NSRect(x: bounds.width - 20, y: 0, width: 20, height: bounds.height)
     }
     private static func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat(rgb >> 16 & 255) / 255, green: CGFloat(rgb >> 8 & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
-    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, namespace:String = "MergeColors", enabled:Bool = true, contextIdentity:String? = nil, changed: @escaping (UInt32) -> Void) {
+    func configure(value: UInt32, automatic: UInt32, label: String, identifier: String, namespace:String = "MergeColors", enabled:Bool = true, contextIdentity:String? = nil, showMenuIcons:Bool = MenuPresentationSettings.applicationContextIcons(), changed: @escaping (UInt32) -> Void) {
         guard !retired else { return }
         let identity = namespace + "." + identifier + "." + (contextIdentity ?? "default")
         let contextChanged = self.contextIdentity != identity
-        let choicesChanged = contextChanged || configuredValue != value || self.automatic != automatic || self.enabled != enabled
+        let choicesChanged = contextChanged || configuredValue != value || self.automatic != automatic || self.enabled != enabled || self.showMenuIcons != showMenuIcons
         if contextChanged { choices.cancelTracking(); closeOwnedPanel() }
-        self.contextIdentity = identity; configuredValue = value
+        self.contextIdentity = identity; self.showMenuIcons=showMenuIcons; configuredValue = value
         self.enabled = enabled
         if !enabled { choices.cancelTracking(); closeOwnedPanel() }
         well.isEnabled = enabled; arrow.isEnabled = enabled
@@ -550,7 +552,7 @@ enum SettingsColorValue {
         automaticItem.image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { [automatic] rect in Self.color(automatic).setFill(); rect.fill(); return true }
         choices.addItem(automaticItem); choices.addItem(.separator())
         let custom = NSMenuItem(title: "More colors…", action: #selector(moreColors(_:)), keyEquivalent: "")
-        custom.target = self; custom.representedObject = MenuChoice(generation: generation, automatic: automatic); choices.addItem(custom)
+        custom.target = self; custom.image=showMenuIcons ? MenuIcon.settingsColors.image():nil; custom.representedObject = MenuChoice(generation: generation, automatic: automatic); choices.addItem(custom)
     }
     func menuNeedsUpdate(_ menu: NSMenu) { guard menu === choices, enabled, !retired else { return }; generation = UUID(); rebuildChoices() }
     private func take(_ sender: Any?) -> MenuChoice? {

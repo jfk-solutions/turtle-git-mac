@@ -1,8 +1,10 @@
 # Persistent watched repositories
 
-Finder Sync requires explicit directory registration. This macOS addition places
-Watched Repositories under Icon Overlays, complementing TGitCache's watcher/crawler
-workflow. It is not a copied Windows dialog or the independent service itself.
+Repository status collection requires saved folder authority. This macOS addition
+places Watched Repositories under Icon Overlays, complementing TGitCache's watcher/
+crawler workflow. First-use [command discovery](FINDER-REGISTRATION-PARITY.md) is
+separate from these authorized status roots. It is not a copied Windows dialog or
+the independent service itself.
 
 The app-private watched-repositories.json uses security-scoped bookmarks, separate
 from the recent-repository list. Startup restores each saved grant without a picker.

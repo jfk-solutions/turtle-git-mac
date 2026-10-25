@@ -2,7 +2,31 @@ import AppKit
 import TurtleGitCore
 
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
+    private var menuImageObservers: [NSObjectProtocol] = []
+    private var applyingMenuImages = false
+    /// SwiftUI also creates native menu items after the menu's initial build.
+    /// Observe image/item changes rather than replacing menu delegates, targets,
+    /// validation or tracking ownership in every editor and dialog.
+    func installMenuImageVisibility() {
+        guard menuImageObservers.isEmpty else { return }
+        for name in [NSMenu.didAddItemNotification, NSMenu.didChangeItemNotification, NSMenu.didBeginTrackingNotification] {
+            menuImageObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
+                MainActor.assumeIsolated {
+                    guard let self, !self.applyingMenuImages, let menu = notification.object as? NSMenu else { return }
+                    self.applyingMenuImages = true
+                    defer { self.applyingMenuImages = false }
+                    MenuImageVisibility.apply(to: menu)
+                }
+            })
+        }
+        if let menu = NSApp.mainMenu { MenuImageVisibility.apply(to: menu) }
+    }
+    func retireMenuImageVisibility() {
+        for observer in menuImageObservers { NotificationCenter.default.removeObserver(observer) }
+        menuImageObservers.removeAll()
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
+        installMenuImageVisibility()
         #if SWIFT_PACKAGE
         if let file = Bundle.module.url(forResource: "ApplicationIcon", withExtension: "png", subdirectory: "Branding"), let icon = NSImage(contentsOf: file) { NSApp.applicationIconImage = icon }
         #endif
@@ -222,7 +246,7 @@ import TurtleGitCore
     private var confirmingQuit = false
     private var drainingUnifiedDiffQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value

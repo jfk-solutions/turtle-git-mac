@@ -128,11 +128,11 @@ struct WorktreeListTable: NSViewRepresentable {
         }
         func columnMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
-            let reset = NSMenuItem(title: "Reset columns", action: #selector(confirmReset), keyEquivalent: ""); reset.target = self; reset.isEnabled = model.canInteract
+            let reset = NSMenuItem(title: "Reset columns", action: #selector(confirmReset), keyEquivalent: ""); reset.target = self; reset.image=MenuIcon.reset.contextImage(defaults:defaults); reset.isEnabled = model.canInteract
             menu.addItem(reset); menu.addItem(.separator())
             for (id, title, _) in Self.columns.dropFirst() {
                 let item = NSMenuItem(title: title, action: #selector(toggleColumn(_:)), keyEquivalent: "")
-                item.target = self; item.representedObject = id; item.state = table?.tableColumns.first(where: { $0.identifier.rawValue == id })?.isHidden == false ? .on : .off
+                item.target = self; item.image=MenuIcon.settingsDialogs.contextImage(defaults:defaults); item.representedObject = id; item.state = table?.tableColumns.first(where: { $0.identifier.rawValue == id })?.isHidden == false ? .on : .off
                 item.isEnabled = model.canInteract; menu.addItem(item)
             }
             return menu

@@ -115,17 +115,18 @@ enum FinderDeliveryRepositoryVerification {
             try require(invoke(delegate.finderServicesProvider,board,name) != nil && received.count==count,"retired provider delivered")
         }
         let document=try requirePlist(plist),entries=try XCTEntries(document)
-        try require(entries.count==55 && Set(entries.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"55 declarations differ from actual Core actions")
+        try require(entries.count==56 && Set(entries.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"56 declarations differ from actual Core actions")
+        try require(entries.last?["NSUserData"] as? String=="registerRepository" && entries.last?["NSSendFileTypes"] as? [String]==["public.folder"],"appended native registration declaration invalid")
         try require(entries.prefix(47).compactMap{$0["NSUserData"] as? String}==originalNames,"original47 declaration order changed")
         try require(entries[42..<47].compactMap{$0["NSUserData"] as? String}==["reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"],"original history positions changed")
-        try require(entries.suffix(8).compactMap{$0["NSUserData"] as? String}==names,"delivery declarations were not appended")
-        for entry in entries.suffix(8) {
+        try require(entries.prefix(55).suffix(8).compactMap{$0["NSUserData"] as? String}==names,"delivery declarations were not appended")
+        for entry in entries.prefix(55).suffix(8) {
             guard let name=entry["NSUserData"] as? String else{throw Failure(description:"missing delivery UserData")}
             try require(entry["NSMessage"] as? String=="performFinderAction" && entry["NSPortName"] as? String=="TurtleGit" && entry["NSRestricted"] as? Bool==true && (entry["NSRequiredContext"] as? [String:Any])?.isEmpty==true,"delivery selector/restriction changed")
             try require(entry["NSSendFileTypes"] as? [String]==[folderNames.contains(name) ? "public.folder":"public.item"],"delivery selection UTI changed")
         }
-        try require(entries.filter{($0["NSSendFileTypes"] as? [String])==["public.folder"]}.count==15,"folder declaration count changed")
-        print("PASS: eight cold/active/retired typed delivery Services,55 declarations and captured private pasteboards")
+        try require(entries.prefix(55).filter{($0["NSSendFileTypes"] as? [String])==["public.folder"]}.count==15,"folder declaration count changed")
+        print("PASS: eight cold/active/retired typed delivery Services,56 declarations and captured private pasteboards")
     }
     private static func requirePlist(_ url:URL)throws->[String:Any] {
         guard let value=try PropertyListSerialization.propertyList(from:Data(contentsOf:url),format:nil) as? [String:Any] else{throw Failure(description:"invalid app plist")};return value

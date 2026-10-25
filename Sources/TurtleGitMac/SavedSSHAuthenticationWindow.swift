@@ -229,7 +229,7 @@ struct SSHIdentityPermissionsPage: View {
                     HStack { if let image = MenuIcon.lock.image() { Image(nsImage: image) }; Text(URL(fileURLWithPath: row.configuredPath).lastPathComponent) }.help(row.configuredPath)
                 }.width(min: 120, ideal: 180)
                 TableColumn("Configured Path") { row in Text(row.configuredPath).help(row.configuredPath) }
-            }.contextMenu { commands() }.onDeleteCommand { model.forget() }
+            }.contextMenu { TurtleGitContextMenu { commands() } }.onDeleteCommand { model.forget() }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             Text("Forgetting a permission keeps the key file, Git settings, saved passphrases and already running operations.").font(.caption).foregroundStyle(.secondary)
             HStack {

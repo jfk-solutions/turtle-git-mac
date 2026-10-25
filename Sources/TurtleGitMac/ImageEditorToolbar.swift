@@ -23,7 +23,8 @@ enum ImageEditorCommand: String, CaseIterable {
         case .original: return .imageOriginal; case .zoomIn: return .imageZoomIn; case .zoomOut: return .imageZoomOut
         case .info: return .imageInfo; case .vertical: return .imageVertical
         case .open: return .open; case .reload: return .refresh
-        default: return nil
+        case .transparentColor: return .imageAlphaToggle; case .dark: return .settingsColors
+        case .fileMenu: return .open; case .viewMenu: return .imageInfo
         }
     }
     var toggle: Bool { [.overlay, .blend, .link, .widths, .heights, .info, .vertical, .dark].contains(self) }
@@ -54,12 +55,13 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
     private let state: (ImageEditorCommand) -> ImageEditorCommandState?
     private let action: (ImageEditorCommand) -> Void
     private let installed: (Bool) -> Void
+    private let preferences:UserDefaults
     private var observations: [AnyCancellable] = []
     private var retired = false, queued = false
     init(window: NSWindow, selection: Bool, changes: [AnyPublisher<Void, Never>],
          visible: @escaping () -> Bool, state: @escaping (ImageEditorCommand) -> ImageEditorCommandState?,
-         action: @escaping (ImageEditorCommand) -> Void, installed: @escaping (Bool) -> Void) {
-        self.window = window; self.visible = visible; self.state = state; self.action = action; self.installed = installed
+         action: @escaping (ImageEditorCommand) -> Void, installed: @escaping (Bool) -> Void, preferences:UserDefaults = .standard) {
+        self.preferences=preferences;self.window = window; self.visible = visible; self.state = state; self.action = action; self.installed = installed
         let common: [ImageEditorCommand] = [.fit, .original, .zoomIn, .zoomOut, .info, .vertical]
         commands = (selection ? [] : [.overlay, .blend, .link, .widths, .heights]) + common + (selection ? [.reload] : [.open, .reload]) + [.transparentColor, .dark, .fileMenu, .viewMenu]
         defaults = (selection ? [] : [ImageEditorCommand.overlay.identifier, ImageEditorCommand.blend.identifier, .space, ImageEditorCommand.link.identifier, ImageEditorCommand.widths.identifier, ImageEditorCommand.heights.identifier, .space]) + common.prefix(4).map(\.identifier) + [.space] + common.suffix(2).map(\.identifier) + [.flexibleSpace, ImageEditorCommand.fileMenu.identifier, ImageEditorCommand.viewMenu.identifier]
@@ -137,7 +139,7 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
     }
     private func leaf(_ command: ImageEditorCommand) -> NSMenuItem {
         let item = NSMenuItem(title: command.title, action: #selector(invoke(_:)), keyEquivalent: "")
-        item.target = self; item.tag = ImageEditorCommand.allCases.firstIndex(of: command)!; item.image = command.icon?.image()
+        item.target = self; item.tag = ImageEditorCommand.allCases.firstIndex(of: command)!; item.image = command.icon?.contextImage(defaults:preferences)
         item.isEnabled = active && state(command)?.enabled == true; item.state = state(command)?.checked == true ? .on : .off
         return item
     }
@@ -153,6 +155,7 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
     func menuNeedsUpdate(_ menu: NSMenu) {
         for item in menu.items where !item.isSeparatorItem && item.action != nil {
             guard let command = command(item.tag) else { continue }
+            item.image=command.icon?.contextImage(defaults:preferences)
             item.isEnabled = active && state(command)?.enabled == true; item.state = state(command)?.checked == true ? .on : .off
         }
     }
@@ -181,12 +184,12 @@ extension ImageEditorToolbar {
                     image?.nativeToolbarInstalled = value
                     if owner?.window?.isKeyWindow == true { owner?.refreshScopedFileMenu() }
                 }
-            })
+            },preferences:model.comparisonDefaults)
     }
     static func conflict(_ owner: ImageConflictWindowController) -> ImageEditorToolbar? {
         guard let window = owner.window else { return nil }; let model = owner.model
         return ImageEditorToolbar(window: window, selection: true, changes: [model.objectWillChange.eraseToAnyPublisher(), model.presentation.objectWillChange.eraseToAnyPublisher()],
             visible: { [weak model] in model?.retired == false }, state: { [weak model] in model?.commandState($0) },
-            action: { [weak model] in model?.perform($0) }, installed: { [weak model] value in if model?.nativeToolbarInstalled != value { model?.nativeToolbarInstalled = value } })
+            action: { [weak model] in model?.perform($0) }, installed: { [weak model] value in if model?.nativeToolbarInstalled != value { model?.nativeToolbarInstalled = value } },preferences:model.presentationPreferences)
     }
 }

@@ -703,10 +703,10 @@ struct CommitFileInteraction: NSViewRepresentable {
         func columnMenu() -> NSMenu {
             let menu = NSMenu(); menu.autoenablesItems = false
             let reset = NSMenuItem(title: NSLocalizedString("Reset columns",comment:""), action: #selector(resetColumnLayout(_:)), keyEquivalent: "")
-            reset.target = self; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
+            reset.target = self; reset.image=MenuIcon.reset.contextImage(defaults:preferences); reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
             for (index, column) in StatusListColumn.allCases.enumerated() where column != .path && nativeColumns.contains(column) && availableColumns.contains(column) {
                 let item = NSMenuItem(title: FileListLabels.caption(column.rawValue), action: #selector(toggleColumn(_:)), keyEquivalent: "")
-                item.target = self; item.tag = index; item.state = visibleColumns.contains(column) ? .on : .off
+                item.target = self; item.image=MenuIcon.settingsDialogs.contextImage(defaults:preferences); item.tag = index; item.state = visibleColumns.contains(column) ? .on : .off
                 item.isEnabled = enabled && column != .path; menu.addItem(item)
             }
             return menu

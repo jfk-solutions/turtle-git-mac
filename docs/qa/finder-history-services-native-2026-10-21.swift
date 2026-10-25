@@ -190,13 +190,13 @@ private final class HistoryServiceDaemonGate: @unchecked Sendable {
         }
         let plist=try PropertyListSerialization.propertyList(from:Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[3])),format:nil) as! [String:Any]
         let entries=plist["NSServices"] as? [[String:Any]] ?? []
-        try require(entries.count==55 && Set(entries.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"55 registered Services do not match actual typed commands")
+        try require(entries.count==56 && Set(entries.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"56 registered Services do not match actual typed commands")
         try require(Array(entries.dropFirst(42).prefix(5)).compactMap{$0["NSUserData"] as? String}==commands,"history Services changed committed registration order")
         for command in commands {
             let entry=entries.filter{$0["NSUserData"] as? String==command}
             try require(entry.count==1 && entry[0]["NSMessage"] as? String=="performFinderAction" && entry[0]["NSSendFileTypes"] as? [String]==[(["revisionGraph","daemon"].contains(command) ? "public.item":"public.folder")],"history Service UTI/provider contract changed")
         }
-        print("PASS: five cold/active Services,55 declarations, provider install/restore/retirement, literal singleton capture and folder/item UTIs")
+        print("PASS: five cold/active Services,56 declarations, provider install/restore/retirement, literal singleton capture and folder/item UTIs")
     }
     @MainActor static func routes()async throws {
         let context=try Context(root:URL(fileURLWithPath:CommandLine.arguments[1]),git:URL(fileURLWithPath:CommandLine.arguments[2]),ready:false)

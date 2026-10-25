@@ -106,6 +106,7 @@ import TurtleGitCore
         for item in menu.items {
             if let submenu = item.submenu { decorateEditingItems(submenu) }
             switch item.action.map(NSStringFromSelector) {
+            case "selectAll:": item.image = MenuIcon.mergeMarked.contextImage(defaults:preferences())
             case "copy:": item.image = MenuIcon.copy.contextImage(defaults:preferences())
             case "paste:", "pasteAsPlainText:": item.image = MenuIcon.mergePaste.contextImage(defaults:preferences())
             case "undo:": item.image = MenuIcon.mergeUndo.contextImage(defaults:preferences())

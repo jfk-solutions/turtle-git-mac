@@ -252,6 +252,74 @@ import TurtleGitCore
             }
 
         }
+        // Native first-use discovery is independent of the pinned creation
+        // clauses above. A candidate conveys intent, never authority or proof
+        // of existence; even unavailable resource metadata cannot hide entry.
+        let unavailable=folder.deletingLastPathComponent().appendingPathComponent("not granted/not present 雪",isDirectory:false)
+        precondition(!FileManager.default.fileExists(atPath:unavailable.path))
+        for icons in [false,true] {
+            var discoverySettings=allCommands(showIcons:icons);discoverySettings.hideForUnversioned=true
+            let discovery=FinderMenuBuilder.make(paths:[unavailable],snapshot:nil,settings:discoverySettings,comparisonMark:nil,target:target,actionSelector:selector,registrationCandidate:unavailable,cloneDirectory:unavailable)
+            let leaves=items(discovery).filter{$0.representedObject is FinderMenuCommand}
+            precondition(leaves.compactMap{FinderShellMenuLayout.action($0)} == [.clone,.initialize,.registerRepository,.settings,.help,.about])
+            for item in items(discovery) where !item.isSeparatorItem {
+                precondition((item.image != nil) == icons,"First-use parents and leaves respect the Finder icon setting")
+                if icons,#available(macOS 27.0,*) {
+                    precondition(item.responds(to:NSSelectorFromString("preferredImageVisibility")))
+                    precondition((item.value(forKey:"preferredImageVisibility") as? NSNumber)?.intValue == 1,"Public macOS27 image visibility must be explicitly visible")
+                }
+            }
+            let registration=leaves.first{FinderShellMenuLayout.action($0) == .registerRepository}!
+            let request=(registration.representedObject as! FinderMenuCommand).request
+            let expected=FinderRequest(action:.registerRepository,paths:[unavailable])
+            precondition(request.paths.count == 1 && request.paths.map{Data($0.path.utf8)} == expected.paths.map{Data($0.path.utf8)})
+            precondition(registration.target === target && registration.action == selector && FinderRequest(url:request.url!)?.action == .registerRepository)
+            let registrationCommand=registration.representedObject as! FinderMenuCommand
+            for alternate in [false,true] {
+                for control in [false,true] {
+                    guard let callbackURL=registrationCommand.url(control:control,alternate:alternate),let decoded=FinderRequest(url:callbackURL) else {preconditionFailure("Registration callback modifiers must retain a valid typed request")}
+                    precondition(decoded.action == .registerRepository && decoded.alternateTool == nil)
+                    precondition(decoded.paths.map{Data($0.path.utf8)} == expected.paths.map{Data($0.path.utf8)})
+                }
+            }
+            let toolbar=FinderMenuBuilder.make(paths:[unavailable],snapshot:nil,settings:discoverySettings,comparisonMark:nil,target:target,actionSelector:selector,toolbar:true,registrationCandidate:unavailable,cloneDirectory:unavailable)
+            precondition(toolbar.items.compactMap{FinderShellMenuLayout.action($0)} == [.clone,.initialize,.registerRepository,.settings,.help,.about])
+            if icons,#available(macOS 27.0,*) {precondition(toolbar.items.allSatisfy{($0.value(forKey:"preferredImageVisibility") as? NSNumber)?.intValue == 1})}
+            discoverySettings.extendedOnlyMask=FinderMenuEntry.clone.mask | FinderMenuEntry.createRepo.mask
+            let masked=FinderMenuBuilder.make(paths:[unavailable],snapshot:nil,settings:discoverySettings,comparisonMark:nil,target:target,actionSelector:selector,registrationCandidate:unavailable,cloneDirectory:unavailable)
+            precondition(!items(masked).contains{[RepositoryAction.clone,.initialize].contains(FinderShellMenuLayout.action($0) ?? .about)})
+            precondition(items(masked).contains{FinderShellMenuLayout.action($0) == .registerRepository},"Mac registration has no invented source mask")
+            discoverySettings.excludedPaths=unavailable.path
+            precondition(FinderMenuBuilder.make(paths:[unavailable],snapshot:nil,settings:discoverySettings,comparisonMark:nil,target:target,actionSelector:selector,registrationCandidate:unavailable,cloneDirectory:unavailable).items.isEmpty)
+        }
+        precondition(FinderContextDiscovery.commandDirectories == [URL(fileURLWithPath:"/",isDirectory:true)])
+        precondition(!FinderContextDiscovery.permitsStatus(unavailable.path,snapshot:nil))
+        precondition(!FinderContextDiscovery.permitsStatus(unavailable.path,snapshot:snapshot))
+        precondition(FinderContextDiscovery.permitsStatus(folder.path,snapshot:snapshot))
+        precondition(FinderContextDiscovery.permitsStatus(tracked.path,snapshot:snapshot))
+        precondition(!FinderContextDiscovery.permitsStatus(folder.path+"-other/file",snapshot:snapshot))
+        let composedRoot="/cached-only/Caf\u{00e9}",decomposedRoot="/cached-only/Cafe\u{0301}"
+        let canonicalSnapshot=FinderSnapshot(roots:[composedRoot],states:[composedRoot:.normal])
+        let canonicalAdmission=FinderContextDiscovery(snapshot:canonicalSnapshot)
+        precondition(canonicalAdmission.permitsStatus(decomposedRoot+"/new/not-yet-cached.txt"),"New children under a unique cached Unicode alias retain status admission")
+        precondition(!canonicalAdmission.permitsStatus(decomposedRoot+"-sibling/new.txt"),"Component ownership never widens to sibling prefixes")
+        let caseRoot="/cached-only/CaseRoot"
+        let insensitive=FinderSnapshot(roots:[caseRoot],states:[caseRoot:.normal],overlayPolicies:[caseRoot:.init(identity:"fixture",caseSensitive:false)])
+        precondition(FinderContextDiscovery(snapshot:insensitive).permitsStatus("/CACHED-ONLY/caseroot/new/child"))
+        let sensitive=FinderSnapshot(roots:[caseRoot],states:[caseRoot:.normal],overlayPolicies:[caseRoot:.init(identity:"fixture",caseSensitive:true)])
+        precondition(!FinderContextDiscovery(snapshot:sensitive).permitsStatus("/cached-only/caseroot/new/child"),"Sensitive roots cannot authorize a differently cased sibling")
+        let lowerRoot="/cached-only/caseroot"
+        let ambiguousCase=FinderSnapshot(roots:[caseRoot,lowerRoot],states:[caseRoot:.normal,lowerRoot:.normal],overlayPolicies:[caseRoot:.init(identity:"fixture",caseSensitive:false),lowerRoot:.init(identity:"fixture",caseSensitive:false)])
+        precondition(!FinderContextDiscovery(snapshot:ambiguousCase).permitsStatus("/cached-only/CASEROOT/new"),"Ambiguous folded roots never choose an arbitrary owner")
+        precondition(FinderContextDiscovery(snapshot:ambiguousCase).permitsStatus(caseRoot+"/new"),"Exact byte ownership stays available even with alias peers")
+        let angstromA="/cached-only/\u{00c5}",angstromB="/cached-only/A\u{030a}"
+        let ambiguousUnicode=FinderSnapshot(roots:[angstromA,angstromB],states:[angstromA:.normal,angstromB:.normal])
+        precondition(!FinderContextDiscovery(snapshot:ambiguousUnicode).permitsStatus("/cached-only/\u{212b}/new"),"A third canonical spelling cannot choose between byte-distinct roots")
+        let knownDiscovery=FinderMenuBuilder.make(paths:[folder],snapshot:snapshot,settings:allCommands(),comparisonMark:nil,target:target,actionSelector:selector,registrationCandidate:folder,cloneDirectory:folder)
+        precondition(items(knownDiscovery).filter{FinderShellMenuLayout.action($0) == .clone}.count == 1)
+        precondition(items(knownDiscovery).contains{FinderShellMenuLayout.action($0) == .registerRepository})
+        precondition(items(knownDiscovery).contains{FinderShellMenuLayout.action($0) == .commit},"Known repository commands remain present")
+        print("First-use discovery: unavailable metadata candidate, typed single selection, Clone/Create masks, icon preferences/SDK visibility, known commands, and namespace-only status admission passed.")
         let containerPaths = FinderMenuBuilder.paths(kind: .contextualMenuForContainer, selection: [tracked], target: folder)
         for item in items(make(containerPaths, settings: allCommands())) {
             if let command = item.representedObject as? FinderMenuCommand {

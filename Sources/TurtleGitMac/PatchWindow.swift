@@ -722,15 +722,15 @@ struct PatchTextView: NSViewRepresentable {
                 let location = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
                 setSelectedRange(NSRange(location: location, length: 0))
             }
-            let menu = NSMenu()
+            let menu = NSMenu(),defaults=coordinator.model.appearancePreferences
             let save = NSMenuItem(title: "Save As…", action: #selector(savePatch(_:)), keyEquivalent: "")
-            save.target = self; save.image = MenuIcon.unifiedDiff.contextImage(); menu.addItem(save)
+            save.target = self; save.image = MenuIcon.unifiedDiff.contextImage(defaults:defaults); menu.addItem(save)
             let print = NSMenuItem(title: "Print…", action: #selector(printPatch(_:)), keyEquivalent: "")
-            print.target = self; print.image = MenuPresentationSettings.applicationContextIcons() ? NSImage(systemSymbolName: "printer", accessibilityDescription: "Print") : nil
+            print.target = self; print.image = MenuPresentationSettings.applicationContextIcons(defaults:defaults) ? NSImage(systemSymbolName: "printer", accessibilityDescription: "Print") : nil
             menu.addItem(print)
             if coordinator.model.allowsDocumentEditing, let owner = window?.delegate as? PatchWindowController {
                 for (title, selector, icon) in [("Apply Patch…", #selector(applyPatchFile(_:)), MenuIcon.patch), ("Unified Diff Settings…", #selector(unifiedSettings(_:)), .settingsUnifiedDiff)] {
-                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; item.image = icon.contextImage()
+                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(defaults:defaults)
                     item.representedObject = owner.documentSession.documentIdentity.uuidString; item.isEnabled = coordinator.model.canFind; menu.addItem(item)
                 }
             }
@@ -738,24 +738,24 @@ struct PatchTextView: NSViewRepresentable {
             if !coordinator.model.readOnly {
                 for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {
                     let item = NSMenuItem(title: (coordinator.model.staged ? "Unstage " : "Stage ") + title, action: selector, keyEquivalent: "")
-                    item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).contextImage(); item.isEnabled = enabled; menu.addItem(item)
+                    item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).contextImage(defaults:defaults); item.isEnabled = enabled; menu.addItem(item)
                 }
                 menu.addItem(.separator())
             }
             if coordinator.model.canEditText {
                 for (title, selector, icon) in [("Undo", #selector(undoPatch(_:)), MenuIcon.mergeUndo), ("Redo", #selector(redoPatch(_:)), .mergeRedo), ("Paste", #selector(NSText.paste(_:)), .mergePaste)] {
-                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
+                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(defaults:defaults); menu.addItem(item)
                 }
             }
             if coordinator.model.canEditText {
                 let cut = NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: ""); cut.target = self
-                cut.image = MenuPresentationSettings.applicationContextIcons() ? NSImage(systemSymbolName: "scissors", accessibilityDescription: "Cut") : nil; menu.addItem(cut)
+                cut.image = MenuPresentationSettings.applicationContextIcons(defaults:defaults) ? NSImage(systemSymbolName: "scissors", accessibilityDescription: "Cut") : nil; menu.addItem(cut)
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
-            copy.target = self; copy.image = MenuIcon.copy.contextImage(); menu.addItem(copy)
-            menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))
+            copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let selectAll=NSMenuItem(title:"Select All",action:#selector(NSText.selectAll(_:)),keyEquivalent:"");selectAll.image=MenuIcon.mergeMarked.contextImage(defaults:defaults);menu.addItem(selectAll)
             let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
-            find.target = self; menu.addItem(find)
+            find.target = self; find.image=MenuIcon.mergeFind.contextImage(defaults:defaults); menu.addItem(find)
             return menu
         }
     }

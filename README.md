@@ -12,7 +12,7 @@ Mac App Store; the app is not yet available for purchase.
 
 ## Features
 
-- Finder context menus and file status badges.
+- Finder context menus and file status badges, with [folder registration and Clone entry points](docs/GETTING-STARTED.md#start-from-finder).
 - Commit, staging, branches, tags, remotes and synchronization.
 - Searchable history, blame and revision graphs.
 - Text comparison, three-way conflict resolution and partial staging.

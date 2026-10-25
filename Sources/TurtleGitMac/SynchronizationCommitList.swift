@@ -466,7 +466,6 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                         for reference in branches {
                             let short = String(reference.dropFirst("refs/heads/".count))
                             operationItem(short, .switchBranch(short), .checkout, in: submenu)
-                            submenu.items.last?.image = nil
                         }
                         let item = NSMenuItem(title: "Switch/Checkout to", action: nil, keyEquivalent: "")
                         item.image = MenuIcon.checkout.contextImage(defaults: model.preferences); item.submenu = submenu; menu.addItem(item)
@@ -504,7 +503,6 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                         let parents = NSMenu(); parents.autoenablesItems = false
                         for (index, hash) in entry.parents.enumerated() {
                             operationItem(model.historyParentTitle(hash, index: index), .revert([entry], index + 1), .revert, in: parents)
-                            parents.items.last?.image = nil
                         }
                         let item = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
                         item.image = MenuIcon.revert.contextImage(defaults: model.preferences); item.submenu = parents; menu.addItem(item)
@@ -579,8 +577,8 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
                 if candidates.count == 1 { deletionItem("Delete " + candidates[0], names: candidates, in: menu, icon: true) }
                 else if candidates.count > 1 {
                     let submenu = NSMenu(); submenu.autoenablesItems = false
-                    for name in candidates { deletionItem(name, names: [name], in: submenu, icon: false) }
-                    deletionItem("All", names: candidates, in: submenu, icon: false)
+                    for name in candidates { deletionItem(name, names: [name], in: submenu, icon: true) }
+                    deletionItem("All", names: candidates, in: submenu, icon: true)
                     let item = NSMenuItem(title: "Delete branch/tag", action: nil, keyEquivalent: "")
                     item.image = MenuIcon.remove.contextImage(defaults: model.preferences); item.submenu = submenu; menu.addItem(item)
                 }
@@ -617,7 +615,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             epoch=UUID();headerDelegate=HeaderDelegate(self,epoch:epoch);menu.delegate=headerDelegate
             guard let receipt=capture() else{return menu}
             defer {wrap(menu,receipt:receipt)}
-            let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumns), keyEquivalent: ""); reset.target = self; menu.addItem(reset); menu.addItem(.separator())
+            let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumns), keyEquivalent: ""); reset.image=MenuIcon.reset.contextImage(defaults:model.preferences);reset.target = self; menu.addItem(reset); menu.addItem(.separator())
             for definition in SynchronizationHistoryColumns.definitions where definition.id != "graph" && columnAvailable(definition.id) {
                 let item = NSMenuItem(title: definition.title, action: #selector(toggleColumn(_:)), keyEquivalent: "")
                 item.target = self; item.representedObject = definition.id

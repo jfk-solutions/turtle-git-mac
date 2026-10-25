@@ -1,0 +1,735 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-signed-installed-gui-and-finder-acceptance",
+  "source_revision": "5b31580811a2890dec751652592074deee2d229d",
+  "measured_inputs_sha256": "d3e913af9b624b605cf96f7dfa32c0bcc3cb844543494b606cfcadd492a26373",
+  "dirty_inputs": true,
+  "build": {
+    "passed": true,
+    "configuration": "AppStore",
+    "identity": "Apple Development",
+    "team": "A49SCA5S8K",
+    "provisioning_updates_requested": false,
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "compiler_warning_lines": 764,
+    "exit_zero_diagnostics": 0
+  },
+  "static": {
+    "status": "static-checkpoint-passed",
+    "app": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "build_head": "5b31580811a2890dec751652592074deee2d229d",
+    "build_inputs_sha256": "d3e913af9b624b605cf96f7dfa32c0bcc3cb844543494b606cfcadd492a26373",
+    "source_inputs_unchanged": true,
+    "identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "2",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "2"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "2"
+        }
+      }
+    },
+    "team": "A49SCA5S8K",
+    "group": "A49SCA5S8K.org.turtlegit.macos",
+    "runtime_code_items": 206,
+    "bundle_inventory_members": 6356,
+    "bundle_inventory_sha256": "21f4084f985011f88313e52d39386c7c49c59ad6e52b308ce4639a2d02789cf7",
+    "actual_peer_signatures": 3,
+    "packaged_git_libgit2_metafile_inherited_signatures": true,
+    "functional_runtime_cases_executed": 0,
+    "shipping_gui_launched": false,
+    "installed_application_modified": false,
+    "extension_or_service_registration_changed": false
+  },
+  "signed_runtime": {
+    "team": "A49SCA5S8K",
+    "group": "A49SCA5S8K.org.turtlegit.macos",
+    "app": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "actual_peer_signatures": 3,
+    "packaged_git_inherits_sandbox": true,
+    "packaged_metafile_inherits_sandbox": true,
+    "packaged_libgit2_inherits_sandbox": true,
+    "cases": [
+      {
+        "group": "A49SCA5S8K.org.turtlegit.macos",
+        "mode": "writer",
+        "passed": true,
+        "snapshot": "/Users/jkuehner/Library/Group Containers/A49SCA5S8K.org.turtlegit.macos/TurtleGitSignedQA-F99C457A-3AAA-4331-BCC9-1B1533625253/snapshot.json"
+      },
+      {
+        "group": "A49SCA5S8K.org.turtlegit.macos",
+        "mode": "reader",
+        "passed": true,
+        "snapshot": "/Users/jkuehner/Library/Group Containers/A49SCA5S8K.org.turtlegit.macos/TurtleGitSignedQA-F99C457A-3AAA-4331-BCC9-1B1533625253/snapshot.json"
+      },
+      {
+        "mode": "denied",
+        "passed": true
+      },
+      {
+        "group": "A49SCA5S8K.org.turtlegit.macos",
+        "history": {
+          "browser_pinned": true,
+          "config_unchanged": true,
+          "configured_signature": true,
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/Helpers/Git/bin/git",
+          "gitlink_oid": "a6d76570d01d4af5a9c024074fb812ed0d3624ce",
+          "head": "f503633261a0d6b2a12a95004413b0cb364f1861",
+          "head_unchanged": true,
+          "index_unchanged": true,
+          "libgit2": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-LibGit2-95620795c68a-turtlegit-libgit2",
+          "literal_references_distinct": true,
+          "notes_empty": true,
+          "notes_engine": "libgit2",
+          "notes_ref": "refs/notes/signed-qa",
+          "notes_sha256": "68fcf7abb7d8663e01528f6d1d00106989f4007ef0096ac794b661c707c407bc",
+          "notes_utf8_bytes": 1416000,
+          "raw_tag_oid": "6f25873a615d28733de4d085fdb78945f0271061",
+          "tree": "1388614789f50703a39fe35bbed8e8604a05cba2",
+          "working_unchanged": true
+        },
+        "mode": "history",
+        "outside_file_grants": false,
+        "passed": true,
+        "shipping_gui_launched": false,
+        "snapshot": "/Users/jkuehner/Library/Group Containers/A49SCA5S8K.org.turtlegit.macos/TurtleGitSignedQA-F99C457A-3AAA-4331-BCC9-1B1533625253/snapshot.json"
+      },
+      {
+        "group": "A49SCA5S8K.org.turtlegit.macos",
+        "images": [
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "clip-vector.wmf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  12,
+                  12
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  35,
+                  35
+                ],
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 116,
+            "source_bytes_unchanged": true,
+            "source_sha256": "f46f371a33e85e5cca76fa82e8529da3059fb0c177a78f5631007f137d08728e",
+            "svg_bytes": 632,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "classic-vector.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  12,
+                  12
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  58,
+                  12
+                ],
+                "rgba": [
+                  0,
+                  0,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 300,
+            "source_bytes_unchanged": true,
+            "source_sha256": "2b07a0f1d2057171eff57a0f59f11d57517c124016c3033c6cf4c27142c36948",
+            "svg_bytes": 561,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "plus-bitmap-text.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  12,
+                  12
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  28,
+                  12
+                ],
+                "rgba": [
+                  0,
+                  1,
+                  0,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 388,
+            "source_bytes_unchanged": true,
+            "source_sha256": "cb862ac511b5f4c45a0cb5a8306e26a96172be17e744c9c87cbfaf29f6e231a9",
+            "svg_bytes": 5296,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "plus-gradient-blend.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  16,
+                  24
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  80,
+                  24
+                ],
+                "rgba": [
+                  0,
+                  0,
+                  1,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  48,
+                  24
+                ],
+                "rgba": [
+                  0.48627450980392156,
+                  0,
+                  0.5137254901960784,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 320,
+            "source_bytes_unchanged": true,
+            "source_sha256": "1665041c5b0f535e1046c8d6cec1e98afaf433c37865d34cb384258898398ed8",
+            "svg_bytes": 1073,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "plus-region-path.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  12,
+                  12
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  28,
+                  28
+                ],
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  64,
+                  16
+                ],
+                "rgba": [
+                  0,
+                  0,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 364,
+            "source_bytes_unchanged": true,
+            "source_sha256": "45f62fd833158a2fc34d4a200c982eb562c91807f21cafb63e2908b4c51e202d",
+            "svg_bytes": 1050,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "deadline_seconds": 0.001,
+            "deadline_terminated_after_spawn": true,
+            "hatch_blue_pixels": 56,
+            "hatch_red_pixels": 8,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "plus-hatch-atlas.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [],
+            "source_bytes": 3768,
+            "source_bytes_unchanged": true,
+            "source_sha256": "64232d3503144599f3037e977a869d1c270fd234971c9146f747471194ecb017",
+            "svg_bytes": 35371,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "plus-raw-indexed4-negative.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  12,
+                  12
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  28,
+                  12
+                ],
+                "rgba": [
+                  0,
+                  1,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  44,
+                  12
+                ],
+                "rgba": [
+                  0,
+                  0,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 324,
+            "source_bytes_unchanged": true,
+            "source_sha256": "01cf965afd0be3a76dbf93d6d8ff787eccc25b637742c71dc1a554737ff83b7e",
+            "svg_bytes": 942,
+            "width": 96
+          },
+          {
+            "consumer_loaded": true,
+            "height": 64,
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "plus-raw-texture-rgb565-positive.emf",
+            "private_decoder_directories_removed": true,
+            "samples": [
+              {
+                "point": [
+                  12,
+                  12
+                ],
+                "rgba": [
+                  1,
+                  0,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  28,
+                  12
+                ],
+                "rgba": [
+                  0,
+                  1,
+                  0,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  44,
+                  12
+                ],
+                "rgba": [
+                  0,
+                  0,
+                  1,
+                  1
+                ]
+              },
+              {
+                "point": [
+                  80,
+                  48
+                ],
+                "rgba": [
+                  1,
+                  1,
+                  1,
+                  1
+                ]
+              }
+            ],
+            "source_bytes": 332,
+            "source_bytes_unchanged": true,
+            "source_sha256": "64e367d8b27da1e0e012f6e5e94c6d66ae3cc49d64f4b81d13d063e576508c14",
+            "svg_bytes": 1035,
+            "width": 96
+          },
+          {
+            "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-rjwi6d1a/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+            "name": "unsupported-raw-palette-index.emf",
+            "private_decoder_directories_removed": true,
+            "refused": true,
+            "source_bytes": 320,
+            "source_bytes_unchanged": true,
+            "source_sha256": "0c97dedce7dbefbbd512893b85173bf538c39a3762efcd5443a40b1dbfd7b8bb"
+          }
+        ],
+        "mode": "metafile",
+        "outside_file_grants": false,
+        "passed": true,
+        "shipping_gui_launched": false,
+        "snapshot": "/Users/jkuehner/Library/Group Containers/A49SCA5S8K.org.turtlegit.macos/TurtleGitSignedQA-F99C457A-3AAA-4331-BCC9-1B1533625253/snapshot.json"
+      },
+      {
+        "group": "A49SCA5S8K.org.turtlegit.macos",
+        "mode": "cleanup",
+        "passed": true,
+        "snapshot": "/Users/jkuehner/Library/Group Containers/A49SCA5S8K.org.turtlegit.macos/TurtleGitSignedQA-F99C457A-3AAA-4331-BCC9-1B1533625253/snapshot.json"
+      }
+    ],
+    "finder_activation": "not performed",
+    "service_registration": "not performed",
+    "packaged_lexilla_runs_from_sandbox": true,
+    "history_children": {
+      "observed_helper_processes": 4,
+      "owned_helper_pids": [
+        24034,
+        24048,
+        24060,
+        24128
+      ],
+      "owned_helper_groups": [
+        24034,
+        24048,
+        24060,
+        24128
+      ],
+      "observed_helper_roles": {
+        "libgit2": 1,
+        "git": 3
+      },
+      "own_process_group_required_roles": [
+        "libgit2"
+      ],
+      "observed_processes": [
+        {
+          "pid": 24034,
+          "ppid": 24032,
+          "pgid": 24034,
+          "roles": [
+            "git"
+          ]
+        },
+        {
+          "pid": 24048,
+          "ppid": 24032,
+          "pgid": 24048,
+          "roles": [
+            "git"
+          ]
+        },
+        {
+          "pid": 24060,
+          "ppid": 24032,
+          "pgid": 24060,
+          "roles": [
+            "git"
+          ]
+        },
+        {
+          "pid": 24128,
+          "ppid": 24032,
+          "pgid": 24128,
+          "roles": [
+            "libgit2"
+          ]
+        }
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "packaged_history_and_notes_run_from_sandbox": true,
+    "metafile_children": {
+      "observed_helper_processes": 1,
+      "owned_helper_pids": [
+        24181
+      ],
+      "owned_helper_groups": [
+        24181
+      ],
+      "observed_helper_roles": {
+        "metafile": 1
+      },
+      "own_process_group_required_roles": [
+        "metafile"
+      ],
+      "observed_processes": [
+        {
+          "pid": 24181,
+          "ppid": 24177,
+          "pgid": 24181,
+          "roles": [
+            "metafile"
+          ]
+        }
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "packaged_metafile_runs_from_sandbox": true,
+    "metafile_fixture_files_unchanged": true,
+    "passed": true
+  },
+  "installation": {
+    "status": "installed-measured-signed-repair",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "recoverable_previous_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-consolidation-displaced-installed-2026-10-25",
+    "build_inputs_sha256": "d3e913af9b624b605cf96f7dfa32c0bcc3cb844543494b606cfcadd492a26373",
+    "installed_executable_sha256": "ac273973440eb01dedc8111b5cbdce1e703c01df092e8128a76b29d1b84e4619",
+    "candidate_executable_sha256": "ac273973440eb01dedc8111b5cbdce1e703c01df092e8128a76b29d1b84e4619",
+    "installed_bundle_matches_static_inventory": true,
+    "finder_executable_unchanged": false,
+    "finder_process_directly_killed": false,
+    "registration_update_pending": false,
+    "registration_commands": [
+      {
+        "args": [
+          "-r",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "args": [
+          "-r",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "args": [
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "args": [
+          "-e",
+          "use",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    ],
+    "extension_inventory": "+    org.turtlegit.macos.finder(0.1.0)\tEB16617D-AF89-4955-BD0A-E5F85C65E915\t2026-10-25 07:12:37 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n"
+  },
+  "actual_gui_and_finder": {
+    "fixture": "/private/tmp/TurtleGit-signed-consolidation-553e684a",
+    "head": "7cffaae6e8c13ad981f61e02894b385b97713603",
+    "index_sha256": "25eb22056a176249556fcd7028ae946fe94a0d92dec558b21bbe74c69b3d8de0",
+    "status_hex": "204d20524541444d452e6d64003f3f20756e747261636b65642e74787400",
+    "baseline_extension": "+    org.turtlegit.macos.finder(0.1.0)\t88117D33-2509-4354-A082-2A528E8D355E\t2026-10-25 00:37:18 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n",
+    "baseline_processes": [
+      "91509 /Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+    ],
+    "notes_ref": "a7f518b5992ef2401af9a9ecfcb4dd3df7635110",
+    "private_remotes": [
+      "origin",
+      "backup"
+    ],
+    "real_open_panel_cancel_left_workspace_empty": true,
+    "real_open_panel_grant_status_rows": [
+      "Modified README.md",
+      "Unversioned untracked.txt"
+    ],
+    "after_open_index_sha256": "25eb22056a176249556fcd7028ae946fe94a0d92dec558b21bbe74c69b3d8de0",
+    "after_open_head": "7cffaae6e8c13ad981f61e02894b385b97713603",
+    "main_processes_after_open": [
+      "24669 /Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+    ],
+    "commit_categories_unversioned_only": true,
+    "commit_mode_restored": "gitGui",
+    "commit_cancel_acknowledged": true,
+    "settings_cancel_closed_remote_page": true,
+    "settings_ok_closed_git_page": true,
+    "remote_list_native_table": [
+      "backup",
+      "origin"
+    ],
+    "watch_added_via_real_picker": true,
+    "background_native_enable_report": "ready for 1 watched repository(s)",
+    "graceful_quit_requested": true,
+    "main_absent_after_normal_quit": true,
+    "background_process_after_quit": [
+      "24967 Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache"
+    ],
+    "finder_initial_badges": {
+      "README.md": "Modified",
+      "Sources": "Normal",
+      "Tests": "Normal",
+      "untracked.txt": "Unversioned"
+    },
+    "helper_only_mutation": "Sources/status.txt",
+    "finder_helper_only_sources_badge_modified": true,
+    "finder_helper_only_sources_badge_restored_normal": true,
+    "finder_file_context_log_title": "/private/tmp/TurtleGit-signed-consolidation-553e684a/README.md \u2013 Log Messages \u2013 TurtleGit",
+    "finder_file_log_whole_project_checked": false,
+    "finder_file_log_root_commit_visible": true,
+    "saved_note_text": "Acceptance note saved by installed TurtleGit\n",
+    "watch_removed_native_service_report": "ready for 0 watched repository(s)",
+    "background_setting_restored_disabled": true,
+    "saved_grant_after_restart_check": "Available",
+    "after_workflows_index_sha256": "25eb22056a176249556fcd7028ae946fe94a0d92dec558b21bbe74c69b3d8de0",
+    "cleanup": "private permission removed through RepositoryAccessStore, cache through FinderSnapshotStore; test watch removed and background disabled natively",
+    "retained_original_repository_ids": true,
+    "retained_original_watch_ids": true,
+    "main_and_cache_processes_absent_after_cleanup": true,
+    "private_finder_window_closed": true,
+    "original_finder_windows_not_closed": true
+  },
+  "screenshots": [
+    "signed-consolidation-2026-10-25/log.png",
+    "signed-consolidation-2026-10-25/watch.png"
+  ],
+  "remaining": [
+    "This candidate is 5b315808; subsequent menu/Finder registration work is a separate batch and is not included.",
+    "Native physical acceptance is scoped to the recorded fixture, not every dialog, Git command or all Finder configurations.",
+    "Commit Git-Gui blank patch area was observed white in dark appearance; not certified dark appearance parity.",
+    "Finder badge position/size is controlled by macOS.",
+    "App Store distribution signing, export, licensing/terms clearance and submission remain open.",
+    "Rebase empty-subject per-row warning/Edit source gap is recorded separately and remains unimplemented."
+  ],
+  "local_checks_not_repeated": [
+    "No full Core suite or earlier native editor/Commit suites repeated for this signed consolidation."
+  ],
+  "previous_goal_turn_classification": "no progress (status only); this turn built, measured, installed and exercised current candidate"
+}

@@ -107,3 +107,59 @@ branding; command icons, status colors and Finder badge artwork retain their
 pinned upstream assets. The existing application/Finder icon preferences still
 control whether the corresponding context-menu images appear.
 See [source and evidence](APPLICATION-IDENTITY.md).
+
+## macOS 27 image visibility and command coverage — October 25, 2026
+
+AppKit 27 can hide assigned menu images under its automatic policy. The native
+menu policy requests explicit visibility for existing images through the public
+`preferredImageVisibility` accessor. Runtime availability and selector checks
+keep earlier macOS versions and build SDKs supported. It neither creates artwork
+for a nil image nor overrides the app/Finder preference that decides whether
+artwork is supplied. Apple's [API documentation](https://developer.apple.com/documentation/appkit/nsmenuitem/preferredimagevisibility)
+describes this visibility policy.
+
+The application observes native menu insertions, image changes and tracking so
+lazy SwiftUI menus receive the same policy without replacing their delegates,
+targets or validation. Finder applies the recursive policy to its completed menu
+tree before handing it to the host process. Observer retirement belongs to app
+termination. Original colorful command assets and TurtleGit branding remain in
+use; Finder badge artwork, placement and size are unchanged.
+
+The related command audit covers history/reference/browser/replay/Sync menus,
+Commit and file-list commands, editor/comparison/Blame/image menus, completion
+and progress actions, Settings/provider/SSH menus and the Finder builder. Missing
+command/parent images were added and injected preference ownership corrected.
+Column checkmarks and arbitrary data choices remain native choices, rather than
+receiving unrelated command icons. The earlier dated verification sections above
+remain historical; this batch's actual grouped results are recorded separately.
+
+
+### Focused checkpoint
+
+The [related checkpoint](qa/context-registration-2026-10-25.json) records the
+passing Debug build and native menu-image receiver: actual Log command tree,
+lazy image assignment, private icon preferences and observer retirement. The
+compiled Finder menu builder also passes its action/parent/submenu icon and
+preference assertions. No current installed Finder screenshot or full physical
+menu/VoiceOver acceptance is claimed; signed candidate acceptance is pending.
+The record retains all earlier failures and the separate Services sandbox
+extension diagnostics.
+
+### Installed acceptance — 2026-10-25
+
+The [batch receipt](qa/context-registration-2026-10-25.json) records a signed
+universal development build installed with a recoverable prior bundle. A real
+Finder folder outside published roots showed Clone/Create/Add with icons. A local
+Clone used actual destination-parent and source permission pickers and saved both
+recent and watch records automatically, without a second registration picker.
+The installed Log context menu displayed its assigned command artwork.
+
+The first installed Add attempt exposed a real modifier mismatch: Finder supplied
+`alternateTool: false`, which registration correctly rejects. The repaired
+dispatch preserves the original registration request; the focused builder check
+passed all four Shift/Control combinations. After the incremental signed repair,
+actual Finder Add opened the folder picker and persisted the selected repository
+in both archives while leaving the workspace unselected. Temporary recent/watch
+entries and Clone preferences were removed, original record IDs retained, and
+owned app/Finder windows closed. Background refresh stayed disabled. This covers
+one private local-folder workflow, not every Finder provider or upstream dialog.

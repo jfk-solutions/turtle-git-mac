@@ -70,11 +70,11 @@ struct ReferenceFormCommand {
             removeMenu();installedMenu=main
             for old in main.items where old.identifier?.rawValue == "TurtleGit.ReferenceForm.Commands" {main.removeItem(old)}
             let item=NSMenuItem(title:NSLocalizedString("Form",comment:""),action:nil,keyEquivalent:"")
-            item.identifier = .init("TurtleGit.ReferenceForm.Commands");item.submenu=NSMenu(title:item.title);item.submenu?.delegate=self;item.submenu?.autoenablesItems=false;root=item
+            item.image=MenuIcon.settingsDialogs.contextImage(defaults:preferences);item.identifier = .init("TurtleGit.ReferenceForm.Commands");item.submenu=NSMenu(title:item.title);item.submenu?.delegate=self;item.submenu?.autoenablesItems=false;root=item
             let index=main.items.firstIndex{item in item.submenu === NSApp.windowsMenu || item.submenu === NSApp.helpMenu} ?? main.numberOfItems
             main.insertItem(item,at:index)
         }
-        guard let menu else{return};menu.removeAllItems()
+        guard let menu else{return};root?.image=MenuIcon.settingsDialogs.contextImage(defaults:preferences);menu.removeAllItems()
         for entry in entries {
             let item=NSMenuItem(title:NSLocalizedString(entry.title,comment:""),action:#selector(invoke(_:)),keyEquivalent:entry.key)
             item.keyEquivalentModifierMask=[.command,.option];item.target=self;item.identifier = .init("TurtleGit.ReferenceForm."+entry.id)

@@ -48,6 +48,29 @@ Bare repositories support history and remote operations but do not have a
 working tree to edit or commit. If saved folder access cannot be renewed, select
 the folder again through Open Repository.
 
+## Start from Finder
+
+With the signed Finder extension enabled, select a folder and open **TurtleGit**
+in its context menu. **Clone…** opens the clone form with that destination;
+**Create repository…** opens the creation form. For a repository already on disk,
+choose **Add to TurtleGit…**. The app requests folder access when needed, validates
+the repository and saves it in Open Recent and Watched Repositories. Registration
+does not replace the repository already open in your workspace.
+
+A successful Clone also registers its resulting repository using the destination
+permission you already granted. A registration failure is reported separately from
+the successful Git clone, so you can retry registration without cloning again.
+To continue badge updates after quitting, enable **Settings → Icon Overlays →
+Watched Repositories → Refresh after TurtleGit quits**. Registering or cloning a
+repository does not change that background preference.
+
+If Finder Sync is disabled or macOS does not show its submenu, select the folder
+and use **Services → TurtleGit: Clone…** or **TurtleGit: Add to TurtleGit…**.
+Finder controls extension/menu placement. These commands do not grant access to
+other repositories or cause a scan of your Mac. See the
+[registration workflow](FINDER-REGISTRATION-PARITY.md) for scope and current
+verification limits.
+
 ## Commit with checked files
 
 Open **Commit** for the current repository. The message sits above the changed

@@ -2246,7 +2246,7 @@ struct FileComparisonPane: View {
             }
             HStack {
                 let inputReceipt=model.inputEncodingReceipt(base:base)
-                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { value in if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.changeEncoding(value,base:base)} }, changeEnding: { value in if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.changeLineEnding(value,base:base)} }, legacyEncoding:model.legacyEncoding, showFormatDialog:{ if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.showFormatDialog(base:base)} },reloadEncoding:{ value in if let inputReceipt {model.reloadInputEncoding(value,base:base,receipt:inputReceipt)} },reloadAvailable:inputReceipt != nil,inputEncoding:model.inputEncoding(base:base) ?? content?.encoding)
+                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { value in if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.changeEncoding(value,base:base)} }, changeEnding: { value in if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.changeLineEnding(value,base:base)} }, legacyEncoding:model.legacyEncoding, showFormatDialog:{ if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.showFormatDialog(base:base)} },reloadEncoding:{ value in if let inputReceipt {model.reloadInputEncoding(value,base:base,receipt:inputReceipt)} },reloadAvailable:inputReceipt != nil,inputEncoding:model.inputEncoding(base:base) ?? content?.encoding,preferences:model.comparisonDefaults)
                 Spacer()
                 let tabCommand = model.captureTabCommand(base:base)
                 MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.applyTabCommand(tabCommand,base:base,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,base:base,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,base:base,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,base:base,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
@@ -2998,7 +2998,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
             let text = model.draftText(base: baseSide), width = model.tabWidth(base: baseSide)
             for (index, command) in MergeWhitespaceCommand.allCases.enumerated() {
                 let item = NSMenuItem(title: command.rawValue, action: #selector(changeWhitespace(_:)), keyEquivalent: "")
-                item.target = self; item.tag = index
+                item.target = self; item.tag = index; item.image=MenuIcon.mergeWhitespace.contextImage(defaults:defaults)
                 item.isEnabled = MergeWhitespace.canApply(command, to: text, tabWidth: width)
                 menu.addItem(item)
             }
@@ -3006,11 +3006,11 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
             let styles = MergeLineEndings.styles(in: text)
             for (index, ending) in MergeLineEnding.allCases.enumerated() {
                 let item = NSMenuItem(title: ending.menuTitle, action: #selector(changeLineEnding(_:)), keyEquivalent: "")
-                item.target = self; item.tag = index; item.state = styles == [ending] ? .on : .off
+                item.target = self; item.tag = index; item.image=ending.menuIcon.contextImage(defaults:defaults); item.state = styles == [ending] ? .on : .off
                 endings.addItem(item)
             }
             let item = NSMenuItem(title: "End of Line Style", action: nil, keyEquivalent: "")
-            item.submenu = endings; menu.addItem(item)
+            item.image=MenuIcon.mergeEndingLF.contextImage(defaults:defaults); item.submenu = endings; menu.addItem(item)
         }
         if let receipt=model.inputEncodingReceipt(base:baseSide) {
             let choices=MergeFormatSelection.encodingChoices(legacy:model.encoding(base:baseSide)?.legacyCodePage != nil ? model.encoding(base:baseSide)!:model.legacyEncoding)
@@ -3020,13 +3020,13 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
                 for encoding in choices {
                     let command=InputEncodingMenuCommand(model:model,view:self,receipt:receipt,encoding:encoding,reload:explicitReload)
                     let item=NSMenuItem(title:encoding.rawValue,action:#selector(InputEncodingMenuCommand.chooseInputEncoding(_:)),keyEquivalent:"")
-                    item.target=command;item.representedObject=command
+                    item.target=command;item.representedObject=command;item.image=MenuIcon.editor.contextImage(defaults:defaults)
                     item.isEnabled=explicitReload || model.canTransfer(toBase:baseSide) || (NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags).contains(.control)
                     let current=explicitReload ? model.inputEncoding(base:baseSide) ?? (baseSide ? model.document?.base.encoding:model.document?.destination.encoding):model.encoding(base:baseSide)
                     item.state=current==encoding ? .on:.off;children.addItem(item)
                 }
                 let parent=NSMenuItem(title:title,action:nil,keyEquivalent:"");parent.submenu=children
-                if explicitReload {parent.image=MenuIcon.mergeReload.contextImage(defaults:defaults)}
+                parent.image=(explicitReload ? MenuIcon.mergeReload:.editor).contextImage(defaults:defaults)
                 menu.addItem(parent)
             }
         }

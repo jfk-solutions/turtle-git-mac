@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises fifty-five macOS Services for selected files and folders. They give
+TurtleGit advertises fifty-six macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -12,6 +12,7 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Commit… | Existing Commit workflow with the selected paths |
 | TurtleGit: Check for modifications… | Existing status workflow for the selection |
 | TurtleGit: Diff… | Two selected regular files use direct comparison; other selection counts use the existing repository Diff workflow |
+| TurtleGit: Add to TurtleGit… | Authorize and register one selected repository for Recents and Finder watches |
 | TurtleGit: Clone… | Existing Clone dialog, starting from one selected directory |
 | TurtleGit: Create repository… | Existing Create repository dialog for one selected directory |
 | TurtleGit: Pull… / Fetch… / Push… | Existing transport dialogs for the selected repository |
@@ -117,7 +118,7 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the fifty-five `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the fifty-six `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute

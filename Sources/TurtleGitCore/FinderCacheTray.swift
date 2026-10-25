@@ -120,6 +120,7 @@ enum FinderCacheTrayStatusPolicy {
         guard menu === self.menu else{return};rebuildMenu()
     }
     public func rebuildMenu() {
+        defer { MenuImageVisibility.apply(to:menu) }
         refresh();generation += 1;let request=generation;menu.removeAllItems()
         guard !retired else{return}
         let preferences=FinderCacheTrayPreferences.read(from:preferencesURL),current=FinderOverlaySettings.read(from:overlaysURL)

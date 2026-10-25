@@ -42,6 +42,7 @@ import TurtleGitCore
     private var resultToken:OperationCancellation?,resultPageToken:OperationCancellation?
     private(set) var retainPrivateArtifacts=false
     private let preferences:UserDefaults?
+    var menuPreferences:UserDefaults {preferences ?? .standard}
     var renderResult:(URL,URL,OperationCancellation)async throws->PresentationSlideManifest={package,pdf,token in try await PowerPointComparisonAutomation.renderResult(package:package,pdf:pdf,cancellation:token)}
     var convertLegacyResult:(URL,URL,OperationCancellation)async throws->Void={package,output,token in try await PowerPointComparisonAutomation.convertLegacyResult(package:package,output:output,cancellation:token)}
     var hasLegacyInput:Bool {[preview.base,preview.destination].contains{$0.pathExtension.lowercased()=="ppt"}}
@@ -376,6 +377,7 @@ struct PresentationRevisionReviewPanel:View {
         .accessibilityAction(named:Text("Accept selected")){if model.canAct && model.changes.contains(where:{$0.id==change.id}){model.decide(changeID:change.id,accept:true)}}
         .accessibilityAction(named:Text("Reject selected")){if model.canAct && model.changes.contains(where:{$0.id==change.id}){model.decide(changeID:change.id,accept:false)}}
         .tag(change.id).contextMenu {
+            TurtleGitContextMenu {
             Button{model.decide(changeID:change.id,accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct || !model.changes.contains{$0.id==change.id})
             Button{model.decide(changeID:change.id,accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct || !model.changes.contains{$0.id==change.id})
             if model.review?.commentChanges[change.id] != nil {
@@ -385,6 +387,7 @@ struct PresentationRevisionReviewPanel:View {
                     Button{model.deleteComment(change.id)}label:{CommandLabel(title:"Delete comment",icon:.remove)}.disabled(!model.canAct)
                 }
             }
+            }.defaultAppStorage(model.menuPreferences)
         }
     }
     private func slideDetail(_ slide:PresentationSlide?,title:String)->some View {

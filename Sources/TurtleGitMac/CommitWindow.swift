@@ -3879,7 +3879,7 @@ private struct CommitProgressDialog: View {
         remove();installedMenu=main
         rebuildNeeded=false
         for item in main.items where item.identifier?.rawValue=="TurtleGit.Commit.Commands" {main.removeItem(item)}
-        let root=NSMenuItem(title:NSLocalizedString("Commit",comment:""),action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands")
+        let root=NSMenuItem(title:NSLocalizedString("Commit",comment:""),action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands");root.image=MenuIcon.commit.contextImage(defaults:owner?.presentationPreferences ?? .standard)
         let menu=NSMenu(title:NSLocalizedString("Commit",comment:""));menu.delegate=self;root.submenu=menu;self.root=root
         func append(_ commands:[Command],to menu:NSMenu) {
             for command in commands {
@@ -3890,12 +3890,12 @@ private struct CommitProgressDialog: View {
                 menu.addItem(item);items.append(item)
             }
         }
-        func group(_ title:String,_ commands:[Command]) {let caption=NSLocalizedString(title,comment:"");let item=NSMenuItem(title:caption,action:nil,keyEquivalent:"");let child=NSMenu(title:caption);child.delegate=self;item.submenu=child;menu.addItem(item);append(commands,to:child)}
-        append([.current],to:menu);group("Commit actions",[.commit,.recommit,.push]);menu.addItem(.separator())
-        group("Check files",[.all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules])
-        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff,.focusIssue,.issues]);append([.focusFiles],to:menu)
-        group("Options",[.newBranch,.amend,.amendComparison,.authorDate,.resetDate,.author,.staging,.showUnversioned,.noAutoSubmodules,.whole,.messageOnly])
-        group("Focus",[.focusBranch,.focusAuthor,.focusDate,.focusTime])
+        func group(_ title:String,_ commands:[Command],icon:MenuIcon) {let caption=NSLocalizedString(title,comment:"");let item=NSMenuItem(title:caption,action:nil,keyEquivalent:"");let child=NSMenu(title:caption);child.delegate=self;item.representedObject=icon.rawValue;item.image=icon.contextImage(defaults:owner?.presentationPreferences ?? .standard);item.submenu=child;menu.addItem(item);append(commands,to:child)}
+        append([.current],to:menu);group("Commit actions",[.commit,.recommit,.push],icon:.commit);menu.addItem(.separator())
+        group("Check files",[.all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules],icon:.add)
+        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff,.focusIssue,.issues],icon:.editor);append([.focusFiles],to:menu)
+        group("Options",[.newBranch,.amend,.amendComparison,.authorDate,.resetDate,.author,.staging,.showUnversioned,.noAutoSubmodules,.whole,.messageOnly],icon:.settings)
+        group("Focus",[.focusBranch,.focusAuthor,.focusDate,.focusTime],icon:.editor)
         append([.patch,.partialStage,.partialUnstage,.refresh,.help],to:menu)
         let index=main.items.firstIndex(where:{item in
             item.submenu.map {$0 === NSApp.windowsMenu || $0 === NSApp.helpMenu} == true || ["Window","Help",NSLocalizedString("Window",comment:""),NSLocalizedString("Help",comment:"")].contains(item.title)
@@ -3976,7 +3976,10 @@ private struct CommitProgressDialog: View {
         }
     }
     private func refresh() {
-        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.isEnabled=invocation.epoch==epoch && attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=NSLocalizedString(owner?.model.currentCompletionAction.rawValue ?? command.rawValue,comment:"")}}
+        let preferences=owner?.presentationPreferences ?? .standard
+        root?.image=MenuIcon.commit.contextImage(defaults:preferences)
+        for group in root?.submenu?.items ?? [] {if let name=group.representedObject as? String,let icon=MenuIcon(rawValue:name) {group.image=icon.contextImage(defaults:preferences)}}
+        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.image=icon(command).contextImage(defaults:preferences);item.isEnabled=invocation.epoch==epoch && attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=NSLocalizedString(owner?.model.currentCompletionAction.rawValue ?? command.rawValue,comment:"")}}
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {guard let invocation=item.representedObject as? Invocation else {return false};return invocation.epoch==epoch && attached(item) && enabled(invocation.command)}
     @objc private func invoke(_ item:NSMenuItem) {

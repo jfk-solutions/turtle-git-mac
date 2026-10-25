@@ -301,8 +301,10 @@ private struct MergeRegexFilterListView: View {
             Table(model.filters, selection: Binding(get: { model.selection }, set: { if model.current(context) { model.selection = $0 } })) { TableColumn("Regex", value: \.name) }
                 .contextMenu(forSelectionType: String.self) { selection in
                     let filter = context.filters.first { $0.id == selection.first }
+                    TurtleGitContextMenu {
                     Button { if let filter { model.requestEdit(filter, context: context) } } label: { CommandLabel(title: "Edit Filter", icon: .settingsGeneral) }.disabled(selection.count != 1 || !model.canEdit)
                     Button { if let filter { model.remove(filter, context: context) } } label: { CommandLabel(title: "Delete Filter", icon: .remove) }.disabled(selection.count != 1 || !model.canEdit)
+                    }.defaultAppStorage(model.defaults)
                 } primaryAction: { selection in
                     if selection.count == 1, let filter = context.filters.first(where: { $0.id == selection.first }) { model.requestEdit(filter, context: context) }
                 }

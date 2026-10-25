@@ -1021,12 +1021,12 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         func columnMenu() -> NSMenu {
             let menu = NSMenu();menu.autoenablesItems = false
             let revision = model.layoutRevision
-            func add(_ title:String,enabled:Bool,state:NSControl.StateValue = .off,action:@escaping (Coordinator)->Void) {
+            func add(_ title:String,enabled:Bool,state:NSControl.StateValue = .off,icon:MenuIcon?=nil,action:@escaping (Coordinator)->Void) {
                 let command = ReferenceBrowserMenuCommand { [weak self] in guard let self,self.presentationAvailable,self.model.layoutRevision == revision else { return };action(self) }
                 let item = NSMenuItem(title:title,action:#selector(ReferenceBrowserMenuCommand.invoke(_:)),keyEquivalent:"")
-                item.target = command;item.representedObject = command;item.isEnabled = enabled && presentationAvailable;item.state = state;menu.addItem(item)
+                item.image=icon?.contextImage(defaults:model.preferences);item.target = command;item.representedObject = command;item.isEnabled = enabled && presentationAvailable;item.state = state;menu.addItem(item)
             }
-            add("Reset column order",enabled:true) { $0.model.resetColumns() };menu.addItem(.separator())
+            add("Reset column order",enabled:true,icon:.reset) { $0.model.resetColumns() };menu.addItem(.separator())
             for (id,title,_) in ReferenceBrowserColumnLayout.definitions where id != "name" {
                 add(title,enabled:true,state:model.columnLayout.visible.contains(id) ? .on:.off) { coordinator in
                     var value = coordinator.model.columnLayout
