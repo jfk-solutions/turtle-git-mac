@@ -3070,6 +3070,13 @@ struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
     @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
     @AppStorage("StyleCommitMessages") private var styleCommitMessages = true
+    @AppStorage("LogFontForFileListCtrl") private var reportUsesLogFont=false
+    @AppStorage("LogFontName") private var reportFontName=MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
+    private var reportGeometry:FileListUniformRowGeometry {
+        let font=reportUsesLogFont ? MessageEditorFont.resolve(name:reportFontName,size:reportFontSize):NSFont.systemFont(ofSize:NSFont.systemFontSize)
+        return FileListUniformRowGeometry(font:font,groupFont:NSFontManager.shared.convert(font,toHaveTrait:.boldFontMask))
+    }
     @StateObject private var dropTargets = CommitFileDropTargets()
     @State private var dividerStart: Double?
     @FocusState private var issueFieldFocused: Bool
@@ -3294,6 +3301,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 }
     }
     func fileTable(_ entries: [StatusEntry], staged: Bool?) -> some View {
+        let geometry=reportGeometry
         let statistics = model.statistics
         let entries = model.sortedFiles(entries, statistics: statistics)
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
@@ -3321,42 +3329,42 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
-                        Text(model.fileListDisplayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).background(NativeListSelectionLabelMarker())
-                    }.repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
+                        Text(model.fileListDisplayedPath(entry)).truncationMode(.middle).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).background(NativeListSelectionLabelMarker())
+                    }.frame(height:geometry.contentHeight).repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
                 } else if let group = row.group {
                     HStack {
-                        Text(verbatim:FileListLabels.groupTitle(group)).font(.headline).foregroundStyle(Color.accentColor)
+                        Text(verbatim:FileListLabels.groupTitle(group)).font(Font(geometry.groupFont)).foregroundStyle(Color.accentColor)
                         Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1)
-                    }.help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists))
+                    }.frame(height:geometry.contentHeight).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists))
                 }
             }.width(min: 260, ideal: 420)
             TableColumn("Filename", sortUsing: CommitFileSort(column: .fileName)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).help((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) } else { groupRule }
             }.width(min: 100, ideal: 180)
             TableColumn("Extension", sortUsing: CommitFileSort(column: .fileExtension)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) }
+                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).help(StatusListClipboard.fileExtension(entry.path, isDirectory:model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) }
                 else { groupRule }
             }.width(min: 40, ideal: 75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(FileListLabels.caption(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) }
+                if let entry = row.entry { Text(FileListLabels.caption(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized)).help(FileListLabels.caption(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) }
                 else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
-                lineCount(row.row, statistics: statistics, selected: model.selection, added: true)
+                lineCount(row.row, statistics: statistics, selected: model.selection, added: true).frame(height:geometry.contentHeight)
             }.width(min: 40, ideal: 80)
             TableColumn("Lines removed", sortUsing: CommitFileSort(column: .removed)) { (row: CommitSortableRow) in
-                lineCount(row.row, statistics: statistics, selected: model.selection, added: false)
+                lineCount(row.row, statistics: statistics, selected: model.selection, added: false).frame(height:geometry.contentHeight)
             }.width(min: 40, ideal: 95)
             TableColumn("Last modified", sortUsing: CommitFileSort(column: .lastModified)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").help(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) } else { groupRule }
             }.width(min: 140, ideal: 180)
             TableColumn("File size", sortUsing: CommitFileSort(column: .fileSize)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").help(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) } else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
+                if let entry = row.entry { Text(row.lfsOwner).help(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) } else { groupRule }
             }.width(min: 100, ideal: 160)
-        }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().contextMenu(forSelectionType: String.self) { nativeIDs in
+        }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().environment(\.defaultMinListRowHeight,geometry.rowHeight).lineLimit(1).truncationMode(.tail).contextMenu(forSelectionType: String.self) { nativeIDs in
             let requested = GitPathRowIdentity.paths(nativeIDs)
             TurtleGitContextMenu {
                 let ids = requested.intersection(GitPathSet(entries.map(\.id)))
@@ -3490,7 +3498,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows,uniformRowGeometry:geometry,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: model.fileListAvailable, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)
@@ -3506,7 +3514,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         if let entry = row.entry {
             let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
             let label = count.map { String($0) } ?? "–"
-            Text(label).foregroundStyle(entry.statusTextColor(selected: selected.contains(entry.id), preferences: model.colorPreferences))
+            Text(label).help(label).foregroundStyle(entry.statusTextColor(selected: selected.contains(entry.id), preferences: model.colorPreferences))
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }

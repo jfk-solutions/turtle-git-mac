@@ -108,7 +108,11 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.commitIsOnRefs.icon, .showBranches)
         XCTAssertEqual(RepositoryAction.cat.icon, .export)
         XCTAssertEqual(RepositoryAction.showCompare.icon, .compare)
-        let distinctActions = RepositoryAction.allCases.filter { ![.updateCheck, .autotextTest, .introduction, .dropMove, .dropCopyAdd, .firstStartWizard, .cat, .showCompare, .move, .pasteMove, .transferFiles, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        // The native diagnostic command reuses the source Inaccessible entry's
+        // IDI_CLEANUP artwork (MenuInfo.cpp29–30), rather than adding an asset.
+        XCTAssertEqual(RepositoryAction.inaccessible.icon,RepositoryAction.clean.icon)
+        XCTAssertEqual(RepositoryAction.inaccessible.icon.rawValue,"menucleanup")
+        let distinctActions = RepositoryAction.allCases.filter { ![.inaccessible, .updateCheck, .autotextTest, .introduction, .dropMove, .dropCopyAdd, .firstStartWizard, .cat, .showCompare, .move, .pasteMove, .transferFiles, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

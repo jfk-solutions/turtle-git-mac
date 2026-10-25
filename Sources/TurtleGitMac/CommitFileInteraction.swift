@@ -118,15 +118,19 @@ final class FileListGroupHeaders: NSView {
     }
     override func draw(_ dirtyRect: NSRect) {
         for heading in headings where heading.rect.intersects(dirtyRect) {
+            NSGraphicsContext.saveGraphicsState()
+            defer {NSGraphicsContext.restoreGraphicsState()}
+            heading.rect.clip()
             NSColor.controlBackgroundColor.setFill(); heading.rect.fill()
-            let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
-            let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.controlAccentColor, .paragraphStyle: paragraph]
-            let text = heading.title as NSString
             let available = heading.rect.insetBy(dx: 12, dy: 0)
-            let measured = text.size(withAttributes: attributes)
-            let rect = NSRect(x: available.minX, y: available.midY - measured.height / 2, width: available.width, height: measured.height)
-            text.draw(in: rect, withAttributes: attributes)
-            let start = available.minX + measured.width + 12
+            guard available.width>0,available.height>0 else{continue}
+            let cell=NSTextFieldCell(textCell:heading.title)
+            cell.font=font;cell.textColor = .controlAccentColor;cell.isBordered=false;cell.drawsBackground=false
+            cell.wraps=false;cell.isScrollable=false;cell.usesSingleLineMode=true;cell.lineBreakMode = .byTruncatingTail
+            let height=min(available.height,ceil(NSLayoutManager().defaultLineHeight(for:font)))
+            let rect=NSRect(x:available.minX,y:available.midY-height/2,width:available.width,height:height)
+            cell.drawInterior(withFrame:rect,in:self)
+            let start=available.minX+min(available.width,ceil(cell.cellSize.width))+12
             if start < available.maxX {
                 NSColor.controlAccentColor.withAlphaComponent(0.35).setFill()
                 NSRect(x: start, y: available.midY, width: available.maxX - start, height: 1).fill()
@@ -271,6 +275,15 @@ struct FileSelectionCheckbox:NSViewRepresentable {
     }
 }
 
+/// Opt-in report geometry; other status-table consumers retain their own policy.
+@MainActor struct FileListUniformRowGeometry {
+    let font:NSFont
+    let groupFont:NSFont
+    var minimumContentHeight:CGFloat=20
+    var verticalPadding:CGFloat=4
+    var rowHeight:CGFloat {NativeReportRowGeometry.rowHeight(font:font,groupFont:groupFont,minimumContentHeight:minimumContentHeight,verticalPadding:verticalPadding)}
+    var contentHeight:CGFloat {rowHeight-verticalPadding}
+}
 /// Observe the public AppKit table without replacing its selection, accessibility
 /// or context-menu implementation.
 struct CommitFileInteraction: NSViewRepresentable {
@@ -287,6 +300,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     let rows: [StatusListRow]
+    var uniformRowGeometry:FileListUniformRowGeometry?=nil
     var leadingColumnCount = 1
     var selectionLabelInset:CGFloat = 24
     var keyboardDeleteEnabled = true
@@ -324,6 +338,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) {
         view.preferences=preferences
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
+        view.uniformRowGeometry=uniformRowGeometry
         view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled
         view.captureWorkingDrag = captureWorkingDrag; view.workingDragOrigin = workingDragOrigin
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
@@ -342,6 +357,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     final class Probe: NSView, NSDraggingSource {
         var preferences:UserDefaults = .standard
         var fileListFont: NSFont?
+        var uniformRowGeometry:FileListUniformRowGeometry?
         var rows: [StatusListRow] = []
         var leadingColumnCount = 1
         var selectionLabelInset:CGFloat = 24
@@ -609,7 +625,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let currentObjects = Set(table.tableColumns.map(ObjectIdentifier.init))
             let originalObjects = Set(originalColumns.map(ObjectIdentifier.init))
             if configuredTable !== table || currentObjects != originalObjects || layoutObservers.isEmpty {
-                if let previous=configuredTable,previous !== table {NativeListSelection.remove(from:previous,client:self)}
+                if let previous=configuredTable,previous !== table {NativeListSelection.remove(from:previous,client:self);NativeReportRowGeometry.remove(from:previous,client:self)}
                 for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
                 groupHeaders?.removeFromSuperview(); groupHeaders = nil
                 watermark?.removeFromSuperview(); watermark = nil
@@ -640,6 +656,12 @@ struct CommitFileInteraction: NSViewRepresentable {
                 if let texts=self.rowTexts,texts.indices.contains(row) {return texts[row][.path]}
                 return self.rows[row].entry.map{self.columnText($0,.path)}
             },font:fileListFont,leadingInset:selectionLabelInset,client:self)
+            if let geometry=uniformRowGeometry {
+                NativeReportRowGeometry.install(on:table,font:geometry.font,groupFont:geometry.groupFont,minimumContentHeight:geometry.minimumContentHeight,verticalPadding:geometry.verticalPadding,client:self,rowIDs:{[weak self,weak table] in
+                    guard let self,let table,self.integrationActive,self.configuredTable === table,self.window === table.window,table.numberOfRows==self.rows.count else{return nil}
+                    return self.rows.map{Data($0.id.utf8)}
+                })
+            } else {NativeReportRowGeometry.remove(from:table,client:self)}
             desiredColumns = Array(originalColumns.prefix(leadingColumnCount)) + savedOrder.compactMap { byDefinition[$0] }
             desiredWidths = originalWidths
             for (definition, column) in byDefinition where visibleColumns.contains(definition) && savedWidths[definition] == nil {
@@ -745,7 +767,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
-            if let configuredTable {NativeListSelection.remove(from:configuredTable,client:self)}
+            if let configuredTable {NativeListSelection.remove(from:configuredTable,client:self);NativeReportRowGeometry.remove(from:configuredTable,client:self)}
             finishResetQuestion(false)
             if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false

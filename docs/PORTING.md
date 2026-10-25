@@ -4651,3 +4651,13 @@ named-remote iteration adaptation; pinned libgit2 can swallow config-write error
 while returning zero. Those boundaries, public/signed/physical and complete
 source-resource acceptance remain explicit; this does not complete Sync or the
 application.
+
+
+## Commit report-row continuation — October 25, 2026
+
+[The Commit report-row family](COMMIT-REPORT-ROWS-PARITY.md) implements compact
+single-line file and group captions, regular/bold configured-font sizing, full
+value help and exact native geometry ownership/restoration. The original
+AppKit row-span recursion is captured separately from the source layout defect;
+its affected-workload checkpoint is recorded without attributing an unproven
+cause to the shared selection decorator.

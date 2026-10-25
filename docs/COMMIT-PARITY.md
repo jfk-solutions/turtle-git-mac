@@ -2778,3 +2778,11 @@ standalone progress, fallback forms and reviewable completion warnings.
 The [shared checkpoint](qa/commit-scope-report-push-2026-10-23.json) records actual
 validation and remaining acceptance; these additions do not certify full Commit
 or Push parity.
+
+
+## Uniform report rows
+
+[The report-row continuation](COMMIT-REPORT-ROWS-PARITY.md) covers single-line
+captions, configured font metrics, full-value help and owned native restoration.
+It separates the confirmed source layout difference from the previously
+captured AppKit row-cache warning and its pending affected-workload checkpoint.

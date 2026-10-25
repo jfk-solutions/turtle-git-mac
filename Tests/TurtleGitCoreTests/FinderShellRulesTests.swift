@@ -22,7 +22,22 @@ final class FinderShellRulesTests: XCTestCase {
         XCTAssertEqual(Set(fixture.nativeAdaptations.keys), ["properties", "worktreeCreate"])
         XCTAssertTrue(Set(fixture.rules.keys).isDisjoint(with: fixture.nativeAdaptations.keys))
         let allRules = fixture.rules.merging(fixture.nativeAdaptations) { source, _ in source }
-        XCTAssertEqual(Set(allRules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
+        // The frozen parser fixture omits the dedicated diagnostic entry.
+        // Verify that exact omission separately against MenuInfo.cpp29–30,
+        // retaining every generated source/native-adaptation rule below.
+        let diagnosticActions:Set<String>=[RepositoryAction.inaccessible.rawValue]
+        let currentActions=Set(FinderShellRules.conditions.keys.map(\.rawValue))
+        XCTAssertEqual(currentActions.subtracting(Set(allRules.keys)),diagnosticActions)
+        XCTAssertTrue(Set(allRules.keys).subtracting(currentActions).isEmpty)
+        let inaccessible=try XCTUnwrap(FinderShellRules.conditions[.inaccessible])
+        XCTAssertEqual(inaccessible.count,4)
+        XCTAssertEqual(inaccessible[0].required,[.inaccessible])
+        XCTAssertEqual(inaccessible[0].excluded,[.inGit,.folderInGit,.bare])
+        for clause in inaccessible.dropFirst(){XCTAssertTrue(clause.required.isEmpty);XCTAssertTrue(clause.excluded.isEmpty)}
+        XCTAssertTrue(FinderShellRules.allows(.inaccessible,flags:[.inaccessible]))
+        for excluded in [FinderShellFlags.inGit,.folderInGit,.bare] {
+            XCTAssertFalse(FinderShellRules.allows(.inaccessible,flags:[.inaccessible,excluded]))
+        }
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }
         }

@@ -838,6 +838,10 @@
           "anchor": "public enum CommitCheckPolicy"
         },
         {
+          "path": "Sources/TurtleGitMac/NativeReportRowGeometry.swift",
+          "anchor": "enum NativeReportRowGeometry"
+        },
+        {
           "path": "Sources/TurtleGitMac/CommitIssueProvider.swift",
           "origin": "recorded-control-mapping"
         },

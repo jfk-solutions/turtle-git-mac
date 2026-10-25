@@ -477,6 +477,10 @@
         {
           "path": "Sources/TurtleGitCore/CommitCheckPolicy.swift",
           "anchor": "public enum CommitCheckPolicy"
+        },
+        {
+          "path": "Sources/TurtleGitMac/NativeReportRowGeometry.swift",
+          "anchor": "enum NativeReportRowGeometry"
         }
       ],
       "parity_document": "docs/COMMIT-PARITY.md",

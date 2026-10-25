@@ -1,0 +1,673 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-native-family-passed-after-recorded-source-and-fixture-repairs",
+  "base_commit": "adba7516d648ab7cf99993874a2df53d11525aa5",
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/Resources/TortoiseProcENG.rc:278 IDC_FILELIST LVS_REPORT",
+      "src/Git/GitStatusListCtrl.cpp:278-299 report font and small image list",
+      "doc/images/en/Commit.png inspected original compact single-line file/group rows"
+    ]
+  },
+  "implementation": {
+    "files": [
+      {
+        "path": "Sources/TurtleGitMac/NativeReportRowGeometry.swift",
+        "sha256": "af0807ef0cda3254a9c236627ba96a025e5db160f6436e929de96e885328e097"
+      },
+      {
+        "path": "Sources/TurtleGitMac/CommitFileInteraction.swift",
+        "sha256": "37e1626970cd0445433c1d7c6c07f1eade68e004660f3c8b37531430bb805558"
+      },
+      {
+        "path": "Sources/TurtleGitMac/CommitWindow.swift",
+        "sha256": "3a0324768334d118c6aae33069fb9a2a90093cb4ba0493c5ac8f228c34d0bbf8"
+      },
+      {
+        "path": "docs/qa/commit-report-rows-native-2026-10-25.swift",
+        "sha256": "94501becb07322bc7aee491d248dc755cfb65ddff60e809da679ad7ac6b91bac"
+      },
+      {
+        "path": "scripts/test-commit-report-rows.py",
+        "sha256": "cadbdc42087bb2c3f3c0e04bcf3ee28bd4ebd0648913e7f6980cd8879a56de32"
+      }
+    ],
+    "scope": [
+      "Single-line Path and metadata cells, configured bold group font, complete value help and unchanged raw copy/AX identity",
+      "Opt-in fixed font/control-derived height, deferred application, original native restoration and successor/closed-owner protection",
+      "Existing selection decorator, native selection, checkbox/staging and other table consumers retain their policy",
+      "Spanning native group headers use one native text line and row clipping, preserving full underlying raw help/AX titles."
+    ],
+    "repair": "Confirmed later SwiftUI rowHeight reset is reconciled through public KVO with exact-owner, weak-client and generation guards; custom row-size style and original style restoration; observers retire before baseline restoration."
+  },
+  "diagnostics": {
+    "initial_interposer": "Instrumentation forwarding recursion; owned receiver6559 terminated and reaped; no product cause inferred.",
+    "corrected_interposer": {
+      "log": "build/qa/commit-reentrancy-diagnostic-2026-10-25/interpose-repair1.log",
+      "sha256": "8293960955881f10ef624104eac8a3e3799691a33012157de3e6785b714682da",
+      "result": "Categories assertions pass; receiver6785 reaped; warning captured",
+      "stack_excerpt": [
+        "WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.",
+        "0   Logging.dylib                       0x0000000102a708fc report + 144",
+        "1   Logging.dylib                       0x0000000102a7083c replacementLogv + 116",
+        "2   Logging.dylib                       0x0000000102a707b0 replacementLog + 64",
+        "3   AppKit                              0x00000001a2eccd80 -[NSTableRowHeightData _cacheRowSpansInRange:heightProvider:] + 92",
+        "4   AppKit                              0x00000001a2ecb54c -[NSTableRowHeightData _cacheRowSpansInRange:] + 100",
+        "5   Foundation                          0x000000019f4feef8 __NSINDEXSET_IS_CALLING_OUT_TO_A_RANGE_BLOCK__ + 24",
+        "6   Foundation                          0x000000019f6415a4 __NSIndexSetEnumerateBitfield + 380",
+        "7   AppKit                              0x00000001a2ecd1bc -[NSTableRowHeightData _estimatedSpanForRow:cacheIfNecessary:] + 252",
+        "8   AppKit                              0x00000001a2eca704 -[NSTableRowHeightData _estimatedSpanForRowsInRange:] + 72",
+        "9   AppKit                              0x00000001a2eca7bc -[NSTableRowHeightData computeTotalRowsSpanAssumingNumberOfRows:] + 140",
+        "10  AppKit                              0x00000001a244a224 -[NSTableView _totalHeightOfTableView] + 76",
+        "11  AppKit                              0x00000001a244a09c -[NSTableView _minimumFrameSize] + 76",
+        "12  AppKit                              0x00000001a2cc410c -[NSTableView _updateTableViewSize] + 64",
+        "13  AppKit                              0x00000001a2ecd34c -[NSTableRowHeightData _adjustRowSpansStartingAtRow:] + 136",
+        "14  AppKit                              0x00000001a2ecd018 -[NSTableRowHeightData _cacheRowSpansInRange:heightProvider:] + 756",
+        "15  AppKit                              0x00000001a2ecb54c -[NSTableRowHeightData _cacheRowSpansInRange:] + 100",
+        "16  Foundation                          0x000000019f4feef8 __NSINDEXSET_IS_CALLING_OUT_TO_A_RANGE_BLOCK__ + 24",
+        "17  Foundation                          0x000000019f6415a4 __NSIndexSetEnumerateBitfield + 380",
+        "18  AppKit                              0x00000001a2ecd1bc -[NSTableRowHeightData _estimatedSpanForRow:cacheIfNecessary:] + 252",
+        "19  AppKit                              0x00000001a2eca704 -[NSTableRowHeightData _estimatedSpanForRowsInRange:] + 72",
+        "20  AppKit                              0x00000001a2eca820 -[NSTableRowHeightData computeTotalRowsSpan] + 68",
+        "21  AppKit                              0x00000001a2ecaa2c -[NSTableRowHeightData _estimatedRowAtOffset:] + 36",
+        "22  AppKit                              0x00000001a245d798 -[NSTableView rowAtPoint:] + 212",
+        "23  AppKit                              0x00000001a2f6c16c -[NSTableRowData _keepTopRowStableAtLeastOnce:andDoWorkUntilDone:] + 232",
+        "24  AppKit                              0x00000001a246bc08 -[NSTableRowData _updateVisibleViewsBasedOnUpdateItems] + 1332",
+        "25  AppKit                              0x00000001a2454a9c -[NSTableRowData endUpdates] + 352",
+        "26  AppKit                              0x00000001a24548f8 -[NSTableView _endUpdateWithTile:] + 116",
+        "27  AppKit                              0x00000001a2507d4c -[NSTableView endUpdates] + 28",
+        "28  SwiftUI                             0x00000001d656739c $s7SwiftUI29AppKitOutlineTableCoordinatorC6update020_4F4C0C8303607BBE8C1M11E1FC76AA7FBLL2to4with8diffRows0T7ColumnsyAA0F10DataSourceV_AA11TransactionVS2btFyyXEfU0_yyXEfU_ + 4292",
+        "29  SwiftUI                             0x00000001d65657c8 $s7SwiftUI29AppKitOutlineTableCoordinatorC24withSelectionUpdateGuard020_4F4C0C8303607BBE8C1P11E1FC76AA7FBLLyySS_yyXEtF + 1216",
+        "30  SwiftUI                             0x00000001d6562980 $s7SwiftUI29AppKitOutlineTableCoordinatorC6update020_4F4C0C8303607BBE8C1M11E1FC76AA7FBLL2to4with8diffRows0T7ColumnsyAA0F10DataSourceV_AA11TransactionVS2btF + 5708",
+        "31  SwiftUI                             0x00000001d656131c $s7SwiftUI35UpdateAppKitOutlineTableCoordinatorV11updateValueyyFyyXEfU1_yycfU_ + 116",
+        "32  SwiftUICore                         0x0000000241d911e8 $s7SwiftUI11UpdateGroupC6Action33_6733BA79212FB37D3E5D979DE425452BLLV14callAsFunctionyyF + 184",
+        "33  SwiftUICore                         0x0000000241d90eec $s7SwiftUI11UpdateGroupC15dispatchActionsyyF0E0L_yyF + 420",
+        "34  SwiftUICore                         0x0000000241d904dc $s7SwiftUI11UpdateGroupC15dispatchActionsyyF + 340",
+        "35  SwiftUICore                         0x0000000241d8f47c $s7SwiftUI11UpdateGroupC3endyyF + 232",
+        "36  SwiftUICore                         0x0000000242740a9c $sSo9NSRunLoopC7SwiftUIE14flushObserversyyFZTf4d_n + 84",
+        "37  SwiftUICore                         0x000000024274065c $sSo9NSRunLoopC7SwiftUIE11addObserveryyyycFZySo05CFRunbF3RefaSg_So0gB8ActivityVSvSgtcfU_To + 36",
+        "38  CoreFoundation                      0x000000019de1dcc4 __CFRUNLOOP_IS_CALLING_OUT_TO_AN_OBSERVER_CALLBACK_FUNCTION__ + 36",
+        "39  CoreFoundation                      0x000000019de1dbbc __CFRunLoopDoObservers + 648",
+        "40  CoreFoundation                      0x000000019def7864 _CFRunLoopRunSpecificWithOptions + 592"
+      ]
+    },
+    "public_setter_instrumentation": {
+      "log": "build/qa/commit-reentrancy-diagnostic-2026-10-25/heights-outline-repair1.log",
+      "sha256": "82ace5a434579c252ee925710000d7d2683c1739b60fa13c453c2f4996bdb970",
+      "result": "Categories assertions pass, receiver7262 reaped; automatic row heights true, base rowHeight24; no public original height delegate implementation"
+    },
+    "intermediate_probe": "Categories assertions pass, receiver7027 reaped; outline setter override required later instrumentation.",
+    "interpretation": "AppKit row-span recursion during SwiftUI outline coordinator update; varying-height root cause unproven. Single-line report geometry is independent source gap.",
+    "restored_ignored_aggregate": {
+      "status": "derived-restoration",
+      "source": "docs/qa/commit-settings-source-parity-2026-10-25.json",
+      "source_sha256": "852074ab6ff0aaadb9fe0523bc3754a0c89d9402d8c2ebf8575a40b0107a0e80",
+      "pointer": "/validation/native_commit_attempts/2/cases",
+      "destination": "build/qa/commit-check-categories-native-results.json",
+      "count": 8,
+      "reason": "Diagnostic runner temporarily overwrote ignored current-results file; original accepted eight-pair evidence retained in dated QA record and restored without rerun."
+    },
+    "actual_editor_lookup": {
+      "directory": "build/qa/commit-row-cast-diagnostic-2026-10-25",
+      "receiver": 12383,
+      "reaped": true,
+      "lookup_returned_editor": true,
+      "row_count": 7,
+      "swift_and_objc_nsview_casts": true,
+      "result": "Earlier bridge crash not reproduced through actual production lookup; subsequent original font assertion failed after transient sizing reset. No unconditional cast incompatibility established."
+    }
+  },
+  "validation": {
+    "core": "Two focused source-inventory/icon contract methods run only after current hosted CI exposed their stale Inaccessible assumptions. No Core production changes or full local Core rerun.",
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/commit-report-rows-build-2026-10-25.log",
+      "generic_exit_zero_diagnostics": 11,
+      "platform_warning": "Xcode reports CoreSimulator version mismatch; simulator support disabled; target is macOS."
+    },
+    "native_report_attempts": [
+      {
+        "log": "build/qa/commit-report-rows-native-2026-10-25.log",
+        "exit_code": 1,
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "geometry",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "returncode": 1,
+            "passed": false
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 8198,
+            "reaped": true
+          },
+          {
+            "pid": 8400,
+            "reaped": true
+          }
+        ],
+        "failure": "fonts/system checkbox bounds assertion, cause under focused investigation; geometry/system passed; later cases not run",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-font-diagnostic-2026-10-25.log",
+        "exit_code": -5,
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "Fixture recursive NSView.subviews enumeration trapped while bridging NSArray to Swift Array; crash stack in CommitReportRowsVerification.views \u2192 verifyGeometry \u2192 fonts. Production fault not established.",
+        "crash_report": "receiver-2d2bd25bbb5be4bb2339c35bdbd3c4f53bcdc3a1c1a656ef69a06c2-2026-10-25-030701.ips",
+        "reentrancy_warning_count": 0,
+        "capture": "Default-light screenshot exists from preceding first attempt; dark not reached.",
+        "receivers": [
+          {
+            "pid": 8653,
+            "reaped": true
+          }
+        ],
+        "crash_report_copy": "build/qa/commit-report-rows-font-diagnostic-2026-10-25.ips"
+      },
+      {
+        "log": "build/qa/commit-report-rows-font-traversal-repair-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 10257,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "After font publication table.rowHeight34 and row1rect y34..68, but alpha checkbox frame y26..46 retained previous24pt row cohort. Bounded native layout readiness under investigation; persistent product clipping not proven.",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-font-layout-ready-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 10546,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "Bounded native row-frame alignment readiness exposed real later reset: requested Menlo26 initially rowHeight34, settled table.rowHeight24 below required30px metrics. Production ownership repair required.",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-native-repair-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 11092,
+            "reaped": true
+          },
+          {
+            "pid": 11296,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "geometry",
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "Fixed-height/font metrics pass after source repair, but largefont text marker extends beyond actual row; diagnostic frames pending.",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-text-diagnostic-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 11578,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "Optional owned WindowServer capture failed before large-font phase; capture readiness corrected separately, no production change.",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-text-readiness-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 12129,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "Text marker frame31..61 vs captured row34..68; after awaited failure capture table/ancestor row had reset24. Fixture materialized cells after readiness, invalidating previously checked layout. Native group overlay also visibly wrapped raw multiline caption beyond row.",
+        "reentrancy_warning_count": 0,
+        "failure_capture": "build/qa/commit-report-rows-text-readiness-2026-10-25/commit-report-failed-text.png",
+        "visual_inspection": "Actual native capture shows large group captions overflowing/duplicating across row boundaries; native overlay requires single-line clipping independently of readiness."
+      },
+      {
+        "log": "build/qa/commit-report-rows-final-native-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 12887,
+            "reaped": true
+          },
+          {
+            "pid": 13095,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "geometry",
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": false
+          }
+        ],
+        "failure": "Actual settled native row34/frame34 still contains SwiftUI text marker31..61 outside row34..68; SwiftUI internal cell proposal still uses smaller size. Added matching SwiftUI defaultMinListRowHeight environment; affected rebuild required.",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-proposal-native-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 13453,
+            "reaped": true
+          },
+          {
+            "pid": 13651,
+            "reaped": true
+          },
+          {
+            "pid": 13844,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "geometry",
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "passed": false
+          }
+        ],
+        "failure": "Ownership handoff assertion failed; focused diagnostic needed. Native geometry/fonts now pass 24\u219234\u219224 after matching SwiftUI row minimum.",
+        "reentrancy_warning_count": 0,
+        "capture_scope": "Defaultlight nativecapture visuallypasses; large-dark file decoded as blank by visual inspection despite size-only assertion, preserved under ignored build path; capture-only pixel validation required."
+      },
+      {
+        "log": "build/qa/commit-report-rows-ownership-diagnostic-2026-10-25.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "pid": 14038,
+            "reaped": true
+          }
+        ],
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "passed": false
+          }
+        ],
+        "failure": "Selected[1] before firstinstallA, selected[] immediately after native sizing mode switch; exactdelegate,datasource,rowcount3 unchanged. Receipt-guarded selection preservation required.",
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-selection-native-2026-10-25.log",
+        "exit_code": 1,
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "geometry",
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "fonts",
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "passed": false
+          }
+        ],
+        "reaped_receivers": [
+          14652,
+          14849,
+          15033
+        ],
+        "reentrancy_warning_count": 0,
+        "failure": "Own firstinstall correctly preserved selection1. Explicit external caller automatic-height reset then cleared native selection; fixture wrongly expected oldselection across that unowned mutation. Correction retains initial preservation assertion, requires no resurrection after external clear, and establishes freshselection1 before successor-handoff assertion."
+      },
+      {
+        "log": "build/qa/commit-report-rows-ownership-boundary-repair-2026-10-25.log",
+        "exit_code": 0,
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "reaped_receivers": [
+          15215
+        ],
+        "reentrancy_warning_count": 0
+      },
+      {
+        "log": "build/qa/commit-report-rows-bundled-final-2026-10-25.log",
+        "exit_code": 0,
+        "cases": [
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "geometry",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "fonts",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "reaped_receivers": [
+          15358,
+          15555,
+          15718
+        ],
+        "reentrancy_warning_count": 0
+      }
+    ],
+    "native_retained_category_attempts": [
+      {
+        "log": "build/qa/commit-report-rows-retained-categories-2026-10-25.log",
+        "exit_code": 0,
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "categories",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "submodules",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "staging",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "categories",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "submodules",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "staging",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "reaped_receivers": [
+          8881,
+          9051,
+          9184,
+          9413,
+          9551,
+          9716,
+          9849,
+          10076
+        ],
+        "reentrancy_warning_count": 0
+      }
+    ],
+    "debug_build_repair": {
+      "exit_code": 0,
+      "log": "build/qa/commit-report-rows-build-repair-2026-10-25.log",
+      "generic_exit_zero_diagnostics": 1
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1320,
+      "mode": "check",
+      "exit_code": 0
+    },
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 80,
+      "bytes": 3870968,
+      "mode": "check",
+      "exit_code": 0
+    },
+    "debug_build_group_overlay": {
+      "exit_code": 0,
+      "log": "build/qa/commit-report-rows-group-build-2026-10-25.log",
+      "generic_exit_zero_diagnostics": 2
+    },
+    "debug_build_swiftui_proposal": {
+      "exit_code": 0,
+      "log": "build/qa/commit-report-rows-proposal-build-2026-10-25.log",
+      "generic_exit_zero_diagnostics": 2
+    },
+    "debug_build_selection_receipt": {
+      "exit_code": 0,
+      "log": "build/qa/commit-report-rows-selection-build-2026-10-25.log",
+      "generic_exit_zero_diagnostics": 1
+    },
+    "native_final_cases": [
+      {
+        "git": "/usr/bin/git",
+        "case": "geometry",
+        "passed": true,
+        "evidence": "build/qa/commit-report-rows-selection-native-2026-10-25.log"
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "fonts",
+        "passed": true,
+        "evidence": "build/qa/commit-report-rows-selection-native-2026-10-25.log"
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "geometry",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "fonts",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "native_scope": "Six distinct case/engine pairs cumulatively pass. System geometry/fonts precede fixture-only ownership-boundary correction; current production source unchanged afterwards. Final geometry cases include original category workload assertions with both Git engines.",
+    "captures": [
+      {
+        "path": "docs/qa/commit-report-rows-2026-10-25/commit-report-default-light.png",
+        "sha256": "89636d607f82c73f8ff7f719930c26cd2a63eb4476bbba600c6768afe38ffb83",
+        "inspected": true
+      },
+      {
+        "path": "docs/qa/commit-report-rows-2026-10-25/commit-report-large-dark.png",
+        "sha256": "71b84a17f33dd5409e079c8a5616e828f4df1e29dfc2bdd16bdff7af1ca445e4",
+        "inspected": true
+      }
+    ],
+    "capture_notes": "Actual WindowServer light/default and dark/Menlo26 native windows inspected; single-line rows and bounded group drawing. Extreme long names make horizontal scrolling necessary; resized largefont viewport may show partial boundary rows. No complete dialog visual certification.",
+    "hosted_current": {
+      "run_id": 40152254797,
+      "sha": "adba7516",
+      "job_id": 121063753086,
+      "conclusion": "failure",
+      "tests": 2891,
+      "skipped": 2,
+      "failures": 2,
+      "failed_methods": [
+        "FinderShellRulesTests.testPinnedSourceConditions",
+        "MenuIconTests.testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes"
+      ],
+      "repair": "Explicitly account for source Inaccessible conditions and Cleanup icon alias, retaining every existing parsed rule and asset assertion. Focused local validation recorded separately; complete new hosted pass remains required."
+    },
+    "site": {
+      "exit_code": 0,
+      "documents": 457,
+      "unresolved_fragments": [],
+      "log": "build/qa/commit-report-rows-site-final-2026-10-25.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574
+    },
+    "cleanup": "All27 listed owned diagnostic/acceptance receiver PIDs absent in independent final ps observation; normal successful runner cleanup did not require fallback helper termination. No unrelated app/Finder termination.",
+    "focused_core_repair": {
+      "exit_code": 0,
+      "methods": [
+        "FinderShellRulesTests.testPinnedSourceConditions",
+        "MenuIconTests.testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes"
+      ],
+      "passed": 2,
+      "duration_seconds": 0.132,
+      "log": "build/qa/commit-report-rows-hosted-fixture-repair-2026-10-25.log",
+      "files": [
+        {
+          "path": "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift",
+          "sha256": "c9b5de1e84f064616e53b90940e0dcdeae5d63f4b643e47e057be81c8831f2f7"
+        },
+        {
+          "path": "Tests/TurtleGitCoreTests/MenuIconTests.swift",
+          "sha256": "23459413cdecbccfdb3d4c08fa9847503ae822029902ff1789c0c2761c8bed9c"
+        }
+      ]
+    },
+    "historical_failed_captures": [
+      "build/qa/commit-report-rows-proposal-black-dark-2026-10-25.png",
+      "build/qa/commit-report-rows-final-failed-text-2026-10-25.png",
+      "build/qa/commit-report-rows-text-readiness-2026-10-25/commit-report-failed-text.png"
+    ]
+  },
+  "limits": [
+    "Full-dialog physical/VoiceOver and signed installed acceptance remain open.",
+    "Complete current hosted CI is unverified.",
+    "No new distribution signing, install, export or App Store submission.",
+    "Installed app remains prior bdd482b3-equivalent candidate.",
+    "Typed NSArray-to-NSView bridge crash cause unresolved; real Commit editor lookup also traverses typed subviews. A copied-NSArray fixture traversal does not prove production safety."
+  ],
+  "protected_human_files": [
+    {
+      "path": "scripts/test-native-reference-batch.py",
+      "sha256": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+    },
+    {
+      "path": "docs/qa/reflog-capture-native-2026-10-13.swift",
+      "sha256": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  ]
+}

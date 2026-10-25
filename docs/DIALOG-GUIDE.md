@@ -100,6 +100,11 @@ Write the commit message above the changed-file list. In ordinary mode, check th
 files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.
 
+The changed-file list keeps each file and group caption on one line when you
+resize columns. Row height follows the configured file-list font and leaves room
+for checkboxes and status icons. Hover for full values; copying retains the
+original filenames, including Unicode and embedded line breaks.
+
 The Check links follow the source action categories: **Added** includes copies,
 while **Modified** selects modification/type-change actions rather than every row
 whose display status falls back to Modified. Hold Shift to uncheck a category;
