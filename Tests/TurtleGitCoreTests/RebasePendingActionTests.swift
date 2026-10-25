@@ -89,8 +89,13 @@ final class RebasePendingActionTests: XCTestCase {
         var plan=try await repo.cherryPickPlan(revisions:[second.commit.hash,merge.commit.hash,first.commit.hash]);plan.entries[0].action = .edit;plan.entries[1].action = .skip;plan.entries[2].action = .squash;plan.options.addCherryPickedFrom=true
         _ = try await repo.startRebase(plan,editorExecutable:editor)
         let before=try await repo.rebaseActionEditSnapshot()
-        do {_ = try await repo.changePendingRebaseActions(.pick,ids:[merge.id],expected:before,editorExecutable:editor);XCTFail("Missing mainline accepted")}catch RebaseFailure.mainline {}
-        let changed=try await repo.changePendingRebaseActions(.pick,ids:[merge.id],expected:before,mainlines:[merge.id:1],editorExecutable:editor)
+        let deferred=try await repo.changePendingRebaseActions(.pick,ids:[merge.id],expected:before,editorExecutable:editor)
+        XCTAssertEqual(deferred.replay[1].action,.pick);XCTAssertNil(deferred.replay[1].mainline)
+        XCTAssertEqual(deferred.head,before.head,"A future parent question must not mutate the stopped HEAD")
+        let deferredSnapshot=try await repo.rebaseActionEditSnapshot()
+        _ = try await repo.changePendingRebaseActions(.skip,ids:[merge.id],expected:deferredSnapshot,editorExecutable:editor)
+        let restored=try await repo.rebaseActionEditSnapshot()
+        let changed=try await repo.changePendingRebaseActions(.pick,ids:[merge.id],expected:restored,mainlines:[merge.id:1],editorExecutable:editor)
         XCTAssertEqual(changed.replay[1].mainline,1);XCTAssertEqual(changed.replay[1].action,.pick)
         let pending=try await repo.continueRebase();XCTAssertNotNil(pending.state.squashMessage)
         let message=try XCTUnwrap(pending.state.squashMessage?.message)

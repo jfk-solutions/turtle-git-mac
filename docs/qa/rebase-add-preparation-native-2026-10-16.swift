@@ -1,4 +1,5 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
 @main struct RebaseAddPreparationVerification {
@@ -10,12 +11,22 @@ import TurtleGitCore
         throw Failure(description: "Add preparation timeout at \(line)")
     }
     @MainActor static func drain() async throws {
-        try await wait { RebaseWindowModel.activePreparationReads == 0 && RebaseWindowModel.activeColumnReads == 0 }
+        try await wait { RebaseWindowModel.activePreparationReads == 0 && RebaseWindowModel.activeColumnReads == 0 && RebaseWindowModel.activeReplayOperations == 0 }
     }
     @MainActor static func main() async {
         NSApp.setActivationPolicy(.prohibited)
         do { try await verify(); owners.forEach { $0.model.retire(); $0.close() }; owners = [] }
         catch { owners.forEach { $0.model.retire(); $0.close() }; owners = []; fputs("Add preparation failed: \(error)\n", stderr); exit(1) }
+    }
+    @MainActor static func start(_ model:RebaseWindowModel) {model.request("start");if let question=model.pendingConfirmation {model.answerConfirmation(question,proceed:true)}}
+    @MainActor static func nativeViews(_ view:NSView)->[NSView] {
+        let selector = #selector(getter:NSView.subviews)
+        typealias Getter = @convention(c)(AnyObject,Selector)->Unmanaged<NSArray>
+        let getter=unsafeBitCast(view.method(for:selector),to:Getter.self)
+        let children=getter(view,selector).takeUnretainedValue().copy() as! NSArray
+        var result=[view]
+        for index in 0..<children.count {let object=children.object(at:index) as AnyObject;guard let native=object as? NSObject,native.isKind(of:NSView.self) else{continue};result += nativeViews(unsafeBitCast(object,to:NSView.self))}
+        return result
     }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -111,26 +122,45 @@ import TurtleGitCore
         draft.finishAdditionalSelection(firstRequest, revisions: [base.hash])
         try require(draft.pickingCommits && !draft.busy, "Old request consumed a newer picker")
         draft.finishAdditionalSelection(secondRequest, revisions: nil)
-        // Cherry Pick parent metadata and actual native parent question share the
-        // same cancellable preparation lifetime and never mutate on cancellation.
+        // Parent preparation now happens only at a durable reached occurrence.
+        // Cancel owns the outstanding read but retains that exact checkpoint.
         let parentController = make(), parent = parentController.model
+        parent.editorExecutable=URL(fileURLWithPath:CommandLine.arguments[3])
+        prefs.set(false,forKey:"ConfirmKillProcess")
         parent.load(cherryPick: [merge.hash]); try await drain()
         try require(parent.canStart && parent.isCherryPick, "Merge Cherry Pick unavailable")
         var parentReply: CheckedContinuation<[LogParentChoice], Error>?
         parent.readMainlineChoices = { _, token in ownedToken = token; return try await withCheckedThrowingContinuation { parentReply = $0 } }
-        parent.request("start"); try await wait { parentReply != nil }
-        try require(parent.preparingMainline && parent.hasCancellablePreparation && parent.busy, "Parent metadata lacks preparation ownership")
-        _ = parent.cancelPreparation(); parentReply?.resume(returning: try await repo.logParentChoices(merge)); parentReply = nil; try await drain()
-        try require(parent.plan!.entries.first?.mainline == nil && !parent.busy && parent.error == nil && !parent.active, "Cancelled mainline read started replay")
+        start(parent)
+        do {try await wait {parentReply != nil}} catch {
+            var actual:RebaseState?
+            if !parent.busy {actual=try? await repo.rebaseState()}
+            let cached=parent.state.flatMap{try? JSONEncoder().encode($0)}.map{String(decoding:$0,as:UTF8.self)} ?? "nil"
+            let disk=actual.flatMap{try? JSONEncoder().encode($0)}.map{String(decoding:$0,as:UTF8.self)} ?? "not-read-while-busy"
+            fputs("Reached-parent diagnostic: busy=\(parent.busy) active=\(parent.active) retired=\(parent.retired) replayOps=\(RebaseWindowModel.activeReplayOperations) preparations=\(RebaseWindowModel.activePreparationReads) question=\(parent.hasReplayQuestion) error=\(parent.error ?? "nil") editor=\(parent.editorExecutable?.path ?? "nil") ownerSheet=\(String(describing:parentController.window?.attachedSheet)) appModal=\(String(describing:NSApp.modalWindow)) cachedState=\(cached) actualState=\(disk) output=\(parent.output.suffix(16000))\n",stderr)
+            throw error
+        }
+        let reached=try await repo.rebaseState(),reachedHead=try await repo.rebaseCommit("HEAD").hash
+        try require(reached.mainlineDecision?.commit==merge.hash && parent.busy && parent.active && RebaseWindowModel.activeReplayOperations>0,"Reached parent metadata lacks durable replay ownership")
+        parent.cancelReplay();try require(ownedToken?.isCancelled==true && parent.busy,"Cancel released noncooperative parent read")
+        parentReply?.resume(returning: try await repo.logParentChoices(merge)); parentReply = nil; try await drain()
+        let cancelledState=try await repo.rebaseState()
+        try require(cancelledState.mainlineDecision==reached.mainlineDecision && parent.plan!.entries.first?.mainline == nil && !parent.busy && parent.error == nil && parent.active,"Cancelled reached read changed mainline or lost resumable session")
+        try require((try await repo.rebaseCommit("HEAD")).hash==reachedHead,"Cancelled reached read changed earlier committed progress")
         parent.readMainlineChoices = { try await repo.logParentChoices($0, cancellation: $1) }
-        parent.request("start"); try await wait { parent.hasReplayQuestion && parentController.window?.attachedSheet != nil }
-        try require(parent.preparingMainline && parent.busy && parent.cancelPreparation(), "Actual parent question cannot cancel")
-        try await drain(); try await wait { parentController.window?.attachedSheet == nil }
-        try require(!parent.hasReplayQuestion && !parent.busy && !parent.active && parent.plan!.entries.first?.mainline == nil, "Cancelled parent sheet left replay/continuation ownership")
-        // Forced owner closure retires a pending actual sheet once and rejects its
-        // delayed answer. A held Add reply similarly cannot publish after retire.
-        parent.request("start"); try await wait { parent.hasReplayQuestion }; parentController.close(); try await drain()
-        try require(parent.retired && !parent.hasReplayQuestion && !parent.active && RebaseWindowModel.activePreparationReads == 0, "Forced parent closure retained question")
+        parent.request("continue"); try await wait { parent.hasReplayQuestion && parentController.window?.attachedSheet != nil }
+        let sheet=parentController.window!.attachedSheet!,buttons=nativeViews(sheet.contentView!).compactMap{$0 as? NSButton}.filter{!$0.isHiddenOrHasHiddenAncestor && !$0.title.isEmpty}
+        let fields=nativeViews(sheet.contentView!).compactMap{$0 as? NSTextField}.map(\.stringValue)
+        guard let cancel=buttons.first(where:{$0.title=="Cancel"}),let cancelAction=cancel.action else{throw Failure(description:"Actual parent Cancel missing")}
+        try require(buttons.count==3 && sheet.defaultButtonCell === cancel.cell && sheet.alphaValue==0 && fields.contains(where:{$0.contains("Which parent do you want to pick?") && $0.contains(merge.hash)}),"Actual reached parent sheet lost source text/choices/default Cancel/owner")
+        try require(NSApp.sendAction(cancelAction,to:cancel.target,from:cancel),"Native reached parent Cancel failed to dispatch")
+        try await drain();try await wait {parentController.window?.attachedSheet==nil && !parent.hasReplayQuestion && !parent.busy}
+        try require((try await repo.rebaseState()).mainlineDecision==reached.mainlineDecision && parent.active,"Native Cancel did not retain the reached parent decision")
+        parent.request("continue"); try await wait { parent.hasReplayQuestion }; parentController.close(); try await drain()
+        try require(parent.retired && !parent.hasReplayQuestion && !parent.busy,"Forced reached-parent closure retained question or worker")
+        let retiredState=try await repo.rebaseState()
+        try require(retiredState.mainlineDecision==reached.mainlineDecision,"Closing parent changed the durable decision")
+        _ = try await repo.abortRebase()
         model.readAddedPlan = { _, _, _ in try await withCheckedThrowingContinuation { reply = $0 } }
         model.addCommits([side.hash]); try await wait { reply != nil }; let retiredIDs = model.entries.map(\.id)
         controller.close(); reply?.resume(returning: added); reply = nil; try await drain()
@@ -139,7 +169,140 @@ import TurtleGitCore
         let afterState = try await repo.rebaseState()
         try require(afterHead == originalHead && afterIndex == originalIndex && !afterState.active, "Preparation changed Git state")
         owners.forEach { $0.model.retire(); $0.close() }; owners = []; try await drain()
+        try await reachedOrdering()
+        try await repeatedReachedSkip()
+        try await reachedOwnership()
         try require(RebaseWindowController.activeCommitPickers == 0, "Picker counter leaked")
-        print("PASS: owned Add/draft/picker and Cherry Pick merge-parent preparation; cancellation, failure/retry, stale reply and forced close; Git \(CommandLine.arguments[2])")
+        print("PASS: owned Add/draft/picker and reached Cherry Pick merge-parent recovery; cancellation, ordered empty review, repeated Skip, reopen, stale answer and forced close; Git \(CommandLine.arguments[2])")
+    }
+
+    @MainActor static func reachedOrdering()async throws {
+        let c=try ReachedContext("reached-ordering")
+        do {
+            try await c.seed();let owner=try await c.open([c.last.hash,c.merge.hash,c.empty.hash,c.ordinary.hash]),model=owner.model
+            let ids=model.plan!.entries.map(\.id),requested=model.plan!.entries.map(\.action)
+            try require(model.plan!.entries.map{$0.commit.hash} == [c.ordinary.hash,c.empty.hash,c.merge.hash,c.last.hash],"Fixture did not preserve oldest-first advanced Cherry ordering")
+            var events=[String](),parentChoices=[Int]()
+            model.confirmEmptyMessageReview={events.append("empty");return true}
+            c.hold(model){_,choices in events.append("parent");parentChoices=choices.map(\.number)}
+            start(model);try await wait {!model.busy && model.state?.isEditPause==true};try await drain()
+            try require(events==["empty"] && FileManager.default.fileExists(atPath:c.root.appendingPathComponent("ordinary.txt").path) && FileManager.default.fileExists(atPath:c.root.appendingPathComponent("empty.txt").path) && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Future merge parent was prompted before reached empty-message review")
+            model.messageBinding(model.formContext).wrappedValue="Reviewed empty subject\n\nBody preserved for empty review\n"
+            model.request("continue");try await wait {!c.answers.isEmpty}
+            let before=try await c.repository.rebaseState(),head=try await c.repository.rebaseCommit("HEAD"),index=try Data(contentsOf:c.root.appendingPathComponent(".git/index"))
+            guard let decision=before.mainlineDecision else{throw Failure(description:"Missing durable reached parent decision")}
+            try require(events==["empty","parent"] && parentChoices==[1,2] && decision.entryID==ids[2] && decision.commit==c.merge.hash && decision.requestedAction==requested[2] && decision.step==3 && decision.head==head.hash,"Reached choice lost exact occurrence/order/HEAD/parent metadata")
+            try require(head.subject=="Reviewed empty subject" && head.author==c.empty.author && model.logicalProgressCompleted==2 && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("last.txt").path),"Parent question did not retain earlier actual progress")
+            c.answer(nil);try await wait {!model.busy};try await drain()
+            let cancelled=try await c.repository.rebaseState()
+            try require(cancelled.mainlineDecision==decision && model.active && model.error==nil && (try Data(contentsOf:c.root.appendingPathComponent(".git/index")))==index,"Parent Cancel changed durable progress/index or became failure")
+            owner.close();try await drain()
+            let reopened=try await c.open(),next=reopened.model
+            try require(next.state?.mainlineDecision==decision,"Reopen lost reached parent selection")
+            var resumedQuestions=0,resumedMetadataValid=false
+            next.chooseMainline={commit,choices in resumedQuestions+=1;resumedMetadataValid=commit.hash==c.merge.hash && choices.map(\.number)==[1,2];return 1}
+            next.request("continue");try await wait {!next.busy && next.finished};try await drain()
+            let applied=try await c.repository.rebaseCommit("HEAD~1"),finalState=try await c.repository.rebaseState()
+            try require(next.error==nil && !finalState.active && resumedQuestions==1 && resumedMetadataValid && applied.subject==c.merge.subject && applied.author==c.merge.author && applied.date==c.merge.date && applied.parents.count==1,"Accepted reached mainline failed actual replay/author/message or repeated prompt")
+            for path in ["ordinary.txt","empty.txt","side.txt","last.txt","destination.txt"] {try require(FileManager.default.fileExists(atPath:c.root.appendingPathComponent(path).path),"Final selected parent lost "+path)}
+            await c.cleanup()
+        }catch{await c.cleanup();throw error}
+    }
+    @MainActor static func repeatedReachedSkip()async throws {
+        let c=try ReachedContext("reached-repeat-skip")
+        do {
+            try await c.seed();let owner=try await c.open([c.merge.hash]),model=owner.model
+            model.addCommits([c.merge.hash]);try await wait {!model.busy && !model.addingCommits && model.plan?.entries.count==2};try await drain()
+            let ids=model.plan!.entries.map(\.id)
+            try require(ids[0] != ids[1] && model.plan!.entries.allSatisfy{$0.commit.hash==c.merge.hash},"Add collapsed repeated merge occurrences")
+            c.hold(model);start(model);try await wait {!c.answers.isEmpty}
+            guard let first=try await c.repository.rebaseState().mainlineDecision else{throw Failure(description:"First repeated merge decision missing")}
+            c.answer(nil);try await wait {!model.busy};try await drain()
+            c.request(model,"skip");try await wait {!c.answers.isEmpty}
+            guard let second=try await c.repository.rebaseState().mainlineDecision else{throw Failure(description:"Second repeated merge decision missing")}
+            try require(first.entryID==ids[0] && second.entryID==ids[1] && first.commit==second.commit && first.step==1 && second.step==2 && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Skip applied merge or reused a hash-only parent receipt")
+            c.answer(nil);try await wait {!model.busy};try await drain()
+            c.request(model,"abort");try await wait {!model.busy && !model.active};try await drain()
+            let head=try await c.repository.rebaseCommit("HEAD").hash,state=try await c.repository.rebaseState()
+            try require(head==c.originalHead && !state.active && model.error==nil && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Abort did not restore original state after reached Skip")
+            await c.cleanup()
+        }catch{await c.cleanup();throw error}
+    }
+    @MainActor static func reachedOwnership()async throws {
+        let c=try ReachedContext("reached-owner")
+        do {
+            try await c.seed();let owner=try await c.open([c.merge.hash,c.ordinary.hash]),model=owner.model
+            c.hold(model);start(model);try await wait {!c.answers.isEmpty}
+            let initial=try await c.repository.rebaseState(),head=try await c.repository.rebaseCommit("HEAD").hash
+            owner.close()
+            try require(model.retired && RebaseWindowModel.activeReplayOperations>0,"Retired owner released a noncooperative parent answer")
+            c.answer(1);try await drain()
+            let after=try await c.repository.rebaseState(),afterHead=try await c.repository.rebaseCommit("HEAD").hash
+            try require(after.mainlineDecision==initial.mainlineDecision && afterHead==head && model.error==nil && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Retired answer selected or applied a merge parent")
+            let reopened=try await c.open(),next=reopened.model
+            c.hold(next);next.request("continue");try await wait {!c.answers.isEmpty}
+            let replayBefore=try await c.repository.rebaseReplayEntries()
+            _=try await c.repository.run(["commit","--allow-empty","-m","external while parent pending"])
+            let externalHead=try await c.repository.rebaseCommit("HEAD").hash
+            c.answer(1);try await wait {!next.busy};try await drain()
+            let refused=try await c.repository.rebaseState(),refusedHead=try await c.repository.rebaseCommit("HEAD").hash
+            let replayAfter=try await c.repository.rebaseReplayEntries()
+            try require(refusedHead==externalHead && refused.mainlineDecision?.entryID==after.mainlineDecision?.entryID && refused.mainlineDecision?.parents==after.mainlineDecision?.parents && refused.mainlineDecision?.head==head && next.error != nil && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Changed HEAD accepted a stale mainline answer")
+            try require(replayAfter.map(\.id)==replayBefore.map(\.id) && replayAfter.map(\.mainline)==replayBefore.map(\.mainline),"Stale answer persisted a parent into replay metadata")
+            await c.cleanup()
+        }catch{await c.cleanup();throw error}
+    }
+    @MainActor final class ReachedContext {
+        let root:URL,repository:GitRepository,preferences:UserDefaults,suite:String,editor:URL
+        var ordinary:LogEntry!,empty:LogEntry!,merge:LogEntry!,last:LogEntry!,originalHead=""
+        var controllers=[RebaseWindowController](),answers=[CheckedContinuation<Int?,Never>]()
+        init(_ name:String)throws {
+            root=URL(fileURLWithPath:CommandLine.arguments[1]).appendingPathComponent(name)
+            try FileManager.default.createDirectory(at:root,withIntermediateDirectories:false)
+            repository=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]),libgit2Configuration:.init(enabled:false))
+            suite="TurtleGit.ReachedMainline."+UUID().uuidString;preferences=UserDefaults(suiteName:suite)!
+            preferences.set(false,forKey:"UseLibgit2");preferences.set(false,forKey:"ConfirmKillProcess");preferences.set(false,forKey:"EnableGravatar")
+            editor=URL(fileURLWithPath:CommandLine.arguments[3])
+        }
+        func commit(_ path:String,_ message:String)async throws->LogEntry {
+            try Data((path+"\n").utf8).write(to:root.appendingPathComponent(path));try await repository.stage([path])
+            let messageFile=root.appendingPathComponent(".git/reached-message")
+            try Data(message.utf8).write(to:messageFile)
+            _=try await repository.run(["commit","--allow-empty-message","--cleanup=verbatim","-F",messageFile.path],environmentOverrides:["GIT_AUTHOR_NAME":"Reached "+path,"GIT_AUTHOR_EMAIL":"reached@example.invalid","GIT_AUTHOR_DATE":"2026-10-10T10:00:00+0200"])
+            try FileManager.default.removeItem(at:messageFile);return try await repository.rebaseCommit("HEAD")
+        }
+        func seed()async throws {
+            _=try await repository.run(["init","-b","main"])
+            for(key,value)in [("user.name","Reached QA"),("user.email","reached@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("rebase.updateRefs","false")] {_=try await repository.run(["config",key,value])}
+            let base=try await commit("base.txt","base")
+            _=try await repository.run(["switch","-c","topic"])
+            ordinary=try await commit("ordinary.txt","ordinary first")
+            empty=try await commit("empty.txt","\nBody preserved for empty review\n")
+            _=try await repository.run(["switch","-c","side",base.hash]);_=try await commit("side.txt","side")
+            _=try await repository.run(["switch","topic"])
+            _=try await repository.run(["merge","--no-ff","side","-m","Merge reached after earlier rows"])
+            merge=try await repository.rebaseCommit("HEAD");last=try await commit("last.txt","last")
+            _=try await repository.run(["switch","-c","destination",base.hash]);_=try await commit("destination.txt","destination")
+            originalHead=try await repository.rebaseCommit("HEAD").hash
+        }
+        func open(_ selected:[String]?=nil)async throws->RebaseWindowController {
+            let owner=RebaseWindowController(repository:repository,access:nil,preferences:preferences);controllers.append(owner);owners.append(owner)
+            owner.window?.isReleasedWhenClosed=false;owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.window?.orderFront(nil)
+            owner.model.editorExecutable=editor;owner.model.load(cherryPick:selected)
+            try await wait {!owner.model.busy && (owner.model.plan != nil || owner.model.active)};try await drain()
+            return owner
+        }
+        func hold(_ model:RebaseWindowModel,_ events:((LogEntry,[LogParentChoice])->Void)?=nil) {
+            model.chooseMainline={ [self] commit,choices in events?(commit,choices);return await withCheckedContinuation{answers.append($0)}}
+        }
+        func answer(_ parent:Int?) {guard !answers.isEmpty else{return};answers.removeFirst().resume(returning:parent)}
+        func request(_ model:RebaseWindowModel,_ action:String) {model.request(action);if let question=model.pendingConfirmation{model.answerConfirmation(question,proceed:true)}}
+        func cleanup()async {
+            for owner in controllers {owner.model.retire();owner.close();owner.model.chooseMainline={_,_ in nil};owner.model.confirmEmptyMessageReview={false}}
+            while !answers.isEmpty {answer(nil)}
+            try? await drain()
+            if (try? await repository.rebaseState().active)==true {_=try? await repository.abortRebase()}
+            preferences.removePersistentDomain(forName:suite)
+        }
     }
 }

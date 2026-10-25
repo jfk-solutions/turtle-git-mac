@@ -93,14 +93,16 @@ Ordinary selectable Log commands remain available, as in source `SetSelect(true)
 The source insertion order, repeated occurrence IDs, Pick defaults and incomplete-
 reference draft behavior are retained.
 
-Cherry Pick merge-parent preparation shares the cancellable read ownership.
-Parent metadata uses the same token as its native question. Cancel settles an
+At this October 16 checkpoint, Cherry Pick merge-parent preparation shared the
+cancellable read ownership. Parent metadata used the same token as its native question. Cancel settles an
 owned question once; forced closure cancels reads and settles the continuation.
 The captured plan receives mainlines only after every choice succeeds and the
 initiating plan is still current. Cancel on a later merge therefore discards the
 whole tentative set of choices. Invalid or stale replies cannot start replay.
-This keeps the existing native preflight adaptation; upstream asks just in time
-inside `RebaseDlg.cpp` around lines 2115–2135. Upstream Add is
+That checkpoint retained the native preflight adaptation; upstream asks just in
+time inside `RebaseDlg.cpp` around lines 2115–2135. The later
+[reached-parent continuation](REBASE-MAINLINE-PARITY.md) supersedes that preflight
+behavior without changing the historical validation below. Upstream Add is
 `OnBnClickedButtonAdd` around lines 3082–3125.
 
 The Debug build passed. Six focused Core tests passed cumulatively: the initial
@@ -116,3 +118,23 @@ headless reference split-view warnings. Physical
 picker focus/keyboard/VoiceOver and native visual comparisons, full multi-merge
 and hook/editor behavior, signed Finder and App Store execution remain open.
 This is partial family parity, not complete Rebase or application acceptance.
+
+
+## Reached merge-parent continuation — October 25, 2026
+
+The [reached-parent family](REBASE-MAINLINE-PARITY.md) replaces the earlier
+all-parents-before-Start sweep with per-occurrence questions at the actual advanced
+Cherry Pick execution boundary. Earlier rows can execute first; Skip bypasses the
+question, empty-subject review retains its source order, and accepted mainlines
+persist through cancellation/reopening under session/HEAD/replay-file guards.
+All supported parents remain available as a native extension beyond the source's
+first two buttons. Add's independent atomic insertion remains unchanged. The [new checkpoint](qa/rebase-mainline-2026-10-25.json) records cumulative
+focused Core and paired native engine passes; October 16 preparation results
+remain historical.
+
+The same continuation keeps unresolved merge/dependent Squash rows as owned
+physical placeholders until the reached choice is accepted, while native rows
+retain requested actions. Its [documented orphan-Squash boundary](REBASE-MAINLINE-PARITY.md#boundaries-and-validation)
+retains explicit stopped-plan recovery if Skip removes the first retained group
+leader; dependent work is not silently discarded. That boundary remains open after the
+focused validation.

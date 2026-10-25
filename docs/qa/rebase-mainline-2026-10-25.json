@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-25",
+  "status": "focused_core_and_grouped_native_pass_with_recorded_boundary",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Replace eager whole-plan parent preflight with durable per-occurrence reached merge decisions.",
+    "Preserve prior progress across Cancel, close/reopen, Skip and Abort; original empty-subject warning precedes parent selection.",
+    "Fence acceptance to owning session, HEAD, original parents, replay files, plan intent and occurrence; journal selected-parent execution object before continuation.",
+    "Use owned non-applying original-OID drop placeholders for unresolved merge rows and their dependent Squash chains because Git validates the entire todo before executing checkpoints. Restore selected actions atomically, stopping at the next unanswered merge."
+  ],
+  "failed_attempts": [
+    {
+      "log": "rebase-mainline-core-2026-10-25.log",
+      "result": "29 methods; 20 passed, 9 failed; 11 assertion failures including 1 unexpected",
+      "cause": "Initial orchestration omitted TURTLEGIT_REBASE_EDITOR and overlapped Debug preparation, allowing a stale SwiftPM helper; fixtures also had newest-first ordering and duplicate initial-plan mistakes. This setup issue was not the whole production failure.",
+      "sha256": "6c74e963d6a74d724a5ab91f099bf4d8eb529014b2e0bafe0a81d9efe852648f"
+    },
+    {
+      "log": "rebase-mainline-core-repair-2026-10-25.log",
+      "result": "9 affected methods failed with explicit current Debug editor",
+      "cause": "Git rejected pick/edit/squash original merge OIDs while validating the whole todo, before reaching the new checkpoint. Production repair uses owned drop placeholders and deferred dependent Squash actions.",
+      "sha256": "ade18e1c43bee14584f18295edea7049a6e4ec0967c5067c3fb18a21c904fce0"
+    },
+    {
+      "log": "rebase-mainline-native-2026-10-25.log",
+      "result": "System-engine Add receiver timed out waiting for reached parent; bundled case not run",
+      "cause": "Same whole-todo prevalidation blocker. Receiver PID 26256 reaped and independently absent; bounded fixture runtime diagnostics added without removing behavioral assertions.",
+      "sha256": "ed1fc6ae737b71242619656004bcb5fd1f83b28ece128859efb4b69c4fcfb2a1"
+    },
+    {
+      "log": "rebase-mainline-core-final-2026-10-25.log",
+      "result": "15 methods; 14 passed, 1 unexpected failure in 58.180 seconds",
+      "cause": "Production repair passed; cancellation fixture caught only OperationCancellationFailure while the actually cancelled Git child correctly throws GitCommandCancellationFailure. Fixture-only correction asserts exit130, delivered marker and token state while preserving durable/reopen/moved-HEAD assertions."
+    }
+  ],
+  "validation": {
+    "debug": {
+      "result": "pass",
+      "configuration": "arm64 Debug",
+      "log": "rebase-mainline-debug-repair-2026-10-25.log",
+      "editor": "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac",
+      "warnings": "Existing Sendable warnings and installed CoreSimulator version warning; no build failure."
+    },
+    "core": {
+      "result": "cumulative_pass",
+      "methods": 15,
+      "grouped_methods_passed": 14,
+      "grouped_seconds": 58.18,
+      "fixture_only_recheck_methods": 1,
+      "fixture_only_recheck_seconds": 3.672,
+      "scope": [
+        "RebaseMainlineTests (9 methods)",
+        "RebasePendingActionTests: NewPendingSquash, CherryPickRepeatedOccurrence, SkippedCherryMerge, UnknownExternalTodoCommand",
+        "RebaseProgressTests: RepeatedCherryPickOccurrences",
+        "RebaseTests: CherryPickBothMergeMainlinesMatchGitAndKeepOriginalMetadataOnRecovery"
+      ],
+      "explicit_current_debug_editor": true,
+      "full_core_suite_rerun": false
+    },
+    "native": {
+      "result": "pass",
+      "cases": [
+        "add"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "pairs": 2,
+      "receiver_pids": [
+        28586,
+        33668
+      ],
+      "reaped_and_independently_absent": true,
+      "scope": "Existing offscreen owned Add/draft/picker receiver plus actual reached parent timing, earlier ordinary/empty-subject progress, Cancel, close/reopen, original occurrence IDs, repeated Add/Skip, stale answer, changed anchored HEAD, parent default Cancel and real sheet detachment. No physical desktop acceptance."
+    },
+    "localizations": {
+      "result": "pass",
+      "languages": 38,
+      "keys": 1322,
+      "mode": "check"
+    },
+    "coverage": {
+      "result": "pass",
+      "scope": "Regenerated pinned dialog/resource ledger; no complete-parity certification",
+      "log_sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    }
+  },
+  "limits": [
+    "Installed signed universal build 9 does not contain this newer source batch.",
+    "First retained leader Skip can expose an orphan Squash: native retains an explicit stopped-plan/action-edit recovery boundary. Upstream uses --no-commit and later non-amend commit with different accumulator/metadata semantics; no parity claim for this boundary.",
+    "No current hosted full CI, physical parent dialog/Finder, Intel/minimum-version runtime, arbitrary external replay scripts or complete Rebase parity is established."
+  ],
+  "logs": {
+    "rebase-mainline-core-2026-10-25.log": "6c74e963d6a74d724a5ab91f099bf4d8eb529014b2e0bafe0a81d9efe852648f",
+    "rebase-mainline-core-repair-2026-10-25.log": "ade18e1c43bee14584f18295edea7049a6e4ec0967c5067c3fb18a21c904fce0",
+    "rebase-mainline-native-2026-10-25.log": "ed1fc6ae737b71242619656004bcb5fd1f83b28ece128859efb4b69c4fcfb2a1",
+    "rebase-mainline-core-final-2026-10-25.log": "5861ab053c4da1d65d9d9e57a781779017553cf686ac9a3b0bbcbce9ffd6d6bc",
+    "rebase-mainline-debug-repair-2026-10-25.log": "84865e903fbb3e3ad4113ae4669fa0e39004af2094b4ddd8a703d00aec6c32f2",
+    "rebase-mainline-native-repair-2026-10-25.log": "9997d1e55c010399eb0f57c03e283afc32b414cd326e8ae6b6d80aeac954780d",
+    "rebase-mainline-cancellation-recheck-2026-10-25.log": "0aa77418d69f122e074c7f14e2f9d7a0ba68dbd01e766070056a86dab2a16c5a",
+    "rebase-mainline-localizations-2026-10-25.log": "6fb599f853ddd1b278571cf2bc817ab388a534168de5328b560c3e37c942b9cc"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "280b587b3a3b8bee9cadec394697340fb68768569e41592882753c99d4d2134d",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "6703106b72b4d8ba20b051e9842db70e043e7b2a5b6ee22d5704dbd88bd67f11",
+    "Tests/TurtleGitCoreTests/RebaseMainlineTests.swift": "59b34151d0e917ae363940853e11d8d7d2fb92f08ad3ca54fbbfa1bb98a6eca4",
+    "Tests/TurtleGitCoreTests/RebasePendingActionTests.swift": "0bf309822423e8267b1b8216365854cb959714d218bb5bea1dc0b533e57d6103",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "025d933996a975170c06c75363947ad36458b52b8c4669ef4a43a35d8378139c",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "f7c188ec7bb5e6db6dda0f28c2014cf6108898716185d82f80afbf6a778965fe"
+  },
+  "completed_date": "2026-10-26"
+}

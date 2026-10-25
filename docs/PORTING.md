@@ -35,6 +35,18 @@ macOS pass or App Store distribution acceptance.
 
 ## Latest source batches
 
+The connected [advanced Cherry Pick parent-choice family](REBASE-MAINLINE-PARITY.md)
+replaces whole-plan merge-parent questions with durable decisions at each reached
+merge occurrence. Earlier ordinary commits and empty-subject reviews run first;
+Cancel preserves replay progress, and Continue/reopen, Skip, Abort and pending-row
+edits retain their session/occurrence ownership. Parent acceptance is fenced to
+the captured HEAD, original parents and replay files. This source is newer than
+installed build 9. Its [grouped checkpoint](qa/rebase-mainline-2026-10-25.json)
+records 15 affected Core methods passing cumulatively, a Debug build and both
+native engine cases passing. First-leader Skip exposing an orphan Squash remains
+an explicit stopped-plan boundary; full source parity is not claimed.
+
+
 The connected [Finder restart-cache recovery](qa/finder-warm-recovery-2026-10-25.json)
 validates optional saved subtrees before live admission and rebuilds malformed
 archives from fresh, validated status. A typed successful recovery notice allows

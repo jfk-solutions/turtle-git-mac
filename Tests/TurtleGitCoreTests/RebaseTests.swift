@@ -1082,7 +1082,12 @@ final class RebaseTests: XCTestCase {
             let expectedAuthor = try await repo.run(["show", "-s", "--format=%an%x00%ae%x00%aI%x00%B", "HEAD"]).stdout
             _ = try await repo.run(["checkout", "-b", "actual", merge.parents[mainline - 1]])
             var plan = try await repo.cherryPickPlan(revisions: [merge.hash])
-            do { _ = try await repo.startRebase(plan, editorExecutable: editor); XCTFail("Merge parent must be explicit") } catch RebaseFailure.mainline {}
+            let reached=try await repo.startRebase(plan,editorExecutable:editor)
+            let decision=try XCTUnwrap(reached.state.mainlineDecision,reached.output)
+            XCTAssertEqual(decision.commit,merge.hash);XCTAssertEqual(decision.parents,merge.parents)
+            let untouched=try await repo.rebaseCommit("HEAD")
+            XCTAssertEqual(untouched.hash,plan.branchHash,"Missing mainline must stop before applying its merge")
+            _ = try await repo.abortRebase()
             plan.entries[0].mainline = mainline; plan.entries[0].action = .edit
             let stopped = try await repo.startRebase(plan, editorExecutable: editor)
             XCTAssertEqual(stopped.exitCode, 0, stopped.output); XCTAssertTrue(stopped.state.active); XCTAssertTrue(stopped.state.isCherryPick)

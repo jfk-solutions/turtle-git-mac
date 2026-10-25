@@ -612,8 +612,10 @@ verification and remaining physical/visual/signed acceptance.
 ## Connected Add and Cherry Pick preparation — October 16, 2026
 
 The [Add/mainline family](REBASE-ADD-PARITY.md#owned-add-and-merge-parent-preparation--october-16-2026)
-now owns multiple-selection Log, cancellable atomic insertion into a captured plan
-or incomplete-reference draft, retry and merge-parent reads/questions together.
+at that checkpoint owned multiple-selection Log, cancellable atomic insertion
+into a captured plan or incomplete-reference draft, retry and preflight merge-parent
+reads/questions together. The [reached-parent continuation](REBASE-MAINLINE-PARITY.md)
+supersedes the parent-question timing; the dated Add evidence remains historical.
 Late results after Cancel, changed inputs or closure cannot publish or start replay.
 Preparation retains its repository grant and Quit ownership until worker drain.
 Physical, complete source and signed acceptance remain open.
@@ -728,3 +730,25 @@ The [completion export/mail family](REBASE-COMPLETION-MAIL-PARITY.md) connects t
 after-Fetch Send Mail action directly to repository patch export and the existing
 composer, preserving source defaults and ownership through drain. Its validation
 and remaining limitations are recorded separately.
+
+
+## Reached Cherry Pick merge-parent decisions — October 25, 2026
+
+[Reached-parent selection](REBASE-MAINLINE-PARITY.md) moves missing-mainline
+questions from Start preparation to each actual advanced Cherry Pick merge
+occurrence, after its empty-subject warning and before its patch applies. The
+owned question retains every supported parent and Cancel. Durable acceptance
+captures occurrence, original parents, requested action, session, HEAD and replay
+files; repeated hashes retain independent decisions. Cancel/reopen, Skip,
+message/Squash recovery, late-answer retirement and logical progress follow that
+checkpoint. Existing explicit valid mainlines and Add insertion remain supported.
+The [new checkpoint](qa/rebase-mainline-2026-10-25.json) records cumulative focused
+Core and paired native engine passes, including the actual parser and fixture
+repairs. It does not certify whole Rebase or application parity.
+
+The same continuation keeps unresolved merge/dependent Squash rows as owned
+physical placeholders until the reached choice is accepted, while native rows
+retain requested actions. Its [documented orphan-Squash boundary](REBASE-MAINLINE-PARITY.md#boundaries-and-validation)
+retains explicit stopped-plan recovery if Skip removes the first retained group
+leader; dependent work is not silently discarded. That boundary remains open after the
+focused validation.
