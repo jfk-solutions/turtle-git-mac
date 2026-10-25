@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-25",
+  "source_commit": "e832798c",
+  "build": 9,
+  "version": "0.1.0",
+  "status": "signed_universal_installation_verified",
+  "installed_path": "/Applications/TurtleGit for Mac.app",
+  "source_input_count": 1509,
+  "source_input_sha256": "b080cd8348861b112e5bb9f39a23af624572b629db4adc240bbb95d007cc3490",
+  "application_sha256": "78cdb527973e60be3ef8becfe6faa52e957189e59b1f14bfe84690533e2489d4",
+  "inventory_members": 6362,
+  "universal_components": 8,
+  "deep_strict_signature": "pass",
+  "source_staged_installed_inventory": "equal",
+  "previous_build8_preserved": true,
+  "installed_finder_extension_uuid": "ECD616E8-B4B7-4C79-B93D-E1E1F4CA4503",
+  "installed_finder_extension_elected": true,
+  "finder_restarted": false,
+  "global_cache_reset": false,
+  "application_running_after_install": false,
+  "focused_validation": "finder-warm-recovery-2026-10-25.json",
+  "limits": [
+    "No new physical Finder or actual user-cache recovery claim; reproduced cases use private native fixtures.",
+    "No full hosted CI or App Store distribution/submission acceptance."
+  ]
+}

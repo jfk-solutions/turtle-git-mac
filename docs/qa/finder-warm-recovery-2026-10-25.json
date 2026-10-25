@@ -44,7 +44,7 @@
   },
   "limits": [
     "The reported user repository/archive was not supplied or inspected; reproduced mechanism is not proof of that specific archive content.",
-    "Installed build 8 does not contain this source repair. No new physical Finder, signed-installation or hosted CI acceptance is claimed."
+    "Signed universal build 9 contains this repair; signature, full inventory and installed Finder election are verified separately. No new physical Finder or hosted CI acceptance is claimed."
   ],
   "validation": {
     "core": {
@@ -93,5 +93,6 @@
     "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "74be9ee93f823d1173c0576e38c70adf002af253366156035a44affb5a9b0317",
     "Tests/TurtleGitCoreTests/FinderCachePersistenceTests.swift": "82ba839d852be4fa08139b202715e4c273c62111badbd1e4a8d03ed1062ef55a",
     "docs/qa/finder-registration-native-2026-10-25.swift": "9487e37476d2820324002bbd7004248222a95e70708e704441bd08a04c45dcf3"
-  }
+  },
+  "signed_installation": "signed-consolidation-build9-2026-10-25.json"
 }

@@ -2,23 +2,29 @@
 
 ## Current installed checkpoint
 
-[Build 8](qa/signed-consolidation-build8-2026-10-25.json) is the recoverably installed Apple Development build for Intel and Apple
-silicon. Its 1,509 clean measured distribution inputs match commit `f45bc13c`;
-strict signatures, all eight universal components and the 6,362-member
-source/staged/installed inventories passed. Build 7 remains preserved for recovery.
-The installed application contains the standalone authorization, stored-decision
-and pane-header corrections described below. The actual signed initial file
-chooser was cancelled; its owned process exited 1 without an editor or misleading
-permission-renewal error. No new image or mail physical acceptance is claimed.
+[Build 9](qa/signed-consolidation-build9-2026-10-25.json) is the recoverably installed
+Apple Development build for Intel and Apple silicon. Its 1,509 clean measured
+distribution inputs match commit `e832798c`; strict signatures, all eight universal
+components and the 6,362-member source/staged/installed inventories passed.
+Build 8 remains preserved for recovery. The installed app includes the connected
+Finder restart-cache recovery below, in addition to the standalone authorization,
+stored-decision and pane-header corrections. No user cache was reset.
+
+The [build 8 checkpoint](qa/signed-consolidation-build8-2026-10-25.json) retains the
+actual signed initial file-chooser cancellation: owned process exit 1, no editor
+or misleading permission-renewal error, and restored preferences. No new build 9
+physical Finder, image or mail acceptance is claimed. All native recovery
+receivers were independently absent, and installation left the app closed.
 
 The [Finder registration and compact error checkpoint](qa/finder-directory-registration-errors-2026-10-25.json)
 retains evidence for actual permission, canonical publication, visible badges and
 repository commands with nested untracked/ignored checkouts. The compact error
-controller is included in build 8: short content is 148 points high, and long
+controller is included in build 9: short content is 148 points high, and long
 selectable details scroll. The later screenshot's build is unidentified.
 A separate restart-cache defect has now been reproduced: invalid decoded warm
 status could enter live contributions and block a fresh Add. Its connected recovery
-batch is newer than installed build 8; installed recovery acceptance remains open.
+batch is included in installed build 9; physical acceptance on the reported
+repository remains unverified.
 
 The completed hosted macOS run at `c47640a3` failed during test compilation
 on Swift 6.1.2, before behavioral tests ran. The subsequent typed gradient-assertion
@@ -52,7 +58,7 @@ Core methods, two retained hook engine cases and the native Saved Data case
 passing. The [pane-header acceptance correction](qa/merge-pane-acceptance-corrections-2026-10-25.json)
 records six final native scenario/engine pairs passing after repairing the real
 load-title overwrite and correcting the accessibility oracle. These corrections
-are included in installed build 8; their focused local checks do not establish
+are included in installed build 9; their focused local checks do not establish
 physical acceptance of every workflow or full hosted acceptance.
 
 The [patch export-to-mail family](PATCH-EXPORT-DELIVERY-PARITY.md) replaces lossy
