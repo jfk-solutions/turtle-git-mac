@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The current connected parity batch covers [Commit category checking](COMMIT-CHECK-LINKS-PARITY.md)
+and [Settings context/page handoffs](SETTINGS-CONTEXT-HANDOFF-PARITY.md). Source
+comparison confirmed the existing Commit checkbox layout and graph-first Log
+presentation, while identifying actual category-mask and asynchronous Settings
+request loss. Its [grouped checkpoint](qa/commit-settings-source-parity-2026-10-25.json)
+records 13 focused Core methods, both affected bundled-Git filter cases and 16
+native case/engine pairs passing after recorded repairs. A reproducible Commit
+table-reentrancy warning remains open; complete dialog/application parity,
+current full hosted CI and a consolidated signed deployment remain unproven.
+
 The [Browser Git filename family](REPOSITORY-BROWSER-NAMESPACE-PARITY.md) preserves
 raw tree identities instead of rejecting a complete directory because one name
 is not UTF-8. It connects tree navigation and refresh, read-only stored-blob

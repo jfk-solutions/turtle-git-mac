@@ -1,0 +1,524 @@
+{
+  "date": "2026-10-25",
+  "status": "bounded-connected-family-checkpoint-passed-with-recorded-repairs-and-open-AppKit-warning",
+  "base_commit": "e441c65a85c0c4b1e8bb6a18e120420a57839e8a",
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/TortoiseProc/CommitDlg.cpp:2504-2527 OnCheck nine masks and Shift/None inversion",
+      "src/TortoiseProc/CommitDlg.cpp:3068-3079 source availability counters",
+      "src/Git/GitStatusListCtrl.h:60-93 action masks, Added includes Copy, EVERYTHING includes SUBMODULES",
+      "src/Git/GitStatusListCtrl.cpp:1129-1160 shown counters distinct from selection mask",
+      "src/Git/GitStatusListCtrl.cpp:3287-3323 Check and DoNotAutoselectSubmodules exception",
+      "src/Git/TGitPath.cpp:59-80 and1322 onward raw action union/rename A-D suppression",
+      "src/TortoiseProc/Settings/Settings.cpp repository page construction and initial-page selection"
+    ],
+    "native_adaptations": [
+      "One application-owned Settings property sheet queues context/page/noFetch while an exact previous owner drains; independent Windows processes do not share this singleton.",
+      "Raw status masks and source availability-count differences are intentionally distinct from aggregate native display status."
+    ]
+  },
+  "implementation": {
+    "scope": [
+      "Nine Commit links and menu commands share category availability, raw action masks, Copy/Added membership, Modified/rename/conflict distinction and byte-exact submodule identities.",
+      "Submodule suppression applies only to checking masks without SHOWSUBMODULES; All, reverseNone and explicitSubmodules override, while unchecking always includes matching rows.",
+      "Checkbox vs actual stage/unstage behavior, policy-bearing file-list receipt, stale/blocked/Quit/sheet/retired ownership.",
+      "Settings accepted scope/page/noFetch requests survive asynchronous close and can be superseded without mutating terminal pages.",
+      "Dirty/busy refusal, normal Cancel/OK, forcedclose, exact window/root/workspace callbacks, replacement and clean-Quit retirement witness.",
+      "Source-faithful hosted filter fixture split, retaining original assertions and adding deterministic real Git racy-process failure/retry without production flags/clock/filter overrides."
+    ],
+    "production": [
+      {
+        "path": "Sources/TurtleGitCore/CommitCheckPolicy.swift",
+        "sha256": "650b9166f6662278787925d365e8361c8f28ea84774adbe54325f4b09d047d5a"
+      },
+      {
+        "path": "Sources/TurtleGitMac/CommitWindow.swift",
+        "sha256": "d60e150324e3166415cc643c299068604d9402312aca268761e9d13022ce276e"
+      },
+      {
+        "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+        "sha256": "7b8e923050e142f12054a2aa23dbccf2cbd679626c57016332a832fa31a8687b"
+      },
+      {
+        "path": "Sources/TurtleGitMac/RepositoryModel.swift",
+        "sha256": "aa2583e47d7ed94a998218d6a78bf818e46f4d2821a52014a8fa5b059a319c9c"
+      },
+      {
+        "path": "TurtleGitMac.xcodeproj/project.pbxproj",
+        "sha256": "74c6d01e15ca91a89c64688e58982567d29cb56bdf825c3a1476137f29cec35d"
+      }
+    ],
+    "checks": [
+      {
+        "path": "Tests/TurtleGitCoreTests/CommitCheckPolicyTests.swift",
+        "sha256": "8b4805b117994e0b55b496147b66c8575b27d1d114c3738280ac4faf7bfbdfd0"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/LibGit2CommitIndexTests.swift",
+        "sha256": "82adb523e2a93670271bdfd0a04a30067485d5641e3469cacbd5f629aa4da5b7"
+      },
+      {
+        "path": "docs/qa/commit-check-categories-native-2026-10-25.swift",
+        "sha256": "75b3f83304c6493958e48624b9569ab3b41b2dd7f556ace252d94872e47ad453"
+      },
+      {
+        "path": "scripts/test-commit-check-categories.py",
+        "sha256": "91117ed01395c3513d2eb119310e10523abbed25e6da391700ca6cf0bd10462a"
+      },
+      {
+        "path": "docs/qa/settings-context-native-2026-10-25.swift",
+        "sha256": "856b14225aee6e0e8e19a51a6e7c5355820c4d803c5a5d392fd05aeb7b8e8e94"
+      },
+      {
+        "path": "scripts/test-settings-context.py",
+        "sha256": "b36f1a9b99cf44ad5d2bc5c678b0f885d3b432e788aacf625b7f6cee7486e5c9"
+      }
+    ]
+  },
+  "validation": {
+    "generation": {
+      "xcodegen_exit_code": 0,
+      "localizations_write": {
+        "session": 34815,
+        "exit_code": 0,
+        "languages": 38,
+        "keys": 1320
+      },
+      "help_write": {
+        "exit_code": 0,
+        "documents": 58,
+        "topics": 51,
+        "files": 80,
+        "bytes": 3870663
+      },
+      "scope": "User-guide changes generated before app build; one new Core file registered. No translation resource content changed."
+    },
+    "diagnostic_exception": {
+      "reason": "Git filter stat/racy uncertainty directly blocked deciding between production fix and source-compatible fixture correction. Only the affected existing method was run before final fixture freeze.",
+      "production_changed": false,
+      "attempts": [
+        {
+          "git": "/usr/bin/git",
+          "session": 6250,
+          "exit_code": 0,
+          "passed_methods": 1,
+          "log": {
+            "path": "build/qa/commit-index-stat-system-2026-10-25.log",
+            "sha256": "6ab46d3e711ce247dadaa62dfbdbf3d911983af9fe5482347c04c0c521f9cbe1"
+          }
+        },
+        {
+          "git": "build/git-runtime/Git/bin/git",
+          "session": 18588,
+          "exit_code": 0,
+          "passed_methods": 1,
+          "log": {
+            "path": "build/qa/commit-index-stat-bundled-2026-10-25.log",
+            "sha256": "22ba2b3409203a0553a785535608d3342d7e1500b837063d21cd69d6851f6c01"
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "path": "build/qa/commit-index-stat-system-2026-10-25/1792892367167494000-2578.debug",
+          "sha256": "c71acff926b2f0c672463518edaa530f236f189f1d89557c6938fa854335067c"
+        },
+        {
+          "path": "build/qa/commit-index-stat-system-2026-10-25/1792892367167494000-2578.index",
+          "sha256": "c6cd0efaa5a0f350c1d62a75cac149ed6c68e46d8856335225e642605cee4420"
+        },
+        {
+          "path": "build/qa/commit-index-stat-system-2026-10-25/1792892367167494000-2578.json",
+          "sha256": "dded72665cfb7a79518957be1bad495d90bcc04e73d4f21334669787df89fca4"
+        },
+        {
+          "path": "build/qa/commit-index-stat-bundled-2026-10-25/1792892379333776000-2689.debug",
+          "sha256": "88231822315b499f0a47f91c78e1727ce8fe8ad9e90f455f37e16da51c7343e5"
+        },
+        {
+          "path": "build/qa/commit-index-stat-bundled-2026-10-25/1792892379333776000-2689.index",
+          "sha256": "8d23a861dc61b1bfadbcb80084601e4390687ce59612468fe308ca830dc094a6"
+        },
+        {
+          "path": "build/qa/commit-index-stat-bundled-2026-10-25/1792892379333776000-2689.json",
+          "sha256": "1d734c0c5d2ff7027de65baa6a93aef0d7cc8360a70fcb4f033c9fa4bb3f1569"
+        }
+      ],
+      "finding": "Both captured attempts were nonracy, with correct sizes/stat caches and next-second private indexmtime. dev0 vs actualst_dev alone did not prevent either Git from passing. Source ordinary CLI refresh can legitimately consult filter.process; original test poisoned it while depending on scheduling. Optional diagnostic recorder was removed before final test freeze."
+    },
+    "core": {
+      "system_group": {
+        "session": 77834,
+        "exit_code": 0,
+        "filter": "CommitCheckPolicyTests|LibGit2CommitIndexTests",
+        "passed_methods": [
+          {
+            "class": "CommitCheckPolicyTests",
+            "method": "testAllNineSourceAvailabilityRulesAndEmptyAllNone"
+          },
+          {
+            "class": "CommitCheckPolicyTests",
+            "method": "testDoNotAutoselectSkipsCategoryGitlinksButExplicitMasksOverride"
+          },
+          {
+            "class": "CommitCheckPolicyTests",
+            "method": "testExactSubmoduleMembershipAndSelectionIdentity"
+          },
+          {
+            "class": "CommitCheckPolicyTests",
+            "method": "testRawActionUnionKeepsCopyRenameConflictAndTypeChangeDistinct"
+          },
+          {
+            "class": "CommitCheckPolicyTests",
+            "method": "testRenameMergeSuppressesCompanionAddDeleteButPreservesModified"
+          },
+          {
+            "class": "CommitCheckPolicyTests",
+            "method": "testSourceShownCountsAndCheckMasksAreDeliberatelyDifferent"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testActualPreparationCancellationDrainsFilterAndRetainsRealIndexCheckboxRows"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testCheckboxRestorationUsesLibraryForUncheckedAddAndPreservesSourceResetAndHookFailurePolicy"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testCheckedModesRenameDeletionRetainedCopyAndExactUnicodePaths"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testRacyPreparedSelectionPropagatesOrdinaryGitProcessFailureAndRetainsRetryState"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testSelectedCleanRunsOnceForUntrackedLiteralBinaryAndRetainsUnselectedIndexAndRawStaging"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testSelectedRequiredFailuresAndCapturedBackendKeepRealIndexAndHeadExact"
+          },
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testUnbornParentAmendMessageOnlyAndPendingMergeUseSelectedPreparedTree"
+          }
+        ],
+        "unique_methods": 13,
+        "duration_seconds": 17.081,
+        "log": {
+          "path": "build/qa/commit-settings-parity-core-2026-10-25.log",
+          "sha256": "332e6d5bb2a5ef621e7f762263a2183e135eea442c44f2cb58a685bb30fed5ce"
+        }
+      },
+      "bundled_initial": {
+        "session": 58814,
+        "exit_code": 1,
+        "filter": "LibGit2CommitIndexTests/(testSelectedCleanRunsOnceForUntrackedLiteralBinaryAndRetainsUnselectedIndexAndRawStaging|testRacyPreparedSelectionPropagatesOrdinaryGitProcessFailureAndRetainsRetryState)",
+        "passed_methods": [
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testSelectedCleanRunsOnceForUntrackedLiteralBinaryAndRetainsUnselectedIndexAndRawStaging"
+          }
+        ],
+        "failure": "New racy test demanded Apple Git diagnostic wording; bundled Git returned the same code128 with precise subprocess greeting/initialization diagnostics. All other state assertions passed.",
+        "log": {
+          "path": "build/qa/commit-index-boundaries-bundled-2026-10-25.log",
+          "sha256": "3b8510cd1fd787cd7393d67e716bc3ccad153a4e846a0f55fccadb7a2f2108d1"
+        }
+      },
+      "bundled_affected_repair": {
+        "session": 50158,
+        "exit_code": 0,
+        "passed_methods": [
+          {
+            "class": "LibGit2CommitIndexTests",
+            "method": "testRacyPreparedSelectionPropagatesOrdinaryGitProcessFailureAndRetainsRetryState"
+          }
+        ],
+        "repair": "Accepted precise configured-process failure variants while retaining code128/process identity and all repository-state assertions; repeated only this affected bundled method.",
+        "log": {
+          "path": "build/qa/commit-index-racy-bundled-repair-2026-10-25.log",
+          "sha256": "7e3413159db6f3d74d37ef3fea504c5950cffab95c76f5a20bf47b487cfc8258"
+        }
+      },
+      "cumulative_scope": "13 distinct system methods and both distinct affected bundled method/engine pairs pass; no complete Core suite repeated."
+    },
+    "debug_attempts": [
+      {
+        "session": 1917,
+        "exit_code": 0,
+        "log": {
+          "path": "build/qa/commit-settings-parity-debug-2026-10-25.log",
+          "sha256": "7df00e8ecf13c4ce3d77b252b374c0898d654398dcbc0ee5f7dd147fc0479d87"
+        },
+        "generic_exit_zero_diagnostics": 33,
+        "scope": "Initial complete connected implementation build; subsequent native check found real None optional-enum routing error."
+      },
+      {
+        "session": 50947,
+        "exit_code": 0,
+        "log": {
+          "path": "build/qa/commit-settings-parity-debug-repair-2026-10-25.log",
+          "sha256": "3df20d9fde6bf93057119bcaade0b94d126db57ae6cbaf70c173d6925fddb643"
+        },
+        "generic_exit_zero_diagnostics": 2,
+        "scope": "Affected CommitWindow one-line explicit CommitCheckCategory.none routing repair; Settings/Core unchanged and not rerun."
+      }
+    ],
+    "native_commit_attempts": [
+      {
+        "session": 84253,
+        "exit_code": 1,
+        "cases_started": 0,
+        "log": {
+          "path": "build/qa/commit-check-categories-native-2026-10-25.log",
+          "sha256": "e0fe11ee68f129630fba28659e7a6d9650b6e7e5824703734cae2244bffb860e"
+        },
+        "failure": "Fixture attempted internal Core memberwise StatusEntry initializer and implicit async sheet overload; repaired with public NUL status parser and explicit completionHandler:nil, closed detached child."
+      },
+      {
+        "session": 95938,
+        "exit_code": 1,
+        "reaped_receivers": [
+          4369
+        ],
+        "log": {
+          "path": "build/qa/commit-check-categories-native-repair-2026-10-25.log",
+          "sha256": "960c5e75fc23e8c426294fe827229a996a93a8573fb8c91fb350dd76ce612656"
+        },
+        "failure": "First categories case found disabled None because optional-return .none meant nil. Production arm made explicit; fixture gained exact actual-table projection readiness and failure-state diagnostics."
+      },
+      {
+        "session": 56729,
+        "exit_code": 0,
+        "cases": [
+          {
+            "git": "/usr/bin/git",
+            "case": "categories",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "submodules",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "staging",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "categories",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "submodules",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "staging",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "reaped_receivers": [
+          4714,
+          4880,
+          5013,
+          5243,
+          5376,
+          5541,
+          5673,
+          5901
+        ],
+        "log": {
+          "path": "build/qa/commit-check-categories-native-final-2026-10-25.log",
+          "sha256": "c6d5d66dc9b9442ec0566b08bcff9efd484b48151c8f5b2dbe5f43af655f3154"
+        },
+        "warning_count": 2
+      }
+    ],
+    "native_settings": {
+      "session": 19886,
+      "exit_code": 0,
+      "cases": [
+        {
+          "case": "scope",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "scope",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "refusal",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "refusal",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "terminal",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "terminal",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "ownership",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "ownership",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "reaped_receivers": [
+        3877,
+        3921,
+        3955,
+        3996,
+        4036,
+        4087,
+        4162,
+        4225
+      ],
+      "log": {
+        "path": "build/qa/settings-context-native-2026-10-25.log",
+        "sha256": "fb11bca903a7db42006bad2dea73b27851ab45c191f5bb81c883cb0c0cd26da6"
+      },
+      "input_scope": "Same SettingsNavigation, RepositoryModel and Core as final candidate. Eight passing pairs were retained after later Commit-only routing repair; this is not an assertion that the entire final app was rechecked."
+    },
+    "cleanup": {
+      "remaining_owned_receivers_or_debug_app": [],
+      "unrelated_apps_or_finder_terminated": false,
+      "protected_human_work_preserved": [
+        {
+          "path": "scripts/test-native-reference-batch.py",
+          "sha256": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+        },
+        {
+          "path": "docs/qa/reflog-capture-native-2026-10-13.swift",
+          "sha256": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+        }
+      ],
+      "scope": "Private repositories, configs/HOME/preferences and exact helper cleanup; offscreen/alpha-zero windows, unique/native application menu fixtures. All final16 receivers and failed-case receiver were reaped."
+    },
+    "documentation": {
+      "coverage_reconciliation": {
+        "exit_code": 0,
+        "dialogs": 130,
+        "partial_family_reviews": 120,
+        "pending_family_reviews": 10,
+        "pending_controls": 85,
+        "certified_complete": 0,
+        "scope": "Nine existing Commit mappings and two family source references updated without altering completion counts."
+      },
+      "localizations_check": {
+        "session": 58308,
+        "exit_code": 0,
+        "languages": 38,
+        "keys": 1320
+      },
+      "help_check": {
+        "exit_code": 0,
+        "documents": 58,
+        "topics": 51,
+        "files": 80,
+        "bytes": 3870663,
+        "scope": "Generated included DIALOG-GUIDE before build; checked unchanged generated book after documentation freeze."
+      },
+      "site": {
+        "session": 16490,
+        "exit_code": 0,
+        "documents": 456,
+        "unresolved_fragments": [],
+        "log": {
+          "path": "build/qa/commit-settings-parity-site-2026-10-25.log",
+          "sha256": "8de19c503cb28ce6be834f9584547c98fe1ca51b4cfd62448a18d09fe2b22efb"
+        }
+      },
+      "whitespace_check": "git diff --check passed"
+    }
+  },
+  "warning": {
+    "text": "Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.",
+    "status": "open-reproducible-in-both-Commit-category-cases",
+    "exact_origin_proven": false,
+    "bounded_review": "Previously repaired shared decorator callbacks no longer synchronously query cells/change hierarchy. Actual-table projection readiness did not remove warning; cannot classify it as fixture-only. No additional speculative source edit or expanded passing test set.",
+    "next_action": "Capture AppKit warning stack for this exact category workload before changing Commit/SwiftUI/native-list projection or selection ownership."
+  },
+  "hosted_ci": {
+    "observed_old_run": 40144518697,
+    "job": 121026295722,
+    "status": "completed",
+    "conclusion": "failure",
+    "methods": 2840,
+    "skipped": 2,
+    "unexpected_failures": 3,
+    "failures": [
+      "Two HistoryInspection stale fixtures repaired previously in bdd482b3; not rerun here.",
+      "LibGit2CommitIndexTests.testSelectedCleanRunsOnceForUntrackedLiteralBinaryAndRetainsUnselectedIndexAndRawStaging timing-dependent poisoned-process fixture addressed in this batch."
+    ],
+    "observed_newer_run": 40149645648,
+    "newer_job": 121041252883,
+    "newer_status": "in_progress",
+    "newer_observed_step": "Restore exact PuTTY key converter",
+    "latest_browser_run": 40150910541,
+    "latest_browser_status": "pending",
+    "latest_browser_pages_run": 40150910550,
+    "latest_browser_pages_conclusion": "success",
+    "scope": "Observed prior revisions; no complete current hosted pass claimed."
+  },
+  "distribution": {
+    "installed_main_sha256": "db75298fd5d10f655e0f9ac4ae90a4e2015e988ef80803e29ca2c620f2b6e5ba",
+    "installed_checkpoint": "Earlier bdd482b3-equivalent signed viewer repair. This batch and prior inaccessible/Browser changes have not been signed/installed.",
+    "signed_or_appstore_build_run": false
+  },
+  "remaining": [
+    "Reproducible AppKit reentrancy warning needs actual stack-based diagnosis.",
+    "Physical Shift/link/menu/keyboard input, VoiceOver, multi-display layout and signed configuration/repository grants.",
+    "Whole Commit/Settings/Log visual and behavioral parity, current full hosted integration, consolidated signed deployment and App Store distribution."
+  ]
+}

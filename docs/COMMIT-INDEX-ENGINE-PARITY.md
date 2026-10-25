@@ -40,6 +40,12 @@ Ordinary status preflight still uses Git and can itself consult configured proce
 filters for modified tracked files; this family does not disable a repository's
 filter configuration to conceal that boundary.
 
+Ordinary Git commit also refreshes the prepared index. Stat-racy entries can
+require a content check through Git's configured process filter. The source
+one-shot preparation contract therefore does not promise that Git or user hooks
+will never run another filter. Native code does not hide this using
+assume-unchanged/skip-worktree flags, future index timestamps or filter overrides.
+
 Git creates the commit against the prepared index without `--only` or another
 working-file add. A separate copy reconciles the actual index by object metadata,
 so clean filters do not run again just to publish selected entries. Exact Unicode
@@ -62,6 +68,19 @@ completed commits or branch creation are not rolled back. Cancellation waits for
 actual clean workers and their descendants before private files/grants retire.
 
 ## Evidence and remaining work
+
+The October 25 connected Commit/Settings checkpoint also addresses a hosted
+fixture that deliberately poisoned `filter.process` while assuming nonracy file
+timestamps. Its successful one-shot case now sets explicit old input mtimes and
+retains every existing assertion. A separate real future-mtime case exercises
+ordinary Git's process refusal, retained reconciliation state and successful
+retry after the actual process configuration is repaired. This changes the
+fixture's scheduling assumption rather than ordinary Git or hook semantics.
+The [grouped result](qa/commit-settings-source-parity-2026-10-25.json) records all
+seven index-engine methods passing with the six category-policy methods. Both
+affected filter methods pass with bundled Git cumulatively after retaining the
+successful preparation case and repeating only the failure case's precise
+Git-version diagnostic assertion. The complete Core suite was not repeated.
 
 The final universal helper/Debug checks, 32 distinct focused Core methods across
 the initial and affected repair runs, and the Commit/Blame native groups with

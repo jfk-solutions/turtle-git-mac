@@ -82,6 +82,10 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var readinessWatch: Task<Void, Never>?
     private var completionGeneration = UUID()
     private(set) var completionPending = false
+    // Captured before invalidate clears the pending state. The presentation
+    // service must distinguish an accepted close from forced owner retirement.
+    private(set) var closedByCompletion = false
+    var completionRefused: () -> Void = {}
     private var authorizingClose = false
     private var completionCancelledDrafts = false
     private weak var completionWindow: NSWindow?
@@ -289,6 +293,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         updateRepository()
         if selected == .remote, current == nil { show(.remote) }
         renderFooter()
+        completionRefused()
     }
     private func startReadinessWatch(window: NSWindow) {
         readinessWatch?.cancel()
@@ -431,7 +436,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         heading.toolTip = roots.compactMap { $0.path(to:page) }.first?.map(\.title).joined(separator:" › ")
     }
     func invalidate() {
-        guard !retired else { return }; retired = true
+        guard !retired else { return }
+        closedByCompletion = authorizingClose && completionPending
+        retired = true; completionRefused = {}
         cancelDeferredPage()
         completionGeneration = UUID(); completionPending = false; completionWindow = nil; completionCancelledDrafts = false
         readinessWatch?.cancel(); readinessWatch = nil
@@ -473,23 +480,49 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private(set) var navigation: SettingsNavigationController?
     var present: (NSWindowController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var updates: AnyCancellable?
+    private struct PresentationRequest {
+        let installation: UUID
+        let workspace: ObjectIdentifier
+        let root: Data?
+        let globalOnly: Bool
+        let page: SettingsPageID?
+        let noFetch: Bool
+        let closingWindow: NSWindow
+    }
+    private var installation = UUID()
+    private var pendingPresentation: PresentationRequest?
+    private var replayIdentity = UUID()
     func install(workspace: RepositoryModel, appearance: AppAppearance) {
+        if let previous = self.workspace, previous !== workspace {
+            // A different scene/workspace cannot inherit an old window or its
+            // deferred command. A repeat attachment to the same owner is safe.
+            installation = UUID(); cancelPendingPresentation()
+            controller?.close()
+        }
         self.workspace = workspace; self.appearance = appearance
         workspace.onUpdateCheck = { [weak workspace] visible, force in ReleaseUpdateService.shared.showCommand(visible: visible, force: force, preferences: workspace?.fileComparisonPreferences ?? .standard) }
         workspace.onAutotextTest = { [weak workspace] in workspace?.showAutotextTester() }
         workspace.onIntroduction = { [weak workspace] in ApplicationIntroductionService.shared.show(preferences: workspace?.fileComparisonPreferences ?? .standard) }
-        workspace.onSettings = { [weak self] in self?.show(globalOnly: $0) }
-        workspace.onSettingsPage = { [weak self] global, name in
-            self?.show(globalOnly: global, initialPage: SettingsPageID.commandPage(name, repository: !global), remoteNoFetch: name == "gitremote")
+        workspace.onSettings = { [weak self, weak workspace] global in
+            guard let self, let workspace, self.workspace === workspace, !workspace.isRetired else { return }
+            self.show(globalOnly:global)
+        }
+        workspace.onSettingsPage = { [weak self, weak workspace] global, name in
+            guard let self, let workspace, self.workspace === workspace, !workspace.isRetired else { return }
+            self.show(globalOnly: global, initialPage: SettingsPageID.commandPage(name, repository: !global), remoteNoFetch: name == "gitremote")
         }
         workspace.onFirstStart = { [weak workspace] page in FirstStartWizardService.shared.show(initialPage: page, preferences: workspace?.fileComparisonPreferences ?? .standard) }
         workspace.onCommandHelp = { TurtleGitHelp.show(.overview) }
-        workspace.canChangeSettingsContext = { [weak self] in self?.prepareContextChange() ?? true }
+        workspace.canChangeSettingsContext = { [weak self, weak workspace] in
+            guard let self, let workspace, self.workspace === workspace else { return true }
+            return self.prepareContextChange()
+        }
         workspace.onHelp = { Self.showHelp() }
         workspace.onAbout = { Self.showAbout() }
     }
     func prepareContextChange() -> Bool {
         guard let navigation else { return true }
+        guard !navigation.completionPending else { return false }
         guard navigation.canDismiss, !navigation.transaction.modified else {
             controller?.showWindow(nil); controller?.window?.makeKeyAndOrderFront(nil)
             if let window = controller?.window, window.attachedSheet == nil {
@@ -501,13 +534,29 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         }
         return true
     }
+    private func cancelPendingPresentation() {
+        pendingPresentation = nil; replayIdentity = UUID()
+    }
     func show(globalOnly: Bool = false, initialPage: SettingsPageID? = nil, remoteNoFetch: Bool = false) {
-        guard let workspace, let appearance, !workspace.confirmingQuit else { return }
-        if let navigation, navigation.globalOnly != globalOnly {
-            guard prepareContextChange() else { return }
-            controller?.window?.performClose(nil)
+        guard let workspace, let appearance, !workspace.confirmingQuit, !workspace.isRetired else { return }
+        if let controller, let navigation, let window = controller.window {
+            if navigation.completionPending || navigation.globalOnly != globalOnly {
+                // New commands may supersede a queued command while the original
+                // accepted close drains. They never mutate that terminal page.
+                if !navigation.completionPending { guard prepareContextChange() else { return } }
+                replayIdentity = UUID()
+                pendingPresentation = PresentationRequest(installation:installation,workspace:ObjectIdentifier(workspace),root:globalOnly ? nil:workspace.root.map{Data($0.path.utf8)},globalOnly:globalOnly,page:initialPage,noFetch:remoteNoFetch,closingWindow:window)
+                if !navigation.completionPending {
+                    window.performClose(nil)
+                    // An original delegate can refuse before terminal intent.
+                    if self.controller === controller, !navigation.completionPending { cancelPendingPresentation() }
+                }
+                return
+            }
+            if let initialPage { navigation.requestCommandPage(initialPage, noFetch: remoteNoFetch) }
+            present(controller); return
         }
-        if let controller { if let initialPage { navigation?.requestCommandPage(initialPage, noFetch: remoteNoFetch) }; present(controller); return }
+        cancelPendingPresentation()
         let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly,preferences:workspace.fileComparisonPreferences,initialPage:initialPage ?? .general,remoteNoFetch:remoteNoFetch)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Settings – TurtleGit for Mac"; window.isReleasedWhenClosed = false
@@ -515,6 +564,10 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         window.delegate = self; window.contentViewController = navigation
         let controller = NSWindowController(window: window)
         self.navigation = navigation; self.controller = controller
+        navigation.completionRefused = { [weak self, weak window] in
+            guard let self, self.controller?.window === window else { return }
+            self.cancelPendingPresentation()
+        }
         updates = workspace.objectWillChange.sink { [weak self] in
             DispatchQueue.main.async { [weak self] in self?.navigation?.updateRepository() }
         }
@@ -522,8 +575,25 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { navigation?.canDismiss == true }
     func windowWillClose(_ notification: Notification) {
-        navigation?.invalidate(); updates?.cancel(); updates = nil
-        navigation = nil; controller = nil
+        guard let window = notification.object as? NSWindow,
+              let controller, controller.window === window else { return }
+        navigation?.invalidate()
+        let accepted = navigation?.closedByCompletion == true
+        let request = pendingPresentation
+        updates?.cancel(); updates = nil; navigation = nil; self.controller = nil
+        cancelPendingPresentation()
+        guard accepted, let request, request.closingWindow === window else { return }
+        let replay = replayIdentity
+        // Leave the old delegate callback before constructing its replacement.
+        // A newer synchronous command or workspace attachment wins this turn.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.replayIdentity == replay, self.controller == nil,
+                  self.installation == request.installation,
+                  let workspace = self.workspace, ObjectIdentifier(workspace) == request.workspace,
+                  !workspace.confirmingQuit, !workspace.isRetired,
+                  request.globalOnly || workspace.root.map({Data($0.path.utf8)}) == request.root else { return }
+            self.show(globalOnly:request.globalOnly,initialPage:request.page,remoteNoFetch:request.noFetch)
+        }
     }
     static func showHelp() {
         TurtleGitHelp.showContext()

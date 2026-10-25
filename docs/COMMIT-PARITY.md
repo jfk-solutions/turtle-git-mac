@@ -1,5 +1,9 @@
 # Commit dialog parity
 
+The [category check-link continuation](COMMIT-CHECK-LINKS-PARITY.md) covers the
+source action masks, copy membership, submodule exceptions and shared native
+checkbox/staging routes. Its grouped checkpoint is separate from older evidence.
+
 Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
 
 Issue-matching runtime, native property/field/warning behavior and remaining work

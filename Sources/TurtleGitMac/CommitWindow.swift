@@ -2221,11 +2221,20 @@ import TurtleGitCore
         }
     }
     struct FileCheckReceipt:Equatable {
-        let generation:UUID,staging:Bool,files:[StatusEntry]
+        let generation:UUID,staging:Bool,files:[StatusEntry],noAutoSubmodules:Bool
     }
-    var fileCheckReceipt:FileCheckReceipt {FileCheckReceipt(generation:fileMenuGeneration,staging:stagingEnabled,files:visibleEntries)}
+    var fileCheckReceipt:FileCheckReceipt {FileCheckReceipt(generation:fileMenuGeneration,staging:stagingEnabled,files:visibleEntries,noAutoSubmodules:doNotAutoselectSubmodules)}
     private func acceptsFileCheck(_ receipt:FileCheckReceipt?) -> Bool {
         fileListAvailable && (receipt == nil || receipt == fileCheckReceipt)
+    }
+    func canCheckCategory(_ category:CommitCheckCategory)->Bool {
+        fileListAvailable && !messageOnly && CommitCheckPolicy.isAvailable(category,entries:visibleEntries,submodules:submodules)
+    }
+    func checkCategory(_ category:CommitCheckCategory,checking:Bool,receipt:FileCheckReceipt? = nil) {
+        guard acceptsFileCheck(receipt),canCheckCategory(category) else{return}
+        let paths=CommitCheckPolicy.paths(category,entries:visibleEntries,submodules:submodules,checking:checking,doNotAutoselectSubmodules:doNotAutoselectSubmodules)
+        if stagingEnabled {moveToStage(paths,staged:checking,receipt:receipt)}
+        else if checking {checked.formUnion(paths)} else {checked.subtract(paths)}
     }
     func check(_ predicate: (StatusEntry) -> Bool,checking:Bool = true,receipt:FileCheckReceipt? = nil) {
         guard acceptsFileCheck(receipt) else {return}
@@ -3249,15 +3258,15 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     VStack(alignment: .leading, spacing: 6) {
                         DialogCommandRows(spacing:10) {
                             Text("Check:")
-                            checkButton("All") { checking in model.check({ _ in true },checking:checking) }
-                            checkButton("None") { model.checkAll(!$0) }
-                            checkButton("Unversioned", enabled: model.visibleEntries.contains { $0.state == .untracked }) { checking in model.check({ $0.state == .untracked },checking:checking) }
-                            checkButton("Versioned", enabled: model.visibleEntries.contains { $0.state != .untracked }) { checking in model.check({ $0.state != .untracked },checking:checking) }
-                            checkButton("Added", enabled: model.visibleEntries.contains { $0.state == .added }) { checking in model.check({ $0.state == .added },checking:checking) }
-                            checkButton("Deleted", enabled: model.visibleEntries.contains { $0.state == .deleted }) { checking in model.check({ $0.state == .deleted },checking:checking) }
-                            checkButton("Modified", enabled: model.visibleEntries.contains { $0.state == .modified }) { checking in model.check({ $0.state == .modified },checking:checking) }
-                            checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { checking in model.check({ !model.submodules.contains($0.path) },checking:checking) }
-                            checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { checking in model.check({ model.submodules.contains($0.path) },checking:checking) }
+                            categoryButton("All",.all)
+                            categoryButton("None",.none)
+                            categoryButton("Unversioned",.unversioned)
+                            categoryButton("Versioned",.versioned)
+                            categoryButton("Added",.added)
+                            categoryButton("Deleted",.deleted)
+                            categoryButton("Modified",.modified)
+                            categoryButton("Files",.files)
+                            categoryButton("Submodules",.submodules)
                         }.font(.system(size: 12)).disabled(model.messageOnly)
                         fileTable(model.visibleEntries, staged: model.stagingEnabled ? model.stagedDiff : nil)
                             .overlay {if let text=model.fileListEmptyMessage {Text(text).multilineTextAlignment(.center).font(.callout).foregroundStyle(.secondary).padding(20).frame(maxWidth:.infinity,maxHeight:.infinity).allowsHitTesting(false).accessibilityLabel(text)}}
@@ -3501,6 +3510,12 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
+    func categoryButton(_ title:String,_ category:CommitCheckCategory)->some View {
+        let receipt=model.fileCheckReceipt
+        return checkButton(title,enabled:model.canCheckCategory(category)) {checking in
+            model.checkCategory(category,checking:category == .none ? !checking:checking,receipt:receipt)
+        }.accessibilityIdentifier("Commit.Check."+category.rawValue)
+    }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { let receipt=model.fileCheckReceipt;return Button {guard model.fileListAvailable,receipt==model.fileCheckReceipt else{return};action(!NSEvent.modifierFlags.contains(.shift))} label: {Text(LocalizedStringKey(title)).underline(enabled).fontWeight(title == "All" || title == "None" ? .semibold:.regular)}.buttonStyle(.plain).foregroundStyle(enabled ? Color.accentColor : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
 }
 
@@ -3836,6 +3851,7 @@ private struct CommitProgressDialog: View {
     private var observations=[AnyCancellable]()
     var applicationMenu:()->NSMenu? = {NSApp.mainMenu}
     var keyWindow:()->NSWindow? = {NSApp.keyWindow}
+    var modifierFlags:()->NSEvent.ModifierFlags = {NSEvent.modifierFlags}
     init(owner:CommitWindowController) {
         self.owner=owner;super.init()
         observations.append(owner.model.objectWillChange.sink { [weak self] _ in self?.schedule() })
@@ -3892,17 +3908,11 @@ private struct CommitProgressDialog: View {
         while let current=menu {if current === main {return true};menu=current.supermenu}
         return false
     }
-    private func predicate(_ command:Command,_ entry:StatusEntry)->Bool {
-        guard let model=owner?.model else {return false}
+    private func category(_ command:Command)->CommitCheckCategory? {
         switch command {
-        case .unversioned:return entry.state == .untracked
-        case .versioned:return entry.state != .untracked
-        case .added:return entry.state == .added
-        case .deleted:return entry.state == .deleted
-        case .modified:return entry.state == .modified
-        case .files:return !model.submodules.contains(entry.path)
-        case .submodules:return model.submodules.contains(entry.path)
-        default:return true
+        case .all:return .all;case .none:return CommitCheckCategory.none;case .unversioned:return .unversioned;case .versioned:return .versioned
+        case .added:return .added;case .deleted:return .deleted;case .modified:return .modified;case .files:return .files;case .submodules:return .submodules
+        default:return nil
         }
     }
     private func enabled(_ command:Command)->Bool {
@@ -3912,7 +3922,7 @@ private struct CommitProgressDialog: View {
         switch command {
         case .current,.commit:return model.canCommit
         case .recommit,.push:return model.canCommit && model.replaySplit==nil && model.historyCombine==nil
-        case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:return !model.messageOnly && model.visibleEntries.contains{predicate(command,$0)}
+        case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:return category(command).map{model.canCheckCategory($0)} ?? false
         case .focusFiles:return model.fileListAvailable && owner.fileTable() != nil
         case .history:return model.messageHistory?.entries.isEmpty==false && owner.messageEditor() != nil
         case .hash,.message,.pasteFiles:return owner.messageEditor() != nil
@@ -3985,8 +3995,8 @@ private struct CommitProgressDialog: View {
         case .history,.hash,.message,.pasteFiles:owner.messageEditor()?.performCommitMenuCommand(command)
         case .signOff:model.addSignOff()
         case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:
-            let shift=NSEvent.modifierFlags.contains(.shift),value=command == .none ? shift:!shift
-            model.check({self.predicate(command,$0)},checking:value)
+            let shift=modifierFlags().contains(.shift),value=command == .none ? shift:!shift
+            if let category=category(command) {model.checkCategory(category,checking:value,receipt:model.fileCheckReceipt)}
         case .staging:model.setStagingEnabled(!model.stagingEnabled)
         case .showUnversioned:model.setShowUnversioned(!model.showUnversioned)
         case .whole:model.setShowWholeProject(!model.showWholeProject)

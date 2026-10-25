@@ -834,6 +834,10 @@
           "anchor": "func commitLibrarySelection"
         },
         {
+          "path": "Sources/TurtleGitCore/CommitCheckPolicy.swift",
+          "anchor": "public enum CommitCheckPolicy"
+        },
+        {
           "path": "Sources/TurtleGitMac/CommitIssueProvider.swift",
           "origin": "recorded-control-mapping"
         },
@@ -844,6 +848,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/COMMIT-CHECK-LINKS-PARITY.md",
         "docs/COMMIT-METADATA-LIFETIME-PARITY.md",
         "docs/COMMIT-OPTION-TRANSITION-PARITY.md",
         "docs/COMMIT-PARITY.md",
@@ -895,6 +900,7 @@
         "docs/qa/commit-refresh-snapshot-2026-10-17.json",
         "docs/qa/commit-scope-report-push-2026-10-23.json",
         "docs/qa/commit-selection-settings-2026-10-07.json",
+        "docs/qa/commit-settings-source-parity-2026-10-25.json",
         "docs/qa/commit-staging-list-2026-10-16.json",
         "docs/qa/commit-staging-mode-2026-10-16.json",
         "docs/qa/commit-template-access-2026-10-15.json",
@@ -1072,13 +1078,19 @@
         {
           "path": "Sources/TurtleGitMac/GeneralSettings.swift",
           "anchor": "struct GeneralSettings"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "final class SettingsPresentationService"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/GENERAL-SETTINGS-PARITY.md"
+        "docs/GENERAL-SETTINGS-PARITY.md",
+        "docs/SETTINGS-CONTEXT-HANDOFF-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/commit-settings-source-parity-2026-10-25.json",
         "docs/qa/general-setup-batch-2026-10-11.json",
         "docs/qa/general-source-family-2026-10-17.json",
         "docs/qa/language-family-2026-10-17.json"
@@ -3282,9 +3294,11 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/REMOTE-SETTINGS-PARITY.md",
+        "docs/SETTINGS-CONTEXT-HANDOFF-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/commit-settings-source-parity-2026-10-25.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/history-actions-2026-10-18.json",

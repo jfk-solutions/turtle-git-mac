@@ -623,6 +623,9 @@ private enum TransportBatchPresentationContext {
     var removeWindowFactory: ((GitRepository, RepositoryAccessLease?, RemovalRequest) -> RemoveWindowController)?
     private var adoptionGeneration = 0
     private var retired = false
+    // Settings presentation can outlive an accepted asynchronous close. A clean
+    // Quit retires this workspace before confirmingQuit necessarily changes.
+    var isRetired: Bool { retired }
     private struct CompletedRepositoryHandoff {
         let id = UUID()
         let generation: Int

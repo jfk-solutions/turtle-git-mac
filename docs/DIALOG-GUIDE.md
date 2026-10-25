@@ -100,6 +100,15 @@ Write the commit message above the changed-file list. In ordinary mode, check th
 files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.
 
+The Check links follow the source action categories: **Added** includes copies,
+while **Modified** selects modification/type-change actions rather than every row
+whose display status falls back to Modified. Hold Shift to uncheck a category;
+Shift reverses **All** and **None** too. With **Do not autoselect submodules** on,
+ordinary category checking leaves submodules alone. Explicit **Submodules** and
+**All** still select them, as in TortoiseGit. Unchecking is always allowed.
+With staging support enabled these same links stage or unstage the matching
+paths, so review their result before committing.
+
 **Show Whole Project** remembers its choice for this repository. Changing it
 reloads status for the whole repository or the original file/folder scope, so
 newly changed files appear without reopening Commit. Review the checked rows
@@ -776,6 +785,13 @@ discard unapplied drafts. Changes already saved through Apply remain saved.
 When an operation or child dialog temporarily prevents completion, the footer
 buttons are disabled. An accepted close waits for page cleanup and then finishes
 automatically. A validation or save failure leaves Settings open for correction.
+
+Switching between Global and repository Settings waits for the accepted old
+window close to finish, then opens the requested context and page. A newer
+request during that close replaces the pending destination. Unsaved drafts or
+active work can refuse a context switch; finish or cancel that Settings visit
+before retrying. A pending request cannot reopen Settings after its workspace
+retires or silently follow a different repository.
 
 Git, Dialogs 3 and Issue Tracker pages distinguish a read-only
 Effective view from stored Local, Project, Global and System values where offered.

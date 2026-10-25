@@ -1,5 +1,9 @@
 # Settings completion and owned close
 
+The [context/page handoff continuation](SETTINGS-CONTEXT-HANDOFF-PARITY.md) connects
+accepted asynchronous close to the next requested Settings visit, including
+replacement and clean-Quit ownership boundaries.
+
 Source comparison uses pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`. This is a connected Settings
 completion-family review, not certification of every Settings page or of the

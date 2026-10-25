@@ -9,6 +9,10 @@
         {
           "path": "Sources/TurtleGitMac/GeneralSettings.swift",
           "anchor": "struct GeneralSettings"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SettingsNavigation.swift",
+          "anchor": "final class SettingsPresentationService"
         }
       ],
       "parity_document": "docs/GENERAL-SETTINGS-PARITY.md",
@@ -469,6 +473,10 @@
         {
           "path": "Sources/TurtleGitCore/CommitAmend.swift",
           "anchor": "func commitLibrarySelection"
+        },
+        {
+          "path": "Sources/TurtleGitCore/CommitCheckPolicy.swift",
+          "anchor": "public enum CommitCheckPolicy"
         }
       ],
       "parity_document": "docs/COMMIT-PARITY.md",

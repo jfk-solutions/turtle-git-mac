@@ -61,6 +61,12 @@ final class LibGit2CommitIndexTests: XCTestCase {
         try await clean(f, process: true)
         let path = ":(literal) % ' cafe\u{301}\n.clean", bytes = Data(repeating: 0x41, count: 131_072) + Data([0, 255, 10])
         try bytes.write(to: f.repo.root.appendingPathComponent(path)); try Data("one\r\ntwo\r\n".utf8).write(to: f.repo.root.appendingPathComponent("line.text"))
+        // This test isolates source one-shot preparation. Ordinary Git commit
+        // refreshes its index and may legitimately re-run configured process
+        // filters for stat-racy files; that distinct boundary is tested below.
+        for selected in [path,"line.text"] {
+            try FileManager.default.setAttributes([.modificationDate:Date(timeIntervalSince1970:1_000_000_000)],ofItemAtPath:f.repo.root.appendingPathComponent(selected).path)
+        }
         let config = try Data(contentsOf: f.repo.root.appendingPathComponent(".git/config")), global = try Data(contentsOf: f.root.appendingPathComponent("global.config"))
         _ = try await f.repo.commitSelected(message: "library clean", paths: [path, "line.text"], backend: f.backend)
         let stored = try await blob(f.repo, path), line = try await blob(f.repo, "line.text")
@@ -82,6 +88,52 @@ final class LibGit2CommitIndexTests: XCTestCase {
         let stagedOther = try await blob(f.repo, "other"); XCTAssertEqual(stagedOther, Data("unchecked staged\n".utf8))
         let retainedClean = try await blob(f.repo, path); XCTAssertEqual(retainedClean, stored)
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.repo.root.appendingPathComponent(path).path))
+    }
+
+    func testRacyPreparedSelectionPropagatesOrdinaryGitProcessFailureAndRetainsRetryState()async throws {
+        let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+        try Data("unchecked staged\n".utf8).write(to:f.repo.root.appendingPathComponent("other"));try await f.repo.stage(["other"])
+        let unselected=try await f.repo.run(["ls-files","--stage","-z","--","other"]).stdout
+        let originalFlags=try await f.repo.run(["ls-files","-v","-z","--","other"]).stdout
+        let beforeHead=try await head(f.repo)
+        try await clean(f,process:true)
+        let path="racy literal %.clean",bytes=Data([65,0,255,10]),expected=Data("CLEAN[".utf8)+bytes+Data("]".utf8)
+        let file=f.repo.root.appendingPathComponent(path);try bytes.write(to:file)
+        // A real future file mtime forces Git's documented racy-index content
+        // verification regardless of subsecond support or machine speed. We do
+        // not modify private index clocks, flags, hooks or filter configuration.
+        try FileManager.default.setAttributes([.modificationDate:Date().addingTimeInterval(3600)],ofItemAtPath:file.path)
+        let config=try Data(contentsOf:f.repo.root.appendingPathComponent(".git/config")),global=try Data(contentsOf:f.root.appendingPathComponent("global.config"))
+        do {_ = try await f.repo.commitSelected(message:"racy process refusal",paths:[path],backend:f.backend);XCTFail("Ordinary Git ignored the required failing process filter")}
+        catch let error as GitFailure {
+            XCTAssertEqual(error.arguments.first,"commit");XCTAssertEqual(error.code,128)
+            let appleHandshakeFailure=error.message.contains("remote end hung up unexpectedly")
+            let currentHandshakeFailure=error.message.contains("could not read greeting from subprocess") && error.message.contains("initialization for subprocess") && error.message.contains("exit 86")
+            XCTAssertTrue(appleHandshakeFailure || currentHandshakeFailure,error.message)
+        }
+        let unchangedHead=try await head(f.repo);XCTAssertEqual(unchangedHead,beforeHead)
+        let staged=try await blob(f.repo,path,revision:"");XCTAssertEqual(staged,expected)
+        let retained=try await f.repo.run(["ls-files","--stage","-z","--","other"]).stdout;XCTAssertEqual(retained,unselected)
+        let retainedFlags=try await f.repo.run(["ls-files","-v","-z","--","other"]).stdout;XCTAssertEqual(retainedFlags,originalFlags)
+        let selectedFlags=try await f.repo.run(["ls-files","-v","-z","--",path]).stdout
+        XCTAssertEqual(selectedFlags,Data(("H "+path+"\0").utf8),"Preparation must not hide ordinary Git refresh using assume-unchanged/skip-worktree")
+        XCTAssertEqual(try Data(contentsOf:file),bytes);XCTAssertFalse(FileManager.default.fileExists(atPath:f.index.path+".lock"))
+        XCTAssertEqual(try Data(contentsOf:f.repo.root.appendingPathComponent(".git/config")),config);XCTAssertEqual(try Data(contentsOf:f.root.appendingPathComponent("global.config")),global)
+        let details=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:f.root.appendingPathComponent("clean.json"))) as? [String:Any])
+        XCTAssertNotEqual(details["index"] as? String,f.index.path)
+        // The user's actual repair, rather than a production override, permits
+        // retry using the same one-shot source engine and ordinary Git hooks.
+        _ = try await f.repo.run(["config","--global","--unset","filter.fixture.process"])
+        try FileManager.default.setAttributes([.modificationDate:Date(timeIntervalSince1970:1_000_000_000)],ofItemAtPath:file.path)
+        let repairedGlobal=try Data(contentsOf:f.root.appendingPathComponent("global.config"))
+        _ = try await f.repo.commitSelected(message:"retry repaired process",paths:[path],backend:f.backend)
+        let committed=try await blob(f.repo,path);XCTAssertEqual(committed,expected)
+        let afterHead=try await head(f.repo);XCTAssertNotEqual(afterHead,beforeHead)
+        let afterUnselected=try await f.repo.run(["ls-files","--stage","-z","--","other"]).stdout;XCTAssertEqual(afterUnselected,unselected)
+        let afterFlags=try await f.repo.run(["ls-files","-v","-z","--","other"]).stdout;XCTAssertEqual(afterFlags,originalFlags)
+        XCTAssertEqual(try Data(contentsOf:file),bytes);XCTAssertEqual(try Data(contentsOf:f.root.appendingPathComponent("global.config")),repairedGlobal)
+        XCTAssertEqual(try Data(contentsOf:f.repo.root.appendingPathComponent(".git/config")),config)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:f.index.path+".lock"))
     }
 
     func testCheckedModesRenameDeletionRetainedCopyAndExactUnicodePaths() async throws {
