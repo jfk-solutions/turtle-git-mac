@@ -2,13 +2,21 @@
 
 ## Current installed checkpoint
 
-[Build 9](qa/signed-consolidation-build9-2026-10-25.json) is the recoverably installed
-Apple Development build for Intel and Apple silicon. Its 1,509 clean measured
-distribution inputs match commit `e832798c`; strict signatures, all eight universal
-components and the 6,362-member source/staged/installed inventories passed.
-Build 8 remains preserved for recovery. The installed app includes the connected
-Finder restart-cache recovery below, in addition to the standalone authorization,
-stored-decision and pane-header corrections. No user cache was reset.
+[Build 10](qa/signed-consolidation-build10-2026-10-26.json) is the recoverably
+installed Apple Development build for Intel and Apple silicon, from `e3f5476c`.
+Its measured source inputs, strict signatures, all eight universal components and
+6,362-member source/staged/installed inventories passed. Build 9 remains preserved
+for recovery. The final Help resource/sign refresh reused compiled code.
+
+Installed build 10 includes the Commit refresh correction below, the connected
+Pull/linear orphan-Squash workflows and the quieter Help credits/Impressum links.
+An actual Add retry published fresh status for the reported repository; its native
+Git Gui-style Commit loaded the correct branch and zero change rows, completed
+Refresh, and closed without changing the repository. Registration remained live.
+No complete dialog startup duration or physical Finder badge/menu acceptance is
+claimed by that check. No user cache was reset or Finder restarted.
+
+The older build 9 installation and recovery evidence remains historical below.
 
 The [build 8 checkpoint](qa/signed-consolidation-build8-2026-10-25.json) retains the
 actual signed initial file-chooser cancellation: owned process exit 1, no editor
@@ -41,7 +49,7 @@ The [checkpoint](qa/commit-refresh-2026-10-26.json) records 11 Core checks, a De
 build and four native case/engine pairs passing. Read-only status/metadata/flags
 collection on the reported clean large checkout measured 18.76 seconds before
 and 0.44 seconds after; full dialog startup is not certified by those timings.
-This source is newer than installed build 9.
+This correction is included in installed build 10.
 
 
 The [Pull conflict-result continuation](PULL-RESULT-PARITY.md) distinguishes accepted
@@ -53,7 +61,7 @@ implements source no-commit groups, normal new-commit approval and durable
 conflict/reopen/Skip/Abort handling. The [grouped checkpoint](qa/pull-leading-squash-2026-10-26.json)
 records 35 affected Core methods passing cumulatively, a Debug build and four
 native case/engine pairs. It retains the actual failures and scoped repairs.
-This source is newer than installed build 9; new-group Split and preserve-merges
+This source is included in installed build 10; new-group Split and preserve-merges
 orphan topology remain open.
 
 The connected [advanced Cherry Pick parent-choice family](REBASE-MAINLINE-PARITY.md)

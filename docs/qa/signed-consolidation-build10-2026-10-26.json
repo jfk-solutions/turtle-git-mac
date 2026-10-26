@@ -1,0 +1,81 @@
+{
+  "status": "signed_universal_installation_and_focused_native_acceptance_verified",
+  "source_commit": "e3f5476c21d7582fc12647befe502c269dfaee10",
+  "source": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed10-displaced-installed-2026-10-26",
+  "old_identity": {
+    "bundle_identifier": "org.turtlegit.macos",
+    "marketing_version": "0.1.0",
+    "build_number": "9",
+    "peers": {
+      "finder": {
+        "bundle_identifier": "org.turtlegit.macos.finder",
+        "marketing_version": "0.1.0",
+        "build_number": "9"
+      },
+      "cache": {
+        "bundle_identifier": "org.turtlegit.macos.cache",
+        "marketing_version": "0.1.0",
+        "build_number": "9"
+      }
+    }
+  },
+  "new_identity": {
+    "bundle_identifier": "org.turtlegit.macos",
+    "marketing_version": "0.1.0",
+    "build_number": "10",
+    "peers": {
+      "finder": {
+        "bundle_identifier": "org.turtlegit.macos.finder",
+        "marketing_version": "0.1.0",
+        "build_number": "10"
+      },
+      "cache": {
+        "bundle_identifier": "org.turtlegit.macos.cache",
+        "marketing_version": "0.1.0",
+        "build_number": "10"
+      }
+    }
+  },
+  "source_input_sha256": "079b4e3de84a3ce2a17e652521b1e2e36bedc58212eeb780e728ed729f8c8c89",
+  "application_sha256": "a26fb58a74747b785d3ca3bdc4d9e597ad9447f3bbab4e687612de4bab525ec6",
+  "inventory_members": 6362,
+  "strict_signature": "pass",
+  "source_staged_installed_inventories": "equal",
+  "finder_restarted": false,
+  "global_cache_reset": false,
+  "registration_pending": false,
+  "finder_registration": {
+    "identifier": "org.turtlegit.macos.finder",
+    "uuid": "9830653B-68AF-4E36-9FBB-04886A73FD8B",
+    "enabled_installed_entries": 1
+  },
+  "physical_acceptance": {
+    "registration": "Installed Add URL retry published new live lease for ladybird with 68234 status entries.",
+    "commit": "Actual installed Git Gui-style Commit loaded correct branch, zero staged/unstaged rows; Refresh completed with controls enabled, no error. Owned empty Commit closed via Cancel.",
+    "timing": "No complete native dialog startup/F5 duration claim; the separately measured collection timings remain the benchmark evidence.",
+    "finder_badges": "Physical Finder badge/menu rendering was not reasserted."
+  },
+  "install_attempts": [
+    "First preflight refused running old app before copy.",
+    "Second preflight refused while ordinary Quit was draining.",
+    "Installation passed after independently observed old PID exit; no force termination."
+  ],
+  "date": "2026-10-26",
+  "version": "0.1.0",
+  "build": 10,
+  "source_input_count": 1509,
+  "universal_components": 8,
+  "website": {
+    "head": "e3f5476c",
+    "deployment": "success",
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40294921789",
+    "published_homepage_visually_verified": true
+  },
+  "limits": [
+    "No complete hosted macOS pass is claimed; e3f5476c run40294921577 remains in progress at observation.",
+    "No complete port, App Store distribution/submission, Intel execution or full physical Finder badge/menu acceptance is claimed.",
+    "Collection benchmark is not complete native startup timing."
+  ]
+}
