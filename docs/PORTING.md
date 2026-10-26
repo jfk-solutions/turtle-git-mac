@@ -2,19 +2,33 @@
 
 ## Current installed checkpoint
 
-[Build 10](qa/signed-consolidation-build10-2026-10-26.json) is the recoverably
-installed Apple Development build for Intel and Apple silicon, from `e3f5476c`.
-Its measured source inputs, strict signatures, all eight universal components and
-6,362-member source/staged/installed inventories passed. Build 9 remains preserved
-for recovery. The final Help resource/sign refresh reused compiled code.
+[Build 11](qa/signed-consolidation-build11-2026-10-26.json) is installed for
+Intel and Apple silicon from `77f0f4f9`. Its measured 1,510 source inputs,
+strict signatures, all eight universal app components and 6,362-member
+source/staged/installed inventories passed. Build 10 remains preserved for recovery.
+The changed metafile helper was rebuilt from current sources before signing.
+Six signed sandbox cases passed actual packaged runtime execution and cleanup.
 
-Installed build 10 includes the Commit refresh correction below, the connected
-Pull/linear orphan-Squash workflows and the quieter Help credits/Impressum links.
-An actual Add retry published fresh status for the reported repository; its native
-Git Gui-style Commit loaded the correct branch and zero change rows, completed
-Refresh, and closed without changing the repository. Registration remained live.
-No complete dialog startup duration or physical Finder badge/menu acceptance is
-claimed by that check. No user cache was reset or Finder restarted.
+Build 11 includes the later Rebase/Split and preserve-merges continuations,
+working-file Revert policies, Commit ignored-copy metadata and report-row/closed-
+owner/native-row identity repairs. Actual installed Working Tree and Git Gui-style
+Commit loaded the private sample changes; the compact selector, status artwork and
+About build/banner were reviewed, and Commit Cancel/Yes closed its owned dialog.
+The sample HEAD, semantic index and file hashes stayed unchanged. Only its temporary
+folder permission was removed, preserving the two original saved repositories.
+
+Signed sandbox receivers passed cleanup, and the installed GUI process exited
+after ordinary Quit. One headless main instance restores the
+pre-update Finder-watch service, with fresh shared status for the reported
+repository. The installed extension registration is enabled. Physical badge/menu
+rendering and tooltip hover were not reasserted. Repeated automation activation
+also exposed an empty workspace; About versus ordinary reopen behavior was not
+isolated. Full signed/physical and hosted acceptance remain open.
+
+The [build 10 checkpoint](qa/signed-consolidation-build10-2026-10-26.json) records
+the earlier installed Add retry and Commit refresh acceptance on the reported
+repository. Its collection timings remain a separate read-only benchmark, not
+complete dialog startup timing. No user cache was reset or Finder restarted.
 
 The older build 9 installation and recovery evidence remains historical below.
 
@@ -34,8 +48,10 @@ status could enter live contributions and block a fresh Add. Its connected recov
 batch is included in installed build 9; physical acceptance on the reported
 repository remains unverified.
 
-At the October 26 CI observation, the [Pages run for `0016268c`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40308813906)
-succeeded; its macOS run was pending, with `d5d6f546` still running. The completed
+At the build 11 consolidation observation, the [Pages run for `77f0f4f9`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40324250071)
+succeeded. Its [macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40324250010)
+was pending, with the [preceding `38f1085f` run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40315633554)
+still in progress. The completed
 [macOS run for `e3f5476c`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40294921577)
 failed in Core integration: 2,987 tests, two skips and three assertions across two
 methods. The [recovery record](qa/ci-e3f5476c-core-recovery-metafile-2026-10-26.json)
@@ -55,8 +71,7 @@ selection. Resolve’s probe also retires on actual window close. Its
 cases and the existing native selection-adapter check passing after documented
 repairs, including a shared runtime-row crash and closed-host subscriptions.
 All 19 attempted receivers are absent. Offscreen tooltip display remains
-unverified, and complete visual/signed acceptance is open. Installed build 10
-predates this source.
+unverified, and complete visual/signed acceptance is open. Installed build 11 includes this source.
 
 The working-file Revert family now consumes the existing master Trash setting and
 the independent renamed-file policy across Commit, Add, Revert, Working Tree,
@@ -64,8 +79,7 @@ Resolve and Rebase. Confirmation, execution and Retry retain one captured policy
 progress and recovery list actual saved copies only. Its grouped validation also
 found and repaired missing local-copy metadata for ignored staged deletions while
 keeping the fast status scan. The [checkpoint](qa/working-file-revert-disposition-2026-10-26.json)
-records exact checks, failed attempts and acceptance limits. Installed build 10
-predates this source batch.
+records exact checks, failed attempts and acceptance limits. Installed build 11 includes this source batch.
 
 The preserve-merges leading-Squash continuation connects owned staged groups to
 structural parent labels, later branch resets and descendant merges. It includes
@@ -73,7 +87,7 @@ normal approval/Split, conflicts, pending edits and durable recovery; the
 [grouped checkpoint](qa/rebase-structural-no-commit-2026-10-26.json) records 49
 Core methods passing cumulatively, Debug builds and normal native workflows with
 both Git engines. One actual rescheduled-checkpoint duplication was repaired and
-only its affected method repeated. Installed build 10 predates this source batch.
+only its affected method repeated. Installed build 11 includes this source batch.
 
 The [leading-Squash Split continuation](REBASE-LEADING-SQUASH-PARITY.md#split-continuation--october-26-2026)
 adds normal selected/staged parts from an owned no-commit accumulator, editable
@@ -81,8 +95,7 @@ source author/date presets, durable Cancel/reopen/Abort and exact group/HEAD
 ownership. Native child handoff waits for actual sheet/window/worker release.
 The [grouped checkpoint](qa/rebase-no-commit-split-2026-10-26.json) records 26
 affected Core methods passing cumulatively, a Debug build and the native Add
-family passing with system and bundled Git. Installed build 10 predates this new
-source. That checkpoint excluded preserve-merges orphan groups; see the
+family passing with system and bundled Git. Installed build 11 includes this source. That checkpoint excluded preserve-merges orphan groups; see the
 continuation above.
 
 

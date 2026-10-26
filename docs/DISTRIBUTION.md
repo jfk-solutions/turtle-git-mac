@@ -115,6 +115,26 @@ pass, every dialog's appearance, Intel execution, distribution signing or an App
 Store export/submission. The compiler warnings remain recorded. Earlier preview
 ZIPs and unsigned archive receipts remain separate artifacts.
 
+## October 26 installed build 11
+
+The [build 11 receipt](qa/signed-consolidation-build11-2026-10-26.json) binds the
+installed Apple Development AppStore-configuration app to `77f0f4f9`, 1,510
+measured inputs and matching 6,362-member candidate/staged/installed inventories.
+All eight app components are universal and strict signatures pass. Six disposable
+signed-parent sandbox cases pass actual bundled Git/libgit2/metafile execution;
+the unsigned-only validator's direct inherited-helper launch failure is retained
+as an inapplicable check, not relabeled as a passing runtime test.
+
+Installed Working Tree, Commit and About were reviewed using a disposable
+repository. Its HEAD, semantic index and file bytes were preserved, its temporary
+permission was removed, and the original saved repositories remain. Build 10 is
+preserved for recovery. The former headless Finder-watch service is restored as
+one main instance; no background preference or global cache was reset.
+
+This is a development-signed installation, not a distribution export or App Store
+submission. Physical Finder badges/menus, tooltip hover, workspace/reopen isolation,
+Intel execution and a complete current hosted result remain separate gates.
+
 ## Build channels
 
 | Channel | Configuration / scheme | Repository access | Git engine |

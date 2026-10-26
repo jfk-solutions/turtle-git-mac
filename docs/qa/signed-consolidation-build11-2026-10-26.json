@@ -1,0 +1,235 @@
+{
+  "date": "2026-10-26",
+  "status": "signed-universal-installed-focused-GUI-and-sandbox-checks-pass-with-recorded-limits",
+  "source_commit": "77f0f4f9526ecbad5db3e1d687335bad3f292b87",
+  "version": "0.1.0",
+  "build": "11",
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "installed_before": "/Applications/TurtleGit for Mac.app",
+  "installed_before_build": "10",
+  "build_tool_session": 97986,
+  "source_input_count": 1510,
+  "source_input_sha256": "128b0782d874a08031e9cd755e2408b83ae83281a24030281b4a199c208195f0",
+  "application_sha256": "f8d09fad87b5f4199a89597e936e68366a825b02ddfd1a5941225ee4422c035e",
+  "inventory_members": 6362,
+  "universal_components": 8,
+  "metafile_cache_key": "99aa2e87b9684e624b83930e91f9136f4bffd96cad7bbac33b964d92f76f7213",
+  "validation": {
+    "signed_build": {
+      "exit_code": 0,
+      "log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed11-build-2026-10-26.log",
+      "contradictory_zero_exit_diagnostics": 0
+    },
+    "source_signature_sandbox_static": {
+      "exit_code": 0,
+      "log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed11-static-2026-10-26.log"
+    },
+    "help_check": {
+      "exit_code": 0,
+      "documents": 58,
+      "topics": 51,
+      "files": 86
+    },
+    "localizations_check": {
+      "exit_code": 0,
+      "languages": 38,
+      "keys": 1323
+    },
+    "cache_service_static": {
+      "exit_code": 0,
+      "scope": "Packaged launch-agent plist/executable/team namespaces/framework paths; signed product does not run the unsigned negative startup probe."
+    },
+    "unsigned_checker_attempt": {
+      "result": "inapplicable execution context",
+      "log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed11-bundle-check-2026-10-26.log",
+      "failure": "Unsigned-only validator directly launched inherited-sandbox Git from Terminal; helper exited SIGTRAP. Earlier identity, architecture, layout, labels, WCRev/source/icon and SVN dependency checks passed. No product failure inferred; actual runtime execution requires a signed sandbox parent."
+    },
+    "sandbox_runtime": {
+      "exit_code": 0,
+      "log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed11-sandbox-2026-10-26.log",
+      "cases": [
+        {
+          "mode": "writer",
+          "passed": true
+        },
+        {
+          "mode": "reader",
+          "passed": true
+        },
+        {
+          "mode": "denied",
+          "passed": true
+        },
+        {
+          "mode": "history",
+          "passed": true
+        },
+        {
+          "mode": "metafile",
+          "passed": true
+        },
+        {
+          "mode": "cleanup",
+          "passed": true
+        }
+      ],
+      "receiver_pids": [
+        48263,
+        48276,
+        48277,
+        48281,
+        48390,
+        48440
+      ],
+      "receivers_reaped_and_independently_absent": true,
+      "history_helpers_drained": true,
+      "metafile_helpers_drained": true,
+      "forced_helper_cleanup_needed": false,
+      "packaged_git_inherits_sandbox": true,
+      "packaged_history_and_notes_run_from_sandbox": true,
+      "packaged_metafile_runs_from_sandbox": true,
+      "shipping_GUI_launched_by_probe": false
+    },
+    "installation": {
+      "exit_code": 0,
+      "previous_main_pid": 73473,
+      "previous_main_exited_after_ordinary_quit": true,
+      "main_windows_before_quit": 0,
+      "recovery_bundle_preserved": true,
+      "source_staged_installed_inventory_equal": true
+    },
+    "GUI": {
+      "scope": "Actual installed build, authorized synthetic Harbor repository, German UI in system dark appearance.",
+      "working_tree": "Loaded correct branch, five changed/untracked rows, source icons/colors and single-line report rows. Native selection persisted through horizontal scroll.",
+      "commit": "Working Tree Commit action loaded four unstaged files and one staged file with compact upper-right Git Gui-style selector; Cancel -> Yes closed the empty Commit and its question.",
+      "about": "Current green TurtleGit/Git banner, port author credit, bundled Git2.55.0 path and version0.1.0 build11 visibly confirmed.",
+      "captures": [
+        "build/qa/signed11-acceptance-2026-10-26/status-default.png",
+        "build/qa/signed11-acceptance-2026-10-26/commit-staging.png",
+        "build/qa/signed11-acceptance-2026-10-26/about-build11.png"
+      ],
+      "integrity": {
+        "head_unchanged": true,
+        "semantic_index_unchanged": true,
+        "working_file_hashes_unchanged": true,
+        "font_help_fullrow_appearance_preferences_unchanged": true,
+        "original_saved_repository_ids_paths_order_restored": true,
+        "only_private_folder_permission_removed": "1E3D91FD-0BAC-445E-A266-175EB6999734",
+        "private_repository_not_watched": true,
+        "acceptance_app_pid": 48872,
+        "ordinary_quit_pid_absent": true,
+        "watched_repository_count_preserved": 2
+      },
+      "automation_limits": [
+        "Chooser transition produced two automation timeouts; process sample showed idle main run loop, and rebind exposed the fully loaded Working Tree. No product hang inferred.",
+        "Coordinate actions/scroll returned noWindowsAvailable while accessibility selection/menu actions worked; full-path hover not verified.",
+        "An empty workspace appeared during repeated app/window activation and reappeared after closure under automation. About-versus-reopen cause was not isolated; no standalone-no-workspace acceptance claim.",
+        "No physical font/theme toggle or Rebase/Split workflow repeated in this installed check."
+      ]
+    }
+  },
+  "preparation_source_reviews": {
+    "scope": "Bounded active dispatch/control comparisons to pinned upstream; no complete-family certification.",
+    "families": [
+      "Commit/Log",
+      "Revision Graph/Statistics",
+      "Clone/Fetch/Push"
+    ],
+    "result": "No new connected missing user-action family proved in examined active paths; later source batches supersede older omission notes."
+  },
+  "external_observation": {
+    "pages": {
+      "revision": "77f0f4f9",
+      "run": 40324250071,
+      "conclusion": "success"
+    },
+    "macos": {
+      "revision": "77f0f4f9",
+      "run": 40324250010,
+      "status": "pending"
+    },
+    "preceding_macos": {
+      "revision": "38f1085f",
+      "run": 40315633554,
+      "status": "in_progress"
+    }
+  },
+  "limits": [
+    "Apple Development build; no distribution identity, notarization or App Store submission claimed.",
+    "No Intel execution, complete hosted result or whole-port certification.",
+    "Full-path tooltip hover, physical font toggles and standalone workspace/reopen behavior remain unverified in this acceptance.",
+    "Saved font/help/full-row/appearance keys are unchanged; normal dialog/window/column layout persistence can occur during use.",
+    "Git index special filename is NFC, while the filesystem path is NFD; no raw-NFD Git identity acceptance claim."
+  ],
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed11-displaced-installed-2026-10-26",
+  "new_identity": {
+    "bundle_identifier": "org.turtlegit.macos",
+    "marketing_version": "0.1.0",
+    "build_number": "11",
+    "peers": {
+      "finder": {
+        "bundle_identifier": "org.turtlegit.macos.finder",
+        "marketing_version": "0.1.0",
+        "build_number": "11"
+      },
+      "cache": {
+        "bundle_identifier": "org.turtlegit.macos.cache",
+        "marketing_version": "0.1.0",
+        "build_number": "11"
+      }
+    }
+  },
+  "old_identity": {
+    "bundle_identifier": "org.turtlegit.macos",
+    "marketing_version": "0.1.0",
+    "build_number": "10",
+    "peers": {
+      "finder": {
+        "bundle_identifier": "org.turtlegit.macos.finder",
+        "marketing_version": "0.1.0",
+        "build_number": "10"
+      },
+      "cache": {
+        "bundle_identifier": "org.turtlegit.macos.cache",
+        "marketing_version": "0.1.0",
+        "build_number": "10"
+      }
+    }
+  },
+  "source_staged_installed_inventories": "equal",
+  "strict_signature": "pass",
+  "finder_restarted": false,
+  "global_cache_reset": false,
+  "finder_registration": {
+    "identifier": "org.turtlegit.macos.finder",
+    "uuid": "424B0086-AD26-41EB-BDD9-C1B17FA5115D",
+    "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+    "enabled_installed_entries": 1,
+    "candidate_registration_removed": true,
+    "old_backup_removal_notice": "No plugin at the moved backup path; the installed new registration is present and enabled.",
+    "physical_badge_menu_rendering": "not reasserted"
+  },
+  "restored_user_serving_headless_instance": {
+    "purpose": "Restore the pre-update user-serving headless Finder watcher; not an automated test receiver",
+    "previous_pid": 73473,
+    "acceptance_pid": 48872,
+    "restored_pid": 49760,
+    "arguments": [
+      "--turtlegit-action-only"
+    ],
+    "installed_build": "11",
+    "matching_main_instances": 1,
+    "background_preference_changed": false,
+    "watched_root_grants_changed": false
+  },
+  "fresh_Finder_publication": {
+    "reported_repository_present": true,
+    "private_fixture_absent": true,
+    "root_count": 1,
+    "state_count": 68234,
+    "session": "BCB438D1-B892-442B-8052-9E4459E58ECE",
+    "cache_modified_utc": "2026-10-26T13:29:25.101019+00:00",
+    "scope": "Fresh shared-cache publication from restored headless build11; not proof of physical Finder badge rendering."
+  }
+}
