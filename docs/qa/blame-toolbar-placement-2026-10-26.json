@@ -1,0 +1,280 @@
+{
+  "date": "2026-10-26",
+  "status": "focused_core_debug_app_and_grouped_native_pass_after_recorded_repairs",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_audit": "docs/qa/blame-toolbar-source-audit-2026-10-26.json",
+  "implementation_scope": [
+    "Standard and named toolbar top/bottom/left/right/floating placement with saved geometry/order",
+    "Native drag handles, context placement/return/hide and menu/accessibility fallback",
+    "Transient docking preview and Escape cancellation without publishing layout",
+    "Owner-local checked command transfers and rearrangement through quick customization",
+    "Floating panel commands, appearance, frame fitting, minimize/hide/replacement/close ownership",
+    "Backward-compatible preference migration and reset"
+  ],
+  "validation": {
+    "core": {
+      "result": "pass",
+      "tests": 12,
+      "failures": 0,
+      "command": "swift test --filter BlameToolbarConfigurationTests",
+      "log": "build/qa/blame-toolbar-placement-core-2026-10-26.log"
+    },
+    "debug_app": {
+      "result": "pass",
+      "exit_code": 0,
+      "log": "build/qa/blame-toolbar-placement-app-2026-10-26.log",
+      "diagnostics": "Generic command-failed-with-exit-code-0 messages appear despite successful overall exit0, plus existing actor/deprecation/simulator warnings."
+    },
+    "help": {
+      "result": "pass",
+      "documents": 58,
+      "topics": 51,
+      "files": 86,
+      "bytes": 6804196
+    },
+    "localization": {
+      "result": "pass",
+      "languages": 38,
+      "keys": 1324,
+      "scope": "Generated labels checked; no full localization completeness claim"
+    },
+    "native_attempts": [
+      {
+        "result": "fixture_detached_button_assertion_failure",
+        "case": "composition",
+        "engine": "/usr/bin/git",
+        "pid": 32514,
+        "reaped": true,
+        "reason": "The existing fixture created a button without attaching it to a live native toolbar. New pointer-source membership correctly rejects this synthetic control. Repair uses actual hosted controls, retaining current/stale target assertions.",
+        "log": "build/qa/blame-toolbar-placement-native-2026-10-26.log"
+      },
+      {
+        "result": "pass",
+        "case": "composition",
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "pids": [
+          32653,
+          32768
+        ],
+        "reaped": true,
+        "independently_absent": true,
+        "log": "build/qa/blame-toolbar-placement-native-repair-1.log",
+        "scope": "Actual attached icon-only controls/overflow; full existing composition ownership workflow. Before the subsequent drag-epoch-only repair; composition was not repeated."
+      },
+      {
+        "result": "fixture_timing_assertion_failure",
+        "case": "placement",
+        "engine": "system",
+        "pid": 32877,
+        "reaped": true,
+        "independently_absent": true,
+        "reason": "The fixture selected a pre-layout grip before the asynchronous hosted toolbar replacement settled. Changed to bounded current/authenticated control selection, retaining actual native pointer/menu assertions.",
+        "log": "build/qa/blame-toolbar-placement-native-repair-1.log"
+      },
+      {
+        "result": "fixture_compile_failure_before_receiver_launch",
+        "reason": "The native accessibilityIdentifier() API returns nonoptional String; removed invalid optional chaining.",
+        "log": "build/qa/blame-toolbar-placement-native-repair-2.log"
+      },
+      {
+        "result": "production_current_neighbor_control_timeout",
+        "case": "placement",
+        "engine": "system",
+        "pid": 33096,
+        "reaped": true,
+        "independently_absent": true,
+        "reason": "After reordering one bar, an unchanged neighboring NSViewRepresentable could skip updateNSView and retain stale global presentation receipts. Actual current/native authentication assertion retained unchanged.",
+        "log": "build/qa/blame-toolbar-placement-native-repair-3.log"
+      },
+      {
+        "result": "fixture_geometry_restoration_timeout_repaired",
+        "case": "placement",
+        "engine": "system",
+        "pid": 33354,
+        "reaped": true,
+        "reason": "Frame persistence did not reach requested width480 after immediate demini transition in injected screen geometry. No production cause assigned from this attempt.",
+        "log": "build/qa/blame-toolbar-placement-native-repair-4.log"
+      },
+      {
+        "result": "fixture_geometry_diagnostic_timeout_repaired",
+        "case": "placement",
+        "engine": "system",
+        "pid": 33485,
+        "reaped": true,
+        "reason": "Consistent private screen seam still showed actual frame360 versus requested480, after native restoration. Diagnostics retained; investigating actual screen constraint versus native restoration timing.",
+        "log": "build/qa/blame-toolbar-placement-native-repair-5.log"
+      },
+      {
+        "result": "fixture_reopen_equality_failure_repaired",
+        "case": "placement",
+        "engine": "system",
+        "pid": 33640,
+        "reaped": true,
+        "independently_absent": true,
+        "reason": "Actual-screen resize and delayed geometry merge passed. The ordering interceptor still moved newly restored floating panels to an artificial offscreen origin, changing saved frames under test.",
+        "log": "build/qa/blame-toolbar-placement-native-repair-6.log"
+      }
+    ],
+    "production_repair": {
+      "reason": "Core layout equality intentionally ignores receipt generation. Native preference synchronization therefore skipped externally reset equal layouts and kept stale drag epochs indefinitely. Clearing a rejected/cancelled drag also needed to resume deferred preference synchronization.",
+      "change": "Adopt a changed persisted epoch even if visible layout compares equal; queue read-only synchronization after clearing a dock or command drag.",
+      "regression": "Reject old capture after equal-layout external reset, await epoch adoption, accept a fresh drag without editing layout.",
+      "affected_debug_build": {
+        "result": "pass",
+        "exit_code": 0,
+        "log": "build/qa/blame-toolbar-placement-app-repair-2026-10-26.log"
+      },
+      "repeated_scope": "Placement-only native workload; Core/model unchanged and previous composition results retained."
+    },
+    "strip_observation_repair": {
+      "change": "Observe the toolbar controller directly in each NSViewRepresentable strip. The existing signature cache still skips identical native rebuilds, while command/presentation epoch changes refresh unchanged bars.",
+      "guard_policy": "Strict native source membership and receipt validation retained.",
+      "affected_scope": "App build and placement-only native group; no Core/model changes or composition repeat.",
+      "affected_debug_build": {
+        "result": "pass",
+        "exit_code": 0,
+        "log": "build/qa/blame-toolbar-placement-app-repair2-2026-10-26.log"
+      }
+    },
+    "native_fixture_geometry_repair": {
+      "change": "Use actual NSScreen visible frames for native panels and resize inside those bounds. Pure helper clamp checks temporarily inject fake geometry and restore actual screens before panel creation. Separate resize/persistence from asynchronous parent demini restoration. Final ordering interception preserves native frames and sets alpha0 before every order.",
+      "assertions": "Exact width480 resize callback, saved frame/order/placement round-trip, external composition preservation and mini/demini checks all retained.",
+      "production_changes": "None for these geometry/ordering fixture repairs."
+    },
+    "native": {
+      "result": "pass_cumulative_four_case_engine_pairs",
+      "composition": {
+        "pids": [
+          32653,
+          32768
+        ],
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "log": "build/qa/blame-toolbar-placement-native-repair-1.log",
+        "scope": "Passed before the subsequent placement-specific epoch and native-strip-observation repairs; not repeated."
+      },
+      "final_placement": [
+        {
+          "engine": "/usr/bin/git",
+          "pid": 33743,
+          "log": "build/qa/blame-toolbar-placement-native-repair-7.log",
+          "result": "pass"
+        },
+        {
+          "engine": "packaged bundled Git",
+          "pid": 33835,
+          "log": "build/qa/blame-toolbar-placement-native-bundled-final.log",
+          "result": "pass"
+        }
+      ],
+      "cleanup": "All ten attempted runtime receivers were reaped and independently absent; final alpha0 ordering keeps all automated windows invisible, preserves real frames and uses prohibited activation. Private repositories/preferences/pasteboards; HEAD/index/files unchanged.",
+      "owned_pids": [
+        32514,
+        32653,
+        32768,
+        32877,
+        33096,
+        33354,
+        33485,
+        33640,
+        33743,
+        33835
+      ],
+      "warnings": "Both final placement logs report AppKit NSSplitView inconsistent arranged frames during zero-bounds teardown. Assertions and cleanup pass; warning not repaired or used to certify physical layout."
+    },
+    "coverage": {
+      "result": "pass",
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "scope": "Audit coverage, not feature completion."
+    },
+    "captures": {
+      "items": [
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/106aa88494/dock-left.png",
+          "sha256": "a96514769078c53995b108de452876739d769f0d568f6434b4b078ea91647863",
+          "bytes": 145843,
+          "reviewed": true
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/106aa88494/dock-right.png",
+          "sha256": "c35f3191cd7d4396b33d83c01bafc47d529c792879d1a78f14dc483cded9099e",
+          "bytes": 145833,
+          "reviewed": true
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/106aa88494/floating-standard.png",
+          "sha256": "e597bf2f4de53ec37e1d5879c0b2c0934f11077f2ceec6cc37aa943ce802e9af",
+          "bytes": 17499,
+          "reviewed": true
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/106aa88494/floating-custom.png",
+          "sha256": "a4c88bb0a8d91e94d652e4a1c0416aaf410b787ae043464bc13ea76cf890bd07",
+          "bytes": 15140,
+          "reviewed": true
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/45ec69d37d/dock-left.png",
+          "sha256": "d72e36291526d805ba41d4449e503a18ef3ddc853907db423ffe633e10939799",
+          "bytes": 142490,
+          "reviewed": false
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/45ec69d37d/dock-right.png",
+          "sha256": "58affb20b556ce34e857b423534af12efe9d600eec25cebb178b27512638d2a4",
+          "bytes": 142593,
+          "reviewed": false
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/45ec69d37d/floating-standard.png",
+          "sha256": "e597bf2f4de53ec37e1d5879c0b2c0934f11077f2ceec6cc37aa943ce802e9af",
+          "bytes": 17499,
+          "reviewed": false
+        },
+        {
+          "path": "build/qa/blame-toolbar-placement-captures/45ec69d37d/floating-custom.png",
+          "sha256": "a4c88bb0a8d91e94d652e4a1c0416aaf410b787ae043464bc13ea76cf890bd07",
+          "bytes": 15140,
+          "reviewed": false
+        }
+      ],
+      "scope": "Root visually reviewed four final system-Git cached-content captures: native handles, source icons, command controls and side placement. Some window material/background/source layers and overflow-label content are absent from cacheDisplay. These are limited control/layout captures, not complete composited-window parity or public listing screenshots. No screenshot published."
+    }
+  },
+  "release_preferences": {
+    "intended_seller": "Jochen Kühner",
+    "provisional_price": "EUR 7.99",
+    "next_delivery": "local test build",
+    "app_store_submission_authorized": false
+  },
+  "limits": [
+    "Exact MFC pointer/menu-bar gestures are not certified; macOS keeps its application menu in the system menu bar",
+    "No unverified native copy modifier or outside-drop deletion behavior is claimed",
+    "Physical multi-display/keyboard/VoiceOver, signed execution, supported minimum OS/Intel and complete hosted integration remain open",
+    "Installed build12 predates this source family"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/BlameToolbarConfiguration.swift": "dd201f84f290cbda5342fc923e0883de112a6e578324a17bc6b89964edc3f08a",
+    "Sources/TurtleGitMac/BlameToolbar.swift": "c10119adf119987b974ac45845c9f8764d46afe76fdbe6addc6a84ae7b3874b2",
+    "Sources/TurtleGitMac/BlameToolbarDocking.swift": "5cda4c8f58af8d0a899c7adc27d8890c5d7fec9e7dde359f83080f897d0631f7",
+    "Sources/TurtleGitMac/BlameToolbarViews.swift": "e37017a2b69e5cb5ff23ff8b65bfa31560e31a64c7f3fb6acd85f2f910dd2102",
+    "Sources/TurtleGitMac/BlameWindow.swift": "c3d3bc596cd17e38f722cd5d112b17c262182daf6bb5d3e8bbbc58b5e2aae2bc",
+    "Tests/TurtleGitCoreTests/BlameToolbarConfigurationTests.swift": "d2951a2ce2cf7da13cbc29bbbff1aa4340dbcc76953ca053f8b41d44584f2242",
+    "docs/qa/blame-toolbar-native-2026-10-26.swift": "47d7372b7b2478c131598eda6cbb5e0ba7f3371306144b871057ca5348393f8d",
+    "docs/qa/blame-toolbar-placement-native-2026-10-26.swift": "952841dfd96d578c14e0ff4a81e6fa866008f56ffbbd1eea0977615ada3f15e8",
+    "scripts/test-blame-toolbar.py": "7d2c43c0d2f25f43fd5ffa5286a29ce49c1ee36aef5bdccc1d563c3986a3395c",
+    "docs/qa/blame-toolbar-source-audit-2026-10-26.json": "e3b14a0cb710d014500e5916fa4b87dc81af4c70b50ee2ef16a31ea167d90c83",
+    "docs/APP-STORE-SUBMISSION-DRAFT.md": "952698c1f20514d369a00834ef125e2c81b9cee8e8e8441c912a7ff5378038b0",
+    "docs/app-store/listing-en-US-draft.json": "86b054b49ccff62eaf1ed4c6adaef12bb931d0838d8b0549b029cc8fd9825964"
+  }
+}

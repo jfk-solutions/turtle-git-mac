@@ -182,3 +182,29 @@ saved for later viewers. Other open viewers adopt saved changes while their
 toolbar editor and native customization palette are closed.
 See [the source comparison](BLAME-TOOLBAR-PARITY.md) for scope and remaining
 physical acceptance.
+
+
+## Dock or float toolbars
+
+Drag a toolbar's dotted handle toward the top, bottom, left or right edge of the
+Blame window to dock it there. Release away from an edge to float it. The
+placement preview is temporary; **Escape** cancels without saving a new layout.
+Double-click the handle to float a docked bar or return a floating bar to its
+previous dock position.
+
+The handle's context menu offers placement choices, **Customize Toolbar…**,
+**Manage Toolbars…**, **Reset All Toolbars** and **Hide Toolbar**. The handle's
+accessibility action opens the same menu. Toolbar management also offers
+placement choices. Closing a floating bar hides it; show it again through the
+View menu. The standard toolbar and named bars retain their positions and
+floating frames for later viewers.
+
+Hold **Option** while dragging a command to reorder it or move it to another
+visible toolbar belonging to the same document. Escape or an invalid/outside
+drop preserves the original composition. Use toolbar management to remove a
+command. Transfers into another document's toolbar are rejected.
+
+Floating bars retain their document's menu, Copy and Find targets. Closing or
+replacing the Blame document also retires its floating toolbars. See
+[the placement comparison](BLAME-TOOLBAR-PLACEMENT-PARITY.md) for the exact source
+scope and acceptance limits.

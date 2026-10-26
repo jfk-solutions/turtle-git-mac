@@ -18,8 +18,10 @@ Toolbar management adds, renames, deletes and reorders named custom bars. More
 than one custom bar can be visible above the document. Each has its own ordered
 command list, icon/text display mode and overflow. The standard bar can also be
 edited there. **Reset All Toolbars** restores the source default and removes
-custom bars. This is a native adaptation of MFC user toolbars; floating arbitrary
-MFC toolbar docking and every Windows customization gesture are not implemented.
+custom bars. The later [placement family](BLAME-TOOLBAR-PLACEMENT-PARITY.md)
+adds four dock edges, floating panels, drag handles and quick command relocation.
+It supersedes the first checkpoint’s fixed-top limitation; exact Windows
+customization gestures are not certified.
 
 The available commands include the existing Blame navigation, Find, settings,
 panes, annotation fields, history, appearance, detection and encoding actions.

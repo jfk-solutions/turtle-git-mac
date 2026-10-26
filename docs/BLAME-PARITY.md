@@ -1485,3 +1485,14 @@ visibility, composition, ordering, overflow and saved display modes. This adapts
 the source user-toolbar workflow without claiming MFC floating toolbar gestures.
 Ordinary menu access remains available with the toolbar hidden. The family QA
 record separates implementation from physical, signed and complete hosted checks.
+
+
+## Toolbar placement and quick customization — October 26, 2026
+
+The [placement continuation](BLAME-TOOLBAR-PLACEMENT-PARITY.md) extends the
+customization family to standard and named bars on all four dock edges and in
+owned floating panels. It adds saved frames/order, remembered dock return,
+transient grip dragging with Escape cancellation, native placement menus and
+Option-drag command relocation. The fixed-top-only limitation of the first
+customization checkpoint is superseded. The placement record retains its own
+actual grouped checks and physical/signed/full-port boundaries.

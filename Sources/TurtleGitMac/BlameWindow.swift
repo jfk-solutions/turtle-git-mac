@@ -147,7 +147,7 @@ import TurtleGitCore
         }
         model.copyWindowAvailable = { [weak self, weak current] candidate in
             guard let self, let current, self.model === current, let candidate else { return false }
-            return self.commandsAvailable && self.commandKeyWindow() === candidate && NSApp.modalWindow == nil
+            return self.commandsAvailable && (self.commandKeyWindow() === candidate || (self.toolbarChrome?.ownsFloatingWindow(self.commandKeyWindow())==true && self.toolbarChrome?.copyContentWindow() === candidate)) && NSApp.modalWindow == nil
         }
         NotificationCenter.default.removeObserver(self, name: NSWindow.willBeginSheetNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: NSWindow.didEndSheetNotification, object: nil)
@@ -240,6 +240,7 @@ import TurtleGitCore
     }
     func setDarkMode(_ value:Bool) { guard model.canFind else { return };model.setDarkOverride(value);applyWindowAppearance() }
     func followSystemAppearance() { guard model.canFind else { return };model.setDarkOverride(nil);applyWindowAppearance() }
+    func isBlameContentWindow(_ candidate:NSWindow)->Bool {candidate === window || floatingPanes.values.contains{$0.window === candidate}}
     static func focusedOwner(_ initial:NSWindow?)->BlameWindowController? {
         var candidate=initial,seen=Set<ObjectIdentifier>()
         while let window=candidate,seen.insert(ObjectIdentifier(window)).inserted {
@@ -1001,7 +1002,6 @@ private struct BlameDialog: View {
     var toolbarChrome:BlameToolbarController? = nil
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let toolbarChrome { BlameCustomToolbars(chrome:toolbarChrome) }
             if let error=model.recentHistoryError { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
             if model.openingDocument { HStack { ProgressView(model.cancellingDocument ? "Cancelling…" : "Opening file…").controlSize(.small);Button("Cancel") { model.onCancelDocumentOpen?() }.disabled(model.cancellingDocument) } }
             if model.busy { HStack {
@@ -1013,7 +1013,8 @@ private struct BlameDialog: View {
             if model.loadingParents || model.readingHistoryParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            BlamePaneWorkspace(model:model).frame(maxWidth:.infinity,maxHeight:.infinity)
+            if let toolbarChrome {BlameToolbarDockLayout(chrome:toolbarChrome){BlamePaneWorkspace(model:model)}.frame(maxWidth:.infinity,maxHeight:.infinity)}
+            else {BlamePaneWorkspace(model:model).frame(maxWidth:.infinity,maxHeight:.infinity)}
             if model.showStatusBar { if let line = model.selectedLine {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
@@ -3310,7 +3311,7 @@ extension BlameWindowController {
     @discardableResult static func routeCommandKey(_ event:NSEvent,from source:NSWindow?)->Bool {
         guard let source,let owner = focusedOwner(source),!owner.model.retired,
               owner.commandKeyWindow() === source,
-              source === owner.window || owner.floatingPanes.values.contains(where:{$0.window === source}),
+              source === owner.window || owner.floatingPanes.values.contains(where:{$0.window === source}) || owner.toolbarChrome?.floatingPanels.values.contains(where:{$0.window === source}) == true,
               event.windowNumber == source.windowNumber else {return false}
         if BlameZoomKeyRouting.route(event,owner:owner) {return true}
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])

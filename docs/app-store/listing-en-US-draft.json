@@ -1,6 +1,6 @@
 {
   "status": "DRAFT_NOT_SUBMITTED",
-  "draft_date": "2026-10-25",
+  "draft_date": "2026-10-26",
   "locale": "en-US",
   "name": "TurtleGit for Mac",
   "subtitle": "Git history, commits and diffs",
@@ -29,9 +29,9 @@
   },
   "owner_decisions_pending": [
     "listing approval and localizations",
-    "publisher/copyright",
-    "seller identity, SKU and actual Connect app record",
-    "price, territories and release method",
+    "copyright and retained upstream/distribution rights",
+    "SKU and actual Connect app record/enrollment verification",
+    "final price/currency/price-point confirmation, territories and later release method",
     "privacy questionnaire",
     "encryption/export determination and any required documentation",
     "age-rating questionnaire and any override",
@@ -42,9 +42,9 @@
   "submission_performed": false,
   "account_changes_performed": false,
   "port_author": {
-    "name": "Jochen K\u00fchner",
+    "name": "Jochen Kühner",
     "role": "Author of the macOS port",
-    "scope": "Port credit only; seller/legal entity and copyright ownership require separate owner confirmation"
+    "scope": "Confirmed macOS port author and intended seller/publisher; this does not establish ownership of upstream work."
   },
   "review_attachment": {
     "archive": "turtlegit-review-demo-v1.zip",
@@ -55,5 +55,22 @@
     "submission_attachment_performed": false
   },
   "support_email": "jochen.kuehner@gmx.de",
-  "support_email_confirmation": "Owner supplied public support email on 2026-10-25; draft only."
+  "support_email_confirmation": "Owner supplied public support email on 2026-10-25; draft only.",
+  "proposed_seller": {
+    "name": "Jochen Kühner",
+    "confirmation": "Owner confirmed on 2026-10-26 that the seller/publisher is the port author. Actual Apple account/enrollment record is not inspected."
+  },
+  "commercial_model": "paid",
+  "proposed_price": {
+    "amount": "7.99",
+    "currency": "EUR",
+    "status": "provisional_owner_preference",
+    "confirmation": "Owner said the app should be sold, “I think 7,99”, on 2026-10-26. EUR is the working currency assumption for the German storefront; no App Store price point has been configured."
+  },
+  "release_plan": {
+    "next_delivery": "local_test_build",
+    "app_store_distribution": "later_only_after_owner_tests_finished_app",
+    "submission_authorized": false,
+    "confirmation": "Owner explicitly requested testing the finished app before App Store distribution on 2026-10-26."
+  }
 }

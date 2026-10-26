@@ -4957,3 +4957,17 @@ commands remain available without the toolbar. See the
 [dated checkpoint](qa/blame-toolbar-customization-2026-10-26.json) for actual
 validation and remaining platform acceptance; installed build12 predates this
 source batch.
+
+
+## Blame docked/floating toolbar workflow — October 26, 2026
+
+The [connected placement family](BLAME-TOOLBAR-PLACEMENT-PARITY.md) supplies
+standard and named bar placement on all four edges, floating utility panels,
+remembered dock return, saved bounded frames/order, native drag handles and
+placement menus. Quick Option-drag relocation keeps command transfers within
+their document; cancelled, stale and invalid drops preserve composition.
+Floating controls retain source-document menu/Find/Copy ownership and retire
+with replacement/close. [The dated checkpoint](qa/blame-toolbar-placement-2026-10-26.json)
+records actual validation and remaining physical/signed/full-port acceptance.
+The owner's next delivery remains a local test build, with App Store
+distribution deferred until after testing the finished app.

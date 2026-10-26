@@ -1,12 +1,12 @@
-# App Store submission dossier — draft, 25 October 2026
+# App Store submission dossier — draft, 26 October 2026
 
 This is a reviewable preparation artifact, **not an approved listing, signed export,
 license clearance or submission**. No App Store Connect fields were changed. The
 accompanying [English listing payload](app-store/listing-en-US-draft.json) contains
 copy that can be reviewed independently of the current signed development build.
-Nothing in this dossier certifies complete TortoiseGit parity. The macOS port is
-authored by **Jochen Kühner**; this author credit is distinct from the still
-unconfirmed App Store seller/legal entity and retained upstream rights.
+Nothing in this dossier certifies complete TortoiseGit parity.
+The next delivery is a local test build: the owner wants to test the finished app
+before any later App Store distribution. No submission is authorized.
 
 ## Proposed listing
 
@@ -14,7 +14,8 @@ unconfirmed App Store seller/legal entity and retained upstream rights.
 | --- | --- | --- |
 | Name | TurtleGit for Mac | Owner approval; 17 characters |
 | Subtitle | Git history, commits and diffs | Owner approval; 30 characters |
-| macOS port author | Jochen Kühner | Confirmed port credit; does not establish seller/legal entity or ownership of upstream work |
+| macOS port author | Jochen Kühner | Confirmed port credit; upstream rights remain distinct |
+| Intended seller/publisher | Jochen Kühner | Confirmed by owner on 26 October 2026; actual enrollment/Connect record not inspected |
 | Primary category | Developer Tools | Proposed; matches the implemented development workflow |
 | Secondary category | Utilities | Optional proposal; owner may omit |
 | Primary language | English (U.S.) | Proposal; compiled UI translations do not establish reviewed store localizations |
@@ -24,8 +25,10 @@ unconfirmed App Store seller/legal entity and retained upstream rights.
 | Public support email | jochen.kuehner@gmx.de | Confirmed by owner on 25 October 2026; recorded in this draft |
 | Support URL candidate | https://jfk-solutions.github.io/turtle-git-mac/ | Reachable, links to GitHub issues; Confirmed support email deployed and verified on 25 October 2026; final listing approval pending |
 | Privacy Policy URL candidate | https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html | Reachable policy; owner must approve for the exact release and identify the responsible publisher/contact |
-| Copyright, seller, SKU | Not supplied | Owner must confirm legal rights/identity and the App Store Connect record |
-| Price, territories, release method | Not supplied | Owner decision; no free, trial, subscription or purchase claim inferred |
+| Proposed business model and price | Paid app; provisional €7.99 | Owner preference on 26 October 2026 (“I think 7,99”); EUR is the working storefront assumption. No price point configured |
+| Copyright and SKU | Not supplied | Retained upstream/distribution rights and actual Connect app record remain separate from the confirmed seller name |
+| Territories and later release method | Not supplied | Decide after local testing; no submission or public sale performed |
+| Next delivery | Local test build | Owner tests the finished app before later App Store distribution |
 | Version/build | Read from final exported archive | Do not copy a historical development build or assume its number is unused in Connect |
 
 Apple currently limits app names/subtitles to 30 characters, description to 4,000
@@ -51,7 +54,27 @@ the confirmed email was deployed and verified by direct HTTPS GET on
 actual contact information for Support URL and requires a privacy URL; a reachable
 page alone does not settle those fields. See [version metadata](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information)
 and [App Privacy](https://developer.apple.com/help/app-store-connect/reference/app-information/app-privacy/).
-The seller/legal entity remains unspecified; the support email does not establish it.
+On 26 October 2026 the owner separately confirmed **Jochen Kühner** as the intended
+seller/publisher and a provisional paid price of **€7.99**. Those are preparation
+preferences, not an inspected Apple enrollment record or configured store price.
+The next delivery remains a local test build, with App Store distribution deferred
+until after the owner has tested the finished app.
+
+## Local testing before distribution
+
+The owner wants to test the finished local app before App Store distribution.
+The proposed seller and price are saved preferences for that later step, not
+instructions to create an account, upload a build or configure a sale now.
+
+Apple does not require paid program membership for development and personal
+testing with Xcode. App Store distribution requires Apple Developer Program
+membership, currently US$99 per membership year with regional pricing shown
+at enrollment. Individual enrollment uses the person's legal name as the seller.
+Sources checked on 26 October 2026: [program overview](https://developer.apple.com/help/account/membership/programs-overview),
+[enrollment](https://developer.apple.com/programs/enroll/).
+The test app's signing, entitlements and Finder integration still need their own
+measured acceptance; an account answer is not evidence that a particular build
+has passed those checks.
 
 ## Draft reviewer instructions
 

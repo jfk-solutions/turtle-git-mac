@@ -21,6 +21,16 @@
       "path": "src/TortoiseGitBlame/MainFrm.cpp",
       "lines": "277\u2013299",
       "contract": "Customize dialog scans menus; enables user-defined toolbars; new bars gain Customize button"
+    },
+    {
+      "path": "src/TortoiseGitBlame/MainFrm.cpp",
+      "lines": "120\u2013124",
+      "contract": "Standard toolbar and frame explicitly enable CBRS_ALIGN_ANY; standard toolbar is docked through DockPane."
+    },
+    {
+      "path": "src/TortoiseGitBlame/MainFrm.cpp",
+      "lines": "128\u2013149",
+      "contract": "Smart docking, global pane auto-hide capability, pane menu and Alt-drag quick toolbar customization are enabled. Pane auto-hide does not independently prove toolbar auto-hide."
     }
   ],
   "defaultSourceToolbar": [
@@ -580,10 +590,35 @@
   ],
   "model": "Sources/TurtleGitCore/BlameToolbarConfiguration.swift",
   "sourceBoundaries": [
-    "Model provides named simultaneous bars, ordered compositions, per-bar visibility and icon/text mode, mutable standard composition, persistent identity, reset and bounds. Native controller owns command dispatch and ownership.",
-    "Native toolbar customization translates MFC docking/customization to NSToolbar and auxiliary strips; floating MFC docking is not implied.",
+    "Model supports named simultaneous bars, ordered compositions, per-bar visibility and icon/text mode, standard/custom placement on top/bottom/left/right or floating, bounded dock order, remembered return dock edge/order and finite bounded saved floating rectangles, persistent identity, reset and bounded known command IDs.",
+    "Standard toolbar all-side docking/floating is directly established by source flags plus documented CMFCToolBar implementation. User-toolbar creation and Customize are explicit; individual new-bar initial placement is inherited framework behavior.",
+    "Native docking uses AppKit strips and owned NSPanel windows; this is an adaptation, not a binary MFC docking implementation. Pane auto-hide flags do not certify toolbar auto-hide semantics.",
+    "Quick move receipts capture epoch, toolbar ID, occurrence index, expected command and source composition; accepted transfer applies atomically without executing commands. Duplicate executable commands, stale payloads, invalid offsets and missing bars are refused; repeated spacers remain distinct occurrences.",
+    "Primary references explicitly prove Alt-drag relocation. Exact source copy-key modifier and outside-drop deletion were not established; no automatic outside-drop removal or speculative copy gesture should be claimed. Model copy helper is distinct from verified native gesture support.",
     "Output-pane context popup Clear/Hide is not the scanned main menu; no nonexistent clear-output operation invented.",
     "Disabled Help Finder remains excluded; recent-file contents remain dynamic menu state, not persisted executable commands."
   ],
-  "validation": "Implementation only. No builds or tests run before the root grouped batch checkpoint."
+  "validation": "Implementation and primary-source mapping only. Placement/drag batch tests and builds are deferred to the root grouped checkpoint; no physical drag, VoiceOver, signed sandbox or complete MFC layout parity certified.",
+  "primaryFrameworkReferences": [
+    {
+      "url": "https://learn.microsoft.com/en-us/cpp/mfc/reference/cmfctoolbar-class?view=msvc-170#enabledocking",
+      "contract": "CMFCToolBar::EnableDocking sets AFX_CBRS_FLOAT; directly establishes floating capability for source standard toolbar."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/cpp/mfc/reference/cmfctoolbar-class?view=msvc-170#enablequickcustomization",
+      "contract": "EnableQuickCustomization allows Alt-drag moving toolbar buttons to another location; generic class supports drag-and-drop between toolbars and menus."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/cpp/mfc/reference/cframewndex-class?view=msvc-170#ontoolbarcreatenew",
+      "contract": "Framework constructs new user toolbar; source override delegates creation and then adds Customize. Exact initial user-toolbar docking is framework-inherited rather than explicitly configured in this source override."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/cpp/mfc/docking-and-floating-toolbars?view=msvc-170",
+      "contract": "Docking to enabled sides and detaching into a floating mini-frame are MFC toolbar operations."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/cpp/mfc/reference/cpane-class?view=msvc-170#dockpane",
+      "contract": "CPane::DockPane DM_DBL_CLICK restores most recent docking position, and double-click undocking restores most recent floating position. Native fields retain last dock edge/order and floating rectangle."
+    }
+  ]
 }

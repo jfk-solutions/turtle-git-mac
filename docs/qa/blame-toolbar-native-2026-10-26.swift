@@ -191,8 +191,10 @@ private extension NSWindow {
         let namedButtons=strip.subviews.compactMap{$0 as? NSButton}.filter{!($0 is NSPopUpButton)}
         try require(namedButtons.map(\.title)==["find","wrap","copy","about"].map(BlameToolbarController.title),"Named native controls lost composition/order")
         try require(namedButtons.allSatisfy{$0.image != nil},"Named icon-and-label controls lack icons")
-        strip.setFrameSize(NSSize(width:180,height:34));strip.needsLayout=true;strip.layoutSubtreeIfNeeded()
-        guard let overflow=strip.subviews.compactMap({$0 as? NSPopUpButton}).first,let overflowMenu=overflow.menu else {throw Failure(description:"Named overflow menu missing")}
+        guard let attachedStrip=views(window.contentView).compactMap({$0 as? BlameToolbarStrip}).first(where:{$0.barID==review && $0.window === window}) else {throw Failure(description:"Actual attached named toolbar missing")}
+        let attachedSize=attachedStrip.frame.size
+        attachedStrip.setFrameSize(NSSize(width:180,height:34));attachedStrip.needsLayout=true;attachedStrip.layoutSubtreeIfNeeded()
+        guard let overflow=attachedStrip.subviews.compactMap({$0 as? NSPopUpButton}).first,let overflowMenu=overflow.menu else {throw Failure(description:"Actual named overflow menu missing")}
         try require(!overflow.isHidden && overflowMenu.items.count>1 && overflowMenu.items.dropFirst().allSatisfy{$0.image != nil && $0.action != nil},"Narrow named bar lost native overflow icons/actions")
         var aboutCalls=0;chrome.showAbout={aboutCalls += 1}
         let overflowAbout=overflowMenu.items.first{$0.title==BlameToolbarController.title("about")}!
@@ -201,8 +203,14 @@ private extension NSWindow {
         try invoke(overflowAbout);try require(aboutCalls==1,"Hidden named bar retained overflow action authority")
         reviewBar.isVisible=true;chrome.update(reviewBar)
         try invoke(overflowAbout);try require(aboutCalls==1,"Obsolete custom layout receipt remained active")
-        let currentButton=chrome.button("about",mode:.icons,barID:review)
-        try require(currentButton.title.isEmpty && currentButton.image != nil,"Icon-only named control lost display mode")
+        attachedStrip.setFrameSize(attachedSize)
+        reviewBar.displayMode = .icons;chrome.update(reviewBar)
+        func currentNamedButton()->NSButton? {
+            views(window.contentView).compactMap{$0 as? BlameToolbarStrip}.filter{$0.barID==review && $0.window === window}.flatMap{$0.subviews.compactMap{$0 as? NSButton}}.first{$0.toolTip==BlameToolbarController.title("about") && $0.title.isEmpty && chrome.authenticatedPointerSource($0)}
+        }
+        try await wait("Attached current icon-only named button") {currentNamedButton() != nil}
+        guard let currentButton=currentNamedButton() else {throw Failure(description:"Current attached named button missing")}
+        try require(currentButton.title.isEmpty && currentButton.image != nil && currentButton.window === window,"Icon-only named control lost native ownership/display mode")
         try require(NSApp.sendAction(currentButton.action!,to:currentButton.target,from:currentButton),"Custom button target missing")
         try require(aboutCalls==2,"Current named button failed dispatch")
         chrome.removeBar(inspect)
