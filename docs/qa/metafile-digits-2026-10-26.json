@@ -137,5 +137,7 @@
     "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/dcc3e25a-6d9c-4e3e-ac04-dd34203d1cc1",
     "https://learn.microsoft.com/en-us/windows/win32/api/gdiplusstringformat/nf-gdiplusstringformat-stringformat-setdigitsubstitution",
     "https://www.unicode.org/reports/tr35/tr35-numbers.html"
-  ]
+  ],
+  "superseded_by": "metafile-format-controls-2026-10-26.json",
+  "superseded_reason": "The local native locale-digit policy passed its own expectations, but subsequent direct and serialized Windows reference paint contradicts that policy. Current source preserves recorded numeric code points; the original local checks remain historical evidence only."
 }

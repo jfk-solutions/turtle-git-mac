@@ -4897,3 +4897,21 @@ The [batch checkpoint](qa/metafile-digits-2026-10-26.json) records grouped Core,
 both helper architectures and both native consumer/Git pairs, including the
 failed patch attempt and affected repairs. The installed signed app remains
 build12; no signed consolidation or full hosted pass is implied.
+
+
+## Formatted text Windows interoperability — October 26, 2026
+
+The [format-control family](METAFILE-TEXT-PARITY.md) adds native zero-advance
+control outlines through real Windows-recorded metafiles, shaped layouts and
+image consumers. Windows reference runs established direct/serialized behavior
+for layout controls and numeric modes. They disproved the preceding locale-digit
+section's ICU substitution policy; current drawing retains literal numeric code
+points. The same batch normalizes real Windows LANGID storage and aligns the
+handwritten formatted-text font/DrawString payload sizes. The earlier native
+locale policy and its passing local expectations are historical, not current
+Windows parity evidence.
+
+[The dated checkpoint](qa/metafile-format-controls-2026-10-26.json) preserves
+reference failures and actual validation scope. Full font/version/locale
+compatibility, physical signed image acceptance and complete hosted integration
+remain open; installed build12 predates this source.

@@ -6,7 +6,9 @@ MIT. They contain no copied image/font payloads. The generator follows Microsoft
 [MS-EMFPLUS](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/)
 and [MS-WMF](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/)
 record structures, independently of renderer output. No runtime conversion is
-needed to regenerate the corpus.
+needed to regenerate the handwritten corpus. The `windows-formatted-*` files are
+original Windows GDI+ recordings retained byte-for-byte from the pinned reference
+run; regenerate those with its C++ utility, not `generate.py`.
 
 Successful inputs:
 
@@ -508,3 +510,16 @@ indexed usage, noncopy ROPs, negative compressed DIB height, corrupt containers,
 trailing junk, frame/dimension limits and aggregate expansion must fail the whole
 conversion. See [compressed raster parity](../../../../docs/METAFILE-COMPRESSED-RASTER-PARITY.md)
 for Windows observations and remaining platform limits.
+
+
+The October 26 formatted-control family includes visible zero-advance LRM/RLM
+glyphs, lone joiners, retained bidi/joining text, vertical/wrapped/trimmed layouts
+and original Windows recordings with nonzero upper LANGID storage bits. Font and
+DrawString DataSize fields in the handwritten formatted-text family include their
+required zero padding. The prior unaligned font payloads caused Windows replay
+status9 (Aborted); the aligned references replay successfully.
+
+Digit-mode controls distinguish native Windows literal numeric playback from
+host-locale rewriting. The previous local ICU-substitution expectations are
+superseded by direct and serialized Windows references, including Arabic/RTL.
+See [source and recorded evidence](../../../../docs/METAFILE-TEXT-PARITY.md).

@@ -96,7 +96,7 @@ The separate [positioned text family](METAFILE-POSITIONED-TEXT-PARITY.md)
 connects driver strings, font-specific glyph indices and classic W text advances
 to native outlines, with its own checkpoint and font/record limits. This is
 useful three-format support, not complete GDI compatibility. Remaining
-unsupported features include DisplayFormatControl and measured-character-range queries, gradients outside the
+unsupported features include measured-character-range queries, gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md),
 file-format-only Left/Outset/Right pen alignment, alternate-format/terminal-server
 records. The [SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md) adds ordered alpha

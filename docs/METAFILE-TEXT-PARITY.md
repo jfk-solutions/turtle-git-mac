@@ -43,28 +43,39 @@ controls literal ampersands, hidden markers and visible underlines. Font underli
 and strikeout use actual font metrics, not guessed line positions. A strikeout
 font without usable OS/2 metrics is refused.
 
-Digit substitution None (1) is literal. User (0) is implementation-defined in the
-[enumeration](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/dcc3e25a-6d9c-4e3e-ac04-dd34203d1cc1);
-this renderer keeps deterministic unchanged digits for that mode, including an
-explicit DigitLanguage. National (2) uses the recorded language's native macOS
-locale-default decimal digits. Traditional (3) uses that locale's native-script
-decimal digits, which can differ: Thai national digits are ASCII while its native
-digits are Thai. A neutral DigitLanguage selects the current native locale.
-The conversion uses Foundation/ICU locale data; equality with every Windows NLS
-version is unverified. CLDR's algorithmic `traditional` numbering systems are
-not used: this is per-digit substitution, not whole-number spelling.
+The digit substitution enum and original DigitLanguage are retained, but drawing
+preserves the recorded Unicode digits. Direct Windows GDI+ and native serialized
+replay matched literal ASCII controls for National/Traditional Thai, Arabic and
+Persian, including Arabic text with right-to-left layout. Explicit Unicode script
+digits remain unchanged. The previous Foundation/ICU digit-rewriting policy was
+an incorrect inference from the enum names and is superseded by this measured
+behavior. The [enum specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/dcc3e25a-6d9c-4e3e-ac04-dd34203d1cc1)
+alone did not establish actual Windows playback.
 
-Only ASCII digits change, before native shaping, wrapping, hotkey range creation,
-decoration and brush paint. Existing non-ASCII digits and the original semantic
-text remain intact. Mappings require ten distinct decimal digits with the expected
-numeric values and remain bounded within the conversion. Invalid method values,
-out-of-width language identifiers and unmapped explicit substitution languages
-fail the complete image. None/User do not require a locale lookup.
-Measured-character ranges are fully bounded metadata and do not alter DrawString
-paint; this does not add a MeasureCharacterRanges API. DisplayFormatControl remains
-explicitly unsupported. Glyph-ID `DrawDriverString` has a separate
-[positioned-text implementation and checkpoint](METAFILE-POSITIONED-TEXT-PARITY.md);
-it is never silently treated as Unicode DrawString.
+StringFormat language storage is normalized to its lower LANGID word. Native
+Windows records contain nonzero upper storage bits even for neutral Language;
+rejecting the entire 32-bit value would reject real files. The meaningful text
+language still supplies the native shaping attribute. DigitLanguage metadata
+never authorizes rewriting user text. Unknown digit language values can remain
+metadata when their drawing does not require a native locale mapping.
+
+DisplayFormatControl exposes actual zero-advance font cmap outlines for LRM/RLM
+without replacing Unicode text or changing baseline shaping, line advances or
+Arabic joining. The measured native Windows recordings display ZWJ/ZWNJ when the
+entire DrawString text is that lone control; embedded Latin, separated and Arabic
+contexts retain their hidden paint. The renderer follows those measured contexts.
+Controls that have no outline in the selected native font remain empty, as with
+Helvetica; no replacement boxes or Unicode control-picture characters are
+invented. Exact other-font/Windows-version behavior remains unverified.
+
+Overlay positions follow the shaped line caret offsets and tracking, then the
+existing horizontal/vertical transform, clip and brush paint. Wrapping and
+trimming retain the exact visual substring used by each final CTLine, including
+ellipsis and path suffixes, so a removed control cannot reappear. Overlay glyphs
+charge the existing glyph-work/path budgets. Measured-character ranges remain
+bounded metadata, without a MeasureCharacterRanges API. Glyph-ID
+`DrawDriverString` retains its separate
+[positioned-text implementation and checkpoint](METAFILE-POSITIONED-TEXT-PARITY.md).
 
 Beyond the explicit tab list, this native implementation repeats the final
 interval with its initial phase preserved. Without explicit stops it uses eight
@@ -128,3 +139,10 @@ both system/bundled-Git native consumer pairs. The initial generated-JavaScript
 syntax error and stale-runtime embedding rejection are retained in that record;
 the affected groups passed after repair. Both native receivers were reaped and
 independently confirmed absent. This source batch is newer than installed build12.
+
+
+The [format-control and Windows interoperability checkpoint](qa/metafile-format-controls-2026-10-26.json)
+supersedes the earlier locale-digit interpretation. It records the direct and
+serialized Windows references, the handwritten font-payload alignment repair,
+retained original Windows fixtures and the grouped local validation. These
+measurements cover their named cases, not every Windows font or GDI+ behavior.

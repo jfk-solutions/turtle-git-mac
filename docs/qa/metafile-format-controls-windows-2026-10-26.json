@@ -1,0 +1,2293 @@
+{
+  "date": "2026-10-26",
+  "scope": "Original synthetic direct and serialized Windows GDI+ formatted text, native font cmap and independent Uniscribe observations; not all-font/Windows-version certification",
+  "runs": [
+    {
+      "run": 40365612803,
+      "commit": "f4cbf048466dc53f41db37e8a408b689eb42f5f4",
+      "artifact": 12670077478,
+      "sha256": "c2f7e2dd7c5eba1d03c9de2f411d9dfff6a1da7239ac32c0b0afe312feb95f03",
+      "conclusion": "success",
+      "scope": "86 direct cases, including 12 digit modes across Default/Typographic and eight literal controls",
+      "source": "https://github.com/jfk-solutions/turtle-git-mac/blob/f4cbf048466dc53f41db37e8a408b689eb42f5f4/scripts/oracles/FormattedControlsReference.cpp"
+    },
+    {
+      "run": 40366603905,
+      "commit": "afe666346df9c0de6abf9b8905a17edb21ff38a0",
+      "artifact": 12671096883,
+      "sha256": "1f96aa7009258661807aa065208c39b6a951e6f0b884d20b3442042b48cad92e",
+      "conclusion": "success_with_recorded_fixture_failures",
+      "scope": "32 native control direct/replay pairs identical; eight handwritten fixture replay results Aborted9, not paint acceptance",
+      "source": "https://github.com/jfk-solutions/turtle-git-mac/blob/afe666346df9c0de6abf9b8905a17edb21ff38a0/scripts/oracles/FormattedReplayReference.cpp"
+    },
+    {
+      "run": 40367790711,
+      "commit": "8966cd0a9d9c3bffca5d6543e7142dd24176c2d2",
+      "artifact": 12671231999,
+      "sha256": "3c2e8c49964bf9d069509ef84ad16530c6f6da52071a33bf7ce3ed6a83d2ce29",
+      "conclusion": "success",
+      "scope": "Eight aligned handwritten fixtures replay successfully; 18 new native digit/direct-replay pairs identical; prior32 controls not rerun",
+      "source": "https://github.com/jfk-solutions/turtle-git-mac/blob/8966cd0a9d9c3bffca5d6543e7142dd24176c2d2/scripts/oracles/FormattedReplayReference.cpp"
+    }
+  ],
+  "findings": [
+    "Arial LRM/RLM have real zero-advance cmap outlines and paint in the measured lone/Latin/separated/Arabic contexts.",
+    "Arial ZWJ/ZWNJ paint when the entire DrawString text is the lone joiner; the measured embedded Latin/separated/Arabic cases stay hidden.",
+    "Other measured controls did not change paint under DisplayFormatControl; do not synthesize generic boxes or control-picture text.",
+    "Native recorded control replay matches direct paint for all32 cases.",
+    "Native National/Traditional Thai/Arabic/Persian digit records match literal ASCII controls exactly in both plain and Arabic RTL contexts; all18 native direct/replay pairs match.",
+    "Native StringFormat language storage contains nonzero high words with neutral low LANGID0. Rejecting the full UInt32 value is incompatible.",
+    "The handwritten Helvetica font object had DataSize42 with padded payload44; changing only DataSize to44 repairs Windows Aborted9 for all eight fixed-size files."
+  ],
+  "control_pairs": [
+    {
+      "name": "lrm",
+      "changed_pixels": 95,
+      "hidden_pixels": 250,
+      "display_pixels": 343,
+      "variants": [
+        {
+          "textUTF16": [
+            8206
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8206,
+            66
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rlm",
+      "changed_pixels": 108,
+      "hidden_pixels": 250,
+      "display_pixels": 356,
+      "variants": [
+        {
+          "textUTF16": [
+            8207
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8207,
+            66
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zwj",
+      "changed_pixels": 60,
+      "hidden_pixels": 250,
+      "display_pixels": 310,
+      "variants": [
+        {
+          "textUTF16": [
+            8205
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8205,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            30.6914062,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            30.6914062,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zwnj",
+      "changed_pixels": 38,
+      "hidden_pixels": 250,
+      "display_pixels": 288,
+      "variants": [
+        {
+          "textUTF16": [
+            8204
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8204,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "zwsp",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            8203
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8203,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            30.6914062,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            30.6914062,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "lre",
+      "changed_pixels": 0,
+      "hidden_pixels": 332,
+      "display_pixels": 332,
+      "variants": [
+        {
+          "textUTF16": [
+            8234
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8234,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rle",
+      "changed_pixels": 0,
+      "hidden_pixels": 336,
+      "display_pixels": 336,
+      "variants": [
+        {
+          "textUTF16": [
+            8235
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8235,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "lro",
+      "changed_pixels": 0,
+      "hidden_pixels": 352,
+      "display_pixels": 352,
+      "variants": [
+        {
+          "textUTF16": [
+            8237
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8237,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rlo",
+      "changed_pixels": 0,
+      "hidden_pixels": 350,
+      "display_pixels": 350,
+      "variants": [
+        {
+          "textUTF16": [
+            8238
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8238,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pdf",
+      "changed_pixels": 0,
+      "hidden_pixels": 375,
+      "display_pixels": 375,
+      "variants": [
+        {
+          "textUTF16": [
+            8236
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8236,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "lri",
+      "changed_pixels": 0,
+      "hidden_pixels": 580,
+      "display_pixels": 580,
+      "variants": [
+        {
+          "textUTF16": [
+            8294
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8294,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rli",
+      "changed_pixels": 0,
+      "hidden_pixels": 574,
+      "display_pixels": 574,
+      "variants": [
+        {
+          "textUTF16": [
+            8295
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8295,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fsi",
+      "changed_pixels": 0,
+      "hidden_pixels": 578,
+      "display_pixels": 578,
+      "variants": [
+        {
+          "textUTF16": [
+            8296
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8296,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pdi",
+      "changed_pixels": 0,
+      "hidden_pixels": 610,
+      "display_pixels": 610,
+      "variants": [
+        {
+          "textUTF16": [
+            8297
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            24,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8297,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            56.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "alm",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            1564
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            1564,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "word-joiner",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            8288
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            8288,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bom",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            65279
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            65279,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "soft-hyphen",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            173
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            173,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tab",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            9
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0.01171875,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0.01171875,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            9,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.0273438,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.0273438,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "newline",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            10
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            10,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            16.0078125,
+            55.1953125
+          ],
+          "display_measured": [
+            16,
+            102,
+            16.0078125,
+            55.1953125
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "carriage-return",
+      "changed_pixels": 0,
+      "hidden_pixels": 250,
+      "display_pixels": 250,
+      "variants": [
+        {
+          "textUTF16": [
+            13
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            0,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "textUTF16": [
+            65,
+            13,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            102,
+            32.015625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arabic-zwj",
+      "changed_pixels": 0,
+      "hidden_pixels": 102,
+      "display_pixels": 102,
+      "variants": [
+        {
+          "textUTF16": [
+            1576,
+            8205,
+            1576
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            22.9804688,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            22.9804688,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arabic-zwnj",
+      "changed_pixels": 0,
+      "hidden_pixels": 138,
+      "display_pixels": 138,
+      "variants": [
+        {
+          "textUTF16": [
+            1576,
+            8204,
+            1576
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            34.2421875,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            34.2421875,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mixed-bidi",
+      "changed_pixels": 56,
+      "hidden_pixels": 730,
+      "display_pixels": 786,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            32,
+            40,
+            1488,
+            1489,
+            41,
+            32,
+            8207,
+            32,
+            49,
+            50,
+            32,
+            66
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            126.5625,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            126.5625,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "embedding-paired",
+      "changed_pixels": 0,
+      "hidden_pixels": 709,
+      "display_pixels": 709,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            32,
+            8235,
+            1488,
+            1489,
+            32,
+            49,
+            50,
+            8236,
+            32,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            103.910156,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            103.910156,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "isolate-paired",
+      "changed_pixels": 0,
+      "hidden_pixels": 942,
+      "display_pixels": 942,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            32,
+            8295,
+            1488,
+            1489,
+            32,
+            49,
+            50,
+            8297,
+            32,
+            66
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            151.910156,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            151.910156,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arabic-salaam",
+      "changed_pixels": 0,
+      "hidden_pixels": 193,
+      "display_pixels": 193,
+      "variants": [
+        {
+          "textUTF16": [
+            1587,
+            1604,
+            1575,
+            1605
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            35.2617188,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            35.2617188,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arabic-salaamat",
+      "changed_pixels": 0,
+      "hidden_pixels": 259,
+      "display_pixels": 259,
+      "variants": [
+        {
+          "textUTF16": [
+            1587,
+            1604,
+            1575,
+            1605,
+            1578
+          ],
+          "same_path": true,
+          "hidden_measured": [
+            16,
+            16,
+            53.7304688,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            53.7304688,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "arabic-s-rlm-laam",
+      "changed_pixels": 49,
+      "hidden_pixels": 217,
+      "display_pixels": 255,
+      "variants": [
+        {
+          "textUTF16": [
+            1587,
+            8207,
+            1604,
+            1575,
+            1605
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            40.875,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            40.875,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "vertical-lrm",
+      "changed_pixels": 26,
+      "hidden_pixels": 258,
+      "display_pixels": 284,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            8206,
+            66
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            27.5976562,
+            32.015625
+          ],
+          "display_measured": [
+            16,
+            16,
+            27.5976562,
+            32.015625
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "wrap-lrm",
+      "changed_pixels": 108,
+      "hidden_pixels": 1959,
+      "display_pixels": 2067,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            108,
+            112,
+            104,
+            97,
+            32,
+            8206,
+            32,
+            66,
+            101,
+            116,
+            97,
+            32,
+            8206,
+            32,
+            71,
+            97,
+            109,
+            109,
+            97,
+            32,
+            68,
+            101,
+            108,
+            116,
+            97
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            85.3476562,
+            110.390625
+          ],
+          "display_measured": [
+            16,
+            16,
+            85.3476562,
+            110.390625
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "trim-lrm",
+      "changed_pixels": 54,
+      "hidden_pixels": 522,
+      "display_pixels": 576,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            108,
+            112,
+            104,
+            97,
+            32,
+            8206,
+            32,
+            66,
+            101,
+            116,
+            97,
+            32,
+            71,
+            97,
+            109,
+            109,
+            97,
+            32,
+            68,
+            101,
+            108,
+            116,
+            97
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            92.0507812,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            92.0507812,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hotkey-lrm",
+      "changed_pixels": 41,
+      "hidden_pixels": 250,
+      "display_pixels": 287,
+      "variants": [
+        {
+          "textUTF16": [
+            65,
+            38,
+            8206,
+            66
+          ],
+          "same_path": false,
+          "hidden_measured": [
+            16,
+            16,
+            30.6914062,
+            27.5976562
+          ],
+          "display_measured": [
+            16,
+            16,
+            30.6914062,
+            27.5976562
+          ],
+          "statuses": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ],
+  "native_cmap": {
+    "fontFaceUTF16": [
+      65,
+      114,
+      105,
+      97,
+      108
+    ],
+    "entries": [
+      {
+        "unicode": 8206,
+        "getGlyphIndicesResult": 1,
+        "glyph": 746,
+        "nativeOutlineBytes": 100,
+        "blackBox": [
+          6,
+          20
+        ],
+        "origin": [
+          0,
+          17
+        ],
+        "cellAdvance": [
+          0,
+          0
+        ]
+      },
+      {
+        "unicode": 8207,
+        "getGlyphIndicesResult": 1,
+        "glyph": 747,
+        "nativeOutlineBytes": 100,
+        "blackBox": [
+          6,
+          20
+        ],
+        "origin": [
+          -3,
+          17
+        ],
+        "cellAdvance": [
+          0,
+          0
+        ]
+      },
+      {
+        "unicode": 8205,
+        "getGlyphIndicesResult": 1,
+        "glyph": 745,
+        "nativeOutlineBytes": 132,
+        "blackBox": [
+          5,
+          20
+        ],
+        "origin": [
+          -2,
+          17
+        ],
+        "cellAdvance": [
+          0,
+          0
+        ]
+      },
+      {
+        "unicode": 8204,
+        "getGlyphIndicesResult": 1,
+        "glyph": 744,
+        "nativeOutlineBytes": 44,
+        "blackBox": [
+          1,
+          18
+        ],
+        "origin": [
+          0,
+          15
+        ],
+        "cellAdvance": [
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "digit_literal_matches": [
+    {
+      "name": "thai-national-plain",
+      "literal_match": "literal-ascii",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "name": "thai-national-arabic-rtl",
+      "literal_match": "literal-ascii-arabic-rtl",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "name": "thai-traditional-plain",
+      "literal_match": "literal-ascii",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "name": "thai-traditional-arabic-rtl",
+      "literal_match": "literal-ascii-arabic-rtl",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "name": "arabic-national-plain",
+      "literal_match": "literal-ascii",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "name": "arabic-national-arabic-rtl",
+      "literal_match": "literal-ascii-arabic-rtl",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "name": "arabic-traditional-plain",
+      "literal_match": "literal-ascii",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "name": "arabic-traditional-arabic-rtl",
+      "literal_match": "literal-ascii-arabic-rtl",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "name": "persian-national-plain",
+      "literal_match": "literal-ascii",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "name": "persian-national-arabic-rtl",
+      "literal_match": "literal-ascii-arabic-rtl",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "name": "persian-traditional-plain",
+      "literal_match": "literal-ascii",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "name": "persian-traditional-arabic-rtl",
+      "literal_match": "literal-ascii-arabic-rtl",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    }
+  ],
+  "original_recordings": [
+    {
+      "fixture": "windows-formatted-lrm-alone-hidden.emf",
+      "sha256": "27bfff38ec366f6ffc242c2a95ea9c5fc24c6a675876f6aed03e1f5647b30238"
+    },
+    {
+      "fixture": "windows-formatted-lrm-alone-display.emf",
+      "sha256": "eb3f0060a08702df92222b9f040e541a50ef90b594586de3b4b4113aafd12ac7"
+    },
+    {
+      "fixture": "windows-formatted-lrm-latin-hidden.emf",
+      "sha256": "e09bf29fa0daddd0104b88fcdfbf885400bd28bb9c892e0637f86b36e46ff16e"
+    },
+    {
+      "fixture": "windows-formatted-lrm-latin-display.emf",
+      "sha256": "37beb5b522e92405c4a158086f59990a9664a32bd36ee29e17bc98a13d3d99b4"
+    },
+    {
+      "fixture": "windows-formatted-rlm-alone-hidden.emf",
+      "sha256": "3f938dd27a20a0dde71db2c634fb751b6c58cdb75e487fee6f79869bbce2f280"
+    },
+    {
+      "fixture": "windows-formatted-rlm-alone-display.emf",
+      "sha256": "9ca14e3971cdb6ba2de1e79b2223bbc939919704f887c9c8dadb9b910e78f101"
+    },
+    {
+      "fixture": "windows-formatted-rlm-latin-hidden.emf",
+      "sha256": "b25a2efe2b9b8c7e3e99b94e87bac036eca38ffb79b04d79b43b5e8ecac21fa8"
+    },
+    {
+      "fixture": "windows-formatted-rlm-latin-display.emf",
+      "sha256": "efec279820b4ce0ff898e82bb51c0ef047f16b9b09d946ec7f025ce7503c530d"
+    },
+    {
+      "fixture": "windows-formatted-zwj-alone-hidden.emf",
+      "sha256": "9b8ae9697d55cccdd1c78164cb804ba9125bcbb626e6fb47d9ebb04cf241d86e"
+    },
+    {
+      "fixture": "windows-formatted-zwj-alone-display.emf",
+      "sha256": "7d2d95c928cff8320921b5f0028f8aac215d6e2769be61f9432407770dd4ea7e"
+    },
+    {
+      "fixture": "windows-formatted-zwj-latin-hidden.emf",
+      "sha256": "179d93456c7546d772a1c62da3ee77382099484c729e8b4793daffc64d2bda3a"
+    },
+    {
+      "fixture": "windows-formatted-zwj-latin-display.emf",
+      "sha256": "20ee169a27fa603598e3be9522dd91d5c266a30d85285642eaedc06ffdf77f79"
+    },
+    {
+      "fixture": "windows-formatted-zwnj-alone-hidden.emf",
+      "sha256": "f68d63decbf015b63dc15c50c63a6ea7d20b188dbdb72b5384266dc823d3518b"
+    },
+    {
+      "fixture": "windows-formatted-zwnj-alone-display.emf",
+      "sha256": "6a19847fb60a4e04d2ce387fb35c524eb74df40643b6d6bf6cc1f3850a7a1a86"
+    },
+    {
+      "fixture": "windows-formatted-zwnj-latin-hidden.emf",
+      "sha256": "20c0f40034427abb38202ef97d91b978463e2127cb9ae90c543255145e7f786c"
+    },
+    {
+      "fixture": "windows-formatted-zwnj-latin-display.emf",
+      "sha256": "53a3db0190eae30fced197a913b08123ba55666d407734675c3a642c9b68d09b"
+    },
+    {
+      "fixture": "windows-formatted-digits-thai-national-plain.emf",
+      "sha256": "23da215c740f83ea7ec4b67479576afbddc1386a319d1ec1eb52970aec88797f",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-thai-national-arabic-rtl.emf",
+      "sha256": "4d35cf4a27740a19fbbb4d05ab3299db46817a79f85f0d3dc1075f3d177951e7",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-thai-traditional-plain.emf",
+      "sha256": "65522a8c87f431763fefaf29bea1a24a64528f387e43c98ebd79c3a300c63b10",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-thai-traditional-arabic-rtl.emf",
+      "sha256": "736c6f8e54fa5d9c10925dee2ad4e3c9ab43fc910754c502c9dad60530fc7fd4",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1054,
+          "effectiveDigitLanguage": 1054
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-arabic-national-plain.emf",
+      "sha256": "7d3e20c05cb2081dc4b4b95a0f90ea5be028ffdca5ca9f12e0780b14db166867",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-arabic-national-arabic-rtl.emf",
+      "sha256": "a777573320aa4729f3ba1400dfc8d7fbb57f1b843b811a7cf895ee4d58570ce4",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-arabic-traditional-plain.emf",
+      "sha256": "ca2307db733cc04c6bfa39ab2606f94ec21c332b49d1b25d8ee62f9c6293110b",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-arabic-traditional-arabic-rtl.emf",
+      "sha256": "de46c29dc15ccd561ac520caab582dfe7abe9e85ce73310da368b77ff215b327",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1025,
+          "effectiveDigitLanguage": 1025
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-persian-national-plain.emf",
+      "sha256": "f381d7aaa14e2002ad60be0327ef1366ca730c422abe6e4c0d84bb2f7df16c70",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-persian-national-arabic-rtl.emf",
+      "sha256": "37812a647f9c179dffe92ce0bd46079b24e9baa3e07fce1611f81412b5f73d63",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-persian-traditional-plain.emf",
+      "sha256": "6fe7cd5f937d60afb33bd6379d97da529210025da162a069f9bf8ef960d775fc",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-persian-traditional-arabic-rtl.emf",
+      "sha256": "a38f624f829ca52c55bba35d519a451fc94dd9418bf54ee404f8ff1ef965ff49",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 1065,
+          "effectiveDigitLanguage": 1065
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-literal-ascii.emf",
+      "sha256": "129ef06113452774197e47d8d406069190c084c60883d052a249268b8a3bbb17",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 0,
+          "effectiveDigitLanguage": 0
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-literal-thai.emf",
+      "sha256": "153580dbddb8e06997d6ba808c6fdc3de8c8160e2694fa4d18a2ccc951fbe9d8",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 0,
+          "effectiveDigitLanguage": 0
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-literal-arabic.emf",
+      "sha256": "97bd34f8df5565e3ac610df84a9861627058e5d6eea5efa7639713951b82a6d8",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 0,
+          "effectiveDigitLanguage": 0
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-literal-persian.emf",
+      "sha256": "8819f7e2c7508e6f317ceb9a4dd7cea5738c7b1be759d93409f510fd294d853e",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 0,
+          "effectiveDigitLanguage": 0
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-literal-ascii-arabic-rtl.emf",
+      "sha256": "8f9be3782db7cefd553a52af9e2d84b53ad1b460800077b843523aa05d99613d",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 0,
+          "effectiveDigitLanguage": 0
+        }
+      ]
+    },
+    {
+      "fixture": "windows-formatted-digits-literal-arabic-arabic-rtl.emf",
+      "sha256": "f1a3ecd34876579c6dc446e8e67319ac90966f80af915334bc2b291bd67190e2",
+      "format_objects": [
+        {
+          "offset": 244,
+          "rawLanguage": 2481258496,
+          "effectiveLanguage": 0,
+          "rawDigitLanguage": 0,
+          "effectiveDigitLanguage": 0
+        }
+      ]
+    }
+  ],
+  "capability_probe": "CTGlyphInfo override altered joining and ignored ZWJ; selected font cmap paths at unchanged CTLine caret positions avoid replacement. Standalone ignored probe sources/results retained in build/qa/display-format-control-api-probe.",
+  "limits": [
+    "Arial24/Windows2022 measured profile; not every font/version/locale.",
+    "Independent Uniscribe runs are not claimed to be GDI+ internal implementation.",
+    "Metafile file frame/pixel dimensions and native font antialiasing differ from handwritten fixture assumptions; original source metadata preserved."
+  ]
+}

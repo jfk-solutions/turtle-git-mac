@@ -392,16 +392,17 @@ for negative in [False,True]:
 # https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9df612d2-fb87-44f7-93fb-0fa0b7b2f276
 def string_format(flags=0x1000,align=0,line=0,first=0,tabs=(),tracking=1,trim=0,leading=0,trailing=0,substitution=1,language=0,ranges=(),hotkey=0,digit_language=0):
  return U(0xdbc01002,flags,language,align,line,substitution,digit_language)+F(first)+I(hotkey)+F(leading,trailing,tracking)+U(trim)+I(len(tabs),len(ranges))+F(*tabs)+b''.join(I(*r) for r in ranges)
-def formatted_text(text='MMMM',fmt=None,rect=(12,12,216,140),size=20,style=0,raw=None,brush=None,transform=None,clip=None,declared_length=None):
- face='Helvetica'.encode('utf-16le');font=U(0xdbc01002)+F(size)+U(2,style,0,len(face)//2)+face
+def formatted_text(text='MMMM',fmt=None,rect=(12,12,216,140),size=20,style=0,raw=None,brush=None,transform=None,clip=None,declared_length=None,family='Helvetica'):
+ face=family.encode('utf-16le');font=U(0xdbc01002)+F(size)+U(2,style,0,len(face)//2)+face
  string=text.encode('utf-16le') if raw is None else raw
  fmt=string_format() if fmt is None else fmt
  # StringFormat is ObjectType7; 2.2.1.9 is the section number, not type9 CustomLineCap.
- rs=[ep(0x400A,U(0xffffffff,1)+F(0,0,240,180),0x8000),ep(0x4008,font,0x601),ep(0x4008,fmt,0x702)]
+ # EMF+ DataSize includes the zero padding, as in Windows-native recordings.
+ rs=[ep(0x400A,U(0xffffffff,1)+F(0,0,240,180),0x8000),ep(0x4008,pad(font),0x601),ep(0x4008,fmt,0x702)]
  if brush is not None:rs.append(ep(0x4008,brush,0x100))
  if clip is not None:rs.append(ep(0x4032,F(*clip)))
  if transform is not None:rs.append(ep(0x402D,F(*transform)))
- rs.append(ep(0x401C,U(0 if brush is not None else 0xff000000,2,len(string)//2 if declared_length is None else declared_length)+F(*rect)+string,1 if brush is not None else 0x8001))
+ rs.append(ep(0x401C,pad(U(0 if brush is not None else 0xff000000,2,len(string)//2 if declared_length is None else declared_length)+F(*rect)+string),1 if brush is not None else 0x8001))
  return plus(rs,240,180)
 text_cases={
  'baseline':dict(text='MMMM'),
@@ -455,9 +456,8 @@ text_cases={
  'hotkey-literal':dict(text='A&&BC',fmt=string_format(hotkey=2)),
 }
 for name,options in text_cases.items():(P/('plus-formatted-'+name+'.emf')).write_bytes(formatted_text(**options))
-# Independent Unicode controls make actual glyph paint, not only successful
-# decoding, observable. National Thai uses modern locale digits; Traditional
-# selects native decimal Thai digits, never algorithmic whole-number spelling.
+# Independent Unicode controls distinguish measured Windows literal numeric
+# playback from host-locale digit rewriting. Explicit Unicode digits survive.
 digit_cases={
  'latin-control':dict(text='0123456789'),
  'thai-control':dict(text='๐๑๒๓๔๕๖๗๘๙'),
@@ -470,21 +470,47 @@ digit_cases={
  'thai-none':dict(text='0123456789',fmt=string_format(substitution=1,digit_language=0x041e)),
  'thai-user':dict(text='0123456789',fmt=string_format(substitution=0,digit_language=0x041e)),
  'thai-hotkey':dict(text='A&1B',fmt=string_format(substitution=3,digit_language=0x041e,hotkey=1)),
- 'thai-hotkey-control':dict(text='A&๑B',fmt=string_format(hotkey=1)),
+ 'thai-hotkey-control':dict(text='A&1B',fmt=string_format(hotkey=1)),
  'thai-vertical':dict(text='123',fmt=string_format(flags=0x1002,substitution=3,digit_language=0x041e)),
- 'thai-vertical-control':dict(text='๑๒๓',fmt=string_format(flags=0x1002)),
+ 'thai-vertical-control':dict(text='123',fmt=string_format(flags=0x1002)),
  'thai-wrap':dict(text='123 456 789 012',rect=(12,12,55,140),fmt=string_format(flags=0,substitution=3,digit_language=0x041e)),
- 'thai-wrap-control':dict(text='๑๒๓ ๔๕๖ ๗๘๙ ๐๑๒',rect=(12,12,55,140),fmt=string_format(flags=0)),
+ 'thai-wrap-control':dict(text='123 456 789 012',rect=(12,12,55,140),fmt=string_format(flags=0)),
  'thai-gradient':dict(text='0123456789',fmt=string_format(substitution=3,digit_language=0x041e),brush=linear(transform=(120,0,0,70,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])),
- 'thai-gradient-control':dict(text='๐๑๒๓๔๕๖๗๘๙',brush=linear(transform=(120,0,0,70,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])),
+ 'thai-gradient-control':dict(text='0123456789',brush=linear(transform=(120,0,0,70,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])),
  'existing-unicode':dict(text='๙ ۹ ٩ 9',fmt=string_format(substitution=3,digit_language=0x041e)),
- 'existing-unicode-control':dict(text='๙ ۹ ٩ ๙'),
+ 'existing-unicode-control':dict(text='๙ ۹ ٩ 9'),
+ 'unknown-language':dict(text='0123456789',fmt=string_format(substitution=3,digit_language=0xffff)),
 }
 for name,options in digit_cases.items():(P/('plus-formatted-digits-'+name+'.emf')).write_bytes(formatted_text(**options))
+# DisplayFormatControl is a zero-advance font-outline overlay, not replacement
+# text. Arial has actual control outlines; Helvetica's cmap paths can be empty.
+for name,text in [('lrm-alone','\u200e'),('rlm-alone','\u200f'),('zwj-alone','\u200d'),('zwnj-alone','\u200c'),
+                  ('lrm-context','A   \u200e   B'),('rlm-context','A   \u200f   B'),
+                  ('zwj-context','A\u200dB'),('zwnj-context','A\u200cB'),
+                  ('arabic-lrm','س\u200eلام'),('arabic-rlm','س\u200fلام'),
+                  ('arabic-zwj','س\u200dلام'),('arabic-zwnj','س\u200cلام'),
+                  ('other-controls','A\u200b\u2060\ufeffB')]:
+ for show in [False,True]:
+  fmt=string_format(flags=0x5004|(0x20 if show else 0))
+  (P/('plus-formatted-controls-'+name+('-display' if show else '-hidden')+'.emf')).write_bytes(formatted_text(text=text,fmt=fmt,size=24,family='Arial'))
+for name,text,options in [
+ ('vertical','A\u200eB',dict(flags=0x5006)),
+ ('wrap','ONE \u200e TWO THREE',dict(flags=0x4004)),
+ ('trim-removed','MMMMMMMMMMMM\u200e',dict(flags=0x5004,trim=3)),
+ ('trim-kept','A\u200eMMMMMMMM',dict(flags=0x5004,trim=3)),
+ ('hotkey','A&\u200eB',dict(flags=0x5004,hotkey=1)),
+ ('path-trim','/very/long/path/\u200efile.txt',dict(flags=0x5004,trim=5)),
+]:
+ for show in [False,True]:
+  fmt=string_format(**{**options,'flags':options['flags']|(0x20 if show else 0)})
+  rect=(12,12,60,140) if name in ['wrap','trim-removed','trim-kept'] else (12,12,120,140)
+  (P/('plus-formatted-controls-'+name+('-display' if show else '-hidden')+'.emf')).write_bytes(formatted_text(text=text,fmt=fmt,rect=rect,size=24,family='Arial'))
+# Native Windows writes nonzero high words in its LANGID storage. Those bits
+# must not turn a neutral text language into an unsupported LCID.
+(P/'plus-formatted-digits-language-upper-bits.emf').write_bytes(formatted_text(text='0123456789',fmt=string_format(language=0xff520000,digit_language=0xff52041e,substitution=1)))
+(P/'plus-formatted-controls-lrm-gradient-display.emf').write_bytes(formatted_text(text='\u200e',fmt=string_format(flags=0x5024),size=24,family='Arial',brush=linear(transform=(6,0,0,24,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])))
 for name,fmt in {
  'enumeration':string_format(substitution=4),
- 'language-width':string_format(substitution=3,digit_language=0x10001),
- 'unknown-language':string_format(substitution=3,digit_language=0xffff),
 }.items():(P/('unsupported-formatted-digits-'+name+'.emf')).write_bytes(formatted_text(fmt=fmt))
 base_format=string_format()
 def change_format(offset,part):return base_format[:offset]+part+base_format[offset+len(part):]
@@ -492,7 +518,7 @@ bad_formats={
  'short':base_format[:59], 'trailing':base_format+b'junk',
  'version':change_format(0,U(0)), 'flags':change_format(4,U(0x80)),
  'align':change_format(12,U(3)), 'line-align':change_format(16,U(3)),
- 'substitution':change_format(20,U(4)), 'digit-language':change_format(24,U(0x10001)), 'display-controls':change_format(4,U(0x20)), 'hotkey':change_format(32,I(99)),
+ 'substitution':change_format(20,U(4)), 'reserved-control-flag':change_format(4,U(0x40)), 'hotkey':change_format(32,I(99)),
  'first-tab-negative':change_format(28,F(-1)), 'first-tab-nan':change_format(28,F(float('nan'))),
  'leading-negative':change_format(36,F(-1)), 'trailing-infinite':change_format(40,F(float('inf'))),
  'tracking-negative':change_format(44,F(-1)), 'tracking-nan':change_format(44,F(float('nan'))),

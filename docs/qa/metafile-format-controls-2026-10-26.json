@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-26",
+  "status": "focused_core_universal_runtime_and_native_consumers_pass",
+  "scope": "DisplayFormatControl native glyph overlays, exact wrapped/trimmed text, language storage interoperability, payload alignment and measured Windows numeric paint",
+  "windows_reference": "metafile-format-controls-windows-2026-10-26.json",
+  "supersedes_numeric_policy": "metafile-digits-2026-10-26.json",
+  "implementation": [
+    "Zero-advance cmap control outlines at original shaped caret offsets; no text or glyph-info replacement.",
+    "Exact per-line visual strings and ranges survive trimming including ellipsis/path suffix; dropped controls cannot paint.",
+    "Native recorded LANGID lower words normalized; high storage bits do not reject neutral language.",
+    "National/Traditional numeric records retain original digits; host ICU rewriting removed based on measured Windows playback.",
+    "103 handwritten formatted fixtures have aligned font/DrawString DataSize; 34 original Windows-recorded fixtures retained byte-for-byte."
+  ],
+  "validation": {
+    "runtime": {
+      "result": "pass",
+      "cache_key": "693b8682fb822055036f667719fe272c7d2b0b9a764cd94cad10782e8b19ec63",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "log": "build/qa/metafile-format-controls-runtime-2026-10-26.log"
+    },
+    "runtime_provenance_reconstruction_linkage_minimum_os_and_both_arch_execution": {
+      "result": "pass",
+      "log": "build/qa/metafile-format-controls-runtime-check-2026-10-26.log"
+    },
+    "new_cases_both_architectures": {
+      "result": "pass",
+      "conversions": 12,
+      "refusals": 4,
+      "log": "build/qa/metafile-format-controls-architectures-2026-10-26.log",
+      "qualification": "x86_64 executed under Rosetta on arm64; physical Intel not accepted"
+    },
+    "core": {
+      "result": "13 distinct methods pass cumulatively",
+      "initial_methods": 13,
+      "initial_failed_methods": 3,
+      "initial_failed_assertions": 92,
+      "affected_recheck_methods": 4,
+      "affected_recheck_failures": 0,
+      "logs": [
+        "build/qa/metafile-format-controls-core-2026-10-26.log",
+        "build/qa/metafile-format-controls-core-repair-2026-10-26.log"
+      ]
+    },
+    "app": {
+      "result": "pass",
+      "swift_compile_error_diagnostics": 0,
+      "source_provenance_matches_packaged_helper": true,
+      "log": "build/qa/metafile-format-controls-app-2026-10-26.log"
+    },
+    "native": {
+      "result": "pass",
+      "case": "formatted-digits (extended formatted-text family)",
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "positive_samples_per_pair": 22,
+      "refusal_samples_per_pair": 1,
+      "case_engine_pairs": 2,
+      "coverage": [
+        "default and explicit IDiff",
+        "original native control/digit recordings",
+        "control layout and gradient paint",
+        "WMF/classic baselines",
+        "drop/Open/reload",
+        "actual three-stage control conflicts",
+        "cancellation/retirement/worker drain",
+        "source bytes and HEAD/index unchanged"
+      ],
+      "receivers_reaped_and_independently_absent": [
+        67600,
+        67743
+      ],
+      "windows": "alpha0 and offscreen, closed with existing owner cleanup",
+      "log": "build/qa/metafile-format-controls-native-2026-10-26.log"
+    }
+  },
+  "failed_attempts": [
+    {
+      "scope": "Core 3 methods/92 assertions",
+      "cause": "Fixture assumed inclusive241x181 for native240x180 recordings; threshold128 excluded pale antialiasing of complete subpixel control stems. Actual SVG and font metrics showed full outlines, not clipping.",
+      "repair": "Use measured native dimensions and threshold250 for thin-control tests while retaining full-height/width/unchanged-letter assertions; ordinary text threshold128 unchanged. Four affected methods rechecked; production geometry not thickened/snapped."
+    },
+    {
+      "scope": "Windows handwritten fixtures",
+      "cause": "Font DataSize omitted alignment padding; first replay status9.",
+      "repair": "Change only DataSize42 to44; all eight replay successfully, with before/after hashes in pinned oracle source."
+    }
+  ],
+  "remaining": [
+    "Other fonts/versions/locale combinations and exact Windows font metrics remain unverified.",
+    "Physical Image Compare, signed parent and minimum-OS/Intel acceptance remain open.",
+    "Installed signed app remains build12, before this batch.",
+    "Full hosted macOS integration and App Store distribution are separate gates."
+  ],
+  "inputs": {
+    "Sources/TurtleGitMetafile/main.swift": "e383ba24630dd80c5f13c8d99ddcf6ad60c116bbcdaa1602e147516b6298f366",
+    "patches/metafile-renderer.patch": "be0d387b18a7efce28cd525b4d5498c09c627dc19da8ecd34e653a474dc1713d",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate.py": "68cf2561877185f40cc6da6f6c314665d2893af848185eb92ea7596efe6d763f",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "a86319df7fdc8a05eeaf6d49dbd07d5808c5296aa5c2f5b079a0dddd6176e208",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "c4e6c627573f2f17143a50aeab5e8344e83623069c32687c6532c62f2a120483"
+  },
+  "hosted_ci_observation": {
+    "run": 40335643582,
+    "source": "37b84cd139c49efaede48397f813b48f0509220e",
+    "status": "completed",
+    "conclusion": "failure",
+    "core_methods": 3014,
+    "skips": 2,
+    "failed_assertions": 3,
+    "unexpected_failures": 1,
+    "method": "RebaseStructuralNoCommitTests.testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes",
+    "scope_note": "Unrelated structural Rebase recovery failure remains open; this metafile pass does not repair it or establish a hosted native-stage pass."
+  }
+}

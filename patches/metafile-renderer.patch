@@ -390,10 +390,10 @@ index 0000000..466f760
 +    if(type===4){parseRegion(this,id,data);return;}
 +    if(type===7){
 +      if(id>63 || data.length<60)fail('truncated string format');graphicsVersion(data,0);
-+      const flags=u32(data,4),language=u32(data,8),align=u32(data,12),line=u32(data,16),substitution=u32(data,20),digitLanguage=u32(data,24),hotkey=i32(data,32),trimming=u32(data,48),tabCount=i32(data,52),ranges=i32(data,56);
-+      if(flags&~0x80007c07 || align>2 || line>2 || hotkey<0 || hotkey>2 || trimming>5)fail('unsupported EMF+ string format flags or enumeration');
++      const flags=u32(data,4),language=u32(data,8)&0xffff,align=u32(data,12),line=u32(data,16),substitution=u32(data,20),digitLanguage=u32(data,24)&0xffff,hotkey=i32(data,32),trimming=u32(data,48),tabCount=i32(data,52),ranges=i32(data,56);
++      if(flags&~0x80007c27 || align>2 || line>2 || hotkey<0 || hotkey>2 || trimming>5)fail('unsupported EMF+ string format flags or enumeration');
 +      if(tabCount<0 || tabCount>256 || ranges<0 || ranges>4096 || data.length!==60+tabCount*4+ranges*8)fail('invalid string format arrays');
-+      if(substitution>3 || language>0xffff || digitLanguage>0xffff)fail('invalid string format digit substitution or language identifier');
++      if(substitution>3)fail('invalid string format digit substitution');
 +      const firstTab=f32(data,28),leading=f32(data,36),trailing=f32(data,40),tracking=f32(data,44),tabs=[],characterRanges=[];
 +      if(firstTab<0 || leading<0 || trailing<0 || tracking<=0 || tracking>1000)fail('invalid string format metrics');
 +      for(let i=0;i<tabCount;i++){const distance=f32(data,60+i*4);if(distance<=0)fail('invalid tab stop interval');tabs.push(distance);}

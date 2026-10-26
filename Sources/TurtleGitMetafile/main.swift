@@ -1167,11 +1167,14 @@ private final class NativeStrokeGeometry {
 /// UTF-16 text separately and applies the EMF+ rectangle/graphics clip and paint.
 private final class NativeTextLayout {
     private var shapedGlyphs = 0, pathElements = 0, pathBytes = 0, textUnits = 0
-    private var digitMappings: [String: [String]] = [:]
     private let maximumGlyphs = 262_144, maximumElements = 2_000_000
     private struct Line {
         var value: CTLine
         let start: Int, end: Int, paragraphEnd: Int
+        // Typesetter lines retain global UTF-16 indices; trimming creates a new
+        // local string. Keep the exact text/range that supplied each CTLine so
+        // format controls removed by trimming cannot reappear as painted ink.
+        var visualString: NSString, visualRange: NSRange
         var ascent: CGFloat, descent: CGFloat, height: CGFloat, top: CGFloat
     }
     private func invalid(_ message: String) -> ConversionError { .invalid("Formatted metafile text: " + message) }
@@ -1185,49 +1188,6 @@ private final class NativeTextLayout {
         guard value.isNumber else { throw invalid("non-numeric " + key) }
         let result = value.toDouble()
         guard result.isFinite, abs(result) <= (["flags", "language"].contains(key) ? Double(UInt32.max) : 10_000_000) else { throw invalid("invalid " + key) }; return result
-    }
-    private func substitutionDigits(_ method: Int, language: UInt16) throws -> [String]? {
-        // User is implementation-defined in MS-EMFPLUS: keep this renderer's
-        // deterministic unchanged-digit policy. None likewise needs no locale.
-        guard method >= 2 else { return nil }
-        let identifier: String
-        if language == 0 { identifier = Locale.current.identifier }
-        else {
-            guard let resolved = NSLocale.localeIdentifier(fromWindowsLocaleCode: UInt32(language)), !resolved.isEmpty else {
-                throw invalid("unsupported digit-substitution language identifier")
-            }
-            identifier = resolved
-        }
-        // Native macOS playback profile: National uses locale-default decimal
-        // digits; GDI+ Traditional uses native-script decimal digits. CLDR's
-        // 'traditional' keyword can select algorithmic whole-number numerals,
-        // so it is deliberately not the matching option here. This is not a
-        // claim that Apple's ICU data equals every Windows NLS table version.
-        let cacheKey = identifier + "|" + String(method)
-        if let cached = digitMappings[cacheKey] { return cached }
-        let formatter = NumberFormatter()
-        if method == 3 {
-            var components = Locale.Components(identifier: identifier)
-            components.numberingSystem = Locale.NumberingSystem("native")
-            formatter.locale = Locale(components: components)
-        } else { formatter.locale = Locale(identifier: identifier) }
-        formatter.numberStyle = .decimal
-        formatter.usesGroupingSeparator = false
-        formatter.minimumIntegerDigits = 1
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 0
-        var digits: [String] = []
-        for value in 0...9 {
-            guard let digit = formatter.string(from: NSNumber(value: value)), digit.unicodeScalars.count == 1,
-                  let scalar = digit.unicodeScalars.first, scalar.properties.generalCategory == .decimalNumber,
-                  digit.first?.wholeNumberValue == value else { throw invalid("unsupported native decimal digit mapping") }
-            digits.append(digit)
-        }
-        guard Set(digits).count == 10 else { throw invalid("non-distinct native decimal digits") }
-        // A conversion owns this instance; never carry locale-sensitive maps
-        // between helper requests, and bound cache growth for replaced objects.
-        if digitMappings.count < 256 { digitMappings[cacheKey] = digits }
-        return digits
     }
     private func append(_ path: CGPath, to target: CGMutablePath, transform: CGAffineTransform = .identity) throws {
         var count = 0
@@ -1454,8 +1414,7 @@ private final class NativeTextLayout {
               [0.0, 1, 2, 3].contains(rawSubstitution), rawDigitLanguage >= 0, rawDigitLanguage <= Double(UInt16.max),
               rawDigitLanguage.rounded() == rawDigitLanguage else { throw invalid("invalid rectangle, flags, alignment, language or trimming") }
         let flags = UInt32(rawFlags), alignment = Int(rawAlign), lineAlignment = Int(rawLine), trimming = Int(rawTrimming), style = Int(rawStyle)
-        guard flags & ~UInt32(0x80007c07) == 0 else { throw invalid("unsupported StringFormat flags (including DisplayFormatControl)") }
-        let digits = try substitutionDigits(Int(rawSubstitution), language: UInt16(rawDigitLanguage))
+        guard flags & ~UInt32(0x80007c27) == 0 else { throw invalid("unsupported StringFormat flags") }
         let vertical = flags & 2 != 0, rtl = flags & 1 != 0, noClip = flags & 0x4000 != 0
         let leading = try number(options, "leading") * size, trailing = try number(options, "trailing") * size, tracking = try number(options, "tracking", 1)
         let firstTab = try number(options, "firstTab")
@@ -1469,22 +1428,11 @@ private final class NativeTextLayout {
         var font = CTFontCreateWithName(face as CFString, size, nil), traits: CTFontSymbolicTraits = []
         if bold { traits.insert(.boldTrait) }; if italic { traits.insert(.italicTrait) }
         if !traits.isEmpty, let adjusted = CTFontCreateCopyWithSymbolicTraits(font, size, nil, traits, traits) { font = adjusted }
-        // Substitution changes only ASCII digits in visual text, never the JS
-        // semantic description or recorded measurement-range offsets. Compute
-        // hotkey ranges afterwards, so even supplementary decimal digits keep
-        // their correct visual UTF-16 ranges. Existing non-ASCII digits survive.
+        // Windows GDI+ direct and serialized playback preserve the recorded
+        // digit code points in the measured National/Traditional locale and
+        // RTL contexts. Do not rewrite them using the host's locale data.
+        // Retain the original semantic text; hotkeys affect visual text only.
         var text = original, hotkeyRange: NSRange?
-        if let digits {
-            var substituted = ""
-            for scalar in original.unicodeScalars {
-                if scalar.value >= 48, scalar.value <= 57 { substituted += digits[Int(scalar.value - 48)] }
-                else { substituted.unicodeScalars.append(scalar) }
-            }
-            let extraUnits = substituted.utf16.count - original.utf16.count
-            guard substituted.utf16.count <= 32_768, extraUnits <= 262_144 - textUnits else { throw invalid("substituted text budget exceeded") }
-            textUnits += extraUnits
-            text = substituted
-        }
         if rawHotkey != 0 {
             let clusters = text.map(String.init); var output = "", index = 0
             while index < clusters.count {
@@ -1595,7 +1543,7 @@ private final class NativeTextLayout {
             let lineHeight = ascent + descent + nativeLeading
             guard [ascent, descent, lineHeight].allSatisfy({ $0.isFinite }), lineHeight > 0 else { throw invalid("invalid shaped line metrics") }
             if !pointCross, lineLimit ? top + ascent + descent > crossExtent : (!noClip && top >= crossExtent) { break }
-            lines.append(Line(value: line, start: cursor, end: end, paragraphEnd: contentEnd, ascent: ascent, descent: descent, height: lineHeight, top: top))
+            lines.append(Line(value: line, start: cursor, end: end, paragraphEnd: contentEnd, visualString: string, visualRange: NSRange(location: cursor, length: count), ascent: ascent, descent: descent, height: lineHeight, top: top))
             top += lineHeight
             cursor = end == contentEnd ? paragraphEnd : end
         }
@@ -1622,6 +1570,7 @@ private final class NativeTextLayout {
                     return result
                 }
                 var chosen = try charge(CTLineCreateWithAttributedString(NSAttributedString(string: "", attributes: attributes)))
+                var chosenText = ""
                 if tokenWidth <= available {
                     if trimming == 5 {
                         // Prefer the tail of a path, preserving its final component
@@ -1636,17 +1585,19 @@ private final class NativeTextLayout {
                         low = 0; high = boundaries.firstIndex(of: suffixIndex) ?? 0
                         while low <= high {
                             let mid = (low + high) / 2, count = boundaries[mid], candidateText = candidate(count, suffix: suffix), line = try charge(CTLineCreateWithAttributedString(candidateText))
-                            if CTLineGetTypographicBounds(line, nil, nil, nil) * tracking <= available { chosen = line; low = mid + 1 } else { high = mid - 1 }
+                            if CTLineGetTypographicBounds(line, nil, nil, nil) * tracking <= available { chosen = line; chosenText = candidateText.string; low = mid + 1 } else { high = mid - 1 }
                         }
                     } else {
                         var low = 0, high = boundaries.count - 1
                         while low <= high {
                             let mid = (low + high) / 2, candidateText = candidate(boundaries[mid]), line = try charge(CTLineCreateWithAttributedString(candidateText))
-                            if CTLineGetTypographicBounds(line, nil, nil, nil) * tracking <= available { chosen = line; low = mid + 1 } else { high = mid - 1 }
+                            if CTLineGetTypographicBounds(line, nil, nil, nil) * tracking <= available { chosen = line; chosenText = candidateText.string; low = mid + 1 } else { high = mid - 1 }
                         }
                     }
                 }
                 lines[index].value = chosen
+                lines[index].visualString = chosenText as NSString
+                lines[index].visualRange = NSRange(location: 0, length: (chosenText as NSString).length)
                 var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0
                 _ = CTLineGetTypographicBounds(chosen, &ascent, &descent, &leading)
                 if ascent + descent + leading > 0 {
@@ -1714,6 +1665,33 @@ private final class NativeTextLayout {
                 let bounds = local.boundingBoxOfPath
                 if inlineOffset + bounds.minX < leading { inlineOffset = CGFloat(leading) - bounds.minX }
                 if inlineOffset + bounds.maxX > inlineExtent - trailing { inlineOffset -= min(inlineOffset + bounds.maxX - CGFloat(inlineExtent - trailing), max(0, inlineOffset + bounds.minX - CGFloat(leading))) }
+            }
+            if flags & 0x20 != 0 {
+                // DisplayFormatControl exposes the selected font's actual cmap
+                // outlines without replacing Unicode characters or splitting
+                // shaped runs. Glyph-info substitution changes Arabic joining
+                // and is ignored for some joiners. These zero-advance overlays
+                // deliberately follow FitBlackBox alignment, preserving the
+                // original line's advance and baseline placement.
+                // In the measured Windows DrawString/serialized-replay
+                // contexts, joiners expose their cmap ink only when the whole
+                // visual DrawString consists of that one control. A joiner in
+                // Latin, separated or Arabic text retains ordinary shaping.
+                // Use the pre-wrap/pre-trim visual text, never a lone remainder
+                // produced by line breaking or truncation.
+                let loneJoiner = string.length == 1 && (string.character(at: 0) == 0x200c || string.character(at: 0) == 0x200d)
+                for index in item.visualRange.location..<NSMaxRange(item.visualRange) {
+                    let unit = item.visualString.character(at: index)
+                    guard unit == 0x200e || unit == 0x200f || (loneJoiner && (unit == 0x200c || unit == 0x200d)) else { continue }
+                    var character = unit, glyph: CGGlyph = 0
+                    guard CTFontGetGlyphsForCharacters(font, &character, &glyph, 1),
+                          let outline = CTFontCreatePathForGlyph(font, glyph, nil), !outline.isEmpty else { continue }
+                    guard shapedGlyphs < maximumGlyphs else { throw invalid("aggregate shaped-glyph budget exceeded") }
+                    shapedGlyphs += 1
+                    let offset = CTLineGetOffsetForStringIndex(line, index, nil) * tracking
+                    guard offset.isFinite else { throw invalid("invalid format-control position") }
+                    try append(outline, to: local, transform: CGAffineTransform(translationX: offset, y: 0))
+                }
             }
             let transform: CGAffineTransform
             if vertical {

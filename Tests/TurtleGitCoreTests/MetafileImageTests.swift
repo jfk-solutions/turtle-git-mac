@@ -725,15 +725,15 @@ final class MetafileImageTests: XCTestCase {
     }
     /// Pixel geometry is measured from actual final output, independently of the
     /// CoreText layout bridge. No native glyph-path/bounds API is used as oracle.
-    private func textInk(_ name:String,colored:Bool=false)throws->TextInk {
-        let value=try image("plus-formatted-"+name+".emf"),width=240,height=180
-        let cropped=try interior(value,width:width,height:height,name:name)
+    private func textInk(_ name:String,colored:Bool=false,prefix:String="plus-formatted-",inkThreshold:UInt8=128)throws->TextInk {
+        let value=try image(prefix+name+".emf"),width=240,height=180
+        let cropped=try interior(value,width:width,height:height,emf:prefix != "windows-formatted-",name:name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes{storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
             context.interpolationQuality = .none;context.draw(cropped,in:CGRect(x:0,y:0,width:width,height:height))
         }
-        let points=Set((0..<(width*height)).filter{let offset=$0*4;return bytes[offset+3]>128 && (colored ? bytes[offset+1]<128 : bytes[offset]<128 && bytes[offset+1]<128 && bytes[offset+2]<128)})
+        let points=Set((0..<(width*height)).filter{let offset=$0*4;return bytes[offset+3]>128 && (colored ? bytes[offset+1]<inkThreshold : bytes[offset]<inkThreshold && bytes[offset+1]<inkThreshold && bytes[offset+2]<inkThreshold)})
         return TextInk(width:width,height:height,points:points)
     }
     func testFormattedTextTabsFirstOffsetAndTrackingHaveIndependentPixelGeometry()throws{
@@ -874,13 +874,13 @@ final class MetafileImageTests: XCTestCase {
         }
         XCTAssertGreaterThan(red,8);XCTAssertGreaterThan(blue,8,"Glyph brush lost its independent gradient endpoint")
     }
-    func testFormattedDigitsUseLocaleNationalAndNativeDecimalGlyphs()throws{
-        for (name,control) in [("thai-national","latin-control"),("thai-traditional","thai-control"),("arabic-national","arabic-control"),("persian-traditional","persian-control"),("thai-none","latin-control"),("thai-user","latin-control"),("existing-unicode","existing-unicode-control")] {
+    func testFormattedDigitModesPreserveMeasuredWindowsNumericPaint()throws{
+        for (name,control) in [("thai-national","latin-control"),("thai-traditional","latin-control"),("arabic-national","latin-control"),("persian-traditional","latin-control"),("thai-none","latin-control"),("thai-user","latin-control"),("existing-unicode","existing-unicode-control"),("language-upper-bits","latin-control"),("unknown-language","latin-control")] {
             let painted=try textInk("digits-"+name),expected=try textInk("digits-"+control)
             XCTAssertGreaterThan(expected.points.count,100,control)
             XCTAssertEqual(painted.points,expected.points,name+" did not match independently encoded Unicode glyphs")
         }
-        XCTAssertNotEqual(try textInk("digits-thai-national").points,try textInk("digits-thai-traditional").points,"National and Traditional incorrectly share one digit policy")
+        XCTAssertNotEqual(try textInk("digits-thai-traditional").points,try textInk("digits-thai-control").points,"Windows literal numeric playback was replaced by ICU native-digit rewriting")
         let original=try data("plus-formatted-digits-thai-traditional.emf")
         let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(original)),as:UTF8.self)
         XCTAssertTrue(svg.contains("0123456789"),"Visual substitution overwrote original semantic text")
@@ -903,15 +903,75 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(textInk("digits-thai-wrap").bounds).height,30)
     }
     func testMalformedFormattedDigitMethodsAndLanguagesRefuseWholeImage()throws{
-        for name in ["enumeration","language-width","unknown-language"] {
+        for name in ["enumeration"] {
             let original=try data("unsupported-formatted-digits-"+name+".emf")
             XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name)
             XCTAssertNil(ComparisonImage(bytes:original),name)
             XCTAssertEqual(original,try data("unsupported-formatted-digits-"+name+".emf"))
         }
     }
+    // Fractional zero-advance stems are visible gray ink, not absent paint.
+    func testFormattedControlsPaintZeroAdvanceOutlinesWithoutReplacingShapedText()throws{
+        for name in ["lrm-alone","rlm-alone","zwj-alone","zwnj-alone"] {
+            let hidden=try textInk("controls-"+name+"-hidden",inkThreshold:250),shown=try textInk("controls-"+name+"-display",inkThreshold:250)
+            XCTAssertTrue(hidden.points.isEmpty,name)
+            XCTAssertGreaterThan(shown.points.count,10,name)
+            let bounds=try XCTUnwrap(shown.bounds)
+            XCTAssertLessThan(bounds.width,10,name);XCTAssertGreaterThan(bounds.height,12,name)
+        }
+        for name in ["lrm-context","rlm-context"] {
+            let hidden=try textInk("controls-"+name+"-hidden",inkThreshold:250),shown=try textInk("controls-"+name+"-display",inkThreshold:250)
+            XCTAssertTrue(hidden.points.isSubset(of:shown.points),name+" moved or reshaped the original letters")
+            let extra=shown.points.subtracting(hidden.points)
+            XCTAssertGreaterThan(extra.count,10,name)
+            XCTAssertLessThan(try XCTUnwrap(TextInk(width:shown.width,height:shown.height,points:extra).bounds).width,10,name+" changed more than the zero-advance marker")
+        }
+        for name in ["zwj-context","zwnj-context","arabic-zwj","arabic-zwnj","other-controls"] {
+            XCTAssertEqual(try textInk("controls-"+name+"-display",inkThreshold:250).points,try textInk("controls-"+name+"-hidden",inkThreshold:250).points,name+" invented a visible glyph or changed joining")
+        }
+    }
+    func testFormattedControlsRetainWrappingVerticalHotkeysAndExactTrimmedText()throws{
+        for name in ["vertical","wrap","trim-kept","hotkey","path-trim"] {
+            let hidden=try textInk("controls-"+name+"-hidden",inkThreshold:250),shown=try textInk("controls-"+name+"-display",inkThreshold:250)
+            XCTAssertFalse(hidden.points.isEmpty,name)
+            XCTAssertNotEqual(shown.points,hidden.points,name+" lost the retained control outline")
+        }
+        XCTAssertEqual(try textInk("controls-trim-removed-display",inkThreshold:250).points,try textInk("controls-trim-removed-hidden",inkThreshold:250).points,"A control removed by ellipsis trimming reappeared as paint")
+        let colored=try textInk("controls-lrm-gradient-display",colored:true,inkThreshold:250),plain=try textInk("controls-lrm-alone-display",inkThreshold:250)
+        XCTAssertEqual(colored.points,plain.points,"Control brush paint escaped its actual glyph outline")
+        let gradient=try image("plus-formatted-controls-lrm-gradient-display.emf")
+        var red=0,blue=0
+        for point in colored.points {
+            let c=try rgb(gradient,point%colored.width,point/colored.width)
+            if c[0]>c[2]+0.2 {red+=1};if c[2]>c[0]+0.2 {blue+=1}
+        }
+        XCTAssertGreaterThan(red,0);XCTAssertGreaterThan(blue,0,"Zero-advance marker lost its gradient endpoint")
+        let original=try data("plus-formatted-controls-arabic-rlm-display.emf")
+        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(original)),as:UTF8.self)
+        XCTAssertTrue(svg.contains("س\u{200f}لام"),"Control display replaced the original semantic string")
+        XCTAssertFalse(svg.contains("<text"));XCTAssertEqual(original,try data("plus-formatted-controls-arabic-rlm-display.emf"))
+    }
+    func testWindowsRecordedFormatControlsAcceptNativeLanguageStorageAndKeepZeroAdvance()throws{
+        for control in ["lrm","rlm","zwj","zwnj"] {
+            let shown=try textInk(control+"-alone-display",prefix:"windows-formatted-",inkThreshold:250),hidden=try textInk(control+"-alone-hidden",prefix:"windows-formatted-",inkThreshold:250)
+            XCTAssertTrue(hidden.points.isEmpty,control);XCTAssertGreaterThan(shown.points.count,10,control)
+            let embeddedShown=try textInk(control+"-latin-display",prefix:"windows-formatted-",inkThreshold:250),embeddedHidden=try textInk(control+"-latin-hidden",prefix:"windows-formatted-",inkThreshold:250)
+            XCTAssertFalse(embeddedHidden.points.isEmpty,control)
+            if ["lrm","rlm"].contains(control) {XCTAssertNotEqual(embeddedShown.points,embeddedHidden.points,control)}
+            else {XCTAssertEqual(embeddedShown.points,embeddedHidden.points,control+" should stay invisible in the measured non-lone contexts")}
+        }
+    }
+    func testWindowsRecordedDigitModesMatchLiteralNumericPaintInPlainAndArabicRTLText()throws{
+        for language in ["thai","arabic","persian"] {for mode in ["national","traditional"] {for context in ["plain","arabic-rtl"] {
+            let name=language+"-"+mode+"-"+context
+            let painted=try textInk("digits-"+name,prefix:"windows-formatted-")
+            let control=try textInk("digits-literal-ascii"+(context=="plain" ? "":"-arabic-rtl"),prefix:"windows-formatted-")
+            XCTAssertGreaterThan(control.points.count,100,name)
+            XCTAssertEqual(painted.points,control.points,"Native Windows-recorded digit mode changed numeric code points: "+name)
+        }}}
+    }
     func testMalformedFormattedTextFailsExplicitlyWithoutReplacementCharactersOrLayoutGuessing()throws{
-        let names=["short","trailing","version","flags","align","line-align","substitution","digit-language","display-controls","hotkey","first-tab-negative","first-tab-nan","leading-negative","trailing-infinite","tracking-negative","tracking-nan","trimming","tabs-negative-count","tabs-count","tabs-truncated","tab-negative","tab-zero","tab-infinite","ranges-negative-count","ranges-count","range-truncated","range-negative","range-overflow","surrogate-high","surrogate-low","surrogate-order","text-count","text-payload-budget"]
+        let names=["short","trailing","version","flags","align","line-align","substitution","reserved-control-flag","hotkey","first-tab-negative","first-tab-nan","leading-negative","trailing-infinite","tracking-negative","tracking-nan","trimming","tabs-negative-count","tabs-count","tabs-truncated","tab-negative","tab-zero","tab-infinite","ranges-negative-count","ranges-count","range-truncated","range-negative","range-overflow","surrogate-high","surrogate-low","surrogate-order","text-count","text-payload-budget"]
         for name in names{
             let original=try data("unsupported-formatted-"+name+".emf")
             XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name);XCTAssertNil(ComparisonImage(bytes:original),name)
