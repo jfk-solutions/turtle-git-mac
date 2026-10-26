@@ -4,9 +4,8 @@ TurtleGit brings Git commands, file status badges, history and comparison tools
 to macOS. This chapter covers opening a repository, working from Finder,
 committing changes and reviewing history in native Mac windows.
 
-The macOS port is authored by **Jochen Kühner**, with upstream attribution in
-[AUTHORS.md](../AUTHORS.md). It requires macOS 13 or later. Mac App Store
-distribution is planned; no store purchase is available yet. Build and signing
+Requires macOS 13 or later. Mac App Store distribution is planned; no store
+purchase is available yet. Build and signing
 instructions are in the [project README](../README.md) and
 [distribution guide](DISTRIBUTION.md).
 

@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-26",
+  "status": "site_help_and_visual_pass",
+  "changes": [
+    "Removed prominent port-author copy from homepage, README, Getting Started, public listing draft and repeated site/Help footers.",
+    "Retained quiet AUTHORS/About credits and upstream/GPL notices.",
+    "Added the user-supplied Impressum URL to homepage, generated manual and bundled Help footers."
+  ],
+  "impressum_url": "https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md",
+  "validation": {
+    "help_generation_and_check": {
+      "result": "pass",
+      "documents": 58,
+      "topics": 51,
+      "files": 86
+    },
+    "site_build": {
+      "result": "pass",
+      "documents": 476,
+      "unresolved_links": 0
+    },
+    "documentation_tests": {
+      "result": "pass",
+      "tests": 2
+    },
+    "search_checks": {
+      "result": "pass",
+      "scope": "search/filter/no-match/load-failure"
+    },
+    "visual": {
+      "result": "pass",
+      "scope": "Real in-app browser homepage footer and Getting Started introduction; no prominent author paragraph, exact Impressum target and retained upstream/license footer.",
+      "captures": [
+        "build/qa/site-footer-2026-10-26.png",
+        "build/qa/getting-started-copy-2026-10-26.png"
+      ],
+      "preview_tab_closed": true
+    }
+  },
+  "legal_scope": "External notice is linked as supplied; this change does not rewrite or certify its content. Its older TDG/TMG references were reported to the user.",
+  "source_sha256": {
+    "README.md": "39c3a1814563475efcb3ac772f56a90f1357a9d56f776616198a880b3089e181",
+    "docs/GETTING-STARTED.md": "571887d0e8dcb251243030a2198ffc7bcc06c001cc753a0f8bdf85c4ade8740d",
+    "docs/site/index.html": "618c05c54df8fb622f6fc3b531660357ee3ebee4958f29ee33c91d26346b65db",
+    "docs/app-store/listing-en-US-draft.json": "498d70685f5431781e909a8506cabba99d7c96bd333cb54a5f384ea3d790cd76",
+    "scripts/build-help.py": "d88876e60c4962b05f9f741bc7f71b405b14c0c14e396210fd6c40483016356c",
+    "scripts/site_docs.py": "a5d3cf1f32567d7da1cb644a7fd5c5ac894a422de26b6897ab33f27fdb717dff"
+  }
+}

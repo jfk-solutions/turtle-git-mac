@@ -17,7 +17,7 @@ def page_shell(title, body, repository, toc=''):
 <body><a class="skip-link" href="#content">Skip to content</a>
 <header><a class="brand" href="../index.html"><img src="../assets/application-icon.png" width="36" height="36" alt="">TurtleGit for Mac</a><nav aria-label="Main"><a href="index.html">Documentation</a><a href="GETTING-STARTED.html">Getting started</a><a href="https://github.com/{repository}">Source ↗</a></nav></header>
 <main class="manual-layout"><aside class="manual-sidebar" aria-label="On this page">{toc}</aside><article id="content" class="manual-content">{body}</article></main>
-<footer><p>TurtleGit for Mac · A macOS fork of TortoiseGit · macOS port by Jochen Kühner.</p><p><a href="https://github.com/{repository}/blob/main/LICENSE">License</a> · <a href="https://github.com/{repository}/blob/main/NOTICE">Attribution</a></p></footer></body></html>'''
+<footer><p>TurtleGit for Mac · A macOS fork of TortoiseGit.</p><p><a href="https://github.com/{repository}/blob/main/LICENSE">License</a> · <a href="https://github.com/{repository}/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></p></footer></body></html>'''
 
 
 def render_documents(root, destination, repository):
