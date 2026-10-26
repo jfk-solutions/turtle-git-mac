@@ -21,10 +21,11 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         throw Failure(message:"Metafile consumers did not settle at \(line); \(diagnostic())")
     }
     static func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(descendants)}
-    static func verify(compressedPaths:Bool=false,positionedText:Bool=false,classicPens:Bool=false,classicRegions:Bool=false,classicPatternBrushes:Bool=false,embeddedMetafiles:Bool=false,compressedRaster:Bool=false)async throws {
+    static func verify(formattedDigits:Bool=false,compressedPaths:Bool=false,positionedText:Bool=false,classicPens:Bool=false,classicRegions:Bool=false,classicPatternBrushes:Bool=false,embeddedMetafiles:Bool=false,compressedRaster:Bool=false)async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),corpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
         let legacySamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf","plus-formatted-tabs.emf","plus-formatted-rtl.emf","plus-formatted-vertical.emf","plus-formatted-tracking.emf","plus-formatted-ellipsis.emf","plus-formatted-gradient.emf","classic-clip-region-xor.emf","classic-clip-region-diff.emf","classic-clip-meta-repeated.emf","classic-clip-offset-offcanvas.emf","classic-clip-path-and.emf","classic-clip-rect-world.emf","plus-pen-compound.emf","plus-pen-transform.emf","plus-pen-inset.emf","plus-pen-asymmetric-caps.emf","plus-pen-dash-round.emf","plus-pen-gradient.emf","plus-pen-custom-fill.emf","plus-pen-custom-stroke.emf","plus-pen-custom-both-paths.emf","plus-pen-custom-arrow-filled.emf","plus-pen-custom-arrow-notch.emf","plus-pen-custom-world-clip.emf"]
+        let formattedDigitSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-formatted-digits-thai-national.emf","plus-formatted-digits-thai-traditional.emf","plus-formatted-digits-arabic-national.emf","plus-formatted-digits-persian-traditional.emf","plus-formatted-digits-thai-hotkey.emf","plus-formatted-digits-thai-vertical.emf","plus-formatted-digits-thai-wrap.emf","plus-formatted-digits-thai-gradient.emf"]
         let compressedSamples:Set<String> = Set(["fill","region","cap"].flatMap { family in ["relative","float"].map {"plus-compressed-path-"+family+"-"+$0+".emf"} })
         let positionedSamples:Set<String> = ["plus-driver-positioned.emf","plus-driver-natural.emf","plus-driver-vertical-natural.emf","plus-driver-linear-matrix.emf","plus-driver-vertical-matrix.emf","plus-driver-gradient.emf","classic-positioned-dx.emf","classic-positioned-pdy.emf","classic-positioned-opaque.emf","classic-positioned-compatible-dx.emf","plus-driver-compatible-dx.emf"]
         let classicPenSamples:Set<String>=["classic-extpen-custom.emf","classic-extpen-hatch-4.emf","classic-extpen-dib.emf","classic-extpen-state.emf","classic-extpen-inside-rectangle.emf"]
@@ -32,9 +33,9 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         let classicPatternSamples:Set<String>=["wmf-classic-patternbrush-mono.wmf","wmf-classic-patternbrush-state.wmf","classic-monobrush-dynamic.emf","classic-monobrush-colored.emf","classic-monobrush-palette-select.emf"]
         let embeddedSamples:Set<String>=["embedded-image-wmf.emf","embedded-image-placeable.emf","embedded-image-emf.emf","embedded-image-plus-only.emf","embedded-image-plus-dual.emf","embedded-image-recursive.emf","embedded-image-affine.emf","embedded-image-classic-text-affine.emf","embedded-image-wmf-round-clip-affine.emf","embedded-image-attributes-3.emf","embedded-texture-4.emf","embedded-texture-glyph.emf","embedded-compositing-copy.emf","embedded-image-destination-rop.emf","embedded-checkpoint-scopes.emf"]
         let compressedRasterSamples:Set<String>=["compressed-raster-image-gif-two-frames-visible.emf","compressed-raster-image-gif-two-frames-delay10-loop.emf","compressed-raster-image-tiff-two-pages.emf","compressed-raster-image-exif-orientation6.emf","compressed-raster-image-gif.emf","compressed-raster-image-tiff.emf","compressed-raster-image-gif-alpha.emf","compressed-raster-image-tiff-alpha.emf","compressed-raster-texture-tiff-alpha.emf","compressed-raster-pen-gif.emf","compressed-raster-alpha-tiff-alpha-copy.emf","compressed-raster-affine-gif.emf","compressed-raster-clip-tiff.emf","compressed-raster-attributes-3.emf","compressed-raster-stretch-png-emf.emf","compressed-raster-stretch-jpeg-wmf.wmf","compressed-raster-stretch-mirror-png-wmf.wmf"]
-        let nativeSamples = compressedRaster ? compressedRasterSamples : embeddedMetafiles ? embeddedSamples : classicPatternBrushes ? classicPatternSamples : classicRegions ? classicRegionSamples : classicPens ? classicPenSamples : positionedText ? positionedSamples : compressedPaths ? compressedSamples : legacySamples.union(compressedSamples).union(positionedSamples)
-        var samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {compressedRaster ? $0.lastPathComponent.hasPrefix("refused-compressed-raster-") : embeddedMetafiles ? $0.lastPathComponent.hasPrefix("embedded-refused-") : classicPatternBrushes ? $0.lastPathComponent.hasPrefix("unsupported-classic-patternbrush-") : classicRegions ? ($0.lastPathComponent.hasPrefix("unsupported-classic-region-") || $0.lastPathComponent.hasPrefix("unsupported-wmf-classic-region-")) : classicPens ? $0.lastPathComponent.hasPrefix("unsupported-extpen-") : positionedText ? $0.lastPathComponent.hasPrefix("unsupported-positioned-text-") : compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-")}
-        if compressedRaster || embeddedMetafiles || compressedPaths || positionedText || classicPens || classicRegions || classicPatternBrushes {try require(!unsupported.isEmpty,"Requested native metafile refusal corpus missing")}
+        let nativeSamples = formattedDigits ? formattedDigitSamples : compressedRaster ? compressedRasterSamples : embeddedMetafiles ? embeddedSamples : classicPatternBrushes ? classicPatternSamples : classicRegions ? classicRegionSamples : classicPens ? classicPenSamples : positionedText ? positionedSamples : compressedPaths ? compressedSamples : legacySamples.union(compressedSamples).union(positionedSamples)
+        var samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {formattedDigits ? $0.lastPathComponent.hasPrefix("unsupported-formatted-digits-") : compressedRaster ? $0.lastPathComponent.hasPrefix("refused-compressed-raster-") : embeddedMetafiles ? $0.lastPathComponent.hasPrefix("embedded-refused-") : classicPatternBrushes ? $0.lastPathComponent.hasPrefix("unsupported-classic-patternbrush-") : classicRegions ? ($0.lastPathComponent.hasPrefix("unsupported-classic-region-") || $0.lastPathComponent.hasPrefix("unsupported-wmf-classic-region-")) : classicPens ? $0.lastPathComponent.hasPrefix("unsupported-extpen-") : positionedText ? $0.lastPathComponent.hasPrefix("unsupported-positioned-text-") : compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-")}
+        if formattedDigits || compressedRaster || embeddedMetafiles || compressedPaths || positionedText || classicPens || classicRegions || classicPatternBrushes {try require(!unsupported.isEmpty,"Requested native metafile refusal corpus missing")}
         try require(samples.count == nativeSamples.count,"Representative native metafile corpus incomplete")
         if !compressedRaster && !embeddedMetafiles && !compressedPaths && !positionedText && !classicPens && !classicRegions && !classicPatternBrushes {try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")}
         if positionedText {
@@ -42,6 +43,11 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 let bytes=try rawGlyphCopy(Data(contentsOf:corpus.appendingPathComponent(name+".emf"))),copy=root.appendingPathComponent(name+"-native-glyphs.emf")
                 try bytes.write(to:copy);samples.append(copy)
             }
+        }
+        func renderedDimensions(_ sample:URL)->(Int,Int) {
+            let interior=(compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? (64,64) : sample.lastPathComponent.hasPrefix("plus-formatted-") ? (240,180):(96,64)
+            let border=sample.pathExtension.lowercased()=="emf" ? 1:0
+            return (interior.0+border,interior.1+border)
         }
         let inputs=try samples.map {try Data(contentsOf:$0)},bad=Data("unsupported image side\n".utf8)
         let suite="TurtleGit.MetafileConsumers.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
@@ -89,9 +95,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 }
                 try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return descendants(owner.window!.contentView!).filter {$0 is ImageComparisonScrollView}.count == 2}
                 try require(!descendants(owner.window!.contentView!).contains {($0 as? NSTextView).map {["Base file","Destination file"].contains($0.accessibilityLabel() ?? "")} == true},"IDiff installed a Merge text editor")
-                let interiorDimensions=(compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? (64,64) : sample.lastPathComponent.hasPrefix("plus-formatted-") ? (240,180):(96,64)
-                let emf=sample.pathExtension.lowercased()=="emf"
-                let dimensions=(interiorDimensions.0+(emf ? 1:0),interiorDimensions.1+(emf ? 1:0))
+                let dimensions=renderedDimensions(sample)
                 try require(owner.model.imageComparison?.base?.pixels.width == dimensions.0 && owner.model.imageComparison?.base?.pixels.height == dimensions.1 && owner.window?.title.hasSuffix("TurtleGitIDiff") == true,"Metafile \(sample.lastPathComponent) was not rendered at its expected \(dimensions.0)x\(dimensions.1) dimensions in native IDiff; actual=\(owner.model.imageComparison?.base?.pixels.width ?? -1)x\(owner.model.imageComparison?.base?.pixels.height ?? -1); title=\(owner.window?.title ?? "none")")
                 try require(owner.model.document?.base.bytes == inputs[index] && owner.model.document?.destination.bytes == bad && (try Data(contentsOf:left)) == inputs[index] && (try Data(contentsOf:right)) == bad,"Metafile rendering rewrote original bytes")
                 if classicPatternBrushes,let image=owner.model.imageComparison?.base?.pixels {
@@ -165,7 +169,8 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             guard let first else {throw Failure(message:"No metafile comparison")}
             let original=first.model.document!,pane=first.model.imageViewerModel,drop=root.appendingPathComponent("preview.emf")
             let preview:URL
-            if positionedText {preview=corpus.appendingPathComponent("plus-driver-positioned.emf")}
+            if formattedDigits {preview=corpus.appendingPathComponent("plus-formatted-digits-thai-hotkey.emf")}
+            else if positionedText {preview=corpus.appendingPathComponent("plus-driver-positioned.emf")}
             else if compressedPaths {preview=corpus.appendingPathComponent("plus-compressed-path-fill-relative.emf")}
             else {preview=try firstSample(samples,withExtension:"emf")}
             let previewBytes=try Data(contentsOf:preview)
@@ -173,6 +178,10 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require(pane.dropFile(drop,base:false),"Metafile pane drop refused")
             try await wait {!pane.receivingDrop}
             try require(pane.currentImage(base:false) != nil && pane.droppedFiles[false]?.bytes == previewBytes && first.model.document?.destination.bytes == bad,"Metafile preview failed or replaced original comparison")
+            if formattedDigits {
+                let dimensions=renderedDimensions(preview)
+                try require(pane.currentImage(base:false)?.pixels.width==dimensions.0 && pane.currentImage(base:false)?.pixels.height==dimensions.1,"Formatted-digit drop preview lost its source extent")
+            }
             first.model.load();try await wait {!first.model.busy && pane.droppedFiles.isEmpty}
             try require(first.model.document?.base.bytes == original.base.bytes && pane.currentImage(base:false) == nil,"Reload did not restore original metafile inputs")
 
@@ -191,7 +200,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try await wait {first.window?.attachedSheet == nil && !first.model.busy && first.model.document?.base.path == samples[0].path}
             try require(loader.retired && first.model.imageComparison?.base != nil && first.model.imageComparison?.destination != nil && ImageLoadWindowController.activeReleases == 0,"Open did not reload after actual native chooser detach; \(comparisonState(first)); chooserRetired=\(loader.retired)")
 
-            if !compressedRaster && !embeddedMetafiles && !compressedPaths && !positionedText && !classicPens && !classicRegions && !classicPatternBrushes {
+            if !formattedDigits && !compressedRaster && !embeddedMetafiles && !compressedPaths && !positionedText && !classicPens && !classicRegions && !classicPatternBrushes {
             let merge=track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:samples[0],destination:samples[0]),permissions:[],preferences:prefs,deferInitialLoad:true))
             var unexpectedDecodes=0
             merge.model.useInternalMergeViewer();merge.model.decodeImages={_,_ in unexpectedDecodes += 1;throw Failure(message:"Merge entered image decoder")}
@@ -265,7 +274,19 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     compressedConflictIndices.append(index)
                 }
             }
-            let wmfIndex=compressedRaster ? compressedConflictIndices[0] : embeddedMetafiles ? samples.firstIndex{$0.lastPathComponent=="embedded-image-wmf.emf"}! : classicPatternBrushes ? samples.firstIndex{$0.lastPathComponent=="wmf-classic-patternbrush-mono.wmf"}! : classicRegions ? samples.firstIndex{$0.lastPathComponent=="wmf-classic-region-fill-preserve.wmf"}! : classicPens ? samples.firstIndex{$0.lastPathComponent=="classic-extpen-custom.emf"}! : positionedText ? samples.firstIndex{$0.lastPathComponent=="classic-positioned-dx.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-fill-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="wmf"}!,classicIndex=compressedRaster ? compressedConflictIndices[1] : embeddedMetafiles ? samples.firstIndex{$0.lastPathComponent=="embedded-image-emf.emf"}! : classicPatternBrushes ? samples.firstIndex{$0.lastPathComponent=="classic-monobrush-dynamic.emf"}! : classicRegions ? samples.firstIndex{$0.lastPathComponent=="classic-region-frame-union.emf"}! : classicPens ? samples.firstIndex{$0.lastPathComponent=="classic-extpen-hatch-4.emf"}! : positionedText ? samples.firstIndex{$0.lastPathComponent=="plus-driver-positioned.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-region-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && !$0.lastPathComponent.lowercased().contains("plus")}!,plusIndex=compressedRaster ? compressedConflictIndices[2] : embeddedMetafiles ? samples.firstIndex{$0.lastPathComponent=="embedded-compositing-copy.emf"}! : classicPatternBrushes ? samples.firstIndex{$0.lastPathComponent=="classic-monobrush-colored.emf"}! : classicRegions ? samples.firstIndex{$0.lastPathComponent=="classic-flood-surface.emf"}! : classicPens ? samples.firstIndex{$0.lastPathComponent=="classic-extpen-dib.emf"}! : positionedText ? samples.firstIndex{$0.lastPathComponent=="plus-driver-gradient.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-cap-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && $0.lastPathComponent.lowercased().contains("plus")}!
+            let wmfIndex:Int,classicIndex:Int,plusIndex:Int
+            if formattedDigits {
+                func digitIndex(_ name:String)throws->Int {
+                    guard let index=samples.firstIndex(where:{$0.lastPathComponent==name}) else {throw Failure(message:"Missing formatted-digit conflict source: "+name)}
+                    return index
+                }
+                wmfIndex=try digitIndex("plus-formatted-digits-thai-national.emf")
+                classicIndex=try digitIndex("plus-formatted-digits-arabic-national.emf")
+                plusIndex=try digitIndex("plus-formatted-digits-persian-traditional.emf")
+            } else {
+                let legacyWMF=compressedRaster ? compressedConflictIndices[0] : embeddedMetafiles ? samples.firstIndex{$0.lastPathComponent=="embedded-image-wmf.emf"}! : classicPatternBrushes ? samples.firstIndex{$0.lastPathComponent=="wmf-classic-patternbrush-mono.wmf"}! : classicRegions ? samples.firstIndex{$0.lastPathComponent=="wmf-classic-region-fill-preserve.wmf"}! : classicPens ? samples.firstIndex{$0.lastPathComponent=="classic-extpen-custom.emf"}! : positionedText ? samples.firstIndex{$0.lastPathComponent=="classic-positioned-dx.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-fill-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="wmf"}!,legacyClassic=compressedRaster ? compressedConflictIndices[1] : embeddedMetafiles ? samples.firstIndex{$0.lastPathComponent=="embedded-image-emf.emf"}! : classicPatternBrushes ? samples.firstIndex{$0.lastPathComponent=="classic-monobrush-dynamic.emf"}! : classicRegions ? samples.firstIndex{$0.lastPathComponent=="classic-region-frame-union.emf"}! : classicPens ? samples.firstIndex{$0.lastPathComponent=="classic-extpen-hatch-4.emf"}! : positionedText ? samples.firstIndex{$0.lastPathComponent=="plus-driver-positioned.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-region-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && !$0.lastPathComponent.lowercased().contains("plus")}!,legacyPlus=compressedRaster ? compressedConflictIndices[2] : embeddedMetafiles ? samples.firstIndex{$0.lastPathComponent=="embedded-compositing-copy.emf"}! : classicPatternBrushes ? samples.firstIndex{$0.lastPathComponent=="classic-monobrush-colored.emf"}! : classicRegions ? samples.firstIndex{$0.lastPathComponent=="classic-flood-surface.emf"}! : classicPens ? samples.firstIndex{$0.lastPathComponent=="classic-extpen-dib.emf"}! : positionedText ? samples.firstIndex{$0.lastPathComponent=="plus-driver-gradient.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-cap-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && $0.lastPathComponent.lowercased().contains("plus")}!
+                (wmfIndex,classicIndex,plusIndex)=(legacyWMF,legacyClassic,legacyPlus)
+            }
             try inputs[wmfIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"base WMF")
             _ = try await repo.run(["switch","-c","side"]);try inputs[classicIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"incoming EMF")
             _ = try await repo.run(["switch","main"]);try inputs[plusIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"mine EMF+")
@@ -274,18 +295,17 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:work.appendingPathComponent(".git/index")),working=try Data(contentsOf:file)
             let conflict=track(ImageConflictWindowController(repository:repo,access:nil,document:conflictDocument,preferences:prefs))
             try await wait {!conflict.model.busy}
-            let conflictWidth=(compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? 64:96
             let conflictDimensions=ImageConflictSide.allCases.map {side in "\(side)=\(conflict.model.panes[side]?.currentImage(base:true)?.pixels.width ?? -1)x\(conflict.model.panes[side]?.currentImage(base:true)?.pixels.height ?? -1)"}.joined(separator:", ")
             let sourceIndices:[ImageConflictSide:Int]=[.base:wmfIndex,.theirs:classicIndex,.mine:plusIndex]
             try require(conflict.model.images.count == 3 && ImageConflictSide.allCases.allSatisfy {side in
                 guard let source=sourceIndices[side] else{return false}
-                let emf=samples[source].pathExtension.lowercased()=="emf",width=conflictWidth+(emf ? 1:0),height=64+(emf ? 1:0)
-                return conflict.model.canSelect(side) && conflict.model.panes[side]?.currentImage(base:true)?.pixels.width==width && conflict.model.panes[side]?.currentImage(base:true)?.pixels.height==height
-            },"Three-side metafile conflict failed expected \(conflictWidth)x64 decode; samples=\([samples[wmfIndex].lastPathComponent,samples[classicIndex].lastPathComponent,samples[plusIndex].lastPathComponent]); actual \(conflictDimensions); error=\(conflict.model.error ?? "none")")
+                let dimensions=renderedDimensions(samples[source])
+                return conflict.model.canSelect(side) && conflict.model.panes[side]?.currentImage(base:true)?.pixels.width==dimensions.0 && conflict.model.panes[side]?.currentImage(base:true)?.pixels.height==dimensions.1
+            },"Three-side metafile conflict failed expected source dimensions; samples=\([samples[wmfIndex].lastPathComponent,samples[classicIndex].lastPathComponent,samples[plusIndex].lastPathComponent]); actual \(conflictDimensions); error=\(conflict.model.error ?? "none")")
             conflict.model.reload();try await wait {!conflict.model.busy}
             try require(conflict.model.images.count == 3,"Metafile conflict reload lost an image")
             try require(conflict.model.document.contents[.base]==inputs[wmfIndex] && conflict.model.document.contents[.theirs]==inputs[classicIndex] && conflict.model.document.contents[.mine]==inputs[plusIndex],"Metafile conflict decoding rewrote source stage encodings")
-            if !compressedRaster && !embeddedMetafiles && !compressedPaths && !positionedText && !classicPens && !classicRegions && !classicPatternBrushes {
+            if !formattedDigits && !compressedRaster && !embeddedMetafiles && !compressedPaths && !positionedText && !classicPens && !classicRegions && !classicPatternBrushes {
             // The newly accepted region, hatch and texture families also enter
             // actual three-stage conflict panes, not only standalone decoders.
             let patternWork=root.appendingPathComponent("pattern repository")
@@ -355,7 +375,8 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require((try Data(contentsOf:work.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf:file)) == working,"Metafile preview mutated conflict state")
             for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample) == bytes,"Metafile renderer modified corpus bytes")}
             try await cleanup()
-            if embeddedMetafiles {print("PASS: embedded WMF/placeable/EMF/EMF+ live image and isolated texture native IDiff, malformed refusal, drop/Open, actual conflict stages and held cancel/retire/Quit ownership; original bytes preserved")}
+            if formattedDigits {print("PASS: formatted national/traditional Thai, Arabic and Persian digits, hotkey/vertical/wrap/gradient native IDiff, malformed refusal, WMF/classic baselines, preview/reload and actual three-stage conflict with held cancellation/retirement; original bytes and HEAD/index unchanged")}
+            else if embeddedMetafiles {print("PASS: embedded WMF/placeable/EMF/EMF+ live image and isolated texture native IDiff, malformed refusal, drop/Open, actual conflict stages and held cancel/retire/Quit ownership; original bytes preserved")}
             else if classicPatternBrushes {print("PASS: classic mono/DDB/DIB pattern brushes native default and explicit IDiff, live/fixed/palette colors, actual three-stage conflict and held owner retirement; original bytes and HEAD/index preserved")}
             else if classicRegions {print("PASS: classic EMF/WMF region/frame/flood native default and explicit IDiff, malformed whole-image refusal, preview/reload, actual three-stage conflict and held owner retirement; original source bytes and HEAD/index unchanged")}
             else if classicPens {print("PASS: classic extended-pen dash/hatch/DIB/InsideFrame/state native default and explicit IDiff, malformed whole-image refusal, preview/reload, actual three-stage conflict and held owner retirement; original source bytes and HEAD/index unchanged")}

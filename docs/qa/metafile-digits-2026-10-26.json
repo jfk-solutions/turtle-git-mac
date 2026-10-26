@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-26",
+  "status": "focused_core_universal_helper_and_native_consumer_pass",
+  "scope": "EMF+ StringFormat national/traditional decimal substitution, explicit digit language, literal None/User, shaped text and native image consumers",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "behavior": [
+    "National uses native locale-default decimal digits; Traditional uses native-script decimal digits rather than CLDR algorithmic whole-number spelling.",
+    "Explicit digit LANGIDs map through Foundation; neutral uses current native locale; User retains deterministic unchanged-digit policy.",
+    "ASCII digits change before hotkeys, shaping, wrapping, vertical layout and brush paint; existing non-ASCII digits, semantic text, measurement metadata and original files survive.",
+    "Ten distinct decimal scalars/value0..9 are validated, mappings are bounded and conversion-owned, visual UTF16 expansion is budgeted.",
+    "Former negative fixtures for now-valid substitution2 and explicit language0x401 are replaced by invalid enumeration4 and out-of-width language0x10001; positive fixtures cover newly accepted cases."
+  ],
+  "validation": {
+    "runtime_build": {
+      "result": "pass_after_patch_repair",
+      "log": "build/qa/metafile-digits-runtime-repair-2026-10-26.log",
+      "cache_key": "59065fa33b96edeaf2aa01a163865c219f5dd0fcb85103d49bf79df3c2d113b0",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "runtime_reconstruction_linkage_minimum_os_and_baseline_execution": {
+      "result": "pass",
+      "log": "build/qa/metafile-digits-runtime-check-repair-2026-10-26.log"
+    },
+    "new_family_both_architecture_execution": {
+      "result": "pass",
+      "conversions": 16,
+      "refusals": 6,
+      "log": "build/qa/metafile-digits-architectures-2026-10-26.log",
+      "x86_64_execution": "Rosetta on arm64 host; physical Intel acceptance unproven"
+    },
+    "core": {
+      "result": "pass",
+      "distinct_methods": 10,
+      "initial_methods": 10,
+      "initial_failures": 7,
+      "repaired_methods": 9,
+      "repaired_failures": 0,
+      "unaffected_owned_helper_method": "passed initially, not repeated",
+      "logs": [
+        "build/qa/metafile-digits-core-2026-10-26.log",
+        "build/qa/metafile-digits-core-repair-2026-10-26.log"
+      ]
+    },
+    "app": {
+      "result": "pass_after_provenance_rejection",
+      "log": "build/qa/metafile-digits-app-repair-2026-10-26.log",
+      "swift_compile_error_diagnostics": 0,
+      "runtime_source_provenance_matches": true
+    },
+    "native": {
+      "result": "pass",
+      "case": "formatted-digits",
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "case_engine_pairs": 2,
+      "positive_samples_per_pair": 10,
+      "refusal_samples_per_pair": 3,
+      "scope": [
+        "default and explicit IDiff",
+        "WMF/classic baseline",
+        "formatted digit hotkey/vertical/wrap/gradient files",
+        "drop/Open preview and reload",
+        "actual three-stage conflict images and original stage bytes",
+        "held cancellation/retirement and worker draining",
+        "original source bytes and HEAD/index integrity"
+      ],
+      "receivers_reaped_and_independently_absent": [
+        63214,
+        63344
+      ],
+      "windows": "alpha0 and offscreen; closed through existing owner cleanup",
+      "log": "build/qa/metafile-digits-native-2026-10-26.log"
+    },
+    "coverage_reconciliation": "run; no generated ledger change"
+  },
+  "failed_attempts": [
+    {
+      "result": "invalid generated JavaScript",
+      "cause": "Incorrect new-file hunk542\u2192541 omitted final module closure. Restored542; reconstructed helper then rebuilt.",
+      "logs": [
+        "build/qa/metafile-digits-runtime-check-2026-10-26.log",
+        "build/qa/metafile-digits-core-2026-10-26.log"
+      ],
+      "qualification": "Initial malformed-refusal successes were invalidated because syntax rejection could mask validation; both malformed groups repeated after repair."
+    },
+    {
+      "result": "app build exit65",
+      "cause": "Embedding source-provenance guard rejected the repaired patch versus the stale first runtime. Final app build performed after rebuilt helper.",
+      "log": "build/qa/metafile-digits-app-2026-10-26.log"
+    }
+  ],
+  "remaining": [
+    "Exact Windows NLS locale table identity is unproven; this is explicit native Foundation/ICU playback.",
+    "DisplayFormatControl remains unsupported; full Windows fonts/metrics and all locale/script variants are unverified.",
+    "Installed signed app remains build12, preceding this batch; no signed-parent, physical Finder, minimum-OS or App Store acceptance claimed.",
+    "Full hosted integration is separate and was still in progress at observation."
+  ],
+  "inputs": {
+    "Sources/TurtleGitMetafile/main.swift": "da89a50214fd01fb06f4099154046ee422227f4c1291e4c2f6ed3a0e3e370c4e",
+    "patches/metafile-renderer.patch": "d349481649d76b5eea0739f2f08739ff2f59d15a3a20b97fe9831128880596cf",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate.py": "3403c93b85fa6cc5ab9b34109673c9570df42498456339abf5f5c5850779be1c",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "f269ef3596616c21903addb8dc8952e1fc63989040e08541e19ff2d86bc826f7",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "2d7efd00104a8c2752bd55e7d71f20cc72f343e8cd1b86570cfe7e2df3371ded",
+    "scripts/test-metafile-workflows.py": "d1516bd736a1e6db53a687c6601340e649ec42680725e5fd2754c6561c46a53b"
+  },
+  "fixtures": {
+    "plus-formatted-digits-arabic-control.emf": "586e850fcc46a8f3f81d2ea7446007c96ed5a09350a951227abb1f9c8ed39726",
+    "plus-formatted-digits-arabic-national.emf": "ef5d32b0b00b2ed11f925f31e0bb248ac425e17316661c834d9ea6005953b79f",
+    "plus-formatted-digits-existing-unicode-control.emf": "2010606cfca45cf7765704a37d6afd0daa998cb515a79e32ac4e71dbdcc49d32",
+    "plus-formatted-digits-existing-unicode.emf": "31f2ba21a2446558a757881c7c22eb8dd548e2f692067e262c2058ed10e4f2f0",
+    "plus-formatted-digits-latin-control.emf": "a28b101bf4ea64ba4040a0f416acd35b3331af014fbc0b7a936d76b87985a0f0",
+    "plus-formatted-digits-persian-control.emf": "25fc9def2b4a31f04d9973d1ffe6c4162a6dde5895176319faaab25172d7266d",
+    "plus-formatted-digits-persian-traditional.emf": "26d7471ac70e3c54312638f55d835a520af09955e9466975e768887a5a2a8639",
+    "plus-formatted-digits-thai-control.emf": "03e30aec9e5ba10f4d3028c9e9e2c9dc53d1d700fe77ba71ce603f6da086c8c5",
+    "plus-formatted-digits-thai-gradient-control.emf": "e51275cc53e8ca6be10b3a41b27a3f8682fb5eb098d1c01306d235a907200e24",
+    "plus-formatted-digits-thai-gradient.emf": "c8a7d56f0278a08b36410d7299934234bb2c70237a448d7cb4cdd410315c7b99",
+    "plus-formatted-digits-thai-hotkey-control.emf": "cc21302b912b021046e041e17368c7c9acbeb75e42c953d07eb5326aca84ea32",
+    "plus-formatted-digits-thai-hotkey.emf": "d154800d6ca51d2f110eb684ecb2c411252106e1c80f59ab7aab49096223983a",
+    "plus-formatted-digits-thai-national.emf": "aaee3d8f91aa47dd844fee878cdef27b0f093b6a654194e64cf1e9a34a5cb6fb",
+    "plus-formatted-digits-thai-none.emf": "2c3ee01bc1447b958439a5afe01a4f0dc541d2fe08421e00fb1d62e008182823",
+    "plus-formatted-digits-thai-traditional.emf": "f3c7089ea71ae86557fc3d543cfcd3b588c89b0fdad91cc2edbf7404caaa8eb6",
+    "plus-formatted-digits-thai-user.emf": "89384ac46ed0e6f175e3dfd6f4efd9dae83e4b5215fdb9549f6853e8aed27ac1",
+    "plus-formatted-digits-thai-vertical-control.emf": "abd011aad9aafeff732e616dab37c6ff619ae04ab51330da850ad30a653aa4eb",
+    "plus-formatted-digits-thai-vertical.emf": "73f38777b774f8b3b05a991a158730e80aa272e715ba77790efc952665cffb8c",
+    "plus-formatted-digits-thai-wrap-control.emf": "0b41114c23fe3e9393664cd1a2083e39e0a5bc0207f3cfe82bb60dee8f16d35a",
+    "plus-formatted-digits-thai-wrap.emf": "f412029c84807038d3ed425024d68e6a6cd6225303ed84705ada593a50946676",
+    "unsupported-formatted-digits-enumeration.emf": "cae940f2f862334fe285ab1b879e8bd56bdbc82e015314d20a00e5f97c706d88",
+    "unsupported-formatted-digits-language-width.emf": "750045de7c18c8ce922107588a63a7bf901b1dc8d4807fce1c5e88e0a1222682",
+    "unsupported-formatted-digits-unknown-language.emf": "3ba508d31568a4f9e537bfdc67a197aef0f1b6cc48f4a7a4485dba280130fae2"
+  },
+  "source_references": [
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/dcc3e25a-6d9c-4e3e-ac04-dd34203d1cc1",
+    "https://learn.microsoft.com/en-us/windows/win32/api/gdiplusstringformat/nf-gdiplusstringformat-stringformat-setdigitsubstitution",
+    "https://www.unicode.org/reports/tr35/tr35-numbers.html"
+  ]
+}

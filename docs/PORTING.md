@@ -4881,3 +4881,19 @@ configuration syntax behavior. The explicit tester stays strict. The family
 also separates syntax fallback from actual helper/protocol/cancellation failures
 and documents the fresh-property snapshot boundary. Its grouped checkpoint is
 recorded separately from full dialog, signed and hosted acceptance.
+
+
+## Metafile locale-digit family — October 26, 2026
+
+[Formatted metafile text](METAFILE-TEXT-PARITY.md) now carries recorded digit
+substitution through the decoder into native outline layout. National and
+Traditional use distinct locale-default/native-decimal policies, while None and
+the documented implementation-defined User policy preserve ASCII digits.
+Substitution precedes hotkeys, wrapping, vertical layout and brush paint; original
+semantic text, measured-range metadata and repository/conflict bytes are retained.
+The native locale data profile is explicit: exact Windows NLS table identity,
+DisplayFormatControl and complete Windows font parity remain open.
+The [batch checkpoint](qa/metafile-digits-2026-10-26.json) records grouped Core,
+both helper architectures and both native consumer/Git pairs, including the
+failed patch attempt and affected repairs. The installed signed app remains
+build12; no signed consolidation or full hosted pass is implied.

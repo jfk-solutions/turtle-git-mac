@@ -45,9 +45,22 @@ font without usable OS/2 metrics is refused.
 
 Digit substitution None (1) is literal. User (0) is implementation-defined in the
 [enumeration](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/dcc3e25a-6d9c-4e3e-ac04-dd34203d1cc1);
-this renderer chooses deterministic unchanged digits for neutral DigitLanguage.
-Explicit national/traditional substitution and non-neutral DigitLanguage remain
-refusals. Measured-character ranges are fully bounded metadata and do not alter DrawString
+this renderer keeps deterministic unchanged digits for that mode, including an
+explicit DigitLanguage. National (2) uses the recorded language's native macOS
+locale-default decimal digits. Traditional (3) uses that locale's native-script
+decimal digits, which can differ: Thai national digits are ASCII while its native
+digits are Thai. A neutral DigitLanguage selects the current native locale.
+The conversion uses Foundation/ICU locale data; equality with every Windows NLS
+version is unverified. CLDR's algorithmic `traditional` numbering systems are
+not used: this is per-digit substitution, not whole-number spelling.
+
+Only ASCII digits change, before native shaping, wrapping, hotkey range creation,
+decoration and brush paint. Existing non-ASCII digits and the original semantic
+text remain intact. Mappings require ten distinct decimal digits with the expected
+numeric values and remain bounded within the conversion. Invalid method values,
+out-of-width language identifiers and unmapped explicit substitution languages
+fail the complete image. None/User do not require a locale lookup.
+Measured-character ranges are fully bounded metadata and do not alter DrawString
 paint; this does not add a MeasureCharacterRanges API. DisplayFormatControl remains
 explicitly unsupported. Glyph-ID `DrawDriverString` has a separate
 [positioned-text implementation and checkpoint](METAFILE-POSITIONED-TEXT-PARITY.md);
@@ -107,3 +120,11 @@ ownership paths. Receivers remained invisible and were reaped; original bytes
 were preserved. The new source/archive/patch provenance matches the packaged
 runtime. These scoped results do not establish a full hosted integration pass,
 all Windows font behavior or signed App Store acceptance of this text subset.
+
+The [October 26 locale-digit checkpoint](qa/metafile-digits-2026-10-26.json)
+records ten distinct focused Core methods passing cumulatively, actual new-family
+conversion/refusal on both helper architectures, a clean final Debug build and
+both system/bundled-Git native consumer pairs. The initial generated-JavaScript
+syntax error and stale-runtime embedding rejection are retained in that record;
+the affected groups passed after repair. Both native receivers were reaped and
+independently confirmed absent. This source batch is newer than installed build12.

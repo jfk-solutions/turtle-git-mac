@@ -874,6 +874,42 @@ final class MetafileImageTests: XCTestCase {
         }
         XCTAssertGreaterThan(red,8);XCTAssertGreaterThan(blue,8,"Glyph brush lost its independent gradient endpoint")
     }
+    func testFormattedDigitsUseLocaleNationalAndNativeDecimalGlyphs()throws{
+        for (name,control) in [("thai-national","latin-control"),("thai-traditional","thai-control"),("arabic-national","arabic-control"),("persian-traditional","persian-control"),("thai-none","latin-control"),("thai-user","latin-control"),("existing-unicode","existing-unicode-control")] {
+            let painted=try textInk("digits-"+name),expected=try textInk("digits-"+control)
+            XCTAssertGreaterThan(expected.points.count,100,control)
+            XCTAssertEqual(painted.points,expected.points,name+" did not match independently encoded Unicode glyphs")
+        }
+        XCTAssertNotEqual(try textInk("digits-thai-national").points,try textInk("digits-thai-traditional").points,"National and Traditional incorrectly share one digit policy")
+        let original=try data("plus-formatted-digits-thai-traditional.emf")
+        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(original)),as:UTF8.self)
+        XCTAssertTrue(svg.contains("0123456789"),"Visual substitution overwrote original semantic text")
+        XCTAssertFalse(svg.contains("<text"),"Digit paint bypassed vector glyph shaping")
+        XCTAssertEqual(original,try data("plus-formatted-digits-thai-traditional.emf"))
+    }
+    func testFormattedDigitSubstitutionRetainsHotkeysVerticalWrappingAndBrushPaint()throws{
+        for name in ["thai-hotkey","thai-vertical","thai-wrap","thai-gradient"] {
+            let colored=name.hasSuffix("gradient")
+            let painted=try textInk("digits-"+name,colored:colored),control=try textInk("digits-"+name+"-control",colored:colored)
+            XCTAssertGreaterThan(control.points.count,30,name)
+            XCTAssertEqual(painted.points,control.points,name+" changed shaped glyph geometry or hotkey decoration")
+        }
+        let gradient=try image("plus-formatted-digits-thai-gradient.emf"),control=try image("plus-formatted-digits-thai-gradient-control.emf")
+        for y in stride(from:12,to:42,by:3) {for x in stride(from:12,to:145,by:3) {
+            let actual=try rgb(gradient,x,y),expected=try rgb(control,x,y)
+            for component in 0..<3 {XCTAssertEqual(actual[component],expected[component],accuracy:0.001,"Digit outlines changed gradient paint at \(x),\(y)")}
+        }}
+        XCTAssertGreaterThan(try XCTUnwrap(textInk("digits-thai-vertical").bounds).height,try XCTUnwrap(textInk("digits-thai-vertical").bounds).width)
+        XCTAssertGreaterThan(try XCTUnwrap(textInk("digits-thai-wrap").bounds).height,30)
+    }
+    func testMalformedFormattedDigitMethodsAndLanguagesRefuseWholeImage()throws{
+        for name in ["enumeration","language-width","unknown-language"] {
+            let original=try data("unsupported-formatted-digits-"+name+".emf")
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name)
+            XCTAssertNil(ComparisonImage(bytes:original),name)
+            XCTAssertEqual(original,try data("unsupported-formatted-digits-"+name+".emf"))
+        }
+    }
     func testMalformedFormattedTextFailsExplicitlyWithoutReplacementCharactersOrLayoutGuessing()throws{
         let names=["short","trailing","version","flags","align","line-align","substitution","digit-language","display-controls","hotkey","first-tab-negative","first-tab-nan","leading-negative","trailing-infinite","tracking-negative","tracking-nan","trimming","tabs-negative-count","tabs-count","tabs-truncated","tab-negative","tab-zero","tab-infinite","ranges-negative-count","ranges-count","range-truncated","range-negative","range-overflow","surrogate-high","surrogate-low","surrogate-order","text-count","text-payload-budget"]
         for name in names{

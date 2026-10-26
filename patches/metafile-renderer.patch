@@ -393,15 +393,15 @@ index 0000000..466f760
 +      const flags=u32(data,4),language=u32(data,8),align=u32(data,12),line=u32(data,16),substitution=u32(data,20),digitLanguage=u32(data,24),hotkey=i32(data,32),trimming=u32(data,48),tabCount=i32(data,52),ranges=i32(data,56);
 +      if(flags&~0x80007c07 || align>2 || line>2 || hotkey<0 || hotkey>2 || trimming>5)fail('unsupported EMF+ string format flags or enumeration');
 +      if(tabCount<0 || tabCount>256 || ranges<0 || ranges>4096 || data.length!==60+tabCount*4+ranges*8)fail('invalid string format arrays');
-+      if(substitution>1 || digitLanguage!==0)fail('unsupported locale-specific digit substitution');
++      if(substitution>3 || language>0xffff || digitLanguage>0xffff)fail('invalid string format digit substitution or language identifier');
 +      const firstTab=f32(data,28),leading=f32(data,36),trailing=f32(data,40),tracking=f32(data,44),tabs=[],characterRanges=[];
 +      if(firstTab<0 || leading<0 || trailing<0 || tracking<=0 || tracking>1000)fail('invalid string format metrics');
 +      for(let i=0;i<tabCount;i++){const distance=f32(data,60+i*4);if(distance<=0)fail('invalid tab stop interval');tabs.push(distance);}
 +      for(let i=0;i<ranges;i++){const offset=60+tabCount*4+i*8,first=i32(data,offset),length=i32(data,offset+4);if(first<0 || length<0 || first+length>0x7fffffff)fail('invalid character range');characterRanges.push({first,length});}
 +      // Character ranges are measurement metadata; DrawString has no range paint.
-+      // User digit substitution (0) is implementation-defined: this native
-+      // renderer chooses unchanged digits; explicit None (1) has the same paint.
-+      this.emfPlusObjects[id]={type:'stringFormat',flags,language,align,line,hotkey,trimming,firstTab,tabs,characterRanges,leading,trailing,tracking};return;
++      // The native helper applies recorded digit substitution before shaping;
++      // keep original DrawString text and measurement-range metadata intact.
++      this.emfPlusObjects[id]={type:'stringFormat',flags,language,substitution,digitLanguage,align,line,hotkey,trimming,firstTab,tabs,characterRanges,leading,trailing,tracking};return;
 +    }
 +    if(type===8){images.parseAttributes.call(this,id,data);return;}
 +    if(type===9){pens.parseCustomCap.call(this,id,data);return;}

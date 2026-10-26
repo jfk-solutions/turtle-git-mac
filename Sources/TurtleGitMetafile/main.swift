@@ -1167,6 +1167,7 @@ private final class NativeStrokeGeometry {
 /// UTF-16 text separately and applies the EMF+ rectangle/graphics clip and paint.
 private final class NativeTextLayout {
     private var shapedGlyphs = 0, pathElements = 0, pathBytes = 0, textUnits = 0
+    private var digitMappings: [String: [String]] = [:]
     private let maximumGlyphs = 262_144, maximumElements = 2_000_000
     private struct Line {
         var value: CTLine
@@ -1184,6 +1185,49 @@ private final class NativeTextLayout {
         guard value.isNumber else { throw invalid("non-numeric " + key) }
         let result = value.toDouble()
         guard result.isFinite, abs(result) <= (["flags", "language"].contains(key) ? Double(UInt32.max) : 10_000_000) else { throw invalid("invalid " + key) }; return result
+    }
+    private func substitutionDigits(_ method: Int, language: UInt16) throws -> [String]? {
+        // User is implementation-defined in MS-EMFPLUS: keep this renderer's
+        // deterministic unchanged-digit policy. None likewise needs no locale.
+        guard method >= 2 else { return nil }
+        let identifier: String
+        if language == 0 { identifier = Locale.current.identifier }
+        else {
+            guard let resolved = NSLocale.localeIdentifier(fromWindowsLocaleCode: UInt32(language)), !resolved.isEmpty else {
+                throw invalid("unsupported digit-substitution language identifier")
+            }
+            identifier = resolved
+        }
+        // Native macOS playback profile: National uses locale-default decimal
+        // digits; GDI+ Traditional uses native-script decimal digits. CLDR's
+        // 'traditional' keyword can select algorithmic whole-number numerals,
+        // so it is deliberately not the matching option here. This is not a
+        // claim that Apple's ICU data equals every Windows NLS table version.
+        let cacheKey = identifier + "|" + String(method)
+        if let cached = digitMappings[cacheKey] { return cached }
+        let formatter = NumberFormatter()
+        if method == 3 {
+            var components = Locale.Components(identifier: identifier)
+            components.numberingSystem = Locale.NumberingSystem("native")
+            formatter.locale = Locale(components: components)
+        } else { formatter.locale = Locale(identifier: identifier) }
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumIntegerDigits = 1
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        var digits: [String] = []
+        for value in 0...9 {
+            guard let digit = formatter.string(from: NSNumber(value: value)), digit.unicodeScalars.count == 1,
+                  let scalar = digit.unicodeScalars.first, scalar.properties.generalCategory == .decimalNumber,
+                  digit.first?.wholeNumberValue == value else { throw invalid("unsupported native decimal digit mapping") }
+            digits.append(digit)
+        }
+        guard Set(digits).count == 10 else { throw invalid("non-distinct native decimal digits") }
+        // A conversion owns this instance; never carry locale-sensitive maps
+        // between helper requests, and bound cache growth for replaced objects.
+        if digitMappings.count < 256 { digitMappings[cacheKey] = digits }
+        return digits
     }
     private func append(_ path: CGPath, to target: CGMutablePath, transform: CGAffineTransform = .identity) throws {
         var count = 0
@@ -1402,12 +1446,16 @@ private final class NativeTextLayout {
         textUnits += original.utf16.count
         let x = try number(options, "x"), y = try number(options, "y"), width = try number(options, "width"), height = try number(options, "height")
         let rawFlags = try number(options, "flags"), rawAlign = try number(options, "align"), rawLine = try number(options, "line"), rawTrimming = try number(options, "trimming"), rawHotkey = try number(options, "hotkey"), rawStyle = try number(options, "fontStyle"), rawLanguage = try number(options, "language")
+        let rawSubstitution = try number(options, "substitution"), rawDigitLanguage = try number(options, "digitLanguage")
         guard width >= 0, height >= 0, rawFlags >= 0, rawFlags <= Double(UInt32.max), rawFlags.rounded() == rawFlags,
               [0.0, 1, 2].contains(rawAlign), [0.0, 1, 2].contains(rawLine), (0...5).contains(Int(rawTrimming)), rawTrimming.rounded() == rawTrimming,
               [0.0, 1, 2].contains(rawHotkey), rawStyle >= 0, rawStyle <= 15, rawStyle.rounded() == rawStyle,
-              rawLanguage >= 0, rawLanguage.rounded() == rawLanguage else { throw invalid("invalid rectangle, flags, alignment, language or trimming") }
+              rawLanguage >= 0, rawLanguage <= Double(UInt16.max), rawLanguage.rounded() == rawLanguage,
+              [0.0, 1, 2, 3].contains(rawSubstitution), rawDigitLanguage >= 0, rawDigitLanguage <= Double(UInt16.max),
+              rawDigitLanguage.rounded() == rawDigitLanguage else { throw invalid("invalid rectangle, flags, alignment, language or trimming") }
         let flags = UInt32(rawFlags), alignment = Int(rawAlign), lineAlignment = Int(rawLine), trimming = Int(rawTrimming), style = Int(rawStyle)
         guard flags & ~UInt32(0x80007c07) == 0 else { throw invalid("unsupported StringFormat flags (including DisplayFormatControl)") }
+        let digits = try substitutionDigits(Int(rawSubstitution), language: UInt16(rawDigitLanguage))
         let vertical = flags & 2 != 0, rtl = flags & 1 != 0, noClip = flags & 0x4000 != 0
         let leading = try number(options, "leading") * size, trailing = try number(options, "trailing") * size, tracking = try number(options, "tracking", 1)
         let firstTab = try number(options, "firstTab")
@@ -1421,10 +1469,24 @@ private final class NativeTextLayout {
         var font = CTFontCreateWithName(face as CFString, size, nil), traits: CTFontSymbolicTraits = []
         if bold { traits.insert(.boldTrait) }; if italic { traits.insert(.italicTrait) }
         if !traits.isEmpty, let adjusted = CTFontCreateCopyWithSymbolicTraits(font, size, nil, traits, traits) { font = adjusted }
-        // Hotkey processing changes only visual text, never the JS semantic desc.
+        // Substitution changes only ASCII digits in visual text, never the JS
+        // semantic description or recorded measurement-range offsets. Compute
+        // hotkey ranges afterwards, so even supplementary decimal digits keep
+        // their correct visual UTF-16 ranges. Existing non-ASCII digits survive.
         var text = original, hotkeyRange: NSRange?
+        if let digits {
+            var substituted = ""
+            for scalar in original.unicodeScalars {
+                if scalar.value >= 48, scalar.value <= 57 { substituted += digits[Int(scalar.value - 48)] }
+                else { substituted.unicodeScalars.append(scalar) }
+            }
+            let extraUnits = substituted.utf16.count - original.utf16.count
+            guard substituted.utf16.count <= 32_768, extraUnits <= 262_144 - textUnits else { throw invalid("substituted text budget exceeded") }
+            textUnits += extraUnits
+            text = substituted
+        }
         if rawHotkey != 0 {
-            let clusters = original.map(String.init); var output = "", index = 0
+            let clusters = text.map(String.init); var output = "", index = 0
             while index < clusters.count {
                 if clusters[index] == "&" {
                     if index + 1 < clusters.count {

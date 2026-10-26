@@ -390,8 +390,8 @@ for negative in [False,True]:
 # Original formatted-text records. Field layout and enums follow Microsoft
 # MS-EMFPLUS 2.2.1.9/2.2.2.44/2.3.4.14; no glyph/font outlines are embedded.
 # https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9df612d2-fb87-44f7-93fb-0fa0b7b2f276
-def string_format(flags=0x1000,align=0,line=0,first=0,tabs=(),tracking=1,trim=0,leading=0,trailing=0,substitution=1,language=0,ranges=(),hotkey=0):
- return U(0xdbc01002,flags,language,align,line,substitution,0)+F(first)+I(hotkey)+F(leading,trailing,tracking)+U(trim)+I(len(tabs),len(ranges))+F(*tabs)+b''.join(I(*r) for r in ranges)
+def string_format(flags=0x1000,align=0,line=0,first=0,tabs=(),tracking=1,trim=0,leading=0,trailing=0,substitution=1,language=0,ranges=(),hotkey=0,digit_language=0):
+ return U(0xdbc01002,flags,language,align,line,substitution,digit_language)+F(first)+I(hotkey)+F(leading,trailing,tracking)+U(trim)+I(len(tabs),len(ranges))+F(*tabs)+b''.join(I(*r) for r in ranges)
 def formatted_text(text='MMMM',fmt=None,rect=(12,12,216,140),size=20,style=0,raw=None,brush=None,transform=None,clip=None,declared_length=None):
  face='Helvetica'.encode('utf-16le');font=U(0xdbc01002)+F(size)+U(2,style,0,len(face)//2)+face
  string=text.encode('utf-16le') if raw is None else raw
@@ -455,13 +455,44 @@ text_cases={
  'hotkey-literal':dict(text='A&&BC',fmt=string_format(hotkey=2)),
 }
 for name,options in text_cases.items():(P/('plus-formatted-'+name+'.emf')).write_bytes(formatted_text(**options))
+# Independent Unicode controls make actual glyph paint, not only successful
+# decoding, observable. National Thai uses modern locale digits; Traditional
+# selects native decimal Thai digits, never algorithmic whole-number spelling.
+digit_cases={
+ 'latin-control':dict(text='0123456789'),
+ 'thai-control':dict(text='๐๑๒๓๔๕๖๗๘๙'),
+ 'arabic-control':dict(text='٠١٢٣٤٥٦٧٨٩'),
+ 'persian-control':dict(text='۰۱۲۳۴۵۶۷۸۹'),
+ 'thai-national':dict(text='0123456789',fmt=string_format(substitution=2,digit_language=0x041e)),
+ 'thai-traditional':dict(text='0123456789',fmt=string_format(substitution=3,digit_language=0x041e)),
+ 'arabic-national':dict(text='0123456789',fmt=string_format(substitution=2,digit_language=0x0401)),
+ 'persian-traditional':dict(text='0123456789',fmt=string_format(substitution=3,digit_language=0x0429)),
+ 'thai-none':dict(text='0123456789',fmt=string_format(substitution=1,digit_language=0x041e)),
+ 'thai-user':dict(text='0123456789',fmt=string_format(substitution=0,digit_language=0x041e)),
+ 'thai-hotkey':dict(text='A&1B',fmt=string_format(substitution=3,digit_language=0x041e,hotkey=1)),
+ 'thai-hotkey-control':dict(text='A&๑B',fmt=string_format(hotkey=1)),
+ 'thai-vertical':dict(text='123',fmt=string_format(flags=0x1002,substitution=3,digit_language=0x041e)),
+ 'thai-vertical-control':dict(text='๑๒๓',fmt=string_format(flags=0x1002)),
+ 'thai-wrap':dict(text='123 456 789 012',rect=(12,12,55,140),fmt=string_format(flags=0,substitution=3,digit_language=0x041e)),
+ 'thai-wrap-control':dict(text='๑๒๓ ๔๕๖ ๗๘๙ ๐๑๒',rect=(12,12,55,140),fmt=string_format(flags=0)),
+ 'thai-gradient':dict(text='0123456789',fmt=string_format(substitution=3,digit_language=0x041e),brush=linear(transform=(120,0,0,70,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])),
+ 'thai-gradient-control':dict(text='๐๑๒๓๔๕๖๗๘๙',brush=linear(transform=(120,0,0,70,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])),
+ 'existing-unicode':dict(text='๙ ۹ ٩ 9',fmt=string_format(substitution=3,digit_language=0x041e)),
+ 'existing-unicode-control':dict(text='๙ ۹ ٩ ๙'),
+}
+for name,options in digit_cases.items():(P/('plus-formatted-digits-'+name+'.emf')).write_bytes(formatted_text(**options))
+for name,fmt in {
+ 'enumeration':string_format(substitution=4),
+ 'language-width':string_format(substitution=3,digit_language=0x10001),
+ 'unknown-language':string_format(substitution=3,digit_language=0xffff),
+}.items():(P/('unsupported-formatted-digits-'+name+'.emf')).write_bytes(formatted_text(fmt=fmt))
 base_format=string_format()
 def change_format(offset,part):return base_format[:offset]+part+base_format[offset+len(part):]
 bad_formats={
  'short':base_format[:59], 'trailing':base_format+b'junk',
  'version':change_format(0,U(0)), 'flags':change_format(4,U(0x80)),
  'align':change_format(12,U(3)), 'line-align':change_format(16,U(3)),
- 'substitution':change_format(20,U(2)), 'digit-language':change_format(24,U(0x401)), 'display-controls':change_format(4,U(0x20)), 'hotkey':change_format(32,I(99)),
+ 'substitution':change_format(20,U(4)), 'digit-language':change_format(24,U(0x10001)), 'display-controls':change_format(4,U(0x20)), 'hotkey':change_format(32,I(99)),
  'first-tab-negative':change_format(28,F(-1)), 'first-tab-nan':change_format(28,F(float('nan'))),
  'leading-negative':change_format(36,F(-1)), 'trailing-infinite':change_format(40,F(float('inf'))),
  'tracking-negative':change_format(44,F(-1)), 'tracking-nan':change_format(44,F(float('nan'))),
