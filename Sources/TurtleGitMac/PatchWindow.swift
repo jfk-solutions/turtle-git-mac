@@ -535,6 +535,7 @@ struct PatchTextView: NSViewRepresentable {
         text.isEditable = model.canEditText; text.allowsUndo = true; text.isSelectable = true; text.delegate = context.coordinator
         text.isAutomaticQuoteSubstitutionEnabled = false; text.isAutomaticDashSubstitutionEnabled = false; text.isAutomaticTextReplacementEnabled = false; text.isAutomaticSpellingCorrectionEnabled = false
         text.coordinator = context.coordinator
+        text.columnSelection = PatchColumnSelectionController(text: text)
         text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         text.usesFindBar = !model.usesSourceFindBar; text.isIncrementalSearchingEnabled = !model.usesSourceFindBar
         text.isHorizontallyResizable = true; text.isVerticallyResizable = true
@@ -586,7 +587,7 @@ struct PatchTextView: NSViewRepresentable {
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
         guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
-        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange(), selectionAffinity = text.selectionAffinity, scrollOrigin = scroll.contentView.bounds.origin
+        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange(), selectionAffinity = text.selectionAffinity, selectionSnapshot = text.columnSelection?.snapshot(), scrollOrigin = scroll.contentView.bounds.origin
         cache.resetRevision = model.documentResetRevision; cache.needsStyling = false
         cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
         let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
@@ -622,7 +623,8 @@ struct PatchTextView: NSViewRepresentable {
         if contentChanged { text.undoManager?.removeAllActions(); scroll.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
-            text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)), affinity: selectionAffinity, stillSelecting: false)
+            if let selectionSnapshot { _ = text.columnSelection?.applySnapshot(selectionSnapshot) }
+            else { text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)), affinity: selectionAffinity, stillSelecting: false) }
         }
         host.layoutSubtreeIfNeeded()
         scroll.updateDocumentExtent()
@@ -631,7 +633,7 @@ struct PatchTextView: NSViewRepresentable {
     static func dismantleNSView(_ host: PatchTextHost, coordinator: Coordinator) {
         let scroll = host.scroll
         host.gutter.retire(); scroll.lineNumberGutter = nil
-        if let text = scroll.documentView as? PatchText { text.delegate = nil; text.coordinator = nil }
+        if let text = scroll.documentView as? PatchText { text.columnSelection?.retire(); text.columnSelection = nil; text.delegate = nil; text.coordinator = nil }
         if coordinator.model.sourceOwnerID == coordinator.identity {
             coordinator.model.sourceOwnerID = nil;coordinator.model.sourceAttached={false}
             coordinator.model.sourceSelection = { NSRange(location: 0, length: 0) }
@@ -654,13 +656,20 @@ struct PatchTextView: NSViewRepresentable {
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool { model.canEditText }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !model.retired, let view = notification.object as? NSTextView else { return }
-            let selected = view.selectedRange(); var offset = 0, lines = Set<Int>()
-            for (index, line) in model.document.lines.enumerated() {
-                let terminated = index < model.document.lines.count - 1 || model.document.text.utf8.last == 10
-                let range = NSRange(location: offset, length: (line as NSString).length + (terminated ? 1 : 0))
-                let caretInLine = NSLocationInRange(selected.location, range) || (!terminated && index == model.document.lines.count - 1 && selected.location == NSMaxRange(range))
-                if selected.length == 0 ? caretInLine : NSIntersectionRange(selected, range).length > 0 { lines.insert(index) }
-                offset += range.length
+            let selections = (view as? PatchText)?.columnSelection?.snapshot().ranges ?? view.selectedRanges.map(\.rangeValue)
+            let index = (view.enclosingScrollView as? PatchScrollView)?.lineNumberGutter?.lineIndex ?? PatchLineIndex(text: view.string)
+            var spans: [ClosedRange<Int>] = []
+            for selected in selections {
+                guard selected.location <= index.utf16Length, selected.length <= index.utf16Length - selected.location,
+                      let first = index.lineIndex(atUTF16Offset: selected.location),
+                      let last = index.lineIndex(atUTF16Offset: selected.length > 0 ? NSMaxRange(selected) - 1 : selected.location) else { continue }
+                spans.append(first...last)
+            }
+            var lines = Set<Int>(), end = -1
+            for span in spans.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+                let start = max(span.lowerBound, end + 1)
+                if start <= span.upperBound { for line in start...span.upperBound { lines.insert(line) } }
+                end = max(end, span.upperBound)
             }
             model.selectedLines = lines
         }
@@ -669,6 +678,50 @@ struct PatchTextView: NSViewRepresentable {
     }
     final class PatchText: NSTextView {
         weak var coordinator: Coordinator?
+        var columnSelection: PatchColumnSelectionController?
+        override func setSelectedRange(_ range: NSRange) { columnSelection?.externalSelectionChanged(); super.setSelectedRange(range) }
+        override func setSelectedRange(_ range: NSRange, affinity: NSSelectionAffinity, stillSelecting: Bool) {
+            columnSelection?.externalSelectionChanged(); super.setSelectedRange(range, affinity: affinity, stillSelecting: stillSelecting)
+        }
+        override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
+            columnSelection?.externalSelectionChanged(); super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
+        }
+        override func mouseDown(with event: NSEvent) {
+            if columnSelection?.mouseDown(with: event) == true { return }
+            columnSelection?.externalSelectionChanged(); super.mouseDown(with: event)
+        }
+        override func keyDown(with event: NSEvent) {
+            if let direction = PatchColumnDirection.direction(for: event), columnSelection?.available == true {
+                _ = columnSelection?.extendRectangle(direction: direction); return
+            }
+            super.keyDown(with: event)
+        }
+        override func copy(_ sender: Any?) { if !handleColumnCopy(cutting: false) { super.copy(sender) } }
+        override func cut(_ sender: Any?) { if !handleColumnCopy(cutting: true) { super.cut(sender) } }
+        override func paste(_ sender: Any?) { if !handleColumnPaste() { super.paste(sender) } }
+        override func insertText(_ value: Any, replacementRange: NSRange) {
+            let plain = (value as? NSAttributedString)?.string ?? (value as? String)
+            if !hasMarkedText(), let plain, handleColumnTyping(plain) { return }
+            super.insertText(value, replacementRange: replacementRange)
+        }
+        override func insertNewline(_ sender: Any?) {
+            if !hasMarkedText(), handleColumnTyping("\n") { return }
+            super.insertNewline(sender)
+        }
+        override func setMarkedText(_ value: Any, selectedRange: NSRange, replacementRange: NSRange) {
+            if !hasMarkedText(), hasColumnSelection, columnSelection?.available == true { columnSelection?.collapseToPrimary() }
+            super.setMarkedText(value, selectedRange: selectedRange, replacementRange: replacementRange)
+        }
+        override func deleteBackward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: true) { super.deleteBackward(sender) } }
+        override func deleteForward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: false) { super.deleteForward(sender) } }
+        override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+            if hasColumnSelection {
+                if item.action == #selector(copy(_:)) { return canCopyColumnSelection(cutting: false) }
+                if item.action == #selector(cut(_:)) { return canCopyColumnSelection(cutting: true) }
+                if item.action == #selector(paste(_:)) { return columnSelection?.available == true && coordinator?.model.canEditText == true }
+            }
+            return super.validateUserInterfaceItem(item)
+        }
         var linePasteboard: () -> NSPasteboard = { .general }
         struct WhitespaceMark {
             enum Kind { case space, tab }
@@ -753,6 +806,9 @@ struct PatchTextView: NSViewRepresentable {
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if let direction = PatchColumnDirection.direction(for: event), columnSelection?.available == true {
+                _ = columnSelection?.extendRectangle(direction: direction); return true
+            }
             if window?.firstResponder === self, let command = PatchLineCommand.command(for: event) {
                 _ = performLineCommand(command); return true
             }
@@ -767,11 +823,11 @@ struct PatchTextView: NSViewRepresentable {
             return super.performKeyEquivalent(with: event)
         }
         override func insertTab(_ sender: Any?) {
-            if hasMarkedText() || selectedRanges.count != 1 { super.insertTab(sender); return }
+            if hasMarkedText() { super.insertTab(sender); return }
             _ = performLineTab(backwards: false)
         }
         override func insertBacktab(_ sender: Any?) {
-            if hasMarkedText() || selectedRanges.count != 1 { super.insertBacktab(sender); return }
+            if hasMarkedText() { super.insertBacktab(sender); return }
             _ = performLineTab(backwards: true)
         }
         override func cancelOperation(_ sender: Any?) {
@@ -810,7 +866,7 @@ struct PatchTextView: NSViewRepresentable {
         @objc func showFind(_ sender: Any?) { find(.showFindInterface) }
         override func menu(for event: NSEvent) -> NSMenu? {
             guard let coordinator else { return super.menu(for: event) }
-            if selectedRange().length == 0 {
+            if selectedRanges.count == 1, columnSelection?.snapshot().rectangular != true, selectedRange().length == 0 {
                 let location = characterIndexForInsertion(at: convert(event.locationInWindow, from: nil))
                 setSelectedRange(NSRange(location: location, length: 0))
             }

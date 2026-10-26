@@ -1,0 +1,195 @@
+{
+  "date": "2026-10-27",
+  "status": "scoped-validation-complete",
+  "baseline": "643a3317",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Measured logical-row rectangle selection, Option-drag and editor-local keyboard extension",
+    "Directional row identities, active-row primary selection and retained snapshots across restyling",
+    "Source-specific multi-range line commands, primary-only typing and Return",
+    "Unicode rectangular clipboard shape, cut, measured paste, short-row padding and EOF extension",
+    "Exact source-byte transactions, reciprocal native Undo/Redo and Save",
+    "Owner revision, marked text, read-only, pending work, sheets, Quit, replacement and closure fences"
+  ],
+  "validation": {
+    "core": {
+      "log": "build/qa/unified-column-edit-core-2026-10-27.log",
+      "exit": 0,
+      "methods": 35,
+      "new_methods": 13,
+      "retained_line_methods": 13,
+      "retained_byte_buffer_methods": 9,
+      "failures": 0,
+      "scope": "Includes actual 2000-row composite byte-buffer application, source corner constants, mixed opaque packets and editable regional drafts. No full Core rerun."
+    },
+    "app": {
+      "initial_log": "build/qa/unified-column-edit-app-2026-10-27.log",
+      "initial_exit": 65,
+      "initial_failure": "New private TextKit clipboard layout NSSize fallback used ambiguous greatestFiniteMagnitude. Qualified both values as CGFloat; no behavior change.",
+      "repair_log": "build/qa/unified-column-edit-app-repair-2026-10-27.log",
+      "repair_exit": 0,
+      "generic_exit_zero_compiler_diagnostics": 20,
+      "note": "Successful final native Debug build despite retained generic exit-code-zero compiler diagnostics and simulator-version diagnostic. No Core rebuild or recheck after the CGFloat-only repair."
+    },
+    "native": {
+      "status": "pass: cumulative system phases and full bundled group",
+      "fixture": "docs/qa/unified-column-edit-native-2026-10-27.swift",
+      "fixture_sha256": "89d8cb4e0d1014bd5c0a59fb78e03d16978c33eca3e227ff36d25a5369ce2959",
+      "runner": "scripts/test-unified-column-edit.py",
+      "runner_sha256": "19671eace3a8e23c3dcac13a69622c5cf29f6dc665a8c272fa0ff09600c8d196",
+      "scopes": [
+        "selection",
+        "commands",
+        "bytes",
+        "ownership"
+      ],
+      "attempts": [
+        {
+          "log": "build/qa/unified-column-edit-native-2026-10-27.log",
+          "engine": "system",
+          "receiver": 48351,
+          "exit": 1,
+          "passed": [
+            "selection",
+            "commands",
+            "bytes: mixed-codec stream Duplicate and Indent, Save and full-snapshot Undo/Redo"
+          ],
+          "failure": "Mixed-codec actual rectangle expected one glyph in each row at line287; rendered geometry versus fixture assumption under investigation.",
+          "cleanup": "Receiver reaped; fixture reports owned windows/sessions/Git workers drained and private pasteboard released.",
+          "repair": "Fixture chose endpoint after an opaque glyph whose advance is not guaranteed to equal an ASCII cell. Use a visible ASCII c prefix for the Cut column, retaining exact opaque packets outside it; existing opaque stream Duplicate/Indent coverage is unchanged. Original glyph width was not separately measured."
+        },
+        {
+          "log": "build/qa/unified-column-edit-native-fixture-repair-2026-10-27.log",
+          "engine": "system",
+          "receiver": 48477,
+          "exit": 1,
+          "scope": [
+            "bytes-after-stream",
+            "ownership"
+          ],
+          "passed": [
+            "Visible-ASCII native rectangle Cut preserving opaque/NUL/regional bytes, Save and full Undo/Redo",
+            "Rectangular clipboard with empty rows",
+            "Proportional-font/tab/short-row/EOF paste, Save and full Undo/Redo",
+            "Downward rectangle replacement at top start"
+          ],
+          "failure": "Reverse-vertical Helvetica/tab rectangle setup expected selected tab but midpoint geometry did not yield the asserted spans. Failed before this paste subject; no product failure inferred.",
+          "repair": "Choose explicit eight-space tab size and verify font/tab midpoint premise; retain exact output expectations and add tail-only continuation.",
+          "cleanup": "Receiver48477 reaped and private windows/workers/pasteboard cleanup reported."
+        },
+        {
+          "log": "build/qa/unified-column-edit-native-tail-repair-2026-10-27.log",
+          "engine": "system",
+          "receiver": 48584,
+          "exit": 1,
+          "scope": [
+            "bytes-paste-tail",
+            "ownership"
+          ],
+          "passed": [
+            "Reverse-vertical eight-space-tab selection premise and exact paste byte assertions before caret check"
+          ],
+          "failure": "Reverse-paste loop asserted caret zero for every clipboard mode, although its ordinary stream-paste mode must finish after inserted text. Failure output did not identify the loop iteration.",
+          "repair": "Use source-specific caret expectation: original position for marked rectangular paste, after inserted text for ordinary stream paste; include clipboard mode and actual snapshot in future failures.",
+          "cleanup": "Receiver48584 reaped and owned windows/workers/pasteboard cleanup reported."
+        }
+      ],
+      "system_final": {
+        "log": "build/qa/unified-column-edit-native-caret-repair-2026-10-27.log",
+        "receiver": 48809,
+        "exit": 0,
+        "scope": [
+          "bytes-reverse-stream-tail",
+          "ownership"
+        ],
+        "note": "Completes ordinary/empty reverse paste, final marker-only clear, read-only/IME/modal/busy/Quit/replacement/late-Save/close and exact Git state/cleanup. Earlier phases remain covered by prior recorded system runs."
+      },
+      "bundled_full": {
+        "log": "build/qa/unified-column-edit-native-bundled-final-2026-10-27.log",
+        "receiver": 48839,
+        "exit": 0,
+        "scope": [
+          "selection",
+          "commands",
+          "bytes",
+          "ownership"
+        ],
+        "note": "Full default group on final unchanged cached fixture, including all new keyboard and repaired fixture subjects."
+      },
+      "cleanup": {
+        "reaped_receivers": [
+          48351,
+          48477,
+          48584,
+          48809,
+          48839
+        ],
+        "independent_process_check": "All absent after checks.",
+        "scope": "Private native windows/sheets closed, Git/file workers drained, preferences/pasteboards released. Passing completions assert exact Git HEAD/index/config/worktree preservation. No user app terminated."
+      },
+      "limitations": "Private receiver input/actions with invisible windows; no physical keyboard/menu-bar/VoiceOver or current installed-signed acceptance claim."
+    },
+    "generated": {
+      "localizations_write": {
+        "exit": 0,
+        "log": "build/qa/unified-column-edit-localizations-write-2026-10-27.log",
+        "languages": 38,
+        "keys": 1324
+      },
+      "help_generate": {
+        "exit": 0,
+        "log": "build/qa/unified-column-edit-help-generate-2026-10-27.log",
+        "documents": 58,
+        "topics": 51,
+        "files": 86,
+        "bytes": 6805940
+      },
+      "project": {
+        "exit": 0,
+        "log": "build/qa/unified-column-edit-project-2026-10-27.log"
+      },
+      "localizations_check": {
+        "exit": 0,
+        "log": "build/qa/unified-column-edit-localizations-check-2026-10-27.log"
+      },
+      "help_check": {
+        "exit": 0,
+        "log": "build/qa/unified-column-edit-help-check-2026-10-27.log"
+      },
+      "dialog_coverage": {
+        "exit": 0,
+        "log": "build/qa/unified-column-edit-dialog-coverage-2026-10-27.log",
+        "note": "Ledger unchanged: 130 resources, 120 partial family audits, 10 pending reviews, zero certified complete; not a feature-completion percentage."
+      }
+    }
+  },
+  "adaptations": [
+    "Command-Option-Shift arrows/Home/End/PageUp/PageDown preserve native word-selection and VoiceOver modifiers; page movement uses native viewport height.",
+    "Horizontal keyboard movement uses native composed-character boundaries",
+    "Unicode clipboard carries rectangular metadata independently of document byte encoding",
+    "New lines inserted beyond EOF use the non-Windows source LF policy"
+  ],
+  "open_acceptance": [
+    "Arbitrary disjoint-selection creation and every Scintilla selection command",
+    "Virtual-space editing and wrapped-line rectangle equivalence",
+    "Physical input, menu-bar dispatch and VoiceOver acceptance",
+    "Current signed execution, Intel/minimum-OS and complete hosted integration",
+    "Complete upstream dialog/functionality parity remains unproven"
+  ],
+  "distribution": "Installed build13 predates the gutter, whole-line and column continuations. No App Store submission authorized.",
+  "source_sha256": {
+    "Sources/TurtleGitCore/PatchLineEditing.swift": "dcac356ddfa97d0bda70c632ea4b496315b30f614b570a02401be8da25e64c4e",
+    "Sources/TurtleGitCore/PatchMultipleLineEditing.swift": "1e88bf75d81634764c5c0f758ca364237d8e04f6b472cf1d7733613313bf988d",
+    "Sources/TurtleGitCore/UnifiedDiffViewer.swift": "60e93a48eb3bb0187419b0526bdec362836c0419675cce0d2e68d093be51e259",
+    "Sources/TurtleGitMac/PatchWindow.swift": "ae55f33f1cbd963d61327f14add87346d5a01bc67f6c161eb29b292c28c82224",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "107ae4127e40b8d9d19c9103be1d2904fb6023cef86ca9d51f95a24c01399262",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "f59d1282dfff8f5385b2caf1a2fa1b708cbf7eeb244f670713595e4bbea9e374",
+    "Sources/TurtleGitMac/PatchColumnSelection.swift": "fbe8b83f0639dbdc174742d9162623289304f944e02351d4ac57207fb2db9228",
+    "Sources/TurtleGitMac/PatchColumnClipboard.swift": "e42d052a12ef1dc898d97a1edfaafa658e6ebd803fed073d37ce4b9849e2a086",
+    "Tests/TurtleGitCoreTests/PatchMultipleLineEditingTests.swift": "0fa70e4c96f7a2ef121b063cf12f970aa686c38f1fd489f2ab0246bcd5a9b4b5"
+  },
+  "protected_work": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

@@ -54,17 +54,20 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
     let command: PatchLineCommand, owner: PatchLineOwnerReceipt
     init(command: PatchLineCommand, owner: PatchLineOwnerReceipt) { self.command = command; self.owner = owner }
 }
+@MainActor private final class PatchColumnMenuReceipt: NSObject {
+    let direction: PatchColumnDirection, owner: PatchLineOwnerReceipt
+    init(direction: PatchColumnDirection, owner: PatchLineOwnerReceipt) { self.direction = direction; self.owner = owner }
+}
 @MainActor private struct PatchLineUndoState {
     let buffer: UnifiedDiffEditBuffer
-    let selection: NSRange
-    let affinity: NSSelectionAffinity
+    let selection: PatchTextSelectionSnapshot
 }
 
 @MainActor extension PatchTextView.PatchText {
     private var lineOwner: PatchLineOwnerReceipt? {
         guard let coordinator, let window, window.firstResponder === self,
               window.attachedSheet == nil, NSApp.modalWindow == nil,
-              !hasMarkedText(), selectedRanges.count == 1, coordinator.model.canFind, coordinator.model.error == nil,
+              !hasMarkedText(), coordinator.model.canFind, coordinator.model.error == nil,
               coordinator.model.sourceOwnerID == coordinator.identity,
               coordinator.model.sourceAttached() else { return nil }
         let model = coordinator.model
@@ -82,8 +85,7 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
         guard coordinator?.model.canEditText == true else { return false }
         if command == .cutLines || command == .deleteLine { return !string.isEmpty }
         if command == .transpose {
-            let selected = selectedRange()
-            let caret = selectionAffinity == .upstream ? selected.location : NSMaxRange(selected)
+            let caret = lineSelectionSnapshot.primary.caret
             return ((enclosingScrollView as? PatchScrollView)?.lineNumberGutter?.lineIndex.lineIndex(atUTF16Offset: caret) ?? 0) > 0
         }
         return true
@@ -98,44 +100,137 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
     }
     private func performLineEdit(_ command: PatchLineEditCommand, title: String, owner: PatchLineOwnerReceipt) -> Bool {
         guard lineOwnerCurrent(owner), let model = coordinator?.model else { return false }
-        let selected = selectedRange()
-        let anchor = selectionAffinity == .upstream ? NSMaxRange(selected) : selected.location
-        let caret = selectionAffinity == .upstream ? selected.location : NSMaxRange(selected)
+        let selected = lineSelectionSnapshot
         let tab = UnifiedDiffAppearance.load(from: model.appearancePreferences).tabSize
-        guard let plan = PatchLineEditing.plan(text: string, anchor: anchor, caret: caret,
-                                               command: command, tabWidth: tab, useTabs: true, lineEnding: "\n") else { return false }
+        guard let plan = PatchLineEditing.plan(text: string, selections: selected.rows, primarySelectionID: selected.primarySelectionID,
+                                               rectangular: selected.rectangular, command: command, tabWidth: tab, useTabs: true, lineEnding: "\n", rectangleIsThin: selected.rectangleIsThin) else { return false }
+        return performLinePlan(plan, title: title, owner: owner)
+    }
+    private var lineSelectionSnapshot: PatchTextSelectionSnapshot {
+        if let columnSelection { return columnSelection.snapshot() }
+        let range = selectedRange(), reverse = selectionAffinity == .upstream
+        return .init(rows: [.init(id: 0, anchor: reverse ? NSMaxRange(range) : range.location,
+                                 caret: reverse ? range.location : NSMaxRange(range))], primarySelectionID: 0, rectangular: false)
+    }
+    private func selection(for plan: PatchLineEditPlan) -> PatchTextSelectionSnapshot {
+        .init(rows: plan.selections, primarySelectionID: plan.primarySelectionID, rectangular: plan.rectangular,
+              rectangleAnchor: plan.rectangleAnchor, rectangleCaret: plan.rectangleCaret, rectangleIsThin: plan.rectangleIsThin)
+    }
+    private func applyLineSelection(_ selection: PatchTextSelectionSnapshot) {
+        if let columnSelection { _ = columnSelection.applySnapshot(selection) }
+        else { setSelectedRange(selection.primary.range, affinity: selection.primary.isReversed ? .upstream : .downstream, stillSelecting: false) }
+        scrollRangeToVisible(selection.primary.range)
+    }
+    private func performLinePlan(_ plan: PatchLineEditPlan, title: String, owner: PatchLineOwnerReceipt) -> Bool {
+        guard lineOwnerCurrent(owner), let model = coordinator?.model else { return false }
         if let copied = plan.clipboardText {
             guard !copied.isEmpty else { return false }
             // Scintilla's ordinary line clipboard is Unicode text, not a patch
             // file. Retained document byte fragments remain in its edit buffer.
-            let item = NSPasteboardItem()
-            guard item.setString(copied, forType: .string), lineOwnerCurrent(owner) else { return false }
-            let board = linePasteboard(); board.clearContents()
-            guard board.writeObjects([item]) else { return false }
+            guard lineOwnerCurrent(owner), PatchColumnClipboard.write(text: copied, rectangular: plan.clipboardRectangular, to: linePasteboard()) else { return false }
         }
-        if command == .copyLines { return true }
+        if !plan.hasReplacement { applyLineSelection(selection(for: plan)); return true }
         guard model.canEditText, lineOwnerCurrent(owner) else { return false }
         do {
             let previous = try model.lineEditingBufferSnapshot()
             var next = previous
             let changed = try next.apply(plan)
             if !changed {
-                setSelectedRange(plan.selectionRange, affinity: plan.selectionCaret < plan.selectionAnchor ? .upstream : .downstream, stillSelecting: false)
-                scrollRangeToVisible(plan.selectionRange)
+                applyLineSelection(selection(for: plan))
                 return true
             }
-            let before = PatchLineUndoState(buffer: previous, selection: selected, affinity: selectionAffinity)
-            let after = PatchLineUndoState(buffer: next, selection: plan.selectionRange,
-                                           affinity: plan.selectionCaret < plan.selectionAnchor ? .upstream : .downstream)
-            breakUndoCoalescing()
-            let history = undoManager
-            history?.beginUndoGrouping()
-            guard installLineState(after, owner: owner) else { history?.endUndoGrouping(); return false }
-            registerLineUndo(before, owner: owner, title: title)
-            history?.endUndoGrouping()
-            breakUndoCoalescing()
-            return true
+            return commitLineBuffer(previous: previous, next: next, selection: selection(for: plan), title: title, owner: owner)
         } catch { model.error = error.localizedDescription; return false }
+    }
+    private func commitLineBuffer(previous: UnifiedDiffEditBuffer, next: UnifiedDiffEditBuffer,
+                                  selection: PatchTextSelectionSnapshot, title: String, owner: PatchLineOwnerReceipt) -> Bool {
+        guard lineOwnerCurrent(owner) else { return false }
+        let before = PatchLineUndoState(buffer: previous, selection: lineSelectionSnapshot)
+        let after = PatchLineUndoState(buffer: next, selection: selection)
+        breakUndoCoalescing()
+        let history = undoManager
+        history?.beginUndoGrouping()
+        guard installLineState(after, owner: owner) else { history?.endUndoGrouping(); return false }
+        registerLineUndo(before, owner: owner, title: title)
+        history?.endUndoGrouping()
+        breakUndoCoalescing()
+        return true
+    }
+    var hasColumnSelection: Bool { let state = lineSelectionSnapshot; return state.rectangular || state.rows.count > 1 }
+    func handleColumnCopy(cutting: Bool) -> Bool {
+        guard hasColumnSelection else { return false }
+        guard let owner = lineOwner, let model = coordinator?.model else { return true }
+        let state = lineSelectionSnapshot
+        if cutting {
+            guard model.canEditText,
+                  let plan = PatchLineEditing.cutSelections(text: string, selections: state.rows, primarySelectionID: state.primarySelectionID,
+                                                           rectangular: state.rectangular, rectangleIsThin: state.rectangleIsThin) else { return true }
+            _ = performLinePlan(plan, title: "Cut", owner: owner)
+        } else if let clipboard = PatchLineEditing.selectionClipboard(text: string, selections: state.rows,
+                            primarySelectionID: state.primarySelectionID, rectangular: state.rectangular) {
+            _ = PatchColumnClipboard.write(text: clipboard.text, rectangular: clipboard.rectangular, to: linePasteboard())
+        }
+        return true
+    }
+    func handleColumnTyping(_ replacement: String) -> Bool {
+        guard hasColumnSelection else { return false }
+        guard let owner = lineOwner, coordinator?.model.canEditText == true else { return true }
+        let state = lineSelectionSnapshot
+        if let plan = PatchLineEditing.replacePrimarySelection(text: string, selections: state.rows, primarySelectionID: state.primarySelectionID, replacement: replacement) {
+            _ = performLinePlan(plan, title: "Typing", owner: owner)
+        }
+        return true
+    }
+    func handleColumnDelete(backwards: Bool) -> Bool {
+        guard hasColumnSelection else { return false }
+        guard let owner = lineOwner, coordinator?.model.canEditText == true else { return true }
+        let state = lineSelectionSnapshot
+        if let plan = PatchLineEditing.deleteSelections(text: string, selections: state.rows, primarySelectionID: state.primarySelectionID,
+                            rectangular: state.rectangular, backwards: backwards, rectangleIsThin: state.rectangleIsThin) {
+            _ = performLinePlan(plan, title: "Delete", owner: owner)
+        }
+        return true
+    }
+    func handleColumnPaste() -> Bool {
+        // Explicit Paste is the only path that reads the private/general board.
+        let board = linePasteboard(), rectangular = PatchColumnClipboard.isRectangular(board)
+        guard hasColumnSelection || rectangular else { return false }
+        guard let owner = lineOwner, let model = coordinator?.model, model.canEditText,
+              let value = board.string(forType: .string) else { return true }
+        let state = lineSelectionSnapshot
+        guard let cleared = PatchLineEditing.cutSelections(text: string, selections: state.rows, primarySelectionID: state.primarySelectionID,
+                          rectangular: state.rectangular, includeClipboard: false, rectangleIsThin: state.rectangleIsThin) else { return true }
+        do {
+            let previous = try model.lineEditingBufferSnapshot()
+            var next = previous
+            let didClear = try next.apply(cleared)
+            let plan: PatchLineEditPlan
+            if rectangular, PatchLineEditing.rectanglePasteRows(value).isEmpty {
+                guard let caret = PatchRectanglePasteGeometry.insertionPoint(source: self, cleared: cleared) else { return true }
+                guard let empty = PatchLineEditing.replacePrimarySelection(text: cleared.resultText,
+                    selections: [.init(id: state.primarySelectionID, anchor: caret, caret: caret)], primarySelectionID: state.primarySelectionID, replacement: "") else { return true }
+                plan = empty
+            } else if rectangular {
+                guard let geometry = PatchRectanglePasteGeometry.measure(source: self, cleared: cleared, clipboard: value),
+                      let measured = PatchLineEditing.planRectanglePaste(text: cleared.resultText, insertions: geometry.insertions,
+                                                               primarySelectionID: state.primarySelectionID, caret: geometry.caret) else { return true }
+                plan = measured
+            } else {
+                guard let caret = PatchRectanglePasteGeometry.insertionPoint(source: self, cleared: cleared) else { return true }
+                let text = value.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+                guard let inserted = PatchLineEditing.replacePrimarySelection(text: cleared.resultText,
+                    selections: [.init(id: state.primarySelectionID, anchor: caret, caret: caret)], primarySelectionID: state.primarySelectionID, replacement: text) else { return true }
+                plan = inserted
+            }
+            let didInsert = try next.apply(plan)
+            if didClear || didInsert { _ = commitLineBuffer(previous: previous, next: next, selection: selection(for: plan), title: "Paste", owner: owner) }
+            else { applyLineSelection(selection(for: plan)) }
+        } catch { model.error = error.localizedDescription }
+        return true
+    }
+    func canCopyColumnSelection(cutting: Bool) -> Bool {
+        guard lineOwner != nil, !cutting || coordinator?.model.canEditText == true else { return false }
+        return lineSelectionSnapshot.rows.contains { $0.range.length > 0 }
     }
     /// Suppress only native auto-registration for our own single transaction;
     /// reciprocal undo stores exact provenance, including visually equal bytes.
@@ -150,15 +245,14 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
         model.installLineEditingBuffer(state.buffer)
         storage.replaceCharacters(in: range, with: state.buffer.text)
         didChangeText()
-        setSelectedRange(state.selection, affinity: state.affinity, stillSelecting: false)
-        scrollRangeToVisible(state.selection)
+        applyLineSelection(state.selection)
         return true
     }
     private func registerLineUndo(_ state: PatchLineUndoState, owner: PatchLineOwnerReceipt, title: String) {
         undoManager?.registerUndo(withTarget: self) { target in
             guard target.lineOwnerCurrent(owner), let model = target.coordinator?.model,
                   model.canEditText, let buffer = try? model.lineEditingBufferSnapshot() else { return }
-            let inverse = PatchLineUndoState(buffer: buffer, selection: target.selectedRange(), affinity: target.selectionAffinity)
+            let inverse = PatchLineUndoState(buffer: buffer, selection: target.lineSelectionSnapshot)
             guard target.installLineState(state, owner: owner) else { return }
             target.registerLineUndo(inverse, owner: owner, title: title)
         }
@@ -177,8 +271,30 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
             item.isEnabled = canPerformLineCommand(command)
             menu.addItem(item)
         }
+        menu.addItem(.separator())
+        let columns = NSMenuItem(title: NSLocalizedString("Column Selection", comment: "Unified Diff selection menu"), action: nil, keyEquivalent: "")
+        columns.image = MenuIcon.mergeMarked.contextImage(defaults: defaults)
+        columns.submenu = makeColumnSelectionMenu(); menu.addItem(columns)
         menu.autoenablesItems = false
         return menu
+    }
+    func makeColumnSelectionMenu() -> NSMenu {
+        let menu = NSMenu(title: NSLocalizedString("Column Selection", comment: "Unified Diff selection menu"))
+        guard let owner = lineOwner else { return menu }
+        let defaults = coordinator?.model.appearancePreferences ?? .standard
+        for direction in PatchColumnDirection.allCases {
+            let item = NSMenuItem(title: NSLocalizedString(direction.title, comment: "Column selection direction"), action: #selector(dispatchColumnSelection(_:)), keyEquivalent: "")
+            item.image = direction.icon.contextImage(defaults: defaults)
+            item.target = self; item.representedObject = PatchColumnMenuReceipt(direction: direction, owner: owner)
+            item.isEnabled = columnSelection?.available == true
+            menu.addItem(item)
+        }
+        menu.autoenablesItems = false
+        return menu
+    }
+    @objc func dispatchColumnSelection(_ sender: NSMenuItem) {
+        guard let receipt = sender.representedObject as? PatchColumnMenuReceipt, lineOwnerCurrent(receipt.owner) else { return }
+        _ = columnSelection?.extendRectangle(direction: receipt.direction)
     }
     @objc func dispatchLineCommand(_ sender: NSMenuItem) {
         guard let receipt = sender.representedObject as? PatchLineMenuReceipt, lineOwnerCurrent(receipt.owner) else { return }
@@ -188,6 +304,9 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
 
 struct PatchLineEditingCommands: Commands {
     @ObservedObject var context: PatchMenuContext
+    private func columnKey(_ direction: PatchColumnDirection) -> KeyEquivalent {
+        switch direction { case .left: return .leftArrow; case .right: return .rightArrow; case .up: return .upArrow; case .down: return .downArrow; case .home: return .home; case .end: return .end; case .pageUp: return .pageUp; case .pageDown: return .pageDown }
+    }
     var body: some Commands {
         CommandGroup(after: .textEditing) {
             Menu("Lines") {
@@ -195,6 +314,13 @@ struct PatchLineEditingCommands: Commands {
                     Button { context.performLineCommand(command) } label: { CommandLabel(title: command.title, icon: command.icon) }
                         .keyboardShortcut(KeyEquivalent(command.key), modifiers: command.swiftModifiers)
                         .disabled(!context.lineCommands.contains(command))
+                }
+            }
+            Menu("Column Selection") {
+                ForEach(PatchColumnDirection.allCases, id: \.rawValue) { direction in
+                    Button { context.extendColumnSelection(direction) } label: { CommandLabel(title: direction.title, icon: direction.icon) }
+                        .keyboardShortcut(columnKey(direction), modifiers: [.command, .option, .shift])
+                        .disabled(!context.columnSelectionAvailable)
                 }
             }
         }

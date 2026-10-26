@@ -9,6 +9,7 @@ import TurtleGitCore
     @Published private(set) var available = false
     @Published private(set) var darkMode = false
     @Published private(set) var lineCommands = Set<PatchLineCommand>()
+    @Published private(set) var columnSelectionAvailable = false
     @Published private(set) var documentAvailable = false
     @Published private(set) var documentVisible = false
     @Published private(set) var partialAvailable = false
@@ -54,6 +55,8 @@ import TurtleGitCore
         let text = controller?.window?.firstResponder as? PatchTextView.PatchText
         let commands = Set(PatchLineCommand.allCases.filter { enabled && text?.canPerformLineCommand($0) == true })
         if lineCommands != commands { lineCommands = commands }
+        let columns = enabled && text?.columnSelection?.available == true
+        if columnSelectionAvailable != columns { columnSelectionAvailable = columns }
         let visible = controller?.documentSession.enabled == true
         if documentVisible != visible { documentVisible = visible }
         let document = enabled && visible
@@ -69,6 +72,14 @@ import TurtleGitCore
         if stageHunksAvailable != stageHunks { stageHunksAvailable = stageHunks }
         if unstageLinesAvailable != unstageLines { unstageLinesAvailable = unstageLines }
         if unstageHunksAvailable != unstageHunks { unstageHunksAvailable = unstageHunks }
+    }
+    func extendColumnSelection(_ direction: PatchColumnDirection) {
+        refresh()
+        guard columnSelectionAvailable, let controller = current,
+              let text = controller.window?.firstResponder as? PatchTextView.PatchText,
+              text.coordinator?.model === controller.model else { return }
+        _ = text.columnSelection?.extendRectangle(direction: direction)
+        refresh()
     }
     func performLineCommand(_ command: PatchLineCommand) {
         refresh()

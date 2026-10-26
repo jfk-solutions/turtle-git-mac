@@ -93,3 +93,5 @@ certify every Scintilla command, rectangular/multiple selections, physical input
 VoiceOver, printing, signed distribution or the complete port. The independent
 [gutter family](UNIFIED-DIFF-GUTTER-PARITY.md) covers line numbering and whole-line
 selection; ordinary text edits retain the [byte-backed editor](UNIFIED-DIFF-BYTE-EDITING.md).
+The later [column editing family](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md) extends
+selection and clipboard behavior with its own implementation and validation scope.

@@ -196,8 +196,8 @@ editor and read-only previews. Its [dated checkpoint](qa/unified-gutter-family-2
 records six focused Core methods and the full native checks with both Git engines
 passing after retained layout/capture repairs. Actual light/dark native content
 renders are included in its guide. Physical input/VoiceOver, current signed
-execution and full hosted integration remain open; explicit source whole-line
-editing commands remain a separate missing family.
+execution and full hosted integration remain open. Explicit source whole-line
+editing commands have the separate checkpoint below.
 
 The [Unified Diff whole-line editing family](UNIFIED-DIFF-LINE-EDITING-PARITY.md)
 adds explicit line menus, editor shortcuts, indentation, byte-preserving moves
@@ -205,5 +205,14 @@ and one-command Undo/Redo. Its [dated checkpoint](qa/unified-line-edit-family-20
 records 22 focused Core methods, the native build, a full bundled-Git group and
 cumulative system-Git phases passing. The native fixtures retain their original
 compile/event/exception/grouping failures and scoped repairs. Rectangular/multiple
-selections, physical input/VoiceOver, current signed execution and full hosted
-integration remain open.
+selections have the subsequent checkpoint below. Physical input/VoiceOver,
+current signed execution and full hosted integration remain open.
+
+The [Unified Diff column editing family](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md)
+implements measured rectangular selections, eight adapted keyboard extensions,
+source-specific multi-range commands, clipboard shape and exact Undo/Redo. Its
+[dated checkpoint](qa/unified-column-edit-family-2026-10-27.json) records 35 Core
+methods, the repaired Debug build, a complete bundled-Git native group and
+cumulative system-Git phases passing. All five receivers are absent. Physical
+input/VoiceOver, current signed deployment, wrapped-line equivalence,
+minimum-version/Intel and full hosted acceptance remain open.

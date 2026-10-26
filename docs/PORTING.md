@@ -36,6 +36,19 @@ single-operation Undo/Redo. Its source contracts distinguish copy/cut endpoints,
 caret-line deletion, transpose and source Tab/BackTab semantics. Current signed
 execution and the wider port remain separate requirements.
 
+## Unified Diff column selection and editing
+
+The [column editing family](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md) extends that
+editor with measured rectangles, per-row selection identity, native clipboard
+shape, source-specific multi-range line commands and exact reciprocal Undo.
+It preserves upstream's primary-only ordinary typing policy. Its
+[dated checkpoint](qa/unified-column-edit-family-2026-10-27.json) records 35
+focused Core methods, the repaired Debug build, a complete bundled-Git native
+group and cumulative system-Git phases passing. All owned receivers are absent;
+the original build and fixture failures remain recorded. The installed build
+above does not include this continuation. Physical input, current signed
+execution, minimum-version/Intel and full hosted acceptance remain open.
+
 The preceding [build 11](qa/signed-consolidation-build11-2026-10-26.json) was
 installed as a universal app from `77f0f4f9`. Its measured 1,510 source inputs,
 strict signatures, all eight universal app components and 6,362-member

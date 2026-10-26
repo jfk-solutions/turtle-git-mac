@@ -230,10 +230,10 @@ public struct UnifiedDiffEditBuffer:Sendable {
                 guard let start=boundaryIndex[range.location],let end=boundaryIndex[NSMaxRange(range)] else {throw FileComparisonEditFailure.encoding}
                 inserted.append(contentsOf:fragments[start..<end])
             case let .inserted(value):
-                // Literal whitespace/endings use the document's retained codec.
-                // Validate before committing so an unrepresentable insertion is atomic.
-                let piece=UnifiedDiffByteSpan(text:value,bytes:nil,mapping:.codec(insertionEncoding(at:0)))
-                _ = try piece.encoded();inserted.append(piece)
+                // Retain the document codec without forcing a draft to be
+                // encodable yet. Ordinary typing and column paste share the
+                // existing Save-only validation boundary for regional codecs.
+                inserted.append(UnifiedDiffByteSpan(text:value,bytes:nil,mapping:.codec(insertionEncoding(at:0))))
             }
         }
         guard GitReferenceName.equal(inserted.map(\.text).joined(),plan.resultText) else {throw FileComparisonEditFailure.encoding}

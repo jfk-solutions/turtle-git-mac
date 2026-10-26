@@ -18,6 +18,22 @@ public struct PatchLineEditPlan: Sendable {
     public let selectionAnchor: Int
     public let selectionCaret: Int
     public let clipboardText: String?
+    public let selections: [PatchLineEditSelection]
+    public let primarySelectionID: Int
+    public let rectangular: Bool
+    public let clipboardRectangular: Bool
+    public let rectangleAnchor: Int?
+    public let rectangleCaret: Int?
+    public let rectangleIsThin: Bool
+    init(originalText:String,resultText:String,segments:[PatchLineEditSegment],selectionAnchor:Int,selectionCaret:Int,
+         clipboardText:String?,selections:[PatchLineEditSelection]?=nil,primarySelectionID:Int=0,
+         rectangular:Bool=false,clipboardRectangular:Bool=false,rectangleAnchor:Int?=nil,rectangleCaret:Int?=nil,rectangleIsThin:Bool=false) {
+        self.originalText=originalText;self.resultText=resultText;self.segments=segments
+        self.selectionAnchor=selectionAnchor;self.selectionCaret=selectionCaret;self.clipboardText=clipboardText
+        self.selections=selections ?? [.init(id:primarySelectionID,anchor:selectionAnchor,caret:selectionCaret)]
+        self.primarySelectionID=primarySelectionID;self.rectangular=rectangular;self.clipboardRectangular=clipboardRectangular
+        self.rectangleAnchor=rectangleAnchor;self.rectangleCaret=rectangleCaret;self.rectangleIsThin=rectangleIsThin
+    }
     public var selectionRange: NSRange { NSRange(location: min(selectionAnchor, selectionCaret), length: abs(selectionAnchor-selectionCaret)) }
     public var replacementRange: NSRange { NSRange(location: 0, length: originalText.utf16.count) }
     public var replacementText: String { resultText }
@@ -127,7 +143,7 @@ public enum PatchLineEditing {
     private static func indentation(_ columns:Int,tab:Int,useTabs:Bool)->String {
         useTabs ? String(repeating:"\t",count:columns/tab)+String(repeating:" ",count:columns%tab) : String(repeating:" ",count:columns)
     }
-    private struct Work {
+    struct Work {
         let original:NSString
         var segments:[PatchLineEditSegment]
         init(original:String) { self.original=original as NSString;segments=[.source(NSRange(location:0,length:original.utf16.count))] }

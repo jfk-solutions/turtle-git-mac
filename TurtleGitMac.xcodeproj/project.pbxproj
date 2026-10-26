@@ -122,6 +122,7 @@
 		31EF8A4E8017B7CAE75B4113 /* FinderOverlaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA280FD82A687572025B806 /* FinderOverlaySettings.swift */; };
 		32999DFDD4058AD782D22857 /* BlameSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */; };
 		331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A976676E04B6BC290F5465 /* LogGravatar.swift */; };
+		336FBFF167333ECDBD05F5C5 /* PatchMultipleLineEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92314051328CD1C4C1990E8 /* PatchMultipleLineEditing.swift */; };
 		338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */; };
 		3469327F5AD6DD1225DE25F8 /* GitHistoricalLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5C3E4596D417B3719D0167 /* GitHistoricalLookup.swift */; };
 		353324EB31D26467D5923420 /* LibreOfficeComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */; };
@@ -300,6 +301,7 @@
 		92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1D2D9DD08218C53951382F /* StatusListGroups.swift */; };
 		9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */; };
 		9449C31C758AF7B42027F8D8 /* PromptWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DFF4CDAE0527E5D655290C /* PromptWindow.swift */; };
+		944A169FE7B329058761DAF3 /* PatchColumnSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20E96B1B832F3AF7FE73CC22 /* PatchColumnSelection.swift */; };
 		94D627C3502D8ACE734DD470 /* Reset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3C7BF5278D5807BDDF4B21 /* Reset.swift */; };
 		954B7585EF0813B486DF9D5E /* IssueProviderWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */; };
 		95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */; };
@@ -309,6 +311,7 @@
 		98A8FFA226505DFD1B6F2B69 /* HistoryFileCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94119EBF871C901C8A360D50 /* HistoryFileCache.swift */; };
 		99462F18C848C00FFE7E64D0 /* FirstStartWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E466B2519722A3DA9A50629 /* FirstStartWizard.swift */; };
 		99BEB818AE916B4F613CFBCA /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC01522DAA88EDA69EC39985 /* Network.framework */; };
+		9A20516467B584ED3D71FF2E /* PatchColumnClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E8C18E228B7ED44F99F5515 /* PatchColumnClipboard.swift */; };
 		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
 		9AF25DFC2150DDD85C7DF7B2 /* SynchronizationReferenceResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9CB1F5743F536DB3F72DE3 /* SynchronizationReferenceResults.swift */; };
 		9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A118CF3A03416CA1144F4DE /* RequestPull.swift */; };
@@ -677,6 +680,7 @@
 		1F284E21C1B77A8212AA4943 /* MergeExternalReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeExternalReload.swift; sourceTree = "<group>"; };
 		1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitSMTP.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		205A616C02EABD9EE7DB57A2 /* SMTP.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = SMTP.c; sourceTree = "<group>"; };
+		20E96B1B832F3AF7FE73CC22 /* PatchColumnSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchColumnSelection.swift; sourceTree = "<group>"; };
 		22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeSymbols.swift; sourceTree = "<group>"; };
 		2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryHighlights.swift; sourceTree = "<group>"; };
 		2414E7EA280472578E361D36 /* MergeToolInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolInvocation.swift; sourceTree = "<group>"; };
@@ -698,6 +702,7 @@
 		2D827F5DBDAAB1F3B311E007 /* FileTransferClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTransferClipboard.swift; sourceTree = "<group>"; };
 		2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPatchWindow.swift; sourceTree = "<group>"; };
 		2E33A0F3B453E9F6422BC256 /* RepositoryBrowserGitPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserGitPath.swift; sourceTree = "<group>"; };
+		2E8C18E228B7ED44F99F5515 /* PatchColumnClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchColumnClipboard.swift; sourceTree = "<group>"; };
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
 		2FC37D449B700916B289DDB7 /* TemporaryFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFiles.swift; sourceTree = "<group>"; };
@@ -938,6 +943,7 @@
 		A72CA1F57921800C12336E06 /* MergeToolPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolPresentation.swift; sourceTree = "<group>"; };
 		A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateProgressWindow.swift; sourceTree = "<group>"; };
 		A903049DFE6395BCA1EB8078 /* SSHKeyGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGeneration.swift; sourceTree = "<group>"; };
+		A92314051328CD1C4C1990E8 /* PatchMultipleLineEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMultipleLineEditing.swift; sourceTree = "<group>"; };
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
 		AA554BDD79BBAD3E89EF3CD2 /* SupportReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReport.swift; sourceTree = "<group>"; };
 		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
@@ -1314,6 +1320,8 @@
 				92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */,
 				586A85599BCC6EF0DE6B1042 /* NetworkSettings.swift */,
 				A257C0CA956E0F3CCCBD435C /* PatchClipboard.swift */,
+				2E8C18E228B7ED44F99F5515 /* PatchColumnClipboard.swift */,
+				20E96B1B832F3AF7FE73CC22 /* PatchColumnSelection.swift */,
 				513BD09BF0F8FC608F46B9E0 /* PatchDocumentSession.swift */,
 				E73A8AECFFD75E219C9ECA35 /* PatchLineCommands.swift */,
 				7F81D40BCD7CB8888230D7A6 /* PatchLineNumberGutter.swift */,
@@ -1653,6 +1661,7 @@
 				E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */,
 				A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */,
 				42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */,
+				A92314051328CD1C4C1990E8 /* PatchMultipleLineEditing.swift */,
 				D621E333B5222878393878C2 /* PatchTargetMatching.swift */,
 				61106D4659BC416002517538 /* PresentationComparison.swift */,
 				D341C533E341D13F4B679864 /* PresentationPackage.swift */,
@@ -2309,6 +2318,7 @@
 				95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */,
 				A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */,
 				A6B48099B1D35ECDB24B6A1D /* PatchMailSMTP.swift in Sources */,
+				336FBFF167333ECDBD05F5C5 /* PatchMultipleLineEditing.swift in Sources */,
 				FAB82E3107DA7034BF3479F6 /* PatchTargetMatching.swift in Sources */,
 				B003826FB260C8B647FB3912 /* PresentationComparison.swift in Sources */,
 				6A2A057EEA62561CBC437DBC /* PresentationPackage.swift in Sources */,
@@ -2533,6 +2543,8 @@
 				BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */,
 				D9322B0364F93F87A7132897 /* NetworkSettings.swift in Sources */,
 				A79BF60CDBEDA5B4F781B0A5 /* PatchClipboard.swift in Sources */,
+				9A20516467B584ED3D71FF2E /* PatchColumnClipboard.swift in Sources */,
+				944A169FE7B329058761DAF3 /* PatchColumnSelection.swift in Sources */,
 				471772E43763EFBC99CF45AB /* PatchDocumentSession.swift in Sources */,
 				0504620F685A7240AC7F9486 /* PatchLineCommands.swift in Sources */,
 				B6B52BDCB2B2E90CF29D6342 /* PatchLineNumberGutter.swift in Sources */,

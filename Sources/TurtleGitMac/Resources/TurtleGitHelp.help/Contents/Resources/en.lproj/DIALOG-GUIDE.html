@@ -693,6 +693,15 @@ Tab/Shift-Tab applies indentation to a multi-line selection; each line edit is
 one Undo/Redo transaction and retains the document's backing byte fragments.
 The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-LINE-EDITING-PARITY.html">line editing guide</a> lists shortcuts and
 source behavior.</p>
+<p>Use <strong>Option-drag</strong> to select a column of text; add Shift to extend it.
+<strong>Command-Option-Shift-Arrows</strong> extends a rectangle from the keyboard; the same
+modifiers with Home, End and Page Up/Down extend to line boundaries or by a page. Short
+lines stop at their ends. Copy/Cut preserves the rectangular clipboard shape;
+Paste uses the measured column and pads short destination rows when necessary.
+Ordinary typing and Return affect the active row. Line commands retain their
+source-specific primary-row or per-row behavior. Undo restores the exact document
+and all selections. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-COLUMN-EDITING-PARITY.html">column editing</a>
+for details and acceptance scope.</p>
 <p>In a Unified Diff window or attached partial-patch view, Command-F opens the
 bottom Find bar and seeds it from selected text. Typing searches from the top;
 Previous/Next, Command-G/Shift-Command-G and F3/Shift-F3 continue from the current

@@ -833,6 +833,16 @@ one Undo/Redo transaction and retains the document's backing byte fragments.
 The [line editing guide](UNIFIED-DIFF-LINE-EDITING-PARITY.md) lists shortcuts and
 source behavior.
 
+Use **Option-drag** to select a column of text; add Shift to extend it.
+**Command-Option-Shift-Arrows** extends a rectangle from the keyboard; the same
+modifiers with Home, End and Page Up/Down extend to line boundaries or by a page. Short
+lines stop at their ends. Copy/Cut preserves the rectangular clipboard shape;
+Paste uses the measured column and pads short destination rows when necessary.
+Ordinary typing and Return affect the active row. Line commands retain their
+source-specific primary-row or per-row behavior. Undo restores the exact document
+and all selections. See [column editing](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md)
+for details and acceptance scope.
+
 In a Unified Diff window or attached partial-patch view, Command-F opens the
 bottom Find bar and seeds it from selected text. Typing searches from the top;
 Previous/Next, Command-G/Shift-Command-G and F3/Shift-F3 continue from the current
