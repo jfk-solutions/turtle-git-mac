@@ -10,21 +10,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and run WMF self-source edges and final transfer references
+      - name: Compile and run exact pinned Picture Bitmap loader for Bitmap16 transfers
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw "Windows C++ toolchain missing" }
           $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
-          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\WmfBitmap16Reference.cpp /Fe:WmfBitmap16Reference.exe /link gdiplus.lib gdi32.lib user32.lib usp10.lib`r`n"
+          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\PictureBitmap16Reference.cpp /Fe:PictureBitmap16Reference.exe /link gdiplus.lib gdi32.lib user32.lib usp10.lib`r`n"
           Set-Content -Path oracle-build.cmd -Value $compile -Encoding Ascii
           cmd /c oracle-build.cmd
           if ($LASTEXITCODE -ne 0) { throw "Reference compile failed" }
-          .\WmfBitmap16Reference.exe scripts/oracles/wmf-bitmap16-final-inputs oracle-output final-
+          .\PictureBitmap16Reference.exe scripts/oracles/picture-bitmap16-inputs oracle-output
           if ($LASTEXITCODE -ne 0) { throw "Reference execution failed" }
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
-          Get-FileHash scripts/oracles/WmfBitmap16Reference.cpp -Algorithm SHA256
-          Get-FileHash scripts/oracles/wmf-bitmap16-final-inputs/*.* -Algorithm SHA256 | Format-Table -AutoSize
+          Get-FileHash scripts/oracles/PictureBitmap16Reference.cpp -Algorithm SHA256
+          Get-FileHash scripts/oracles/picture-bitmap16-inputs/*.* -Algorithm SHA256 | Format-Table -AutoSize
           Get-FileHash oracle-output/*.* -Algorithm SHA256 | ConvertTo-Json | Set-Content oracle-output/generated-file-hashes.json
       - uses: actions/upload-artifact@v4
         if: always()
