@@ -296,6 +296,29 @@ import TurtleGitCore
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterStages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
         try require(afterHead==head && afterStages==stages && model.active,"Revert advanced replay or changed unrelated conflict")
         try require(progress.trashedFiles.count==1 && Data(contentsOf:progress.trashedFiles[0])==working,"Revert lost recoverable working bytes")
+        // A private nondefault policy is accepted before the question. Changing
+        // that same preference store in the reply must not alter the child or
+        // its custom Core executor, and must not fabricate a recovery copy.
+        let directDraft=Data("direct replacement draft\n".utf8)
+        try directDraft.write(to:root.appendingPathComponent(path))
+        model.refreshState();try await wait {!model.busy && model.fileRecovery && model.conflictRows.contains{$0.path==path}}
+        prefs.set(false,forKey:"RevertWithRecycleBin");prefs.set(false,forKey:"RevertRenamedFilesWithRecycleBin")
+        var directProgress:RevertProgressWindowModel?,truthfulQuestion=false
+        owner.configureConflictRevert={directProgress=$0}
+        model.confirmConflictMutation={message,flags in
+            truthfulQuestion = !flags && message.contains("will not be saved to Trash") && model.pendingConflictRevertPolicy == WorkingFileRevertPolicy(recycle:false,recycleRenamedFiles:false)
+            prefs.set(true,forKey:"RevertWithRecycleBin");prefs.set(true,forKey:"RevertRenamedFilesWithRecycleBin")
+            return true
+        }
+        model.revertConflictFiles(model.conflictFileMenu([path]))
+        try await wait {directProgress != nil && directProgress?.busy==false && RevertProgressWindowModel.activeOperations==0 && !model.busy && RebaseWindowModel.activePreparationReads==0}
+        guard let directProgress else {throw Failure(description:"Direct-disposition Revert child missing")}
+        defer {for copy in directProgress.trashedFiles {try? FileManager.default.removeItem(at:copy)}}
+        try require(truthfulQuestion && directProgress.policy == WorkingFileRevertPolicy(recycle:false,recycleRenamedFiles:false),"Rebase confirmation/child lost approved private policy")
+        try require(!directProgress.failed && !directProgress.cancelled && directProgress.retired && owner.conflictRevertWindow==nil && directProgress.trashedFiles.isEmpty,"Direct-disposition Revert failed or invented Trash recovery")
+        try require(try Data(contentsOf:root.appendingPathComponent(path))==Data("base\n".utf8) && !model.conflictRows.contains{$0.path==path},"Direct-disposition Revert did not restore and refresh the selected file")
+        let directHead=try await repo.run(["rev-parse","HEAD"]).stdout,directStages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
+        try require(directHead==head && directStages==stages && model.active && model.pendingConflictRevertPolicy==nil,"Direct-disposition Revert changed replay HEAD/stages or retained policy")
         try await verifyAddIgnoreDelete(owner:owner,repo:repo,root:root,path:path,conflict:conflict)
         owner.close()
         // Restore only this private path for the separate late flag scenario.

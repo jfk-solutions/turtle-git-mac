@@ -2,6 +2,20 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+enum WorkingFileRevertPresentation {
+    static func disposition(_ policy:WorkingFileRevertPolicy)->String {
+        if !policy.recycle {return "Replaced working contents will not be saved to Trash. This cannot be undone."}
+        if !policy.recycleRenamedFiles {return "Replaced working contents move to Trash, except renamed files. Replaced contents of renamed files will not be saved."}
+        return "Existing replaced file contents are moved to Trash."
+    }
+    static func confirmation(_ policy:WorkingFileRevertPolicy)->String {
+        disposition(policy)+" "+"Added files remain on disk as unversioned files."
+    }
+    static func cancellation(_ policy:WorkingFileRevertPolicy)->String {
+        "Stop Revert after its current filesystem or Git step? Completed working-file changes remain. "+disposition(policy)
+    }
+}
+
 private final class RevertProgressNativeWindow: NSWindow {
     var escape: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -20,8 +34,8 @@ private final class RevertProgressNativeWindow: NSWindow {
     var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
     var onClosed: () -> Void = {}
     private var question: (UUID, NSAlert, (Bool) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard) {
-        model = RevertProgressWindowModel(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences: preferences)
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard, policy: WorkingFileRevertPolicy? = nil) {
+        model = RevertProgressWindowModel(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences: preferences, policy: policy)
         progressFiles=FileOperationProgressFiles(repository:repository,access:access)
         let window = RevertProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 550), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revert Progress", preferences: preferences)
@@ -45,7 +59,7 @@ private final class RevertProgressNativeWindow: NSWindow {
     }
     private func askCancellation() async -> Bool {
         guard !model.retired, question == nil, let window, window.attachedSheet == nil else { return false }
-        let alert = NSAlert(); alert.messageText = "The operation is still running."; alert.informativeText = "Stop Revert after its current filesystem or Git step? Completed changes remain recoverable through the result."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+        let alert = NSAlert(); alert.messageText = "The operation is still running."; alert.informativeText = WorkingFileRevertPresentation.cancellation(model.policy); alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
         alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
         let id = UUID()
         return await withCheckedContinuation { continuation in
@@ -101,6 +115,7 @@ private struct RevertProgressRow: Identifiable {
     private let againstHead: Bool
     private let autoCloseSuccess: Bool
     let preferences: UserDefaults
+    let policy: WorkingFileRevertPolicy
     private let autoClosePolicy: GitProgressAutoClose
     private var cancellation: OperationCancellation?
     private var started = false
@@ -135,7 +150,8 @@ private struct RevertProgressRow: Identifiable {
     var close: () -> Void = {}
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var execute: (([StatusEntry], OperationCancellation, @escaping @Sendable (WorkingFileRevertProgress) -> Void, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> WorkingFileRevertResult)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard, policy: WorkingFileRevertPolicy? = nil) {
+        self.policy=policy ?? WorkingFileRevertPolicy.load(from:preferences)
         progress=FileOperationProgressState(preferences:preferences)
         self.repository = repository; self.access = access; self.entries = entries; self.amend = amend; self.againstHead = againstHead; self.autoCloseSuccess = autoCloseSuccess; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
@@ -180,7 +196,7 @@ private struct RevertProgressRow: Identifiable {
                     defer { continuation.finish() }
                     return try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.retired, self.cancellation === request else { return }; self.commandOutput = progress.output }, resultText: { _ in "" }) { [self] emit in
                         if let execute { return try await execute(selected, request, { continuation.yield($0) }, emit) }
-                        return try await repository.revertWorkingFiles(selected, amend: amend, amendDiffToLastCommit: againstHead, cancellation: request, progress: { continuation.yield($0) }, onOutput: emit)
+                        return try await repository.revertWorkingFiles(selected, amend: amend, amendDiffToLastCommit: againstHead, policy: policy, cancellation: request, progress: { continuation.yield($0) }, onOutput: emit)
                     }
                 }
                 for await event in stream { receive(event, request: request) }

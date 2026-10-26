@@ -1,6 +1,24 @@
 import Foundation
 import Darwin
 
+/// Pinned RevertProgressCommand's independent master and renamed-file policies.
+/// Capture once for an owned operation; a retry must not acquire new disposal
+/// behavior merely because Settings changed while its result was open.
+public struct WorkingFileRevertPolicy: Equatable, Sendable {
+    public let recycle: Bool
+    public let recycleRenamedFiles: Bool
+    public init(recycle: Bool = true, recycleRenamedFiles: Bool = true) {
+        self.recycle = recycle; self.recycleRenamedFiles = recycleRenamedFiles
+    }
+    public static func load(from preferences: UserDefaults = .standard) -> Self {
+        func enabled(_ key: String) -> Bool { preferences.object(forKey: key) == nil || preferences.bool(forKey: key) }
+        return .init(recycle: enabled("RevertWithRecycleBin"), recycleRenamedFiles: enabled("RevertRenamedFilesWithRecycleBin"))
+    }
+    public func shouldRecycle(_ entry: StatusEntry) -> Bool {
+        recycle && entry.state != .added && (recycleRenamedFiles || (entry.index != "R" && entry.worktree != "R"))
+    }
+}
+
 public struct WorkingFileRevertResult: Sendable {
     public let revertedPaths: [String]
     public let trashedFiles: [URL]
@@ -34,8 +52,10 @@ extension GitRepository {
         try cancellation?.check(); return result
     }
     /// Revert selected status rows, preserving added working files and recycling
-    /// replaced contents. The index is held privately until all Git steps pass.
-    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> WorkingFileRevertResult {
+    /// replaced contents according to the captured policy. With recycling off,
+    /// Git replaces those contents directly. The index stays private until all
+    /// Git steps pass; working-file effects are not rolled back on failure.
+    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, policy: WorkingFileRevertPolicy = .init(), cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> WorkingFileRevertResult {
         try cancellation?.check()
         guard !selected.isEmpty, GitPathSet(selected.map(\.path)).count == selected.count,
               selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) else {
@@ -79,7 +99,7 @@ extension GitRepository {
                     let oldInode = oldAttributes[.systemFileNumber] as? NSNumber, inode = attributes?[.systemFileNumber] as? NSNumber
                     let oldDevice = oldAttributes[.systemNumber] as? NSNumber, device = attributes?[.systemNumber] as? NSNumber
                     let sameFile = oldInode != nil && inode != nil && oldDevice != nil && device != nil && oldInode == inode && oldDevice == device
-                    if !sameFile { recycle.append(oldLocation) }
+                    if !sameFile && policy.shouldRecycle(entry) { recycle.append(oldLocation) }
                 }
                 if directory { submoduleRenames.append((entry.path, old)); restore.insert(old) }
                 else { restore.formUnion([entry.path, old]) }
@@ -87,7 +107,7 @@ extension GitRepository {
             else { restore.insert(entry.path) }
             if entry.state != .added, !directory, attributes != nil {
                 guard [.typeRegular, .typeSymbolicLink].contains(attributes?[.type] as? FileAttributeType) else { throw WorkingFileRestoreFailure.unsupported }
-                recycle.append(location)
+                if policy.shouldRecycle(entry) { recycle.append(location) }
             }
         }
         try cancellation?.check()

@@ -1284,7 +1284,8 @@
         "docs/qa/revert-progress-family-2026-10-14.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/source-fetch-lifecycle-2026-10-23.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/working-file-revert-disposition-2026-10-26.json"
       ]
     },
     {
@@ -1494,7 +1495,8 @@
         "docs/qa/add-revert-identities-2026-10-17.json",
         "docs/qa/revert-file-commands-2026-10-16.json",
         "docs/qa/revert-planning-2026-10-16.json",
-        "docs/qa/revert-progress-family-2026-10-14.json"
+        "docs/qa/revert-progress-family-2026-10-14.json",
+        "docs/qa/working-file-revert-disposition-2026-10-26.json"
       ]
     },
     {

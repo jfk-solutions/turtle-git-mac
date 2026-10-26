@@ -47,6 +47,15 @@ No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 
+The working-file Revert family now consumes the existing master Trash setting and
+the independent renamed-file policy across Commit, Add, Revert, Working Tree,
+Resolve and Rebase. Confirmation, execution and Retry retain one captured policy;
+progress and recovery list actual saved copies only. Its grouped validation also
+found and repaired missing local-copy metadata for ignored staged deletions while
+keeping the fast status scan. The [checkpoint](qa/working-file-revert-disposition-2026-10-26.json)
+records exact checks, failed attempts and acceptance limits. Installed build 10
+predates this source batch.
+
 The preserve-merges leading-Squash continuation connects owned staged groups to
 structural parent labels, later branch resets and descendant merges. It includes
 normal approval/Split, conflicts, pending edits and durable recovery; the

@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "9c4b548d345bfd1724fdc046838ac16b1e702494",
+  "status": "grouped_focused_validation_passed",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "policy": "src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp:43-55",
+    "preflight": "src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp:77-97"
+  },
+  "implementation": [
+    "Independent captured master/renamed-file recycling defaults, including stored nonzero values.",
+    "Working-file replacements and distinct old-name collisions obey policy; additions, baseline restoration, symlinks and gitlink handling retain existing semantics.",
+    "Commit, Add, dedicated Revert, Resolve and Rebase confirmations hand their captured policy to shared progress, including custom executors; Working Tree routes through Revert. Retry retains approved policy while refreshing selected status.",
+    "Progress totals and saved-copy actions reflect actual Trash operations only; cancellation/failure preserve actual prior receipts without claiming unsaved bytes recoverable.",
+    "Focused status repair: safely lstat only existing staged-deletion candidates, retaining ignored recreated regular/symlink local-copy metadata without restoring a global ignored-file scan."
+  ],
+  "validation": {
+    "core": {
+      "exit_code": 0,
+      "methods": 23,
+      "failures": 0,
+      "filter": "WorkingFileRevert",
+      "log": "build/qa/working-file-revert-disposition-core-2026-10-26.log",
+      "distinct_methods_passed_cumulatively": 27
+    },
+    "debug": {
+      "exit_code": 0,
+      "configuration": "Debug arm64, CODE_SIGNING_ALLOWED=NO",
+      "log": "build/qa/working-file-revert-disposition-debug-2026-10-26.log"
+    },
+    "native": {
+      "retained_operation": {
+        "initial_compile_exit_code": 1,
+        "initial_compile_error": "Fixture called status(includeIgnored:) without required readPolicy; repaired to existing status() API, same versioned-row filtering/assertions. No receiver launched by failed compile.",
+        "initial_log": "build/qa/working-file-revert-disposition-native-retained-2026-10-26.log",
+        "final_exit_code": 0,
+        "engine_pairs": 2,
+        "log": "build/qa/working-file-revert-disposition-native-retained-repair-2026-10-26.log"
+      },
+      "resolve_rebase_custom_executors": {
+        "initial_exit_code": 1,
+        "resolve_engine_pairs_passed": 2,
+        "rebase_system_failure": "Existing Deleted local copy lost Add/Delete assertion; owned receiver reaped after cleanup. Bundled Rebase was not attempted by this initial group.",
+        "initial_log": "build/qa/working-file-revert-disposition-native-conflict-2026-10-26.log",
+        "rebase_focused_recheck": {
+          "exit_code": 0,
+          "engine_pairs": 2,
+          "log": "build/qa/working-file-revert-disposition-native-rebase-repair-2026-10-26.log"
+        }
+      },
+      "distinct_case_engine_pairs_passed_cumulatively": 6,
+      "scope": "Retained Revert operation, Resolve mutation and Rebase conflict files, each with system and bundled Git. Retained/Resolve passing cases predate only the targeted status-metadata repair; only affected Rebase cases were repeated.",
+      "receiver_attempts": 7
+    },
+    "localizations": {
+      "write_exit_code": 0,
+      "languages": 38,
+      "keys": 1323,
+      "check": {
+        "exit_code": 0,
+        "log": "build/qa/working-file-revert-disposition-localizations-check-2026-10-26.log"
+      }
+    },
+    "dialog_coverage": {
+      "exit_code": 0,
+      "log": "build/qa/working-file-revert-disposition-dialog-coverage-2026-10-26.log",
+      "meaning": "Review ledger regenerated after documentation freeze; no feature completion percentage."
+    },
+    "status_repair": {
+      "cause": "Rebase existing Add/Delete assertion failed after the no-Trash policy scenario passed: includeIgnored:false dropped duplicate !! metadata for a recreated ignored staged deletion.",
+      "core": {
+        "exit_code": 0,
+        "methods": 4,
+        "filter": "CommitRefreshTests",
+        "log": "build/qa/working-file-revert-disposition-status-repair-core-2026-10-26.log"
+      },
+      "debug": {
+        "exit_code": 0,
+        "log": "build/qa/working-file-revert-disposition-status-repair-debug-2026-10-26.log"
+      }
+    },
+    "warnings": {
+      "resolve_table_reentrancy": {
+        "observed_messages": 4,
+        "engine_pairs": 2,
+        "assertions_passed": true,
+        "cause": "No synchronous application row-delegate reload cause established by bounded source review; no warning repair or new-regression claim.",
+        "log": "build/qa/working-file-revert-disposition-native-conflict-2026-10-26.log"
+      }
+    },
+    "runner_ownership": "Existing conflict-family runner now hides every ordered window/sheet offscreen and drains owned operation/release counters on success and failure. Receiver groups are terminated and reaped by native_receiver; no user app process is targeted.",
+    "receiver_pids": [
+      26932,
+      27446,
+      27906,
+      28267,
+      28609,
+      32747,
+      36777
+    ],
+    "receivers_independently_absent": true,
+    "final_core_framework_sha256": "4b1c316b95fd11b5d467f33b9ecfe8075a6c3f20d58e2b24761c3346a2d3dd15",
+    "protected_development_files": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "external_observation": {
+    "pages": {
+      "revision": "9c4b548d",
+      "run": 40312070636,
+      "conclusion": "success"
+    },
+    "macos": {
+      "revision": "9c4b548d",
+      "run": 40312070633,
+      "status": "pending"
+    },
+    "older_0016268c_macos": "cancelled"
+  },
+  "limits": [
+    "No full hosted macOS pass, signed installed/physical Finder acceptance, App Store distribution or complete dialog parity is claimed.",
+    "The default Core API retains recycling; native consumers supply the captured originating preferences.",
+    "Existing stronger old-name obstruction protection is a documented macOS adaptation; disabling backup does not disable preflight."
+  ]
+}

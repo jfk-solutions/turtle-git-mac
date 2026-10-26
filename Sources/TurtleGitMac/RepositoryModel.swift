@@ -2283,9 +2283,9 @@ private enum TransportBatchPresentationContext {
                     self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
-                controller.model.onRevert = { [weak self] entries, done in
+                controller.model.onRevert = { [weak self, weak model = controller.model] entries, done in
                     guard let self else { done(false); return {} }
-                    let progress = self.showRevertProgress(repository: repository, access: access, entries: entries, autoCloseSuccess: true, completion: done)
+                    let progress = self.showRevertProgress(repository: repository, access: access, entries: entries, autoCloseSuccess: true, policy: model?.pendingRevertPolicy, completion: done)
                     return { [weak progress] in progress?.model.cancel() }
                 }
                 controller.model.onRestoreChanged = { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
@@ -3308,9 +3308,9 @@ private enum TransportBatchPresentationContext {
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
-    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
+    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, policy: WorkingFileRevertPolicy? = nil, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()
-        let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences:fileComparisonPreferences)
+        let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences:fileComparisonPreferences, policy: policy)
         controller.model.confirmingQuit=confirmingQuit
         controller.model.externalAvailability={ [weak self] in self?.retired == false && self?.confirmingQuit == false }
         let preferences=controller.model.preferences
@@ -4168,7 +4168,7 @@ private enum TransportBatchPresentationContext {
         model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
         model.onRevert = { [weak self, weak model] entries, amend, againstHead, done in
             guard let self else { done(false); return }
-            self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), completion: done)
+            self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), policy: model?.pendingRevertPolicy, completion: done)
         }
         model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
         model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }

@@ -16,8 +16,10 @@ Saved Restore after commit copies remain available independently.
 
 Normal Revert restores HEAD contents to both index and working files. Amend Revert
 uses the first parent regardless of the displayed comparison. An unborn repository
-can revert staged additions without creating HEAD. Files replaced during Revert
-are moved to macOS Trash, adapting the upstream default recycle-bin behavior.
+can revert staged additions without creating HEAD. With the default disposition policy, files replaced during Revert
+are moved to macOS Trash, adapting the upstream recycle-bin behavior. The
+captured policy described below can disable this recovery copy independently
+for ordinary replacements and rename destinations.
 Deleted files are recreated; renamed files return to their original names.
 Submodule pointers are reset without changing their checkout or local edits.
 Renamed initialized submodules use Git's reverse move to preserve checkout
@@ -98,7 +100,7 @@ actual Finder menu acceptance.
 ## Remaining parity
 
 Signed Finder menu activation, remaining upstream progress notifications and
-post-command options, recycle-bin preferences, post-Revert submodule comparison, copy and
+post-command options, post-Revert submodule comparison, copy and
 case-only rename combinations, renamed-but-missing destinations and root-amend
 behavior still need audit. Native multi-selection, staged mode, amendment, conflict
 and submodule UI acceptance remain to be exercised. Signed sandbox Trash access
@@ -308,3 +310,62 @@ Open With/editor from its chooser through worker/launch drain; Add and Revert
 share a picker identity/release/retirement session. Actual grouped evidence,
 compatibility diagnosis and acceptance boundaries are in
 [the batch record](qa/add-revert-file-flow-2026-10-17.json).
+
+
+## Captured working-file disposition policy
+
+Pinned `RevertProgressCommand.cpp:43–55` reads two independent preferences.
+`RevertWithRecycleBin` is the master switch and defaults to true.
+`RevertRenamedFilesWithRecycleBin` also defaults to true, but affects renamed
+entries only. The source excludes added entries from its deletion list; when the
+rename switch is false it also excludes replaced/renamed entries. The master
+switch then controls whether that list is recycled at all. `SetDialogs2.cpp`
+connects the master switch to `IDC_USERECYCLEBIN`; the rename switch is a separate
+advanced preference, not another name for the master setting.
+
+The native working-file Revert policy retains that distinction:
+
+| Master switch | Rename switch | Ordinary replacement | Rename destination |
+| --- | --- | --- | --- |
+| On | On | Trash recovery copy | Trash recovery copy |
+| On | Off | Trash recovery copy | No Trash recovery copy |
+| Off | Either | No Trash recovery copy | No Trash recovery copy |
+
+Disabling a recovery copy does not turn Revert into a separate Delete command.
+Git still restores the selected baseline and reverses selected renames; overwritten
+or removed working contents in that part of the operation have no promised Trash
+copy. Added-only Revert still removes the index entry while retaining working
+contents. Deleted files can be restored without a pre-existing file to recycle.
+Gitlink checkout and rename handling retain their existing separate rules.
+Old-name obstructions, filesystem types and submodule metadata are validated
+even when Trash is disabled; the preference does not bypass path safety checks.
+
+`WorkingFileRevertPolicy(recycle:recycleRenamedFiles:)` defaults both switches
+to true. Its preference loader retains those defaults for missing values and
+interprets nonzero stored values as enabled. The native operation captures this
+policy from its originating preference store before confirmation. Its question
+describes the captured disposition rather than
+promising recoverability unconditionally. Dedicated Revert, Commit-list Revert,
+and the shared Resolve and Rebase conflict-file Revert progress owners use the same
+policy, including their custom executors. Retry refreshes
+selected-path status while retaining the accepted policy; changing Settings after
+an attempt starts does not change that attempt or its retry.
+
+Progress and recovery remain separate facts. A completed Trash step contributes
+its actual returned recovery URL; a bypassed Trash step does not fabricate one
+or add a recycling row to the progress total. There is no additional permanent
+deletion phase: Git performs the baseline restoration and rename cleanup.
+Failure or cancellation retains prior recovery receipts and explains that completed
+working-file changes remain. The private index is published only after successful
+Git steps, so an unchanged index does not imply that earlier filesystem effects
+were rolled back. Recovery actions reveal actual recorded copies only.
+
+This continuation closes the working-file preference-consumption gap listed in
+the earlier chronological audit. It does not change Reset's independently captured
+backend policy or Log's historical commit Revert. The [grouped checkpoint](qa/working-file-revert-disposition-2026-10-26.json)
+records 27 distinct Core methods and six native case/Git pairs passing cumulatively
+after a fixture API repair and a real ignored staged-deletion metadata correction.
+Both Debug builds and localization write/check pass; all seven attempted receivers
+were reaped and independently absent. Earlier checkpoints retain their original
+scope. Physical signed-sandbox Trash behavior, external volumes and every
+rename/submodule combination remain outside those focused claims.

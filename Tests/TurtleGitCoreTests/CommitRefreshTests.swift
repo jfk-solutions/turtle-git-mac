@@ -20,6 +20,38 @@ final class CommitRefreshTests:XCTestCase {
         let amended=try await repo.commitDialogStatus(amendToParent:true,refreshIndex:false)
         XCTAssertFalse(amended.contains{$0.state == .ignored})
     }
+    func testIgnoredRecreatedDeletedCopiesSurviveFastOrdinaryAndAmendStatus()async throws {
+        let (root,repo,_)=try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let names=["recreated 雪\n.ignored","broken-link.ignored","missing.ignored","directory.ignored"]
+        for name in names {try Data("tracked baseline\n".utf8).write(to:root.appendingPathComponent(name))}
+        try await repo.stage(names);_=try await repo.commit(message:"tracked ignored-name baselines")
+        _=try await repo.run(["commit","--allow-empty","-m","amend comparison boundary"])
+        _=try await repo.run(["rm","--cached","--"]+names)
+        for name in names {try FileManager.default.removeItem(at:root.appendingPathComponent(name))}
+        let local=Data("local recreated bytes\n".utf8)
+        try local.write(to:root.appendingPathComponent(names[0]))
+        try FileManager.default.createSymbolicLink(atPath:root.appendingPathComponent(names[1]).path,withDestinationPath:"missing target")
+        try FileManager.default.createDirectory(at:root.appendingPathComponent(names[3]),withIntermediateDirectories:false)
+        try Data("*.ignored\n".utf8).write(to:root.appendingPathComponent(".git/info/exclude"))
+        let beforeHead=try await repo.run(["rev-parse","HEAD"]).stdout,beforeIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
+        let fast=try await repo.status(readPolicy:.automatic,includeIgnored:false)
+        XCTAssertEqual(fast.filter{names.contains($0.path)}.count,names.count)
+        XCTAssertTrue(fast.filter{names.contains($0.path)}.allSatisfy{$0.index == "D" && !$0.hasUnversionedCopy})
+        for amend in [false,true] {
+            let rows=try await repo.commitDialogStatus(amendToParent:amend,refreshIndex:false)
+            XCTAssertFalse(rows.contains{$0.state == .ignored})
+            for (offset,name) in names.enumerated() {
+                let row=try XCTUnwrap(rows.first{Data($0.path.utf8)==Data(name.utf8)})
+                XCTAssertEqual(row.index,"D")
+                XCTAssertEqual(row.hasUnversionedCopy,offset<2,"Local-copy metadata for \(name)")
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(names[0])),local)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath:root.appendingPathComponent(names[1]).path),"missing target")
+        XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent(names[2]).path))
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertEqual(afterHead,beforeHead);XCTAssertEqual(afterIndex,beforeIndex)
+    }
     func testScopedFlagsUseOneIndexReadAndKeepLiteralCaseUnicodeRenameIdentities()async throws {
         let (root,repo,_)=try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
         _ = try await repo.run(["config","core.precomposeunicode","false"])

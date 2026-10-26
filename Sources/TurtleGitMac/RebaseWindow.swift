@@ -259,13 +259,14 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         model.presentConflictRevert={ [weak self] entries,validate in
             guard let self,!self.model.retired,self.conflictRevertWindow == nil,let window=self.window,window.attachedSheet == nil else {return}
             await withCheckedContinuation { continuation in
-                let child=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences)
+                let child=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences,policy:self.model.pendingConflictRevertPolicy)
                 child.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.revisionMenuLog.confirmingQuit == false }
                 child.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.revisionMenuLog.confirmingQuit else{return};model.onConflictFileLog(path) }
+                let policy=child.model.policy
                 var firstAttempt=true
                 child.model.execute={ selected,token,progress,output in
                     try await validate(token,firstAttempt);firstAttempt=false
-                    return try await repository.revertWorkingFiles(selected,cancellation:token,progress:progress,onOutput:output)
+                    return try await repository.revertWorkingFiles(selected,policy:policy,cancellation:token,progress:progress,onOutput:output)
                 }
                 child.model.onFinished={ [weak model=self.model] text,_ in if let model,!model.retired {model.output += text+"\n"} }
                 child.model.onHandleSubmodules={ [weak model=self.model] revision,paths in if let model,!model.retired {model.onConflictRevertSubmodules(revision,paths)} }
@@ -613,6 +614,7 @@ struct RebaseReferenceRequest {
     var onConflictPreparedComparison:((PreparedFileComparisonMark,PreparedFileComparisonMark)->Void)?
     var onConflictUnified:((Data,Bool,String,OperationCancellation) async throws -> Void)?
     var confirmConflictMutation:(String,Bool) async -> Bool = {_,_ in false}
+    private(set) var pendingConflictRevertPolicy:WorkingFileRevertPolicy?
     var presentConflictRevert:([StatusEntry],@escaping (OperationCancellation,Bool) async throws -> Void) async -> Void = {_,_ in}
     var cancelConflictRevert:()->Void = {}
     private var presentingConflictFileDialog=false
@@ -1314,9 +1316,12 @@ struct RebaseReferenceRequest {
     }
     func revertConflictFiles(_ menu:ConflictFileMenu) {
         guard canRevertConflictFiles(menu) else {return}
+        let policy=WorkingFileRevertPolicy.load(from:messageDefaults)
         runConflictFileMenu(menu) { [self] token in
+            pendingConflictRevertPolicy=policy
+            defer {pendingConflictRevertPolicy=nil}
             let confirm=menu.rows.contains {$0.state == .modified && menu.statistics[$0.path]?.isSubmodule != true}
-            if confirm {guard await confirmConflictMutation("Revert changes in \(menu.rows.count) selected file(s)?",false) else {return}}
+            if confirm {guard await confirmConflictMutation("Revert changes in \(menu.rows.count) selected file(s)?\n\n"+WorkingFileRevertPresentation.confirmation(policy),false) else {return}}
             try await validateConflictFileMenu(menu,token:token)
             revertingConflictFiles=true
             defer {revertingConflictFiles=false;if !retired {pendingSessionRefresh=true;onChanged()}}

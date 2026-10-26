@@ -37,3 +37,20 @@ clean Commit. These are one warm-filesystem sample per configuration (old releas
 new Debug), covering status/metadata/flags rather than complete dialog startup.
 They are not a fixed performance guarantee. Signed installation and complete
 hosted CI remain separate from these focused checks.
+
+## Recreated staged-deletion copies
+
+The later working-file Revert validation exposed a metadata regression in the
+initial optimization: an ignored local copy of a staged deletion no longer
+received `hasUnversionedCopy`, because its duplicate porcelain `!!` record was
+absent. Rebase's shared versioned list consequently disabled Add/Delete for
+that copy.
+
+The collector now checks only existing staged-deletion candidates using safe
+literal-path validation and `lstat`. Regular files and symlinks, including broken
+symlinks, retain the local-copy flag without enumerating ignored trees or adding
+ignored rows. Missing files and ignored directories do not acquire that flag.
+The ordinary and parent-Amend projections retain the enriched metadata. Four
+focused refresh methods pass; the [connected Revert checkpoint](qa/working-file-revert-disposition-2026-10-26.json)
+records the discovered failure and affected native recheck separately from the
+earlier performance measurements. No new large-checkout timing is claimed.

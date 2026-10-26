@@ -70,13 +70,14 @@ import UniformTypeIdentifiers
         model.presentFileRevert = { [weak self] rows,validate in
             guard let self,!self.retired,self.fileRevertWindow == nil,let window=self.window,window.attachedSheet == nil else {return nil}
             return await withCheckedContinuation {continuation in
-                let child = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences)
+                let child = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences,policy:self.model.pendingFileRevertPolicy)
                 child.model.externalAvailability={ [weak self] in self?.retired == false && self?.model.confirmingQuit == false }
                 child.onProgressLog={ [weak self] path in guard let self,!self.retired,!self.model.confirmingQuit else{return};self.onProgressLog(path) }
+                let policy=child.model.policy
                 var first = true,output = ""
                 child.model.execute = {selected,token,progress,emit in
                     try await validate(token,first);first = false
-                    return try await repository.revertWorkingFiles(selected,cancellation:token,progress:progress,onOutput:emit)
+                    return try await repository.revertWorkingFiles(selected,policy:policy,cancellation:token,progress:progress,onOutput:emit)
                 }
                 child.model.onFinished = {text,_ in output = text}
                 child.model.onHandleSubmodules = { [weak model=self.model] revision,paths in model?.onFileSubmoduleRevert?(revision,paths) }
@@ -227,6 +228,7 @@ struct ResolveConflictRow: Identifiable {
     private(set) var fileMutationActive = false
     private(set) var deletionResult:WorkingFileDeleteResult?
     var confirmFileMutation:(String,String) async -> Bool = {_,_ in false}
+    private(set) var pendingFileRevertPolicy:WorkingFileRevertPolicy?
     var presentFileRevert:([StatusEntry],@escaping (OperationCancellation,Bool) async throws -> Void) async -> String? = {_,_ in nil}
     var cancelMutationChild:()->Void = {}
     var retireMutationChild:()->Void = {}
@@ -833,10 +835,12 @@ extension ResolveWindowModel {
     private func mutateFileMenu(_ command:ResolveFileCommand,menu:ResolveFileMenuSnapshot) {
         guard canFileCommand(command,menu:menu) else {return}
         usedFileMenus.insert(menu.id)
+        let policy=WorkingFileRevertPolicy.load(from:preferences)
+        pendingFileRevertPolicy=command == .revert ? policy:nil
         let token = begin();fileMutationActive = true;fileMutationTitle = command == .revert ? "Preparing Revert…":"Deleting selected paths…"
         Task {
             var refresh = false
-            defer {fileMutationActive = false;fileMutationTitle = "";finish(token);withExtendedLifetime(access) {}}
+            defer {pendingFileRevertPolicy=nil;fileMutationActive = false;fileMutationTitle = "";finish(token);withExtendedLifetime(access) {}}
             do {
                 try await validateFileMenu(menu,token:token)
                 let head = command == .revert ? try await repository.run(["rev-parse","--verify","HEAD^{commit}"],cancellation:token).stdout:Data()
@@ -855,7 +859,7 @@ extension ResolveWindowModel {
                     let diff = try await repository.run(["diff","--no-ext-diff","--no-textconv","--name-status","-z","HEAD","--"]+menu.paths,cancellation:token).stdout
                     let modified = GitPathSet(CommitFile.parse(names:diff,statistics:Data()).filter{$0.action.hasPrefix("M")}.map(\.path))
                     if menu.entries.contains(where:{!$0.isSubmodule && modified.contains($0.path)}) {
-                        guard await confirmFileMutation("Revert selected changes?","Revert \(menu.entries.count) selected conflicted file(s) to HEAD? Recoverable working files move to Trash before replacement.") else {return}
+                        guard await confirmFileMutation("Revert selected changes?","Revert \(menu.entries.count) selected conflicted file(s) to HEAD? "+WorkingFileRevertPresentation.confirmation(policy)) else {return}
                     }
                     try await validateFileMenu(menu,token:token)
                     guard try await repository.run(["rev-parse","--verify","HEAD^{commit}"],cancellation:token).stdout == head else {throw ResolveFailure.stale}

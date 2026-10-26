@@ -167,7 +167,21 @@ extension GitRepository {
 
     public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil, refreshIndex: Bool = true) throws -> [StatusEntry] {
         try cancellation?.check()
-        let current = try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,cancellation:cancellation)
+        var current = try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,cancellation:cancellation)
+        // Omitting the ignored inventory must not hide a staged deletion's
+        // recreated local copy. Porcelain would otherwise report a second !!
+        // record and the parser would merge that fact into this versioned row.
+        // Inspect only existing deletion candidates, without walking ignored trees.
+        for index in current.indices where current[index].index == "D" && !current[index].hasUnversionedCopy {
+            try cancellation?.check()
+            guard let location=try? restoreLocation(current[index].path) else {continue}
+            var attributes=stat()
+            if lstat(location.path,&attributes)==0 {
+                let type=attributes.st_mode & mode_t(S_IFMT)
+                if type == mode_t(S_IFREG) || type == mode_t(S_IFLNK) {current[index].hasUnversionedCopy=true}
+            }
+        }
+        try cancellation?.check()
         guard amendToParent else { return current }
         let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
         let indexed = try stagingFiles(staged: true, base: base, cancellation: cancellation)

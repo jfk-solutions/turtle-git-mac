@@ -60,11 +60,11 @@ private final class RevertNativeWindow:NSWindow {
             guard operation.present(owner:window,paths:paths,locked:locked) else {self.lfsOperation = nil;return false};return true
         }
         model.confirmRevert = { [weak self] rows in
-            await self?.ask(title:"Revert the selected paths?",detail:"Working changes to \(rows.count) selected item(s) will be reverted. Displaced working files use the existing Revert recovery flow.",yesDefault:true) ?? false
+            await self?.ask(title:"Revert the selected paths?",detail:"Working changes to \(rows.count) selected item(s) will be reverted. "+WorkingFileRevertPresentation.confirmation(self?.model.pendingRevertPolicy ?? .load(from:preferences)),yesDefault:true) ?? false
         }
         model.onRevert = { [weak self] rows in
             guard let self,!self.model.retired,self.revertProgress == nil else {return}
-            let progress = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:false,autoCloseSuccess:false,preferences:preferences)
+            let progress = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:false,autoCloseSuccess:false,preferences:preferences,policy:self.model.pendingRevertPolicy)
             progress.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.confirmingQuit == false }
             progress.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.confirmingQuit else{return};model.onFileLog(path) }
             self.revertProgress = progress;self.model.hasChild = true
@@ -317,13 +317,15 @@ private final class RevertNativeWindow:NSWindow {
         var seen = GitPathSet();pendingDrops = (pendingDrops + values).filter{seen.insert($0.path).inserted}
         start(forceChecked:[],drops:pendingDrops);return true
     }
+    private(set) var pendingRevertPolicy:WorkingFileRevertPolicy?
     func requestRevert(_ snapshot:StatusFileMenuSnapshot) {
         guard canInteract,snapshot.offersRevert else {return}
         var valid = false;commands.withFileMenu(snapshot){valid = true};guard valid else {return}
         let rows = snapshot.entries,token = OperationCancellation(),identity = generation
+        pendingRevertPolicy = .load(from:preferences)
         request = token;busy = true;exclusiveAction = true;Self.activeOperations += 1
         Task { [self] in
-            defer {Self.activeOperations -= 1;exclusiveAction = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
+            defer {Self.activeOperations -= 1;pendingRevertPolicy=nil;exclusiveAction = false;if request === token {request = nil;busy = false;cancelling = false;if closeAfterRead {closeAfterRead = false;if !retired {close()}} else {resumePendingRefresh()}}}
             let needsQuestion = rows.contains{entry in commands.files.contains{GitReferenceName.equal($0.id,entry.path) && $0.state == .modified} && commands.fileMetadata[entry.path]?.isDirectory != true && !commands.submodules.contains(entry.path)}
             let accepted = needsQuestion ? await confirmRevert(rows):true
             guard accepted,!retired,request === token,!token.isCancelled,generation == identity,rows.allSatisfy({entries.contains($0)}) else {return}

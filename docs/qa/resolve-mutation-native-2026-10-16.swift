@@ -88,6 +88,27 @@ import TurtleGitCore
             model.error=nil;try await wait {owner.window?.attachedSheet==nil};model.load();try await wait {!model.busy && model.entries.count==4}
         }
         try await restore()
+        // Capture the policy before the owned question. A Settings-domain
+        // change in that question must not change the custom child executor.
+        let ordinaryQuestion=owner.presentQuestion,previousChildren=children.count,previousTrash=trash.count,previousOutputs=outputs.count
+        let otherStages=try await repo.run(["ls-files","--stage","-z","--",paths[1],missing,"module.ext"]).stdout
+        prefs.set(false,forKey:"RevertWithRecycleBin");prefs.set(false,forKey:"RevertRenamedFilesWithRecycleBin")
+        var policyQuestion=""
+        owner.presentQuestion={_,alert,reply in
+            policyQuestion=alert.informativeText
+            prefs.set(true,forKey:"RevertWithRecycleBin");prefs.set(true,forKey:"RevertRenamedFilesWithRecycleBin")
+            reply(.alertSecondButtonReturn);return true
+        }
+        model.fileCommand(.revert,menu:model.fileMenu([paths[0]]));try await wait {!model.busy && owner.fileRevertWindow==nil}
+        try require(policyQuestion.contains("will not be saved to Trash") && children.count==previousChildren+1,"Resolve did not present captured no-Trash confirmation")
+        let noTrashChild=children[previousChildren]
+        try require(noTrashChild.policy == .init(recycle:false,recycleRenamedFiles:false) && !noTrashChild.failed && noTrashChild.trashedFiles.isEmpty && trash.count==previousTrash,"Resolve custom executor bypassed accepted no-Trash policy")
+        try require(outputs.dropFirst(previousOutputs).allSatisfy{!$0.contains("Moved to Trash:")} && String(data:try Data(contentsOf:root.appendingPathComponent(paths[0])),encoding:.utf8)=="mine\n","Resolve reported invented recovery or failed HEAD restoration")
+        let preservedStages=try await repo.run(["ls-files","--stage","-z","--",paths[1],missing,"module.ext"]).stdout
+        let policyHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        try require(preservedStages==otherStages && policyHead==head,"Resolve no-Trash changed unrelated stages/HEAD")
+        owner.presentQuestion=ordinaryQuestion;prefs.removeObject(forKey:"RevertWithRecycleBin");prefs.removeObject(forKey:"RevertRenamedFilesWithRecycleBin")
+        try await restore()
         model.fileCommand(.delete,menu:model.fileMenu([paths[1],missing],markedPath:missing,permanently:true));try await wait {!model.busy}
         try require(model.deletionResult?.trashedFiles.isEmpty==true && model.deletionResult?.removedIndexPaths.count==2 && !FileManager.default.fileExists(atPath:root.appendingPathComponent(paths[1]).path),"Captured permanent Delete did not reach backend")
         try await restore()

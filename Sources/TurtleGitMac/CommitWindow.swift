@@ -1661,22 +1661,24 @@ import TurtleGitCore
     private func validateRestoreAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    private(set) var pendingRevertPolicy:WorkingFileRevertPolicy?
     var onRevert: ([StatusEntry], Bool, Bool, @escaping (Bool) -> Void) -> Void = { _, _, _, done in done(false) }
     func revertFiles(_ selected: [StatusEntry]) {
         guard !busy, !confirmingQuit, !selected.isEmpty else { return }
+        let policy=WorkingFileRevertPolicy.load(from:dialogDefaults)
         if selected.contains(where: { [.modified, .conflicted].contains($0.state) }) {
             let alert = NSAlert()
             alert.messageText = "Are you sure you want to revert \(selected.count) item(s)?"
-            alert.informativeText = "You will lose ALL changes since the last update! Existing replaced file contents are moved to Trash. Added files remain on disk as unversioned files."
+            alert.informativeText = "You will lose ALL changes since the last update! "+WorkingFileRevertPresentation.confirmation(policy)
             alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
             guard alert.runModal() == .alertSecondButtonReturn else { return }
         }
         guard messageFocusAvailable, activeFileMenu.map({ acceptsFileMenu($0) }) ?? true else { return }
-        busy = true
+        pendingRevertPolicy=policy;busy = true
         onRevert(selected, amend, amendDiffToLastCommit) { [weak self] succeeded in
             guard let self, self.messageFocusAvailable else { return }
             if succeeded { self.checked.subtract(selected.map(\.path)); self.selection.subtract(selected.map(\.path)) }
-            self.busy = false; self.reload(); self.refreshPartial()
+            self.pendingRevertPolicy=nil;self.busy = false; self.reload(); self.refreshPartial()
         }
     }
     func markForRestore(_ paths: some Sequence<String>) { let paths = GitPathSet(paths);

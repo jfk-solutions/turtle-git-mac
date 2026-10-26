@@ -232,8 +232,11 @@ existing native operation owners. Revert obtains real porcelain rows from the
 captured conflict stages, uses the HEAD diff's modified-file confirmation and
 opens the shared Revert progress sheet. HEAD and stages are validated before
 launch and the first execution. Retry reads fresh selected-path status while
-keeping the original HEAD boundary; prior filesystem effects and Trash receipts
-remain recoverable. The source No-options auto-close and submodule post-action
+keeping the original HEAD boundary and accepted working-file disposition policy.
+The shared [Revert policy](REVERT-PARITY.md#captured-working-file-disposition-policy)
+captures the master and renamed-file Trash switches independently. Prior actual
+Trash receipts remain available; replacement contents bypassing Trash are not
+promised recoverable. The source No-options auto-close and submodule post-action
 are retained. Gitlink reversion changes the parent index, then offers the existing
 submodule comparison workflow without changing its checkout automatically.
 

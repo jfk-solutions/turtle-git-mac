@@ -127,7 +127,7 @@ private final class AddNativeWindow: NSWindow {
         guard let window, window.attachedSheet == nil, model.beginRevertConfirmation(rows) else { return }
         guard model.revertNeedsConfirmation else { model.finishRevertConfirmation(accepted: true); return }
         let alert = NSAlert(); alert.messageText = "Are you sure you want to revert \(rows.count) item(s)?"
-        alert.informativeText = "You will lose ALL changes since the last update! Replaced working files are moved to Trash. Added files remain on disk as unversioned files."
+        alert.informativeText = "You will lose ALL changes since the last update! "+WorkingFileRevertPresentation.confirmation(model.pendingRevertPolicy ?? .load(from:model.presentationPreferences))
         alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
         alert.beginSheetModal(for: window) { [weak model] response in model?.finishRevertConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
@@ -266,6 +266,7 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     private var pendingRevert: [AddDialogEntry]?
+    private(set) var pendingRevertPolicy:WorkingFileRevertPolicy?
     private(set) var reverting = false
     private var closeAfterRevert = false
     private var cancelRevert: (() -> Void)?
@@ -275,18 +276,19 @@ private final class AddNativeWindow: NSWindow {
     func beginRevertConfirmation(_ rows: [AddDialogEntry]) -> Bool {
         let marked = rows.first { GitReferenceName.equal($0.path,selectionMark) } ?? rows.first
         guard !retired, !busy, !confirmingQuit, !rows.isEmpty, marked?.status.canCompareWithBaseFromStatusList == true else { return false }
+        pendingRevertPolicy = .load(from:defaults)
         pendingRevert = rows; busy = true; return true
     }
     func finishRevertConfirmation(accepted: Bool) {
         guard !retired else { return }
         guard let selected = pendingRevert else { return }; pendingRevert = nil
-        guard accepted else { busy = false; return }
+        guard accepted else { pendingRevertPolicy=nil;busy = false; return }
         reverting = true; closeAfterRevert = false
         let cancel = onRevert(selected.map(\.status)) { [weak self] succeeded in self?.finishRevert(selected, succeeded: succeeded) }
         if reverting { cancelRevert = cancel }
     }
     private func finishRevert(_ selected: [AddDialogEntry], succeeded: Bool) {
-        guard !retired, reverting else { return }; reverting = false; cancelRevert = nil; cancellation = OperationCancellation()
+        guard !retired, reverting else { return }; pendingRevertPolicy=nil;reverting = false; cancelRevert = nil; cancellation = OperationCancellation()
         performOperation { [self] in
             defer { busy = false; if !retired && (closeAfterRevert || cancellation.isCancelled) { close() }; closeAfterRevert = false; cancellation = OperationCancellation() }
             if succeeded { checked.subtract(selected.map(\.path)); highlighted.subtract(selected.map(\.path)) }
@@ -545,7 +547,7 @@ private final class AddNativeWindow: NSWindow {
     func invalidate() {
         guard !retired else { return }; retired = true; cancellation.cancel();cancelFileChoice(); readTask?.cancel(); readTask = nil
         cancelRevert?(); cancelRevert = nil; reverting = false
-        pendingFlags = nil; pendingDelete = nil; pendingRestore = nil; pendingRevert = nil; ignoring = false
+        pendingFlags = nil; pendingDelete = nil; pendingRestore = nil; pendingRevert = nil;pendingRevertPolicy=nil; ignoring = false
         restoreCopies.removeAll(); lockingFiles = false; resettingColumns = false; busy = false
     }
     func read() async throws {
