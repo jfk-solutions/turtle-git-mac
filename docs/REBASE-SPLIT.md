@@ -82,4 +82,22 @@ Commit workflow, and interrupted part publication refuses blind repetition.
 The parent waits for child detachment and worker drain before opening the next
 child or Add another commit question. See the [dedicated checkpoint record](qa/rebase-no-commit-split-2026-10-26.json)
 for its actual validation scope and results. Earlier checkpoints above do not
-prove this new path. Preserve-merges orphan groups remain separate.
+prove this new path.
+
+## Preserve-merges groups
+
+With Preserve merges enabled, an initial Skip followed by single-parent Squash
+rows can open the same new-commit approval and Split workflow. The oldest row
+itself cannot be Squash, and a merge commit cannot be Squash. Split parts use
+normal commits; the first part does not amend the destination branch.
+
+The staged group stays in place until approval. Later branch switches and merges
+wait for the group to finish. All applied group members refer to its final part,
+so descendant merges retain their intended parent order and side branches.
+Cancel and reopening retain the group's staged files and accepted parts; Abort
+restores the original branch. Interruption during an applying operation requires
+inspection or Abort rather than automatically repeating it.
+
+The [structural checkpoint](qa/rebase-structural-no-commit-2026-10-26.json) records
+its actual validation and remaining boundaries. The shared Split checks above
+do not by themselves establish all preserve-merges topologies or visual parity.

@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "d5d6f546",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused_grouped_checks_passed",
+  "implementation": [
+    "Preserve-merges leading/orphan single-parent Squash uses an owned staged group before structural labels/resets/merges.",
+    "Durable deferred structural controls bind skipped labels to their captured base and applied members to final approval/Split HEAD.",
+    "Shared conflict selected staging, message/empty review, pending action edits, Skip, reopening and Abort retain group/HEAD/session ownership.",
+    "Native Start uses the literal oldest-row Squash guard; preserve-merges keyboard cycling retains that guard and merge-row refusal."
+  ],
+  "validation": {
+    "core": "49 methods passed cumulatively: initial group 48 passed, one real rescheduled-checkpoint defect; only affected method rerun and passed after focused Core repair",
+    "native": "repair run passed structural-group with system and bundled Git; both owned receivers reaped",
+    "debug": "initial and focused-repair Debug builds passed",
+    "help": "write and check passed: 58 documents, 51 topics, 86 files",
+    "dialog_coverage": "reconciled successfully; no certified-complete inference",
+    "planned_core_methods": 49,
+    "core_filter": "RebaseStructuralNoCommitTests|RebaseNoCommit(Split|Squash)Tests|RebaseTests.test(Structural|PreserveMerges|ReorderedStructural)|RebasePendingActionTests.testStructural",
+    "native_case": "test-rebase-source.py --only structural-group",
+    "native_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "localizations": "No literal native UI label changes; no regenerated translation resource change required.",
+    "native_core_source_sha256": "0f302c2d0763fec4fa3d3245628ab251d0544525a59191bba7c61bc7fe7e48fa",
+    "native_after_core_repair": "Not repeated: the Core repair only removes duplicate requeued owned markers; normal native config paths passed before that focused change. The reschedule branch is covered by the focused Core recheck.",
+    "core_methods_passed_cumulatively": 49,
+    "native_case_engine_pairs_passed": 2,
+    "native_scenarios_per_engine": [
+      "Initial Skip\u2192Squash Start, actual future-row menu Pick/icon, normal selected Split children and exact descendant DAG/tree",
+      "Unstarted child Cancel, preserved index/group on reopen, original branch/topology Abort"
+    ],
+    "owned_receivers_reaped": [
+      630,
+      8506,
+      12409
+    ]
+  },
+  "failures": [
+    {
+      "scope": "initial system-Git native structural group",
+      "failure": "Fixture requested future-row menu without selecting that occurrence; captured-menu selection guard correctly returned no Pick item. Receiver 630 reaped.",
+      "resolution": "Selected target occurrence before creating actual menu; native-only repair passed both engines, with no production or Debug rebuild for this fixture repair."
+    },
+    {
+      "scope": "initial Core group: consumed structural-result transport failure method",
+      "failure": "Git rescheduleFailedExec requeued an owned source checkpoint already in DONE; driver duplicated it while consuming TODO, so strict pending-action plan comparison rejected the legitimate state.",
+      "resolution": "Consume exact current owned TODO marker and append DONE only when its last canonical line differs. Strict receipt validation retained; focused Debug rebuild and only affected Core method passed."
+    }
+  ],
+  "limits": [
+    "A merge commit itself cannot be Squash, matching pinned upstream.",
+    "An unreplayed first merge parent remains a source-required refusal.",
+    "No full hosted CI, signed installed deployment, complete source dialog visual parity or App Store acceptance is claimed.",
+    "Invalid Skip that would leave a later retained merge without its rewritten first parent is refused before mutating the group; upstream reports the fatal topology when that later merge is reached."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "6e71816987b63d588976084e2d854fee80d957a8a4c9f49fb2e262d4bdb800a4",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "5509665bba0471e2dc1e3a40c0079b793eaa67fe6a3ca9eaab6184ab0d6e7f89",
+    "Tests/TurtleGitCoreTests/RebaseStructuralNoCommitTests.swift": "3d7e091e730d7861226090e05090d2e01d27abb3dcb0c7c1defad3699c0443df",
+    "docs/qa/rebase-structural-no-commit-native-2026-10-26.swift": "b3d53ba2af5564492024ad7785519b4e3158d7404d477cb66e76b177adc1827a",
+    "scripts/test-rebase-source.py": "c3c64d174290675d1d02313f94139a5039759146ce3d1dca4625aec75a2727d0"
+  },
+  "logs": {
+    "debug": "build/qa/rebase-structural-no-commit-debug-2026-10-26.log",
+    "debug_repair": "build/qa/rebase-structural-no-commit-debug-repair-2026-10-26.log",
+    "core": "build/qa/rebase-structural-no-commit-core-2026-10-26.log",
+    "core_repair": "build/qa/rebase-structural-no-commit-core-repair-2026-10-26.log",
+    "native": "build/qa/rebase-structural-no-commit-native-2026-10-26.log",
+    "native_repair": "build/qa/rebase-structural-no-commit-native-repair-2026-10-26.log",
+    "help_write": "build/qa/rebase-structural-no-commit-help-write-2026-10-26.log",
+    "help_check": "build/qa/rebase-structural-no-commit-help-check-2026-10-26.log",
+    "dialog_coverage": "build/qa/rebase-structural-no-commit-dialog-coverage-2026-10-26.log"
+  }
+}

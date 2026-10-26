@@ -91,9 +91,10 @@ The earlier checkpoint above excluded active no-commit groups from Split. The
 [new Split continuation](#split-continuation--october-26-2026) addresses that gap;
 its validation is separate from the earlier passing results.
 
-This continuation covers ordinary/advanced Cherry Pick no-commit groups. It does
-not add orphan-group execution to preserve-merges structural plans; existing
-structural Squash constraints and supported recovery remain separate.
+That checkpoint covered ordinary/advanced Cherry Pick no-commit groups. Its
+preserve-merges orphan boundary is superseded by the authored
+[structural continuation](#preserve-merges-orphan-continuation--october-26-2026),
+whose validation is separate.
 
 The grouped checkpoint records 35 affected Core methods passing cumulatively:
 34 passed initially, then the repaired empty-intermediate method passed both
@@ -170,3 +171,96 @@ needed exact-instant comparison across timezone formatting. Only the affected
 checks were repeated, without production behavior changes. Preserve-merges orphan groups
 remain outside this continuation; earlier Split and leading-Squash checkpoints do
 not certify this new path.
+
+## Preserve-merges orphan continuation — October 26, 2026
+
+The next connected continuation extends no-commit execution to a leading retained
+single-parent Squash in a preserve-merges plan, including a group exposed by
+skipping its earlier leader. The [structural checkpoint record](qa/rebase-structural-no-commit-2026-10-26.json)
+records its actual focused validation and repairs.
+The earlier ordinary/advanced Cherry Pick and Split results above do not certify
+this topology.
+
+### Source parent and group ordering
+
+The source action controls protect the literal oldest row, not the first retained
+row: selected/unselected Squash guards use the final list index
+(`GitLogListAction.cpp:1307,1332`), and bulk Squash uses the same literal oldest
+entry (`RebaseDlg.cpp:367`). Skipping that oldest row can therefore leave a
+later requested single-parent Squash as the first retained work. Native Start
+must not introduce a stronger first-retained prohibition while its row-action
+controls continue to protect the literal first execution entry.
+
+Preserve-merges `DoRebase` (2140–2265) carries an ordered rewritten-parent map.
+Before the next retained occurrence, previous pending originals are mapped to
+current HEAD. Dropped-parent entries are expanded recursively in original order;
+resolved rewritten IDs are deduplicated. An empty rewritten first parent of a
+merge is an explicit error; other empty rewritten mappings fall back to current
+HEAD. The source's already-included commit filtering constructs dropped-parent
+entries during setup (600–677); user Skip is not automatically identical to that
+filtering step.
+
+A retained single-parent requested Squash skips the checkout of its rewritten
+parent and accumulates changes at current HEAD. A non-Squash row checks out its
+resolved first parent. Squashing a merge commit itself is explicitly rejected
+(2199–2205). An unchanged merge can reuse its original commit; a changed merge
+checks out its first resolved parent and rebuilds against the other resolved
+parents. Native structural labels therefore must reference the final committed
+group result, not an internal drop placeholder or an unapproved staged tree.
+
+Squash conflict Continue (1349–1368) verifies resolution/conflict hints, then
+returns the final member to Squash_Edit approval or advances an intermediate
+member without a standalone commit. Normal approval and Split completion map all
+pending group originals to final HEAD (1617–1620, 1722–1726). First metadata and
+message accumulation still precede exact-empty-subject review; Skip retains the
+source-prepared values described above.
+
+`FinishRebase` calls `RewriteNotes` only for ordinary Rebase, before final branch
+restoration (1130–1145). `RewriteNotes` (1193–1234) feeds nonempty old/new map
+entries to `git notes copy --for-rewrite=rebase`. Group mappings must therefore
+settle after approval or the last replacement part, rather than exposing an
+intermediate no-commit tree. Native Git sequencer labels, rewrite files and note
+handling are an execution adaptation, not the exact upstream command sequence.
+
+### Supported adaptation and limits
+
+The authored implementation supports initial earlier-Skip→single-parent Squash,
+reached empty-subject leader Skip with prepared metadata retained, selected
+conflict staging without a premature commit, normal approval, Split, reopen,
+Skip/Abort and supported future action regrouping. Native Start protects the
+literal oldest entry, and the shared group executor retains logical actions and
+structural parent/label dependencies. Session/group/plan/HEAD guards and actual
+rewritten-label receipts refuse stale mutation; uncertain application or commit
+publication refuses blind repetition.
+
+Skipping current B restores its saved pre-B tree and retains earlier applied A.
+If that Skip would leave a later retained merge's first parent unreplayed, it is
+refused before resetting the current group. This is a safe timing adaptation of
+the source's later fatal topology error. The user can edit the future merge to
+Skip at a supported pause, then retry the current Skip. No guessed first parent
+or automatic merge-parent substitution is introduced.
+
+Owned skipped-row label/update-ref controls are held until the group's final
+label. Their original base targets are captured, while return controls refer to
+the final runtime label rather than a guessed future hash. The cursor survives
+checked restoration, ordinary Split and cancellation return. A journaled optional
+message-configuration archive preserves prior cursors after group retirement, so
+later pending-action regeneration normalizes those control blocks too.
+
+Collapsed/reset-only merge results use an owned structural-result checkpoint
+after their actual label/Edit result. It records original merge→reached HEAD for
+rewrite/notes consumers, validates that label's actual HEAD, then journals a
+completed comment and removes the exact rescheduled owned exec. This makes
+automatic continuation once-only, including unchanged mappings. A later Git
+refusal exposes a pure Continue/Abort checkpoint anchored to that HEAD; Skip,
+message editing, file recovery and Split do not mutate that metadata-only phase.
+
+Literal-first Squash, Squash of a merge/root row, repeated structural occurrences
+and a missing first merge parent remain refused. Arbitrary octopus/cousin
+topology, externally authored todo scripts and every notes/hook/filter
+configuration are not inferred supported. The linked structural checkpoint
+records 49 Core methods passing cumulatively, Debug builds and the normal native
+workflow with both Git engines. A real duplication of rescheduled owned markers
+was repaired with only the affected Core case repeated; the native fixture also
+needed to select its target row before requesting its menu. Physical/signed/VoiceOver, minimum-version/Intel execution,
+whole-dialog layout and complete hosted CI acceptance remain separate.

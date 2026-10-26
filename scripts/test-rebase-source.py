@@ -3,7 +3,7 @@
 import argparse,os,tempfile
 from pathlib import Path
 from native_receiver import build_receiver,run_receiver
-cases={'source':('rebase-source-native-2026-10-17.swift','RebaseSourceVerification'),'references':('rebase-references-native-2026-10-14.swift','RebaseReferencesVerification'),'controls':('rebase-action-controls-native-2026-10-16.swift','RebaseActionControlsVerification'),'add':('rebase-add-preparation-native-2026-10-16.swift','RebaseAddPreparationVerification'),'replay':('rebase-replay-progress-native-2026-10-14.swift','RebaseReplayProgressVerification')}
+cases={'structural-group':('rebase-structural-no-commit-native-2026-10-26.swift','RebaseStructuralNoCommitVerification'),'source':('rebase-source-native-2026-10-17.swift','RebaseSourceVerification'),'references':('rebase-references-native-2026-10-14.swift','RebaseReferencesVerification'),'controls':('rebase-action-controls-native-2026-10-16.swift','RebaseActionControlsVerification'),'add':('rebase-add-preparation-native-2026-10-16.swift','RebaseAddPreparationVerification'),'replay':('rebase-replay-progress-native-2026-10-14.swift','RebaseReplayProgressVerification')}
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('--git',type=Path,action='append');p.add_argument('--only',choices=cases,action='append');p.add_argument('--captures',type=Path);args=p.parse_args();root=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='tg-rebase-source-') as temporary:
     folder=Path(temporary);sources=[]

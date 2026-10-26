@@ -765,3 +765,18 @@ earlier reached-parent checkpoint retains its original scope. The authored
 adds normal child commits, editable metadata presets, durable Cancel/reopen and
 actual child-drain ownership. Its [focused checkpoint](qa/rebase-no-commit-split-2026-10-26.json)
 passed; preserve-merges orphan groups remain outside this supported continuation.
+
+
+## Preserve-merges orphan Squash — October 26, 2026
+
+The authored [structural no-commit continuation](REBASE-LEADING-SQUASH-PARITY.md#preserve-merges-orphan-continuation--october-26-2026)
+supersedes the earlier preserve-merges orphan boundary for supported
+single-parent groups. It preserves final DAG labels, deferred skipped-row
+label/update-ref controls, checked-restoration/Split cursors and original-to-final
+notes mappings. Unsafe Skip is refused before resetting the group when a future
+merge would lose its first parent, an earlier refusal than the source fatal error.
+Collapsed/reset-only merges record their actual reached result through an
+exactly-once owned checkpoint, with anchored Continue/Abort recovery after a
+refusal. Literal-first/merge-row Squash, repeated structural occurrences and
+missing first merge parents remain refused. [Validation](qa/rebase-structural-no-commit-2026-10-26.json)
+records the focused grouped checks; earlier checkpoints do not certify this new family.

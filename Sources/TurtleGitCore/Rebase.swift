@@ -27,10 +27,22 @@ public struct RebaseNoCommitSquash:Codable,Equatable,Sendable {
     public let step:Int
     public let phase:RebaseNoCommitSquashPhase
     public let preservesLeaderAuthor:Bool
+    public var nextRetainedAction:RebaseAction? = nil
     fileprivate let files:[String:RebaseActionEditFile]
 }
 private struct RebaseSquashLeader:Codable,Equatable {
     let message:String,name:String,email:String,date:String
+}
+private struct RebaseNoCommitControl:Codable,Equatable {
+    let line:String,target:String
+}
+private struct RebaseNoCommitTopology:Codable,Equatable {
+    var anchor:String
+    var controls:[RebaseNoCommitControl]=[]
+}
+private struct RebaseStructuralControlArchive:Codable,Equatable {
+    let groupID:String
+    let cursor:RebaseNoCommitTopology
 }
 private struct RebaseNoCommitGroup:Codable,Equatable {
     let id:String,session:String
@@ -47,6 +59,7 @@ private struct RebaseNoCommitGroup:Codable,Equatable {
     var allowsEmpty=false
     // The new-commit Split checkpoint belongs to this same journaled group.
     var split:RebaseSplitState? = nil
+    var topology:RebaseNoCommitTopology? = nil
 }
 public struct RebaseSquashMessage: Codable, Sendable {
     public var message: String
@@ -58,6 +71,7 @@ public struct RebaseSquashMessage: Codable, Sendable {
     public var skipBaseHead: String? = nil
 }
 public struct RebaseSplitReturn: Codable, Equatable, Sendable {
+    var structuralControlCursor:Data? = nil
     public let parts: Int
     public let firstAuthor: String
     public let firstDate: String
@@ -78,6 +92,8 @@ public struct RebaseSplitState: Codable, Equatable, Sendable {
     // Reconstructed from exact group/plan bytes on reads;
     // never embedded back into its own group (which would be recursive).
     var noCommitWitness:Data? = nil
+    // Retain structural control ownership through the checked-restoration loop.
+    var structuralControlCursor:Data? = nil
     fileprivate var stored:Self {var value=self;value.noCommitWitness=nil;return value}
     /// Conflict recovery keeps amending the applied commit, rather than creating split parts.
     public var conflictRecovery: Bool? = nil
@@ -225,20 +241,21 @@ public struct RebaseState: Codable, Sendable {
     public var hasIgnoredCleanCommitFailure = false
     public var conflictMessage:RebaseConflictMessage? = nil
     public var hasFailedPickCleanup = false
+    public var hasStructuralResultCheckpoint = false
+    var structuralResultHead:String? = nil
     // Recovery receipts are stored separately, not recursively embedded in older
     // session/state journals. Reopening reconstructs them from the owned record.
     private enum CodingKeys:String,CodingKey {
         case active,isCherryPick,branch,originalHead,onto,stoppedEntryID,stoppedCommit,mergeParents,message,currentStep,total,conflicts,remainingCommands,squashMessage,stoppedAction,split,isEditPause,isStructuralMergeEdit,hasStructuralMergeResult,needsFileRecovery,session,emptyMessageWarning,hasFailedPickCleanup
     }
     public var canSplit: Bool {
-        guard !hasMainlineCheckpoint,mainlineDecision == nil,conflictMessage == nil,cleanCommitFailure == nil,!hasIgnoredCleanCommitFailure,!hasFailedPickCleanup,active,conflicts.isEmpty else{return false}
+        guard !hasStructuralResultCheckpoint,!hasMainlineCheckpoint,mainlineDecision == nil,conflictMessage == nil,cleanCommitFailure == nil,!hasIgnoredCleanCommitFailure,!hasFailedPickCleanup,active,conflicts.isEmpty else{return false}
         if let group=noCommitSquash {
             guard group.phase == .approval else{return false}
             // Source1568 enters the checked Split loop only at the end of a
             // requested Squash chain. An already opened loop remains resumable.
             if let split {return split.noCommitGroupID==group.id}
-            let next=remainingCommands.compactMap {$0.split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))}}.first {$0 != .skip}
-            return next != .squash
+            return group.nextRetainedAction != .squash
         }
         return isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true
     }
@@ -253,7 +270,7 @@ public struct RebaseConflictIdentity:Equatable,Sendable {
         GitReferenceName.equal(a.originalHead,b.originalHead) && GitReferenceName.equal(a.branch,b.branch) && GitReferenceName.equal(a.onto,b.onto) && GitReferenceName.equal(a.entry,b.entry) && a.step == b.step && a.splitParts == b.splitParts && a.cherryPick == b.cherryPick && a.noCommitGroup == b.noCommitGroup
     }
     public init?(_ state:RebaseState) {
-        guard state.active,state.noCommitSquash?.phase != .uncertain,!state.hasMainlineCheckpoint,state.conflictMessage == nil,!state.hasFailedPickCleanup,state.squashMessage?.skipBaseHead == nil else {return nil}
+        guard state.active,!state.hasStructuralResultCheckpoint,state.noCommitSquash?.phase != .uncertain,!state.hasMainlineCheckpoint,state.conflictMessage == nil,!state.hasFailedPickCleanup,state.squashMessage?.skipBaseHead == nil else {return nil}
         originalHead=state.originalHead;branch=state.branch;onto=state.onto;entry=state.stoppedEntryID
         step=state.currentStep;splitParts=state.split?.parts ?? 0;cherryPick=state.isCherryPick;noCommitGroup=state.noCommitSquash.map {$0.id+":"+$0.phase.rawValue}
     }
@@ -277,7 +294,7 @@ public struct RebaseMessageIdentity: Codable, Equatable, Sendable {
     public let originalHead: String, branch: String, onto: String, entry: String, head: String, phase: String
     public let step: Int
     public init?(state: RebaseState, head: String) {
-        guard state.active,state.noCommitSquash?.phase != .uncertain,state.conflictMessage?.phase != .complete,state.conflictMessage?.phase != .uncertain, !state.hasFailedPickCleanup,!state.hasIgnoredCleanCommitFailure, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
+        guard state.active,!state.hasStructuralResultCheckpoint,state.noCommitSquash?.phase != .uncertain,state.conflictMessage?.phase != .complete,state.conflictMessage?.phase != .uncertain, !state.hasFailedPickCleanup,!state.hasIgnoredCleanCommitFailure, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
         originalHead = state.originalHead; branch = state.branch; onto = state.onto; entry = state.stoppedEntryID; self.head = head; step = state.currentStep
         phase = state.noCommitSquash.map {"no-commit-squash:"+$0.id+":"+$0.phase.rawValue} ?? (state.conflictMessage != nil ? "conflict-message" : state.squashMessage != nil ? "squash" : state.split?.conflictRecovery == true ? "amend-selection" : state.split != nil ? "split" : state.isEditPause ? "edit" : "conflict")
     }
@@ -335,6 +352,15 @@ public enum RebaseEditor {
     static let emptyAppliedPrefix="exec false # turtlegit-empty-applied:"
     static let sourceSquashPrefix="exec false # turtlegit-source-squash:"
     static func sourceSquashID(_ line:String)->String? {line.hasPrefix(sourceSquashPrefix) ? emptyMessageID(emptyMessagePrefix+line.dropFirst(sourceSquashPrefix.count)):nil}
+    static let structuralResultPrefix="exec false # turtlegit-structural-result:"
+    static func structuralResultID(_ line:String)->String? {line.hasPrefix(structuralResultPrefix) ? emptyMessageID(emptyMessagePrefix+line.dropFirst(structuralResultPrefix.count)):nil}
+    static let structuralResultDonePrefix="# turtlegit-structural-result:"
+    static func completedStructuralResult(_ line:String)->(id:String,head:String)? {
+        guard line.hasPrefix(structuralResultDonePrefix) else{return nil}
+        let fields=line.dropFirst(structuralResultDonePrefix.count).split(separator:" ").map(String.init)
+        guard fields.count==2,let id=emptyMessageID(emptyMessagePrefix+fields[0]),GitLocalReferenceProtocol.validOID(fields[1]) else{return nil}
+        return (id,fields[1])
+    }
     static let mainlinePrefix="exec false # turtlegit-mainline:"
     static func mainlineID(_ line:String)->String? {
         guard line.hasPrefix(mainlinePrefix) else{return nil}
@@ -348,7 +374,7 @@ public enum RebaseEditor {
         return id
     }
     static func ownedEmptyLine(_ line:String)->Bool {emptyMessageID(line) != nil || emptyMessageID(line,applied:true) != nil}
-    static func ownedCheckpointLine(_ line:String)->Bool {ownedEmptyLine(line) || mainlineID(line) != nil || sourceSquashID(line) != nil}
+    static func ownedCheckpointLine(_ line:String)->Bool {ownedEmptyLine(line) || mainlineID(line) != nil || sourceSquashID(line) != nil || structuralResultID(line) != nil}
     static func executionLines(_ entry:RebaseEntry,hash:String?=nil,subject:String?=nil,deferSquash:Bool=false,noCommitSquash:Bool=false)->[String] {
         // Git validates the whole todo before running the reached checkpoint,
         // and rejects merge OIDs for pick/edit/squash. Drop admits the exact
@@ -564,7 +590,7 @@ public enum RebaseEditor {
     static func currentStep(in directory: URL) -> Int {
         let emptyIdentities=(try? JSONDecoder().decode([RebaseReplayIdentity].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
         let emptyDone=((try? String(contentsOf:directory.appendingPathComponent("done"),encoding:.utf8)) ?? "").split(separator:"\n").map(String.init)
-        if let last=emptyDone.last,let id=emptyMessageID(last) ?? emptyMessageID(last,applied:true) ?? mainlineID(last) ?? sourceSquashID(last),let index=emptyIdentities.firstIndex(where:{$0.id==id}) {return index+1}
+        if let last=emptyDone.last,let id=emptyMessageID(last) ?? emptyMessageID(last,applied:true) ?? mainlineID(last) ?? sourceSquashID(last) ?? structuralResultID(last),let index=emptyIdentities.firstIndex(where:{$0.id==id}) {return index+1}
         if emptyIdentities.contains(where:{$0.emptySubject==true || $0.deferredMainline==true || $0.noCommitSquash==true}),!FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
             if let resumed=rescheduledPick(in:directory) {return resumed.step}
             return emptyDone.filter {canonicalLine($0).split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))} != nil}.count
@@ -657,6 +683,7 @@ private struct RebaseMessageConfiguration: Codable {
     var commitEncoding: String? = nil
     var reviewedThrough: Int? = nil
     var reviewedMessage: String? = nil
+    var structuralControls:[RebaseStructuralControlArchive]? = nil
 }
 private struct RebaseReplayIdentity: Codable {
     let hash: String
@@ -666,6 +693,7 @@ private struct RebaseReplayIdentity: Codable {
     var deferredMainline:Bool? = nil
     var deferredSquash:Bool? = nil
     var noCommitSquash:Bool? = nil
+    var structuralMerge:Bool? = nil
     var emptySubject:Bool? = nil
     var executionAction:String? {emptySubject == true && action != RebaseAction.skip.rawValue && action != RebaseAction.squash.rawValue ? RebaseAction.edit.rawValue:action}
     var todoAction:String? {noCommitSquash==true || deferredSquash==true || deferredMainline==true && mainline==nil && action != RebaseAction.skip.rawValue ? RebaseAction.skip.rawValue:executionAction}
@@ -743,7 +771,7 @@ final class RebaseProgressObservation: @unchecked Sendable {
         let structural=structuralBytes != nil || adopted?.structural==true
         for raw in text.split(separator:"\n") {
             let line=RebaseEditor.canonicalLine(String(raw)),fields=line.split(separator:" ").map(String.init)
-            if let id=RebaseEditor.emptyMessageID(line) ?? RebaseEditor.emptyMessageID(line,applied:true) ?? RebaseEditor.mainlineID(line) ?? RebaseEditor.sourceSquashID(line),let index=entries.firstIndex(where:{$0.id==id}) {current=index+1;continue}
+            if let id=RebaseEditor.emptyMessageID(line) ?? RebaseEditor.emptyMessageID(line,applied:true) ?? RebaseEditor.mainlineID(line) ?? RebaseEditor.sourceSquashID(line) ?? RebaseEditor.structuralResultID(line),let index=entries.firstIndex(where:{$0.id==id}) {current=index+1;continue}
             guard let command=fields.first else{continue}
             if command.hasPrefix("#") {continue}
             guard RebaseAction(rawValue:command) != nil || ["label","reset","merge","break","update-ref","noop"].contains(command) else{return}
@@ -858,13 +886,18 @@ extension GitRepository {
             return fields.joined(separator: " ")
         }
         let identities = replayIdentities(directory)
+        let structural = manager.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path)
         let noCommit=active ? try noCommitGroup(directory):nil
         let commandSlots=commands.indices.filter {commands[$0].split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))} != nil}
         let commandOffset=identities.count-commandSlots.count
         if commandOffset>=0 {
             for (position,slot) in commandSlots.enumerated() where identities.indices.contains(commandOffset+position) {
-                let identity=identities[commandOffset+position]
                 var fields=commands[slot].split(separator:" ",maxSplits:2).map(String.init)
+                let identity:RebaseReplayIdentity
+                if structural {
+                    guard fields.count>=2,let exact=identities.first(where:{$0.hash.hasPrefix(fields[1])}) else{continue}
+                    identity=exact
+                } else {identity=identities[commandOffset+position]}
                 if fields.count>=2,fields[0]==RebaseAction.skip.rawValue,identity.todoAction==RebaseAction.skip.rawValue,identity.action != RebaseAction.skip.rawValue,identity.hash.hasPrefix(fields[1]),let action=identity.executionAction {
                     fields[0]=action;commands[slot]=fields.joined(separator:" ")
                 }
@@ -883,9 +916,11 @@ extension GitRepository {
         let emptyIndex=(warningID ?? appliedID).flatMap {id in identities.firstIndex(where:{$0.id==id && $0.emptySubject==true && $0.action != RebaseAction.skip.rawValue})}
         if (warningID != nil || appliedID != nil) && emptyIndex==nil {throw RebaseFailure.plan}
         let sourceIndex=done.last.flatMap {RebaseEditor.sourceSquashID($0)}.flatMap {id in identities.firstIndex(where:{$0.id==id && $0.noCommitSquash==true})}
-        checkpointIndex = emptyIndex ?? mainlineIndex ?? sourceIndex ?? noCommit.map {$0.step-1}
+        let completedStructural=done.last.flatMap(RebaseEditor.completedStructuralResult)
+        let structuralResultIndex=(done.last.flatMap(RebaseEditor.structuralResultID) ?? completedStructural?.id).flatMap {id in identities.firstIndex(where:{$0.id==id && $0.structuralMerge==true})}
+        if completedStructural != nil && structuralResultIndex==nil {throw RebaseFailure.plan}
+        checkpointIndex = emptyIndex ?? mainlineIndex ?? sourceIndex ?? structuralResultIndex ?? noCommit.map {$0.step-1}
         let step = checkpointIndex.map{$0+1} ?? (projected ? max(1,logicalDone.count):RebaseEditor.currentStep(in: directory))
-        let structural = manager.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path)
         let currentMerge=logicalDone.last?.first == "merge" || identities.indices.contains(step-1) && adopted?.merges.contains(identities[step-1].id) == true
         let mergeEdit = active && ((structural && done.last?.split(separator:" ").first == "break" && identities.indices.contains(step - 1) && identities[step - 1].executionAction == RebaseAction.edit.rawValue && commands.first == "label turtlegit-" + identities[step - 1].hash) || projected && currentMerge && done.last?.split(separator:" ").first == "break")
         let mergeReplay = active && ((structural && done.last?.split(separator:" ").first == "merge" && identities.indices.contains(step - 1)) || projected && currentMerge && done.last?.split(separator:" ").first == "merge")
@@ -933,7 +968,8 @@ extension GitRepository {
             // The Commit child owns Stage/Unstage and captures the resulting
             // selected index itself. Fence immutable replay/group bytes here,
             // rather than rejecting legitimate edits made inside that child.
-            let witnesses=try actionEditFiles(directory)
+            var witnesses=try actionEditFiles(directory)
+            if let labels=try structuralNoCommitLabels(directory) {witnesses["structural-labels"] = .init(bytes:labels)}
             let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
             activeSplit?.noCommitWitness=try encoder.encode(witnesses)
         }
@@ -953,14 +989,17 @@ extension GitRepository {
                                if fields.first == "merge", fields.count >= 3 { return "pick " + fields[2] }
                                return nil
                            } : commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
-                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: noCommit != nil ? noCommit?.phase == .conflicted:conflictMessage == nil && warningID == nil && mainlineID == nil && active && !manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path) && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
+                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: noCommit != nil ? noCommit?.phase == .conflicted:structuralResultIndex == nil && conflictMessage == nil && warningID == nil && mainlineID == nil && active && !manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path) && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
         if let noCommit {
             guard identities.indices.contains(noCommit.step-1) else{throw RebaseFailure.plan}
             var files=try actionEditFiles(directory)
             files["source-index"] = .init(bytes:try conflictMessageIndex())
-            result.noCommitSquash = .init(id:noCommit.id,entryID:identities[noCommit.step-1].id,baseHead:noCommit.baseHead,step:noCommit.step,phase:noCommit.phase == .applying ? .uncertain:noCommit.phase,preservesLeaderAuthor:noCommit.leader != nil,files:files)
+            if let labels=try structuralNoCommitLabels(directory) {files["structural-labels"] = .init(bytes:labels)}
+            result.noCommitSquash = .init(id:noCommit.id,entryID:identities[noCommit.step-1].id,baseHead:noCommit.baseHead,step:noCommit.step,phase:noCommit.phase == .applying ? .uncertain:noCommit.phase,preservesLeaderAuthor:noCommit.leader != nil,nextRetainedAction:identities.dropFirst(noCommit.step).compactMap {$0.action.flatMap(RebaseAction.init(rawValue:))}.first {$0 != .skip},files:files)
         }
         result.conflictMessage=conflictMessage
+        result.hasStructuralResultCheckpoint=structuralResultIndex != nil
+        result.structuralResultHead=completedStructural?.head
         if let index=emptyIndex,warningID != nil {
             let identity=identities[index]
             guard let requested=identity.action.flatMap(RebaseAction.init(rawValue:)),requested != .skip,try rebaseCommit(identity.hash,cancellation:cancellation).hasEmptyReplaySubject else {throw RebaseFailure.changed}
@@ -1185,7 +1224,7 @@ extension GitRepository {
         let final=try rebaseState(cancellation:cancellation),finalHead=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         try cancellation?.check()
         guard state.active == final.active,identity == RebaseConflictIdentity(final),state.stoppedAction == final.stoppedAction,
-              state.noCommitSquash == final.noCommitSquash,state.mainlineDecision == final.mainlineDecision,state.hasMainlineCheckpoint == final.hasMainlineCheckpoint,state.mainlineCheckpointHead == final.mainlineCheckpointHead,
+              state.noCommitSquash == final.noCommitSquash,state.hasStructuralResultCheckpoint == final.hasStructuralResultCheckpoint,state.structuralResultHead == final.structuralResultHead,state.mainlineDecision == final.mainlineDecision,state.hasMainlineCheckpoint == final.hasMainlineCheckpoint,state.mainlineCheckpointHead == final.mainlineCheckpointHead,
               state.remainingCommands == final.remainingCommands,state.conflicts.map({GitReferenceName($0)}) == final.conflicts.map({GitReferenceName($0)}),state.message == final.message,
               state.squashMessage?.message == final.squashMessage?.message,state.isEditPause == final.isEditPause,head == finalHead else {throw RebaseFailure.changed}
         return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,indexFlags:indexFlags,head:head,remaining:remaining,replay:replay,messageCommit:messageCommit)
@@ -1214,13 +1253,14 @@ extension GitRepository {
     /// falls back to the current head. A missing first merge parent is rejected.
     public func structuralRebaseTodo(_ plan: RebasePlan) throws -> String {
         try validateRebaseIdentities(plan)
-        guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
+        guard plan.entries.first?.action != .squash else { throw RebaseFailure.squash }
         guard plan.options.preserveMerges, plan.entries.allSatisfy({ $0.occurrence == 0 && !($0.action == .squash && $0.commit.parents.count != 1) }) else { throw RebaseFailure.preservePlan }
         let bases = try run(["merge-base","--all",plan.branchHash,plan.ontoHash],successfulExitCodes:0...1).text.split(whereSeparator: \.isWhitespace).map(String.init)
         guard !bases.isEmpty else { throw RebaseFailure.preservePlan }
         let selected = Set(plan.entries.map { $0.commit.hash })
+        let orphans=RebaseEditor.orphanSquashPositions(plan.entries)
         var rewritten = Dictionary(uniqueKeysWithValues:bases.map { ($0,"turtlegit-onto") })
-        var current = "turtlegit-onto", rows = ["label turtlegit-onto"], group: [String] = []
+        var current = "turtlegit-onto", rows = ["label turtlegit-onto"], group: [String] = [], resultGroup:[String]=[]
         func nextIsSquash(after index: Int) -> Bool {
             plan.entries.dropFirst(index + 1).first { $0.action != .skip }?.action == .squash
         }
@@ -1236,6 +1276,7 @@ extension GitRepository {
                 continue
             }
             if entry.requiresEmptyMessageReview {rows.append(RebaseEditor.emptyMessagePrefix+entry.id)}
+            if orphans.contains(position) {rows.append(RebaseEditor.sourceSquashPrefix+entry.id)}
             var parents: [String] = []
             for (index,parent) in original.parents.enumerated() {
                 let target: String
@@ -1251,12 +1292,17 @@ extension GitRepository {
             if original.parents.count > 1 {
                 if parents == original.parents { rows.append("reset " + original.hash) }
                 else if parents.count > 1 { rows.append("merge -C " + original.hash + " " + parents.dropFirst().joined(separator:" ")) }
-            } else { rows.append((entry.executionAction == .edit && nextIsSquash(after:position) && !entry.requiresEmptyMessageReview ? RebaseAction.pick.rawValue : entry.executionAction.rawValue) + " " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
+            } else { rows.append((orphans.contains(position) ? RebaseAction.skip.rawValue:entry.executionAction == .edit && nextIsSquash(after:position) && !entry.requiresEmptyMessageReview ? RebaseAction.pick.rawValue : entry.executionAction.rawValue) + " " + original.hash + " " + original.subject.replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")) }
             if original.parents.count > 1 && entry.executionAction == .edit && (entry.requiresEmptyMessageReview || !nextIsSquash(after:position)) {rows.append("break")}
             if entry.requiresEmptyMessageReview && entry.action == .squash {rows.append(RebaseEditor.emptyAppliedPrefix+entry.id)}
             group.append(original.hash)
+            if original.parents.count>1 && (parents==original.parents || parents.count<=1) {resultGroup.append(entry.id)}
             if !nextIsSquash(after:position) {
                 for hash in group { rows.append("label turtlegit-" + hash) }
+                // A collapsed/unchanged merge has no sequencer commit command.
+                // Record its actual reached result after labels/Edit approval.
+                rows += resultGroup.map {RebaseEditor.structuralResultPrefix+$0}
+                resultGroup.removeAll()
                 // Every applied member must map to the final Squash result.
                 // Skipped members retain source's unreplayed-parent fallback.
                 for hash in group where plan.entries.first(where: { $0.commit.hash == hash })?.action != .skip { rewritten[hash] = "turtlegit-" + original.hash }
@@ -1325,7 +1371,7 @@ extension GitRepository {
         try JSONEncoder().encode(RebaseSessionContext(options:plan.options,afterFetch:afterFetch,autoStart:autoStart,fromLog:fromLog)).write(to:earlySession)
         environment["TURTLEGIT_REPLAY_SESSION"]=earlySession.path
         let identityFile = temporary.appendingPathComponent("identities.json")
-        try JSONEncoder().encode(plan.entries.enumerated().map { index,entry in RebaseReplayIdentity(hash:entry.commit.hash,occurrence:entry.occurrence,action:entry.action.rawValue,mainline:entry.mainline,deferredMainline:plan.options.isCherryPick && entry.commit.parents.count>1 && entry.mainline==nil,deferredSquash:deferredSquashes.contains(index),noCommitSquash:orphans.contains(index),emptySubject:entry.commit.hasEmptyReplaySubject) }).write(to: identityFile)
+        try JSONEncoder().encode(plan.entries.enumerated().map { index,entry in RebaseReplayIdentity(hash:entry.commit.hash,occurrence:entry.occurrence,action:entry.action.rawValue,mainline:entry.mainline,deferredMainline:plan.options.isCherryPick && entry.commit.parents.count>1 && entry.mainline==nil,deferredSquash:deferredSquashes.contains(index),noCommitSquash:orphans.contains(index),structuralMerge:structural && entry.commit.parents.count>1,emptySubject:entry.commit.hasEmptyReplaySubject) }).write(to: identityFile)
         environment["TURTLEGIT_REPLAY_IDENTITIES"] = identityFile.path
         if plan.entries.contains(where: { $0.action == .squash }) {
             let messageFile = temporary.appendingPathComponent("replay-messages.json")
@@ -1376,7 +1422,7 @@ extension GitRepository {
     private func requireRebaseContinuation(_ actual: RebaseState, expected: RebaseState, expectedHead: String) throws {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let sameSquash = try encoder.encode(actual.squashMessage) == encoder.encode(expected.squashMessage)
-        guard actual.noCommitSquash==expected.noCommitSquash else{throw RebaseFailure.changed}
+        guard actual.noCommitSquash==expected.noCommitSquash,actual.hasStructuralResultCheckpoint==expected.hasStructuralResultCheckpoint,actual.structuralResultHead==expected.structuralResultHead else{throw RebaseFailure.changed}
         let sameSplit = try encoder.encode(actual.split) == encoder.encode(expected.split)
         guard actual.active, expected.active, actual.isCherryPick == expected.isCherryPick,
               actual.mainlineCheckpointHead.map({$0==expectedHead}) ?? true,
@@ -1505,6 +1551,82 @@ extension GitRepository {
         }
     }
     private static let noCommitSquashName="turtlegit-no-commit-squash.json"
+    private func structuralNoCommitLabels(_ directory:URL)throws->Data? {
+        guard FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) else{return nil}
+        return try run(["for-each-ref","--format=%(refname)%00%(objectname)","refs/rewritten/"]).stdout
+    }
+    private func validateStructuralNoCommitSkip(_ index:Int,identities:[RebaseReplayIdentity],directory:URL)throws {
+        guard FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) else{return}
+        let unreplayed=Set(identities.indices.filter {$0==index || identities[$0].action==RebaseAction.skip.rawValue}.map {identities[$0].hash})
+        for position in identities.indices where position>index && identities[position].action != RebaseAction.skip.rawValue {
+            let commit=try rebaseCommit(identities[position].hash)
+            if commit.parents.count>1,let first=commit.parents.first,unreplayed.contains(first) {throw RebaseFailure.preservePlan}
+        }
+    }
+    /// Move only owned skipped-row metadata behind the group's final label.
+    /// Its base target is anchored, while the return label is evaluated by Git
+    /// after actual approval/restoration, not a stale pre-amend HEAD literal.
+    private func structuralNoCommitTodo(_ text:String,cursor:RebaseNoCommitTopology)throws->String {
+        guard cursor.controls.count<=200000,(cursor.anchor=="turtlegit-onto" || cursor.anchor.hasPrefix("turtlegit-") && GitLocalReferenceProtocol.validOID(String(cursor.anchor.dropFirst("turtlegit-".count)))),
+              cursor.controls.allSatisfy({control in
+                  let fields=control.line.split(separator:" ").map(String.init)
+                  return GitLocalReferenceProtocol.validOID(control.target) && fields.count==2 &&
+                      (fields[0]=="label" && fields[1].hasPrefix("turtlegit-") && GitLocalReferenceProtocol.validOID(String(fields[1].dropFirst("turtlegit-".count))) ||
+                       fields[0]=="update-ref" && fields[1].hasPrefix("refs/heads/") && GitLocalReferenceProtocol.validName(fields[1]))
+              }) else{throw RebaseFailure.plan}
+        var lines=text.components(separatedBy:"\n")
+        let block=cursor.controls.flatMap {["reset "+$0.target,$0.line,"reset "+cursor.anchor]}
+        if !block.isEmpty,let first=lines.indices.first(where:{index in index+block.count<=lines.count && Array(lines[index..<index+block.count])==block}) {
+            lines.removeSubrange(first..<first+block.count)
+        } else {
+            for control in cursor.controls {
+                guard let index=lines.firstIndex(of:control.line) else{throw RebaseFailure.changed}
+                lines.remove(at:index)
+            }
+        }
+        guard let anchor=lines.firstIndex(of:"label "+cursor.anchor),lines.filter({$0=="label "+cursor.anchor}).count==1 else{throw RebaseFailure.changed}
+        lines.insert(contentsOf:block,at:anchor+1)
+        return lines.joined(separator:"\n")
+    }
+    private func holdStructuralNoCommitControls(_ group:inout RebaseNoCommitGroup,todo:inout [String],identities:[RebaseReplayIdentity],directory:URL)throws {
+        guard FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) else{return}
+        let prior=group.topology?.controls ?? []
+        if let topology=group.topology,!prior.isEmpty {
+            let block=prior.flatMap {["reset "+$0.target,$0.line,"reset "+topology.anchor]}
+            guard let start=todo.indices.first(where:{$0+block.count<=todo.count && Array(todo[$0..<$0+block.count])==block}) else{throw RebaseFailure.changed}
+            todo.removeSubrange(start..<start+block.count)
+        }
+        var pending:[RebaseNoCommitControl]=[],cursor=0,skipTarget:String?
+        while cursor<todo.count {
+            let line=RebaseEditor.canonicalLine(todo[cursor]),fields=line.split(separator:" ").map(String.init)
+            if line.isEmpty || line.hasPrefix("#") {cursor += 1;continue}
+            if fields.count==2,fields[0]=="label",fields[1].hasPrefix("turtlegit-"),
+               let identity=identities.first(where:{"turtlegit-"+$0.hash==fields[1]}) {
+                if identity.action==RebaseAction.skip.rawValue {
+                    skipTarget=group.baseHead;pending.append(.init(line:line,target:group.baseHead));todo.remove(at:cursor)
+                } else if group.applied.contains(identity.id) {skipTarget=nil;cursor += 1}
+                else {break}
+            } else if fields.count==2,fields[0]=="update-ref",fields[1].hasPrefix("refs/heads/"),GitLocalReferenceProtocol.validName(fields[1]) {
+                if let target=skipTarget {pending.append(.init(line:line,target:target));todo.remove(at:cursor)}else{cursor += 1}
+            } else {break}
+        }
+        guard !pending.isEmpty || !prior.isEmpty else{return}
+        let applied=group.applied.reversed().compactMap {id in identities.first(where:{$0.id==id && $0.action != RebaseAction.skip.rawValue})}.first
+        let current=identities[group.step-1].action != RebaseAction.skip.rawValue ? identities[group.step-1]:nil
+        let following=identities.dropFirst(group.step).first {$0.action==RebaseAction.squash.rawValue}
+        let anchor=(applied ?? current ?? following).map {"turtlegit-"+$0.hash} ?? "turtlegit-onto"
+        group.topology = .init(anchor:anchor,controls:prior+pending)
+        var text=(prior+pending).map(\.line).joined(separator:"\n")+"\n"+todo.joined(separator:"\n")
+        if anchor=="turtlegit-onto",!todo.contains("label "+anchor) {
+            // No applied group member survived Skip. All targets are the
+            // unchanged destination; the initial onto label already exists.
+            let block=(prior+pending).flatMap {["reset "+$0.target,$0.line,"reset "+anchor]}
+            todo=block+todo
+        } else {
+            text=try structuralNoCommitTodo(text,cursor:group.topology!)
+            todo=text.components(separatedBy:"\n")
+        }
+    }
     private func noCommitGroup(_ directory:URL)throws->RebaseNoCommitGroup? {
         guard let bytes=try actionEditFile(directory,Self.noCommitSquashName).bytes else{return nil}
         guard bytes.count<=16_777_216 else{throw RebaseFailure.plan}
@@ -1513,6 +1635,16 @@ extension GitRepository {
         guard UUID(uuidString:group.id) != nil,group.session == (try failedPickSessionIdentity(directory)),GitLocalReferenceProtocol.validOID(group.baseHead),group.step>0,identities.indices.contains(group.step-1),
               Set(group.applied).count==group.applied.count,Set(group.prepared).count==group.prepared.count,Set(group.applied).isSubset(of:known),Set(group.prepared).isSubset(of:known),
               (group.readd+group.remove).allSatisfy({RepositoryBrowserListing.validPath($0,allowRoot:false)}) else{throw RebaseFailure.changed}
+        if let topology=group.topology {
+            guard FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path),
+                  (topology.anchor=="turtlegit-onto" || identities.contains(where:{"turtlegit-"+$0.hash==topology.anchor})),topology.controls.count<=200000,
+                  topology.controls.allSatisfy({control in
+                      let fields=control.line.split(separator:" ").map(String.init)
+                      return GitLocalReferenceProtocol.validOID(control.target) && fields.count==2 &&
+                          (fields[0]=="label" && identities.contains(where:{"turtlegit-"+$0.hash==fields[1] && $0.action==RebaseAction.skip.rawValue}) ||
+                           fields[0]=="update-ref" && fields[1].hasPrefix("refs/heads/") && GitLocalReferenceProtocol.validName(fields[1]))
+                  }) else{throw RebaseFailure.changed}
+        }
         if let split=group.split {
             guard split.noCommitGroupID==group.id,split.entryID==identities[group.step-1].id,split.step==group.step,split.parts>=0,
                   GitLocalReferenceProtocol.validOID(split.expectedHead),split.firstParents==[group.baseHead],split.conflictRecovery != true,split.conflictRecoveryReturn==nil,split.noCommitWitness==nil,
@@ -1528,6 +1660,14 @@ extension GitRepository {
         if let todo {after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))}
         if let done {after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))}
         if let identities {after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))}
+        if let group,let cursor=group.topology,let data=after["turtlegit-message-editor.json"]?.bytes {
+            var config=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:data)
+            let archive=RebaseStructuralControlArchive(groupID:group.id,cursor:cursor)
+            if config.structuralControls?.first(where:{$0.groupID==group.id}) != archive {
+                config.structuralControls=(config.structuralControls ?? []).filter {$0.groupID != group.id}+[archive]
+                after["turtlegit-message-editor.json"] = .init(bytes:try JSONEncoder().encode(config))
+            }
+        }
         let journal=directory.appendingPathComponent(Self.actionEditJournal)
         try JSONEncoder().encode(RebaseActionEditJournal(version:2,before:files,after:after)).write(to:journal,options:.atomic)
         for name in Self.actionEditNames where name != "git-rebase-todo" {try actionEditWrite(after[name]!,directory:directory,name:name)}
@@ -1581,6 +1721,7 @@ extension GitRepository {
             var files=try actionEditFiles(directory)
             var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
             var done=String(decoding:files["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n").filter {!$0.isEmpty}
+            try holdStructuralNoCommitControls(&group,todo:&todo,identities:identities,directory:directory)
             // Accepted warnings/parent questions have already been validated by
             // their APIs. Move only this row's remaining owned marker to done.
             while let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}) {
@@ -1595,7 +1736,15 @@ extension GitRepository {
                     try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done)}
                     return try noCommitGroupExecution(output)
                 }
-                if RebaseEditor.sourceSquashID(line)==identity.id || RebaseEditor.emptyMessageID(line)==identity.id && group.reviewedEmpty.contains(identity.id) || RebaseEditor.mainlineID(line)==identity.id && identity.mainline != nil {done.append(todo.remove(at:first));continue}
+                if RebaseEditor.sourceSquashID(line)==identity.id || RebaseEditor.emptyMessageID(line)==identity.id && group.reviewedEmpty.contains(identity.id) || RebaseEditor.mainlineID(line)==identity.id && identity.mainline != nil {
+                    // rescheduleFailedExec retains the failed owned marker in
+                    // done and puts an exact copy back at the start of todo.
+                    // Retire that copy without manufacturing a second logical
+                    // checkpoint or relaxing the later exact plan comparison.
+                    let consumed=todo.remove(at:first)
+                    if done.last.map(RebaseEditor.canonicalLine) != line {done.append(consumed)}
+                    continue
+                }
                 break
             }
             if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("squash ") {todo[first]="drop "+todo[first].dropFirst(7)}
@@ -1750,6 +1899,15 @@ extension GitRepository {
         guard let head=group.committedHead else{throw RebaseFailure.changed}
         let directory=try rebasePath("rebase-merge"),identities=replayIdentities(directory)
         let currentHead=try rebaseRevision("HEAD")
+        if FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
+            let files=try actionEditFiles(directory)
+            var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+            let before=todo,oldTopology=group.topology
+            try holdStructuralNoCommitControls(&group,todo:&todo,identities:identities,directory:directory)
+            if todo != before || group.topology != oldTopology {
+                try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo)}
+            }
+        }
         let next=identities.indices.first {$0>=group.step && identities[$0].action != RebaseAction.skip.rawValue}
         if let next,identities[next].action==RebaseAction.squash.rawValue {
             guard currentHead==head || currentHead==group.baseHead else{throw RebaseFailure.changed}
@@ -1799,6 +1957,7 @@ extension GitRepository {
             let commit=try rebaseCommit(head)
             var selection=RebaseSplitState(entryID:identities[group.step-1].id,step:group.step,expectedHead:head,parts:1,firstAuthor:commit.author+" <"+commit.email+">",firstDate:commit.date,squashDate:nil)
             selection.conflictRecovery=true;selection.firstParents=commit.parents
+            selection.structuralControlCursor=try group.topology.map {try JSONEncoder().encode($0)}
             try JSONEncoder().encode(selection).write(to:directory.appendingPathComponent("turtlegit-split.json"),options:.atomic)
             try Data((identities[group.step-1].hash+"\n").utf8).write(to:directory.appendingPathComponent("stopped-sha"),options:.atomic)
             try withActionEditLock(directory) {
@@ -1828,6 +1987,11 @@ extension GitRepository {
         guard state.active else { throw RebaseFailure.inactive }
         guard state.emptyMessageWarning == nil else { throw RebaseFailure.message }
         guard state.mainlineDecision == nil else {throw RebaseFailure.mainline}
+        if state.hasStructuralResultCheckpoint {
+            if let head=state.structuralResultHead {guard try rebaseRevision("HEAD")==head else{throw RebaseFailure.changed}}
+            else {guard try recordStructuralResultIfReached() else{throw RebaseFailure.changed}}
+            return try recoverRebase("--continue")
+        }
         if let phase=state.noCommitSquash {
             if let failure=state.cleanCommitFailure {throw failure}
             if phase.phase == .uncertain {throw RebaseFailure.noCommitSquashUncertain}
@@ -1935,6 +2099,7 @@ extension GitRepository {
         var identities=replayIdentities(directory)
         guard identities.indices.contains(group.step-1) else{throw RebaseFailure.changed}
         let index=group.step-1,id=identities[index].id
+        try validateStructuralNoCommitSkip(index,identities:identities,directory:directory)
         if (group.phase == .conflicted || group.phase == .approval),let tree=group.beforeTree {
             _ = try run(["read-tree","--reset","-u",tree])
             if FileManager.default.fileExists(atPath:try rebasePath("CHERRY_PICK_HEAD").path) {_ = try run(["cherry-pick","--quit"])}
@@ -1955,6 +2120,7 @@ extension GitRepository {
         }
         done.removeAll {RebaseEditor.emptyMessageID($0)==id || RebaseEditor.mainlineID($0)==id || RebaseEditor.sourceSquashID($0)==id}
         todo.removeAll {RebaseEditor.emptyMessageID($0,applied:true)==id}
+        try holdStructuralNoCommitControls(&group,todo:&todo,identities:identities,directory:directory)
         let next=identities.indices.first {$0>index && identities[$0].action != RebaseAction.skip.rawValue}
         if let next,identities[next].action==RebaseAction.squash.rawValue {
             for position in (index+1)..<next {
@@ -1976,9 +2142,55 @@ extension GitRepository {
         try withActionEditLock(directory) {try publishNoCommitGroup(nil,directory:directory,files:files,todo:todo,done:done,identities:identities)}
         return try recoverRebase("--continue")
     }
+    private func skipStructuralLeadingWarning(_ warning:RebaseEmptyMessageWarning,index:Int,identities original:[RebaseReplayIdentity],files:[String:RebaseActionEditFile],state:RebaseState,directory:URL)throws->Bool {
+        guard FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path),
+              original.prefix(index).allSatisfy({$0.action==RebaseAction.skip.rawValue}),
+              let next=original.indices.first(where:{$0>index && original[$0].action != RebaseAction.skip.rawValue}),original[next].action==RebaseAction.squash.rawValue else{return false}
+        var identities=original;identities[index].action=RebaseAction.skip.rawValue
+        let rows=try identities.map {identity -> RebaseEntry in
+            var row=RebaseEntry(commit:try rebaseCommit(identity.hash));row.occurrence=identity.occurrence
+            guard let action=identity.action.flatMap(RebaseAction.init(rawValue:)) else{throw RebaseFailure.plan}
+            row.action=action;return row
+        }
+        let orphans=RebaseEditor.orphanSquashPositions(rows)
+        for position in identities.indices {identities[position].noCommitSquash=orphans.contains(position);identities[position].structuralMerge=rows[position].commit.parents.count>1}
+        var options=RebaseOptions();options.preserveMerges=true
+        let plan=RebasePlan(disposition:.ready,options:options,branchHash:state.originalHead,upstreamHash:state.onto,ontoHash:state.onto,branchReference:state.branch,originalCommits:rows.map(\.id),entries:rows)
+        let oldDone=String(decoding:files["done"]?.bytes ?? Data(),as:UTF8.self),oldTodo=String(decoding:files["git-rebase-todo"]?.bytes ?? Data(),as:UTF8.self)
+        let custom=try RebaseEditor.mergeStructuralReferenceUpdates(generated:oldDone+"\n"+oldTodo,custom:structuralRebaseTodo(plan)).todo
+        let done=oldDone.components(separatedBy:"\n").filter {line in
+            !line.isEmpty && RebaseEditor.emptyMessageID(line) != warning.entryID && RebaseEditor.mainlineID(line) != warning.entryID
+        }
+        let full=custom.components(separatedBy:"\n").filter {!$0.isEmpty}
+        guard full.count>=done.count,zip(done,full).allSatisfy({RebaseEditor.canonicalLine($0.0)==RebaseEditor.canonicalLine($0.1)}) else{throw RebaseFailure.changed}
+        var todo=Array(full.dropFirst(done.count));todo.append("")
+        let anchor=try reachedMainlineAnchor(directory,entryID:warning.entryID,sessionIdentity:failedPickSessionIdentity(directory),parents:rows[index].commit.parents,cancellation:replayCancellation)
+        var group=RebaseNoCommitGroup(id:UUID().uuidString,session:try failedPickSessionIdentity(directory),baseHead:warning.head,step:next+1,phase:.waiting,message:anchor.squashLeader?.message ?? "",leader:anchor.squashLeader,latestDate:rows[next].commit.date)
+        group.allowsEmpty=anchor.squashCurrentEmpty ?? false
+        try holdStructuralNoCommitControls(&group,todo:&todo,identities:identities,directory:directory)
+        var owned=files
+        if let bytes=files["turtlegit-message-editor.json"]?.bytes {
+            var config=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:bytes);config.actions?[index]=RebaseAction.skip.rawValue
+            if let cursor=group.topology {config.structuralControls=(config.structuralControls ?? [])+[.init(groupID:group.id,cursor:cursor)]}
+            owned["turtlegit-message-editor.json"] = .init(bytes:try JSONEncoder().encode(config))
+        }
+        // Preserve the true before image for crash recovery, including config.
+        var after=owned
+        after[Self.noCommitSquashName] = .init(bytes:try JSONEncoder().encode(group))
+        after["done"] = .init(bytes:Data((done.joined(separator:"\n")+"\n").utf8))
+        after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
+        after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))
+        let journal=directory.appendingPathComponent(Self.actionEditJournal)
+        try JSONEncoder().encode(RebaseActionEditJournal(version:2,before:files,after:after)).write(to:journal,options:.atomic)
+        for name in Self.actionEditNames where name != "git-rebase-todo" {try actionEditWrite(after[name]!,directory:directory,name:name)}
+        try actionEditWrite(after["git-rebase-todo"]!,directory:directory,name:"git-rebase-todo")
+        try FileManager.default.removeItem(at:journal)
+        return true
+    }
     private func skipRebaseOwned(bookkeepingStep: Int? = nil) throws -> RebaseExecution {
         let before = try rebaseState()
         guard before.active else { throw RebaseFailure.inactive }
+        guard !before.hasStructuralResultCheckpoint else{throw RebaseFailure.changed}
         if before.noCommitSquash != nil {
             guard before.cleanCommitFailure == nil,!before.hasIgnoredCleanCommitFailure else{throw RebaseFailure.changed}
             return try withProtectedReplayIO(cancellation:replayCancellation,onOutput:replayOutput) {try skipNoCommitGroup()}
@@ -1995,10 +2207,19 @@ extension GitRepository {
                 let files = try actionEditFiles(directory)
                 var identities = try JSONDecoder().decode([RebaseReplayIdentity].self, from: files["turtlegit-replay-identities.json"]!.bytes!)
                 guard let index = identities.firstIndex(where: { $0.id == warning.entryID }) else { throw RebaseFailure.changed }
+                try validateStructuralNoCommitSkip(index,identities:identities,directory:directory)
+                if try skipStructuralLeadingWarning(warning,index:index,identities:identities,files:files,state:before,directory:directory) {return}
                 var todo = String(decoding: files["git-rebase-todo"]!.bytes!, as: UTF8.self).components(separatedBy: "\n")
                 if let first = todo.firstIndex(where: { !$0.isEmpty && !$0.hasPrefix("#") }), RebaseEditor.emptyMessageID(todo[first]) == warning.entryID || RebaseEditor.mainlineID(todo[first]) == warning.entryID { todo.remove(at: first) }
                 todo.removeAll {RebaseEditor.mainlineID($0)==warning.entryID}
-                if FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-structural-plan").path),
+                let firstReplay=todo.first {line in
+                    let fields=RebaseEditor.canonicalLine(line).split(separator:" ").map(String.init)
+                    return fields.first.flatMap(RebaseAction.init(rawValue:)) != nil || fields.first=="merge"
+                }.map {RebaseEditor.canonicalLine($0).split(separator:" ").map(String.init)}
+                let hasCurrentCommand=firstReplay.map {fields in
+                    fields.count>=2 && fields[0] != "merge" && warning.commit.hasPrefix(fields[1]) || fields.count>=3 && fields[0]=="merge" && warning.commit.hasPrefix(fields[2])
+                } ?? false
+                if FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-structural-plan").path),!hasCurrentCommand,
                    let boundary = todo.firstIndex(of: "label turtlegit-" + warning.commit) {
                     // The structural row can be reset-only when all parents
                     // retain their original identities. Its owned label is the
@@ -2220,8 +2441,48 @@ extension GitRepository {
         try Data(script.utf8).write(to:target);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:target.path)
         accepted=true;return (overlay,nonce)
     }
+    private func recordStructuralResultIfReached()throws->Bool {
+        let directory=try rebasePath("rebase-merge")
+        guard FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path),
+              let done=try actionEditFile(directory,"done").bytes,
+              let last=String(decoding:done,as:UTF8.self).split(separator:"\n").last,
+              let id=RebaseEditor.structuralResultID(String(last)) else{return false}
+        let identities=replayIdentities(directory)
+        guard let identity=identities.first(where:{$0.id==id && $0.structuralMerge==true}),identity.action != RebaseAction.skip.rawValue,
+              try rebaseCommit(identity.hash).parents.count>1 else{throw RebaseFailure.plan}
+        let session=try failedPickSessionIdentity(directory),head=try rebaseRevision("HEAD")
+        guard try rebaseRevision("refs/rewritten/turtlegit-"+identity.hash)==head else{throw RebaseFailure.changed}
+        try withActionEditLock(directory) {
+            guard try failedPickSessionIdentity(directory)==session,try rebaseRevision("HEAD")==head,
+                  try actionEditFile(directory,"done").bytes==done else{throw RebaseFailure.changed}
+            let name="rewritten-list"
+            var bytes=try actionEditFile(directory,name).bytes ?? Data()
+            guard bytes.count<=16_777_216 else{throw RebaseFailure.plan}
+            let matches=String(decoding:bytes,as:UTF8.self).split(separator:"\n").map {$0.split(separator:" ").map(String.init)}.filter {$0.first==identity.hash}
+            guard matches.allSatisfy({$0.count==2 && $0[1]==head}) else{throw RebaseFailure.changed}
+            if matches.isEmpty,identity.hash != head {
+                bytes.append(Data((identity.hash+" "+head+"\n").utf8))
+                try bytes.write(to:directory.appendingPathComponent(name),options:.atomic)
+            }
+            // Consume exactly once, including unchanged/self mappings. A later
+            // Git refusal cannot recursively redispatch this same checkpoint.
+            var lines=String(decoding:done,as:UTF8.self).components(separatedBy:"\n")
+            guard let position=lines.lastIndex(where:{!$0.isEmpty}),RebaseEditor.structuralResultID(lines[position])==id else{throw RebaseFailure.changed}
+            lines[position]=RebaseEditor.structuralResultDonePrefix+id+" "+head
+            guard try noCommitGroup(directory)==nil else{throw RebaseFailure.changed}
+            let files=try actionEditFiles(directory)
+            var todo=String(decoding:files["git-rebase-todo"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+            if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),RebaseEditor.structuralResultID(RebaseEditor.canonicalLine(todo[first]))==id {todo.remove(at:first)}
+            try publishNoCommitGroup(nil,directory:directory,files:files,todo:todo,done:lines)
+        }
+        return true
+    }
     private func executeRebase(_ arguments: [String], environment: [String: String]) throws -> RebaseExecution {
         func execution(_ output:String,_ exitCode:Int32) throws -> RebaseExecution {
+            if !arguments.contains("--abort"),try recordStructuralResultIfReached() {
+                let next=try recoverRebase("--continue")
+                return .init(output:output+next.output,exitCode:next.exitCode,state:next.state,witnessedHead:next.witnessedHead,witnessedSession:next.witnessedSession)
+            }
             let head=try? rebaseRevision("HEAD"),state=try rebaseState()
             if state.active,!arguments.contains("--abort"),try startNoCommitGroupIfReached() {return try advanceNoCommitGroup()}
             let session=state.active ? (try? failedPickSessionIdentity(rebasePath("rebase-merge"))) : nil
@@ -2273,7 +2534,8 @@ extension GitRepository {
                                      squashDate: state.squashMessage?.datePolicy)
         split.firstParents = head.parents
         if let recovery = state.split, recovery.conflictRecovery == true {
-            split.conflictRecoveryReturn = RebaseSplitReturn(parts: recovery.parts, firstAuthor: recovery.firstAuthor, firstDate: recovery.firstDate, squashDate: recovery.squashDate, firstParents: recovery.firstParents)
+            split.structuralControlCursor=recovery.structuralControlCursor
+            split.conflictRecoveryReturn = RebaseSplitReturn(structuralControlCursor:recovery.structuralControlCursor,parts: recovery.parts, firstAuthor: recovery.firstAuthor, firstDate: recovery.firstDate, squashDate: recovery.squashDate, firstParents: recovery.firstParents)
         }
         try JSONEncoder().encode(split).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
         return split
@@ -2375,6 +2637,7 @@ extension GitRepository {
             var restored = RebaseSplitState(entryID: split.entryID, step: split.step, expectedHead: split.expectedHead, parts: origin.parts, firstAuthor: origin.firstAuthor, firstDate: origin.firstDate, squashDate: origin.squashDate)
             restored.conflictRecovery = true
             restored.firstParents = origin.firstParents
+            restored.structuralControlCursor=origin.structuralControlCursor
             try JSONEncoder().encode(restored).write(to: path, options: .atomic)
         } else { try FileManager.default.removeItem(at: path) }
     }
@@ -2389,7 +2652,7 @@ extension GitRepository {
         guard !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw RebaseFailure.message}
         // The native child installs the captured source presets, then the user
         // may edit/uncheck them. Explicit options remain authoritative here.
-        let beforeFiles=try actionEditFiles(directory)
+        let beforeFiles=try actionEditFiles(directory),beforeLabels=try structuralNoCommitLabels(directory)
         group.phase = .applying
         try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:beforeFiles)}
         let output:String
@@ -2402,7 +2665,7 @@ extension GitRepository {
             try? replayUncancelled {
                 try withActionEditLock(directory) {
                     let files=try actionEditFiles(directory)
-                    guard try noCommitGroup(directory)==group,Self.actionEditNames.filter({$0 != Self.noCommitSquashName}).allSatisfy({files[$0]==beforeFiles[$0]}) else{throw RebaseFailure.changed}
+                    guard try noCommitGroup(directory)==group,try structuralNoCommitLabels(directory)==beforeLabels,Self.actionEditNames.filter({$0 != Self.noCommitSquashName}).allSatisfy({files[$0]==beforeFiles[$0]}) else{throw RebaseFailure.changed}
                     group.phase=unchanged ? .approval:.uncertain
                     // Restore the exact pre-operation group bytes on an ordinary
                     // child failure, keeping its still-valid retry receipt valid.
@@ -2418,7 +2681,7 @@ extension GitRepository {
         try replayUncancelled {
             try withActionEditLock(directory) {
                 let files=try actionEditFiles(directory)
-                guard try noCommitGroup(directory)==group,try rebaseRevision("HEAD")==head.hash,
+                guard try noCommitGroup(directory)==group,try rebaseRevision("HEAD")==head.hash,try structuralNoCommitLabels(directory)==beforeLabels,
                       Self.actionEditNames.filter({$0 != Self.noCommitSquashName}).allSatisfy({files[$0]==beforeFiles[$0]}) else{throw RebaseFailure.changed}
                 var updated=expected.stored;updated.parts += 1;updated.expectedHead=head.hash
                 group.split=updated;group.message=message;group.phase = .approval
@@ -2955,6 +3218,7 @@ extension GitRepository {
                 for index in rows.indices {
                     let stored = identities[index].action.flatMap(RebaseAction.init(rawValue:)) ?? rows[index].action
                     identities[index].action=stored.rawValue;identities[index].emptySubject=rows[index].commit.hasEmptyReplaySubject
+                    if FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {identities[index].structuralMerge=rows[index].commit.parents.count>1}
                     rows[index].action = stored;rows[index].deferredMainline=identities[index].deferredMainline==true
                 }
                 let oldRows = rows
@@ -3012,7 +3276,18 @@ extension GitRepository {
                     if structural {
                         let plan = RebasePlan(disposition: .ready, options: options, branchHash: expected.state.originalHead, upstreamHash: expected.state.onto, ontoHash: expected.state.onto,
                                               branchReference: expected.state.branch, originalCommits: values.map(\.id), entries: values)
-                        return try RebaseEditor.mergeStructuralReferenceUpdates(generated: done + "\n" + todo, custom: structuralRebaseTodo(plan)).todo
+                        var custom=try RebaseEditor.mergeStructuralReferenceUpdates(generated:done+"\n"+todo,custom:structuralRebaseTodo(plan)).todo
+                        let config=try expected.files["turtlegit-message-editor.json"]?.bytes.map {try JSONDecoder().decode(RebaseMessageConfiguration.self,from:$0)}
+                        let archives=config?.structuralControls ?? []
+                        for archive in archives {custom=try structuralNoCommitTodo(custom,cursor:archive.cursor)}
+                        let active=try noCommitGroup(directory)
+                        if let cursor=active?.topology,!archives.contains(where:{$0.groupID==active?.id}) {custom=try structuralNoCommitTodo(custom,cursor:cursor)}
+                        if archives.isEmpty,active==nil,let data=expected.state.split?.structuralControlCursor {
+                            custom=try structuralNoCommitTodo(custom,cursor:JSONDecoder().decode(RebaseNoCommitTopology.self,from:data))
+                        }
+                        let completed=Set(done.components(separatedBy:"\n").compactMap {RebaseEditor.completedStructuralResult($0)?.id})
+                        custom=custom.components(separatedBy:"\n").filter {line in RebaseEditor.structuralResultID(line).map {!completed.contains($0)} ?? true}.joined(separator:"\n")
+                        return custom
                     }
                     // Non-native structural/custom todo commands are preserved by
                     // refusing a receipt that cannot be reproduced exactly.
@@ -3077,6 +3352,7 @@ extension GitRepository {
                     dates: oldConfig?.dates ?? rows.map { $0.commit.date }, actions: rows.map { $0.action.rawValue }, messages: messages, commitEncoding: oldConfig?.commitEncoding ?? commitMessageEncodingName())
                 config.reviewedThrough = oldConfig?.reviewedThrough
                 config.reviewedMessage = oldConfig?.reviewedMessage
+                config.structuralControls=oldConfig?.structuralControls
                 after["turtlegit-message-editor.json"] = RebaseActionEditFile(bytes: try JSONEncoder().encode(config))
                 try replayCancellation?.check()
                 guard expected.files == (try actionEditFiles(directory)) else { throw RebaseFailure.changed }
@@ -3392,6 +3668,10 @@ extension GitRepository {
                 let control=Array(fields.prefix(while:{$0 != "#"}))
                 let previousCommand=precedingCommand
                 precedingCommand=line
+                if let id=RebaseEditor.structuralResultID(line) {
+                    guard identities.contains(where:{$0.id==id && $0.structuralMerge==true}) else{throw RebaseFailure.plan}
+                    precedingCommand=line;continue
+                }
                 if let id=RebaseEditor.sourceSquashID(line) {
                     guard identities.contains(where:{$0.id==id && $0.noCommitSquash==true}) else{throw RebaseFailure.plan}
                     continue
@@ -3558,6 +3838,7 @@ extension GitRepository {
         var config=try RebaseMessageConfiguration(editorCommand:old?.editorCommand ?? RebaseEditor.messageCommand(executable:editorExecutable),datePolicy:old?.datePolicy ?? .first,dates:old?.dates ?? rows.map{$0.commit.date},actions:rows.map{$0.action.rawValue},messages:old?.messages ?? rows.map{$0.commit.message},commitEncoding:old?.commitEncoding ?? commitMessageEncodingName())
         config.reviewedThrough=old?.reviewedThrough
         config.reviewedMessage=old?.reviewedMessage
+        config.structuralControls=old?.structuralControls
         after["turtlegit-message-editor.json"]=RebaseActionEditFile(bytes:try JSONEncoder().encode(config))
         try replayCancellation?.check();guard expected.files == (try actionEditFiles(expected.directory)) else {throw RebaseFailure.changed}
         let journal=RebaseActionEditJournal(version:1,before:expected.files,after:after),url=expected.directory.appendingPathComponent(Self.actionEditJournal)

@@ -832,7 +832,7 @@ struct RebaseReferenceRequest {
             if key == \RebaseOptions.addCherryPickedFrom {self.updateAttribution()} else {self.reloadPlan()}
         })
     }
-    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && state?.emptyMessageWarning == nil && state?.mainlineDecision == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true && state?.conflictMessage?.phase != .complete && state?.conflictMessage?.phase != .uncertain && state?.noCommitSquash?.phase != .uncertain && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.conflictMessage?.phase == .pending || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
+    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && state?.emptyMessageWarning == nil && state?.hasStructuralResultCheckpoint != true && state?.mainlineDecision == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true && state?.conflictMessage?.phase != .complete && state?.conflictMessage?.phase != .uncertain && state?.noCommitSquash?.phase != .uncertain && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.conflictMessage?.phase == .pending || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
     func messageBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.amendMessage},set:{if self.matches(context),self.canEditMessage {self.amendMessage=$0}}) }
     func splitBinding(_ context: FormContext) -> Binding<Bool> { Binding(get:{self.splitCommit},set:{if self.matches(context),self.canSplit,self.state?.split == nil {self.splitCommit=$0}}) }
     func tabBinding(_ context: FormContext) -> Binding<Int> { Binding(get:{self.tab},set:{if self.matches(context),!self.busy,!self.selectingSplit,self.pickingReference == nil,self.pendingConfirmation == nil, !self.retainsOnlyProgressTab || $0 == 2 {self.tab=$0}}) }
@@ -867,7 +867,7 @@ struct RebaseReferenceRequest {
     private func canRequest(_ action:String)->Bool {
         guard !containingReferenceBlocked,!revisionFindBlocked,!revisionHistoryBlocked,!retired,!busy,!revisionFiles.busy,pickingReference == nil,!pickingCommits,!selectingSplit,pendingConfirmation == nil,confirmation == nil,!hasReplayQuestion,!confirmingReplayCancellation else{return false}
         if state?.noCommitSquash?.phase == .uncertain,action != "abort" {return false}
-        switch action {case "start":return canStart;case "skip":return active && state?.conflictMessage == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true;case "continue","abort":return active;default:return false}
+        switch action {case "start":return canStart;case "skip":return active && state?.hasStructuralResultCheckpoint != true && state?.conflictMessage == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true;case "continue","abort":return active;default:return false}
     }
     func referenceChoices(_ target: RebaseReferenceTarget?) -> [CheckoutReference] {
         let selected = target == nil ? options.branch : options.upstream
@@ -1456,7 +1456,7 @@ struct RebaseReferenceRequest {
         }
     }
 
-    var canStart: Bool { editable && !loadingPlan && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
+    var canStart: Bool { editable && !loadingPlan && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first?.action != .squash }
     var primaryActionTitle: String {
         if finished { return "Done" }
         if !active { return startTitle }
@@ -2100,7 +2100,7 @@ struct RebaseReferenceRequest {
                 switch values[index].action {
                 case .pick: values[index].action = .skip
                 case .skip: values[index].action = .edit
-                case .edit: values[index].action = values[index].commit.parents.count == 1 ? .squash : .pick
+                case .edit: values[index].action = index != 0 && values[index].commit.parents.count == 1 ? .squash : .pick
                 case .squash: values[index].action = .pick
                 }
                 continue
@@ -2231,6 +2231,7 @@ struct RebaseReferenceRequest {
     func request(_ action: String) {
         guard canRequest(action) else{return}
         if action == "continue", state?.cleanCommitFailure != nil || state?.hasIgnoredCleanCommitFailure == true { execute(action);return }
+        if action == "continue",state?.hasStructuralResultCheckpoint == true {execute(action);return}
         if action == "continue",state?.conflictMessage != nil {execute(action);return}
         if action == "continue",state?.emptyMessageWarning != nil || state?.mainlineDecision != nil {execute(action);return}
         if action == "continue",let phase=state?.noCommitSquash?.phase,phase != .approval {execute(action);return}
@@ -2323,7 +2324,12 @@ struct RebaseReferenceRequest {
                 default:
                     let rawText=draftMessage,paths=continuationPaths,head=continuationHead
                     guard let captured=continuationState else {throw RebaseFailure.inactive}
-                    if captured.hasIgnoredCleanCommitFailure {
+                    if captured.hasStructuralResultCheckpoint {
+                        // The reached structural result is already recorded.
+                        // Resume transport without staging or editing it again.
+                        result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,
+                            cancellation:preparation,onOutput:emit,editorExecutable:replayEditor,onProgress:replayProgressCallback)
+                    } else if captured.hasIgnoredCleanCommitFailure {
                         // Ignore was already accepted durably. Resume transport
                         // without preprocessing or submitting the failed text.
                         result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,
