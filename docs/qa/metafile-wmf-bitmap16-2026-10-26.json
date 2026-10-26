@@ -1,0 +1,319 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "bc177b38906c96bfe49690932e6e00379829e0cb",
+  "status": "focused_local_checkpoint_passed",
+  "scope": "WMF Bitmap16 mono and measured32-bit BGRX transfer family, DDB omitted-bitmap self-copy forms and retained DIB missing-source refusals, live colors, shared raster operands, stretch modes, crop/mirrors, clips, saved state and embedded playback",
+  "source_contract": "docs/METAFILE-WMF-BITMAP16-PARITY.md",
+  "preexisting_binary_fixtures": 1968,
+  "implementation_batch": "Production, fixtures and independent Windows reference implemented before grouped validation.",
+  "validation": {
+    "core": "34 distinct relevant methods cumulatively passed:32 initial methods then only the2 failed methods after actual production/control repairs. Initial34-method checkpoint28.86s; affected2-method recheck9.63s. No full Core rerun.",
+    "native": {
+      "result": "both engine pairs passed",
+      "samples_per_engine": 29,
+      "independent_pairs_per_engine": 24,
+      "refusals_per_engine": 34,
+      "scope": "Actual comparison, dropped preview, three-stage conflict, chooser/cancel/late-result/grant/Quit ownership; original bytes and HEAD/index unchanged. Hidden/offscreen windows and private repositories/preferences.",
+      "owned_receivers": [
+        27466,
+        27721
+      ],
+      "runner_reaped": true,
+      "independently_absent": true
+    },
+    "localizations": "No native UI labels planned to change.",
+    "signed_installed": "Not asserted by local source/runtime checks.",
+    "full_hosted": "Not certified by this local checkpoint; previous main run pending behind older integration run.",
+    "native_case": "wmf-bitmap16",
+    "native_samples": 29,
+    "native_pairs": 24,
+    "native_refusals": 34,
+    "native_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "core_filter": "MetafileImageTests.test(WMFBitmap16|ClassicBoolean|ClassicPatternBrush|MalformedClassicBoolean|PreviouslyUnsupportedROP2)|MetafileRasterROITests|MetafileEmbeddedImageTests",
+    "help": "Write and --check passed:58documents,51topics,86files before app build.",
+    "runtime": "Initial and repaired universal builds passed source reconstruction, macOS13 slice and SDK/system-only linkage structure. Initial actual baseline conversions/refusals both architectures passed; affected conversions rechecked on repaired runtime.",
+    "architectures": {
+      "architectures": [
+        "arm64",
+        "x86_64 via Rosetta"
+      ],
+      "positive_per_architecture": 9,
+      "negative_per_architecture": 4,
+      "result": "passed",
+      "physical_intel": false,
+      "repair": {
+        "affected_positive_per_architecture": 6,
+        "result": "passed",
+        "scope": "shrink modes1/2, raw OOB/zero-source and self OOB/mapped; unchanged refusal cases not rerun"
+      }
+    },
+    "initial_app": {
+      "exit": 0,
+      "packaged_runtime_identity": "cache/source/renderer/unsigned-binary match rebuilt helper",
+      "cache_key": "d41ddc6c97c195983da7efe8df98fad4c7a88404238f3771c5044b6f8efa0b28",
+      "binary_sha256": "15d9e8d7ae0678f7e78f062d79571170f84172f35c2bd8af0ec54ead2917af91"
+    },
+    "app": {
+      "exit": 0,
+      "repaired_packaged_runtime_identity": "cache/source/renderer/unsigned-binary match repaired helper",
+      "cache_key": "dbec0f76b159e9482c6e2fcaef400d8ff4deb381a33ee7b35247f5dda5654152",
+      "binary_sha256": "86b5a669f7849888632621f08ee0c2412d0b1cf23869a938ff75855bb4dee11e"
+    },
+    "protected_human_work": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "failed_attempts": [
+    {
+      "stage": "initial grouped Core",
+      "methods": 34,
+      "passed": 32,
+      "failed_methods": 2,
+      "failed_assertions": 10,
+      "unexpected": 4,
+      "issues": [
+        "Mode2 captured RGB sample differed: actual255/255/255 versus127/223/255; investigate bucket boundary.",
+        "Raw Bitmap16 outside/zero-width source conversions refused.",
+        "Two newly authored self-source independent DIB controls refused out-of-bounds source."
+      ],
+      "scope": "Only the two failed methods will be rechecked after actual repairs; no complete Core rerun.",
+      "resolution": [
+        "Mode2 included an extra final source column; anchored16.16 advancement is an explicitly inferred bounded profile matching captured vectors, not unique proof of Windows internal precision.",
+        "Raw Bitmap16 requires successful no-op for zero source extent and mapped destination coverage clipping for partially out-of-bounds source.",
+        "New independent DIB controls now use valid in-range crops or an empty no-op reference; original subjects and assertions unchanged."
+      ]
+    }
+  ],
+  "logs": {
+    "runtime": "build/qa/metafile-wmf-bitmap16-runtime-2026-10-26.log",
+    "runtime-check": "build/qa/metafile-wmf-bitmap16-runtime-check-2026-10-26.log",
+    "core": "build/qa/metafile-wmf-bitmap16-core-2026-10-26.log",
+    "app": "build/qa/metafile-wmf-bitmap16-app-2026-10-26.log",
+    "native": "build/qa/metafile-wmf-bitmap16-native-2026-10-26.log",
+    "architectures": "build/qa/metafile-wmf-bitmap16-architectures-2026-10-26.log",
+    "help-write": "build/qa/metafile-wmf-bitmap16-help-write-2026-10-26.log",
+    "help-check": "build/qa/metafile-wmf-bitmap16-help-check-2026-10-26.log",
+    "coverage": "build/qa/metafile-wmf-bitmap16-coverage-2026-10-26.log",
+    "runtime_repair": "build/qa/metafile-wmf-bitmap16-runtime-repair-2026-10-26.log",
+    "core_repair": "build/qa/metafile-wmf-bitmap16-core-repair-2026-10-26.log",
+    "app_repair": "build/qa/metafile-wmf-bitmap16-app-repair-2026-10-26.log",
+    "architectures_repair": "build/qa/metafile-wmf-bitmap16-architectures-repair-2026-10-26.log"
+  },
+  "limits": [
+    "Unknown device-specific color organizations need explicit profiles; no arbitrary palette/mask inference.",
+    "Complete Windows pixel identity, physical Intel/minimum macOS, signed installed and full hosted acceptance remain separate.",
+    "Native generated WMFC alternate-fallback wrapper not executed in this checkpoint; preflight ownership was reviewed against the existing first-record dispatch path.",
+    "New embedded subject/control still blank in Windows after DataSize framing correction; Windows nested-image pixel parity remains unproven. Native nonblank ink assertions remain required.",
+    "HALFTONE uses an explicit bounded native quality profile; the nonintegral Windows filter/phase heuristics are not reconstructed. Captured gradient differences remain an implementation compatibility gap.",
+    "DDB/DIB control equality is local native conversion evidence; Windows DIB controls can stay gray and do not prove cross-format Windows equality."
+  ],
+  "reference_authoring": {
+    "initial_inputs": "First reference push generated only four inputs due to generator byte overflow; not used as complete corpus evidence. Generator corrected before full reference.",
+    "nested_framing": "Initial new nested WMF object/controller pair both returned GDI+ Aborted9, so pair equality was not positive Windows evidence. New generator padded Object DataSize before final reference; older binary corpus unchanged.",
+    "omitted_source_distinction": "Initial evidence covered DDB self-copy only; final four-ID measurement proves DIB omitted-source forms fail. Draft implementation and new fixture classifications corrected before application validation; old fixture bytes unchanged.",
+    "exact_target_probe": "One additional consolidated reference was necessary to resolve the actual pinned Picture.cpp Bitmap(file,FALSE) constructor/natural-draw path, rather than assume Metafile playback was identical. 49 inputs measured; raw DDB behavior confirmed, DIB missing-source failures confirmed.",
+    "gradient_extraction": "An initial offline extraction used recorder-produced DIB files instead of hand rawDDB files. Filename distinction resolved before strict fixture constants or source policy froze; correct raw DDB arrays match native/GDI and exact Bitmap target."
+  },
+  "corpus": {
+    "positive_control_pairs": 67,
+    "additional_halftone_quality_subjects": 1,
+    "refusals": 34,
+    "preexisting_binary_fixtures": 1968,
+    "changed_preexisting_binary_fixtures": []
+  },
+  "source_sha256": {
+    "patches/metafile-renderer.patch": "bffc7a9675c513141fd3a56228c084bc9d7aa52611769bc12ce5716b5670d596",
+    "Sources/TurtleGitMetafile/main.swift": "283d1a7a822dd776dd9fecd3c5b7b9510ed0ac637d55e63542234e9eabaaf6f1",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "8ab6508b36f9f4523b3c90c073b7e863955be2d446a976107ea528e7f8686790",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-wmf-bitmap16.py": "3fc629947548fe0e034a975c0d305694d293f6fe23f1b13acdf69b1fc6ade386",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "fa898cf6a76fbe69e495261e6da833e6dddd6e184cca4f934745ad1aec0b8be1",
+    "scripts/test-metafile-workflows.py": "83d749a7450f37f328f82e07479d744231cf655f75c136016e916a619c82cefd",
+    ".github/workflows/macos.yml": "d09a6d1abe114d5496549b7449c12cc5702996007e0f5b16eab7bfc81ee10b9d"
+  },
+  "windows_reference": {
+    "file": "metafile-wmf-bitmap16-windows-2026-10-26.json",
+    "sha256": "e5f874274abe1aa587cbe82f93980807b487509370ebc61d30677f3d97a5de83",
+    "exact_target_run": 40388446061,
+    "exact_target_job": 121802797208,
+    "exact_target_commit": "cf8119847336a6cd7b8d1e25c90e6529ece110f8",
+    "exact_target_artifact": 12681509047,
+    "supported_inputs": 39,
+    "constructor_refusals": 10,
+    "reference_worktree_clean": true
+  },
+  "runtime_provenance": {
+    "pin": {
+      "renderer": {
+        "version": "0.2.1",
+        "commit": "4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+        "url": "https://codeload.github.com/congduan/WmfEmfViewer/tar.gz/4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+        "sha256": "544d77f8f0e362ae47877c82f3803a1ba2550abbe3204bf23e5802f71264219c",
+        "license": "MIT"
+      },
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0",
+      "maximum_input_bytes": 67108864,
+      "maximum_output_bytes": 134217728,
+      "hatch_patterns": {
+        "project": "Wine",
+        "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+        "source": "dlls/gdiplus/brush.c",
+        "url": "https://raw.githubusercontent.com/wine-mirror/wine/7298a818b79446bae153b8d5aa27235ab3703bf9/dlls/gdiplus/brush.c",
+        "source_sha256": "c0294a2d4081f4dea2d05712ac916080cae7e0fcdc3ae52e64b7629ac27972d7",
+        "license": "LGPL-2.1-or-later",
+        "license_file": "Licenses/Wine-LGPL-2.1.txt",
+        "license_sha256": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+        "adapted_module": "src/turtleGitHatch.js"
+      },
+      "classic_clipping": {
+        "repository": "https://github.com/jfk-solutions/BaseHmiTypes",
+        "commit": "f491a9514f935d64b54bc62ec70606db19f9105a",
+        "source_path": "typescript/base-hmi-types/src/images/converters/metafile-to-svg-renderer.ts",
+        "source_sha256": "967c088d8f9c49ee7c6de2d63131a0b0c8b24b6758f8dc36257928250f7771db",
+        "license_file": "Licenses/BaseHmiTypes-MIT.txt",
+        "license_sha256": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+        "scope": "Classic EMF region combination, meta region and offset mask lifecycle adaptation"
+      },
+      "boolean_raster": {
+        "implementation": "Original TurtleGit Boolean raster adaptation (GPL-2.0-or-later)",
+        "scope": "Classic GDI ROP2 (16 functions) and ROP3 (256 truth tables); WMF DIBBITBLT/DIBSTRETCHBLT/STRETCHDIB/PATBLT and EMF BITBLT/STRETCHBLT/STRETCHDIBITS, bounded native destination/source/pattern/coverage composition",
+        "semantics": [
+          "https://learn.microsoft.com/en-us/windows/win32/gdi/binary-raster-operations",
+          "https://learn.microsoft.com/en-us/windows/win32/gdi/ternary-raster-operations",
+          "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-bitblt",
+          "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-patblt"
+        ],
+        "documentation": "docs/METAFILE-RASTER-PARITY.md",
+        "third_party_code_copied": false
+      },
+      "classic_drawing_state": {
+        "implementation": "Original TurtleGit stock object and logical palette playback (GPL-2.0-or-later)",
+        "scope": "Classic stock DC_BRUSH/DC_PEN defaults, recorded explicit color replacements, saved object selection, and logical palette color references across vector/raster consumers",
+        "default_logical_palette_profile": "Windows common display 20-color logical palette; a deterministic macOS playback profile, not an arbitrary printer or physical device palette",
+        "semantics": [
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/d6dffd25-8615-42f8-aed1-309f1fe54ab2",
+          "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getstockobject",
+          "https://learn.microsoft.com/en-us/windows/win32/gdi/default-palette"
+        ],
+        "third_party_code_copied": false
+      },
+      "high_depth_bitmaps": {
+        "implementation": "Original TurtleGit raw high-depth bitmap adapter; no Wine functions copied",
+        "formats": [
+          "16bppGrayScale 0x00101004",
+          "48bppRGB 0x0010300C",
+          "64bppARGB 0x0034400D",
+          "64bppPARGB wire 0x001A400E / SDK 0x001C400E"
+        ],
+        "profile": "Little-endian B,G,R,[A] WORD high-byte display projection; premultiplied samples quantize before the existing premultiplied PNG pipeline; zero alpha clears premultiplied RGB; raw DWORD-aligned stride",
+        "playback_reference": {
+          "project": "Wine",
+          "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+          "source": "dlls/gdiplus/image.c",
+          "source_sha256": "2f49adeb8c9037a8ac2ec6aab181c13b8950b1bd50fc75dcc62cf4ff3f461999",
+          "metafile_source": "dlls/gdiplus/metafile.c",
+          "metafile_source_sha256": "3949a0f2b3a9d0f331831a482936309510c4111b2dfd482256f5d059efb8c632"
+        },
+        "semantics": [
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/47cbe48e-d13c-450b-8a23-6aa95488428e",
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/112a5e2c-6bb3-4daf-8ee3-0f3d3984410f",
+          "https://raw.githubusercontent.com/microsoft/win32metadata/main/generation/WinSDK/RecompiledIdlHeaders/um/gdipluspixelformats.h"
+        ],
+        "limits": "8-bit macOS display profile, not Windows GDI+ 13-bit LockBits/HDR/color-management identity",
+        "third_party_code_copied": false
+      },
+      "emf_plus_source_copy": {
+        "specification": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/cbfc8c78-778d-466e-a52a-a82f8ce6cfee",
+        "clear_reference": {
+          "project": "Wine",
+          "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+          "path": "dlls/gdiplus/graphics.c",
+          "symbol": "GdipGraphicsClear"
+        },
+        "scope": "Ordered individual EMF+ paints with independent geometry, SourceCopy/SourceOver saved graphics state and Clear replacement",
+        "display_profile": "Premultiplied eight-bit sRGB source replacement; source already contains edge/clip coverage; destination retained outside independent coverage",
+        "limits": "Existing raster checkpoint authority, cumulative pixel/work/markup/memory and output budgets remain enforced"
+      },
+      "path_gradient_painting": {
+        "implementation": "Original TurtleGit bounded gradient playback (GPL-2.0-or-later)",
+        "scope": "EMF+ polygon, cubic, multiple-figure and crossing path brushes, retained canonical-ellipse sampling, surrounding colors, captured centers, focus scales and gamma through shared fill/pen/glyph/clip/SourceCopy consumers; source-backed linear gamma and associated-alpha interpolation",
+        "semantics": [
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/cfe9439a-f2b6-4663-9032-67ce8feea5aa",
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/0008fc6a-b678-41a6-ab99-9be99fc14092",
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/d90f9243-3d44-48e5-9baa-1db4ae5394b4",
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/1ab04f60-1c58-410f-a29e-d725f5eb9b0f",
+          "https://learn.microsoft.com/en-us/windows/win32/api/gdipluspath/nf-gdipluspath-pathgradientbrush-setfocusscales",
+          "https://learn.microsoft.com/en-us/windows/win32/gdiplus/-gdiplus-applying-gamma-correction-to-a-gradient-use",
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/83b32511-b093-4e26-adf7-1538df304265",
+          "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/08ea5d19-dbd9-4056-9db3-424d8f47c3c1"
+        ],
+        "windows_reference": "docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json",
+        "general_boundary_reference": "docs/qa/metafile-general-path-gradient-windows-reference-2026-10-25.json",
+        "documentation": "docs/METAFILE-PATH-GRADIENT-PARITY.md",
+        "general_boundary_documentation": "docs/METAFILE-GENERAL-PATH-GRADIENT-PARITY.md",
+        "third_party_code_copied": false,
+        "aliased_pen_coverage": "Conversion-scoped exact native stroke-outline receipts and binary device-lattice masks; geometric coverage remains independent of brush alpha."
+      },
+      "emf_natural_canvas": {
+        "implementation": "Original TurtleGit inclusive EMF canvas extent; record/device coordinates are not rescaled",
+        "profile": "Round the physical frame extent in device pixels, then include the final edge pixel; leave WMF extents unchanged",
+        "reference_consumer": "Pinned TortoiseIDiff Picture.cpp Bitmap(filename,FALSE)",
+        "evidence": "docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json",
+        "windows_assays": [
+          40217872337,
+          40218480653
+        ],
+        "scope": "Four original file-consumer controls plus four independent fractional-frame probes; not an exhaustive survey of malformed headers or printer devices",
+        "third_party_code_copied": false
+      }
+    },
+    "binary_sha256": "86b5a669f7849888632621f08ee0c2412d0b1cf23869a938ff75855bb4dee11e",
+    "renderer_sha256": "39be93fcbe61cb6c6112a8dbf28abfec7a2c90699811f8c53d9a46bd0ab22c55",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+      "NOTICE": "263454fbff8925f79efec279cac211ac6d7954b6534d8afed1cb449c49d53e1b",
+      "Configuration/MetafileRuntime.json": "c205e556442b162914c3b50066ba8551587ef7ada7c8cf91a6e766b121178942",
+      "Sources/TurtleGitMetafile/main.swift": "283d1a7a822dd776dd9fecd3c5b7b9510ed0ac637d55e63542234e9eabaaf6f1",
+      "patches/metafile-renderer.patch": "bffc7a9675c513141fd3a56228c084bc9d7aa52611769bc12ce5716b5670d596",
+      "scripts/build-metafile-runtime.py": "94fec07117b2d3e673ba575ae6308e37c160af245a1b4fb36f51d5a2421bfdab",
+      "scripts/validate-metafile-runtime.py": "6de457dcdf10a6b8e132da0d32397e11c79d5f46f62785862f21472b3624f750",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c"
+    },
+    "license_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "LICENSE-renderer": "bcc98d690a7e581cd6b572166d8eb0777980e1c6cf433afff317135c5bec4a1b",
+      "LICENSE-Wine-hatches": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "LICENSE-BaseHmiTypes": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+      "NOTICE": "263454fbff8925f79efec279cac211ac6d7954b6534d8afed1cb449c49d53e1b"
+    },
+    "compiler": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0\n",
+    "sdk_version": "27.0",
+    "flags": [
+      "-O",
+      "-whole-module-optimization",
+      "-liconv",
+      "-framework",
+      "JavaScriptCore",
+      "-framework",
+      "CoreText",
+      "-framework",
+      "ImageIO",
+      "-framework",
+      "AppKit"
+    ],
+    "cache_key": "dbec0f76b159e9482c6e2fcaef400d8ff4deb381a33ee7b35247f5dda5654152",
+    "signed": false
+  }
+}

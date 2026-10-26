@@ -1873,8 +1873,11 @@ extension MetafileImageTests {
         }
     }
     func testMalformedClassicBooleanRecordsAndUnrepresentableOperandsRefuseExplicitly()throws {
-        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-raster-")}.sorted()
-        XCTAssertEqual(names.count,36,"Enroll every independently framed Boolean refusal")
+        // Historical filenames retain their bytes; newly measured32bpp and
+        // source-omitted WMF playback now have explicit positive coverage.
+        let accepted:Set<String>=["unsupported-raster-device-bitblt.wmf","unsupported-raster-device-stretchblt.wmf","unsupported-raster-wmf-without-bitmap-source-bitblt.wmf","unsupported-raster-wmf-without-bitmap-source-stretchblt.wmf"]
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-raster-") && !accepted.contains($0)}.sorted()
+        XCTAssertEqual(names.count,32,"Enroll every independently framed Boolean refusal")
         for name in names {
             let original=try data(name)
             XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name) {error in
@@ -1888,7 +1891,7 @@ extension MetafileImageTests {
         }
         // Shared image consumers must propagate refusal rather than expose an
         // approximate successful image. Representative failures cover each input.
-        for name in ["unsupported-raster-required-source-bitblt.emf","unsupported-raster-required-pattern-stretchdibits.emf","unsupported-raster-patblt-source.wmf","unsupported-raster-device-bitblt.wmf","unsupported-raster-source-transform.emf"] {XCTAssertNil(ComparisonImage(bytes:try data(name)),name)}
+        for name in ["unsupported-raster-required-source-bitblt.emf","unsupported-raster-required-pattern-stretchdibits.emf","unsupported-raster-patblt-source.wmf","unsupported-raster-source-transform.emf"] {XCTAssertNil(ComparisonImage(bytes:try data(name)),name)}
     }
 }
 
@@ -2577,5 +2580,144 @@ extension MetafileImageTests {
         let single=try wmfTextInk("wmf-text-dbcs-single-128.wmf"),repeated=try wmfTextInk("wmf-text-dbcs-repeat-128.wmf")
         let expected=single.points.union(single.points.map{$0+28}).union(single.points.map{$0+56})
         XCTAssertEqual(repeated.points,expected,"Repeated fallback scalars must retain actual glyph ink and independent supplied origins")
+    }
+}
+
+extension MetafileImageTests {
+    private func bitmap16Pixels(_ filename:String)throws->[UInt8] {
+        let rendered=try image(filename),width=64,height=64
+        let source=try interior(rendered,width:width,height:height,emf:filename.hasSuffix(".emf"),name:filename)
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes {storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.draw(source,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return bytes
+    }
+    func testWMFBitmap16FamilyPaintMatchesIndependentDIBSourceControls()throws {
+        let controls=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("wmf-bitmap16-") && ($0.hasSuffix("-control.wmf") || $0.hasSuffix("-control.emf"))}.sorted()
+        XCTAssertEqual(controls.count,67)
+        for control in controls {
+            let ext=control.hasSuffix(".emf") ? ".emf":".wmf",name=String(control.dropLast(("-control"+ext).count)),filename=name+ext,original=try data(filename)
+            XCTAssertEqual(try bitmap16Pixels(filename),try bitmap16Pixels(control),filename)
+            XCTAssertEqual(try data(filename),original,"Bitmap16 rendering preserves original serialized bytes")
+        }
+    }
+    func testWMFBitmap16FamilyBitOrderTopRowWordPaddingLiveColorsAndROPTruth()throws {
+        func pixel(_ name:String,_ x:Int,_ y:Int)throws->[UInt8] {let bytes=try bitmap16Pixels("wmf-bitmap16-"+name+".wmf"),p=(y*64+x)*4;return Array(bytes[p..<p+3])}
+        XCTAssertEqual(try pixel("bitblt-native",8,8),[0,0,255],"Leading MSB=1 uses live background blue")
+        XCTAssertEqual(try pixel("bitblt-native",9,8),[255,0,0],"Next bit=0 uses live text red")
+        XCTAssertEqual(try pixel("bitblt-native",8,9),[255,0,0],"Bitmap16 begins with the source's top row")
+        XCTAssertEqual(try pixel("bitblt-native",9,9),[0,0,255])
+        XCTAssertEqual(try pixel("bitblt-native",10,10),[0,0,255])
+        XCTAssertEqual(try pixel("bitblt-native",7,7),[170,170,170])
+        XCTAssertEqual(try pixel("word-padding17",40,8),[0,0,255],"The seventeenth valid bit survives WORD padding")
+        XCTAssertEqual(try pixel("word-padding17",40,12),[255,0,0])
+        XCTAssertEqual(try pixel("word-padding17",42,8),[170,170,170],"Unused low bits and trailing WORD padding cannot add pixels")
+        XCTAssertEqual(try pixel("live-colors",8,28),[255,255,0])
+        XCTAssertEqual(try pixel("live-colors",12,28),[0,255,0])
+        XCTAssertEqual(try pixel("clip",8,8),[170,170,170])
+        XCTAssertEqual(try pixel("clip",12,10),[255,0,0])
+        XCTAssertEqual(try pixel("save-restore",8,28),[0,0,255],"RestoreDC restores source colors and releases the temporary clip")
+        let source=[0,0,255],pattern=[119,204,51],destination=[170,170,170]
+        for op in [0x33,0x66,0x88,0xee,0x44,0xbb,0xf0,0xc0,0x96] {
+            let expected=(0..<3).map {channel -> UInt8 in
+                var result=0
+                for bit in 0..<8 {
+                    let index=((pattern[channel]>>bit)&1)*4+((source[channel]>>bit)&1)*2+((destination[channel]>>bit)&1)
+                    result|=((op>>index)&1)<<bit
+                }
+                return UInt8(result)
+            }
+            XCTAssertEqual(try pixel("rop-"+String(format:"%02x",op),8,8),expected,"Actual ternary ROP must use source, selected brush and prior destination")
+        }
+        XCTAssertEqual(try pixel("source-independent-color24-bitblt",8,8),[119,204,51],"Unused device color storage must not prevent source-independent drawing")
+        for (x,color) in [(8,[255,0,0]),(12,[0,255,0]),(16,[0,0,255])] {
+            XCTAssertEqual(try pixel("bgrx32-stretch",x,8),color.map{UInt8($0)},"BGRX source ignores arbitrary X bytes")
+        }
+        for kind in ["bitblt","stretchblt"] {
+            XCTAssertEqual(try pixel("self-"+kind+"-copy",28,20),[255,0,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-copy",36,20),[0,255,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-copy",28,24),[0,0,255])
+            XCTAssertEqual(try pixel("self-"+kind+"-copy",36,24),[255,255,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-mapped",28,20),[255,0,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-mapped",36,24),[255,255,0],"Logical source and destination map into a frozen device-pixel snapshot exactly once")
+            XCTAssertEqual(try pixel("self-"+kind+"-overlap",12,5),[255,0,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-overlap",20,5),[0,255,0],"Overlapping self-copy samples a frozen preceding destination")
+            XCTAssertEqual(try pixel("self-"+kind+"-clip",28,20),[170,170,170])
+            XCTAssertEqual(try pixel("self-"+kind+"-clip",32,22),[255,0,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-rop-66",28,20),[85,170,170])
+            XCTAssertEqual(try pixel("self-"+kind+"-negative-width",28,20),[255,0,0],"Matching negative source/destination extents cancel mirroring")
+            XCTAssertEqual(try pixel("self-"+kind+"-negative-height",36,24),[255,255,0])
+            XCTAssertEqual(try pixel("self-"+kind+"-outside-preserve",28,20),[0,255,255],"Invalid source pixels preserve the preceding cyan destination")
+            XCTAssertEqual(try pixel("self-"+kind+"-outside-preserve",29,20),[0,255,255])
+            XCTAssertEqual(try pixel("self-"+kind+"-outside-preserve",30,20),[170,170,170])
+            XCTAssertEqual(try pixel("self-"+kind+"-outside-preserve",34,20),[255,0,0])
+        }
+        let embedded=try bitmap16Pixels("wmf-bitmap16-embedded-affine.emf")
+        XCTAssertGreaterThan((0..<64*64).filter{let p=$0*4;return embedded[p]>200 && embedded[p+1]<40 && embedded[p+2]<40}.count,20,"Affine embedded Bitmap16 must contain real source red ink")
+    }
+    func testWMFBitmap16FamilyMalformedDeviceFormatsAndAggregateBudgetsRefuseWholeImage()throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-wmf-bitmap16-") && $0.hasSuffix(".wmf")}.sorted()
+        XCTAssertEqual(names.count,34)
+        for filename in names {
+            let original=try data(filename)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),filename) {error in
+                if filename.contains("aggregate-budget") {
+                    guard let failure=error as? MetafileImageFailure,case .failed(let diagnostic)=failure else{return XCTFail("Expected explicit Bitmap16 aggregate budget, got \(error)")}
+                    XCTAssertTrue(diagnostic.contains("aggregate") && diagnostic.contains("bitmap"),diagnostic)
+                }
+            }
+            XCTAssertEqual(try data(filename),original)
+        }
+        for name in ["bits-short","depth24","source-independent-short-color24","planes"] {XCTAssertNil(ComparisonImage(bytes:try data("unsupported-wmf-bitmap16-"+name+".wmf")),name)}
+    }
+}
+
+
+extension MetafileImageTests {
+    func testWMFBitmap16FamilyPromotesMeasuredLegacyDeviceAndSourceOmittedRecordsWithoutChangingBytes()throws {
+        for kind in ["bitblt","stretchblt"] {
+            let filename="unsupported-raster-device-"+kind+".wmf",original=try data(filename),pixels=try bitmap16Pixels(filename),p=(2*64+2)*4
+            XCTAssertEqual(Array(pixels[p..<p+3]),[204,204,204],"Historical complete32bpp BGRX source now paints its recorded RGB")
+            XCTAssertEqual(try data(filename),original)
+        }
+        for kind in ["bitblt","stretchblt"] {
+            let filename="unsupported-raster-wmf-without-bitmap-source-"+kind+".wmf",original=try data(filename),pixels=try bitmap16Pixels(filename)
+            XCTAssertTrue((0..<64*64).allSatisfy{let p=$0*4;return pixels[p]==255 && pixels[p+1]==255 && pixels[p+2]==255},"Empty preceding DC, including zero-size source stretch, remains white")
+            XCTAssertEqual(try data(filename),original)
+        }
+    }
+}
+
+
+extension MetafileImageTests {
+    func testWMFBitmap16FamilyMeasuredShrinkModesAndBoundedHalftoneQualityProfile()throws {
+        // Raw Bitmap16 hand-final-color32-modeN-phase0, Windows reference
+        // run40385962693: native DIRECT, GDI and GDI+ agree on these six pixels.
+        let windows:[Int:[[[Int]]]]=[
+            1:[[[0,0,0],[0,0,0],[0,0,0]],[[0,0,0],[128,0,0],[128,0,128]]],
+            2:[[[127,63,63],[127,255,127],[127,223,255]],[[255,127,255],[255,255,255],[255,255,255]]],
+            3:[[[64,50,56],[97,179,113],[119,9,151]],[[170,64,130],[203,193,187],[225,23,225]]]]
+        for mode in [1,2,3] {
+            let pixels=try bitmap16Pixels("wmf-bitmap16-shrink-mode"+String(mode)+".wmf")
+            for y in 0..<2 {for x in 0..<3 {let p=((8+y)*64+8+x)*4
+                XCTAssertEqual(Array(pixels[p..<p+3]),windows[mode]![y][x].map{UInt8($0)},"AND/OR/nearest shrink must match actual raw Bitmap16 target samples")
+            }}
+        }
+        // Independent arithmetic: standard centers (i+.5)*src/dst-.5,
+        // antialiased separable sinc(t)*sinc(t/3), support3, REFLECT_101 edges,
+        // floating intermediates, final channel round/clamp. These constants
+        // establish our explicit quality profile, not exact Windows HALFTONE.
+        let profile=[[[29,30,29],[60,170,81],[90,62,134]],[[146,45,110],[176,186,163],[207,78,215]]]
+        let pixels=try bitmap16Pixels("wmf-bitmap16-halftone-lanczos-quality.wmf")
+        var differsFromNearest=false
+        for y in 0..<2 {for x in 0..<3 {let p=((8+y)*64+8+x)*4
+            for channel in 0..<3 {
+                XCTAssertEqual(Double(pixels[p+channel]),Double(profile[y][x][channel]),accuracy:1,"HALFTONE must preserve the independently specified antialiased profile")
+                differsFromNearest = differsFromNearest || Int(pixels[p+channel]) != windows[3]![y][x][channel]
+            }
+        }}
+        XCTAssertTrue(differsFromNearest,"HALFTONE must not silently reuse nearest-neighbor sampling")
     }
 }

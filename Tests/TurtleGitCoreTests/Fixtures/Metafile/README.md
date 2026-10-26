@@ -576,3 +576,67 @@ Independent Core checks resolve the installed font's actual missing-CJK fallback
 render its real native glyph path and compare source ink, then check repeated
 fallback scalars at three supplied origins. Shared-budget refusals remain in the
 same group; no screen count or fixture count establishes whole-port completion.
+
+`generate-wmf-bitmap16.py` writes only `wmf-bitmap16-*` and
+`unsupported-wmf-bitmap16-*`. Run it with Python3 from the repository root.
+BITBLT/STRETCHBLT use ten-byte Bitmap16 headers and WORD-aligned scanlines,
+independent of the 32-byte pattern-brush wrapper. Independently encoded 32bpp DIB
+controls freeze the source colors; monochrome transfers use live foreground/
+background colors. Source rows contain distinctive MSB and unused-padding bits.
+Cases exercise source cropping, signed/mirrored extents, ROP source/pattern/
+destination dependencies, live colors, clips, saved state, logical mapping and
+an affine embedded WMF. Core checks include exact source pixels, per-channel
+ternary truth, a real embedded red-pixel count and full-raster control equality.
+Complete unused 24bpp storage remains legal for source-independent operations;
+truncated storage still refuses. A cheap preflight isolates the nine-record
+aggregate decoded-pixel refusal before expensive expansion. Existing corpus
+bytes are not regenerated, including earlier unsupported device-color fixtures.
+
+The measured 32bpp transfer profile is B,G,R,X with X ignored; source-dependent
+4/8/16/24bpp device color storage retains explicit refusal. Transfer WidthBytes
+is advisory on Windows and positive controls include zero, negative, odd and
+mismatched values with complete computed scanlines. The older pattern-brush
+wrapper keeps its independently verified stricter contract.
+
+Source-dependent omitted-source DDB BITBLT/STRETCHBLT self-copy is supported.
+DIB variants retain explicit refusal; their source-independent omitted-source
+operations remain supported.
+Their controls contain an independently hand-encoded four-color atlas; exact
+pixel assertions verify overlap uses the frozen preceding destination, clips,
+ROP operands and mirror decisions. Four old unsupported-named fixtures retain
+their bytes and now have positive BGRX/source-omitted checks. The historical
+`unsupported-rop.emf` likewise remains covered by its exact cyan/yellow ROP2
+Core check and is excluded explicitly from the stale generic native refusal set.
+These are named measured contracts, never runtime-derived exemptions.
+The source-omitted mapping atlas is drawn before changing the window extent:
+subsequent logical source and destination rectangles must map into the frozen
+device snapshot once. A dedicated WMFC alternate-EMF skip fixture remains
+unverified; preflight currently belongs to the first actual WMF playback record.
+No guessed WMFC comment/checksum envelope was added.
+
+
+The Bitmap16 family currently has 67 positive/control pairs, one additional
+HALFTONE quality subject and 34 refusals. Strict shrink-mode1/2/3 controls use
+captured six-pixel RGB constants from the raw Bitmap16 `hand-final-color32-*`
+Windows fixtures (run 40385962693), whose DIRECT/GDI/GDI+ results agree. The
+similarly named native-recorded `final-color32-*` DIB files have different GDI+
+replay and are not substituted as Bitmap16 evidence.
+
+HALFTONE uses a declared native quality profile: integer reduction uses exact
+box means, enlargement uses nearest, and nonintegral reduction uses separable
+antialiased Lanczos3 with standard pixel centers and REFLECT_101 edges. Fixed
+independently calculated RGB constants allow one channel unit for final rounding;
+this profile differs from the captured Windows HALFTONE example by up to ten
+channel units and is not claimed to reproduce its undocumented device kernel.
+Nested Windows captures remain blank despite successful DrawImage status after
+Object DataSize alignment; positive nested rendering is asserted locally, not
+claimed as positive Windows pixel parity. WMFC alternate-EMF suppression likewise
+retains its explicitly unverified fixture status.
+
+DDB out-of-bounds subjects retain their original source rectangles. Their
+independent DIB references explicitly intersect/crop to an in-range source and
+shift/shrink the destination correspondingly; they do not ask the strict DIB
+reader to accept a negative source origin. The source-omitted atlas likewise
+preserves the two deliberately cyan destination columns omitted by clipping.
+A zero-width DDB source has an empty-operation control. These control framing
+repairs retain all original subject bytes and pixel assertions.

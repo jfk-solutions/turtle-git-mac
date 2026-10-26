@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "f5105c65d5e00c0f14bde0b80454201d33d64a9061bcab52087365a4e5b56e49",
+    "Contents/Info.plist": "9853dc1ddced9ba880603f11c4a86d98a34e58e2c3c0c6a69969b9f5393f6920",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "703014638c22c6b47a300c252bbdebf534ccb35304dbd5302d1d0b4729d5a3bf",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
@@ -32,7 +32,7 @@
     "Contents/Resources/en.lproj/MERGE-PANE-PRESENTATION-PARITY.html": "48226c06f253a6b5ba2bf1185e3b6479b210713536fff9fd6c790304d5b806c6",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "f0eb963a5c4cf7fc2ecd4c9093908060c4fd8425c26eedf86233794d61916e77",
     "Contents/Resources/en.lproj/METAFILE-DRAWING-STATE-PARITY.html": "ecdc87236c2222acfc6da16cd3dce4f09e38ab4216ea6927456667913bc31f6c",
-    "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "15fd11010c7c67c695464c2a7761ec1ca85039ae2d9eee373d98ba9c51a03930",
+    "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "1de10a954b6bf00cefb0270803cba5bc853bf4a45c137ff35402a7ed4841e92d",
     "Contents/Resources/en.lproj/METAFILE-RASTER-ROI-PARITY.html": "9f70f0f2c6f90224a741236152825b77ee4d34cf91a0267fd3067c1bdac4c89d",
     "Contents/Resources/en.lproj/MISSING-STAGED-FILES.html": "2ea9603369e4a780b893a69419e7feb5f05c0dab72e97d2166cfcca3841310f8",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "95838691c0cb9a95bc6fa150b52f60521c4633fff8bba7ec2ca5ee26c8b6cc93",
@@ -117,7 +117,7 @@
     "docs/MERGE-PANE-PRESENTATION-PARITY.md": "cbbf9ea775a1185f33c206bf9493623ef80fad24d258bc278a6d450d1bacbd8d",
     "docs/MERGE-TOOL.md": "49056cd360da5c4f57da810fe7be424ed0020d701078d968f7b8ef2bf305e33d",
     "docs/METAFILE-DRAWING-STATE-PARITY.md": "a96e020674d715ff6862134d0708c9241dc5f821ee9fe8c618fb4a13fe25a1fa",
-    "docs/METAFILE-RASTER-PARITY.md": "b8549fcb3eae887de20b8cc96f3aa2a2416394d54c13652c151517e240dbaaeb",
+    "docs/METAFILE-RASTER-PARITY.md": "a22c4646632c05d25e10e58bf445d890ba9ad3c89265fd36dca76fcbad51c02e",
     "docs/METAFILE-RASTER-ROI-PARITY.md": "d791e0770fb94b1c40fe26a0882770c6d79d7a220c7611541eb40da02d31bbed",
     "docs/MISSING-STAGED-FILES.md": "8ae05b45701695eb63e173aa9c5f4292fc4036f1512acee4cfd829294cc64663",
     "docs/MOVING-AND-COPYING.md": "95527cf729516945d17d44cc128a80b281f6f6d7478ab3f853790314f0909b36",

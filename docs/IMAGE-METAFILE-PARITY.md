@@ -128,6 +128,9 @@ later masked/parallelogram/transparent/alpha transfer family. Its dated evidence
 records actual local checks; unsupported transfer records and geometry retain
 explicit refusals. [Classic extended pens](METAFILE-CLASSIC-PEN-PARITY.md) have a
 separate stroke/brush/state checkpoint.
+The [WMF Bitmap16 transfer continuation](METAFILE-WMF-BITMAP16-PARITY.md)
+tracks embedded device-bitmap transfer parsing and its monochrome/live-color
+profile separately from the earlier DIB and pattern-brush paths.
 The [classic bitmap-brush family](METAFILE-CLASSIC-BRUSH-PARITY.md) connects
 serialized WMF pattern brushes and EMF monochrome/DIB brushes to those shared
 paint consumers. Its independent source contract separates live monochrome

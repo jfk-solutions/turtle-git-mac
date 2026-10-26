@@ -75,9 +75,12 @@ adapter adds no independent app, persistent worker or document mutation.
 ## Explicit limits
 
 Source rotation/shear for required bitmap operands remains an error, matching
-the baseline BitBlt/StretchBlt restriction. Embedded device-dependent WMF bitmap
-transfers, external/profiled bitmap layouts and unrepresented encodings remain
-refusals. The connected classic EMF masked/transparent extension below covers
+the baseline BitBlt/StretchBlt restriction. The connected
+[Bitmap16 transfer family](METAFILE-WMF-BITMAP16-PARITY.md) adds monochrome and
+the measured Windows 32-bit BGRX profile, plus prior-surface copying for DDB
+source-omitted records. DIB source-omitted records retain their own required-
+source refusal. Unknown device-specific color organizations, external/profiled
+bitmap layouts and unrepresented encodings remain refusals. The connected classic EMF masked/transparent extension below covers
 its own record and operand requirements.
 
 The classic DIB path accepts bounded RGB, RLE4/RLE8, indexed palettes, bitfields

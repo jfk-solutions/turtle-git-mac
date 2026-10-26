@@ -193,7 +193,7 @@ private final class SVGGuard: NSObject, XMLParserDelegate {
 /// GDI's bytewise Boolean operations cannot be represented by SVG blend modes.
 /// Only renderer-generated, independently guarded SVG operands enter AppKit.
 private final class NativeRasterComposite {
-    private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0
+    private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0,sampledPixels=0
     private struct Region { let x:Int,y:Int,width:Int,height:Int;var pixels:Int{width*height} }
     private struct Checkpoint {let token:String,width:Int,height:Int,pixels:Data}
     // One native-produced canvas per conversion, never an SVG/state cache.
@@ -312,22 +312,111 @@ private final class NativeRasterComposite {
         let a=cofactor(rop & 3,d),b=cofactor((rop >> 2) & 3,d),c=cofactor((rop >> 4) & 3,d),e=cofactor((rop >> 6) & 3,d)
         return (~p & ((~s & a) | (s & b))) | (p & ((~s & c) | (s & e)))
     }
+    /// Sample the immutable pre-paint destination as a WMF source DC. The
+    /// existing native checkpoint supplies pixels, not rerendered vector shapes
+    /// scaled to a new size. Out-of-surface source pixels exclude destination
+    /// coverage; overlapping source/destination rectangles cannot feed back.
+    /// Bounded port quality kernel; device-specific Windows HALFTONE edge
+    /// heuristics remain separate from this mathematical resampling profile.
+    private func qualityAxis(center:Double,span:Double,limit:Int,box:Bool)throws->[(Int,Double)] {
+        if span<=1.000000001 {return [(max(0,min(limit-1,Int(floor(center)))),1)]}
+        let first=box ? floor(center-span*0.5+1e-9):ceil(center-0.5-3*span)
+        let last=box ? floor(center+span*0.5+1e-9)-1:floor(center-0.5+3*span)
+        let count=max(0,last-first+1)
+        guard count.isFinite,count<=Double(67_108_864-sampledPixels) else {throw invalid("aggregate raster sampling budget exceeded")}
+        sampledPixels+=Int(count)
+        var weights=[Int:Double]()
+        let period=2*limit-2
+        if count>0 {for i in Int(first)...Int(last) {
+            let t=(Double(i)+0.5-center)/span,pi=Double.pi*t
+            let weight=box || abs(t)<1e-12 ? 1:abs(t)>=3 ? 0:sin(pi)*sin(pi/3)/(pi*pi/3)
+            let index:Int
+            if box {index=max(0,min(limit-1,i))}
+            else if limit==1 {index=0}
+            else {let reflected=((i%period)+period)%period;index=reflected<limit ? reflected:period-reflected}
+            if weight != 0 {weights[index,default:0]+=weight}
+        }}
+        let total=weights.values.reduce(0,+)
+        guard total.isFinite,abs(total)>=1e-12 else {throw invalid("invalid HALFTONE kernel")}
+        return weights.keys.sorted().map{($0,weights[$0]!/total)}
+    }
+    private func selfSource(_ snapshot:Data,width:Int,height:Int,area:Region,matrix:[Double],mode:Int)throws->Data {
+        var result=Data(count:area.pixels*4)
+        let halfX=(abs(matrix[0])+abs(matrix[2]))*0.5,halfY=(abs(matrix[1])+abs(matrix[3]))*0.5
+        try snapshot.withUnsafeBytes { (source:UnsafeRawBufferPointer) in
+            try result.withUnsafeMutableBytes { (target:UnsafeMutableRawBufferPointer) in
+                for y in 0..<area.height {for x in 0..<area.width {
+                    let dx=Double(area.x+x)+0.5,dy=Double(area.y+y)+0.5
+                    let sx=matrix[0]*dx+matrix[2]*dy+matrix[4],sy=matrix[1]*dx+matrix[3]*dy+matrix[5]
+                    if sx<0 || sy<0 || sx>=Double(width) || sy>=Double(height){continue}
+                    let o=(y*area.width+x)*4
+                    if mode==4 && (halfX>0.500000001 || halfY>0.500000001) {
+                        let spanX=halfX*2,spanY=halfY*2
+                        func integral(_ span:Double)->Bool {span<=1.000000001 || abs(span-span.rounded())<1e-9}
+                        let box=integral(spanX) && integral(spanY)
+                        let xs=try qualityAxis(center:sx,span:spanX,limit:width,box:box),ys=try qualityAxis(center:sy,span:spanY,limit:height,box:box)
+                        let visits=xs.count*ys.count
+                        guard visits<=67_108_864-sampledPixels else {throw invalid("aggregate raster sampling budget exceeded")};sampledPixels+=visits
+                        var rgb=[Double](repeating:0,count:3)
+                        for (yy,wy) in ys {for (xx,wx) in xs {
+                            let p=(yy*width+xx)*4,alpha=Int(source[p+3])
+                            for channel in 0..<3 {rgb[channel]+=Double(min(255,Int(source[p+channel])+255-alpha))*wx*wy}
+                        }}
+                        for channel in 0..<3 {target[o+channel]=UInt8(max(0,min(255,rgb[channel])).rounded())}
+                    } else if (mode==1 || mode==2) && (halfX>0.500000001 || halfY>0.500000001) {
+                        let left=halfX>0.500000001 ? max(0,Int(floor(sx-halfX+1e-9))):Int(sx),right=halfX>0.500000001 ? min(width-1,Int(floor(sx+halfX+1e-9))-1):Int(sx)
+                        let top=halfY>0.500000001 ? max(0,Int(floor(sy-halfY+1e-9))):Int(sy),bottom=halfY>0.500000001 ? min(height-1,Int(floor(sy+halfY+1e-9))-1):Int(sy),visits=max(0,right-left+1)*max(0,bottom-top+1)
+                        guard visits<=67_108_864-sampledPixels else {throw invalid("aggregate raster sampling budget exceeded")};sampledPixels+=visits
+                        target[o]=mode==1 ? 255:0;target[o+1]=target[o];target[o+2]=target[o]
+                        if visits>0 {for yy in top...bottom {for xx in left...right {
+                            let p=(yy*width+xx)*4,alpha=Int(source[p+3])
+                            for channel in 0..<3 {
+                                let rgb=UInt8(min(255,Int(source[p+channel])+255-alpha))
+                                target[o+channel]=mode==1 ? target[o+channel]&rgb:target[o+channel]|rgb
+                            }
+                        }}}
+                    } else {
+                        guard sampledPixels<67_108_864 else {throw invalid("aggregate raster sampling budget exceeded")};sampledPixels+=1
+                        let p=(Int(sy)*width+Int(sx))*4,alpha=Int(source[p+3])
+                        for channel in 0..<3 {target[o+channel]=UInt8(min(255,Int(source[p+channel])+255-alpha))}
+                    }
+                    target[o+3]=255
+                }}
+            }
+        }
+        return result
+    }
     func composite(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ widthValue:Double,_ heightValue:Double,_ ropValue:Double,_ request:JSValue)throws->NSObject {
         guard widthValue.isFinite,heightValue.isFinite,ropValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,ropValue.rounded()==ropValue,
               widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,ropValue>=0,ropValue<=255 else{throw invalid("invalid dimensions or ROP3 truth byte")}
         let width=Int(widthValue),height=Int(heightValue),pixels=width*height,rop=Int(ropValue),size=CGSize(width:width,height:height)
         let area=try region(request,width:width,height:height)
         let needsSource=depends(rop,2,0x33),needsPattern=depends(rop,4,0x0f)
+        var selfMap:[Double]?,selfMode=1
+        if let value=request.forProperty("selfSource"),!value.isUndefined,!value.isNull {
+            guard needsSource,value.isArray,value.forProperty("length")?.toInt32()==6 else {throw invalid("invalid self-copy source mapping")}
+            var entries=[Double]();entries.reserveCapacity(6)
+            for index in 0..<6 {
+                guard let component=value.atIndex(index),component.isNumber else {throw invalid("invalid self-copy matrix value")}
+                let n=component.toDouble();guard n.isFinite,abs(n)<=1_000_000_000 else {throw invalid("self-copy coordinate limit")};entries.append(n)
+            }
+            selfMap=entries
+            if let stretch=request.forProperty("stretchMode"),!stretch.isUndefined {
+                guard stretch.isNumber,[1.0,2,3,4].contains(stretch.toDouble()) else {throw invalid("invalid self-copy stretch mode")};selfMode=Int(stretch.toDouble())
+            }
+        }
         let renders=2+(needsSource ? 1:0)+(needsPattern ? 1:0)
         guard calls<4096,pixels<=33554432-compositePixels,pixels*renders<=67108864-renderedPixels,
               pixels*4*(renders+2)<=256*1024*1024 else{throw invalid("pixel, work or memory budget exceeded")}
         calls += 1;compositePixels += pixels;renderedPixels += pixels*renders
         guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
-        let sourceSVG=try svg(source,size:size,required:needsSource),patternSVG=try svg(pattern,size:size,required:needsPattern)
+        let sourceSVG=try svg(source,size:size,required:needsSource && selfMap==nil),patternSVG=try svg(pattern,size:size,required:needsPattern)
         var output=try destinationPixels(destinationSVG,request:request,width:width,height:height)
         var tile=cropped(output,region:area,width:width)
         let mask=try render(coverageSVG,width:width,height:height,region:area)
-        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height,region:area):nil
+        let sourcePixels:Data?
+        if let selfMap {sourcePixels=try selfSource(output,width:width,height:height,area:area,matrix:selfMap,mode:selfMode)}
+        else {sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height,region:area):nil}
         let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height,region:area):nil
         try tile.withUnsafeMutableBytes { (destinationBytes:UnsafeMutableRawBufferPointer) in
             try mask.withUnsafeBytes { (coverageBytes:UnsafeRawBufferPointer) in
@@ -337,7 +426,7 @@ private final class NativeRasterComposite {
                         // Coverage is alpha only. ROP2 supplies the actual paint
                         // SVG so transparent hatch holes remain unaffected;
                         // operand RGB never changes the geometric coverage.
-                        if let sourceBytes {let alpha=Int(sourceBytes[offset+3]);guard alpha>0,alpha+2>=c else{throw invalid("transparent required source is unsupported")}}
+                        if let sourceBytes {let alpha=Int(sourceBytes[offset+3]);if selfMap != nil && alpha==0 {continue};guard alpha>0,alpha+2>=c else{throw invalid("transparent required source is unsupported")}}
                         if let patternBytes {let alpha=Int(patternBytes[offset+3]);guard alpha>0,alpha+2>=c else{throw invalid("transparent required pattern is unsupported")}}
                         let destinationAlpha=Int(destinationBytes[offset+3])
                         func straight(_ bytes:UnsafeRawBufferPointer?,_ channel:Int)->UInt8 {

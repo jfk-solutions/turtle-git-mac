@@ -2432,7 +2432,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,392 @@
+@@ -0,0 +1,489 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -2576,11 +2576,11 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    const node='<image x="0" y="0" width="'+width+'" height="'+height+'" preserveAspectRatio="none" href="'+result.href+'"/>';
 +    ctx._nodes=[node];ctx._turtleRasterReceipt={node,token:result.checkpoint,width,height};ctx._turtleRasterCheckpoint=(ctx._turtleRasterCheckpoint||0)+1;
 +  }
-+  function composite(d,destination,source,pattern,coverage,op,roi){
++  function composite(d,destination,source,pattern,coverage,op,roi,selfSource=null){
 +    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
 +    if(typeof __turtleRasterComposite!=='function')fail('native raster compositor unavailable');
 +    if(roi&&(!roi.width||!roi.height))return;
-+    const result=__turtleRasterComposite(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),width,height,op,request(ctx,destination,width,height,roi));
++    const result=__turtleRasterComposite(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),width,height,op,{...request(ctx,destination,width,height,roi),...(selfSource?{selfSource,stretchMode:d._turtleRasterStretchMode||1}:{} )});
 +    checkpoint(ctx,result,width,height);
 +  }
 +  SvgContext.prototype._turtleCopyComposite=function(d,destination,source,coverage,roi){
@@ -2631,12 +2631,22 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    const ctx=d.ctx;if(!w||!h)return;const m=mapping(d,x,y,w,h);
 +    if(Math.abs(m[0]*m[3]-m[1]*m[2])<1e-15)fail('singular raster destination transform');
 +    const roi=deviceROI(d,m);
-+    const coverage=clipped(d,[group(d,m,'<rect x="0" y="0" width="1" height="1" fill="white"/>')]);
++    let coverage=clipped(d,[group(d,m,'<rect x="0" y="0" width="1" height="1" fill="white"/>')]);
 +    let source=null,pattern=null;
 +    if(depends(op,2)){
++      if(dib&&dib._turtleBitmap16&&(!sw||!sh))return;
 +      if(!dib||!sw||!sh)fail('missing required raster source');
-+      if(![sx,sy,sw,sh].every(Number.isFinite)||Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)fail('raster source rectangle outside bitmap');
-+      if(dib.data)source=sourceImage(d,m,roi,dib,sx,sy,sw,sh);
++      if(![sx,sy,sw,sh].every(Number.isFinite))fail('invalid raster source rectangle');
++      if(dib._turtleBitmap16){
++        // DDB playback clips source pixels outside its selected bitmap. Map
++        // that intersection back into destination coordinates, preserving the
++        // preceding destination rather than painting invented border pixels.
++        const l=Math.max(0,Math.min(sx,sx+sw)),r=Math.min(dib.width,Math.max(sx,sx+sw)),t=Math.max(0,Math.min(sy,sy+sh)),b=Math.min(dib.height,Math.max(sy,sy+sh));
++        if(l>=r||t>=b)return;
++        const u0=Math.min((l-sx)/sw,(r-sx)/sw),u1=Math.max((l-sx)/sw,(r-sx)/sw),v0=Math.min((t-sy)/sh,(b-sy)/sh),v1=Math.max((t-sy)/sh,(b-sy)/sh);
++        coverage=clipped(d,[group(d,m,'<rect x="'+u0+'" y="'+v0+'" width="'+(u1-u0)+'" height="'+(v1-v0)+'" fill="white"/>')]);
++      }else if(Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)fail('raster source rectangle outside bitmap');
++      if(dib.data)source=sourceImage(d,m,roi,dib,sx,sy,sw,sh,dib._turtleBitmap16?(d._turtleRasterStretchMode||1):3);
 +      else {
 +        // Native compressed direct-scanline receipts retain PNG pixels rather
 +        // than JS RGBA. That route has device-aligned, nonstretched placement.
@@ -2647,6 +2657,26 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    }
 +    if(depends(op,4)){const p=brushes.pattern(d);if(p===null)fail('missing required raster pattern');pattern=clipped(d,[p]);}
 +    if(op===0xaa)return;composite(d,ctx._nodes.slice(),source,pattern,coverage,op,roi);
++  }
++  // A missing WMF bitmap selects the destination DC as source on Windows.
++  // Capture that existing device surface in the native compositor before any
++  // pixel is installed, so overlap never reads partially updated destination.
++  function selfTransfer(d,op,x,y,w,h,sx,sy,sw,sh){
++    if(!w||!h||!sw||!sh)return;
++    const dest=mapping(d,x,y,w,h),source=mapping(d,sx,sy,sw,sh),det=dest[0]*dest[3]-dest[1]*dest[2];
++    if(Math.abs(det)<1e-15)fail('singular WMF self-copy mapping');
++    const inverse=[dest[3]/det,-dest[1]/det,-dest[2]/det,dest[0]/det,(dest[2]*dest[5]-dest[3]*dest[4])/det,(dest[1]*dest[4]-dest[0]*dest[5])/det];
++    const m=[source[0]*inverse[0]+source[2]*inverse[1],source[1]*inverse[0]+source[3]*inverse[1],source[0]*inverse[2]+source[2]*inverse[3],source[1]*inverse[2]+source[3]*inverse[3],source[0]*inverse[4]+source[2]*inverse[5]+source[4],source[1]*inverse[4]+source[3]*inverse[5]+source[5]];
++    if(m.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('WMF self-copy coordinate limit');
++    if((d._turtleRasterStretchMode||1)<=2){
++      // Anchored16.16 advance is a bounded inference from measured reduction
++      // endpoints, not a claim about Windows' undocumented internal precision.
++      if(Math.abs(m[0])+Math.abs(m[2])>1.000000001){m[0]=Math.trunc(m[0]*65536)/65536;m[2]=Math.trunc(m[2]*65536)/65536;m[4]=source[4]-m[0]*dest[4]-m[2]*dest[5];}
++      if(Math.abs(m[1])+Math.abs(m[3])>1.000000001){m[1]=Math.trunc(m[1]*65536)/65536;m[3]=Math.trunc(m[3]*65536)/65536;m[5]=source[5]-m[1]*dest[4]-m[3]*dest[5];}
++    }
++    const ctx=d.ctx,coverage=clipped(d,[group(d,dest,'<rect width="1" height="1" fill="white"/>')]);let pattern=null;
++    if(depends(op,4)){const p=brushes.pattern(d);if(p===null)fail('missing required WMF self-copy pattern');pattern=clipped(d,[p]);}
++    composite(d,ctx._nodes.slice(),null,pattern,coverage,op,deviceROI(d,dest),m);
 +  }
 +  // MS-EMF bitmap transfer records share DIB framing but not ROP3's flag
 +  // field: ROP4's high byte is the background truth table, not a modifier.
@@ -2675,13 +2705,45 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('transfer device-plane encoding failed');
 +    return ['<image x="'+left+'" y="'+top+'" width="'+width+'" height="'+height+'" preserveAspectRatio="none" image-rendering="pixelated" href="'+href+'"/>'];
 +  }
-+  function sourceImage(d,m,roi,dib,sx,sy,sw,sh){
++  // Bounded native-port HALFTONE quality profile. Windows' device-specific
++  // edge/phase rules are not public: integer shrink uses box, enlargement uses
++  // nearest, noninteger shrink uses antialiased Lanczos3 with REFLECT_101 edges.
++  function qualityAxis(d,center,span,left,right,box){
++    if(span<=1.000000001)return[[Math.max(left,Math.min(right,Math.floor(center))),1]];
++    const first=box?Math.floor(center-span*.5+1e-9):Math.ceil(center-.5-3*span),last=box?Math.floor(center+span*.5+1e-9)-1:Math.floor(center-.5+3*span),count=Math.max(0,last-first+1);
++    bitmapBudget(d,count);const weights=new Map(),n=right-left+1,period=2*n-2;
++    for(let i=first;i<=last;i++){
++      let weight=1,index=i;
++      if(!box){const t=(i+.5-center)/span,pi=Math.PI*t;weight=Math.abs(t)<1e-12?1:Math.abs(t)>=3?0:Math.sin(pi)*Math.sin(pi/3)/(pi*pi/3);}
++      if(box)index=Math.max(left,Math.min(right,index));
++      else if(n===1)index=left;
++      else{const reflected=((index-left)%period+period)%period;index=left+(reflected<n?reflected:period-reflected);}
++      if(weight)weights.set(index,(weights.get(index)||0)+weight);
++    }
++    const total=Array.from(weights.values()).reduce((a,b)=>a+b,0);if(!Number.isFinite(total)||Math.abs(total)<1e-12)fail('invalid HALFTONE kernel');
++    return Array.from(weights,([index,weight])=>[index,weight/total]);
++  }
++  function sourceImage(d,m,roi,dib,sx,sy,sw,sh,mode=3){
 +    if(!dib||!sw||!sh)fail('missing required transfer source');
-+    if(![sx,sy,sw,sh].every(Number.isFinite)||Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)fail('transfer source rectangle outside bitmap');
-+    const left=Math.floor(Math.min(sx,sx+sw)),right=Math.ceil(Math.max(sx,sx+sw))-1,top=Math.floor(Math.min(sy,sy+sh)),bottom=Math.ceil(Math.max(sy,sy+sh))-1;
++    if(![sx,sy,sw,sh].every(Number.isFinite)||(!dib._turtleBitmap16&&(Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)))fail('transfer source rectangle outside bitmap');
++    const left=Math.max(0,Math.floor(Math.min(sx,sx+sw))),right=Math.min(dib.width-1,Math.ceil(Math.max(sx,sx+sw))-1),top=Math.max(0,Math.floor(Math.min(sy,sy+sh))),bottom=Math.min(dib.height-1,Math.ceil(Math.max(sy,sy+sh))-1);
++    const det=m[0]*m[3]-m[1]*m[2],halfX=Math.abs(sw)*(Math.abs(m[3])+Math.abs(m[2]))/(2*Math.abs(det)),halfY=Math.abs(sh)*(Math.abs(m[1])+Math.abs(m[0]))/(2*Math.abs(det));
 +    return devicePlane(d,m,roi,(out,o,u,v)=>{
-+      const x=Math.max(left,Math.min(right,Math.floor(sx+u*sw))),y=Math.max(top,Math.min(bottom,Math.floor(sy+v*sh))),p=(y*dib.width+x)*4;
-+      out[o]=dib.data[p];out[o+1]=dib.data[p+1];out[o+2]=dib.data[p+2];out[o+3]=dib.data[p+3];
++      const centerX=sx+u*sw,centerY=sy+v*sh,x=Math.max(left,Math.min(right,Math.floor(centerX))),y=Math.max(top,Math.min(bottom,Math.floor(centerY))),p=(y*dib.width+x)*4;
++      if(mode===4&&(halfX>0.500000001||halfY>0.500000001)){
++        const spanX=halfX*2,spanY=halfY*2,integral=span=>span<=1.000000001||Math.abs(span-Math.round(span))<1e-9,box=integral(spanX)&&integral(spanY),xs=qualityAxis(d,centerX,spanX,left,right,box),ys=qualityAxis(d,centerY,spanY,top,bottom,box);
++        bitmapBudget(d,Math.max(0,xs.length*ys.length-1));const rgb=[0,0,0];
++        for(const[yy,wy]of ys)for(const[xx,wx]of xs){const q=(yy*dib.width+xx)*4;for(let c=0;c<3;c++)rgb[c]+=dib.data[q+c]*wx*wy;}
++        for(let c=0;c<3;c++)out[o+c]=Math.round(Math.max(0,Math.min(255,rgb[c])));out[o+3]=255;
++      }else if((mode===1||mode===2)&&(halfX>0.500000001||halfY>0.500000001)){
++        // Truncated advance preserves measured end-bucket exclusions (8/3
++        // ends below8); retain the source origin rather than shifting phase.
++        const spanX=halfX*2,spanY=halfY*2,qx=spanX>1.000000001?Math.floor(spanX*65536)/65536:spanX,qy=spanY>1.000000001?Math.floor(spanY*65536)/65536:spanY,cx=sx+(centerX-sx)*(qx/spanX),cy=sy+(centerY-sy)*(qy/spanY);
++        const l=halfX>0.500000001?Math.max(left,Math.floor(cx-qx*.5+1e-9)):x,r=halfX>0.500000001?Math.min(right,Math.floor(cx+qx*.5+1e-9)-1):x,t=halfY>0.500000001?Math.max(top,Math.floor(cy-qy*.5+1e-9)):y,b=halfY>0.500000001?Math.min(bottom,Math.floor(cy+qy*.5+1e-9)-1):y;
++        bitmapBudget(d,Math.max(0,(r-l+1)*(b-t+1)-1));
++        out[o]=out[o+1]=out[o+2]=mode===1?255:0;out[o+3]=255;
++        for(let yy=t;yy<=b;yy++)for(let xx=l;xx<=r;xx++){const q=(yy*dib.width+xx)*4;for(let c=0;c<3;c++)out[o+c]=mode===1?out[o+c]&dib.data[q+c]:out[o+c]|dib.data[q+c];}
++      }else{out[o]=dib.data[p];out[o+1]=dib.data[p+1];out[o+2]=dib.data[p+2];out[o+3]=dib.data[p+3];}
 +    });
 +  }
 +  function selector(d,m,roi,dib,x,y,w,h,repeat){
@@ -2733,9 +2795,32 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(!masked&&rect.some((v,i)=>i>1&&v<=0))fail('mirrored transparent/alpha source is unsupported');
 +    advancedTransfer(d,m,dib,rect,mask,maskRect,options);
 +  }
-+  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkRef:d._turtleRasterBkRef,text:d.textColor,textRef:d._turtleRasterTextRef,palette:d.currentPalette,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,font:d.gdiObjectManager._currentFont,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},textState:d._turtlePositionedTextState&&{...d._turtlePositionedTextState},textAlign:d.textAlignFlags,textUpdate:d.textUpdateCp,charset:d.currentCharset,fontFace:d.currentFontFace,posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
-+  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkRef=s.bkRef;d.textColor=s.text;d._turtleRasterTextRef=s.textRef;d.currentPalette=s.palette;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d.gdiObjectManager._currentFont=s.font;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d._turtlePositionedTextState=s.textState&&{...s.textState};d.textAlignFlags=s.textAlign;d.textUpdateCp=s.textUpdate;d.currentCharset=s.charset;d.currentFontFace=s.fontFace;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
++  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkRef:d._turtleRasterBkRef,text:d.textColor,textRef:d._turtleRasterTextRef,palette:d.currentPalette,bkMode:d._turtleRasterBkMode,stretchMode:d._turtleRasterStretchMode||1,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,font:d.gdiObjectManager._currentFont,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},textState:d._turtlePositionedTextState&&{...d._turtlePositionedTextState},textAlign:d.textAlignFlags,textUpdate:d.textUpdateCp,charset:d.currentCharset,fontFace:d.currentFontFace,posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
++  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkRef=s.bkRef;d.textColor=s.text;d._turtleRasterTextRef=s.textRef;d.currentPalette=s.palette;d._turtleRasterBkMode=s.bkMode;d._turtleRasterStretchMode=s.stretchMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d.gdiObjectManager._currentFont=s.font;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d._turtlePositionedTextState=s.textState&&{...s.textState};d.textAlignFlags=s.textAlign;d.textUpdateCp=s.textUpdate;d.currentCharset=s.charset;d.currentFontFace=s.fontFace;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
 +  const wp=WmfDrawer.prototype,ep=EmfDrawer.prototype;
++  // Reject an aggregate over-budget mono family before decoding its first large
++  // bitmap. This is a preflight, not a second reservation: actual decoding still
++  // charges the shared raster budget, including other records/nested metafiles.
++  const wmfDraw=wp.draw;
++  wp.draw=function(document,options){
++    this._turtleBitmap16Preflight=()=>{
++      let pixels=0;
++      for(const record of document.records){
++        const type=record.functionId,data=record.data,pattern=type===0x1f9,transfer=type===0x922||type===0xb23;
++        if(!pattern&&!transfer)continue;
++        if(transfer&&data.length===((type>>>8)*2))continue;
++        const descriptor=brushes.bitmap16(this,data,pattern?0:type===0xb23?20:16,pattern?32:10,false);
++        if(pattern||depends(truth(u32(data,0)),2)){
++          if(pattern?descriptor.depth!==1:descriptor.depth!==1&&descriptor.depth!==32)fail('unsupported WMF color device bitmap format');
++          pixels+=descriptor.width*descriptor.height;
++          if(pixels>67108864-(this.ctx._turtleRasterDecoded||0))fail('aggregate raster bitmap budget exceeded');
++        }
++      }
++    };
++    // WMFC/EMF alternate playback can bypass all fallback WMF records. Only
++    // preflight when the raw WMF path actually starts, then release the source.
++    try{return wmfDraw.call(this,document,options);}finally{this._turtleBitmap16Preflight=null;}
++  };
 +  // Preserve ROP/selected brushes alongside existing EMF clip/mapping snapshots.
 +  const capture=ep._captureDcState,release=ep._restoreDcState;
 +  ep._captureDcState=function(){const s=capture.call(this);s.turtleRaster=snapshot(this);return s;};
@@ -2775,6 +2860,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +      if(!Number.isFinite(limit)||limit<1||limit>1000000)fail('invalid or oversized classic miter limit');
 +      this.ctx.miterLimit=limit;return;
 +    }
++    if(type===21){if(data.length!==4||u32(data,0)<1||u32(data,0)>4)fail('invalid EMF bitmap stretch mode');this._turtleRasterStretchMode=u32(data,0);return;}
 +    if(type===20){if(data.length!==4)fail('invalid EMF ROP2');const mode=u32(data,0);if(mode<1||mode>16)fail('invalid EMF binary raster mode');this._turtleRasterMode=mode;return;}
 +    if(brushes.handle(this,'emf',type,data))return;
 +    if([78,79,114,116].includes(type)){advancedRecord(this,type,data);return;}
@@ -2799,9 +2885,11 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  };
 +  const wmf=wp.processRecord;
 +  wp.processRecord=function(record){const type=record.functionId,data=record.data;
++    const preflight=this._turtleBitmap16Preflight;if(preflight){this._turtleBitmap16Preflight=null;preflight();}
 +    brushes.state(this);
 +    if(directScanlines.wmf(this,type,data))return;
 +    if(regions.wmf(this,type,data))return;
++    if(type===0x107){if(data.length!==2||word(data,0)<1||word(data,0)>4)fail('invalid WMF bitmap stretch mode');this._turtleRasterStretchMode=word(data,0);return;}
 +    if(type===0x104){if(data.length!==2)fail('invalid WMF ROP2');const mode=word(data,0);if(mode<1||mode>16)fail('invalid WMF binary raster mode');this._turtleRasterMode=mode;return;}
 +    if(type===0x1e){if(data.length||this.ctx._stack.length>=4096)fail('invalid WMF save DC');const s=snapshot(this);this._turtleRasterSaves=this._turtleRasterSaves||[];this._turtleRasterSaves.push(s);this.ctx.save();return;}
 +    if(type===0x127){if(data.length!==2)fail('invalid WMF restore DC');const saved=this._turtleRasterSaves||[],value=short(data,0),target=value<0?saved.length+value:value-1;if(!value||target<0||target>=saved.length)fail('invalid WMF restore depth');const s=saved[target];while(saved.length>target){saved.pop();this.ctx.restore();}Object.assign(this.coordinateTransformer,s.ct);restore(this,s);return;}
@@ -2809,10 +2897,19 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(type===0x61d){need(data,0,12);const op=truth(u32(data,0));if(depends(op,2))fail('PATBLT cannot require source bitmap');transfer(this,op,short(data,10),short(data,8),short(data,6),short(data,4),null,0,0,0,0);return;}
 +    if([0x940,0xb41,0x922,0xb23].includes(type)&&data.length===((type>>>8)*2)){
 +      const stretch=(type&255)===0x41||(type&255)===0x23,op=truth(u32(data,0));
-+      if(depends(op,2))fail('WMF transfer without bitmap requires source');
-+      const end=data.length;transfer(this,op,short(data,end-2),short(data,end-4),short(data,end-6),short(data,end-8),null,0,0,0,0);return;
++      const end=data.length,x=short(data,end-2),y=short(data,end-4),w=short(data,end-6),h=short(data,end-8);
++      if(depends(op,2)){if(type===0x940||type===0xb41)fail('WMF DIB transfer without bitmap requires source');selfTransfer(this,op,x,y,w,h,short(data,stretch?10:6),short(data,stretch?8:4),stretch?short(data,6):w,stretch?short(data,4):h);}
++      else transfer(this,op,x,y,w,h,null,0,0,0,0);return;
 +    }
-+    if(type===0x922||type===0xb23)fail('device-dependent WMF bitmap layout is unsupported');
++    if(type===0x922||type===0xb23){
++      const stretch=type===0xb23,offset=stretch?20:16;need(data,0,offset);const op=truth(u32(data,0)),required=depends(op,2);
++      const receipt=brushes.bitmap16(this,data,offset,10,required),source=required?(receipt.depth===1?brushes.monochrome(this,receipt):receipt):null;
++      // Device-bitmap stretch modes have their own measured Windows playback;
++      // unrelated DIB/EMF transfer consumers retain their established sampling.
++      if(source)source._turtleBitmap16=true;
++      const sx=short(data,stretch?10:6),sy=short(data,stretch?8:4),sw=short(data,stretch?6:10),sh=short(data,stretch?4:8);
++      transfer(this,op,short(data,offset-2),short(data,offset-4),short(data,offset-6),short(data,offset-8),source,sx,sy,sw,sh);return;
++    }
 +    if([0x940,0xb41,0xf43].includes(type)){
 +      const offset=type===0x940?16:type===0xb41?20:22;need(data,0,offset);const op=truth(u32(data,0)),usage=type===0xf43?word(data,4):0;
 +      const dib=data.length>offset?decodeDib.packed(data,offset,usage,this,false,type===0xf43&&op===0xcc&&usage===0):null;
@@ -2828,7 +2925,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 --- /dev/null
 +++ b/src/turtleGitRasterBrush.js
-@@ -0,0 +1,282 @@
+@@ -0,0 +1,296 @@
 +// Copyright (C) TurtleGit contributors. GPL-2.0-or-later.
 +// Original classic GDI brush playback; no imported brush implementation.
 +module.exports=function createRasterBrush({fail,u32,i32,escape,decodeDib}) {
@@ -2951,20 +3048,34 @@ diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 +    if(d._turtleRasterBrushBytes>67108864)fail('aggregate classic pattern brush budget exceeded');
 +    return {type:'brush',style:receipt.monochromePattern?'mono':receipt.palettePattern?'palette':'dib',bitmap:{width:receipt.width,height:receipt.height,data:bytes}};
 +  }
-+  function wmfPattern(d,data){
-+    need(data,32);const width=word(data,2)<<16>>16,height=word(data,4)<<16>>16,stride=word(data,6)<<16>>16;
-+    if(width<1||height<1||width>32768||height>32768||width*height>16777216||data[8]!==1||data[9]!==1)fail('unsupported WMF pattern bitmap dimensions or format');
-+    const expected=Math.ceil(width/16)*2;
-+    if(stride!==expected||data.length!==32+expected*height)fail('invalid WMF pattern bitmap scanlines');
-+    // Serialized Type has no required zero value. The pointer and reserved18
-+    // bytes are ignored; none are native addresses or additional bitmap data.
++  // Bitmap16 transfer objects put bits after their ten-byte header. A pattern
++  // brush carries the same fields followed by an ignored pointer/reserved block
++  // and starts its bits at byte32. Keep one framing/scanline implementation.
++  function bitmap16(d,data,offset=0,prefix=10,decode=true){
++    need(data,offset+prefix);const width=word(data,offset+2)<<16>>16,height=word(data,offset+4)<<16>>16,stride=word(data,offset+6)<<16>>16,planes=data[offset+8],depth=data[offset+9];
++    if(width<1||height<1||width>32768||height>32768||width*height>16777216||planes!==1||!depth)fail('invalid WMF Bitmap16 dimensions or planes');
++    const expected=Math.ceil(width*depth/16)*2;
++    if((prefix!==10&&stride!==expected)||data.length!==offset+prefix+expected*height)fail('invalid WMF Bitmap16 scanlines');
++    // An operand-independent ROP still validates the complete declared object,
++    // but has no reason to interpret device color bits or allocate RGBA pixels.
++    if(!decode)return{width,height,depth};
++    if(depth!==1&&depth!==32)fail('unsupported WMF color device bitmap format');
++    // Serialized Type, pointer and reserved bytes are not native addresses.
 +    d.ctx._turtleRasterDecoded=(d.ctx._turtleRasterDecoded||0)+width*height;
 +    if(d.ctx._turtleRasterDecoded>67108864)fail('aggregate raster bitmap budget exceeded');
-+    const out=new Uint8Array(width*height*4);
-+    // Bitmap16/DDB starts with its TOP row; unlike a positive-height DIB.
-+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const i=(y*width+x)*4,v=((data[32+y*stride+(x>>3)]>>>(7-(x&7)))&1)*255;out[i]=out[i+1]=out[i+2]=v;out[i+3]=255;}
-+    return bitmap(d,{width,height,data:out,monochromePattern:true});
++    const out=new Uint8Array(width*height*4),bits=offset+prefix;
++    // Bitmap16/DDB begins with its top row, unlike positive-height DIBs.
++    // Transfer playback ignores WidthBytes and derives WORD stride from bpp.
++    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
++      const i=(y*width+x)*4,row=bits+y*expected;
++      if(depth===1){const v=((data[row+(x>>3)]>>>(7-(x&7)))&1)*255;out[i]=out[i+1]=out[i+2]=v;}
++      else{const source=row+x*4;out[i]=data[source+2];out[i+1]=data[source+1];out[i+2]=data[source];}
++      out[i+3]=255;
++    }
++    return{width,height,data:out,depth};
 +  }
++  function monochrome(d,receipt){return tile(d,{style:'mono',bitmap:receipt});}
++  function wmfPattern(d,data){if(bitmap16(d,data,0,32,false).depth!==1)fail('unsupported WMF pattern bitmap format');return bitmap(d,{...bitmap16(d,data,0,32),monochromePattern:true});}
 +  function encode(receipt){
 +    if(typeof globalThis.__turtleBitmap!=='function')fail('native classic brush encoding unavailable');
 +    // Decoder receipts are RGBA; native PixelFormat32bppARGB takes B,G,R,A.
@@ -3109,7 +3220,7 @@ diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 +    if(!brush||brush.type!=='brush')fail('missing region brush');
 +    return brush;
 +  }
-+  return {handle,refresh,pattern,penBrush,penPattern,resolve,state,prepare,colorRef};
++  return {handle,refresh,pattern,penBrush,penPattern,resolve,state,prepare,colorRef,bitmap16,monochrome};
 +};
 diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
 --- a/src/utils/nestedMetafilePlayer.js

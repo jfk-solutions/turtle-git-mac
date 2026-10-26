@@ -77,6 +77,16 @@ No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 
+The [WMF Bitmap16 transfer family](METAFILE-WMF-BITMAP16-PARITY.md) connects
+monochrome and measured 32-bit device bitmap records to shared native image
+comparison/conflict consumers. It includes live colors, DDB prior-surface copies,
+crop/mirrors, clipping, saved state and stretch sampling. The
+[checkpoint](qa/metafile-wmf-bitmap16-2026-10-26.json) records 34 distinct Core
+methods cumulatively passing, the repaired universal helper/Debug app and both
+native engine pairs, with both receivers absent. The nonintegral Windows
+HALFTONE kernel remains a documented rendering
+compatibility difference. Installed build12 predates this source batch.
+
 The [WMF text family](METAFILE-WMF-TEXT-PARITY.md) replaces legacy SVG text
 with shared native font outlines, charset decoding, saved text state, alignment,
 spacing, clipping and embedded transforms. Independent Windows playback resolves
