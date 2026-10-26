@@ -188,8 +188,8 @@ public actor GitRepository {
     /// Automatic observers must not publish Git's optional index-stat refresh:
     /// that write is itself a repository event and can retrigger every observer.
     /// Disabling optional locks still computes status from current file contents.
-    public func status(readPolicy:GitStatusReadPolicy,cancellation:OperationCancellation? = nil) throws -> [StatusEntry] {
-        StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored", diffDetection.statusArgument], environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:], cancellation:cancellation).stdout)
+    public func status(readPolicy:GitStatusReadPolicy,includeIgnored:Bool=true,cancellation:OperationCancellation? = nil) throws -> [StatusEntry] {
+        StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all"] + (includeIgnored ? ["--ignored"]:[]) + [diffDetection.statusArgument], environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:], cancellation:cancellation).stdout)
     }
     public func trackedPaths(cancellation:OperationCancellation? = nil) throws -> [String] {
         try run(["ls-files", "-z"],cancellation:cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }

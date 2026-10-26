@@ -34,6 +34,16 @@ hosted macOS pass or App Store distribution acceptance.
 
 ## Latest source batches
 
+The [Commit refresh correction](COMMIT-REFRESH-PERFORMANCE.md) removes ignored-file
+metadata and the complete Working Tree inventory from Commit’s change scan,
+retaining changed rows, exact index flags, staging and cancellation ownership.
+The [checkpoint](qa/commit-refresh-2026-10-26.json) records 11 Core checks, a Debug
+build and four native case/engine pairs passing. Read-only status/metadata/flags
+collection on the reported clean large checkout measured 18.76 seconds before
+and 0.44 seconds after; full dialog startup is not certified by those timings.
+This source is newer than installed build 9.
+
+
 The [Pull conflict-result continuation](PULL-RESULT-PARITY.md) distinguishes accepted
 Close from Cancel, title-bar dismissal and selected post-actions. It captures the
 actual Pull exit status/full result, owns the final See Changes sheet through

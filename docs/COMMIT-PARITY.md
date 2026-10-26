@@ -2786,3 +2786,11 @@ or Push parity.
 captions, configured font metrics, full-value help and owned native restoration.
 It separates the confirmed source layout difference from the previously
 captured AppKit row-cache warning and its pending affected-workload checkpoint.
+
+## Large-checkout refresh — October 26, 2026
+
+The [refresh performance correction](COMMIT-REFRESH-PERFORMANCE.md) removes hidden
+ignored-file metadata work and the complete Working Tree inventory from Commit’s
+change refresh. Current changed rows retain exact index flags and the existing
+coherent cancellation/ownership transaction. The [grouped checkpoint](qa/commit-refresh-2026-10-26.json)
+records 11 Core checks, the Debug build and four native case/engine pairs passing.

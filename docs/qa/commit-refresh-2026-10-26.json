@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "b7f03fd0",
+  "status": "focused_core_and_grouped_native_pass",
+  "implementation": [
+    "Commit status and staging-state queries omit ignored inventory; general status keeps ignored default.",
+    "Commit metadata excludes ignored candidates; scoped index flags use one read, no status/stat/sort, empty list returns without Git.",
+    "Classic and Git Gui share F5 through existing owner, key-window and refresh-availability gates; other Classic commands unchanged.",
+    "Existing cancellable atomic reload keeps selection, draft, stage/conflict semantics and refuses obsolete publication."
+  ],
+  "validation": {
+    "core": {
+      "result": "pass",
+      "methods": 11,
+      "seconds": 6.417,
+      "scope": [
+        "CommitRefreshTests",
+        "CommitAmendTests",
+        "CommitReadCancellationTests",
+        "WorkingTree clean/ignored/unversioned/flags and literal flag actions"
+      ]
+    },
+    "debug": {
+      "result": "pass_after_compile_repair"
+    },
+    "native": {
+      "status": "pass",
+      "cases": [
+        "refresh",
+        "list"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "pairs": 4,
+      "owned_receiver_pids": [
+        67759,
+        68065,
+        68380,
+        68712
+      ],
+      "reaped": true
+    },
+    "benchmark": {
+      "scope": "Read-only status/metadata/index-flag collection on reported clean large checkout, with optional Git index writes disabled. This is not full dialog startup timing.",
+      "before_seconds": 18.76348900794983,
+      "after_seconds": 0.44041502475738525,
+      "before_rows": {
+        "commit": 27819,
+        "metadata": 27819,
+        "working_tree_inventory": 62122
+      },
+      "after_rows": {
+        "commit": 0,
+        "metadata": 0,
+        "index_flags": 0
+      },
+      "old_configuration": "Installed build9 source Release framework and matching retained module",
+      "new_configuration": "Current Debug framework",
+      "limits": "One warm-filesystem sample each; different build optimization configurations. No fixed speed guarantee or full native startup claim."
+    }
+  },
+  "failures": [
+    {
+      "log": "commit-refresh-debug-2026-10-26.log",
+      "cause": "New shared F5 guard made owner nonoptional; subsequent old optional-chaining expression did not compile. Corrected expression; app build then passed. Core already passed and was not repeated."
+    },
+    {
+      "log": "commit-refresh-before-compile-2026-10-26.log",
+      "cause": "Installed distribution strips Swift modules. Diagnostic initially could not import Core. Recompiled against retained matching build9 product/modules; both read-only benchmark helpers exited0."
+    }
+  ],
+  "limits": [
+    "Installed build9 does not yet contain this Commit optimization.",
+    "No full hosted CI, Intel execution, every hook/filter or App Store acceptance is established."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitRepository.swift": "23361983d39cea9b0ded6394e655388d2191f93e1311fa5e9094b7cc1619ec3f",
+    "Sources/TurtleGitCore/CommitAmend.swift": "2b91094be7fbeddd02055606c8019c69816d2207948a2fba2af37c8828bf996b",
+    "Sources/TurtleGitCore/WorkingTree.swift": "7e6628cb616f75bbe11ae74230f81166dd2d95d6e8c730c6dfeee9ba978438df",
+    "Sources/TurtleGitMac/CommitWindow.swift": "690b4b407ec3d180efdcd87f2fe86aac56d6087f1019556527780771dad9fa33",
+    "Tests/TurtleGitCoreTests/CommitRefreshTests.swift": "030c32239cd48bc5dbf0be9cfe5a7a4c3681e57827407fe67cdf9e1fdfa49b73",
+    "docs/qa/commit-refresh-native-2026-10-26.swift": "4fbae6316646f0dafb39a7882b1e3705f837cb7fb6ad680f4a9e20cb2d2431d8",
+    "scripts/test-commit-staging-mode.py": "3f630ea9e9466289cf91fa88ee16440207e0f5841cd426ac167422b61e9b527e"
+  },
+  "log_sha256": {
+    "commit-refresh-core-2026-10-26.log": "322bcb80f64b62f41bcdc913ae31592c6e265eb6580638e55922761816e4f912",
+    "commit-refresh-after-run-2026-10-26.log": "ba6c7065c0c388d97031677ac249a7cc322a860ab0b55d9e7bf4280806573b28",
+    "commit-refresh-after-compile-2026-10-26.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "commit-refresh-before-compile-2026-10-26.log": "7edd4e60692fce80a7709671a8b3fffa5628f354d4e9b520a2ac0a4ea0378408",
+    "commit-refresh-debug-2026-10-26.log": "963dab2a9c9c36299db35487694433c726e2cdbc26acf46139f6cdc2d8f4da48",
+    "commit-refresh-before-run-2026-10-26.log": "1bd5bee6fb3fce4b3ddb0faa914068bd174819798bd4ee63a5ca4b46c84b02b9",
+    "commit-refresh-debug-repair-2026-10-26.log": "e47c6ed348041d677f6e23ece9d9c3ebedef16bd50c4c9fde0f63de199b2cfcd",
+    "commit-refresh-before-compile-repair-2026-10-26.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "commit-refresh-native-2026-10-26.log": "6485e3da5500317eca19a8d4e2380b19e4e36991e0c5a34edeba1b57d043ed38"
+  }
+}

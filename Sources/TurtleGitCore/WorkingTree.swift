@@ -118,6 +118,25 @@ extension GitRepository {
             return WorkingTreeFile(entry: entry, assumeUnchanged: flags[entry.path]?.0 ?? false, skipWorktree: flags[entry.path]?.1 ?? false, modificationDate: date)
         }.sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
     }
+    /// Commit already owns its visible status snapshot. Read only index flags
+    /// for those exact paths instead of collecting every clean/ignored file,
+    /// statting the working tree and sorting an unrelated all-files list.
+    public func workingTreeIndexFlags(entries:[StatusEntry],cancellation:OperationCancellation? = nil)throws->[WorkingTreeFile] {
+        try cancellation?.check()
+        guard !entries.isEmpty else{return []}
+        let requested=GitPathSet(entries.map(\.path))
+        var flags=GitPathMap<(Bool,Bool)>()
+        let data=try run(["ls-files","-v","-z"],cancellation:cancellation).stdout
+        for record in data.split(separator:0) {
+            try cancellation?.check()
+            guard record.count>=3 else{continue}
+            let path=String(decoding:record.dropFirst(2),as:UTF8.self)
+            guard requested.contains(path),let code=record.first else{continue}
+            flags[path]=(code>=97 && code<=122,code==83 || code==115)
+        }
+        try cancellation?.check()
+        return entries.map {WorkingTreeFile(entry:$0,assumeUnchanged:flags[$0.path]?.0 ?? false,skipWorktree:flags[$0.path]?.1 ?? false,modificationDate:nil)}
+    }
     public func workingTreeDiff(paths: [String]) throws -> String {
         String(decoding: try workingTreeDiffData(paths: paths), as: UTF8.self)
     }

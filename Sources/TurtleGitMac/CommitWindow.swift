@@ -1954,12 +1954,18 @@ import TurtleGitCore
                 let nextSubmodules = try await readReload(token) { try await repository.submodulePathNames(cancellation:token).map(\.rawValue) }
                 let nextBranch = try await readReload(token) { try await repository.branch(cancellation:token) }
                 let nextReportInEnglish=try await readReload(token) {try await repository.commitFileListReportInEnglish(cancellation:token)}
-                let nextMetadata = try await readReload(token) { await repository.statusListMetadata(paths:nextEntries.map(\.path)) }
+                // Commit never displays ignored paths. Avoid resolving/statting
+                // generated build trees just to discard them in visibleEntries.
+                let displayedCandidates = nextEntries.filter { $0.state != .ignored }
+                let nextMetadata = try await readReload(token) { await repository.statusListMetadata(paths:displayedCandidates.map(\.path)) }
                 let nextHasLFS = try await readReload(token) { try await repository.hasLFS(cancellation:token) }
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
                 let nextSnippets = try await readReload(token) { await snippetLoader.load(userURL:snippetURL) }
                 let nextChangelists = try await readReload(token) { try await repository.changelists(cancellation:token) }
-                let nextIndexFlags = try await readReload(token) { try await repository.workingTreeStatus(readPolicy:.automatic,cancellation:token) }
+                // The Working Tree dialog needs every tracked file; Commit only
+                // needs index flags for its current change rows. Keep this read
+                // inside the same cancellable, atomically published reload.
+                let nextIndexFlags = try await readReload(token) { try await repository.workingTreeIndexFlags(entries:displayedCandidates,cancellation:token) }
                 let nextConflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation:token) }
                 let nextStatistics = GitPathMap(try await readReload(token) { try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextStaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
@@ -4031,12 +4037,15 @@ private struct CommitProgressDialog: View {
         }
     }
     func performKeyEquivalent(_ event:NSEvent)->Bool {
-        guard active else {return false};install()
+        guard !retired,let owner,owner.model.messageFocusAvailable,keyWindow() === owner.window else {return false}
         let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
-        if event.keyCode==96,flags.isEmpty {if enabled(.refresh) {perform(.refresh)};return true}
+        // Refresh belongs to both Commit presentations, including Git Gui where
+        // the Classic command menu is intentionally absent.
+        if event.keyCode==96,flags.isEmpty {if owner.refreshCommandAvailable {owner.model.reload()};return true}
+        guard active else {return false};install()
         if [36,76].contains(event.keyCode),flags == .control {if enabled(.current) {perform(.current)};return true}
         guard let text=event.charactersIgnoringModifiers?.lowercased() else {return false}
-        if flags == .option,["m","f","d","t"].contains(text),!((owner?.window?.firstResponder as? NSTextView)?.isEditable ?? false) {
+        if flags == .option,["m","f","d","t"].contains(text),!((owner.window?.firstResponder as? NSTextView)?.isEditable ?? false) {
             let command:Command=text == "m" ? .focus:text == "f" ? .focusFiles:text == "d" ? .authorDate:.author
             if enabled(command) {perform(command)};return true
         }

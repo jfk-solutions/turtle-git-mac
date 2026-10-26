@@ -167,7 +167,7 @@ extension GitRepository {
 
     public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil, refreshIndex: Bool = true) throws -> [StatusEntry] {
         try cancellation?.check()
-        let current = try status(refreshIndex: refreshIndex, cancellation: cancellation)
+        let current = try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,cancellation:cancellation)
         guard amendToParent else { return current }
         let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
         let indexed = try stagingFiles(staged: true, base: base, cancellation: cancellation)
@@ -206,7 +206,7 @@ extension GitRepository {
         let working = try run(["diff", "--no-renames", "--name-only", "-z", "--"], cancellation: cancellation)
         func paths(_ bytes: Data) -> Set<Data> { Set(bytes.split(separator: 0).map { Data($0) }) }
         let stagedPaths = paths(cached.stdout), workingPaths = paths(working.stdout)
-        let current=try status(cancellation:cancellation)
+        let current=try status(readPolicy:.refreshIndex,includeIgnored:false,cancellation:cancellation)
         let unversioned=Set(current.filter{$0.state == .untracked}.map{Data($0.path.utf8)})
         let conflicts=GitPathSet(current.filter{$0.state == .conflicted}.map(\.path))
         try cancellation?.check()
