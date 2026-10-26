@@ -34,11 +34,16 @@ status could enter live contributions and block a fresh Add. Its connected recov
 batch is included in installed build 9; physical acceptance on the reported
 repository remains unverified.
 
-At the October 26 observation, the [Pages run for `18a0acd8`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40242793428)
-succeeded and its [macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40242793370)
-is pending. The immediately preceding macOS runs for `3d892691` and `e832798c`
-were cancelled. Earlier focused local passes do not establish a current complete
-hosted macOS pass or App Store distribution acceptance.
+At the October 26 CI observation, the [Pages run for `0016268c`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40308813906)
+succeeded; its macOS run was pending, with `d5d6f546` still running. The completed
+[macOS run for `e3f5476c`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40294921577)
+failed in Core integration: 2,987 tests, two skips and three assertions across two
+methods. The [recovery record](qa/ci-e3f5476c-core-recovery-metafile-2026-10-26.json)
+tracks the legacy failed-Pick receipt migration, obsolete metafile rejection
+expectation and interior gradient seam exposed by translated controls. Focused local checks do not establish a complete hosted macOS pass
+or App Store acceptance. The grouped repair passes 32 distinct focused methods
+cumulatively, universal metafile helper reconstruction and the final Debug build.
+No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 

@@ -85,3 +85,22 @@ interrupted-publication rollback/commit/Continue assertions remain, with an adde
 negative adoption-marker case. Two focused system-Git Core methods pass;
 [hosted failure and local repair evidence](qa/ci-1cfadcc3-core-failures-2026-10-21.json)
 retains the separate unresolved MaskBlt failure and complete hosted gate.
+
+## Later optional group metadata compatibility — October 26, 2026
+
+Hosted run `40294921577`, Core job `121479096826` at `e3f5476c`, exposed the same
+legacy five-file intent against the later optional no-commit Squash metadata key.
+The repair normalizes only the known adoption/group keys when the old receipt
+omits them and the actual file is absent. It does not discard a newly present
+file or replace explicit captured bytes with absence. All other file, session,
+HEAD, index and worktree witnesses remain strict.
+
+The regression retains the interrupted-publication rollback, commit and resumed
+Continue assertions. It adds successful absent-key migration and refusal of an
+explicit no-commit witness whose actual file is absent, retaining the original
+intent bytes and HEAD/index on refusal. Bounded source review found no additional
+blocker. All 17 failed-Pick methods and the pending-action journal recovery method
+pass. The [CI recovery record](qa/ci-e3f5476c-core-recovery-metafile-2026-10-26.json)
+distinguishes the actual hosted failure and subsequent focused results. This
+is schema compatibility, not permission to resume an externally changed replay
+or evidence of a complete hosted pass.

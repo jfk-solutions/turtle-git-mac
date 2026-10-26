@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "0016268c",
+  "status": "focused_validation_passed",
+  "hosted": {
+    "revision": "e3f5476c21d7582fc12647befe502c269dfaee10",
+    "run": 40294921577,
+    "job": 121479096826,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40294921577/job/121479096826",
+    "conclusion": "failure",
+    "failed_step": "Git integration tests",
+    "tests": 2987,
+    "skipped": 2,
+    "assertion_failures": 3,
+    "unexpected_failures": 1,
+    "failed_methods": [
+      "MetafileImageTests.testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank",
+      "RebaseFailedPickTests.testInterruptedRescheduledSkipPublicationRestoresOrCompletesDurableIntent"
+    ],
+    "excerpts": [
+      "2026-10-26T09:42:09.0972140Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageTests.swift:616: error: -[TurtleGitCoreTests.MetafileImageTests testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank] : XCTAssertThrowsError failed: did not throw an error",
+      "2026-10-26T09:42:09.0978280Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageTests.swift:617: error: -[TurtleGitCoreTests.MetafileImageTests testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank] : XCTAssertNil failed: \"ComparisonImage(id: 26F3CF7E-F883-4373-913F-18769BC0B467, pixels: <CGImage 0x7fed59b478c0> (IP) <PNG >",
+      "2026-10-26T09:42:09.0993000Z Test Case '-[TurtleGitCoreTests.MetafileImageTests testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank]' failed (4.461 seconds).",
+      "2026-10-26T09:55:05.3048120Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Sources/TurtleGitCore/Rebase.swift:3039: error: -[TurtleGitCoreTests.RebaseFailedPickTests testInterruptedRescheduledSkipPublicationRestoresOrCompletesDurableIntent] : failed: caught error: \"changed\"",
+      "2026-10-26T09:55:05.3052440Z Test Case '-[TurtleGitCoreTests.RebaseFailedPickTests testInterruptedRescheduledSkipPublicationRestoresOrCompletesDurableIntent]' failed (6.201 seconds).",
+      "2026-10-26T10:28:24.0364620Z \t Executed 2987 tests, with 2 tests skipped and 3 failures (1 unexpected) in 4622.703 (4623.225) seconds",
+      "2026-10-26T10:28:24.0367660Z \t Executed 2987 tests, with 2 tests skipped and 3 failures (1 unexpected) in 4622.703 (4623.253) seconds",
+      "2026-10-26T10:28:24.0671450Z ##[error]Process completed with exit code 1."
+    ]
+  },
+  "implementation": {
+    "rebase": "Upgrade only omitted absent adopted-plan/no-commit-squash keys in legacy failed-Pick intents; preserve strict captured bytes, newly present metadata and session/HEAD/index/worktree checks.",
+    "metafile": "Preserve former negative distorted cubic bytes as positive; independently translated controls exposed17 transparent interior fan-seam pixels. Repair device coverage/local ray intersection agreement without dropping strict output comparison; preserve genuine canonical precision refusal.",
+    "renderer_repair": "Uniform Clamp polygon color distance uses the same transformed selected edge as half-open device fan coverage. Removes redundant inverse-local endpoint rejection causing interior cracks; retains outside distance, focus solver, multicolor, wrap and budgets.",
+    "renderer_patch_sha256": "b7a79d23626e0dc9c6baf53392d91fa3fda70332b3dd5d1f6fba59edd066871f",
+    "bounded_peer_review": "Clear for legacy receipt compatibility and device-space fan seam repair; no independent builds/tests by peers."
+  },
+  "validation": {
+    "core": {
+      "initial": {
+        "exit_code": 1,
+        "methods": 20,
+        "passed": 19,
+        "failed": 1,
+        "log": "build/qa/ci-e3f5476c-recovery-metafile-core-2026-10-26.log",
+        "failed_method": "MetafileImageTests.testLargeOffsetDistortedGradientUsesGeneralBoundaryAndTranslatedControl",
+        "failure": "Maximum RGBA difference255 between original and translated geometry; expected at most1. Investigation pending, assertion preserved.",
+        "rebase_failed_pick_methods": 17,
+        "pending_action_journal_methods": 1,
+        "malformed_metafile_methods": 1
+      },
+      "focused_recheck": {
+        "exit_code": 0,
+        "methods": 14,
+        "failures": 0,
+        "scope": [
+          "MetafileGeneralPathGradientTests (6)",
+          "MetafilePathGradientTests (6)",
+          "MetafileImageTests.testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank",
+          "MetafileImageTests.testLargeOffsetDistortedGradientUsesGeneralBoundaryAndTranslatedControl"
+        ],
+        "log": "build/qa/ci-e3f5476c-recovery-metafile-gradient-recheck-2026-10-26.log",
+        "strict_output_assertions": "Unchanged: <=1 maximum RGBA translation difference, visible red/blue, authored displacement distinction, exact original source hash and byte preservation."
+      },
+      "distinct_methods_passed_cumulatively": 32
+    },
+    "debug": {
+      "exit_code": 0,
+      "configuration": "Debug arm64, CODE_SIGNING_ALLOWED=NO",
+      "log": "build/qa/ci-e3f5476c-recovery-metafile-debug-2026-10-26.log",
+      "scope": "Initial receipt/fixture batch; renderer repair requires subsequent affected build."
+    },
+    "dialog_coverage": {
+      "exit_code": 0,
+      "log": "build/qa/ci-e3f5476c-recovery-metafile-dialog-coverage-2026-10-26.log",
+      "scope": "Regenerated after parity documentation freeze; counts are review coverage, not feature completion."
+    },
+    "native": "No UI receivers launched: legacy Core receipt compatibility and renderer helper correction only. Actual helper rendering is covered by the affected Core image checks; no physical Finder or installed UI claim.",
+    "metafile_diagnostic": {
+      "receipt": "build/qa/metafile-ci-fixture-authoring-2026-10-26/embedded-difference.json",
+      "differing_embedded_pixels": 17,
+      "location": "Interior diagonal x-y=16; all other embedded pixels byte-exact. Not final SVG-only clipping."
+    },
+    "metafile_runtime": {
+      "exit_code": 0,
+      "scope": "Pinned universal macOS13 reconstruction and structure-only validation",
+      "log": "build/qa/ci-e3f5476c-metafile-runtime-repair-2026-10-26.log",
+      "helper_sha256": "7b73d40a3943d3c6e5959485f64c5a3a1a74c65f97d9a04e3eeaabd63fa34cda",
+      "renderer_sha256": "b8bfb3c0e06195222e0e42aa44e823f008ba9cfbb815334a640958d0f017e684"
+    },
+    "final_debug": {
+      "exit_code": 0,
+      "configuration": "Debug arm64, CODE_SIGNING_ALLOWED=NO",
+      "log": "build/qa/ci-e3f5476c-recovery-metafile-final-debug-2026-10-26.log"
+    },
+    "ownership": "Selected test processes exited; no UI receivers or user app instances launched. Existing user-serving headless app and protected development files retained."
+  },
+  "limits": [
+    "This records the completed e3f5476c failure, not a final result for later d5d6f546/0016268c runs.",
+    "No complete hosted pass, current signed deployment, physical Intel or App Store submission is claimed."
+  ],
+  "fixture_authoring": {
+    "operation": "fixture authoring only; no rendering/build/tests",
+    "private_generator_exit": 0,
+    "private_regeneration_existing_byte_differences": [],
+    "copied_only": {
+      "plus-gradient-large-offset-distorted.emf": {
+        "bytes": 416,
+        "sha256": "dac9ffe587ce0ea4a0a007b1bc16bb515fa4f3f54f3136c2b54e482f51dd2a12"
+      },
+      "plus-gradient-translated-distorted.emf": {
+        "bytes": 416,
+        "sha256": "b6d5d7776c63eead13a9ab486bc96022641c69ee58798b5853d6628c557fe1df"
+      },
+      "plus-gradient-translated-unshifted.emf": {
+        "bytes": 416,
+        "sha256": "5e364511ff6f99e1324a29d34161635012c645a3aac00c925a0e9dd4231552e5"
+      },
+      "unsupported-gradient-canonical-precision.emf": {
+        "bytes": 416,
+        "sha256": "ebdc4f6ae36bc97a069e3f5fe912c3e26d4b9d1399036cb19902c936f84a4a38"
+      }
+    },
+    "removed_old_name": "unsupported-gradient-precision.emf",
+    "unrelated_main_changes": []
+  }
+}

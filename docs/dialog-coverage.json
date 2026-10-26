@@ -3095,6 +3095,7 @@
       ],
       "qa_records": [
         "docs/qa/ci-1cfadcc3-core-failures-2026-10-21.json",
+        "docs/qa/ci-e3f5476c-core-recovery-metafile-2026-10-26.json",
         "docs/qa/client-hooks-failures-native-2026-10-12.json",
         "docs/qa/client-hooks-native-2026-10-12.json",
         "docs/qa/dialog-geometry-2026-10-08.json",

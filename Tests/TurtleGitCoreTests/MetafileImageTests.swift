@@ -4,6 +4,7 @@ import AppKit
 import ImageIO
 import CoreText
 import Darwin
+import CryptoKit
 @testable import TurtleGitCore
 
 final class MetafileImageTests: XCTestCase {
@@ -612,15 +613,55 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
-        for name in ["unsupported-region.emf", "unsupported-image-effect.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-precision.emf"] {
-            XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)))
-            XCTAssertNil(ComparisonImage(bytes: try data(name)))
+        for name in ["unsupported-region.emf", "unsupported-image-effect.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-canonical-precision.emf"] {
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)),name)
+            XCTAssertNil(ComparisonImage(bytes: try data(name)),name)
         }
         var truncated = try data("plus-transform.emf");truncated.removeLast()
-        XCTAssertThrowsError(try MetafileImageDecoder.convert(truncated))
+        XCTAssertThrowsError(try MetafileImageDecoder.convert(truncated),"truncated plus-transform.emf")
         var malformed = try data("classic-vector.emf");malformed.replaceSubrange(92..<96,with:[0xff,0xff,0xff,0x7f])
-        XCTAssertThrowsError(try MetafileImageDecoder.convert(malformed))
-        XCTAssertNil(try MetafileImageDecoder.convert(Data("ordinary text".utf8)))
+        XCTAssertThrowsError(try MetafileImageDecoder.convert(malformed),"invalid classic-vector.emf record extent")
+        XCTAssertNil(try MetafileImageDecoder.convert(Data("ordinary text".utf8)),"unrecognized ordinary text")
+    }
+    func testLargeOffsetDistortedGradientUsesGeneralBoundaryAndTranslatedControl()throws {
+        let names=["plus-gradient-large-offset-distorted.emf","plus-gradient-translated-distorted.emf","plus-gradient-translated-unshifted.emf"]
+        let originals=try names.map{try data($0)}
+        XCTAssertEqual(SHA256.hash(data:originals[0]).map{String(format:"%02x",$0)}.joined(),"dac9ffe587ce0ea4a0a007b1bc16bb515fa4f3f54f3136c2b54e482f51dd2a12","Former unsupported-gradient-precision bytes must remain exact")
+        func pixels(_ value:ComparisonImage,_ name:String)throws->[UInt8] {
+            let cropped=try interior(value,width:96,height:64,name:name)
+            var bytes=[UInt8](repeating:0,count:96*64*4)
+            try bytes.withUnsafeMutableBytes {storage in
+                let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:96,height:64,bitsPerComponent:8,bytesPerRow:96*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+                context.interpolationQuality = .none;context.draw(cropped,in:CGRect(x:0,y:0,width:96,height:64))
+            }
+            return bytes
+        }
+        var rendered=[[UInt8]]()
+        for (index,name) in names.enumerated() {
+            let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(originals[index]),name),as:UTF8.self)
+            XCTAssertFalse(svg.contains("radialGradient"),"General cubic must not become an analytic ellipse: "+name)
+            XCTAssertTrue(svg.contains("data:image/png;base64,"),"General boundary must retain its intrinsic raster: "+name)
+            let value=try XCTUnwrap(ComparisonImage(bytes:originals[index]),name)
+            rendered.append(try pixels(value,name))
+            XCTAssertEqual(try data(name),originals[index],"Rendering changed source bytes: "+name)
+        }
+        let large=rendered[0],translated=rendered[1],unshifted=rendered[2]
+        // The small control translates decoded Float32 coordinates and
+        // conjugates the actual Float32 world matrix. Only its final translation
+        // rounds again (below 0.000002 device pixels), permitting one byte of
+        // color quantization, never a rescale or a different boundary.
+        let translationDifference=zip(large,translated).map{abs(Int($0.0)-Int($0.1))}.max() ?? 0
+        XCTAssertLessThanOrEqual(translationDifference,1,"Large coordinates changed the equivalent translated geometry/color")
+        var red=0,blue=0,distortionDifference=0
+        for pixel in 0..<(96*64) {
+            let offset=pixel*4
+            if Int(large[offset])>Int(large[offset+2])+32 {red += 1}
+            if Int(large[offset+2])>Int(large[offset])+32 {blue += 1}
+            for channel in 0..<3 {distortionDifference=max(distortionDifference,abs(Int(translated[offset+channel])-Int(unshifted[offset+channel])))}
+        }
+        XCTAssertGreaterThan(red,0,"Supported curve returned blank/no center color")
+        XCTAssertGreaterThan(blue,0,"Supported curve lost surrounding color")
+        XCTAssertGreaterThan(distortionDifference,2,"The authored control displacement was replaced by the unshifted ellipse-like boundary")
     }
     func testOutputRejectsExternalResourcesScriptsEntitiesAndOversizedDimensions() throws {
         for text in [

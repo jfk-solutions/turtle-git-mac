@@ -289,7 +289,7 @@ final class RebaseFailedPickTests: XCTestCase {
             XCTAssertFalse(FileManager.default.fileExists(atPath:journalURL.path))
             XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent("done")),Data(base64Encoded:(committed ? after:before)["done"]!["bytes"]!))
         }
-        // Legacy omission permits only an absent adoption file. A new marker
+        // Legacy omissions permit only absent optional metadata. A new marker
         // must not be discarded while upgrading the receipt's file schema.
         let markerURL=directory.appendingPathComponent("turtlegit-adopted-plan.json")
         let markerBytes=try JSONSerialization.data(withJSONObject:["version":1,"structural":false,"originals":[:],"merges":[]] as [String:Any])
@@ -304,6 +304,25 @@ final class RebaseFailedPickTests: XCTestCase {
         let untouchedIndex=try await repo.run(["ls-files","--stage","-v","-z"]).stdout
         XCTAssertEqual(untouchedIndex,index)
         try FileManager.default.removeItem(at:markerURL)
+        let upgraded=try await repo.failedPickRecovery(after:resumed)
+        XCTAssertEqual(upgraded?.entry.id,captured.entry.id)
+        XCTAssertEqual(upgraded?.pendingAction,.skip)
+        // An explicit captured no-commit witness is not an omitted legacy key:
+        // it must still refuse recovery when the actual file is absent.
+        var changedIntent=intent,changedFiles=try XCTUnwrap(intent["files"] as? [String:[String:String]])
+        changedFiles["turtlegit-no-commit-squash.json"]=["bytes":Data("captured group metadata".utf8).base64EncodedString()]
+        changedIntent["files"]=changedFiles
+        let changedIntentData=try JSONSerialization.data(withJSONObject:changedIntent)
+        let intentURL=directory.appendingPathComponent(marker)
+        try changedIntentData.write(to:intentURL)
+        do {_ = try await repo.failedPickRecovery(after:resumed);XCTFail("Legacy upgrade discarded explicit no-commit metadata")} catch RebaseFailure.changed {}
+        XCTAssertEqual(try Data(contentsOf:intentURL),changedIntentData)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-no-commit-squash.json").path))
+        let stillUntouchedHead=try await repo.rebaseCommit("HEAD")
+        XCTAssertEqual(stillUntouchedHead.hash,captured.head)
+        let stillUntouchedIndex=try await repo.run(["ls-files","--stage","-v","-z"]).stdout
+        XCTAssertEqual(stillUntouchedIndex,index)
+        try intentData.write(to:intentURL)
         let reopened=GitRepository(root:root,executable:repo.executable)
         let completed=try await reopened.continueRebase()
         XCTAssertEqual(completed.exitCode,0,completed.output);XCTAssertFalse(completed.state.active)

@@ -3442,13 +3442,12 @@ extension GitRepository {
                     guard state.originalHead==pending.state.originalHead,state.branch==pending.state.branch,state.onto==pending.state.onto,
                           state.isCherryPick==pending.state.isCherryPick,head==pending.head else {throw RebaseFailure.changed}
                 } else {try requireRebaseContinuation(state,expected:pending.state,expectedHead:pending.head)}
-                // Pre-adoption failed-Pick intents captured the five original
-                // action-edit files. Treat that one newly optional, absent file
-                // as absent in the old receipt; an actual adoption marker (or
-                // any other missing/changed file) must still retire the intent.
+                // Older failed-Pick intents omit metadata introduced after
+                // their action-edit schema. Upgrade only absent optional files;
+                // present files and explicit captured bytes remain strict witnesses.
                 var reviewedFiles=pending.files
-                if reviewedFiles[Self.adoptedPlanName]==nil,files[Self.adoptedPlanName]?.bytes==nil {
-                    reviewedFiles[Self.adoptedPlanName] = .init(bytes:nil)
+                for name in [Self.adoptedPlanName,Self.noCommitSquashName] where reviewedFiles[name]==nil && files[name]?.bytes==nil {
+                    reviewedFiles[name] = .init(bytes:nil)
                 }
                 guard reviewedFiles==files,pending.index==payload.index,pending.worktree==payload.worktree else {throw RebaseFailure.changed}
                 var entry=RebaseEntry(commit:try rebaseCommit(pending.hash));entry.occurrence=pending.occurrence;entry.progress = .current

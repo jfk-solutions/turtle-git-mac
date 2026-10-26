@@ -91,11 +91,23 @@ compatibility; no generated vector/image outputs were copied into these fixtures
   PNG, tiled100×100 (10000tiles, below the count limit) over a source rectangle
   mapped to96×64. Duplicated serialized image payload exceeds64MiB and must be
   rejected before concatenating the oversized SVG.
-- `unsupported-gradient-precision.emf`: an ellipse near coordinate900000000,
-  radius1024, with one Bezier control shifted256 units. A world scale of0.03
-  makes that distortion7.68pixels; accepting it with a coordinate-magnitude
-  tolerance would visibly misrender it. Float32 precision relative to the small
-  ellipse axis must instead force an explicit unsupported result.
+- `plus-gradient-large-offset-distorted.emf`: the exact former
+  `unsupported-gradient-precision.emf` bytes (SHA256
+  `dac9ffe587ce0ea4a0a007b1bc16bb515fa4f3f54f3136c2b54e482f51dd2a12`).
+  The boundary near coordinate900000000 has radius1024 and one Bezier control
+  shifted256 units. General cubic support now renders this noncanonical path;
+  it must use its raster boundary rather than an analytic radial-gradient ellipse.
+- `plus-gradient-translated-distorted.emf` independently subtracts the common
+  origin from the decoded Float32 path and conjugates the decoded world matrix.
+  Its geometry and colors must match the large-offset input (one byte allowed
+  for final Float32 translation quantization, below0.000002 device pixels).
+  `plus-gradient-translated-unshifted.emf` removes only the256-unit control
+  displacement and must produce a distinct result. These are geometric controls,
+  not a newly asserted Windows large-coordinate pixel oracle. All three retain
+  their natural97×65 canvas; comparisons crop the same top-left96×64 interior.
+- `unsupported-gradient-canonical-precision.emf`: an unshifted canonical ellipse
+  at the same large origin/radius/world scale. It retains the explicit analytic
+  ellipse Float32 precision refusal independently of supported general cubics.
 
 Core color samples normalize the actual CGImage into a named sRGB8-bit buffer.
 This avoids NSBitmapImageRep.colorAt's generic-calibrated NSColor interpretation

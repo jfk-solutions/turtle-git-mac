@@ -167,16 +167,36 @@ noise_png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',128,128,8,6,
 noise_image=U(0xdbc01002,1)+I(0,0,0)+U(0,1)+noise_png
 rs=[ep(0x4008,noise_image,0x500),ep(0x4008,attr(wrap=0),0x803),image_rect(3,(0,0,12800,12800),(0,0,96,64))]
 (P/'unsupported-image-tile-budget.emf').write_bytes(plus(rs))
-# Float32 precision at a huge offset must not turn a visibly distorted ellipse
-# into an accepted canonical radial gradient. Old maxCoordinate*3e-7 tolerance
-# (~270) admitted this256-unit control shift; world scale makes it7.68pixels.
+# General cubic support must preserve this noncanonical boundary instead of
+# substituting an ellipse. Keep the former unsupported-gradient-precision bytes
+# exactly; the shift is 256 logical units (7.68 device units before Bezier weight).
 large=900000000;radius=1024
 large_ellipse=[(large+radius,large),(large+radius,large+radius*k),(large+radius*k,large+radius),(large,large+radius),(large-radius*k,large+radius),(large-radius,large+radius*k),(large-radius,large),(large-radius,large-radius*k),(large-radius*k,large-radius),(large,large-radius),(large+radius*k,large-radius),(large+radius,large-radius*k),(large+radius,large)]
+canonical_large=list(large_ellipse)
 large_ellipse[1]=(large_ellipse[1][0]+256,large_ellipse[1][1])
 large_path=U(0xdbc01002,13,0)+F(*(v for point in large_ellipse for v in point))+pad(bytes([0]+[3]*11+[0x83]))
 large_radial=U(0xdbc01002,3,1,4,0xffff0000)+F(large,large)+U(1,0xff0000ff,len(large_path))+large_path
 rs=[ep(0x4008,large_radial,0x100),ep(0x402A,F(.03,0,0,.03,48-large*.03,32-large*.03)),ep(0x400E,U(0)+F(large-radius,large-radius,2*radius,2*radius))]
-(P/'unsupported-gradient-precision.emf').write_bytes(plus(rs))
+(P/'plus-gradient-large-offset-distorted.emf').write_bytes(plus(rs))
+# Independent translation: decode the original Float32 inputs, subtract the
+# common coordinate origin, and conjugate its actual Float32 world transform.
+# This is a geometry identity, not a renderer-derived expected pixel buffer.
+wire_points=list(struct.iter_unpack('<ff',F(*(v for point in large_ellipse for v in point))))
+small_points=[(x-large,y-large) for x,y in wire_points]
+large_world=struct.unpack('<6f',F(.03,0,0,.03,48-large*.03,32-large*.03))
+small_world=F(large_world[0],0,0,large_world[3],large_world[0]*large+large_world[4],large_world[3]*large+large_world[5])
+def translated_gradient(points):
+ path=U(0xdbc01002,13,0)+F(*(v for point in points for v in point))+pad(bytes([0]+[3]*11+[0x83]))
+ radial=U(0xdbc01002,3,1,4,0xffff0000)+F(0,0)+U(1,0xff0000ff,len(path))+path
+ return plus([ep(0x4008,radial,0x100),ep(0x402A,small_world),ep(0x400E,U(0)+F(-radius,-radius,2*radius,2*radius))])
+(P/'plus-gradient-translated-distorted.emf').write_bytes(translated_gradient(small_points))
+unshifted=list(small_points);unshifted[1]=(unshifted[1][0]-256,unshifted[1][1])
+(P/'plus-gradient-translated-unshifted.emf').write_bytes(translated_gradient(unshifted))
+# A genuinely canonical huge-offset ellipse still exercises the analytic
+# profile's explicit Float32 precision refusal, independently of cubic admission.
+canonical_path=U(0xdbc01002,13,0)+F(*(v for point in canonical_large for v in point))+pad(bytes([0]+[3]*11+[0x83]))
+canonical_radial=U(0xdbc01002,3,1,4,0xffff0000)+F(large,large)+U(1,0xff0000ff,len(canonical_path))+canonical_path
+(P/'unsupported-gradient-canonical-precision.emf').write_bytes(plus([ep(0x4008,canonical_radial,0x100),ep(0x402A,F(.03,0,0,.03,48-large*.03,32-large*.03)),ep(0x400E,U(0)+F(large-radius,large-radius,2*radius,2*radius))]))
 
 # Region/pattern family: original binary records, with independent Boolean and
 # source-pixel expectations in MetafileImageTests. RegionNodeCount counts CHILD

@@ -198,7 +198,7 @@ are the final focused verification scope:
 | `unsupported-image-effect.emf`, `unsupported-image-wrap.emf`, `unsupported-image-attribute-type.emf` | Image effects, invalid wrap value and wrong object type fail explicitly. Clamp BOOL=1 is now accepted as ignored metadata. |
 | `unsupported-gradient-stops.emf` | Invalid preset data cannot become a successful plausible gradient. |
 | `unsupported-image-tile-budget.emf` | A count-valid repeated bitmap must fail its projected serialized-byte budget before constructing excessive SVG. |
-| `unsupported-gradient-precision.emf` | Coordinates with excessive Float32/canonical tolerance relative to the ellipse axis must not approximate arbitrary boundaries. |
+| `unsupported-gradient-precision.emf` | Historical ellipse-only refusal, superseded by the general-path continuation and the October 26 correction below; these original bytes are a supported noncanonical cubic boundary. |
 
 ## Scope and remaining work
 
@@ -225,3 +225,32 @@ rules continue to apply; no painting feature grants filesystem or network access
 The [compressed-path continuation](METAFILE-PATH-PARITY.md) now shares the wire
 reader for that same accepted ellipse boundary. Short/relative encoding does
 not relax the thirteen-point geometry, center or tolerance rules above.
+
+## General-path fixture classification correction — October 26, 2026
+
+Hosted run `40294921577`, Core job `121479096826` at `e3f5476c`, exposed an obsolete
+negative expectation for `unsupported-gradient-precision.emf`. Its original bytes
+describe a valid noncanonical cubic boundary now supported by the later general
+path-gradient renderer. They must exercise successful shape/painting behavior;
+restoring an ellipse-only rejection would remove implemented functionality.
+
+The repair retains the original bytes as `plus-gradient-large-offset-distorted.emf`,
+with independently translated distorted/unshifted controls, and separates a
+genuinely canonical `unsupported-gradient-canonical-precision.emf` at a huge offset
+whose Float32 precision cannot safely
+support canonical recognition. That precision case must still refuse rather than
+silently approximate the boundary. Strong source/shape assertions distinguish
+the two cases. Equivalent translated controls also exposed transparent pixels
+along an interior fan ray: device-space coverage selected one edge while a
+second inverse-local intersection could reject its rounded endpoint. Uniform
+Clamp gradients now derive color distance from the same transformed edge that
+owns the half-open coverage span. Outside coverage, focus behavior, multicolor
+scan conversion, wrapped brushes and bounded-work safeguards remain in force.
+The source pin is unchanged.
+
+The [CI recovery record](qa/ci-e3f5476c-core-recovery-metafile-2026-10-26.json)
+records the actual hosted failure and initial positive-regression failure, followed
+by all 14 affected gradient/image methods passing with the strict translation
+assertion unchanged. Universal helper reconstruction and the final Debug build
+pass. No complete hosted CI, new Windows pixel identity or wider metafile
+compatibility follows from this correction.
