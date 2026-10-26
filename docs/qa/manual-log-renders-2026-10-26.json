@@ -1,0 +1,91 @@
+{
+  "method": "CALayer render into private bitmap; actual native content views, no OS window chrome",
+  "desktop_screen_capture": false,
+  "installed_UI_acceptance": false,
+  "git_head": "cc7fc032ca89f4b74b4a52c470074b7dd3a2138b",
+  "receiver": "build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-a529df055b0cade876cd92bd729167db6ceff2462d3bdf759761ac357cbded95",
+  "receiver_pids": [
+    59533
+  ],
+  "receiver_reaped_and_independently_absent": true,
+  "fixture_sha256": "e291e83031f6d873ed36e7a1e9fca0a9713fc2e124e7ab395c250839eb7f3d51",
+  "preferences": "Private suite, HOME/CFFIXED_USER_HOME; no user preferences",
+  "repository": "Private synthetic Harbor; HEAD/index tree/status unchanged after construction",
+  "network": false,
+  "assets": [
+    {
+      "raw_path": "build/qa/manual-log-renders-2026-10-26/mac-log-light-2026-10-26.png",
+      "width": 2240,
+      "height": 1560,
+      "bytes": 269593,
+      "sha256": "d5166f651a88bc3132e5c008a4444470ae3effb4bbab427f04a1b8cf394c483a",
+      "published_path": "docs/site/assets/mac-log-light-2026-10-26.png"
+    },
+    {
+      "raw_path": "build/qa/manual-log-renders-2026-10-26/mac-log-dark-2026-10-26.png",
+      "width": 2240,
+      "height": 1560,
+      "bytes": 272083,
+      "sha256": "1131496c5b63a610373e6f1749cfbdc0adaa9883fca122c50f0a9627bc5153ef",
+      "published_path": "docs/site/assets/mac-log-dark-2026-10-26.png"
+    }
+  ],
+  "publication": "Both final Log renders individually reviewed; exact generated PNG bytes copied to site assets",
+  "visual_review": {
+    "log_light": "Graph, colored labels/icons, selected merge/message, two parent file groups, filters and footer fit",
+    "log_dark": "Same geometry/data in dark appearance, readable controls/status colors",
+    "commit": "New renders rejected; existing reviewed October25 compact-selector screenshots retained"
+  },
+  "prior_attempts": [
+    {
+      "folder": "build/qa/manual-content-renders-incomplete-cache-attempt-2026-10-26",
+      "receiver_pids": [
+        58797
+      ],
+      "result": "rejected for publication",
+      "reason": "Incomplete SwiftUI layers"
+    },
+    {
+      "folder": "build/qa/manual-content-renders-inverted-layer-attempt-2026-10-26",
+      "receiver_pids": [
+        59013
+      ],
+      "result": "rejected for publication",
+      "reason": "Inverted bitmap coordinate system"
+    },
+    {
+      "folder": "build/qa/manual-content-renders-unclipped-layer-attempt-2026-10-26",
+      "receiver_pids": [
+        59182
+      ],
+      "result": "rejected for publication",
+      "reason": "Commit first group heading painted across column header; no Commit image published"
+    },
+    {
+      "folder": "build/qa/manual-content-renders-2026-10-26",
+      "receiver_pids": [
+        59351
+      ],
+      "result": "rejected for publication",
+      "reason": "Commit first group heading painted across column header; no Commit image published"
+    }
+  ],
+  "installed_build12": "Unchanged; installed UI observation limitations remain in its own receipt",
+  "help_book": "Regenerated from updated guides before committing; these new resources are not installed in build12",
+  "validation": {
+    "help_generation": "pass:58 documents/51 topics/86 files",
+    "help_check": "pass",
+    "site_build": "pass:477 documents, no unresolved fragments",
+    "site_tests": "pass:2",
+    "search": "pass:search/filter/no-match/load-failure",
+    "visual_browser": "Actual background IAB homepage gallery and Getting Started history section reviewed; both new Log images loaded",
+    "preview_captures": [
+      "build/qa/manual-gallery-preview-2026-10-26.png",
+      "build/qa/manual-guide-preview-2026-10-26.png"
+    ],
+    "preview_tab_closed": true,
+    "preview_server_session": 32125,
+    "preview_server_exit": 0,
+    "core_and_app_build": "Not rerun: documentation/native-render fixture only; installed build12 unchanged"
+  }
+}

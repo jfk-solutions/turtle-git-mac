@@ -163,11 +163,11 @@ The Log window shows the revision graph before the commit list, with the selecte
 commit's message and changed paths below. This example selects a merge so you can
 inspect its differences against each parent.
 
-![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-25.png)
+![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-26.png)
 
-![The same Log window in dark mode](site/assets/mac-log-dark-2026-10-25.png)
+![The same Log window in dark mode](site/assets/mac-log-dark-2026-10-26.png)
 
-These screenshots show actual native windows using the offline Harbor sample
+These examples show the native controls using the offline Harbor sample
 repository. Available actions depend on the repository and selection. The
 [partial-staging example](site/assets/partial-staging.png) shows the patch controls.
 

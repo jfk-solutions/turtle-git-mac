@@ -105,6 +105,13 @@ resize columns. Row height follows the configured file-list font and leaves room
 for checkboxes and status icons. Hover for full values; copying retains the
 original filenames, including Unicode and embedded line breaks.
 
+Use the compact selector at the upper right to choose **Classic** or
+**Git Gui-style staging**. The choice is remembered for later Commit windows.
+
+![Commit message, options and checked files in light appearance](site/assets/mac-commit-compact-light-2026-10-25.png)
+
+![Commit controls and file status colors in dark appearance](site/assets/mac-commit-compact-dark-2026-10-25.png)
+
 The Check links follow the source action categories: **Added** includes copies,
 while **Modified** selects modification/type-change actions rather than every row
 whose display status falls back to Modified. Hold Shift to uncheck a category;
@@ -203,6 +210,10 @@ Log shows the revision graph before the revision list, followed by the selected
 message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. [Finding revisions](LOG-FIND.md) explains Log's Find flow.
+
+![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-10-26.png)
+
+![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-10-26.png)
 
 Drag a file from the changed-file list to another application to copy the
 selected revision's contents. Working-tree rows offer the actual working file.

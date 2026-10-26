@@ -77,6 +77,14 @@ No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 
+The [manual illustration checkpoint](qa/manual-log-renders-2026-10-26.json)
+refreshes light/dark Log images across the homepage, README and guides, adds
+illustrated Commit/Log sections to the Dialog Guide and regenerates bundled Help.
+These are reviewed native content-view renders; the existing reviewed Commit
+screenshots remain because replacement renders had a clipping artifact. Site,
+Help, links and search checks pass. The source Help updates are not installed in
+build12, and none of this supersedes its signed interaction limits.
+
 The [working-file report-row batch](STATUS-REPORT-ROWS-PARITY.md) gives Resolve,
 Working Tree and Revert one font-derived row height, single-line path/metadata
 captions, bounded source icons and live font updates that retain highlighted
