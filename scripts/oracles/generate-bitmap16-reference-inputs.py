@@ -21,7 +21,7 @@ def bits(bpp,w,h):
    r,g,blue=colors[(x+y*3)%8];o=y*stride
    if bpp==1:b[o+x//8]|=((rows[y%4]>>(7-x%8))&1)<<(7-x%8)
    elif bpp==4:b[o+x//2]|=((x+y*3)%16)<<(0 if x%2 else 4)
-   elif bpp==8:b[o+x]=(x+y*3)*17
+   elif bpp==8:b[o+x]=((x+y*3)*17)&255
    elif bpp==16:struct.pack_into('<H',b,o+x*2,(r>>3)<<10|(g>>3)<<5|blue>>3)
    else:b[o+x*(bpp//8):o+(x+1)*(bpp//8)]=bytes([blue,g,r]+([(x*47+y*29)&255]if bpp==32 else[]))
  return bytes(b)
