@@ -283,6 +283,10 @@ struct FileSelectionCheckbox:NSViewRepresentable {
     var verticalPadding:CGFloat=4
     var rowHeight:CGFloat {NativeReportRowGeometry.rowHeight(font:font,groupFont:groupFont,minimumContentHeight:minimumContentHeight,verticalPadding:verticalPadding)}
     var contentHeight:CGFloat {rowHeight-verticalPadding}
+    static func resolve(useLogFont:Bool,name:String,size:Int)->Self {
+        let font=useLogFont ? MessageEditorFont.resolve(name:name,size:size):NSFont.systemFont(ofSize:NSFont.systemFontSize)
+        return Self(font:font,groupFont:NSFontManager.shared.convert(font,toHaveTrait:.boldFontMask))
+    }
 }
 /// Observe the public AppKit table without replacing its selection, accessibility
 /// or context-menu implementation.

@@ -192,7 +192,7 @@ final class StatusNativeWindow: NSWindow {
         guard !closingStatus else { return }; closingStatus = true
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         model.invalidate(); lfsOperation?.close(); lfsOperation = nil
-        model.unifiedWindow?.close(); onClosed()
+        model.unifiedWindow?.close();window?.contentViewController=nil;onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -877,6 +877,13 @@ struct StatusStashMenu:NSViewRepresentable {
 }
 
 struct StatusDialog: View {
+    @AppStorage("LogFontForFileListCtrl") private var reportUsesLogFont=false
+    @AppStorage("LogFontName") private var reportFontName=MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
+    private var reportGeometry:FileListUniformRowGeometry {
+        .resolve(useLogFont:reportUsesLogFont,name:reportFontName,size:reportFontSize)
+    }
+
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: StatusWindowModel
     @State private var focusedIdentity: GitReferenceName?
@@ -885,6 +892,7 @@ struct StatusDialog: View {
         Binding(get:{ focusedIdentity?.rawValue },set:{ focusedIdentity = $0.map { GitReferenceName($0) } })
     }
     var body: some View {
+        let geometry=reportGeometry
         let rows = model.sortedRows
         let rowsByID = GitPathMap(uniqueKeysWithValues: rows.map { ($0.id,$0) })
         VStack(alignment: .leading, spacing: 8) {
@@ -899,23 +907,23 @@ struct StatusDialog: View {
             Table(model.tableRows, selection: $model.nativeFileSelection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
-                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1).background(NativeListSelectionLabelMarker()) }
-                            .repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
-                    } else if let group = item.row.group { Text(verbatim:FileListLabels.groupTitle(group)).font(.headline).foregroundStyle(Color.accentColor).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
+                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon).resizable().frame(width:16,height:16) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1).background(NativeListSelectionLabelMarker()) }
+                            .frame(height:geometry.contentHeight).repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
+                    } else if let group = item.row.group { Text(verbatim:FileListLabels.groupTitle(group)).font(Font(geometry.groupFont)).foregroundStyle(Color.accentColor).frame(height:geometry.contentHeight).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
                 }.width(min: 250, ideal: 380)
-                TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName) }.width(min: 100, ideal: 180)
-                TableColumn("Extension", sortUsing: StatusGroupedSort(column: .fileExtension)) { item in groupCell(item, column: .fileExtension) }.width(min: 45, ideal: 65)
-                TableColumn("Status", sortUsing: StatusGroupedSort(column: .status)) { item in groupCell(item, column: .status) }.width(min: 110, ideal: 155)
-                TableColumn("Lines added", sortUsing: StatusGroupedSort(column: .added)) { item in groupCell(item, column: .added) }.width(min: 60, ideal: 80)
-                TableColumn("Lines removed", sortUsing: StatusGroupedSort(column: .removed)) { item in groupCell(item, column: .removed) }.width(min: 60, ideal: 90)
-                TableColumn("Last modified", sortUsing: StatusGroupedSort(column: .lastModified)) { item in groupCell(item, column: .lastModified) }.width(min: 150, ideal: 170)
-                TableColumn("File size", sortUsing: StatusGroupedSort(column: .fileSize)) { item in groupCell(item, column: .fileSize) }.width(min: 70, ideal: 100)
-                TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner) }.width(min: 100, ideal: 160)
-            }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().disabled(model.controlsBlocked)
+                TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName,geometry:geometry) }.width(min: 100, ideal: 180)
+                TableColumn("Extension", sortUsing: StatusGroupedSort(column: .fileExtension)) { item in groupCell(item, column: .fileExtension,geometry:geometry) }.width(min: 45, ideal: 65)
+                TableColumn("Status", sortUsing: StatusGroupedSort(column: .status)) { item in groupCell(item, column: .status,geometry:geometry) }.width(min: 110, ideal: 155)
+                TableColumn("Lines added", sortUsing: StatusGroupedSort(column: .added)) { item in groupCell(item, column: .added,geometry:geometry) }.width(min: 60, ideal: 80)
+                TableColumn("Lines removed", sortUsing: StatusGroupedSort(column: .removed)) { item in groupCell(item, column: .removed,geometry:geometry) }.width(min: 60, ideal: 90)
+                TableColumn("Last modified", sortUsing: StatusGroupedSort(column: .lastModified)) { item in groupCell(item, column: .lastModified,geometry:geometry) }.width(min: 150, ideal: 170)
+                TableColumn("File size", sortUsing: StatusGroupedSort(column: .fileSize)) { item in groupCell(item, column: .fileSize,geometry:geometry) }.width(min: 70, ideal: 100)
+                TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner,geometry:geometry) }.width(min: 100, ideal: 160)
+            }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().environment(\.defaultMinListRowHeight,geometry.rowHeight).lineLimit(1).truncationMode(.tail).disabled(model.controlsBlocked)
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
                 model.receiveFileDrop(providers)
             }
-            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin,configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.statusBackdrop,preferences:model.colorPreferences,
+            .background(CommitFileInteraction(rows: model.tableRows.map(\.row),uniformRowGeometry:geometry, leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin,configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.statusBackdrop,preferences:model.colorPreferences,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
@@ -1066,9 +1074,9 @@ struct StatusDialog: View {
         } message: { Text(model.error ?? "") }
 
     }
-    @ViewBuilder private func groupCell(_ item: StatusGroupedRow, column: StatusListColumn) -> some View {
-        if let row = item.contents { Text(model.columnText(row, column)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)) }
-        else { Rectangle().fill(Color.accentColor.opacity(0.35)).frame(height: 1).padding(.vertical, 8) }
+    @ViewBuilder private func groupCell(_ item: StatusGroupedRow, column: StatusListColumn,geometry:FileListUniformRowGeometry) -> some View {
+        if let row = item.contents { Text(model.columnText(row, column)).help(model.columnText(row,column)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) }
+        else { Rectangle().fill(Color.accentColor.opacity(0.35)).frame(height:1).frame(height:geometry.contentHeight) }
     }
 
 }

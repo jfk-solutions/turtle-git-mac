@@ -1,0 +1,339 @@
+{
+  "date": "2026-10-26",
+  "status": "focused-native-geometry-and-selection-pass-tooltip-physical-acceptance-open",
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/Git/GitStatusListCtrl.cpp:282-300 report font and small status image list"
+    ]
+  },
+  "scope": [
+    "Resolve",
+    "Working Tree",
+    "Revert"
+  ],
+  "fixture": "docs/qa/status-report-rows-native-2026-10-26.swift",
+  "runner": "scripts/test-status-report-rows.py",
+  "planned_native_cases": [
+    "resolve",
+    "status",
+    "revert"
+  ],
+  "planned_engines": [
+    "system Git",
+    "bundled Git"
+  ],
+  "assertions": [
+    "Actual private Git rows retain long Unicode, newline and tab paths",
+    "Uniform default and large-font row geometry fits actual captions, checkboxes and image views",
+    "Live font toggle and resize preserve a nonempty native/model selection",
+    "Private clipboard preserves original path bytes; native checkbox names retain the original filename; help checks remain strict when observable and otherwise explicitly unverified.",
+    "Adapter detach restores native sizing and delegate; retired updates cannot resize; reopen creates a fresh table",
+    "HEAD, semantic index records and working bytes remain unchanged",
+    "Owned windows remain invisible/offscreen and workers/receivers are drained"
+  ],
+  "validation": {
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-debug-2026-10-26.log"
+    },
+    "localizations_write": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-localizations-write-2026-10-26.log"
+    },
+    "core": "Not repeated: native-only layout/ownership changes.",
+    "debug_after_probe_close": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-close-debug-2026-10-26.log"
+    },
+    "debug_after_host_release": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-retirement-debug-2026-10-26.log"
+    },
+    "attempts": [
+      {
+        "log": "build/qa/status-report-rows-native-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_pid": 41762,
+        "receiver_reaped": true,
+        "failure": "New full-path help assertion queried only an unobservable offscreen SwiftUI text surface. Default geometry, raw copy and native checkbox label assertions had passed."
+      },
+      {
+        "log": "build/qa/status-report-rows-resolve-diagnostic-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_pid": 41948,
+        "receiver_reaped": true,
+        "failure": "Expanded public AX traversal still exposed no SwiftUI text/help, including constant metadata help. No path normalization regression demonstrated."
+      },
+      {
+        "log": "build/qa/status-report-rows-resolve-tooltip-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_started": false,
+        "failure": "Fixture compilation used obsolete NSToolTipTag spelling; repaired to NSView.ToolTipTag."
+      },
+      {
+        "log": "build/qa/status-report-rows-resolve-tooltip-v2-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_pid": 42821,
+        "receiver_reaped": true,
+        "failure": "Public tooltip registration capture found no registrations at all in offscreen SwiftUI. Full-path tooltip display cannot be certified by this mode."
+      },
+      {
+        "log": "build/qa/status-report-rows-native-final-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_pid": 43062,
+        "receiver_reaped": true,
+        "failure": "Fixture checked existing native row frames before asynchronous layout settled after a live font update. Repaired by waiting for actual row placement; all clipping assertions retained."
+      },
+      {
+        "log": "build/qa/status-report-rows-resolve-layout-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_pid": 43142,
+        "receiver_reaped": true,
+        "failure": "Actual retained closed Resolve hosting view reacted to changed font preferences after adapter retirement. Repaired by releasing closed hosting content after owned drain; Status also releases its closed host, matching Revert."
+      },
+      {
+        "log": "build/qa/status-report-rows-retirement-native-2026-10-26.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "case": "resolve/system",
+            "pid": 43339,
+            "reaped": true,
+            "native_geometry_pass": true,
+            "help_status": "unverified-offscreen"
+          },
+          {
+            "case": "status/system",
+            "pid": 43399,
+            "reaped": true,
+            "native_geometry_pass": false
+          }
+        ],
+        "failure": "Status help-observability gate incorrectly counted unrelated native footer statistics help outside the table. Repaired query scope to actual table and matching Path-cell tooltip registrations."
+      },
+      {
+        "log": "build/qa/status-report-rows-status-revert-final-2026-10-26.log",
+        "exit_code": 1,
+        "receiver_pid": 43514,
+        "receiver_reaped": true,
+        "failure": "Actual production trap in NativeListSelection.Owner.reconcile: lazy NSArray-to-[NSView] bridge rejected SwiftUITableRowView while reading last subview. Replaced that query with public Objective-C NSArray native identity inspection; selection behavior remains unchanged.",
+        "crash_frames": [
+          {
+            "symbol": "_ArrayBuffer._getElementSlowPath(_:)",
+            "source": null
+          },
+          {
+            "symbol": "BidirectionalCollection.last.getter",
+            "source": null
+          },
+          {
+            "symbol": "NativeListSelection.Owner.reconcile(_:)",
+            "source": "NativeListSelection.swift:244"
+          }
+        ]
+      },
+      {
+        "log": "build/qa/status-report-rows-native-array-final-2026-10-26.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "case": "resolve/system",
+            "pid": 43867,
+            "reaped": true,
+            "native_geometry_pass": true
+          },
+          {
+            "case": "status/system",
+            "pid": 43928,
+            "reaped": true,
+            "native_geometry_pass": false
+          }
+        ],
+        "failure": "The array-identity workaround did not repair the underlying runtime-row identity issue. Status aborted in NSDynamicProperties.m:1004 (computed_effectiveGlassMaterialContext -> NSHostingView.updateEnvironment). Replaced per-row object_setClass subclassing with exact-owner public-method wrappers preserving AppKit/SwiftUI native row classes; temporary array workaround removed."
+      },
+      {
+        "log": "build/qa/status-report-rows-identity-final-2026-10-26.log",
+        "exit_code": 1,
+        "receivers": [
+          {
+            "case": "resolve/system",
+            "pid": 44260,
+            "reaped": true,
+            "native_geometry_pass": true
+          },
+          {
+            "case": "status/system",
+            "pid": 44318,
+            "reaped": true,
+            "native_geometry_pass": false
+          }
+        ],
+        "failure": "New fixture asserted exact native runtime class equality across a sizing restore, an invariant AppKit does not promise. The adapter no longer changes isa; assertion now checks absence of its substituted runtime subclass before/after detach while all native geometry, style/selection and lifetime assertions remain."
+      }
+    ],
+    "debug_after_native_array_repair": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-native-array-debug-2026-10-26.log"
+    },
+    "debug_after_row_identity_repair": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-row-identity-debug-2026-10-26.log"
+    },
+    "native_final": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-original-native-rows-final-2026-10-26.log",
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "resolve",
+          "returncode": 0,
+          "passed": true,
+          "native_geometry_pass": true,
+          "help_status": "unverified-offscreen",
+          "help_verified": false
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "status",
+          "returncode": 0,
+          "passed": true,
+          "native_geometry_pass": true,
+          "help_status": "unverified-offscreen",
+          "help_verified": false
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "revert",
+          "returncode": 0,
+          "passed": true,
+          "native_geometry_pass": true,
+          "help_status": "unverified-offscreen",
+          "help_verified": false
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "resolve",
+          "returncode": 0,
+          "passed": true,
+          "native_geometry_pass": true,
+          "help_status": "unverified-offscreen",
+          "help_verified": false
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "status",
+          "returncode": 0,
+          "passed": true,
+          "native_geometry_pass": true,
+          "help_status": "unverified-offscreen",
+          "help_verified": false
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "revert",
+          "returncode": 0,
+          "passed": true,
+          "native_geometry_pass": true,
+          "help_status": "unverified-offscreen",
+          "help_verified": false
+        }
+      ],
+      "receivers": [
+        {
+          "pid": 44385,
+          "reaped": true
+        },
+        {
+          "pid": 44443,
+          "reaped": true
+        },
+        {
+          "pid": 44501,
+          "reaped": true
+        },
+        {
+          "pid": 44551,
+          "reaped": true
+        },
+        {
+          "pid": 44608,
+          "reaped": true
+        },
+        {
+          "pid": 44665,
+          "reaped": true
+        }
+      ],
+      "scope": "Six actual dialog/Git case pairs pass geometry, raw copy, selection, detach, original native row-class admission, close/reopen and no-mutation/cleanup assertions. Tooltip observation remains explicitly unverified-offscreen for every case. No table-delegate reentrancy warning in this final grouped run."
+    },
+    "localizations_check": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-localizations-check-2026-10-26.log"
+    },
+    "coverage": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-coverage-2026-10-26.log"
+    },
+    "selection_adapter": {
+      "exit_code": 0,
+      "log": "build/qa/status-report-rows-selection-adapter-2026-10-26.log",
+      "receiver_pid": 44731,
+      "receiver_reaped": true,
+      "scope": "Existing actual AppKit/SwiftUI adapter assertions: full-row and label-only modes, native keyboard selection, embedded checkbox action, primary-column reorder, original selection/styles/delegate on detach, owner close."
+    },
+    "receiver_absence": {
+      "attempted_receiver_pids": [
+        41762,
+        41948,
+        42821,
+        43062,
+        43142,
+        43339,
+        43399,
+        43514,
+        43867,
+        43928,
+        44260,
+        44318,
+        44385,
+        44443,
+        44501,
+        44551,
+        44608,
+        44665,
+        44731
+      ],
+      "ps_exit_code": 1,
+      "all_independently_absent": true,
+      "user_owned_app_untouched": true
+    }
+  },
+  "limits": [
+    "No Core behavior changes",
+    "No physical keyboard, signed sandbox, minimum-OS or full visual-parity claim",
+    "Offscreen SwiftUI supplies no observable virtual text help or AppKit tooltip registrations. Full-path hover display, live help preference behavior and VoiceOver remain unverified in that mode; source RepositoryFileHelp is retained."
+  ],
+  "source_parent": "38f1085f",
+  "external_observation": {
+    "pages": {
+      "revision": "38f1085f",
+      "run": 40315633571,
+      "conclusion": "success"
+    },
+    "macos": {
+      "revision": "38f1085f",
+      "run": 40315633554,
+      "status": "pending at repeat observation during this batch"
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "7e2d91b8ed8c8c992ea091b3a2bb09718d033665ee967aaec0a1ba3c6ad6ed6e",
+    "Sources/TurtleGitMac/NativeListSelection.swift": "9e4d8620d60dc0cb8a072fec256b5c8ce077e1cb2925a8f5f134272c7aabd15b",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "466f9dd4573aac7ca8ad09a2cdd4690cd09fbfa25e9f2974a870d5acf5cc6407",
+    "Sources/TurtleGitMac/RevertWindow.swift": "2a65eaaf5c9073a3ec487fbd92dcd8b03f416824eef740d67de80227cedb096d",
+    "Sources/TurtleGitMac/StatusWindow.swift": "5de4d4fda0518cab1df097acd417a63a7597e893d8a4fed9d610b0bc4d4b00fd",
+    "docs/qa/status-report-rows-native-2026-10-26.swift": "4a7812ea7b1d6151b8af5767abe1c6deeb166432d51ebef14d121992e46a04f4",
+    "scripts/test-status-report-rows.py": "7e746ca1188717b2c07b7f036a08bcefc74788918b00e10d23a023d0fe972c0e"
+  }
+}

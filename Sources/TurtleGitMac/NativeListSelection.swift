@@ -8,26 +8,31 @@ import TurtleGitCore
 @MainActor enum NativeListSelection {
     private static var key:UInt8=0
     private static var rowKey:UInt8=0
-    private static var rowClasses:[ObjectIdentifier:AnyClass]=[:]
+    private static var decoratedRowClasses=Set<ObjectIdentifier>()
     @MainActor private final class RowBinding {
         weak var owner:Owner?
-        let originalClass:AnyClass
-        let decoratedClass:AnyClass
-        init(owner:Owner,originalClass:AnyClass,decoratedClass:AnyClass){self.owner=owner;self.originalClass=originalClass;self.decoratedClass=decoratedClass}
+        init(owner:Owner){self.owner=owner}
+    }
+    private static func usesLabelSelection(_ row:NSTableRowView)->Bool {
+        guard let owner=(objc_getAssociatedObject(row,&rowKey) as? RowBinding)?.owner,
+              let table=owner.table,owner.isCurrent(table),!owner.fullRow else{return false}
+        var ancestor=row.superview
+        while let view=ancestor {
+            if let actual=view as? NSTableView{return actual === table}
+            ancestor=view.superview
+        }
+        return false
     }
     private static func decorate(_ row:NSTableRowView,owner:Owner) {
         if let binding=objc_getAssociatedObject(row,&rowKey) as? RowBinding {binding.owner=owner;return}
         guard let base=object_getClass(row) else{return}
-        let cls:AnyClass
-        if let existing=rowClasses[ObjectIdentifier(base)] {cls=existing}
-        else {
-            guard let created=objc_allocateClassPair(base,"TurtleGitLabelSelectionRow_\(rowClasses.count)",0),
-                  let draw=class_getInstanceMethod(base,#selector(NSTableRowView.drawSelection(in:))),
+        if !decoratedRowClasses.contains(ObjectIdentifier(base)) {
+            guard let draw=class_getInstanceMethod(base,#selector(NSTableRowView.drawSelection(in:))),
                   let style=class_getInstanceMethod(base,#selector(getter:NSTableRowView.interiorBackgroundStyle)) else{return}
             let originalDraw=method_getImplementation(draw),originalStyle=method_getImplementation(style)
             let drawBlock:@convention(block)(NSTableRowView,NSRect)->Void={view,rect in
                 MainActor.assumeIsolated {
-                    if (objc_getAssociatedObject(view,&rowKey) as? RowBinding)?.owner?.fullRow != false {
+                    if !usesLabelSelection(view) {
                         typealias Draw=@convention(c)(AnyObject,Selector,NSRect)->Void
                         unsafeBitCast(originalDraw,to:Draw.self)(view,#selector(NSTableRowView.drawSelection(in:)),rect)
                     }
@@ -35,21 +40,23 @@ import TurtleGitCore
             }
             let styleBlock:@convention(block)(NSTableRowView)->Int={view in
                 MainActor.assumeIsolated {
-                    if (objc_getAssociatedObject(view,&rowKey) as? RowBinding)?.owner?.fullRow == false {return NSView.BackgroundStyle.normal.rawValue}
+                    if usesLabelSelection(view) {return NSView.BackgroundStyle.normal.rawValue}
                     typealias Style=@convention(c)(AnyObject,Selector)->Int
                     return unsafeBitCast(originalStyle,to:Style.self)(view,#selector(getter:NSTableRowView.interiorBackgroundStyle))
                 }
             }
-            class_addMethod(created,#selector(NSTableRowView.drawSelection(in:)),imp_implementationWithBlock(drawBlock),method_getTypeEncoding(draw))
-            class_addMethod(created,#selector(getter:NSTableRowView.interiorBackgroundStyle),imp_implementationWithBlock(styleBlock),method_getTypeEncoding(style))
-            objc_registerClassPair(created);rowClasses[ObjectIdentifier(base)]=created;cls=created
+            // Keep AppKit/SwiftUI's actual row class and its native computed
+            // property metadata. Changing isa breaks Swift array bridging and
+            // AppKit's dynamic view properties during live environment updates.
+            // Unbound rows always follow the captured original implementations.
+            class_replaceMethod(base,#selector(NSTableRowView.drawSelection(in:)),imp_implementationWithBlock(drawBlock),method_getTypeEncoding(draw))
+            class_replaceMethod(base,#selector(getter:NSTableRowView.interiorBackgroundStyle),imp_implementationWithBlock(styleBlock),method_getTypeEncoding(style))
+            decoratedRowClasses.insert(ObjectIdentifier(base))
         }
-        objc_setAssociatedObject(row,&rowKey,RowBinding(owner:owner,originalClass:base,decoratedClass:cls),.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        object_setClass(row,cls)
+        objc_setAssociatedObject(row,&rowKey,RowBinding(owner:owner),.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
     private static func undecorate(_ row:NSTableRowView,owner:Owner) {
         guard let binding=objc_getAssociatedObject(row,&rowKey) as? RowBinding,binding.owner === owner else{return}
-        if object_getClass(row).map(ObjectIdentifier.init) == ObjectIdentifier(binding.decoratedClass) {object_setClass(row,binding.originalClass)}
         objc_setAssociatedObject(row,&rowKey,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
     static func install(on table:NSTableView,preferences:UserDefaults,primaryColumn:NSTableColumn?,labelText:((Int)->String?)?=nil,font:NSFont?=nil,leadingInset:CGFloat=0,client:AnyObject?=nil) {
@@ -417,17 +424,30 @@ import SwiftUI
     var labelText:((Int)->String?)?=nil
     var font:NSFont?=nil
     var leadingInset:CGFloat=0
+    var uniformRowGeometry:FileListUniformRowGeometry?=nil
+    var rowIDs:(()->[Data]?)?=nil
     func makeNSView(context:Context)->Probe {Probe()}
-    func updateNSView(_ view:Probe,context:Context) {view.settings=self;view.schedule()}
+    func updateNSView(_ view:Probe,context:Context) {view.update(settings:self)}
     static func dismantleNSView(_ view:Probe,coordinator:()) {view.retire()}
     final class Probe:NSView {
         var settings:NativeListSelectionProbe?
         private weak var table:NSTableView?
         private weak var column:NSTableColumn?
         private var retired=false,pending=false
+        private var closeObserver:NSObjectProtocol?
         private var lastBounds=NSRect.zero
         override func hitTest(_ point:NSPoint)->NSView? {nil}
-        override func viewDidMoveToWindow(){super.viewDidMoveToWindow();if window==nil {detach()} else{schedule()}}
+        override func viewDidMoveToWindow(){
+            super.viewDidMoveToWindow()
+            if let closeObserver{NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
+            guard !retired else{return}
+            guard let window else{detach();return}
+            closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){[weak self] _ in
+                MainActor.assumeIsolated{self?.retire()}
+            }
+            schedule()
+        }
+        func update(settings:NativeListSelectionProbe){guard !retired else{return};self.settings=settings;schedule()}
         override func layout(){super.layout();if bounds != lastBounds {lastBounds=bounds;schedule()}}
         func schedule() {
             guard !retired,!pending else{return};pending=true
@@ -452,8 +472,15 @@ import SwiftUI
                 if column==nil,next.tableColumns.indices.contains(settings.primaryColumnIndex) {column=next.tableColumns[settings.primaryColumnIndex]}
             }
             NativeListSelection.install(on:next,preferences:settings.preferences,primaryColumn:column,labelText:settings.labelText,font:settings.font,leadingInset:settings.leadingInset,client:self)
+            if let geometry=settings.uniformRowGeometry {
+                NativeReportRowGeometry.install(on:next,font:geometry.font,groupFont:geometry.groupFont,minimumContentHeight:geometry.minimumContentHeight,verticalPadding:geometry.verticalPadding,client:self,rowIDs:settings.rowIDs)
+            } else {NativeReportRowGeometry.remove(from:next,client:self)}
         }
-        private func detach(){if let table {NativeListSelection.remove(from:table,client:self)};table=nil;column=nil}
-        func retire(){guard !retired else{return};retired=true;detach();settings=nil}
+        private func detach(){if let table {NativeListSelection.remove(from:table,client:self);NativeReportRowGeometry.remove(from:table,client:self)};table=nil;column=nil}
+        func retire(){
+            guard !retired else{return};retired=true;detach();settings=nil
+            if let closeObserver{NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
+        }
+        deinit{if let closeObserver{NotificationCenter.default.removeObserver(closeObserver)}}
     }
 }

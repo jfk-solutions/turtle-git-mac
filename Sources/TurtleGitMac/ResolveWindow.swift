@@ -166,6 +166,7 @@ import UniformTypeIdentifiers
             for sheet in sheets{await FileOperationWindowDrain.detach(sheet)}
             if let window{await FileOperationWindowDrain.detach(window)}
             while model.busy || model.confirmingCancellation || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
+            window?.contentViewController=nil
             onClosed()
             if finishing,!model.confirmingQuit,model.externalAvailability(){callback?()}
         }
@@ -508,7 +509,11 @@ private struct ResolveDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: ResolveWindowModel
     let commit: () -> Void
+    @AppStorage("LogFontForFileListCtrl") private var reportUsesLogFont=false
+    @AppStorage("LogFontName") private var reportFontName=MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
     var body: some View {
+        let geometry=FileListUniformRowGeometry.resolve(useLogFont:reportUsesLogFont,name:reportFontName,size:reportFontSize)
         Group {
             if model.showingProgress {
                 VStack(alignment: .leading, spacing: 12) {
@@ -534,13 +539,13 @@ private struct ResolveDialog: View {
                     Table(model.entries.map(ResolveConflictRow.init), selection: $model.nativeSelection) {
                         TableColumn("") { row in
                             let entry = row.entry
-                            FileSelectionCheckbox(path: entry.path, verb: "Resolve", checked: model.checked.contains(entry.path), enabled: model.canInteract) { model.setFileChecked(entry.path, value: $0) }.frame(width: 20, height: 20)
+                            FileSelectionCheckbox(path: entry.path, verb: "Resolve", checked: model.checked.contains(entry.path), enabled: model.canInteract) { model.setFileChecked(entry.path, value: $0) }.frame(width: 20, height: 20).frame(height:geometry.contentHeight)
                         }.width(24)
-                        TableColumn("Path") { row in let entry = row.entry; HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) }.repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
-                        TableColumn("Extension") { Text(StatusListClipboard.fileExtension($0.entry.path,isDirectory:$0.entry.isSubmodule)) }.width(70)
-                        TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
-                    } .disabled(!model.canInteract).fileListFont().background(ResolveSelectionMarkProbe(model:model))
-                    .background(NativeListSelectionProbe(preferences:model.preferences,primaryTitle:"Path",labelText:{row in model.entries.indices.contains(row) ? model.entries[row].path:nil},font:model.preferences.bool(forKey:"LogFontForFileListCtrl") ? MessageEditorFont.resolve(name:model.preferences.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName,size:model.preferences.object(forKey:"LogFontSize") as? Int ?? MessageEditorFont.defaultSize):nil,leadingInset:24))
+                        TableColumn("Path") { row in let entry = row.entry; HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()).resizable().frame(width:16,height:16); Text(entry.path).foregroundStyle(FileState.conflicted.textColor).background(NativeListSelectionLabelMarker()) }.frame(height:geometry.contentHeight).repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
+                        TableColumn("Extension") { row in let value=StatusListClipboard.fileExtension(row.entry.path,isDirectory:row.entry.isSubmodule);Text(value).help(value).frame(height:geometry.contentHeight) }.width(70)
+                        TableColumn("Status") { _ in Text("Conflicted").help("Conflicted").foregroundStyle(FileState.conflicted.textColor).frame(height:geometry.contentHeight) }.width(95)
+                    } .disabled(!model.canInteract).fileListFont().environment(\.defaultMinListRowHeight,geometry.rowHeight).lineLimit(1).truncationMode(.tail).background(ResolveSelectionMarkProbe(model:model))
+                    .background(NativeListSelectionProbe(preferences:model.preferences,primaryTitle:"Path",labelText:{row in model.entries.indices.contains(row) ? model.entries[row].path:nil},font:geometry.font,leadingInset:24,uniformRowGeometry:geometry,rowIDs:{model.entries.map{Data($0.path.utf8)}}))
                     .contextMenu(forSelectionType: String.self) { ids in
                         let target = model.fileMenu(GitPathRowIdentity.paths(ids))
                         TurtleGitContextMenu {

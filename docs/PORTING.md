@@ -47,6 +47,17 @@ No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 
+The [working-file report-row batch](STATUS-REPORT-ROWS-PARITY.md) gives Resolve,
+Working Tree and Revert one font-derived row height, single-line path/metadata
+captions, bounded source icons and live font updates that retain highlighted
+selection. Resolve’s probe also retires on actual window close. Its
+[checkpoint](qa/status-report-rows-2026-10-26.json) records six dialog/Git geometry
+cases and the existing native selection-adapter check passing after documented
+repairs, including a shared runtime-row crash and closed-host subscriptions.
+All 19 attempted receivers are absent. Offscreen tooltip display remains
+unverified, and complete visual/signed acceptance is open. Installed build 10
+predates this source.
+
 The working-file Revert family now consumes the existing master Trash setting and
 the independent renamed-file policy across Commit, Add, Revert, Working Tree,
 Resolve and Rebase. Confirmation, execution and Retry retain one captured policy;

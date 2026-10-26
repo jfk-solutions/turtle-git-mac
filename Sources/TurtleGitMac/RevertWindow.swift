@@ -426,6 +426,13 @@ private struct RevertFileSort:SortComparator {
     func compare(_ lhs:RevertFileRow,_ rhs:RevertFileRow)->ComparisonResult {StatusFileSort(column:column,order:order).compare(lhs.value,rhs.value)}
 }
 private struct RevertDialog:View {
+    @AppStorage("LogFontForFileListCtrl") private var reportUsesLogFont=false
+    @AppStorage("LogFontName") private var reportFontName=MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
+    private var reportGeometry:FileListUniformRowGeometry {
+        .resolve(useLogFont:reportUsesLogFont,name:reportFontName,size:reportFontSize)
+    }
+
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model:RevertWindowModel
     @State private var focusedIdentity:GitReferenceName?
@@ -438,20 +445,21 @@ private struct RevertDialog:View {
         Button {model.commands.fileAction(command,snapshot:snapshot,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:command.rawValue,icon:command.icon)}
     }
     var body:some View {
+        let geometry=reportGeometry
         let rows = model.rows,byID = GitPathMap(uniqueKeysWithValues:rows.map{($0.id,$0)})
         VStack(spacing:10) {
             Table(rows.map {RevertFileRow(value:$0)},selection:$model.nativeSelection,sortOrder:Binding(get:{model.sortOrder.map {RevertFileSort(column:$0.column,order:$0.order)}},set:{model.sortOrder = $0.map {StatusFileSort(column:$0.column,order:$0.order)}})) {
-                TableColumn("") {row in FileSelectionCheckbox(path:row.value.path,verb:"Revert",checked:model.checked.contains(row.value.path),enabled:model.canInteract) {model.setFileChecked(row.value.path,value:$0)}.frame(width:20,height:20)}.width(24)
-                TableColumn("Path",sortUsing:RevertFileSort(column:.path)) {row in HStack {Image(nsImage:row.value.file.state.icon.image() ?? NSImage()).resizable().frame(width:16,height:16);Text(row.value.path).foregroundStyle(model.highlighted.contains(row.value.path) ? Color.primary:row.value.file.state.textColor)}.repositoryFileHelp(repository:model.repository.root,path:row.value.path,detail:row.value.file.entry.originalPath.map{"Renamed from " + $0} ?? "",preferences:model.preferences)}.width(min:250,ideal:390)
-                TableColumn("Filename",sortUsing:RevertFileSort(column:.fileName)) {row in Text(row.value.fileName)}.width(min:70,ideal:120)
-                TableColumn("Extension",sortUsing:RevertFileSort(column:.fileExtension)) {row in Text(row.value.fileExtension)}.width(min:45,ideal:70)
-                TableColumn("Status",sortUsing:RevertFileSort(column:.status)) {row in Text(row.value.status)}.width(min:90,ideal:110)
-                TableColumn("Lines added",sortUsing:RevertFileSort(column:.added)) {row in Text(row.value.addedText)}.width(min:65,ideal:80)
-                TableColumn("Lines removed",sortUsing:RevertFileSort(column:.removed)) {row in Text(row.value.removedText)}.width(min:75,ideal:95)
-                TableColumn("Modification date",sortUsing:RevertFileSort(column:.lastModified)) {row in Text(row.value.metadata?.dateText ?? "–")}.width(min:100,ideal:150)
-                TableColumn("File size",sortUsing:RevertFileSort(column:.fileSize)) {row in Text(row.value.sizeText)}.width(min:70,ideal:100)
-            }.fileListFont().disabled(!model.canInteract)
-            .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},captureColumnCopy:{model.captureColumnCopy($0,column:$1)},configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.revertBackdrop,preferences:model.preferences,
+                TableColumn("") {row in FileSelectionCheckbox(path:row.value.path,verb:"Revert",checked:model.checked.contains(row.value.path),enabled:model.canInteract) {model.setFileChecked(row.value.path,value:$0)}.frame(width:20,height:20).frame(height:geometry.contentHeight)}.width(24)
+                TableColumn("Path",sortUsing:RevertFileSort(column:.path)) {row in HStack {Image(nsImage:row.value.file.state.icon.image() ?? NSImage()).resizable().frame(width:16,height:16);Text(row.value.path).foregroundStyle(model.highlighted.contains(row.value.path) ? Color.primary:row.value.file.state.textColor).background(NativeListSelectionLabelMarker())}.frame(height:geometry.contentHeight).repositoryFileHelp(repository:model.repository.root,path:row.value.path,detail:row.value.file.entry.originalPath.map{"Renamed from " + $0} ?? "",preferences:model.preferences)}.width(min:250,ideal:390)
+                TableColumn("Filename",sortUsing:RevertFileSort(column:.fileName)) {row in Text(row.value.fileName).help(row.value.fileName).frame(height:geometry.contentHeight)}.width(min:70,ideal:120)
+                TableColumn("Extension",sortUsing:RevertFileSort(column:.fileExtension)) {row in Text(row.value.fileExtension).help(row.value.fileExtension).frame(height:geometry.contentHeight)}.width(min:45,ideal:70)
+                TableColumn("Status",sortUsing:RevertFileSort(column:.status)) {row in Text(row.value.status).help(row.value.status).frame(height:geometry.contentHeight)}.width(min:90,ideal:110)
+                TableColumn("Lines added",sortUsing:RevertFileSort(column:.added)) {row in Text(row.value.addedText).help(row.value.addedText).frame(height:geometry.contentHeight)}.width(min:65,ideal:80)
+                TableColumn("Lines removed",sortUsing:RevertFileSort(column:.removed)) {row in Text(row.value.removedText).help(row.value.removedText).frame(height:geometry.contentHeight)}.width(min:75,ideal:95)
+                TableColumn("Modification date",sortUsing:RevertFileSort(column:.lastModified)) {row in Text(row.value.metadata?.dateText ?? "–").help(row.value.metadata?.dateText ?? "–").frame(height:geometry.contentHeight)}.width(min:100,ideal:150)
+                TableColumn("File size",sortUsing:RevertFileSort(column:.fileSize)) {row in Text(row.value.sizeText).help(row.value.sizeText).frame(height:geometry.contentHeight)}.width(min:70,ideal:100)
+            }.fileListFont().environment(\.defaultMinListRowHeight,geometry.rowHeight).lineLimit(1).truncationMode(.tail).disabled(!model.canInteract)
+            .background(CommitFileInteraction(rows:rows.map{.file($0.file.entry)},uniformRowGeometry:geometry,nativeColumns:StatusListColumn.allCases.filter{$0 != .lfsOwner},captureColumnCopy:{model.captureColumnCopy($0,column:$1)},configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.revertBackdrop,preferences:model.preferences,
                 visibleColumns:Set(model.fileColumns.order.filter{model.fileColumns.visible.contains($0)}),availableColumns:model.availableColumns,
                 columnText:{entry,column in byID[entry.path].map{model.commands.columnText($0,column)} ?? ""},savedOrder:model.fileColumns.order,savedWidths:model.fileColumns.widths,
                 saveLayout:{model.saveColumns(order:$0,widths:$1)},setColumnVisible:{model.setColumn($0,visible:$1)},resetColumns:{model.resetColumns(choose:$0,accepted:$1)},focusedPath:focusBinding,

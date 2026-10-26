@@ -647,6 +647,7 @@
         "docs/PRIMARY-CONDITIONAL-UI-PARITY.md",
         "docs/PRIMARY-DIALOG-VISUAL-REVIEW.md",
         "docs/STATUS-PARITY.md",
+        "docs/STATUS-REPORT-ROWS-PARITY.md",
         "docs/UI-PARITY.md",
         "docs/WORKSPACE-REPORT-OWNERSHIP-PARITY.md"
       ],
@@ -667,6 +668,7 @@
         "docs/qa/repository-presentation-2026-10-15.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/status-colors-2026-10-09.json",
+        "docs/qa/status-report-rows-2026-10-26.json",
         "docs/qa/submodule-handoffs-2026-10-14.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/working-selection-identities-2026-10-17.json",
@@ -1488,7 +1490,8 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/REVERT-PARITY.md"
+        "docs/REVERT-PARITY.md",
+        "docs/STATUS-REPORT-ROWS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/add-revert-file-flow-2026-10-17.json",
@@ -1496,6 +1499,7 @@
         "docs/qa/revert-file-commands-2026-10-16.json",
         "docs/qa/revert-planning-2026-10-16.json",
         "docs/qa/revert-progress-family-2026-10-14.json",
+        "docs/qa/status-report-rows-2026-10-26.json",
         "docs/qa/working-file-revert-disposition-2026-10-26.json"
       ]
     },
@@ -1823,6 +1827,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/RESOLVE-PARITY.md",
+        "docs/STATUS-REPORT-ROWS-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -1838,6 +1843,7 @@
         "docs/qa/resolve-mutation-family-2026-10-16.json",
         "docs/qa/resolve-progress-2026-10-14.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/status-report-rows-2026-10-26.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
     },
