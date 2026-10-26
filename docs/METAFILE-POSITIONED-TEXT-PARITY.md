@@ -94,9 +94,11 @@ does not apply them again over the captured device context. Explicit rectangle b
 device corners. An opaque background without an explicit rectangle uses the
 native cell metrics. Transparent BeginPath text accumulates glyph outlines.
 
-Opaque BeginPath text, empty driver records, locale/numeric/RTL text options and other classic record
-variants remain outside this implementation. The retained ANSI path refuses
-glyph-index input explicitly. Native font metrics, vertical-specific CJK forms,
+The [compact/batched classic text family](METAFILE-CLASSIC-TEXT-RECORDS-PARITY.md)
+adds SmallTextOut, PolyTextOutA/W and shared ANSI ExtTextOut painting, including
+its separately measured Windows record and charset boundaries. Opaque BeginPath
+text, empty driver records and locale/numeric/RTL text options remain outside
+this implementation. ANSI text refuses glyph-index input explicitly. Native font metrics, vertical-specific CJK forms,
 Windows-only font families, bitmap/color-only glyphs and exact GDI rasterization
 remain compatibility limits. A refusal returns no successful partial image.
 

@@ -77,6 +77,15 @@ No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 
+The [compact/batched classic text family](METAFILE-CLASSIC-TEXT-RECORDS-PARITY.md)
+connects SmallTextOut, PolyTextOutA/W and ANSI ExtTextOut through shared native
+font, background, clipping, path and current-position execution. Independent
+Windows playback establishes low-byte Unicode/glyph handling, absent-rectangle
+flags, multibyte spacing and the unusual zero-offset Poly spacing. Its
+[checkpoint](qa/metafile-classic-text-records-2026-10-26.json) records actual grouped
+validation and remaining bounds separately from earlier text support. Build12
+does not contain this helper update.
+
 The [manual illustration checkpoint](qa/manual-log-renders-2026-10-26.json)
 refreshes light/dark Log images across the homepage, README and guides, adds
 illustrated Commit/Log sections to the Dialog Guide and regenerates bundled Help.

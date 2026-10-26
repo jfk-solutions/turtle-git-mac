@@ -1734,12 +1734,20 @@ private func run() throws {
         guard let bytes = data(value) else { nativeError("Invalid text bytes"); return "" }
         let names: [String: CFStringEncoding] = ["shift_jis": CFStringEncoding(CFStringEncodings.shiftJIS.rawValue),
             "euc-kr": CFStringEncoding(CFStringEncodings.EUC_KR.rawValue), "gbk": CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue),
-            "big5": CFStringEncoding(CFStringEncodings.big5.rawValue)]
+            "big5": CFStringEncoding(CFStringEncodings.big5.rawValue),
+            "windows-932": CFStringEncoding(CFStringEncodings.dosJapanese.rawValue),
+            "windows-936": CFStringEncoding(CFStringEncodings.dosChineseSimplif.rawValue),
+            "windows-949": CFStringEncoding(CFStringEncodings.dosKorean.rawValue),
+            "windows-950": CFStringEncoding(CFStringEncodings.dosChineseTrad.rawValue)]
         let label = encoding.lowercased()
         let swiftEncoding: String.Encoding
         if label == "utf-8" || label == "utf8" { swiftEncoding = .utf8 }
         else if label == "utf-16le" { swiftEncoding = .utf16LittleEndian }
-        else if label == "windows-1252" { swiftEncoding = .windowsCP1252 }
+        else if ["windows-1250", "windows-1251", "windows-1252", "windows-1253", "windows-1254", "windows-1255", "windows-1256", "windows-1257", "windows-1258", "windows-874"].contains(label) {
+            let code = CFStringConvertIANACharSetNameToEncoding(label as CFString)
+            guard code != kCFStringEncodingInvalidId else { nativeError("Unsupported Windows charset: " + label); return "" }
+            swiftEncoding = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(code))
+        }
         else if let code = names[label] { swiftEncoding = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(code)) }
         else { nativeError("Unsupported text encoding: " + encoding); return "" }
         guard let text = String(data: bytes, encoding: swiftEncoding) else { nativeError("Invalid encoded text"); return "" }

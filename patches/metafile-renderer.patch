@@ -2089,7 +2089,7 @@ index 0000000..cf3cee4
 diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 --- /dev/null
 +++ b/src/turtleGitPositionedText.js
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,261 @@
 +// Original TurtleGit positioned EMF+/GDI text playback, MIT.
 +// MS-EMFPLUS DrawDriverString; MS-EMF EmrText/EMR_EXTTEXTOUTW.
 +// Native CoreText outlines are painted through existing brush/clip consumers.
@@ -2173,8 +2173,108 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +    ctx._defs.push('<clipPath id="'+id+'" clipPathUnits="userSpaceOnUse"><path d="M '+points.map(p=>p.join(' ')).join(' L ')+' Z"/></clipPath>');return id;
 +  }
 +  function mapped(m,x,y){return[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];}
-+  const originalA=ed.processEmfExtTextOutA;
-+  ed.processEmfExtTextOutA=function(data){if(data.length>=48&&u32(data,44)&0x10)fail('ANSI glyph-index text is unsupported');return originalA.call(this,data);};
++  // All classic text variants normalize only their wire representation. Font,
++  // alignment, clipping, paths and current-position continuation have one owner.
++  const singleByteCharsets={0:'windows-1252',161:'windows-1253',162:'windows-1254',163:'windows-1258',177:'windows-1255',178:'windows-1256',186:'windows-1257',204:'windows-1251',222:'windows-874',238:'windows-1250'};
++  const dbcsCharsets={128:'windows-932',129:'windows-949',134:'windows-936',136:'windows-950'};
++  function ansiValues(d,bytes) {
++    const selected=d.gdiObjectManager.currentFont||{},charset=Number.isInteger(selected.charset)?selected.charset:1;
++    if(charset===2&&bytes.length)fail('ANSI Symbol charset requires a font-specific code mapping');
++    const label=singleByteCharsets[charset]||dbcsCharsets[charset],spans=[];
++    for(let p=0;p<bytes.length;) {
++      const first=bytes[p];let width=1;
++      if(dbcsCharsets[charset]) {
++        if(charset===128){if(first>=0x81&&first<=0x9f||first>=0xe0&&first<=0xfc)width=2;else if(first>=0x80&&!(first>=0xa1&&first<=0xdf)&&![0x80,0xa0,0xfd,0xfe,0xff].includes(first))fail('invalid Shift-JIS lead byte');}
++        else if(first>=0x80&&!(charset===134&&first===0x80))width=2;
++      }
++      if(p+width>bytes.length)fail('truncated ANSI multibyte character');
++      if(width===2) {
++        const second=bytes[p+1];
++        if(charset===128&&!(second>=0x40&&second<=0xfc&&second!==0x7f)||charset===129&&!(first>=0x81&&first<=0xfe&&(second>=0x41&&second<=0x5a||second>=0x61&&second<=0x7a||second>=0x81&&second<=0xfe))||charset===134&&!(first>=0x81&&first<=0xfe&&second>=0x40&&second<=0xfe&&second!==0x7f)||charset===136&&!(first>=0x81&&first<=0xfe&&(second>=0x40&&second<=0x7e||second>=0xa1&&second<=0xfe)))fail('invalid ANSI multibyte character');
++      }
++      if(!label&&first>=0x80)fail('ANSI text requires an explicit supported LOGFONT charset');
++      spans.push([p,width]);p+=width;
++    }
++    // Decode the complete validated byte run in one native call. The boundary
++    // witness preserves byte-oriented DX without O(n) JavaScriptCore crossings.
++    const text=label?new TextDecoder(label).decode(bytes):Array.from(bytes,b=>String.fromCharCode(b)).join('');
++    if(text.length!==spans.length)fail('ANSI text has an ambiguous UTF16 character mapping');
++    const values=Array.from({length:text.length},(_,i)=>text.charCodeAt(i));
++    if(values.some(value=>value>=0xd800&&value<=0xdfff))fail('ANSI character has no supported UTF16 mapping');
++    return{values,spans};
++  }
++  function range(offset,size,minimum,length,alignment,name) {
++    if(!Number.isSafeInteger(offset)||offset<minimum||offset%alignment||size>length-offset)fail('invalid '+name+' extent');
++    return[offset,offset+size];
++  }
++  function disjoint(a,b){return a[1]<=b[0]||b[1]<=a[0];}
++  function put32(buffer,offset,value){new DataView(buffer.buffer).setUint32(offset,value>>>0,true);}
++  function putFloat(buffer,offset,value){new DataView(buffer.buffer).setFloat32(offset,value,true);}
++  function canonical(d,data,descriptor,minimum,unicode,polyType=null) {
++    const count=u32(data,descriptor+8),options=u32(data,descriptor+16),dx=u32(data,descriptor+36),pdy=!!(options&0x2000);
++    if(count>32768)fail('positioned text unit limit');
++    if(options&~0x3016||!unicode&&(options&0x10))fail('unsupported classic text options');
++    const stringStart=u32(data,descriptor+12)-8,stringBytes=count*(unicode?2:1),headerDx=polyType!==null&&!dx,hasDx=!!dx||headerDx;
++    let stringRange=null,dxRange=null;
++    if(count)stringRange=range(stringStart,stringBytes,minimum,data.length,unicode?2:1,'classic text string');
++    if(dx)dxRange=range(dx-8,count*(pdy?8:4),minimum,data.length,4,'classic text displacements');
++    if(headerDx&&count*(pdy?8:4)>data.length+8)fail('batched text header displacements exceed record');
++    if(pdy&&count&&!hasDx)fail('GDI PDY text requires displacements');
++    if(stringRange&&dxRange&&!disjoint(stringRange,dxRange))fail('overlapping classic text buffers');
++    const decoded=unicode?{values:count?units(data,stringStart,count):[],spans:Array.from({length:count},(_,i)=>[i,1])}:ansiValues(d,count?data.slice(stringStart,stringStart+count):new Uint8Array(0));
++    const values=decoded.values,n=values.length,stringEnd=68+n*2,dxStart=(stringEnd+3)&~3,result=new Uint8Array(hasDx?dxStart+n*(pdy?8:4):((stringEnd+3)&~3));
++    result.set(data.slice(0,28));result.set(data.slice(descriptor,descriptor+40),28);
++    put32(result,36,n);put32(result,40,n?76:0);put32(result,64,hasDx?dxStart+8:0);
++    values.forEach((value,i)=>{result[68+i*2]=value&255;result[69+i*2]=value>>>8;});
++    // Windows PolyTextOut playback passes record+offDx even when offDx is zero.
++    // Reproduce that measured header spacing only within this record's bytes.
++    const displacement=index=>headerDx?(index===0?polyType:index===1?data.length+8:i32(data,index*4-8)):i32(data,dx-8+index*4);
++    if(hasDx)decoded.spans.forEach(([first,width],i)=>{
++      for(let axis=0;axis<(pdy?2:1);axis++){
++        let advance=0;for(let j=0;j<width;j++)advance+=displacement((first+j)*(pdy?2:1)+axis);
++        if(advance<-2147483648||advance>2147483647)fail('ANSI displacement overflow');put32(result,dxStart+(i*(pdy?2:1)+axis)*4,advance);
++      }
++    });
++    return{data:result,inputCount:count,valuesCount:n,ranges:[stringRange,dxRange].filter(Boolean)};
++  }
++  function execute(d,record) {
++    // Byte encodings consume the same input budget as their wire characters,
++    // including both bytes of DBCS input; native glyph work is charged separately.
++    charge(d.ctx,record.inputCount-record.valuesCount);
++    return ed.processEmfExtTextOutW.call(d,record.data);
++  }
++  ed.processEmfExtTextOutA=function(data){if(data.length<68)fail('truncated ANSI text header');return execute(this,canonical(this,data,28,68,false));};
++  ed.processEmfSmallTextOut=function(data) {
++    if(data.length<28)fail('truncated compact text header');
++    const count=u32(data,8),options=u32(data,12),noRect=!!(options&0x100),small=!!(options&0x200),start=noRect?28:44;
++    if(count>32768||options&~0x3316)fail('unsupported compact text count or options');
++    if(options&0x2000)fail('compact text displacements are unavailable');
++    const end=start+count*(small?1:2);tail(data,end);
++    const values=small?Array.from(data.slice(start,end)):units(data,start,count),result=new Uint8Array((68+count*2+3)&~3);
++    put32(result,16,u32(data,16));putFloat(result,20,f32(data,20));putFloat(result,24,f32(data,24));
++    put32(result,28,i32(data,0));put32(result,32,i32(data,4));put32(result,36,count);put32(result,40,count?76:0);put32(result,44,(options&~0x300)&(noRect?~6:~0));
++    if(!noRect)result.set(data.slice(28,44),48);
++    values.forEach((value,i)=>{result[68+i*2]=value&255;result[69+i*2]=value>>>8;});
++    return ed.processEmfExtTextOutW.call(this,result);
++  };
++  const classicRecord=ed.processEmfRecordType;
++  ed.processEmfRecordType=function(type,data) {
++    if(type!==0x60&&type!==0x61)return classicRecord.call(this,type,data);
++    if(this._turtlePlusSeen&&!this._turtleGetDC)return;
++    if(data.length<32)fail('truncated batched text header');
++    const count=u32(data,28),minimum=32+count*40;
++    if(count>32768||minimum>data.length)fail('invalid batched text descriptor array');
++    const graphics=u32(data,16);f32(data,20);f32(data,24);if(![1,2].includes(graphics))fail('invalid batched text graphics mode');
++    const records=[];let inputCount=0;
++    for(let i=0;i<count;i++) {
++      const record=canonical(this,data,32+i*40,minimum,type===0x61,type);inputCount+=record.inputCount;
++      if(inputCount>262144-(this.ctx._turtlePositionedUnits||0))fail('aggregate positioned text unit limit');
++      // Different strings may share one immutable string/displacement buffer;
++      // the spec gives independent record-relative offsets, not ownership.
++      records.push(record);
++    }
++    for(const record of records)execute(this,record);
++  };
 +  ed.processEmfExtTextOutW=function(data) {
 +    if(data.length<68)fail('truncated GDI positioned text header');
 +    const graphics=u32(data,16),scaleX=f32(data,20),scaleY=f32(data,24),count=u32(data,36),stringOffset=u32(data,40)-8,options=u32(data,44),dxOffset=u32(data,64);

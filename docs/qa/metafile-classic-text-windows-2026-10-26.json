@@ -1,0 +1,5630 @@
+{
+  "schema": 1,
+  "date": "2026-10-26",
+  "purpose": "Independent Windows GDI/GDI+ measurement of original synthetic compact and batched EMF text records; original reference files preserved.",
+  "sourceRepository": "https://github.com/jfk-solutions/turtle-git-mac",
+  "sourceBranch": "codex/metafile-rendering-oracle",
+  "utility": "scripts/oracles/CompactTextReference.cpp",
+  "utilitySHA256": "5d3729b121aceb5532748e257f88bdcadedbe405db0c4d8b196c1096883b24e3",
+  "environment": {
+    "runner": "windows-2022",
+    "toolchain": "Microsoft Visual C++ via vcvars64.bat, /EHsc /std:c++17",
+    "libraries": [
+      "gdiplus.lib",
+      "gdi32.lib",
+      "user32.lib",
+      "usp10.lib"
+    ],
+    "bitmap": [
+      96,
+      64
+    ],
+    "background": "opaque white",
+    "rawPixels": "straight RGBA, top-left row-major; GDI DIB alpha normalized opaque",
+    "engines": [
+      "PlayEnhMetaFile",
+      "EnumEnhMetaFile with PlayEnhMetaFileRecord and current-position capture",
+      "GDI+ Metafile/Graphics.DrawImage"
+    ]
+  },
+  "runs": [
+    {
+      "runID": 40374607278,
+      "jobID": 121754122905,
+      "commit": "109a06dfb5846988dfeac929a210c3fa3d4ab9b0",
+      "conclusion": "success",
+      "artifactID": 12673483507,
+      "artifactSHA256": "c2655a73e5c83d9a620fc43deacbd5c2c0b4763277e13c0df296db1384de3d24",
+      "artifactBytes": 222304,
+      "caseCount": 84,
+      "inputSHA256": {
+        "classic-text-compact-clip-control.emf": "31094411c3570a8e548f2ce9d8b7100943e3ac52b985e5c2bd74a261b762f625",
+        "classic-text-compact-clip-opaque-control.emf": "4d350e8e63c014e8be845028217a46b20d3e979e17fbf9cc43615b6274a31e72",
+        "classic-text-compact-clip-opaque.emf": "e55d1dd99ff17b1ebdff9054ec498f259ce01eb6e3ce14dfd3913da2239daac1",
+        "classic-text-compact-clip.emf": "45f66971fb273e64bc88ec53f1bc5dbcc5d593f057f2550267b9cf79ea4a07f3",
+        "classic-text-compact-compatible-control.emf": "04dbb5308fed462ecd40d5655c6e0ece46219d0096bfaeb32087897ed9841f28",
+        "classic-text-compact-compatible.emf": "91e6cd7ac09f60627536bba15b4a014eb778ba92996340a8037cb421a84d63ae",
+        "classic-text-compact-empty-opaque-control.emf": "5fb7136ad8ab68006f0eac8266974965bb97426e06875f8491ef50205e272e1e",
+        "classic-text-compact-empty-opaque.emf": "4c02d9406e85dae22e3028ce8e438f9009a09d2899bef1e69332b7ab24554483",
+        "classic-text-compact-low-unicode-control.emf": "76331d68b44b0b4a206dff9ddc448f17b66fc500000a0f9c0983a872e122bc7c",
+        "classic-text-compact-low-unicode.emf": "172dee91e5f897951a6fc6fcaf668f707af88c0daf492b32787c4a1187b2ef4c",
+        "classic-text-compact-opaque-control.emf": "9b9450fb5367706f3b9a67e7c2bd946029bf8e0a696efe7b333546a33708aa81",
+        "classic-text-compact-opaque.emf": "6fdb8a4555a7074ba431c10b19d7baa6b5b0f49234e0676d787ca359c91064ca",
+        "classic-text-compact-path-control.emf": "263007c1ee7a592c30b3b95db73c7ad511513251ec0edf6d45dfd051ac6190ba",
+        "classic-text-compact-path.emf": "9811997674e5143c1b8672a0874485ec46328ef85d5da58037b7117dd8c47b57",
+        "classic-text-compact-rect-control.emf": "3ce7331f36e27e84b3d78a4698f30dfe2420651aabee1a76d1d32a858bd9a435",
+        "classic-text-compact-rect.emf": "5595d884917b97aef34737f056c255a5efb3e9d6fc4e1f23e8e3a8ae0a0183fd",
+        "classic-text-compact-restore-control.emf": "c9f41fd0c62c84e74ae43d870bd4c678111488d2cd8f67253673ca2533a567b1",
+        "classic-text-compact-restore.emf": "5afd36a8bc43e54518af34feab922d44ab68d0e0b94500ea1b7ec868df6dad95",
+        "classic-text-compact-small-control.emf": "3ce7331f36e27e84b3d78a4698f30dfe2420651aabee1a76d1d32a858bd9a435",
+        "classic-text-compact-small-rect-control.emf": "3ce7331f36e27e84b3d78a4698f30dfe2420651aabee1a76d1d32a858bd9a435",
+        "classic-text-compact-small-rect.emf": "2e60f0921dd701473a723c4b66abd53711f402ce2da1634008f4a467e2ebd76c",
+        "classic-text-compact-small.emf": "27c82f079e27d92e3ccefe28f1a603b0d7cf0d2508f86fe35d986965bec4b5d0",
+        "classic-text-compact-updatecp-control.emf": "d95fcf370c3117b8104a4a06995fcb09a8a5df9882d934a34eb9a35bd985c8eb",
+        "classic-text-compact-updatecp.emf": "fc4d6ae4d80ce60a8ccac0bd991be44ebe958ab670c69cf66a77dd8eb39ca13e",
+        "classic-text-compact-wide-control.emf": "3ce7331f36e27e84b3d78a4698f30dfe2420651aabee1a76d1d32a858bd9a435",
+        "classic-text-compact-wide.emf": "bda7542e9f38b59d46b4b7eb78600be960bd0cb837708260b27abedaad7a7cf9",
+        "classic-text-compact-world-control.emf": "08dcf9c17dde52ec7a3bb6fb07747f6aeca6fabbf079b4e4ca5fd4bcb2b1e9d2",
+        "classic-text-compact-world.emf": "62b76e41cdc317b141b69cda6c7b728fa14a324a310433c6cf5fda085ac9f156",
+        "classic-text-ext-ansi-ascii-default-control.emf": "bf35766b3f4ba5d61bf3235cf91d5e8dc86a2323ab52402d52dc4c8b85721e8f",
+        "classic-text-ext-ansi-ascii-default.emf": "dcaf619181afe422acd31d91965e07270747d3697ae7a0fd62df3c0b209b76be",
+        "classic-text-ext-ansi-cp1252-control.emf": "a379d1b26a7a842aa5ea72ebd1b41a2183a3e383cd691ace9005321252e0015a",
+        "classic-text-ext-ansi-cp1252.emf": "1a02fff9fec5d29f9559cc4849270e3378cdc2015a1e4b64f9e417cfc565ffae",
+        "classic-text-poly-ansi-ascii-default-control.emf": "bf35766b3f4ba5d61bf3235cf91d5e8dc86a2323ab52402d52dc4c8b85721e8f",
+        "classic-text-poly-ansi-ascii-default.emf": "b258f4ec60ab707ef181e3b0204cb2d12469e496a9699228e56859c68e4755e5",
+        "classic-text-poly-ansi-clip-opaque-control.emf": "8c1fedc9aa8c839f8f7998129a52436cd4ee71c307720c0d8fcf0bbcb98190c1",
+        "classic-text-poly-ansi-clip-opaque.emf": "6df65dc833ab35c6fb0f17e6ad87618ef0ae80b8027890f888a730d59cdc5bb8",
+        "classic-text-poly-ansi-cp1252-control.emf": "a379d1b26a7a842aa5ea72ebd1b41a2183a3e383cd691ace9005321252e0015a",
+        "classic-text-poly-ansi-cp1252.emf": "50be3d668c71743f750e8367f70fe756997d6a84f464fc336cc019ebab9c7a5c",
+        "classic-text-poly-ansi-dx-control.emf": "576a024cb39f437e040ec00aae7041593aed5ea4e37040427fa54bb3a97f1c40",
+        "classic-text-poly-ansi-dx.emf": "6b22c652b5c3bbf7bfb1c98d7fc20014294190511c87c6961fc185f18e927bf7",
+        "classic-text-poly-ansi-empty-control.emf": "e5d8cd80a6475ae48d81cd8a23ae1609e2293dd93b6e08e1bde0abffa28788f9",
+        "classic-text-poly-ansi-empty.emf": "2868b258d43cbb00fd855066e82be4e6fcceeb903f9dea5a7470e0e1ad435845",
+        "classic-text-poly-ansi-natural-control.emf": "4f9240b7108badd5322541846f3d5000a8505f74172866132aeb4aefebc88c89",
+        "classic-text-poly-ansi-natural.emf": "9a4dfe782dab2f0e4fd2531b01617d4a9c52aeb159118eeac82fdd5aa2269762",
+        "classic-text-poly-ansi-pdy-control.emf": "0f305a62d1704c785723047acd427247f17555ae43a85722366a20def8fa34a3",
+        "classic-text-poly-ansi-pdy.emf": "7be162f9fcc17722d32768ca42533ab2a42df849e20c859a71752eb5911d902e",
+        "classic-text-poly-ansi-updatecp-control.emf": "2b9e732aa5deb7da0e833b6a25df1fb9826d36c30d47e2d6ca823058dae48ce8",
+        "classic-text-poly-ansi-updatecp.emf": "f80d4045a8616c8f7d43ff7c5395389eaed1a95af003a51bcc59b4482ad865c1",
+        "classic-text-poly-compatible-control.emf": "42418ceb4596694b914269e62fb88709ec602d410643905573b373effd50d34b",
+        "classic-text-poly-compatible.emf": "373a5438fd7c96c1166e932f06b6cfbd80d4675ae513111f936eceded3999895",
+        "classic-text-poly-path-control.emf": "263007c1ee7a592c30b3b95db73c7ad511513251ec0edf6d45dfd051ac6190ba",
+        "classic-text-poly-path.emf": "d8ddf4eaacffedc150596e8ae3d32ef1e5a38c1f97e0c2be50e75dfe3100f652",
+        "classic-text-poly-restore-control.emf": "c9f41fd0c62c84e74ae43d870bd4c678111488d2cd8f67253673ca2533a567b1",
+        "classic-text-poly-restore.emf": "91c04beba3dca32ad5ee9131e306bd0abd0a245fc8df888f23cd16cdbc9fdcad",
+        "classic-text-poly-wide-clip-opaque-control.emf": "8c1fedc9aa8c839f8f7998129a52436cd4ee71c307720c0d8fcf0bbcb98190c1",
+        "classic-text-poly-wide-clip-opaque.emf": "eff07bcfbe7afe7b4abcb8b2694d7ddef399d1c0d7e9b67b518b205b540090de",
+        "classic-text-poly-wide-dx-control.emf": "576a024cb39f437e040ec00aae7041593aed5ea4e37040427fa54bb3a97f1c40",
+        "classic-text-poly-wide-dx.emf": "7064969652231d733209b750f10c931565825a07a41905c6fe285fe3a59c0612",
+        "classic-text-poly-wide-empty-control.emf": "e5d8cd80a6475ae48d81cd8a23ae1609e2293dd93b6e08e1bde0abffa28788f9",
+        "classic-text-poly-wide-empty.emf": "fb34ab0770dbbeda83fcd378aafc54f8fea787d163fb12c48c5b9147de7dc40a",
+        "classic-text-poly-wide-natural-control.emf": "4f9240b7108badd5322541846f3d5000a8505f74172866132aeb4aefebc88c89",
+        "classic-text-poly-wide-natural.emf": "c8c155531eb6ed12508db4589d395c7e154c62a9beb10fb33fb1fa22ef733ef8",
+        "classic-text-poly-wide-pdy-control.emf": "0f305a62d1704c785723047acd427247f17555ae43a85722366a20def8fa34a3",
+        "classic-text-poly-wide-pdy.emf": "63c4f31136987119d884631e917a8787b5c89399520902d1b3ee27bf986f1b9b",
+        "classic-text-poly-wide-updatecp-control.emf": "2b9e732aa5deb7da0e833b6a25df1fb9826d36c30d47e2d6ca823058dae48ce8",
+        "classic-text-poly-wide-updatecp.emf": "0ff5db4f01f7bc2c9207214d9cece86fd68ac3bdfb0a9c0c0e41cd94e904e0c0",
+        "classic-text-poly-zero-control.emf": "fc931ebafd61c2c1984a225b28622c4c8bb8d0ca636daeb1306afdf6f3edaa03",
+        "classic-text-poly-zero.emf": "5b83f0fa840d1f0c0f7b66251911aa24f5b4cf525677b9d377321dbd4b158787",
+        "ext-shiftjis-0-28-28.emf": "7bf165085d664e91c98ca8b376737c753dbc08955445b10777f286eeb8a97bdd",
+        "ext-shiftjis-12-16-28.emf": "46c2f376dfdd008de8fbaa75027c3f5a419a26d7bf597541caac09866677928a",
+        "ext-shiftjis-28-0-28.emf": "06d382866789705a4cda2989797a68d76d739720ca3fc221b7046671dfb65ec5",
+        "ext-shiftjis-unicode-control.emf": "b512bf9d4a92a613ef3c34f094abc68093126105e26604326380a49139a5f6ec",
+        "poly-ansi-no-rect-compact.emf": "90453963c9a1940a20ed27666cb91679179263f7c0fe21b3abf9ac4fb33626e0",
+        "poly-ansi-no-rect-fixed.emf": "2406755f9dcdb87cc79e704bd27b8958c3403a8297831b9d37c9803b6bafce33",
+        "poly-shiftjis-0-28-28.emf": "98df83546a4effd6cc42240c2c23f1fec951de8355dbf32c7f8521e302efb467",
+        "poly-shiftjis-12-16-28.emf": "97a20679afe68cc5144c50b8d6540b85dec8c077c1a71c68ee18be89f11feaa0",
+        "poly-shiftjis-28-0-28.emf": "0883736fc36302854a9148053741ef7e93e807239f4b98b5e4197be3b55e72b8",
+        "poly-shiftjis-unicode-control.emf": "b512bf9d4a92a613ef3c34f094abc68093126105e26604326380a49139a5f6ec",
+        "poly-wide-no-rect-compact.emf": "5c069fa3c482cc6975ac07cd7969a010b9a7e4e9e887959bb35d6f84e673bae8",
+        "poly-wide-no-rect-fixed.emf": "aeece0068999a21fbde368b605d055ebaa838b6330469fc1114a590009a6475d",
+        "small-glyph-compressed.emf": "45d3f242b856f339e93a70967eb3a603493922cfda3f9bfb3de3fe11d17eb588",
+        "small-glyph-wide.emf": "f9d4fdd437c0d45a05ee8d28c82b09a21151ac7b5ab16d4431ad198a4aef095b",
+        "unsupported-classic-text-compact-no-rect-clip.emf": "d5646e917d6d2ea466f3cd791adb7bee970f3cb7afbf7a782d1eacb8584a5d5f",
+        "unsupported-classic-text-compact-no-rect-opaque.emf": "f9d1ce8dbe0018f6dfb7eeed6d7851ce382fdba168f9344d02d18399121a9cde"
+      },
+      "rawReport": {
+        "schema": 1,
+        "width": 96,
+        "height": 64,
+        "rgba": "straight RGBA top-left opaque white background",
+        "nativeAPI": {
+          "polyTextOutW": true,
+          "lastError": 0,
+          "file": "native-poly-wide.emf"
+        },
+        "cases": [
+          {
+            "name": "classic-text-compact-clip-control",
+            "emf": "classic-text-compact-clip-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-clip-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 114,
+              "paintedBounds": [
+                9,
+                15,
+                23,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-clip-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 114,
+              "paintedBounds": [
+                9,
+                15,
+                23,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-clip-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 114,
+              "paintedBounds": [
+                9,
+                15,
+                23,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-clip-opaque-control",
+            "emf": "classic-text-compact-clip-opaque-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-clip-opaque-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 720,
+              "paintedBounds": [
+                4,
+                4,
+                23,
+                39
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-clip-opaque-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 720,
+              "paintedBounds": [
+                4,
+                4,
+                23,
+                39
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-clip-opaque-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 700,
+              "paintedBounds": [
+                4,
+                4,
+                23,
+                38
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-clip-opaque",
+            "emf": "classic-text-compact-clip-opaque.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-clip-opaque-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 720,
+              "paintedBounds": [
+                4,
+                4,
+                23,
+                39
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 56,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-clip-opaque-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 720,
+              "paintedBounds": [
+                4,
+                4,
+                23,
+                39
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-clip-opaque-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 700,
+              "paintedBounds": [
+                4,
+                4,
+                23,
+                38
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-clip",
+            "emf": "classic-text-compact-clip.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-clip-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 114,
+              "paintedBounds": [
+                9,
+                15,
+                23,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 56,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-clip-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 114,
+              "paintedBounds": [
+                9,
+                15,
+                23,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-clip-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 114,
+              "paintedBounds": [
+                9,
+                15,
+                23,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-compatible-control",
+            "emf": "classic-text-compact-compatible-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-compatible-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                65,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-compatible-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                65,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-compatible-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                65,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-compatible",
+            "emf": "classic-text-compact-compatible.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-compatible-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                65,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-compatible-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                65,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-compatible-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                65,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-empty-opaque-control",
+            "emf": "classic-text-compact-empty-opaque-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-empty-opaque-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 4576,
+              "paintedBounds": [
+                4,
+                4,
+                91,
+                55
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 76,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-empty-opaque-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 4576,
+              "paintedBounds": [
+                4,
+                4,
+                91,
+                55
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-empty-opaque-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 4437,
+              "paintedBounds": [
+                4,
+                4,
+                90,
+                54
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-empty-opaque",
+            "emf": "classic-text-compact-empty-opaque.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-empty-opaque-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 4576,
+              "paintedBounds": [
+                4,
+                4,
+                91,
+                55
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 52,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-empty-opaque-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 4576,
+              "paintedBounds": [
+                4,
+                4,
+                91,
+                55
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-empty-opaque-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 4437,
+              "paintedBounds": [
+                4,
+                4,
+                90,
+                54
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-low-unicode-control",
+            "emf": "classic-text-compact-low-unicode-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-low-unicode-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 78,
+              "paintedBounds": [
+                8,
+                15,
+                17,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-low-unicode-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 78,
+              "paintedBounds": [
+                8,
+                15,
+                17,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-low-unicode-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 78,
+              "paintedBounds": [
+                8,
+                15,
+                17,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-low-unicode",
+            "emf": "classic-text-compact-low-unicode.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-low-unicode-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 78,
+              "paintedBounds": [
+                8,
+                15,
+                17,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-low-unicode-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 78,
+              "paintedBounds": [
+                8,
+                15,
+                17,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-low-unicode-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 78,
+              "paintedBounds": [
+                8,
+                15,
+                17,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-opaque-control",
+            "emf": "classic-text-compact-opaque-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-opaque-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 782,
+              "paintedBounds": [
+                4,
+                4,
+                32,
+                39
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-opaque-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 782,
+              "paintedBounds": [
+                4,
+                4,
+                32,
+                39
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-opaque-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 762,
+              "paintedBounds": [
+                4,
+                4,
+                32,
+                38
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-opaque",
+            "emf": "classic-text-compact-opaque.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-opaque-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 782,
+              "paintedBounds": [
+                4,
+                4,
+                32,
+                39
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 56,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-opaque-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 782,
+              "paintedBounds": [
+                4,
+                4,
+                32,
+                39
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-opaque-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 762,
+              "paintedBounds": [
+                4,
+                4,
+                32,
+                38
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-path-control",
+            "emf": "classic-text-compact-path-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-path-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-path-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-path-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-path",
+            "emf": "classic-text-compact-path.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-path-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-path-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-path-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-rect-control",
+            "emf": "classic-text-compact-rect-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-rect-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-rect-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-rect-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-rect",
+            "emf": "classic-text-compact-rect.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-rect-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 56,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-rect-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-rect-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-restore-control",
+            "emf": "classic-text-compact-restore-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-restore-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-restore-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-restore-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-restore",
+            "emf": "classic-text-compact-restore.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-restore-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-restore-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-restore-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-small-control",
+            "emf": "classic-text-compact-small-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-small-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-small-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-small-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-small-rect-control",
+            "emf": "classic-text-compact-small-rect-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-small-rect-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-small-rect-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-small-rect-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-small-rect",
+            "emf": "classic-text-compact-small-rect.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-small-rect-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 56,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-small-rect-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-small-rect-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-small",
+            "emf": "classic-text-compact-small.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-small-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-small-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-small-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-updatecp-control",
+            "emf": "classic-text-compact-updatecp-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-updatecp-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  21,
+                  28
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  34,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-updatecp-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-updatecp-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-updatecp",
+            "emf": "classic-text-compact-updatecp.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-updatecp-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  21,
+                  28
+                ]
+              },
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  34,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-updatecp-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-updatecp-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-wide-control",
+            "emf": "classic-text-compact-wide-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-wide-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-wide-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-wide-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-wide",
+            "emf": "classic-text-compact-wide.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-wide-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-wide-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-wide-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-world-control",
+            "emf": "classic-text-compact-world-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-world-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 178,
+              "paintedBounds": [
+                13,
+                15,
+                39,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-world-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 178,
+              "paintedBounds": [
+                13,
+                15,
+                39,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-world-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 178,
+              "paintedBounds": [
+                13,
+                15,
+                39,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-compact-world",
+            "emf": "classic-text-compact-world.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-compact-world-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 178,
+              "paintedBounds": [
+                13,
+                15,
+                39,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-compact-world-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 178,
+              "paintedBounds": [
+                13,
+                15,
+                39,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-compact-world-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 178,
+              "paintedBounds": [
+                13,
+                15,
+                39,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-ext-ansi-ascii-default-control",
+            "emf": "classic-text-ext-ansi-ascii-default-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-ext-ansi-ascii-default-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-ext-ansi-ascii-default-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-ext-ansi-ascii-default-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-ext-ansi-ascii-default",
+            "emf": "classic-text-ext-ansi-ascii-default.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-ext-ansi-ascii-default-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 83,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-ext-ansi-ascii-default-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-ext-ansi-ascii-default-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-ext-ansi-cp1252-control",
+            "emf": "classic-text-ext-ansi-cp1252-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-ext-ansi-cp1252-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-ext-ansi-cp1252-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-ext-ansi-cp1252-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-ext-ansi-cp1252",
+            "emf": "classic-text-ext-ansi-cp1252.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-ext-ansi-cp1252-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 83,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-ext-ansi-cp1252-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-ext-ansi-cp1252-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-ascii-default-control",
+            "emf": "classic-text-poly-ansi-ascii-default-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-ascii-default-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-ascii-default-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-ascii-default-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-ascii-default",
+            "emf": "classic-text-poly-ansi-ascii-default.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-ascii-default-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-ascii-default-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-ascii-default-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-clip-opaque-control",
+            "emf": "classic-text-poly-ansi-clip-opaque-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-clip-opaque-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-clip-opaque-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-clip-opaque-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1628,
+              "paintedBounds": [
+                4,
+                4,
+                74,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-clip-opaque",
+            "emf": "classic-text-poly-ansi-clip-opaque.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-clip-opaque-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-clip-opaque-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-clip-opaque-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1628,
+              "paintedBounds": [
+                4,
+                4,
+                74,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-cp1252-control",
+            "emf": "classic-text-poly-ansi-cp1252-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-cp1252-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-cp1252-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-cp1252-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-cp1252",
+            "emf": "classic-text-poly-ansi-cp1252.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-cp1252-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 92,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-cp1252-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-cp1252-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 158,
+              "paintedBounds": [
+                7,
+                15,
+                45,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-dx-control",
+            "emf": "classic-text-poly-ansi-dx-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-dx-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-dx-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-dx-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-dx",
+            "emf": "classic-text-poly-ansi-dx.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-dx-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 148,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-dx-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-dx-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-empty-control",
+            "emf": "classic-text-poly-ansi-empty-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-empty-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 76,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-empty-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-empty-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-empty",
+            "emf": "classic-text-poly-ansi-empty.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-empty-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 132,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-empty-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-empty-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-natural-control",
+            "emf": "classic-text-poly-ansi-natural-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-natural-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-natural-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-natural-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-natural",
+            "emf": "classic-text-poly-ansi-natural.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-natural-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-natural-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-natural-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-pdy-control",
+            "emf": "classic-text-poly-ansi-pdy-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-pdy-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 108,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-pdy-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-pdy-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-pdy",
+            "emf": "classic-text-poly-ansi-pdy.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-pdy-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 116,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-pdy-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-pdy-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-updatecp-control",
+            "emf": "classic-text-poly-ansi-updatecp-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-updatecp-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  36,
+                  28
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  64,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-updatecp-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-updatecp-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-ansi-updatecp",
+            "emf": "classic-text-poly-ansi-updatecp.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-updatecp-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  64,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-updatecp-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-updatecp-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-compatible-control",
+            "emf": "classic-text-poly-compatible-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-compatible-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                79,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-compatible-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                79,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-compatible-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                78,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-compatible",
+            "emf": "classic-text-poly-compatible.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-compatible-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                79,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 92,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-compatible-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                79,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-compatible-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 308,
+              "paintedBounds": [
+                18,
+                15,
+                78,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-path-control",
+            "emf": "classic-text-poly-path-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-path-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-path-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-path-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-path",
+            "emf": "classic-text-poly-path.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-path-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-path-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-path-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-restore-control",
+            "emf": "classic-text-poly-restore-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-restore-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-restore-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-restore-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 258,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-restore",
+            "emf": "classic-text-poly-restore.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-restore-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 232,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-restore-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 232,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-restore-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 232,
+              "paintedBounds": [
+                9,
+                15,
+                91,
+                59
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-clip-opaque-control",
+            "emf": "classic-text-poly-wide-clip-opaque-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-clip-opaque-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-clip-opaque-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-clip-opaque-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1628,
+              "paintedBounds": [
+                4,
+                4,
+                74,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-clip-opaque",
+            "emf": "classic-text-poly-wide-clip-opaque.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-clip-opaque-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 140,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-clip-opaque-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1672,
+              "paintedBounds": [
+                4,
+                4,
+                75,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-clip-opaque-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 1628,
+              "paintedBounds": [
+                4,
+                4,
+                74,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-dx-control",
+            "emf": "classic-text-poly-wide-dx-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-dx-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-dx-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-dx-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-dx",
+            "emf": "classic-text-poly-wide-dx.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-dx-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 148,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-dx-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-dx-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-empty-control",
+            "emf": "classic-text-poly-wide-empty-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-empty-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 76,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-empty-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-empty-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-empty",
+            "emf": "classic-text-poly-wide-empty.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-empty-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 132,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-empty-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-empty-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-natural-control",
+            "emf": "classic-text-poly-wide-natural-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-natural-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-natural-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-natural-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-natural",
+            "emf": "classic-text-poly-wide-natural.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-natural-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-natural-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-natural-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-pdy-control",
+            "emf": "classic-text-poly-wide-pdy-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-pdy-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 108,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-pdy-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-pdy-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-pdy",
+            "emf": "classic-text-poly-wide-pdy.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-pdy-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 120,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-pdy-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                75,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-pdy-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 264,
+              "paintedBounds": [
+                9,
+                7,
+                74,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-updatecp-control",
+            "emf": "classic-text-poly-wide-updatecp-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-updatecp-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  36,
+                  28
+                ]
+              },
+              {
+                "type": 84,
+                "bytes": 84,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  64,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-updatecp-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-updatecp-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-updatecp",
+            "emf": "classic-text-poly-wide-updatecp.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-updatecp-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  64,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-updatecp-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-updatecp-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                47,
+                27
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-zero-control",
+            "emf": "classic-text-poly-zero-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-zero-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-zero-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-zero-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-zero",
+            "emf": "classic-text-poly-zero.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-zero-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-zero-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-zero-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "ext-shiftjis-0-28-28",
+            "emf": "ext-shiftjis-0-28-28.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "ext-shiftjis-0-28-28-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 83,
+                "bytes": 92,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "ext-shiftjis-0-28-28-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "ext-shiftjis-0-28-28-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "ext-shiftjis-12-16-28",
+            "emf": "ext-shiftjis-12-16-28.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "ext-shiftjis-12-16-28-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 83,
+                "bytes": 92,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "ext-shiftjis-12-16-28-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "ext-shiftjis-12-16-28-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "ext-shiftjis-28-0-28",
+            "emf": "ext-shiftjis-28-0-28.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "ext-shiftjis-28-0-28-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 83,
+                "bytes": 92,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "ext-shiftjis-28-0-28-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "ext-shiftjis-28-0-28-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "ext-shiftjis-unicode-control",
+            "emf": "ext-shiftjis-unicode-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "ext-shiftjis-unicode-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "ext-shiftjis-unicode-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "ext-shiftjis-unicode-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "poly-ansi-no-rect-compact",
+            "emf": "poly-ansi-no-rect-compact.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": false,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-ansi-no-rect-compact-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [],
+            "enumEnhMetaFile": false,
+            "enumerated": {
+              "png": "poly-ansi-no-rect-compact-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 1,
+            "gdiplus": {
+              "png": "poly-ansi-no-rect-compact-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "poly-ansi-no-rect-fixed",
+            "emf": "poly-ansi-no-rect-fixed.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": false,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-ansi-no-rect-fixed-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 128,
+                "playRecord": false,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-ansi-no-rect-fixed-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-ansi-no-rect-fixed-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "poly-shiftjis-0-28-28",
+            "emf": "poly-shiftjis-0-28-28.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-shiftjis-0-28-28-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 96,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-shiftjis-0-28-28-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-shiftjis-0-28-28-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "poly-shiftjis-12-16-28",
+            "emf": "poly-shiftjis-12-16-28.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-shiftjis-12-16-28-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 96,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-shiftjis-12-16-28-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-shiftjis-12-16-28-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "poly-shiftjis-28-0-28",
+            "emf": "poly-shiftjis-28-0-28.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-shiftjis-28-0-28-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 96,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-shiftjis-28-0-28-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-shiftjis-28-0-28-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "poly-shiftjis-unicode-control",
+            "emf": "poly-shiftjis-unicode-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-shiftjis-unicode-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 88,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-shiftjis-unicode-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 95,
+              "paintedBounds": [
+                8,
+                13,
+                46,
+                28
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-shiftjis-unicode-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 226,
+              "paintedBounds": [
+                9,
+                13,
+                46,
+                29
+              ]
+            }
+          },
+          {
+            "name": "poly-wide-no-rect-compact",
+            "emf": "poly-wide-no-rect-compact.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": false,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-wide-no-rect-compact-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [],
+            "enumEnhMetaFile": false,
+            "enumerated": {
+              "png": "poly-wide-no-rect-compact-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 1,
+            "gdiplus": {
+              "png": "poly-wide-no-rect-compact-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "poly-wide-no-rect-fixed",
+            "emf": "poly-wide-no-rect-fixed.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": false,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-wide-no-rect-fixed-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 128,
+                "playRecord": false,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-wide-no-rect-fixed-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-wide-no-rect-fixed-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 0,
+              "paintedBounds": [
+                96,
+                64,
+                -1,
+                -1
+              ]
+            }
+          },
+          {
+            "name": "small-glyph-compressed",
+            "emf": "small-glyph-compressed.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "small-glyph-compressed-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "small-glyph-compressed-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "small-glyph-compressed-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "small-glyph-wide",
+            "emf": "small-glyph-wide.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "small-glyph-wide-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "small-glyph-wide-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "small-glyph-wide-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "unsupported-classic-text-compact-no-rect-clip",
+            "emf": "unsupported-classic-text-compact-no-rect-clip.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "unsupported-classic-text-compact-no-rect-clip-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "unsupported-classic-text-compact-no-rect-clip-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "unsupported-classic-text-compact-no-rect-clip-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          },
+          {
+            "name": "unsupported-classic-text-compact-no-rect-opaque",
+            "emf": "unsupported-classic-text-compact-no-rect-opaque.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "unsupported-classic-text-compact-no-rect-opaque-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 108,
+                "bytes": 40,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "unsupported-classic-text-compact-no-rect-opaque-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "unsupported-classic-text-compact-no-rect-opaque-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                32,
+                27
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "runID": 40374983047,
+      "jobID": 121755468115,
+      "commit": "797abaf1fd72d06ff351b1ae9b5cf345ace48a59",
+      "conclusion": "success",
+      "artifactID": 12673902858,
+      "artifactSHA256": "c3ef2f28c4a51cf1581c7db6949e0aca7c8aaabbb05ea269daa9c93c896cd84f",
+      "artifactBytes": 21794,
+      "caseCount": 8,
+      "inputSHA256": {
+        "classic-text-poly-ansi-natural.emf": "9a4dfe782dab2f0e4fd2531b01617d4a9c52aeb159118eeac82fdd5aa2269762",
+        "classic-text-poly-wide-natural.emf": "c8c155531eb6ed12508db4589d395c7e154c62a9beb10fb33fb1fa22ef733ef8",
+        "poly-ansi-zero-dx-record-pointer-control.emf": "e06102eb603ceea4f51d152f0cdc8a3887504738bb6ccf1332e2e65d82920433",
+        "poly-ansi-zero-dx-record-pointer.emf": "81f1f4c9ea2dbe8b6d2fe4023c362c3ccc84f679c22a932fec4a0febed8aa4d8",
+        "poly-ansi-zero-dx-updatecp.emf": "0d1eecf49e51816a526663b22e2461b9d8f7313efcedb80c80d115b8df855ce3",
+        "poly-wide-zero-dx-record-pointer-control.emf": "e06102eb603ceea4f51d152f0cdc8a3887504738bb6ccf1332e2e65d82920433",
+        "poly-wide-zero-dx-record-pointer.emf": "c97060ceac5dc758283c6699c540b81e12a870d3167be6b65e8f269a0d9f2cb2",
+        "poly-wide-zero-dx-updatecp.emf": "3aa19546d7367b697605862b18a6cc0909b731d9cfc4dd8b9dabcadbb6502ca5"
+      },
+      "rawReport": {
+        "schema": 1,
+        "width": 96,
+        "height": 64,
+        "rgba": "straight RGBA top-left opaque white background",
+        "nativeAPI": {
+          "polyTextOutW": true,
+          "lastError": 0,
+          "file": "native-poly-wide.emf"
+        },
+        "cases": [
+          {
+            "name": "classic-text-poly-ansi-natural",
+            "emf": "classic-text-poly-ansi-natural.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-ansi-natural-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-ansi-natural-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-ansi-natural-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "classic-text-poly-wide-natural",
+            "emf": "classic-text-poly-wide-natural.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "classic-text-poly-wide-natural-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "classic-text-poly-wide-natural-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "classic-text-poly-wide-natural-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                9,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "poly-ansi-zero-dx-record-pointer-control",
+            "emf": "poly-ansi-zero-dx-record-pointer-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-ansi-zero-dx-record-pointer-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                10,
+                15,
+                20,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-ansi-zero-dx-record-pointer-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                10,
+                15,
+                20,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-ansi-zero-dx-record-pointer-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                10,
+                15,
+                20,
+                27
+              ]
+            }
+          },
+          {
+            "name": "poly-ansi-zero-dx-record-pointer",
+            "emf": "poly-ansi-zero-dx-record-pointer.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-ansi-zero-dx-record-pointer-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                10,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-ansi-zero-dx-record-pointer-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                10,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-ansi-zero-dx-record-pointer-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                10,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "poly-ansi-zero-dx-updatecp",
+            "emf": "poly-ansi-zero-dx-updatecp.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-ansi-zero-dx-updatecp-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 96,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  200,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-ansi-zero-dx-updatecp-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-ansi-zero-dx-updatecp-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          },
+          {
+            "name": "poly-wide-zero-dx-record-pointer-control",
+            "emf": "poly-wide-zero-dx-record-pointer-control.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-wide-zero-dx-record-pointer-control-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                10,
+                15,
+                20,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 84,
+                "bytes": 80,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-wide-zero-dx-record-pointer-control-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                10,
+                15,
+                20,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-wide-zero-dx-record-pointer-control-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                10,
+                15,
+                20,
+                27
+              ]
+            }
+          },
+          {
+            "name": "poly-wide-zero-dx-record-pointer",
+            "emf": "poly-wide-zero-dx-record-pointer.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-wide-zero-dx-record-pointer-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                10,
+                15,
+                71,
+                51
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-wide-zero-dx-record-pointer-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                10,
+                15,
+                71,
+                51
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-wide-zero-dx-record-pointer-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 176,
+              "paintedBounds": [
+                10,
+                15,
+                70,
+                50
+              ]
+            }
+          },
+          {
+            "name": "poly-wide-zero-dx-updatecp",
+            "emf": "poly-wide-zero-dx-updatecp.emf",
+            "getEnhMetaFile": true,
+            "playEnhMetaFile": true,
+            "playLastError": 0,
+            "gdi": {
+              "png": "poly-wide-zero-dx-updatecp-gdi.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "records": [
+              {
+                "type": 97,
+                "bytes": 136,
+                "playRecord": true,
+                "lastError": 0,
+                "currentPosition": [
+                  202,
+                  28
+                ]
+              }
+            ],
+            "enumEnhMetaFile": true,
+            "enumerated": {
+              "png": "poly-wide-zero-dx-updatecp-enum.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            },
+            "gdiplusLoadStatus": 0,
+            "gdiplusDrawStatus": 0,
+            "gdiplus": {
+              "png": "poly-wide-zero-dx-updatecp-plus.png",
+              "saveStatus": 0,
+              "nonwhitePixels": 88,
+              "paintedBounds": [
+                9,
+                15,
+                19,
+                27
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "measuredContracts": [
+    {
+      "contract": "EMR_SMALLTEXTOUT width and compressed Unicode",
+      "evidence": "Wide UTF16, SMALL_CHARS 0x200 byte-per-UTF16-low-byte, with and without omitted rectangle, are separately byte-equal to Windows-rendered ExtTextOutW controls in all three engines. Compressed bytes80,e9 match UTF16 U+0080,U+00E9, not CP1252 Euro.",
+      "pairs": {
+        "classic-text-compact-clip-opaque": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-clip": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-compatible": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-empty-opaque": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-low-unicode": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-opaque": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-path": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-rect": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-restore": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-small-rect": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-small": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-updatecp": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-wide": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "classic-text-compact-world": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        }
+      }
+    },
+    {
+      "contract": "SmallTextOut NO_RECT flags",
+      "evidence": "NO_RECT|CLIPPED and NO_RECT|OPAQUE both return successful GDI record/playback and GDI+ status0; their pixels equal ordinary NO_RECT without those flags in every engine. Missing rectangle makes these flags ineffectual in the sampled records.",
+      "pairs": {
+        "clip": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "opaque": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        }
+      }
+    },
+    {
+      "contract": "SmallTextOut compressed glyph indices",
+      "evidence": "Two glyph43 entries, compressed bytes versus UTF16words, pixel-equal separately in each Windows engine. This establishes zero-extension for this synthetic low glyph index, not all font/glyph combinations.",
+      "pairs": {
+        "gdi": true,
+        "enum": true,
+        "plus": true
+      }
+    },
+    {
+      "contract": "PolyTextOut descriptor structure",
+      "evidence": "Ordinary fixed40-byte EMRTEXT arrays with valid explicitDX succeed. ETO_NO_RECT0x100 in fixed40 arrays fails PlayEnhMetaFileRecord and PlayEnhMetaFile for bothA/W; GDI+ DrawImage reports0 but paints nothing. A24-byte compact descriptor layout is rejected before enumeration callback and GDI+ DrawImage reportsGenericError1.",
+      "failedPlaybacks": [
+        {
+          "name": "poly-ansi-no-rect-compact",
+          "emf": "poly-ansi-no-rect-compact.emf",
+          "getEnhMetaFile": true,
+          "playEnhMetaFile": false,
+          "playLastError": 0,
+          "records": [],
+          "enumEnhMetaFile": false,
+          "gdiplusLoadStatus": 0,
+          "gdiplusDrawStatus": 1
+        },
+        {
+          "name": "poly-ansi-no-rect-fixed",
+          "emf": "poly-ansi-no-rect-fixed.emf",
+          "getEnhMetaFile": true,
+          "playEnhMetaFile": false,
+          "playLastError": 0,
+          "records": [
+            {
+              "type": 96,
+              "bytes": 128,
+              "playRecord": false,
+              "lastError": 0,
+              "currentPosition": [
+                0,
+                0
+              ]
+            }
+          ],
+          "enumEnhMetaFile": true,
+          "gdiplusLoadStatus": 0,
+          "gdiplusDrawStatus": 0
+        },
+        {
+          "name": "poly-wide-no-rect-compact",
+          "emf": "poly-wide-no-rect-compact.emf",
+          "getEnhMetaFile": true,
+          "playEnhMetaFile": false,
+          "playLastError": 0,
+          "records": [],
+          "enumEnhMetaFile": false,
+          "gdiplusLoadStatus": 0,
+          "gdiplusDrawStatus": 1
+        },
+        {
+          "name": "poly-wide-no-rect-fixed",
+          "emf": "poly-wide-no-rect-fixed.emf",
+          "getEnhMetaFile": true,
+          "playEnhMetaFile": false,
+          "playLastError": 0,
+          "records": [
+            {
+              "type": 97,
+              "bytes": 128,
+              "playRecord": false,
+              "lastError": 0,
+              "currentPosition": [
+                0,
+                0
+              ]
+            }
+          ],
+          "enumEnhMetaFile": true,
+          "gdiplusLoadStatus": 0,
+          "gdiplusDrawStatus": 0
+        }
+      ]
+    },
+    {
+      "contract": "PolyTextOut offDx0 is a record-relative pointer, not natural spacing",
+      "evidence": "At recordtype96/97, two single-character UPDATECP rows starting[8,28] finish[200,28] or[202,28], exactly8+2*recordtype. A two-character string shifted left by(recordtype-9) places its second glyph at9. First38 bitmap rows equal explicitExtW glyph at9 in all engines. The unchanged second descriptor remains at60,52, so fullimage comparison against one-row control intentionally differs.",
+      "followupFirst38Rows": {
+        "ansi": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "wide": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        }
+      },
+      "currentPositions": {
+        "poly-ansi-zero-dx-updatecp": [
+          {
+            "type": 96,
+            "bytes": 136,
+            "playRecord": true,
+            "lastError": 0,
+            "currentPosition": [
+              200,
+              28
+            ]
+          }
+        ],
+        "poly-wide-zero-dx-updatecp": [
+          {
+            "type": 97,
+            "bytes": 136,
+            "playRecord": true,
+            "lastError": 0,
+            "currentPosition": [
+              202,
+              28
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "contract": "DBCS byte DX aggregation",
+      "evidence": "Shift-JIS charset128 bytes82a048 (\u3042H), DX[12,16,28],[28,0,28],[0,28,28], each equals Unicode\u3042H DX[28,28] for ExtA and PolyA separately in all engines. Evidence supports summing advances across bytes of the multibytecharacter in these cases.",
+      "pairs": {
+        "ext-12-16-28": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "ext-28-0-28": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "ext-0-28-28": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "poly-12-16-28": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "poly-28-0-28": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        },
+        "poly-0-28-28": {
+          "gdi": true,
+          "enum": true,
+          "plus": true
+        }
+      }
+    },
+    {
+      "contract": "Poly clipping, opaque background, PDY and current position",
+      "evidence": "ExplicitDX and ETO_PDY per-string samples equal separately rendered ExtW controls; ANSI CP1252 bytes80e9 equal UnicodeEuro\u00e9. Small rectangle clip/opaque/empty-opaque and current-position samples equal ExtW controls. Original Poly no-DX clip/opaque controls are among corrected assumptions below; no equal-pixel claim for those original pairs."
+    },
+    {
+      "contract": "Compatible metadata sample",
+      "evidence": "mode1 exScale=eyScale2.5 and worldtransformX2,Y1: Poly explicitDX[20,20] and Small each equal ExtW with identical metadata. PolyGDI inkbounds[18,15,79,27], Plus[18,15,78,27]; Small[18,15,65,27]. Height13 is consistent with ignoredscale metadata. There is no separately recorded scale1 control, so this is equality with ExtW at the sampled metadata, not an independent all-scale proof."
+    },
+    {
+      "contract": "Native PolyTextOutW API serialization",
+      "evidence": "Successful two-string native PolyTextOutW records two EMR_EXTTEXTOUTW84 records, sizes88 and84, rather than one PolyTextOutW97 record. The native file is included in both artifacts."
+    }
+  ],
+  "correctedInitialControlAssumptions": {
+    "falsePairs": {
+      "classic-text-poly-ansi-ascii-default": {
+        "gdi": false,
+        "enum": false,
+        "plus": false
+      },
+      "classic-text-poly-ansi-clip-opaque": {
+        "gdi": false,
+        "enum": false,
+        "plus": false
+      },
+      "classic-text-poly-ansi-natural": {
+        "gdi": false,
+        "enum": false,
+        "plus": false
+      },
+      "classic-text-poly-restore": {
+        "gdi": false,
+        "enum": false,
+        "plus": false
+      },
+      "classic-text-poly-wide-clip-opaque": {
+        "gdi": false,
+        "enum": false,
+        "plus": false
+      },
+      "classic-text-poly-wide-natural": {
+        "gdi": false,
+        "enum": false,
+        "plus": false
+      }
+    },
+    "reason": "Initial no-DX Poly fixtures assumed natural spacing like ExtTextOut. Windows instead uses offDx0 as pointer to DWORD recordtype and subsequent record bytes; original controls are not source-parity controls. The focused followup proves this via placement and UPDATECP. Initial snapshots are intentionally preserved; revised implementation-branch control fixtures were not replayed in this reference run."
+  },
+  "limits": [
+    "No macOS raster comparison or pixel parity assertion.",
+    "Each exact equality is within the same Windows rendering engine. GDI and GDI+ raster results can differ.",
+    "Only these synthetic font/record samples and this Windows runner were measured.",
+    "DBCS sample covers Shift-JIS \u3042H with three byte-DX distributions; other codepages and PDY byte grouping were not directly measured.",
+    "Compact glyph widening measured glyph43 only.",
+    "OffDx0 firstDWORD and current-position behavior directly measured; arbitrary later header/body DWORDs inferred from pointer semantics and require bounded source parsing.",
+    "No malformed allocation/count fuzzing or Windows API safety guarantee from these runs."
+  ]
+}

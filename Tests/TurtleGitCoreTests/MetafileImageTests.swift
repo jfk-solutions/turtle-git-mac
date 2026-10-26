@@ -1599,6 +1599,12 @@ extension MetafileImageTests {
         while cursor+8<=bytes.count {
             let type=try u32(cursor),size=try u32(cursor+4);guard size>=8,cursor+size<=bytes.count else{throw NSError(domain:"Positioned fixture framing",code:1)}
             if type==84 {let body=cursor+8,count=try u32(body+36),offset=try u32(body+40);try replace(cursor+offset,count);put32(try u32(body+44)|0x10,body+44);found=true}
+            if type==108 {
+                let body=cursor+8,count=try u32(body+8),options=try u32(body+12)
+                XCTAssertEqual(options & 0x200,0,"Runtime glyph conversion needs UTF16 compact text")
+                try replace(body+28+(options & 0x100 == 0 ? 16:0),count)
+                put32(options|0x10,body+12);found=true
+            }
             if type==70,cursor+16<=bytes.count,bytes.subdata(in:cursor+12..<cursor+16)==Data("EMF+".utf8) {
                 var item=cursor+16
                 while item+12<=cursor+size {
@@ -2359,6 +2365,99 @@ extension MetafileImageTests {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(before),name)
             XCTAssertNil(ComparisonImage(bytes:before),name+" cannot return earlier valid brush painting")
             XCTAssertEqual(try data(name),before,"Unsupported conversion retains exact original bytes")
+        }
+    }
+}
+
+extension MetafileImageTests {
+    private func classicTextPixels(_ name:String)throws->[UInt8] {
+        let rendered=try image(name+".emf"),width=97,height=65
+        XCTAssertEqual(rendered.pixels.width,width,name);XCTAssertEqual(rendered.pixels.height,height,name)
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes {storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.draw(rendered.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return bytes
+    }
+    func testClassicTextRecordCompactAndBatchedPaintMatchIndependentWideRecords()throws {
+        let controls=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("classic-text-") && $0.hasSuffix("-control.emf")}.sorted()
+        XCTAssertEqual(controls.count,72)
+        for filename in controls {
+            let control=String(filename.dropLast(4)),name=String(control.dropLast("-control".count)),original=try data(name+".emf")
+            XCTAssertEqual(try classicTextPixels(name),try classicTextPixels(control),name)
+            XCTAssertEqual(try data(name+".emf"),original,"Rendering must preserve original wire bytes")
+        }
+    }
+    func testClassicTextRecordRealInkClipBackgroundAndCurrentPosition()throws {
+        let natural=try positionedInk("classic-text-compact-wide"),low=try positionedInk("classic-text-compact-low-unicode")
+        XCTAssertGreaterThan(natural.points.count,40);XCTAssertGreaterThan(low.points.count,20)
+        let compactBytes=try data("classic-text-compact-wide.emf")
+        XCTAssertEqual(try positionedInk(positionedRawGlyphCopy(compactBytes)).points,natural.points,"Compact UTF16 glyph mode must use actual selected cmap IDs")
+        var compressedGlyphs=try positionedRawGlyphCopy(compactBytes)
+        func word(_ offset:Int)->Int {(0..<4).reduce(0){$0|Int(compressedGlyphs[offset+$1])<<($1*8)}}
+        var cursor=88,foundCompact=false
+        while cursor+8<=compressedGlyphs.count {
+            let type=word(cursor),size=word(cursor+4)
+            guard size>=8,cursor+size<=compressedGlyphs.count else {throw NSError(domain:"Compact glyph framing",code:1)}
+            if type==108 {
+                XCTAssertEqual(word(cursor+16),2)
+                let start=cursor+36,first=Int(compressedGlyphs[start])|Int(compressedGlyphs[start+1])<<8,second=Int(compressedGlyphs[start+2])|Int(compressedGlyphs[start+3])<<8
+                XCTAssertLessThan(first,256);XCTAssertLessThan(second,256)
+                compressedGlyphs[start]=UInt8(truncatingIfNeeded:first);compressedGlyphs[start+1]=UInt8(truncatingIfNeeded:second)
+                compressedGlyphs[start+2]=0;compressedGlyphs[start+3]=0
+                compressedGlyphs[cursor+21] |= 2;foundCompact=true
+            }
+            cursor+=size
+        }
+        XCTAssertTrue(foundCompact)
+        XCTAssertEqual(try positionedInk(compressedGlyphs).points,natural.points,"Low-byte compact glyph IDs must match full UInt16 IDs without ANSI decoding")
+        let clip=try positionedInk("classic-text-compact-clip")
+        XCTAssertFalse(clip.points.isEmpty);XCTAssertTrue(clip.points.allSatisfy{$0%96<24})
+        for name in ["compact-opaque","compact-empty-opaque"] {
+            let value=try image("classic-text-"+name+".emf"),inside=try rgb(value,6,6),outside=try rgb(value,2,2)
+            XCTAssertLessThan(inside[0],0.05);XCTAssertGreaterThan(inside[1],0.95);XCTAssertGreaterThan(outside[0],0.95)
+        }
+        XCTAssertTrue(try positionedInk("classic-text-compact-empty-opaque").points.isEmpty)
+        for name in ["poly-wide-dx","poly-ansi-dx"] {
+            let ink=try positionedInk("classic-text-"+name)
+            XCTAssertEqual(ink.columnRuns.count,3)
+            if ink.columnRuns.count==3 {XCTAssertEqual(ink.columnRuns[1].minX-ink.columnRuns[0].minX,28);XCTAssertEqual(ink.columnRuns[2].minX-ink.columnRuns[1].minX,28)}
+        }
+        for name in ["compact-updatecp","poly-wide-updatecp","poly-ansi-updatecp"] {
+            let ink=try positionedInk("classic-text-"+name)
+            XCTAssertEqual(ink.columnRuns.count,2)
+            XCTAssertLessThan(try XCTUnwrap(ink.bounds).minX,20,"UPDATECP must ignore the record's distant reference point")
+        }
+        XCTAssertNotEqual(try positionedInk("classic-text-compact-world").points,natural.points)
+        XCTAssertTrue(try positionedInk("classic-text-poly-zero").points.isEmpty)
+        for kind in ["ansi","wide"] {
+            let ink=try positionedInk("classic-text-poly-"+kind+"-offdx-zero-updatecp")
+            XCTAssertEqual(ink.columnRuns.count,1,"First glyph is outside the canvas; record Type advance must place the second inside")
+            let bounds=try XCTUnwrap(ink.bounds)
+            XCTAssertGreaterThan(bounds.minX,5);XCTAssertLessThan(bounds.minX,20,"offDx zero must consume source-header DX, not natural advance")
+        }
+        for family in ["compact","poly"] {
+            XCTAssertGreaterThan(try positionedInk("classic-text-"+family+"-path").points.count,20,"Path text must retain actual glyph outlines until FillPath")
+            let marker=try rgb(image("classic-text-"+family+"-restore.emf"),84,52)
+            XCTAssertLessThan(marker[0],0.05);XCTAssertGreaterThan(marker[1],0.95,"Restored DC must release the text clip")
+        }
+    }
+    func testClassicTextRecordMalformedArraysEncodingAndSharedBudgetsRefusePreservingBytes()throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-classic-text-") && $0.hasSuffix(".emf")}.sorted()
+        XCTAssertEqual(names.count,40)
+        for filename in names {
+            let original=try data(filename)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),filename) {error in
+                if filename.contains("aggregate-budget") {
+                    guard let failure=error as? MetafileImageFailure,case .failed(let diagnostic)=failure else{return XCTFail("Expected explicit shared text budget refusal, got \(error)")}
+                    XCTAssertTrue(diagnostic.contains("aggregate") && diagnostic.contains("text"),diagnostic)
+                }
+            }
+            XCTAssertEqual(try data(filename),original)
+        }
+        for filename in ["poly-no-rect","poly-second-string-after-record","ext-ansi-glyph","poly-ansi-default-high"] {
+            XCTAssertNil(ComparisonImage(bytes:try data("unsupported-classic-text-"+filename+".emf")),filename)
         }
     }
 }

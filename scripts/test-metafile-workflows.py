@@ -61,6 +61,7 @@ CASES = {
     'classic-regions': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'classic-pens': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'formatted-digits': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
+    'classic-text-records': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'positioned-text': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'compressed-paths': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'consumers': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
@@ -88,7 +89,7 @@ for filename in dict.fromkeys(filename for filename, _ in CASES.values()):
     if not path.is_file() or path.read_text() != contents:
         path.write_text(contents)
     fixtures.append(path)
-dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('formattedDigits:true' if case == 'formatted-digits' else 'compressedRaster:true' if case == 'compressed-raster' else 'embeddedMetafiles:true' if case == 'embedded-metafiles' else 'classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
+dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('classicTextRecords:true' if case == 'classic-text-records' else 'formattedDigits:true' if case == 'formatted-digits' else 'compressedRaster:true' if case == 'compressed-raster' else 'embeddedMetafiles:true' if case == 'embedded-metafiles' else 'classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
 main = generated/'MetafileWorkflowMain.swift'
 main_contents = '''import AppKit
 import ObjectiveC
@@ -132,7 +133,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             private_home=directory/'home';private_home.mkdir(mode=0o700)
             environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            if case in ['path-gradients','compressed-raster','embedded-metafiles','drawing-state','consumers','formatted-digits','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            if case in ['classic-text-records','path-gradients','compressed-raster','embedded-metafiles','drawing-state','consumers','formatted-digits','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             environment.pop('TURTLEGIT_DRAWING_STATE_CAPTURES', None)
             if args.capture_dir and case == 'drawing-state' and index == 0:
                 args.capture_dir.resolve().mkdir(parents=True, exist_ok=True)

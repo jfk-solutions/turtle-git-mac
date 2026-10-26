@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "d30b6ed33aef11a4674ff33da100bfe472ac0d3d",
+  "status": "grouped_core_universal_runtime_and_native_checks_pass_after_recorded_fixture_repair",
+  "scope": "Compact, batched and ANSI classic EMF text through shared native painting and image consumers",
+  "windows_reference": "metafile-classic-text-windows-2026-10-26.json",
+  "implementation": [
+    "Correct compact Unicode width, optional rectangle flags and compressed glyph indices.",
+    "Batched A/W descriptors, bounded measured offDx-zero spacing and full buffer preflight.",
+    "Explicit selected ANSI charsets, multibyte byte-DX/PDY aggregation and strict unknown mapping refusal.",
+    "Shared font/transform/clip/background/current-position/path and text-work ownership."
+  ],
+  "corpus": {
+    "positive_control_pairs": 72,
+    "refusals": 40,
+    "preexisting_binary_fixtures": 1626,
+    "changed_preexisting_binary_fixtures": []
+  },
+  "validation": {
+    "runtime": "passed: universal build, corresponding-source reconstruction, system-only linkage, minimumOS metadata and both-architecture baseline conversion/refusal",
+    "core": "14 distinct methods passed cumulatively: initial13passed/onefailed, then two methods affected by four fixture repairs passed; no production changes or repeated full group.",
+    "app": "passed exit0, no generic SwiftCompile error diagnostics; packaged helper cache/source/reconstruction fields and unsigned binary hash equal built runtime. Ad-hoc signature and bundle-layout fields legitimately differ.",
+    "native": "Passed two Git engine pairs: seventeen positive samples, fourteen native equivalence pairs and forty refusals per engine. Actual drop, Open, reload, three-stage conflict, cancellation, late-result, grant and Quit paths retain source bytes, HEAD and index and drain owners.",
+    "planned_core_filter": "MetafileImageTests.test(ClassicTextRecord|ClassicPositioned|PositionedText)",
+    "planned_native_case": "classic-text-records",
+    "native_positive_samples": 17,
+    "native_equivalence_pairs": 14,
+    "native_refusals": 40,
+    "native_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "localizations": "No literal native UI labels changed.",
+    "help": "No guide included in help-topics.json changed.",
+    "runtime_cache_key": "fbaba35ce7f0a23f4f7a43d6548b6df813027a1e5b48f1d042e11bb647749e3e",
+    "architecture_samples": "Passed eight positive and four refusal samples per architecture; x86_64 used Rosetta on arm64, not physical Intel.",
+    "core_filter": "MetafileImageTests.test(ClassicTextRecord|ClassicPositioned|Positioned|ClassicAndPlusBitmaps|DualPlayback|MalformedAndUnsupportedPainting)",
+    "packaged_helper_source_identity_equal": true,
+    "packaged_helper_unsigned_sha256": "019bcb1cace6bdfb450e42b9a9f944fc3b96c6e3b36cfffde4113e4bfcb1dca4",
+    "core_methods_passed_cumulatively": 14,
+    "hosted": "Dedicated nativecase added to existing macOS image workflow; no complete hosted pass claimed.",
+    "native_case_engine_pairs_passed": 2,
+    "native_receivers_reaped_and_independently_absent": [
+      99280,
+      99711
+    ],
+    "native_windows": "alpha0/offscreen, closed by owner cleanup",
+    "dialog_coverage": "reconciled after documentation freeze"
+  },
+  "limits": [
+    "Windows reference pairs measure within each Windows engine, not macOS pixel identity.",
+    "Bounded header-spacing compatibility refuses out-of-record reads.",
+    "Unknown high-byte/default/OEM and ANSI Symbol mappings, ANSI glyph indices and existing locale/RTL/opaque-path limits remain explicit.",
+    "No current installed signed, physical Intel/minimum-macOS or complete hosted acceptance in this checkpoint."
+  ],
+  "failed_attempts": [
+    {
+      "scope": "Initial fourteen-method Core group",
+      "cause": "Independent ink assertions found two new path fixtures selected stock BLACK_PEN (7) before FillPath, leaving the default WHITE_BRUSH and white glyph paint. Paired subjects and controls both painted white.",
+      "repair": "Select stock BLACK_BRUSH (4) in both subjects and controls; retain independent ink assertions and rerun only the two methods affected by the four changed fixtures. Production unchanged."
+    },
+    {
+      "scope": "Architecture sample setup",
+      "cause": "The requested Shift-JIS filename glob did not match the generated corpus, causing StopIteration before any helper launched.",
+      "repair": "Select the actual dbcs-128 sample; the planned samples passed in both architectures."
+    }
+  ],
+  "source_sha256": {
+    "patches/metafile-renderer.patch": "c85c4a7049d3db7b18bb059e221212a07e2d2730c0a23ff35070d0f3f602ed06",
+    "Sources/TurtleGitMetafile/main.swift": "4dcd23d8ff37a5f22c1d99d2cfdea1bbb3725c194fb936df5ced9d8a135f4837",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "6b10e7dcbea141e1966df072a982f48de731f5ea324796485adec538c3e29799",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-classic-text.py": "8ce0e9ee5f9de74537f1075a66944a80dee09ce20eddaa529250b562842fc71f",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "15004a08735230da03e5176d3f3e0e593c8352543d7c65e4d68ed18d0c342648",
+    "scripts/test-metafile-workflows.py": "1453875b994239cc9d4fd18bbd4cd738c32e150c157001cbad242bfef5fe4d2a",
+    ".github/workflows/macos.yml": "a4d8ee124d4de62870fe06f54a30af1c7e68ec22f334ee7f20dad69aec7bad4a"
+  },
+  "logs": {
+    "runtime": "build/qa/metafile-classic-text-runtime-2026-10-26.log",
+    "runtime_check": "build/qa/metafile-classic-text-runtime-check-2026-10-26.log",
+    "core": "build/qa/metafile-classic-text-core-2026-10-26.log",
+    "app": "build/qa/metafile-classic-text-app-2026-10-26.log",
+    "native": "build/qa/metafile-classic-text-native-2026-10-26.log",
+    "coverage": "build/qa/metafile-classic-text-coverage-2026-10-26.log",
+    "core_repair": "build/qa/metafile-classic-text-core-repair-2026-10-26.log",
+    "architectures_initial": "build/qa/metafile-classic-text-architectures-2026-10-26.log",
+    "architectures": "build/qa/metafile-classic-text-architectures-repair-2026-10-26.log"
+  }
+}

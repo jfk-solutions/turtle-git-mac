@@ -523,3 +523,26 @@ Digit-mode controls distinguish native Windows literal numeric playback from
 host-locale rewriting. The previous local ICU-substitution expectations are
 superseded by direct and serialized Windows references, including Arabic/RTL.
 See [source and recorded evidence](../../../../docs/METAFILE-TEXT-PARITY.md).
+
+`generate-classic-text.py` creates the original `classic-text-*` compact and
+batched text family. It writes only its own files and preserves every earlier
+fixture. SmallTextOut's `ETO_SMALL_CHARS` stores low Unicode bytes, independently
+of ANSI font charset; PolyTextOutA/W and ExtTextOutA use original-record-relative
+string/DX offsets. Each positive paint has an independent ExtTextOutW counterpart
+for full-raster equality, including clipping, opaque empty text, explicit DX/PDY,
+current-position updates, transforms, path capture and SaveDC/RestoreDC. Refusals
+keep a valid outer EMF while corrupting inner descriptor counts, offsets, options,
+encoding, compact rectangle/tail framing and per-string/shared text budgets. No
+font glyph IDs are hardcoded and no Windows font or image bytes are copied.
+
+Run `python3 Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-classic-text.py`
+from the repository root. The family currently comprises 72 positive/control pairs
+(144 positive files) and 40 refusals. Additional charset controls cover 1250/1251/
+1253/1254/1255/1256/1257/1258/874 and Shift-JIS/UHC/GBK/Big5. DBCS DX and PDY
+fixtures have deliberately unequal lead/trail byte advances whose sums must match
+the literal UTF16 control. Truncated leads, invalid trails, Symbol/OEM ambiguity
+refuse explicitly. Compact low-byte glyph IDs are constructed privately from the
+installed font cmap at runtime and compared against the UInt16 glyph record.
+Windows-measured NO_RECT ignores opaque/clip flags; Poly offDx zero uses
+bounded DWORD advances from its source record header, with independent
+UPDATECP witnesses and literal ExtTextOutW controls.
