@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and run compact and batched text reference
+      - name: Compile and run PolyTextOut missing-DX pointer reference
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
@@ -20,11 +20,11 @@ jobs:
           Set-Content -Path oracle-build.cmd -Value $compile -Encoding Ascii
           cmd /c oracle-build.cmd
           if ($LASTEXITCODE -ne 0) { throw "Reference compile failed" }
-          .\CompactTextReference.exe scripts/oracles/compact-text-inputs oracle-output
+          .\CompactTextReference.exe scripts/oracles/compact-text-followup-inputs oracle-output
           if ($LASTEXITCODE -ne 0) { throw "Reference execution failed" }
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
           Get-FileHash scripts/oracles/CompactTextReference.cpp -Algorithm SHA256
-          Get-FileHash scripts/oracles/compact-text-inputs/*.emf -Algorithm SHA256 | Format-Table -AutoSize
+          Get-FileHash scripts/oracles/compact-text-followup-inputs/*.emf -Algorithm SHA256 | Format-Table -AutoSize
           Get-FileHash oracle-output/*.emf -Algorithm SHA256 | ConvertTo-Json | Set-Content oracle-output/generated-emf-hashes.json
       - uses: actions/upload-artifact@v4
         if: always()
