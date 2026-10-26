@@ -115,7 +115,65 @@ pass, every dialog's appearance, Intel execution, distribution signing or an App
 Store export/submission. The compiler warnings remain recorded. Earlier preview
 ZIPs and unsigned archive receipts remain separate artifacts.
 
-## October 26 installed build 12
+## October 26 installed build 13
+
+The [build13 receipt](qa/signed-consolidation-build13-2026-10-26.json) records
+version `0.1.0`, build `13`, from clean source `a3a38c07`. Its measured input
+SHA-256 is `7a267fbc242f37f85b512ff7c3ec951f19e79b7f8068e87470426434494f9fa0`;
+the application executable SHA-256 is
+`689e6ec01473f0d240bfbd8c4630efb497789fd7417c4ef7a99783be3f781a5c`.
+The Apple Development build uses team `A49SCA5S8K`. Strict deep seals, matching
+sandbox/App Group identities, eight universal app-owned components and inherited
+Git/libgit2/metafile checks pass. Candidate, staged and installed inventories
+match across all 6,362 members. The installed app is
+`/Applications/TurtleGit for Mac.app`; build12 remains recoverable at
+`build/qa/signed13-displaced-installed-2026-10-26`.
+
+The first build stopped with exit65 after rejecting a stale Metafile helper
+cache. Only the current helper was rebuilt; the incremental app build then
+finished with exit0 without recompiling native application sources. No
+contradictory exit-zero compiler diagnostics were recorded. These earlier
+failure and recovery receipts remain part of the evidence.
+
+The initial signed runtime group passed its writer, reader and denied-access
+assertions, but failed because its process observer missed a short-lived
+libgit2 child. It stopped before the image phase. A deterministic valid Notes-read
+stdin handshake with exact PID/PGID acknowledgement repaired that observer;
+the scoped history and 17-image retry passed (14 positive and three refusal
+cases, including Johab native-font fallback coverage `1.0`). Observed helper and
+receiver processes and groups drained. No Core suite or full integration suite
+was repeated for this signed checkpoint.
+
+Build13 packages the newer [Blame toolbar placement](BLAME-TOOLBAR-PLACEMENT-PARITY.md),
+[WMF text](METAFILE-WMF-TEXT-PARITY.md) and
+[Bitmap16 transfer](METAFILE-WMF-BITMAP16-PARITY.md) implementations. Packaging
+and selected signed runtime/image cases do not certify every toolbar gesture,
+metafile record or Windows rendering result.
+
+The installed workspace and its native Open Repository chooser were visible;
+the exact private Harbor repository was selected. After Open Repository, CUA
+accessibility, screenshot and rebind requests timed out. Sampling the main
+process showed an idle AppKit event loop; no app-hang or fresh workflow-screenshot
+claim follows. The owned main process was terminated. The private sample's HEAD,
+semantic index and file bytes remained unchanged. Its one temporary grant was
+removed; the original two grant IDs, paths and bookmarks remain, retaining their
+current recency metadata and order. No main process was present before this check,
+so no headless instance was restored. The exact private cache subtree was removed
+through the production store API; dead publication leases were pruned. All 24
+recorded receiver/helper/main PIDs were independently absent, and the selected
+UI preferences were unchanged.
+
+Finder registration reports one enabled extension, UUID
+`6FF13B4A-EC5B-4049-8F81-42E82EC24275`. The preexisting Finder process was left
+untouched: no Finder restart or global reset was performed. Registration does
+not establish physical badge/menu acceptance. At the recorded observation,
+Pages for `a3a38c07` passed and its macOS workflow was pending; a complete current
+hosted result remains open. Physical pointer/palette/keyboard/VoiceOver,
+multiple-display and Finder behavior, Intel/minimum-OS execution, full parity,
+distribution signing and App Store acceptance remain separate gates. No
+application export, upload or App Store submission was performed.
+
+## October 26 installed build 12 — historical
 
 The [build12 receipt](qa/signed-consolidation-build12-2026-10-26.json) measures
 clean source `37b84cd1`, including dialog reactivation and utility Close. The

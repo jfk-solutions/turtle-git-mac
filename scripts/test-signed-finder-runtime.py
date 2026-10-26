@@ -25,20 +25,33 @@ def metafile_request():
         {'name':'plus-raw-indexed4-negative.emf','samples':[red(12,12),green(28,12),blue(44,12)]},
         {'name':'plus-raw-texture-rgb565-positive.emf','samples':[red(12,12),green(28,12),blue(44,12),white(80,48)]},
         {'name':'unsupported-raw-palette-index.emf','samples':[],'refuse':True},
+        # Recent outlined classic/WMF text exercises the actual packaged font
+        # and in-process system libiconv path in the inherited sandbox.
+        {'name':'classic-text-compact-low-unicode.emf','samples':[],'minInk':20,'svgContains':['<path']},
+        {'name':'classic-text-poly-ansi-dx.emf','samples':[],'minInk':40,'columnRuns':3,'advance':28,'svgContains':['<path']},
+        {'name':'wmf-text-dbcs-single-johab.wmf','samples':[],'minInk':30,'nativeFallback':'가','svgContains':['<path']},
+        {'name':'wmf-text-ext-clip.wmf','samples':[],'minInk':1,'clipMaxX':24,'svgContains':['<path']},
+        {'name':'wmf-bitmap16-bgrx32-stretch.wmf','width':64,'height':64,'samples':[red(8,8),green(12,8),blue(16,8)]},
+        {'name':'wmf-bitmap16-self-bitblt-overlap.wmf','width':64,'height':64,'samples':[red(12,5),green(20,5)]},
+        {'name':'unsupported-wmf-text-dbcs-johab-lead.wmf','samples':[],'refuse':True},
+        {'name':'unsupported-wmf-bitmap16-bits-short.wmf','samples':[],'refuse':True},
     ]
     originals={}
     for case in cases:
         path=folder/case['name'];data=path.read_bytes();digest=hashlib.sha256(data).hexdigest();originals[path]=digest
-        case.update(bytes=base64.b64encode(data).decode(),sha256=digest,width=97 if path.suffix.lower()=='.emf' else 96,height=65 if path.suffix.lower()=='.emf' else 64)
+        case.update(bytes=base64.b64encode(data).decode(),sha256=digest)
+        case.setdefault('width',97 if path.suffix.lower()=='.emf' else 96)
+        case.setdefault('height',65 if path.suffix.lower()=='.emf' else 64)
     payload=base64.b64encode(json.dumps(cases,separators=(',',':')).encode()).decode()
     if len(payload)>192*1024:raise ValueError('Signed metafile payload exceeds bounded argv transport')
     return payload,originals
 
 class OwnedRuntimeChildren:
     """Observe/retire only the unique disposable clone's actual helper path."""
-    def __init__(self,executables,required):
+    def __init__(self,executables,required,acknowledgements=None):
         self.executables={name:{str(path),str(path.resolve(strict=True))} for name,path in executables.items()}
         self.required=set(required);self.own_group_roles=set(executables)&{'libgit2','metafile'};self.seen={};self.errors=[];self.stop=threading.Event()
+        self.acknowledgements=acknowledgements
         self.worker=threading.Thread(target=self.observe,daemon=True)
     def scan(self):
         result=subprocess.run(['/bin/ps','-axo','pid=,ppid=,pgid=,stat=,command='],capture_output=True,text=True,check=True,timeout=5)
@@ -54,7 +67,14 @@ class OwnedRuntimeChildren:
         try:
             while not self.stop.is_set():
                 for row in self.scan():
-                    if self.owned(row):self.seen[row[0]]=row
+                    if self.owned(row):
+                        self.seen[row[0]]=row
+                        if self.acknowledgements is not None and 'libgit2' in self.roles(row) and self.acknowledgements.is_dir():
+                            acknowledgement=self.acknowledgements/('observed-libgit2-'+str(row[0])+'.json')
+                            if not acknowledgement.exists():
+                                staged=acknowledgement.with_suffix('.tmp')
+                                staged.write_text(json.dumps({'pid':row[0],'pgid':row[2]}))
+                                staged.replace(acknowledgement)
                 self.stop.wait(0.01)
         except Exception as error:self.errors.append(str(error))
     def __enter__(self):self.worker.start();return self
@@ -107,6 +127,7 @@ def entitlements(path):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('app',type=Path);parser.add_argument('--team',required=True)
+    parser.add_argument('--only',choices=('history','metafile'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
     parser.add_argument('--identity',required=True,help='Installed Apple Development signing identity SHA-1.')
     parser.add_argument('--report',required=True,type=Path);args=parser.parse_args()
     group=app_group(args.team);app=args.app.resolve(strict=True)
@@ -138,7 +159,7 @@ def main():
         raise ValueError('Packaged LibGit2 lacks same-team inherited sandbox signing')
     source=ROOT/'docs/qa/signed-finder-runtime-probe-2026-10-17.swift'
     products=app.parent
-    record={'team':args.team,'group':group,'app':str(app),'actual_peer_signatures':3,'packaged_git_inherits_sandbox':True,'packaged_metafile_inherits_sandbox':True,'packaged_libgit2_inherits_sandbox':True,'cases':[],'finder_activation':'not performed','service_registration':'not performed'}
+    record={'requested_runtime_phases':args.only or ['app-group','history','metafile'],'team':args.team,'group':group,'app':str(app),'actual_peer_signatures':3,'packaged_git_inherits_sandbox':True,'packaged_metafile_inherits_sandbox':True,'packaged_libgit2_inherits_sandbox':True,'cases':[],'finder_activation':'not performed','service_registration':'not performed'}
     try:
         with tempfile.TemporaryDirectory(prefix='signed-finder-',dir=ROOT/'build/qa') as temporary:
             folder=Path(temporary);binary=folder/'probe'
@@ -178,37 +199,55 @@ def main():
                 record['cases'].append(value)
                 return value
             try:
-                snapshot=run(clones[0],'writer')['snapshot']
-                record['packaged_lexilla_runs_from_sandbox']=True
-                run(clones[0],'reader')
-                run(clones[1],'denied',snapshot)
-                history_children=OwnedRuntimeChildren({'libgit2':clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2','git':clones[0].parent.parent/'Helpers/Git/bin/git'},required={'libgit2'})
-                try:
-                    with history_children:
-                        receipt=run(clones[0],'history')
-                        if receipt.get('outside_file_grants') is not False or receipt.get('shipping_gui_launched') is not False:raise ValueError('History probe escaped owned sandbox-only scope')
-                        history=receipt.get('history',{})
-                        for key in ['literal_references_distinct','browser_pinned','notes_empty','configured_signature','head_unchanged','index_unchanged','config_unchanged','working_unchanged']:
-                            if history.get(key) is not True:raise ValueError('History probe missing completed assertion: '+key)
-                        if history.get('notes_engine')!='libgit2' or history.get('notes_ref')!='refs/notes/signed-qa':raise ValueError('History probe did not use the source Notes engine/ref')
-                        if not isinstance(history.get('notes_utf8_bytes'),int) or history['notes_utf8_bytes']<1_000_000 or not re.fullmatch('[0-9a-f]{64}',history.get('notes_sha256','')):raise ValueError('History exact Notes payload receipt is incomplete')
-                        for key in ['head','tree','raw_tag_oid','gitlink_oid']:
-                            if not re.fullmatch('[0-9a-f]{40}',history.get(key,'')):raise ValueError('History object receipt is incomplete: '+key)
-                        for key,path in [('git',clones[0].parent.parent/'Helpers/Git/bin/git'),('libgit2',clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2')]:
-                            if Path(history.get(key,'')).resolve()!=path.resolve(strict=True):raise ValueError('History probe used an external runtime: '+key)
-                finally:
-                    if hasattr(history_children,'result'):record['history_children']=history_children.result
-                record['packaged_history_and_notes_run_from_sandbox']=True
-                payload,originals=metafile_request()
-                children=OwnedRuntimeChildren({'metafile':clones[0].parent.parent/'Helpers/Metafile/metafile-convert'},required={'metafile'})
-                try:
-                    with children:run(clones[0],'metafile',payload)
-                finally:
-                    if hasattr(children,'result'):record['metafile_children']=children.result
-                record['packaged_metafile_runs_from_sandbox']=True
-                for path,digest in originals.items():
-                    if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:raise ValueError('Signed probe changed original metafile fixture: '+path.name)
-                record['metafile_fixture_files_unchanged']=True
+                if args.only is None:
+                    snapshot=run(clones[0],'writer')['snapshot']
+                    record['packaged_lexilla_runs_from_sandbox']=True
+                    run(clones[0],'reader')
+                    run(clones[1],'denied',snapshot)
+                else:
+                    snapshot=run(clones[0],'location')['snapshot']
+                if args.only is None or 'history' in args.only:
+                    history_children=OwnedRuntimeChildren({'libgit2':clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2','git':clones[0].parent.parent/'Helpers/Git/bin/git'},required={'libgit2'},acknowledgements=Path(snapshot).parent)
+                    try:
+                        with history_children:
+                            receipt=run(clones[0],'history')
+                            if receipt.get('outside_file_grants') is not False or receipt.get('shipping_gui_launched') is not False:raise ValueError('History probe escaped owned sandbox-only scope')
+                            history=receipt.get('history',{})
+                            for key in ['literal_references_distinct','browser_pinned','notes_empty','configured_signature','head_unchanged','index_unchanged','config_unchanged','working_unchanged']:
+                                if history.get(key) is not True:raise ValueError('History probe missing completed assertion: '+key)
+                            if history.get('notes_engine')!='libgit2' or history.get('notes_ref')!='refs/notes/signed-qa':raise ValueError('History probe did not use the source Notes engine/ref')
+                            observed=history.get('observed_notes_read',{})
+                            if any(observed.get(key) is not True for key in ['os_observed','valid_notes_read_reply','reaped']):raise ValueError('History Notes observation handshake did not finish')
+                            if observed.get('pid') not in history_children.seen or observed.get('pgid')!=observed.get('pid'):raise ValueError('History Notes helper receipt differs from independent OS observation')
+                            if not isinstance(history.get('notes_utf8_bytes'),int) or history['notes_utf8_bytes']<1_000_000 or not re.fullmatch('[0-9a-f]{64}',history.get('notes_sha256','')):raise ValueError('History exact Notes payload receipt is incomplete')
+                            for key in ['head','tree','raw_tag_oid','gitlink_oid']:
+                                if not re.fullmatch('[0-9a-f]{40}',history.get(key,'')):raise ValueError('History object receipt is incomplete: '+key)
+                            for key,path in [('git',clones[0].parent.parent/'Helpers/Git/bin/git'),('libgit2',clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2')]:
+                                if Path(history.get(key,'')).resolve()!=path.resolve(strict=True):raise ValueError('History probe used an external runtime: '+key)
+                    finally:
+                        if hasattr(history_children,'result'):record['history_children']=history_children.result
+                    record['packaged_history_and_notes_run_from_sandbox']=True
+                if args.only is None or 'metafile' in args.only:
+                    payload,originals=metafile_request()
+                    children=OwnedRuntimeChildren({'metafile':clones[0].parent.parent/'Helpers/Metafile/metafile-convert'},required={'metafile'})
+                    try:
+                        with children:
+                            receipt=run(clones[0],'metafile',payload)
+                            images=receipt.get('images',[])
+                            expected={path.name:digest for path,digest in originals.items()}
+                            if len(images)!=len(expected) or {image.get('name') for image in images}!=set(expected):raise ValueError('Signed metafile receipt lost required cases')
+                            for image in images:
+                                if image.get('source_sha256')!=expected[image['name']]:raise ValueError('Signed metafile receipt changed captured bytes')
+                                for key in ['source_bytes_unchanged','private_decoder_directories_removed']:
+                                    if image.get(key) is not True:raise ValueError('Signed metafile receipt lacks '+key)
+                            johab=next(image for image in images if image['name']=='wmf-text-dbcs-single-johab.wmf')
+                            if johab.get('native_fallback_outline') is not True or johab.get('fallback_coverage',0)<=0.9:raise ValueError('Signed Johab did not paint the actual native fallback outline')
+                    finally:
+                        if hasattr(children,'result'):record['metafile_children']=children.result
+                    record['packaged_metafile_runs_from_sandbox']=True
+                    for path,digest in originals.items():
+                        if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:raise ValueError('Signed probe changed original metafile fixture: '+path.name)
+                    record['metafile_fixture_files_unchanged']=True
             finally:
                 original_error=sys.exc_info()[1]
                 try:run(clones[0],'cleanup')
@@ -221,6 +260,6 @@ def main():
         raise
     finally:
         args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(record,indent=2)+'\n')
-    print('PASS signed App Group runtime: independent sandbox processes, actual packaged Git and a denied nonmember. No installed Finder activation.')
+    print('PASS signed runtime: requested sandbox phases completed with owned helper cleanup. No installed Finder activation.')
 
 if __name__=='__main__':main()

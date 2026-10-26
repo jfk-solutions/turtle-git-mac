@@ -1,0 +1,379 @@
+{
+  "date": "2026-10-26",
+  "status": "installed_signed_universal_selected_sandbox_runtime_pass_UI_acceptance_incomplete",
+  "source_commit": "a3a38c07c2ed1c87dd3ef3bd27629ec7c70190aa",
+  "version": "0.1.0",
+  "build": "13",
+  "scope": [
+    "Package recent compact/WMF text, Bitmap16 and Blame toolbar composition/placement work in current signed local app",
+    "Verify selected actual inherited sandbox helpers in disposable signed-parent processes",
+    "Install with recoverable previous app; perform bounded actual native dialog/Finder ownership acceptance"
+  ],
+  "candidate_worktree": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac",
+  "build_tool_session": 78831,
+  "app_store_submission": "deferred until owner testing; no upload or Connect changes authorized/performed",
+  "preexisting_main_app_process": "absent in ps and CUA inventory",
+  "preexisting_finder_extension_pid": 57518,
+  "hosted_observation": {
+    "pages": {
+      "run": 40400480686,
+      "head": "a3a38c07",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macOS": {
+      "run": 40400480698,
+      "head": "a3a38c07",
+      "status": "pending",
+      "conclusion": null
+    },
+    "earlier_active_macOS_run": 40391466850
+  },
+  "remaining": [
+    "Full upstream dialog and behavior parity acceptance",
+    "Current complete hosted integration pass",
+    "Physical Finder overlays/context menus and wider dialog/keyboard/VoiceOver acceptance",
+    "Intel/minimum-supported-OS execution",
+    "App Store distribution rights, signing and eventual owner-approved submission"
+  ],
+  "build_attempts": [
+    {
+      "session": 82122,
+      "exit": 65,
+      "log": "build/qa/signed13-build-initial-failed-2026-10-26.log",
+      "failure": "Preserved Metafile runtime provenance did not match current helper source"
+    },
+    {
+      "exit": 0,
+      "log": "build/qa/signed13-build-2026-10-26.log",
+      "incremental": true
+    }
+  ],
+  "build_exit": 0,
+  "focused_runtime_rebuild": {
+    "argv": [
+      "python3",
+      "scripts/build-metafile-runtime.py"
+    ],
+    "log": "build/qa/signed13-metafile-rebuild-2026-10-26.log",
+    "old_cache_key": "99aa2e87b9684e624b83930e91f9136f4bffd96cad7bbac33b964d92f76f7213",
+    "execution_validation": "structure-only; signed-parent execution belongs to separate installed receiver",
+    "exit": 0,
+    "new_cache_key": "dbec0f76b159e9482c6e2fcaef400d8ff4deb381a33ee7b35247f5dda5654152"
+  },
+  "source_input_sha256": "7a267fbc242f37f85b512ff7c3ec951f19e79b7f8068e87470426434494f9fa0",
+  "application_sha256": "689e6ec01473f0d240bfbd8c4630efb497789fd7417c4ef7a99783be3f781a5c",
+  "inventory_members": 6362,
+  "universal_components": 8,
+  "static_report_sha256": "a7dee78c987ea8edf29866c52e8f2c234768b0968a2aa571e31f51a3470b7536",
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "signature": "Apple Development team A49SCA5S8K; strict deep verification passed",
+  "sandbox": "App/Finder/cache same team App Group; Git/libgit2/metafile inherited sandbox",
+  "contradictory_exit_zero_diagnostics": 0,
+  "standard_build_launchservices_registration": [
+    "RegisterWithLaunchServices /Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app (in target 'TurtleGitMac' from project 'TurtleGitMac')"
+  ],
+  "source_input_count": 1516,
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "preserved_build12": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed13-displaced-installed-2026-10-26",
+  "source_staged_installed_inventories": "equal",
+  "installation_tool_session": 10410,
+  "core_validation": "Not repeated: packaging/native probe changes only; prior feature-batch Core evidence remains separate",
+  "runtime_validation": {
+    "initial_session": 87479,
+    "initial_exit": 1,
+    "initial_failure": "No actual packaged helper execution observed for required roles: libgit2",
+    "initial_completed_modes": [
+      "writer",
+      "reader",
+      "denied",
+      "history",
+      "cleanup"
+    ],
+    "repair": "One genuine packaged libgit2 Notes read held at stdin until independent exact executable PID/PGID observation; valid request completed, real empty-note reply validated and child reaped. OS observation requirements retained.",
+    "focused_retry_session": 49710,
+    "focused_retry_exit": 0,
+    "focused_retry_modes": [
+      "location",
+      "history",
+      "metafile",
+      "cleanup"
+    ],
+    "writer_reader_denied": "Passed in initial run; not repeated in focused repair",
+    "history_children": {
+      "observed_helper_processes": 6,
+      "owned_helper_pids": [
+        37846,
+        37863,
+        37865,
+        37949,
+        37974,
+        38001
+      ],
+      "owned_helper_groups": [
+        37846,
+        37863,
+        37865,
+        37949,
+        37974,
+        38001
+      ],
+      "observed_helper_roles": {
+        "libgit2": 3,
+        "git": 3
+      },
+      "own_process_group_required_roles": [
+        "libgit2"
+      ],
+      "observed_processes": [
+        {
+          "pid": 37846,
+          "ppid": 37844,
+          "pgid": 37846,
+          "roles": [
+            "git"
+          ]
+        },
+        {
+          "pid": 37863,
+          "ppid": 37844,
+          "pgid": 37863,
+          "roles": [
+            "git"
+          ]
+        },
+        {
+          "pid": 37865,
+          "ppid": 37844,
+          "pgid": 37865,
+          "roles": [
+            "git"
+          ]
+        },
+        {
+          "pid": 37949,
+          "ppid": 37844,
+          "pgid": 37949,
+          "roles": [
+            "libgit2"
+          ]
+        },
+        {
+          "pid": 37974,
+          "ppid": 37844,
+          "pgid": 37974,
+          "roles": [
+            "libgit2"
+          ]
+        },
+        {
+          "pid": 38001,
+          "ppid": 37844,
+          "pgid": 38001,
+          "roles": [
+            "libgit2"
+          ]
+        }
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "metafile_children": {
+      "observed_helper_processes": 7,
+      "owned_helper_pids": [
+        38011,
+        38027,
+        38032,
+        38036,
+        38064,
+        38068,
+        38079
+      ],
+      "owned_helper_groups": [
+        38011,
+        38027,
+        38032,
+        38036,
+        38064,
+        38068,
+        38079
+      ],
+      "observed_helper_roles": {
+        "metafile": 7
+      },
+      "own_process_group_required_roles": [
+        "metafile"
+      ],
+      "observed_processes": [
+        {
+          "pid": 38011,
+          "ppid": 38007,
+          "pgid": 38011,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38027,
+          "ppid": 38007,
+          "pgid": 38027,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38032,
+          "ppid": 38007,
+          "pgid": 38032,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38036,
+          "ppid": 38007,
+          "pgid": 38036,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38064,
+          "ppid": 38007,
+          "pgid": 38064,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38068,
+          "ppid": 38007,
+          "pgid": 38068,
+          "roles": [
+            "metafile"
+          ]
+        },
+        {
+          "pid": 38079,
+          "ppid": 38007,
+          "pgid": 38079,
+          "roles": [
+            "metafile"
+          ]
+        }
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "metafile_cases": 17,
+    "positive_images": 14,
+    "refusals": 3,
+    "johab": {
+      "black_ink_pixels": 57,
+      "consumer_loaded": true,
+      "fallback_bounds": [
+        9,
+        14,
+        14,
+        15
+      ],
+      "fallback_coverage": 1,
+      "fallback_font": "AppleSDGothicNeo-Regular",
+      "fallback_glyph_id": 1086,
+      "height": 64,
+      "helper": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-8i9i4e5r/Allowed.app/Contents/MacOS/TurtleGitRuntime-Metafile-a839ec679a9f-metafile-convert",
+      "name": "wmf-text-dbcs-single-johab.wmf",
+      "native_fallback_outline": true,
+      "private_decoder_directories_removed": true,
+      "samples": [],
+      "source_bytes": 246,
+      "source_bytes_unchanged": true,
+      "source_sha256": "44af59f7ddda5da6491f0767a3638dd632035ac804a19000c1a5eff69004729b",
+      "svg_bytes": 818,
+      "width": 96
+    },
+    "scope": "Actual packaged helper execution from disposable team-signed sandbox parents. No shipping GUI, Finder activation or service registration by runtime harness. Root separately owns installation and UI attempt."
+  },
+  "physical_acceptance": {
+    "workspace": "Installed workspace and native Open Repository chooser were observable in CUA; exact private Harbor selected.",
+    "post_authorization": "CUA AX, screenshot, and exact-path rebind timed out after Open repository. Bundle-id rebind was rejected as ambiguous because several development build products share the identifier.",
+    "main_thread_sample": "Owned main PID37785 sampled idle in normal AppKit event loop; no app-hang claim. Background repository watch collection was active.",
+    "screenshots": "No replacement workflow screenshots published.",
+    "cleanup": {
+      "pid": 37785,
+      "origin": "CUA opened exact installed app after main was absent",
+      "termination": "SIGTERM; CUA control/observation unavailable after folder authorization",
+      "main_absent": true,
+      "no_preexisting_main_to_restore": true,
+      "preexisting_finder_extension_not_terminated": true
+    }
+  },
+  "integrity": {
+    "head_unchanged": true,
+    "semantic_index_unchanged": true,
+    "working_files_unchanged": true,
+    "original_repository_ids_paths_bookmarks_retained": true,
+    "repository_lastOpened_and_current_order": "Retained current metadata/order",
+    "private_grants_removed": 1,
+    "main_process_absent": true
+  },
+  "process_and_preferences": {
+    "all_recorded_owned_pids": [
+      36934,
+      36956,
+      36957,
+      36963,
+      36978,
+      37081,
+      37785,
+      37836,
+      37844,
+      37846,
+      37863,
+      37865,
+      37949,
+      37974,
+      38001,
+      38007,
+      38011,
+      38027,
+      38032,
+      38036,
+      38064,
+      38068,
+      38079,
+      38101
+    ],
+    "all_recorded_owned_pids_independently_absent": true,
+    "ui_preferences_unchanged": true,
+    "ui_preference_keys": [
+      "LogFontForFileListCtrl",
+      "LogFontName",
+      "LogFontSize",
+      "ShowListFullPathTooltip",
+      "FullRowSelect",
+      "appearance",
+      "AppleLanguages",
+      "Blame.ToolbarConfiguration.v1"
+    ],
+    "shipping_main_absent": true
+  },
+  "finder_registration": {
+    "enabled": true,
+    "count": 1,
+    "uuid": "6FF13B4A-EC5B-4049-8F81-42E82EC24275",
+    "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+    "finder_restarted": false,
+    "global_cache_reset": false,
+    "private_cache_cleanup": "Production FinderSnapshotStore.remove(root:) removed only exact disposable Harbor subtree; live projection also pruned dead publication leases, leaving zero live roots. No original repository grant removed; no main/headless process existed before acceptance and none was restored."
+  },
+  "evidence_sha256": {
+    "build/qa/signed13-runtime-initial-failed-2026-10-26.json": "62d6f193754ad0a0ab85ba3066b5b275eed923d76d2225e733505e2d18c6c898",
+    "build/qa/signed13-runtime-2026-10-26.json": "a431f1a1b9db12a494fd829ddcb7958f8e9c698c79260f6f4067f52d4dc95b3d",
+    "build/qa/signed13-installed-2026-10-26.json": "8b88325558e1dbae4ce559307d95e1d1c67b0aac94fb0712ea396b9c31e616bb",
+    "scripts/test-signed-finder-runtime.py": "0a4dadafb37aff519eb191c6308e76b6ad49a4d8f8768e0ab30d7a89cdee440a",
+    "docs/qa/signed-finder-runtime-probe-2026-10-17.swift": "7c98e3bd8a46e4f02777ef400d9d8eaeab02e3047dc7c69ff78f3d1f8394b5a1"
+  }
+}

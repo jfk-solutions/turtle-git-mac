@@ -4,6 +4,8 @@ import Foundation
 import Security
 import AppKit
 import CryptoKit
+import CoreText
+import Darwin
 import TurtleGitCore
 
 @main struct SignedFinderRuntimeProbe {
@@ -13,13 +15,15 @@ import TurtleGitCore
     struct MetafileCase:Decodable {
         let name:String,bytes:String,sha256:String,width:Int,height:Int,samples:[PixelSample]
         let refuse:Bool?,svgContains:[String]?,hatchCell:[Int]?,deadline:Bool?
+        let minInk:Int?,clipMaxX:Int?,columnRuns:Int?,advance:Int?,nativeFallback:String?
     }
     static func digest(_ bytes:Data)->String {SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()}
     @MainActor static func metafiles(_ encoded:String)throws->[[String:Any]] {
         NSApplication.shared.setActivationPolicy(.prohibited)
         guard let payload=Data(base64Encoded:encoded),payload.count<=192*1024 else {throw Failure(description:"Invalid bounded metafile payload")}
         let inputs=try JSONDecoder().decode([MetafileCase].self,from:payload)
-        try require(inputs.count==9,"Incomplete signed metafile family")
+        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf"]
+        try require(inputs.count==required.count && Set(inputs.map(\.name))==required,"Incomplete signed metafile family")
         let helper=try MetafileImageDecoder.executable(),resolved=helper.resolvingSymlinksInPath()
         try require(resolved.deletingLastPathComponent()==Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS"),"Metafile helper escaped the signed MacOS directory")
         let temporary=try TurtleGitTemporaryStorage.root
@@ -69,6 +73,48 @@ import TurtleGitCore
                     try require(red>0 && blue>0 && red+blue==cell[2]*cell[3],"Hatch pattern lost actual foreground/background cells")
                     entry["hatch_red_pixels"]=red;entry["hatch_blue_pixels"]=blue
                 }
+                if let minimum=input.minInk {
+                    let ink=Set((0..<width*height).filter{let p=$0*4;return pixels[p+3]>128 && pixels[p]<128 && pixels[p+1]<128 && pixels[p+2]<128})
+                    try require(ink.count>minimum,"Outlined text lost actual ink for "+input.name)
+                    entry["black_ink_pixels"]=ink.count
+                    if let limit=input.clipMaxX {try require(ink.allSatisfy{$0%width<limit},"WMF text escaped its source clip")}
+                    if let count=input.columnRuns {
+                        let columns=Set(ink.map{$0%width}).sorted()
+                        let starts=columns.enumerated().compactMap{index,x in index==0 || columns[index-1]+1 != x ? x:nil}
+                        try require(starts.count==count,"Batched ANSI text lost independent supplied origins")
+                        if let advance=input.advance {try require(zip(starts,starts.dropFirst()).allSatisfy{$1-$0==advance},"Batched ANSI advances changed")}
+                        entry["ink_column_starts"]=starts
+                    }
+                    if let scalar=input.nativeFallback {
+                        try require(width==96 && height==64,"Fallback outline viewport changed")
+                        let base=CTFontCreateWithName("Helvetica" as CFString,18,nil),string=scalar as NSString
+                        try require(string.length==1,"Unexpected fallback scalar contract")
+                        let fallback=CTFontCreateForString(base,scalar as CFString,CFRange(location:0,length:string.length))
+                        var character=UniChar(string.character(at:0)),glyph=CGGlyph(),missing=CGGlyph()
+                        try require(CTFontGetGlyphsForCharacters(fallback,&character,&glyph,1) && glyph>0,"Native fallback scalar has no real cmap glyph")
+                        _=CTFontGetGlyphsForCharacters(base,&character,&missing,1)
+                        try require(missing==0,"Johab fixture no longer exercises selected-font fallback")
+                        guard let path=CTFontCreatePathForGlyph(fallback,glyph,nil) else {throw Failure(description:"Native fallback glyph has no outline")}
+                        var transform=CGAffineTransform(a:1,b:0,c:0,d:-1,tx:8,ty:28)
+                        guard let placed=path.copy(using:&transform) else {throw Failure(description:"Cannot place native fallback outline")}
+                        var expectedPixels=[UInt8](repeating:0,count:96*64*4)
+                        try expectedPixels.withUnsafeMutableBytes {storage in
+                            guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:storage.baseAddress,width:96,height:64,bitsPerComponent:8,bytesPerRow:96*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(description:"Cannot paint independent native fallback outline")}
+                            context.translateBy(x:0,y:64);context.scaleBy(x:1,y:-1);context.setFillColor(CGColor(gray:0,alpha:1));context.addPath(placed);context.fillPath()
+                        }
+                        let expected=Set((0..<96*64).filter{expectedPixels[$0*4+3]>128})
+                        func bounds(_ points:Set<Int>)->[Int] {
+                            let xs=points.map{$0%96},ys=points.map{$0/96}
+                            return [xs.min() ?? -1,ys.min() ?? -1,(xs.max() ?? -1)-(xs.min() ?? 0)+1,(ys.max() ?? -1)-(ys.min() ?? 0)+1]
+                        }
+                        let actualBounds=bounds(ink),expectedBounds=bounds(expected)
+                        try require(zip(actualBounds,expectedBounds).allSatisfy{abs($0-$1)<=1},"Johab native glyph bounds changed")
+                        let matched=ink.filter{point in (-1...1).contains{dy in (-1...1).contains{dx in expected.contains(point+dy*96+dx)}}}.count
+                        let coverage=Double(matched)/Double(ink.count)
+                        try require(coverage>0.9,"Johab rendered .notdef instead of the actual fallback glyph")
+                        entry["native_fallback_outline"]=true;entry["fallback_coverage"]=coverage;entry["fallback_font"]=CTFontCopyPostScriptName(fallback) as String;entry["fallback_glyph_id"]=Int(glyph);entry["fallback_bounds"]=actualBounds
+                    }
+                }
                 entry["width"]=width;entry["height"]=height;entry["samples"]=samples;entry["svg_bytes"]=svg.count;entry["consumer_loaded"]=true
             }
             if input.deadline == true {
@@ -82,6 +128,56 @@ import TurtleGitCore
             entry["source_bytes_unchanged"]=true;entry["private_decoder_directories_removed"]=true;results.append(entry)
         }
         return results
+    }
+    /// Keep one genuine read request pending until the external OS observer has
+    /// identified its exact clone executable and owned process group. The input
+    /// is then completed and its real Notes reply is validated; no timing delay
+    /// or unrelated helper command substitutes for protocol execution.
+    static func observedNotesRead(helper:URL,root:URL,folder:URL,revision:String)async throws->[String:Any] {
+        let input=Pipe(),output=Pipe(),errors=Pipe()
+        var actions:posix_spawn_file_actions_t?,attributes:posix_spawnattr_t?,pid:pid_t=0
+        func check(_ code:Int32)throws {if code != 0 {throw NSError(domain:NSPOSIXErrorDomain,code:Int(code))}}
+        try check(posix_spawn_file_actions_init(&actions));defer{posix_spawn_file_actions_destroy(&actions)}
+        try check(posix_spawnattr_init(&attributes));defer{posix_spawnattr_destroy(&attributes)}
+        try check(posix_spawn_file_actions_addchdir_np(&actions,root.path))
+        try check(posix_spawn_file_actions_adddup2(&actions,input.fileHandleForReading.fileDescriptor,STDIN_FILENO))
+        try check(posix_spawn_file_actions_adddup2(&actions,output.fileHandleForWriting.fileDescriptor,STDOUT_FILENO))
+        try check(posix_spawn_file_actions_adddup2(&actions,errors.fileHandleForWriting.fileDescriptor,STDERR_FILENO))
+        try check(posix_spawnattr_setpgroup(&attributes,0))
+        try check(posix_spawnattr_setflags(&attributes,Int16(POSIX_SPAWN_SETPGROUP|POSIX_SPAWN_CLOEXEC_DEFAULT)))
+        func strings<T>(_ values:[String],_ body:(UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>)throws->T)rethrows->T {
+            var pointers=values.map{strdup($0)}+[nil];defer{for value in pointers{free(value)}}
+            return try pointers.withUnsafeMutableBufferPointer{try body($0.baseAddress!)}
+        }
+        try strings([helper.path,"turtlegit-notes-read"]){argv in
+            try strings(ProcessInfo.processInfo.environment.map{$0.key+"="+$0.value}){environment in
+                try check(posix_spawn(&pid,helper.path,&actions,&attributes,argv,environment))
+            }
+        }
+        var reaped=false
+        defer {
+            try? input.fileHandleForWriting.close()
+            if !reaped {if getpgid(pid)==pid{kill(-pid,SIGKILL)};var status:Int32=0;while waitpid(pid,&status,0)<0 && errno==EINTR{}}
+        }
+        try input.fileHandleForReading.close();try output.fileHandleForWriting.close();try errors.fileHandleForWriting.close()
+        try require(getpgid(pid)==pid,"Observed Notes child did not own its process group")
+        let acknowledgement=folder.appendingPathComponent("observed-libgit2-\(pid).json")
+        var observed=false
+        for _ in 0..<500 {
+            if let data=try? Data(contentsOf:acknowledgement),let value=(try? JSONSerialization.jsonObject(with:data)) as? [String:Int],value["pid"]==Int(pid),value["pgid"]==Int(pid){observed=true;break}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        try require(observed,"External OS observer did not acknowledge actual Notes helper")
+        let request=try JSONSerialization.data(withJSONObject:["version":1,"revision":revision,"notesRef":"refs/notes/signed-qa"])
+        try input.fileHandleForWriting.write(contentsOf:request);try input.fileHandleForWriting.close()
+        let bytes=try output.fileHandleForReading.readToEnd() ?? Data(),diagnostic=try errors.fileHandleForReading.readToEnd() ?? Data()
+        var status:Int32=0;while waitpid(pid,&status,0)<0 {if errno != EINTR{throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno))}}
+        reaped=true
+        try require(status==0 && diagnostic.isEmpty,"Observed Notes request failed: "+String(decoding:diagnostic,as:UTF8.self))
+        let prefix=Data("TurtleGit Notes v1:".utf8)
+        guard bytes.starts(with:prefix),bytes.last==10,let payload=Data(base64Encoded:bytes.dropLast().dropFirst(prefix.count)),let reply=(try? JSONSerialization.jsonObject(with:payload)) as? [String:Any] else{throw Failure(description:"Observed Notes reply framing invalid")}
+        try require(reply["notesRef"] as? String=="refs/notes/signed-qa" && reply["text"] as? String=="" && reply["blobOID"] as? String=="e69de29bb2d1d6434b8b29ae775ad8c2e48c5391","Observed Notes helper lost actual empty note metadata")
+        return ["pid":Int(pid),"pgid":Int(pid),"os_observed":true,"valid_notes_read_reply":true,"reaped":true]
     }
     /// Actual public history consumers inside the inherited App Store sandbox.
     /// The only writable location is the existing per-run App Group UUID folder.
@@ -162,7 +258,8 @@ import TurtleGitCore
         let headOK=try Data(contentsOf:root.appendingPathComponent(".git/HEAD"))==beforeHead && finalHead.objectID==head,indexOK=try Data(contentsOf:root.appendingPathComponent(".git/index"))==beforeIndex,configOK=try Data(contentsOf:root.appendingPathComponent(".git/config"))==beforeConfig
         let fileOK=try Data(contentsOf:file)==beforeFile,nestedOK=try Data(contentsOf:nested)==beforeNested
         try require(headOK && indexOK && configOK && fileOK && nestedOK,"Signed history/Notes touched unrelated repository state")
-        return ["git":git.path,"libgit2":helper.path,"head":head,"tree":tree.objectID!,"raw_tag_oid":rawTag,"literal_references_distinct":true,"browser_pinned":true,"gitlink_oid":old,"notes_engine":accepted.engine!.rawValue,"notes_ref":accepted.notesRef,"notes_utf8_bytes":expected.count,"notes_sha256":digest(expected),"notes_empty":true,"configured_signature":signatureOK,"head_unchanged":headOK,"index_unchanged":indexOK,"config_unchanged":configOK,"working_unchanged":fileOK && nestedOK]
+        let observation=try await observedNotesRead(helper:helper,root:root,folder:folder,revision:head)
+        return ["observed_notes_read":observation,"git":git.path,"libgit2":helper.path,"head":head,"tree":tree.objectID!,"raw_tag_oid":rawTag,"literal_references_distinct":true,"browser_pinned":true,"gitlink_oid":old,"notes_engine":accepted.engine!.rawValue,"notes_ref":accepted.notesRef,"notes_utf8_bytes":expected.count,"notes_sha256":digest(expected),"notes_empty":true,"configured_signature":signatureOK,"head_unchanged":headOK,"index_unchanged":indexOK,"config_unchanged":configOK,"working_unchanged":fileOK && nestedOK]
     }
     static func main() async throws {
         let args=CommandLine.arguments
@@ -185,7 +282,9 @@ import TurtleGitCore
         let snapshotURL=folder.appendingPathComponent("snapshot.json"),root=folder.appendingPathComponent("repository",isDirectory:true)
         let file=root.appendingPathComponent("file.txt")
         var details:[String:Any]=[:]
-        if mode=="cleanup" {
+        if mode=="location" {
+            try require(args.count==4,"Unexpected location arguments")
+        } else if mode=="cleanup" {
             if FileManager.default.fileExists(atPath:folder.path) { try FileManager.default.removeItem(at:folder) }
         } else if mode=="writer" {
             try require(!FileManager.default.fileExists(atPath:folder.path),"QA directory already exists")
