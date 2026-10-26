@@ -106,3 +106,10 @@ signed Finder/App Store execution, minimum-version/Intel execution, whole-dialog
 visual parity or the complete hosted CI suite. The native one-parent execution
 object remains an adaptation rather than the exact upstream `cherry-pick -m`
 process sequence.
+
+
+The authored [no-commit Split continuation](REBASE-LEADING-SQUASH-PARITY.md#split-continuation--october-26-2026)
+adds final-approval child commits with captured group ownership and Cancel/reopen
+recovery. Its [dedicated checkpoint](qa/rebase-no-commit-split-2026-10-26.json)
+records the affected Core and native checks; preserve-merges orphan topology is
+not extended by that continuation.

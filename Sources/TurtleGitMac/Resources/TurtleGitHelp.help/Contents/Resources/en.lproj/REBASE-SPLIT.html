@@ -58,4 +58,16 @@ comparisons and site generation pass. Evidence: <code>qa/rebase-split-2026-10-06
 <p>The checked-conflict Edit → Split → first-dialog Cancel transition has a real
 Git regression fixture and whole-native coverage, including reopening and final
 message approval. Evidence: <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/rebase-split-return-2026-10-06.json">Split return QA</a>.</p>
+<h2 id="leading-no-commit-squash-continuation--october-26-2026">Leading no-commit Squash continuation — October 26, 2026</h2>
+<p>The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REBASE-LEADING-SQUASH-PARITY.html#split-continuation--october-26-2026">leading-Squash Split continuation</a>
+extends the earlier Split workflow to owned no-commit groups. Its first part is a
+normal commit with captured group metadata, or configured identity when no leader
+exists. First-child cancellation retains the Split choice and draft. Later cancellation
+preserves accepted parts and remaining changes for reopening. Child Stage/Unstage
+is allowed under immutable group/plan/HEAD guards; failures stay in the child
+Commit workflow, and interrupted part publication refuses blind repetition.
+The parent waits for child detachment and worker drain before opening the next
+child or Add another commit question. See the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/rebase-no-commit-split-2026-10-26.json">dedicated checkpoint record</a>
+for its actual validation scope and results. Earlier checkpoints above do not
+prove this new path. Preserve-merges orphan groups remain separate.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

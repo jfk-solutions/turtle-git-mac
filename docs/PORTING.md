@@ -42,6 +42,16 @@ hosted macOS pass or App Store distribution acceptance.
 
 ## Latest source batches
 
+The [leading-Squash Split continuation](REBASE-LEADING-SQUASH-PARITY.md#split-continuation--october-26-2026)
+adds normal selected/staged parts from an owned no-commit accumulator, editable
+source author/date presets, durable Cancel/reopen/Abort and exact group/HEAD
+ownership. Native child handoff waits for actual sheet/window/worker release.
+The [grouped checkpoint](qa/rebase-no-commit-split-2026-10-26.json) records 26
+affected Core methods passing cumulatively, a Debug build and the native Add
+family passing with system and bundled Git. Installed build 10 predates this new
+source. Preserve-merges orphan groups remain open.
+
+
 The [Commit refresh correction](COMMIT-REFRESH-PERFORMANCE.md) removes ignored-file
 metadata and the complete Working Tree inventory from Commit’s change scan,
 retaining changed rows, exact index flags, staging and cancellation ownership.

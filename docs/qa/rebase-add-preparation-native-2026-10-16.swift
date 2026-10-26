@@ -173,6 +173,7 @@ import TurtleGitCore
         try await repeatedReachedSkip()
         try await reachedOwnership()
         try await noCommitSquashRecovery()
+        try await noCommitSquashSplit()
         try require(RebaseWindowController.activeCommitPickers == 0, "Picker counter leaked")
         print("PASS: owned Add/draft/picker and reached Cherry Pick merge-parent recovery; cancellation, ordered empty review, repeated Skip, reopen, stale answer and forced close; Git \(CommandLine.arguments[2])")
     }
@@ -309,6 +310,83 @@ import TurtleGitCore
             }catch{await c.cleanup();throw error}
         }
     }
+    @MainActor static func noCommitSquashSplit()async throws {
+        let c=try ReachedContext("reached-no-commit-split")
+        c.preferences.set(true,forKey:"HintStagingMode")
+        do {
+            try await c.seed()
+            _=try await c.repository.run(["checkout","--detach",c.last.hash])
+            try Data("extra split payload\n".utf8).write(to:c.root.appendingPathComponent("split-extra.txt"))
+            try await c.repository.stage(["split-extra.txt"])
+            _=try await c.repository.run(["commit","--amend","--no-edit"])
+            c.last=try await c.repository.rebaseCommit("HEAD")
+            _=try await c.repository.run(["checkout","destination"])
+            let owner=try await c.open([c.last.hash,c.merge.hash]),model=owner.model
+            model.setAction(.squash,ids:[model.plan!.entries[1].id])
+            c.hold(model);start(model);try await wait {!c.answers.isEmpty}
+            c.answer(nil);try await wait {!model.busy};try await drain()
+            c.request(model,"skip");try await wait {!model.busy && model.state?.noCommitSquash?.phase == .approval};try await drain()
+            try require(model.canSplit,"Final new-commit approval did not expose source Split")
+            let group=try await c.repository.rebaseState()
+            var children=[CommitWindowModel]()
+            model.configureCommitSelection={child in children.append(child);child.confirmCancel={$0(true)}}
+            let draft="Pending native Split draft\n\nOriginal group payload\n"
+            model.messageBinding(model.formContext).wrappedValue=draft
+            model.splitBinding(model.formContext).wrappedValue=true
+            try require(model.splitCommit,"Actual Split checkbox binding rejected approval")
+            model.request("continue")
+            try await wait {children.first?.busy==false && children.first?.replaySplit != nil};try await drain()
+            let cancelled=children[0]
+            let cancelledWindow=owner.window?.attachedSheet
+            try require(cancelled.replaySplit?.isNewCommit==true && !cancelled.amend && !cancelled.amendDiffToLastCommit && cancelled.message==draft && owner.window?.attachedSheet?.alphaValue==0,"First actual Split child amended base or lost draft/owned hidden presentation")
+            cancelled.cancel();try await wait {!model.busy && !model.selectingSplit};try await drain()
+            try require(model.state?.split==nil && model.amendMessage==draft && model.state?.noCommitSquash?.id==group.noCommitSquash?.id && cancelledWindow?.isVisible==false && cancelledWindow?.sheetParent==nil,"Unstarted child Cancel discarded pending approval/draft or survived callback")
+            let base=try await c.repository.rebaseCommit("HEAD");try require(base.hash==c.originalHead,"Split child Cancel amended prior HEAD")
+            owner.close();try await drain()
+            let reopened=try await c.open(),next=reopened.model
+            try require(next.state?.noCommitSquash?.id==group.noCommitSquash?.id && next.canSplit,"Reopen lost final approval Split ownership")
+            children=[]
+            next.configureCommitSelection={child in children.append(child);child.confirmCancel={$0(true)}}
+            next.chooseAnotherSplit={false}
+            next.splitBinding(next.formContext).wrappedValue=true;next.request("continue")
+            try await wait {children.count==1 && children[0].busy==false && children[0].replaySplit != nil};try await drain()
+            let first=children[0]
+            let firstWindow=reopened.window?.attachedSheet
+            try require(!first.amend && !first.amendDiffToLastCommit && first.replaySplit?.firstParents==[c.originalHead],"Reopened first Split child targeted prior commit")
+            first.setStagingEnabled(true);try await wait {!first.busy && !first.savingPreferences && first.stagingEnabled}
+            first.moveToStage(["split-extra.txt"],staged:false);try await wait {!first.busy}
+            first.moveToStage(["split-extra.txt"],staged:true);try await wait {!first.busy}
+            first.moveToStage(["split-extra.txt"],staged:false);try await wait {!first.busy}
+            try Data("last.txt\nworking remainder\n".utf8).write(to:c.root.appendingPathComponent("last.txt"))
+            first.refreshStagingState();try await wait {!first.busy && !first.stagingStateNeedsRefresh}
+            guard let partial=first.entries.first(where:{$0.path=="last.txt"}),let extra=first.entries.first(where:{$0.path=="split-extra.txt"}) else{throw Failure(description:"Split staging rows missing")}
+            try require(first.stagingState(partial) == .mixed && first.stagingState(extra) == .off,"Actual first child lost partial/unstaged index transitions")
+            first.checked=["last.txt"];first.message="First native normal part";first.commit()
+            try await wait {children.count==2 && children[1].busy==false && children[1].replaySplit?.parts==1};try await drain()
+            let accepted=try await c.repository.rebaseCommit("HEAD")
+            try require(accepted.parents==[c.originalHead],"Actual first Split child lost source parent: \(accepted.parents)")
+            try require(accepted.author==c.merge.author && accepted.email==c.merge.email,"Actual first Split child lost source author identity: \(accepted.author) <\(accepted.email)>")
+            guard let actualDate=ISO8601DateFormatter().date(from:accepted.date),let sourceDate=ISO8601DateFormatter().date(from:c.merge.date) else{throw Failure(description:"First Split author date is not ISO8601: actual=\(accepted.date), source=\(c.merge.date)")}
+            try require(actualDate==sourceDate,"Actual first Split child changed author instant: actual=\(accepted.date), source=\(c.merge.date)")
+            try require(accepted.subject=="First native normal part","Actual first Split child lost reviewed message: \(accepted.subject)")
+            let cancelledRemainder=children[1],remainderWindow=reopened.window?.attachedSheet
+            try require(!cancelledRemainder.amend && !cancelledRemainder.amendDiffToLastCommit && cancelledRemainder.replaySplit?.isNewCommit==true && cancelledRemainder.replaySplit?.expectedHead==accepted.hash && firstWindow?.isVisible==false && firstWindow?.sheetParent==nil && reopened.window?.attachedSheet !== firstWindow,"Remaining actual Split child lost accepted-part receipt or preceded old native sheet release")
+            cancelledRemainder.cancel();try await wait {!next.busy && !next.selectingSplit};try await drain()
+            let retained=try await c.repository.rebaseCommit("HEAD")
+            try require(next.state?.split?.parts==1 && retained.hash==accepted.hash && remainderWindow?.isVisible==false && remainderWindow?.sheetParent==nil,"Later child Cancel discarded an accepted part or survived callback")
+            next.beginSplitSelection();try await wait {children.count==3 && children[2].busy==false && children[2].replaySplit?.parts==1};try await drain()
+            let second=children[2]
+            second.setStagingEnabled(true);try await wait {!second.busy && !second.savingPreferences && second.stagingEnabled}
+            second.moveToStage(["last.txt","split-extra.txt"],staged:true);try await wait {!second.busy}
+            second.checked=["split-extra.txt"];second.message="Second native normal part";second.commit()
+            try await wait {!next.busy && next.finished};try await drain()
+            let final=try await c.repository.rebaseCommit("HEAD"),state=try await c.repository.rebaseState()
+            try require(next.error==nil && !state.active && final.parents==[accepted.hash] && final.subject=="Second native normal part" && final.author=="Reached QA" && reopened.window?.attachedSheet==nil,"Actual remaining Split child did not finish once with configured identity/owned release")
+            let count=try await c.repository.run(["rev-list","--count",c.originalHead+"..HEAD"]).text.trimmingCharacters(in:.newlines)
+            try require(count=="2" && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Native Split repeated a part or applied skipped merge")
+            await c.cleanup()
+        }catch{await c.cleanup();throw error}
+    }
     @MainActor final class ReachedContext {
         let root:URL,repository:GitRepository,preferences:UserDefaults,suite:String,editor:URL
         var ordinary:LogEntry!,empty:LogEntry!,merge:LogEntry!,last:LogEntry!,originalHead=""
@@ -358,6 +436,7 @@ import TurtleGitCore
             for owner in controllers {owner.model.retire();owner.close();owner.model.chooseMainline={_,_ in nil};owner.model.confirmEmptyMessageReview={false}}
             while !answers.isEmpty {answer(nil)}
             try? await drain()
+            try? await wait {CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0}
             if (try? await repository.rebaseState().active)==true {_=try? await repository.abortRebase()}
             preferences.removePersistentDomain(forName:suite)
         }

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "99118530ad0fff63e3fbca3bb3c026a69dda23e7f0b06a9b1f6c984a5bbffa2f",
+    "Contents/Info.plist": "f1f095df690b876e547dd7193775a8829200b38014eaebc197b8ee9980e2bead",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "703014638c22c6b47a300c252bbdebf534ccb35304dbd5302d1d0b4729d5a3bf",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
@@ -42,7 +42,7 @@
     "Contents/Resources/en.lproj/PRIVACY.html": "c0985d84b7d9c3c35590cf165d45681c68c9335fe3923b0ef7f1c02c79a45d83",
     "Contents/Resources/en.lproj/REBASE-CONFLICT-FILES.html": "e38dd2778dc67302677c0bf2d5a2f2fd73f7c7f88b1f7742dfdc00677bf428b8",
     "Contents/Resources/en.lproj/REBASE-REFERENCE-RECOVERY.html": "6cc78c7567ce53660b59763a99c021c47e30bc049bbd948bb7d553b8acc84dba",
-    "Contents/Resources/en.lproj/REBASE-SPLIT.html": "10d685f3cede157f6cb2ee6477601214b8c7260ced33bb3057a347f0cda78657",
+    "Contents/Resources/en.lproj/REBASE-SPLIT.html": "4fb823477414eda82aff3e7fd45784979c8292489780deb4bd8ce80d1b837bcc",
     "Contents/Resources/en.lproj/REPOSITORY-FOLDER-ACCESS.html": "cb9c059303b6fb00f6cde894138b21039749c901fe7ab54e9df560ecca28b76f",
     "Contents/Resources/en.lproj/REVERT-COMMIT.html": "e495b9815015bf6bb3913634bf3e6d08308764d1c5957d4a852e299eb1941522",
     "Contents/Resources/en.lproj/REVERTING-FILES.html": "068ee4b6a0403f7e350d2a8cf00e965a3b30171ba63ad90e8e0efd17fd92f0b3",
@@ -127,7 +127,7 @@
     "docs/PRIVACY.md": "da1b227f57e905e882a1b5a0e990a6bc9410015f3d10bfe0562f030726302a2c",
     "docs/REBASE-CONFLICT-FILES.md": "7b11f025bc53d82d8c6ccb625b56700f9819a0b4806b475b196f931a16c670e2",
     "docs/REBASE-REFERENCE-RECOVERY.md": "a2449e9c3daf72665f7bf001a92da2adab69b53439230e4c0575161ed7863a2b",
-    "docs/REBASE-SPLIT.md": "29ac619c0313a650bab5917571b6bef8108a13a8d6b2d4ed629a7b5a6eaaea14",
+    "docs/REBASE-SPLIT.md": "156949d31e035c590f1b5d34318ed5ae0716bba0ab9e8193319b9030f95f2cfe",
     "docs/REPOSITORY-FOLDER-ACCESS.md": "7b1c9d356076ac1403878f835d4017dcfd0fefeb364dd7317db22129347d4b7c",
     "docs/REVERT-COMMIT.md": "f3876bf700da4933a754e2f6b40b6c1bb2d144634182717cbc99ef29bd84b879",
     "docs/REVERTING-FILES.md": "d2965b300220e6cd6c946bd38b4af97ef56f07c097311d84c2782e57023e6e4a",

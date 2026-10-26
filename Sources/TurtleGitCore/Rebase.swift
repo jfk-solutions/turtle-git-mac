@@ -29,10 +29,10 @@ public struct RebaseNoCommitSquash:Codable,Equatable,Sendable {
     public let preservesLeaderAuthor:Bool
     fileprivate let files:[String:RebaseActionEditFile]
 }
-private struct RebaseSquashLeader:Codable {
+private struct RebaseSquashLeader:Codable,Equatable {
     let message:String,name:String,email:String,date:String
 }
-private struct RebaseNoCommitGroup:Codable {
+private struct RebaseNoCommitGroup:Codable,Equatable {
     let id:String,session:String
     var baseHead:String,step:Int,phase:RebaseNoCommitSquashPhase
     var message:String,leader:RebaseSquashLeader?,latestDate:String
@@ -45,6 +45,8 @@ private struct RebaseNoCommitGroup:Codable {
     var readd:[String]=[],remove:[String]=[]
     var readdUnchecked=false
     var allowsEmpty=false
+    // The new-commit Split checkpoint belongs to this same journaled group.
+    var split:RebaseSplitState? = nil
 }
 public struct RebaseSquashMessage: Codable, Sendable {
     public var message: String
@@ -55,14 +57,14 @@ public struct RebaseSquashMessage: Codable, Sendable {
     public var skipOriginalHead: String? = nil
     public var skipBaseHead: String? = nil
 }
-public struct RebaseSplitReturn: Codable, Sendable {
+public struct RebaseSplitReturn: Codable, Equatable, Sendable {
     public let parts: Int
     public let firstAuthor: String
     public let firstDate: String
     public let squashDate: RebaseSquashDate?
     public var firstParents: [String]? = nil
 }
-public struct RebaseSplitState: Codable, Sendable {
+public struct RebaseSplitState: Codable, Equatable, Sendable {
     public let entryID: String
     public let step: Int
     public var expectedHead: String
@@ -70,6 +72,13 @@ public struct RebaseSplitState: Codable, Sendable {
     public let firstAuthor: String
     public let firstDate: String
     public let squashDate: RebaseSquashDate?
+    /// A staged source Squash_Edit creates normal parts from the captured base.
+    public var noCommitGroupID:String? = nil
+    public var isNewCommit:Bool {noCommitGroupID != nil}
+    // Reconstructed from exact group/plan bytes on reads;
+    // never embedded back into its own group (which would be recursive).
+    var noCommitWitness:Data? = nil
+    fileprivate var stored:Self {var value=self;value.noCommitWitness=nil;return value}
     /// Conflict recovery keeps amending the applied commit, rather than creating split parts.
     public var conflictRecovery: Bool? = nil
     /// Return to the applied conflict Edit if the first Split dialog is cancelled.
@@ -221,7 +230,18 @@ public struct RebaseState: Codable, Sendable {
     private enum CodingKeys:String,CodingKey {
         case active,isCherryPick,branch,originalHead,onto,stoppedEntryID,stoppedCommit,mergeParents,message,currentStep,total,conflicts,remainingCommands,squashMessage,stoppedAction,split,isEditPause,isStructuralMergeEdit,hasStructuralMergeResult,needsFileRecovery,session,emptyMessageWarning,hasFailedPickCleanup
     }
-    public var canSplit: Bool { noCommitSquash == nil && !hasMainlineCheckpoint && mainlineDecision == nil && conflictMessage == nil && cleanCommitFailure == nil && !hasIgnoredCleanCommitFailure && !hasFailedPickCleanup && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
+    public var canSplit: Bool {
+        guard !hasMainlineCheckpoint,mainlineDecision == nil,conflictMessage == nil,cleanCommitFailure == nil,!hasIgnoredCleanCommitFailure,!hasFailedPickCleanup,active,conflicts.isEmpty else{return false}
+        if let group=noCommitSquash {
+            guard group.phase == .approval else{return false}
+            // Source1568 enters the checked Split loop only at the end of a
+            // requested Squash chain. An already opened loop remains resumable.
+            if let split {return split.noCommitGroupID==group.id}
+            let next=remainingCommands.compactMap {$0.split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))}}.first {$0 != .skip}
+            return next != .squash
+        }
+        return isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true
+    }
 }
 /// Identifies the stopped occurrence and original session, not just its step number.
 public struct RebaseConflictIdentity:Equatable,Sendable {
@@ -286,7 +306,7 @@ public enum RebaseFailure: LocalizedError {
     case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult, actionEditLocked,conflictMessageUncertain,noCommitSquashUncertain
     public var errorDescription: String? {
         switch self {
-        case .noCommitSquashUncertain:return "A no-commit squash was interrupted while applying changes. Inspect the index and working tree, or abort the replay. The patch will not be applied again automatically."
+        case .noCommitSquashUncertain:return "A squash operation was interrupted while applying changes or creating a commit. Inspect the index and working tree, or abort the replay. The operation will not be repeated automatically."
         case .conflictMessageUncertain:return "A conflict-resolution commit may already have been published. Inspect HEAD before continuing, or abort the replay. The initial commit will not be repeated."
         case .actionEditLocked: return "The replay plan is being changed by another operation. Try again when it finishes."
         case .revision: return "Choose valid branch, upstream and onto revisions."
@@ -907,7 +927,16 @@ extension GitRepository {
             let configuration=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-message-editor.json")))
             pending = .init(message:noCommit.message,datePolicy:configuration.datePolicy,latestDate:noCommit.latestDate,step:step,isNewCommit:true)
         }
-        let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
+        let splitCandidate=noCommit?.split ?? split
+        var activeSplit = splitCandidate?.step == step && splitCandidate?.entryID == stoppedIdentity ? splitCandidate : nil
+        if noCommit != nil,activeSplit?.isNewCommit==true {
+            // The Commit child owns Stage/Unstage and captures the resulting
+            // selected index itself. Fence immutable replay/group bytes here,
+            // rather than rejecting legitimate edits made inside that child.
+            let witnesses=try actionEditFiles(directory)
+            let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+            activeSplit?.noCommitWitness=try encoder.encode(witnesses)
+        }
         let mergeResult = active && (structural || adopted?.structural == true || projected && currentMerge) && (editPause || pending != nil) ? try rebaseCommit("HEAD", cancellation: cancellation).parents.count > 1 : false
         try cancellation?.check()
         let displayedMessage:String
@@ -1484,11 +1513,18 @@ extension GitRepository {
         guard UUID(uuidString:group.id) != nil,group.session == (try failedPickSessionIdentity(directory)),GitLocalReferenceProtocol.validOID(group.baseHead),group.step>0,identities.indices.contains(group.step-1),
               Set(group.applied).count==group.applied.count,Set(group.prepared).count==group.prepared.count,Set(group.applied).isSubset(of:known),Set(group.prepared).isSubset(of:known),
               (group.readd+group.remove).allSatisfy({RepositoryBrowserListing.validPath($0,allowRoot:false)}) else{throw RebaseFailure.changed}
+        if let split=group.split {
+            guard split.noCommitGroupID==group.id,split.entryID==identities[group.step-1].id,split.step==group.step,split.parts>=0,
+                  GitLocalReferenceProtocol.validOID(split.expectedHead),split.firstParents==[group.baseHead],split.conflictRecovery != true,split.conflictRecoveryReturn==nil,split.noCommitWitness==nil,
+                  split.parts != 0 || split.expectedHead==group.baseHead else{throw RebaseFailure.changed}
+        }
         return group
     }
-    private func publishNoCommitGroup(_ group:RebaseNoCommitGroup?,directory:URL,files:[String:RebaseActionEditFile],todo:[String]?=nil,done:[String]?=nil,identities:[RebaseReplayIdentity]?=nil)throws {
+    private func publishNoCommitGroup(_ group:RebaseNoCommitGroup?,directory:URL,files:[String:RebaseActionEditFile],todo:[String]?=nil,done:[String]?=nil,identities:[RebaseReplayIdentity]?=nil,groupBytes:Data?=nil)throws {
         var after=files
-        after[Self.noCommitSquashName] = .init(bytes:try group.map {try JSONEncoder().encode($0)})
+        let bytes:Data?
+        if let groupBytes {bytes=groupBytes}else{bytes=try group.map {try JSONEncoder().encode($0)}}
+        after[Self.noCommitSquashName] = .init(bytes:bytes)
         if let todo {after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))}
         if let done {after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))}
         if let identities {after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))}
@@ -1718,8 +1754,16 @@ extension GitRepository {
         if let next,identities[next].action==RebaseAction.squash.rawValue {
             guard currentHead==head || currentHead==group.baseHead else{throw RebaseFailure.changed}
             let approved=try rebaseCommit(head)
-            guard approved.parents.first==group.baseHead || head==group.baseHead else{throw RebaseFailure.changed}
-            if currentHead==head,head != group.baseHead {_ = try run(["reset","--soft",group.baseHead,"--"])}
+            let nextBase:String
+            if let split=group.split,split.isNewCommit,split.parts>0 {
+                guard split.expectedHead==head,approved.parents.count==1 else{throw RebaseFailure.changed}
+                nextBase=approved.parents[0]
+            } else {
+                guard approved.parents.first==group.baseHead || head==group.baseHead else{throw RebaseFailure.changed}
+                nextBase=group.baseHead
+            }
+            if currentHead==head,head != nextBase {_ = try run(["reset","--soft",nextBase,"--"])}
+            group.baseHead=nextBase;group.split=nil
             group.leader = .init(message:group.message,name:approved.author,email:approved.email,date:approved.date)
             group.latestDate=approved.date;group.step=next+1;group.phase = .waiting;group.committedHead=nil
             var updated=identities;updated[next].noCommitSquash=true
@@ -1787,6 +1831,14 @@ extension GitRepository {
         if let phase=state.noCommitSquash {
             if let failure=state.cleanCommitFailure {throw failure}
             if phase.phase == .uncertain {throw RebaseFailure.noCommitSquashUncertain}
+            if phase.phase == .approval,let split=state.split,split.isNewCommit {
+                guard split.parts>0,try rebaseRevision("HEAD")==split.expectedHead,!(try rebaseSplitHasRemainingChangesOwned()),
+                      var group=try noCommitGroup(rebasePath("rebase-merge")),group.split==split.stored else{throw RebaseFailure.plan}
+                group.phase = .committed;group.committedHead=split.expectedHead
+                let directory=try rebasePath("rebase-merge")
+                try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+                return try finishNoCommitGroup(group)
+            }
             if phase.phase == .approval {return try approveNoCommitGroup(message:squashMessage,emptyChoice:emptySquashChoice)}
             if phase.phase == .conflicted {throw RebaseFailure.plan}
             if state.mainlineDecision == nil {return try advanceNoCommitGroup()}
@@ -1871,7 +1923,15 @@ extension GitRepository {
     }
     private func skipNoCommitGroup()throws->RebaseExecution {
         let directory=try rebasePath("rebase-merge")
-        guard var group=try noCommitGroup(directory),group.phase != .applying,group.phase != .uncertain,group.phase != .committed,try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.noCommitSquashUncertain}
+        guard var group=try noCommitGroup(directory),group.phase != .applying,group.phase != .uncertain,group.phase != .committed else{throw RebaseFailure.noCommitSquashUncertain}
+        if let split=group.split,split.parts>0 {
+            guard group.phase == .approval,try rebaseRevision("HEAD")==split.expectedHead,try replayWorktreeIsClean() else{throw RebaseFailure.plan}
+            group.phase = .committed;group.committedHead=split.expectedHead
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+            return try finishNoCommitGroup(group)
+        }
+        guard try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.changed}
+        group.split=nil
         var identities=replayIdentities(directory)
         guard identities.indices.contains(group.step-1) else{throw RebaseFailure.changed}
         let index=group.step-1,id=identities[index].id
@@ -2190,7 +2250,22 @@ extension GitRepository {
     private func beginRebaseSplitOwned() throws -> RebaseSplitState {
         let state = try rebaseState()
         guard state.canSplit else { throw RebaseFailure.plan }
-        if let split = state.split, split.conflictRecovery != true { return split }
+        if let split = state.split, split.conflictRecovery != true {
+            guard split.expectedHead == (try rebaseRevision("HEAD")) else{throw RebaseFailure.changed}
+            return split
+        }
+        if let phase=state.noCommitSquash {
+            let directory=try rebasePath("rebase-merge")
+            guard var group=try noCommitGroup(directory),phase.id==group.id,group.phase == .approval,try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.changed}
+            let configuration=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-message-editor.json")))
+            let date=configuration.datePolicy == .latest ? group.latestDate:group.leader?.date ?? ""
+            var split=RebaseSplitState(entryID:state.stoppedEntryID,step:state.currentStep,expectedHead:group.baseHead,parts:0,
+                                       firstAuthor:group.leader.map {$0.name+" <"+$0.email+">"} ?? "",firstDate:date,squashDate:group.leader == nil ? nil:configuration.datePolicy)
+            split.noCommitGroupID=group.id;split.firstParents=[group.baseHead];group.split=split
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+            guard let receipt=try rebaseState().split else{throw RebaseFailure.changed}
+            return receipt
+        }
         let head = try rebaseCommit("HEAD")
         if let recovery = state.split, recovery.conflictRecovery == true, recovery.expectedHead != head.hash { throw RebaseFailure.changed }
         var split = RebaseSplitState(entryID: state.stoppedEntryID, step: state.currentStep, expectedHead: head.hash, parts: 0,
@@ -2287,6 +2362,13 @@ extension GitRepository {
     }
     private func cancelUnstartedRebaseSplitOwned() throws {
         guard let split = try rebaseState().split, split.parts == 0, try rebaseRevision("HEAD") == split.expectedHead else { throw RebaseFailure.changed }
+        if let id=split.noCommitGroupID {
+            let directory=try rebasePath("rebase-merge")
+            guard var group=try noCommitGroup(directory),group.id==id,group.phase == .approval,group.split==split.stored else{throw RebaseFailure.changed}
+            group.split=nil
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+            return
+        }
         let path = try rebasePath("rebase-merge/turtlegit-split.json")
         if let origin = split.conflictRecoveryReturn {
             guard origin.parts > 0 else { throw RebaseFailure.changed }
@@ -2296,10 +2378,60 @@ extension GitRepository {
             try JSONEncoder().encode(restored).write(to: path, options: .atomic)
         } else { try FileManager.default.removeItem(at: path) }
     }
+    /// No reset or amend is valid here: these changes have never been committed.
+    /// The applying journal is published before the child's Git operation, so an
+    /// interrupted process can never silently repeat a part that advanced HEAD.
+    private func commitNoCommitSplit(message:String,paths:GitPathSet,staging:Bool,options:CommitOptions,expected:RebaseSplitState,state:RebaseState)throws->String {
+        let directory=try rebasePath("rebase-merge")
+        guard state.canSplit,state.cleanCommitFailure==nil,!state.hasIgnoredCleanCommitFailure,state.split==expected,
+              var group=try noCommitGroup(directory),group.phase == .approval,group.split==expected.stored,group.id==expected.noCommitGroupID,
+              try rebaseRevision("HEAD")==expected.expectedHead,!options.amend,!options.amendDiffToLastCommit,options.newBranch==nil else{throw RebaseFailure.changed}
+        guard !message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw RebaseFailure.message}
+        // The native child installs the captured source presets, then the user
+        // may edit/uncheck them. Explicit options remain authoritative here.
+        let beforeFiles=try actionEditFiles(directory)
+        group.phase = .applying
+        try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:beforeFiles)}
+        let output:String
+        do {output=try (staging ? commitIndex(message:message,options:options):commitSelected(message:message,paths:paths,options:options))}
+        catch {
+            // The Commit child owns failure and explicit retry. Only an unchanged HEAD
+            // permits returning to that child; an interrupted successful commit
+            // is deliberately uncertain rather than a guessed additional part.
+            let unchanged=(try? rebaseRevision("HEAD"))==expected.expectedHead
+            try? replayUncancelled {
+                try withActionEditLock(directory) {
+                    let files=try actionEditFiles(directory)
+                    guard try noCommitGroup(directory)==group,Self.actionEditNames.filter({$0 != Self.noCommitSquashName}).allSatisfy({files[$0]==beforeFiles[$0]}) else{throw RebaseFailure.changed}
+                    group.phase=unchanged ? .approval:.uncertain
+                    // Restore the exact pre-operation group bytes on an ordinary
+                    // child failure, keeping its still-valid retry receipt valid.
+                    try publishNoCommitGroup(group,directory:directory,files:files,groupBytes:unchanged ? beforeFiles[Self.noCommitSquashName]?.bytes:nil)
+                }
+            }
+            throw error
+        }
+        let head=try rebaseCommit("HEAD")
+        guard head.hash != expected.expectedHead,head.parents==[expected.expectedHead] else{throw RebaseFailure.changed}
+        // After a successful child commit the durable part receipt must be
+        // published even if cancellation arrives before delivery to its owner.
+        try replayUncancelled {
+            try withActionEditLock(directory) {
+                let files=try actionEditFiles(directory)
+                guard try noCommitGroup(directory)==group,try rebaseRevision("HEAD")==head.hash,
+                      Self.actionEditNames.filter({$0 != Self.noCommitSquashName}).allSatisfy({files[$0]==beforeFiles[$0]}) else{throw RebaseFailure.changed}
+                var updated=expected.stored;updated.parts += 1;updated.expectedHead=head.hash
+                group.split=updated;group.message=message;group.phase = .approval
+                try publishNoCommitGroup(group,directory:directory,files:files)
+            }
+        }
+        return output
+    }
     /// Commit each split part through the same complete selection/index backend.
     /// The first part replaces the stopped commit; later parts create children.
     private func commitRebaseSplitOwned(message: String, paths: GitPathSet, staging: Bool, options: CommitOptions, expected: RebaseSplitState) throws -> String {
         let state = try rebaseState()
+        if expected.isNewCommit {return try commitNoCommitSplit(message:message,paths:paths,staging:staging,options:options,expected:expected,state:state)}
         guard state.cleanCommitFailure == nil,!state.hasIgnoredCleanCommitFailure,let saved = state.split, state.canSplit || saved.conflictRecovery == true, saved.parts == expected.parts, saved.entryID == expected.entryID,
               saved.expectedHead == expected.expectedHead, saved.firstParents == expected.firstParents, try rebaseRevision("HEAD") == saved.expectedHead,
               options.newBranch == nil, options.amend == (saved.conflictRecovery == true || saved.parts == 0), saved.conflictRecovery == true ? options.amendDiffToLastCommit : saved.parts != 0 || !options.amendDiffToLastCommit else { throw RebaseFailure.changed }
@@ -2418,8 +2550,14 @@ extension GitRepository {
     public func amendRebaseCommit(message: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> String {
         try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try amendRebaseCommitOwned(message: message) }
     }
-    public func beginRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> RebaseSplitState {
-        try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try beginRebaseSplitOwned() }
+    public func beginRebaseSplit(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil, expected:RebaseState?=nil, expectedHead:String?=nil) throws -> RebaseSplitState {
+        try withReplayIO(cancellation:cancellation,onOutput:onOutput,onProgress:onProgress) {
+            if let expected {
+                guard let expectedHead else{throw RebaseFailure.changed}
+                try requireRebaseContinuation(rebaseState(),expected:expected,expectedHead:expectedHead)
+            } else if expectedHead != nil {throw RebaseFailure.changed}
+            return try beginRebaseSplitOwned()
+        }
     }
     public func rebaseSquashIsEmpty(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (RebaseProgress) -> Void)? = nil) throws -> Bool {
         try withReplayIO(cancellation: cancellation, onOutput:onOutput,onProgress:onProgress) { try rebaseSquashIsEmptyOwned() }

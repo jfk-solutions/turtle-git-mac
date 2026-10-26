@@ -86,10 +86,10 @@ first retained leader leaves following requested Squash work. The earlier
 mainline checkpoint remains historical evidence for that narrower implementation.
 The new continuation has its own [grouped checkpoint](qa/pull-leading-squash-2026-10-26.json).
 
-The source enables Split in both Edit and Squash_Edit (`RebaseDlg.cpp:1902–1904`)
-and handles normal split commits at 1568–1605. The implementation excludes an
-active no-commit group from Split; this remains an explicit source behavior gap. Existing Split in
-other supported replay pauses is unaffected.
+The source enables Split in both Edit and Squash_Edit (`RebaseDlg.cpp:1902–1904`).
+The earlier checkpoint above excluded active no-commit groups from Split. The
+[new Split continuation](#split-continuation--october-26-2026) addresses that gap;
+its validation is separate from the earlier passing results.
 
 This continuation covers ordinary/advanced Cherry Pick no-commit groups. It does
 not add orphan-group execution to preserve-merges structural plans; existing
@@ -109,3 +109,64 @@ reviews, clean commit-failure recovery, stale/interrupted state, pending edits a
 reopen. No complete hosted CI, physical keyboard/VoiceOver, signed installed
 execution, arbitrary hook/filter combination, all structural topologies or
 whole-dialog layout acceptance is claimed here.
+
+
+## Split continuation — October 26, 2026
+
+The source Commit-dialog loop (1568–1605) runs only when there is no following
+retained Squash. `CheckNextCommitIsSquash` (1753–1784) ignores intervening Skip
+rows. The checkbox itself only changes the dialog option; it does not create a
+commit or reset HEAD. A middle empty-subject review with another Squash pending
+does not meet this Split-loop gate.
+
+For Squash_Edit the first child receives the current message and opens a normal
+Commit, not Amend. It covers the whole project, selects files, disables
+post-actions and detached-HEAD warnings, and uses captured first author/date
+metadata where available. Explicit Split disables Amend-Diff-to-Last-Commit.
+After first success, later children are normal commits without the initial
+message or leader metadata seed. Configured identity/current time remains the
+native policy when no leader metadata exists; source's unset metadata/time-zero
+call does not establish an original author/date.
+
+Remaining tracked changes force another Commit child. Only a clean tracked tree
+offers Add another commit; Yes opens another normal child, No resumes replay.
+Untracked files alone do not force the loop. Cancelling a child stops the sequence
+without advancing the original occurrence: successful earlier parts remain and
+must not be amended or repeated. Final completion records grouped originals
+against the final replacement HEAD and returns to Progress. Abort retains the
+original replay restoration. Commit errors and empty-result decisions belong to
+the actual child Commit workflow rather than the parent direct-approval command.
+
+The authored native adaptation embeds `RebaseSplitState` in the group;
+`noCommitGroupID` and `isNewCommit` distinguish it from an applied Edit amendment.
+Beginning Split does not reset HEAD or discard the staged accumulator. The first
+child installs editable author/date presets when a leader exists, otherwise
+configured identity/current time; explicit user options remain authoritative.
+All parts are normal commits, and Message Only uses the child Commit workflow.
+
+Receipts capture exact group and immutable replay-plan bytes, occurrence, session
+and expected HEAD. They deliberately permit the child's Stage/Unstage operations;
+the mutable index is not an immutable Split receipt. Before running a part, the
+group publishes applying intent. Success journals the new HEAD/part count even
+when cancellation arrives before native delivery. An unchanged failed attempt
+restores the exact prior group bytes for explicit child retry. An interrupted or
+unexpectedly advanced attempt remains uncertain rather than guessing whether to
+repeat a commit. Parent Retry/Ignore is not manufactured for child failures.
+
+The parent refreshes its full session receipt after each child, and waits for the
+actual child to detach and drain before another question or child. Cancel before
+the first part restores approval with the checkbox/draft retained; later Cancel
+preserves accepted parts and allows reopening. Clean completion maps originals to
+the final HEAD and restores deferred index policy; dirty remaining work cannot
+be skipped through a destructive reset. Supported pending edits preserve the
+embedded group identity. When a later Squash is added, continuation preserves
+earlier accepted parts and reopens accumulation from the last part's parent.
+
+The [checkpoint evidence](qa/rebase-no-commit-split-2026-10-26.json) records 26
+affected Core methods passing cumulatively, the Debug build, Help/localization
+checks and the native Add family with system and bundled Git. The initial build
+needed explicit closure captures; one new Core and native author-date assertion
+needed exact-instant comparison across timezone formatting. Only the affected
+checks were repeated, without production behavior changes. Preserve-merges orphan groups
+remain outside this continuation; earlier Split and leading-Squash checkpoints do
+not certify this new path.

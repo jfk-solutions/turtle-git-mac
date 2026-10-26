@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "b2f5f48b",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused_grouped_checks_passed",
+  "implementation": [
+    "Embedded durable Split checkpoint in owned no-commit group; immutable group/plan/session/HEAD receipt allows explicit child staging.",
+    "All selected or staged parts are normal commits; first source author/date are editable native presets, later parts use normal identity.",
+    "Unstarted Cancel retains approval/index/parent draft and Split choice; later Cancel preserves accepted history for reopen; Abort restores destination.",
+    "Part application/uncertainty journal, explicit child failure retry, accepted empty MessageOnly part, last-part-only future Squash regrouping and source notes/updateRefs mapping.",
+    "Cancellable captured begin, full native receipt reload after child, and actual hidden/detached/drained child release before next selection or Add another commit question."
+  ],
+  "validation": {
+    "planned_core_methods": 26,
+    "core_scope": [
+      "RebaseNoCommitSplitTests10",
+      "RebaseNoCommitSquashTests7",
+      "RebaseTests9 existing Split methods"
+    ],
+    "native_cases": [
+      "test-rebase-source.py --only add"
+    ],
+    "native_engines": [
+      "system",
+      "bundled"
+    ],
+    "debug": "passed after explicit self capture repair; initial compile failed before behavior checks",
+    "localizations": "write and check passed: 38 languages, 1323 keys",
+    "help": "write and check passed: 58 documents, 51 topics, 86 files",
+    "core": "26 methods passed cumulatively: initial group 25 passed, one date-format assertion failed; only that method rerun and passed after exact-instant assertion repair",
+    "native": "Add family passed with system and bundled Git after fixture date normalization; both owned receivers reaped",
+    "dialog_coverage": "reconciled successfully; no certified-complete inference",
+    "core_methods_passed_cumulatively": 26,
+    "native_case_engine_pairs_passed": 2
+  },
+  "failures": [
+    {
+      "scope": "initial Debug build",
+      "failure": "Nested child-release closure required explicit self captures for three property accesses.",
+      "resolution": "Added explicit self; repeated Debug build passed."
+    },
+    {
+      "scope": "initial Core group",
+      "failure": "One new author-date assertion compared different ISO8601 timezone strings representing the same instant. Other 25 methods passed.",
+      "resolution": "Compare exact parsed instants; focused one-method rerun passed without production change."
+    },
+    {
+      "scope": "initial system-Git native Add",
+      "failure": "New first Split child combined parent/author/date/message assertion failed; fixture compared raw author-date strings. Owned receiver reaped.",
+      "resolution": "Separated parent/identity/message diagnostics and exact parsed author-date instant comparison; repair run passed with system and bundled Git without production change."
+    }
+  ],
+  "limits": [
+    "Preserve-merges orphan topology remains unsupported.",
+    "Dirty Skip after accepted parts is refused; accepted history cannot be discarded by the old accumulator reset.",
+    "No whole-port completion, full hosted CI, signed deployment or physical keyboard/VoiceOver acceptance is claimed."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "a9c7b7ea1c24dce6dc9bdc5937c3e7f97a8539122ddf513ba59ca8a6d71e3f0c",
+    "Sources/TurtleGitMac/CommitWindow.swift": "33388237e047b9997060dbfca74c6e7565dd057c53592189d79e87458f535c2c",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "d960a82a59c79db1da55e606d67acf6362ed4fbaf4ed1c1faa5230a6590fb030",
+    "Tests/TurtleGitCoreTests/RebaseNoCommitSplitTests.swift": "7464e205b7274b5371e1cc06d977d0adf53bcebd482ea98888bce46949d7c30a",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "f83c7d8e891edd67905a03100db0ac1a07f49ac64bb83a9040bd9ac0733c1995"
+  },
+  "logs": {
+    "initial_debug": "build/qa/rebase-no-commit-split-debug-2026-10-26.log",
+    "debug_repair": "build/qa/rebase-no-commit-split-debug-repair-2026-10-26.log",
+    "initial_core": "build/qa/rebase-no-commit-split-core-2026-10-26.log",
+    "core_repair": "build/qa/rebase-no-commit-split-core-repair-2026-10-26.log",
+    "initial_native": "build/qa/rebase-no-commit-split-native-2026-10-26.log",
+    "native_repair": "build/qa/rebase-no-commit-split-native-repair-2026-10-26.log",
+    "localizations_write": "build/qa/rebase-no-commit-split-localizations-write-2026-10-26.log",
+    "localizations_check": "build/qa/rebase-no-commit-split-localizations-check-2026-10-26.log",
+    "help_write": "build/qa/rebase-no-commit-split-help-write-2026-10-26.log",
+    "help_check": "build/qa/rebase-no-commit-split-help-check-2026-10-26.log",
+    "dialog_coverage": "build/qa/rebase-no-commit-split-dialog-coverage-2026-10-26.log"
+  }
+}

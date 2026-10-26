@@ -68,3 +68,18 @@ Pinned upstream: `src/TortoiseProc/RebaseDlg.cpp` (Edit/Squash_Edit,
 The checked-conflict Edit → Split → first-dialog Cancel transition has a real
 Git regression fixture and whole-native coverage, including reopening and final
 message approval. Evidence: [Split return QA](qa/rebase-split-return-2026-10-06.json).
+
+
+## Leading no-commit Squash continuation — October 26, 2026
+
+The [leading-Squash Split continuation](REBASE-LEADING-SQUASH-PARITY.md#split-continuation--october-26-2026)
+extends the earlier Split workflow to owned no-commit groups. Its first part is a
+normal commit with captured group metadata, or configured identity when no leader
+exists. First-child cancellation retains the Split choice and draft. Later cancellation
+preserves accepted parts and remaining changes for reopening. Child Stage/Unstage
+is allowed under immutable group/plan/HEAD guards; failures stay in the child
+Commit workflow, and interrupted part publication refuses blind repetition.
+The parent waits for child detachment and worker drain before opening the next
+child or Add another commit question. See the [dedicated checkpoint record](qa/rebase-no-commit-split-2026-10-26.json)
+for its actual validation scope and results. Earlier checkpoints above do not
+prove this new path. Preserve-merges orphan groups remain separate.

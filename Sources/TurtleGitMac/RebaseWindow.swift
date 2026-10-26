@@ -31,13 +31,14 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
     let model: RebaseWindowModel
     private var retiredBatchChildren:[()->Bool]=[]
+    private var splitChildRelease:Task<Void,Never>?
     var transportBatchWorkPending:Bool {
         model.pendingBatchWorkers>0 || model.revisionMenuLog.pendingHistoryLoads>0 || model.revisionMenuLog.noteWorkPending ||
         (logPicker?.model.pendingHistoryLoads ?? 0)>0 || (referencePicker?.model.pendingReferenceReads ?? 0)>0 ||
         splitCommitPicker?.model.attemptWorkPending == true || stashRestore?.transportBatchWorkPending == true ||
         logPicker?.window?.sheetParent != nil || referencePicker?.window?.sheetParent != nil ||
         identitySettings?.window?.sheetParent != nil || retiredBatchChildren.contains{$0()} ||
-        window?.attachedSheet != nil || window?.sheetParent != nil
+        window?.attachedSheet != nil || window?.sheetParent != nil || splitChildRelease != nil
     }
     private(set) var revisionFind: RevisionGraphFindController?
     private(set) var containingWindows: [UUID: CommitContainingReferencesWindowController] = [:]
@@ -493,7 +494,21 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         commit.close = { [weak window, weak child] in
             if let sheet = child?.window { window?.endSheet(sheet); sheet.orderOut(nil) }; originalClose()
         }
-        child.onClosed = { [weak self] in self?.splitCommitPicker = nil; self?.model.splitSelectionClosed(committed: committed) }
+        child.onClosed = { [weak self,weak child] in
+            guard let self,let child,self.splitCommitPicker === child,self.splitChildRelease == nil else {return}
+            // Closing a Commit child can still be detaching its sheet or
+            // draining owned workers. The next child/question must wait for
+            // actual release, including forced parent retirement.
+            self.splitChildRelease=Task { [self,child,window] in
+                while child.window?.isVisible == true || child.window?.sheetParent != nil ||
+                    child.window.map({window.attachedSheet === $0}) == true || child.model.attemptWorkPending {
+                    try? await Task.sleep(nanoseconds:5_000_000)
+                }
+                if self.splitCommitPicker === child {self.splitCommitPicker=nil}
+                self.splitChildRelease=nil
+                self.model.splitSelectionClosed(committed:committed)
+            }
+        }
         commit.loadReplaySplit(split, message: message)
         if let sheet = child.window { sheet.alphaValue = window.alphaValue; sheet.appearance = window.appearance; window.beginSheet(sheet) } else { splitCommitPicker = nil; model.splitSelectionClosed(committed: false) }
     }
@@ -1461,7 +1476,7 @@ struct RebaseReferenceRequest {
         return DockProgressState(busy && !hasReplayQuestion && !confirmingReplayCancellation ? .running : .paused, percentage: percentage)
     }
     var status: String {
-        if state?.noCommitSquash?.phase == .uncertain {return "Squash was interrupted while applying changes. Inspect the index and working tree, or Abort; changes will not be applied again automatically."}
+        if state?.noCommitSquash?.phase == .uncertain {return "Squash was interrupted while applying changes or creating a commit. Inspect the index and working tree, or Abort; the operation will not be repeated automatically."}
         if state?.noCommitSquash?.phase == .conflicted {return "Select the resolved files, then Continue to add them to the combined commit."}
         if editingPendingActions { return "Saving replay actions…" }
         if state?.mainlineDecision != nil { return "Choose the mainline parent for the current merge commit before continuing." }
@@ -2321,6 +2336,12 @@ struct RebaseReferenceRequest {
                         // Keep its captured checkpoint through the same owned
                         // warning/recovery loop instead of amending a prior HEAD.
                         result=RebaseExecution(output:"",exitCode:0,state:captured)
+                    } else if captured.split?.isNewCommit == true {
+                        // Parts have already been committed by their owned
+                        // Commit children. Finish the group without submitting
+                        // the parent editor as another commit or amendment.
+                        result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,
+                            cancellation:preparation,onOutput:emit,editorExecutable:replayEditor,onProgress:replayProgressCallback)
                     } else if captured.noCommitSquash?.phase == .waiting || captured.noCommitSquash?.phase == .committed {
                         result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,
                             cancellation:preparation,onOutput:emit,editorExecutable:replayEditor,onProgress:replayProgressCallback)
@@ -2672,11 +2693,31 @@ struct RebaseReferenceRequest {
         }
     }
     func beginSplitSelection() {
-        guard canSplit else { return }; busy = true; Self.beginReplayWork();pendingBatchWorkers += 1
-        Task {
-            defer { Self.endReplayWork();pendingBatchWorkers -= 1; withExtendedLifetime(access) {} }
-            do { try requireAccess(); let split = try await repository.beginRebaseSplit(); guard !retired else { return }; state = try await repository.rebaseState(); guard !retired else { return }; busy = false; selectingSplit = true; showSplitSelection(split, amendMessage) }
-            catch { if !retired { busy = false; self.error = error.localizedDescription } }
+        guard canSplit,let expected=state else { return }
+        let repository=operationRepository(),head=conflictHead,draft=amendMessage,editor=replayMessageEditorID
+        let token=OperationCancellation()
+        messageSelectionCancellation=token;preparingMessageSelection=true;busy=true
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
+        Task { [self,access] in
+            defer {
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access) {}
+                if messageSelectionCancellation === token {messageSelectionCancellation=nil;preparingMessageSelection=false;cancellingPreparation=false}
+            }
+            do {
+                try requireAccess()
+                let split=try await repository.beginRebaseSplit(cancellation:token,expected:expected,expectedHead:head)
+                try token.check();guard !retired,replayMessageEditorID==editor else {throw OperationCancellationFailure.cancelled}
+                try await loadConflictFiles(cancellation:token,repository:repository)
+                try token.check();guard !retired else {return}
+                amendMessage=draft;busy=false;selectingSplit=true;showSplitSelection(split,draft)
+            } catch {
+                guard !retired else {return}
+                let inspection=OperationCancellation();replayResultInspection=inspection
+                defer {if replayResultInspection === inspection {replayResultInspection=nil}}
+                if let snapshot=try? await readSessionValue(conflictIdentity,inspection,repository:repository),!retired,!inspection.isCancelled {applyConflictSnapshot(snapshot);amendMessage=draft}
+                guard !retired else {return}
+                busy=false;if !token.isCancelled,!(error is CancellationError),!(error is OperationCancellationFailure) {self.error=error.localizedDescription};loadPendingHandoff()
+            }
         }
     }
     private func resumeConflictSelection(afterCommit: Bool = false) {
@@ -2705,8 +2746,19 @@ struct RebaseReferenceRequest {
         Task {
             defer { Self.endReplayWork();pendingBatchWorkers -= 1; withExtendedLifetime(access) {} }
             do {
-                state = try await repository.rebaseState(); guard !retired else { return }; splitCommit = state?.split != nil && state?.split?.conflictRecovery != true
-                guard committed else { if state?.split?.parts == 0 { let draft = amendMessage; try await repository.cancelUnstartedRebaseSplit(); try await loadConflictFiles(); amendMessage = draft; splitCommit = false }; busy = false; loadPendingHandoff(); return }
+                let draft=amendMessage
+                // Every child can advance HEAD. Refresh the complete receipt,
+                // not just state, before reopening or finishing the group.
+                try await loadConflictFiles();guard !retired else {return}
+                splitCommit = state?.split != nil && state?.split?.conflictRecovery != true
+                guard committed else {
+                    if state?.split?.parts == 0 {
+                        let keepSplit=state?.split?.isNewCommit == true
+                        try await repository.cancelUnstartedRebaseSplit();try await loadConflictFiles()
+                        amendMessage=draft;splitCommit=keepSplit
+                    }
+                    busy=false;loadPendingHandoff();return
+                }
                 if state?.split?.conflictRecovery == true {
                     try await loadConflictFiles()
                     busy = false; resumeConflictSelection(afterCommit: true); return

@@ -760,5 +760,8 @@ deliberate orphan stopped-plan boundary with an owned no-commit group, normal
 commit approval and source-sensitive retained message/author metadata. Its
 [grouped checkpoint](qa/pull-leading-squash-2026-10-26.json) records 35 affected Core
 methods passing cumulatively, a Debug build and both native Git engines. The
-earlier reached-parent checkpoint retains its original scope, and source Split in this
-new group remains explicitly tracked rather than implied complete.
+earlier reached-parent checkpoint retains its original scope. The authored
+[no-commit Split continuation](REBASE-LEADING-SQUASH-PARITY.md#split-continuation--october-26-2026)
+adds normal child commits, editable metadata presets, durable Cancel/reopen and
+actual child-drain ownership. Its [focused checkpoint](qa/rebase-no-commit-split-2026-10-26.json)
+passed; preserve-merges orphan groups remain outside this supported continuation.
