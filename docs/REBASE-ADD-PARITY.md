@@ -138,3 +138,9 @@ retain requested actions. Its [documented orphan-Squash boundary](REBASE-MAINLIN
 retains explicit stopped-plan recovery if Skip removes the first retained group
 leader; dependent work is not silently discarded. That boundary remains open after the
 focused validation.
+
+The next [leading-Squash continuation](REBASE-LEADING-SQUASH-PARITY.md) addresses
+that boundary through durable no-commit application and normal message approval,
+preserving source metadata ordering. Its [separate checkpoint](qa/pull-leading-squash-2026-10-26.json) records the
+focused Core and paired native engine passes, retaining the initial identical-byte
+conflict fixture failure and repair. Add insertion and its earlier checkpoint are unchanged.

@@ -18,6 +18,9 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-pull-progress-native-') as te
     executable = build_receiver(root, [root / 'docs/qa/pull-progress-native-2026-10-08.swift'], directory)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
+    environment['GIT_CONFIG_GLOBAL'] = os.devnull
+    environment['GIT_CONFIG_NOSYSTEM'] = '1'
+    environment['GIT_TERMINAL_PROMPT'] = '0'
     for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)

@@ -79,6 +79,11 @@ choosing a parent.
 
 ## Boundaries and validation
 
+The next [leading-Squash continuation](REBASE-LEADING-SQUASH-PARITY.md) addresses
+the earlier stopped-plan boundary when Skip removes the first retained group
+leader. It preserves source no-commit approval and optional retained metadata
+rather than inventing a leading Pick. Its [separate checkpoint](qa/pull-leading-squash-2026-10-26.json) records 35 affected Core methods passing cumulatively, a Debug build and paired native Git engines; the earlier mainline checkpoint below retains its original scope.
+
 This supersedes the preflight-parent adaptation documented in the October 16
 [Add preparation checkpoint](REBASE-ADD-PARITY.md#owned-add-and-merge-parent-preparation--october-16-2026).
 Add still uses cancellable atomic picker insertion; this continuation does not

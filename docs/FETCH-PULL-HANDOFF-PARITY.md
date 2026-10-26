@@ -61,3 +61,13 @@ sandbox/Finder and older macOS/Intel deployment remain open. Existing broader Fe
 and Pull gaps remain in the linked family audits. This batch changes no literal UI
 labels or source icon mappings and does not establish whole-dialog or whole-app
 completion.
+
+
+## Pull result transaction continuation — October 26, 2026
+
+The [conflict-result family](PULL-RESULT-PARITY.md) extends merge-based Pull's
+terminal close and handoff ownership, including the source Close-only See Changes
+question and captured Working Tree route. It preserves the existing explicit
+post-action bypass and Fetch/Rebase/Log/mail completion boundaries. Its [grouped checkpoint](qa/pull-leading-squash-2026-10-26.json) records both
+native Git engines passing after the actual owner-visibility repair. The earlier
+handoff evidence remains scoped to its original implementation.

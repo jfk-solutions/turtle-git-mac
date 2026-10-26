@@ -817,7 +817,7 @@ struct RebaseReferenceRequest {
             if key == \RebaseOptions.addCherryPickedFrom {self.updateAttribution()} else {self.reloadPlan()}
         })
     }
-    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && state?.emptyMessageWarning == nil && state?.mainlineDecision == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true && state?.conflictMessage?.phase != .complete && state?.conflictMessage?.phase != .uncertain && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.conflictMessage?.phase == .pending || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
+    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && state?.emptyMessageWarning == nil && state?.mainlineDecision == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true && state?.conflictMessage?.phase != .complete && state?.conflictMessage?.phase != .uncertain && state?.noCommitSquash?.phase != .uncertain && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.conflictMessage?.phase == .pending || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
     func messageBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.amendMessage},set:{if self.matches(context),self.canEditMessage {self.amendMessage=$0}}) }
     func splitBinding(_ context: FormContext) -> Binding<Bool> { Binding(get:{self.splitCommit},set:{if self.matches(context),self.canSplit,self.state?.split == nil {self.splitCommit=$0}}) }
     func tabBinding(_ context: FormContext) -> Binding<Int> { Binding(get:{self.tab},set:{if self.matches(context),!self.busy,!self.selectingSplit,self.pickingReference == nil,self.pendingConfirmation == nil, !self.retainsOnlyProgressTab || $0 == 2 {self.tab=$0}}) }
@@ -848,8 +848,10 @@ struct RebaseReferenceRequest {
         guard proceed,accepted,canRequest(question.action) else{return};execute(question.action)
     }
     var canSkipReplay: Bool { canRequest("skip") }
+    var canContinueReplay:Bool {canRequest("continue")}
     private func canRequest(_ action:String)->Bool {
         guard !containingReferenceBlocked,!revisionFindBlocked,!revisionHistoryBlocked,!retired,!busy,!revisionFiles.busy,pickingReference == nil,!pickingCommits,!selectingSplit,pendingConfirmation == nil,confirmation == nil,!hasReplayQuestion,!confirmingReplayCancellation else{return false}
+        if state?.noCommitSquash?.phase == .uncertain,action != "abort" {return false}
         switch action {case "start":return canStart;case "skip":return active && state?.conflictMessage == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true;case "continue","abort":return active;default:return false}
     }
     func referenceChoices(_ target: RebaseReferenceTarget?) -> [CheckoutReference] {
@@ -1459,6 +1461,8 @@ struct RebaseReferenceRequest {
         return DockProgressState(busy && !hasReplayQuestion && !confirmingReplayCancellation ? .running : .paused, percentage: percentage)
     }
     var status: String {
+        if state?.noCommitSquash?.phase == .uncertain {return "Squash was interrupted while applying changes. Inspect the index and working tree, or Abort; changes will not be applied again automatically."}
+        if state?.noCommitSquash?.phase == .conflicted {return "Select the resolved files, then Continue to add them to the combined commit."}
         if editingPendingActions { return "Saving replay actions…" }
         if state?.mainlineDecision != nil { return "Choose the mainline parent for the current merge commit before continuing." }
         if replayStopped { return completion }
@@ -1980,7 +1984,7 @@ struct RebaseReferenceRequest {
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     var canEditPendingActions: Bool {
-        active && state?.conflictMessage == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true && !finished && !retired && !busy && revisionMenuAvailable && editorExecutable != nil &&
+        active && state?.noCommitSquash?.phase != .uncertain && state?.conflictMessage == nil && state?.cleanCommitFailure == nil && state?.hasIgnoredCleanCommitFailure != true && !finished && !retired && !busy && revisionMenuAvailable && editorExecutable != nil &&
         (state?.isEditPause == true || fileRecovery || state?.squashMessage != nil)
     }
     private func changePendingActions(_ action: RebaseAction, ids: Set<String>, changes: [String: RebaseAction] = [:]) {
@@ -2214,6 +2218,7 @@ struct RebaseReferenceRequest {
         if action == "continue", state?.cleanCommitFailure != nil || state?.hasIgnoredCleanCommitFailure == true { execute(action);return }
         if action == "continue",state?.conflictMessage != nil {execute(action);return}
         if action == "continue",state?.emptyMessageWarning != nil || state?.mainlineDecision != nil {execute(action);return}
+        if action == "continue",let phase=state?.noCommitSquash?.phase,phase != .approval {execute(action);return}
         if action == "continue", splitCommit || state?.split != nil && state?.split?.conflictRecovery != true { beginSplitSelection(); return }
         if action == "continue", state?.split?.conflictRecovery == true { resumeConflictSelection(); return }
         if action == "continue", state?.isEditPause == true, state?.squashMessage == nil, state?.split == nil {
@@ -2316,6 +2321,18 @@ struct RebaseReferenceRequest {
                         // Keep its captured checkpoint through the same owned
                         // warning/recovery loop instead of amending a prior HEAD.
                         result=RebaseExecution(output:"",exitCode:0,state:captured)
+                    } else if captured.noCommitSquash?.phase == .waiting || captured.noCommitSquash?.phase == .committed {
+                        result=try await repository.continueRebase(expectedReplayState:captured,expectedReplayHead:head,
+                            cancellation:preparation,onOutput:emit,editorExecutable:replayEditor,onProgress:replayProgressCallback)
+                    } else if captured.noCommitSquash?.phase == .conflicted {
+                        try await repository.validateRebaseContinuation(expected:captured,expectedHead:head,cancellation:preparation)
+                        if !suppressConflictHints,try await repository.rebaseMessageContainsConflictHints(rawText,stripComments:stripComments,cancellation:preparation) {
+                            guard await confirmConflictHints() else {tab=0;throw OperationCancellationFailure.cancelled}
+                        }
+                        try preparation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+                        guard replayMessageEditorID == acceptedMessageEditor,Data(amendMessage.utf8)==Data(rawText.utf8) else {throw RebaseFailure.changed}
+                        result=try await repository.continueRebaseNoCommitSquash(paths:paths,expected:captured,expectedHead:head,
+                            cancellation:preparation,onOutput:emit,indexPolicy:conflictIndexPolicy,onProgress:replayProgressCallback)
                     } else if captured.conflictMessage != nil {
                         result = try await completeConflictMessage(rawText, expected: captured, head: head, repository: repository,
                             cancellation: preparation, onOutput: emit, editorExecutable: replayEditor,
@@ -2590,6 +2607,9 @@ struct RebaseReferenceRequest {
                     cancellation:cancellation,onOutput:onOutput)
                 continue
             }
+            // These owned no-commit phases deliberately retain staged group
+            // content. Generic failed-Pick cleanup must never reset or commit it.
+            if result.state.noCommitSquash != nil {return result}
             guard result.exitCode != 0 else {return result}
             guard let failed=try await repository.failedPickRecovery(after:result,cancellation:cancellation) else {return result}
             if failedPickSkipSession != failed.sessionIdentity {automaticallySkipFailedPicks=false;failedPickSkipSession=failed.sessionIdentity}
@@ -2903,10 +2923,12 @@ struct RebaseDialog: View {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
                                 ProjectMessageEditor(text: model.messageBinding(context), settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties, sourceAvailable: { [weak model] in model?.canEditMessage == true && model?.formContext == context })
                                     .id(model.replayMessageEditorID).disabled(!model.canEditMessage)
-                                if let author = model.replayMessageCommit {
+                                if let author = model.replayMessageCommit,model.state?.squashMessage?.isNewCommit != true {
                                     Text("Author: " + author.author + " <" + author.email + "> • Author date: " + dates.format(author.date, absolute: true)).font(.caption).textSelection(.enabled)
                                 }
-                                if let squash = model.state?.squashMessage { Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption) }
+                                if let squash = model.state?.squashMessage {
+                                    Text(squash.isNewCommit == true && model.state?.noCommitSquash?.preservesLeaderAuthor != true ? "Author: configured identity • Author date: current time" : "Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption)
+                                }
                             }.padding(8)
                         } else { ScrollView { Text(model.message).font(messageFont).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
                     }.tabItem { Text("Commit Message") }.tag(1)
@@ -2928,7 +2950,7 @@ struct RebaseDialog: View {
                 }
                 Spacer()
                 if model.state?.canSplit == true {Toggle("Edit/Split commit",isOn:model.splitBinding(context)).disabled(!model.canSplit || model.state?.split != nil)}
-                Button(model.primaryActionTitle) { model.primary(context) }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
+                Button(model.primaryActionTitle) { model.primary(context) }.keyboardShortcut(.defaultAction).disabled(!model.finished && (model.active ? !model.canContinueReplay:!model.canStart))
                 Button("Abort") { model.abort(context) }.keyboardShortcut(.cancelAction).help(model.active ? "Recover to the status before rebase":"Close this dialog")
                 Button{model.refreshFromSourceCommand()}label:{CommandLabel(title:"Refresh",icon:.refresh)}.disabled(!model.canRefreshDialog).accessibilityIdentifier("rebase-refresh")
                 Button("Help") { TurtleGitHelp.show(model.isCherryPick ? .cherryPick : .rebase) }

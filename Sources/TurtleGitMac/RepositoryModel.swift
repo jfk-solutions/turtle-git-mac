@@ -4335,8 +4335,9 @@ private enum TransportBatchPresentationContext {
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPullPostAction = { [weak self] action, result in
-            self?.performTransportHandoff(transportChain,modal:![PullPostAction.resolve,.commit,.diff,.log,.submoduleUpdate].contains(action)) {
+            self?.performTransportHandoff(transportChain,modal:![PullPostAction.resolve,.commit,.diff,.log,.submoduleUpdate,.workingTree].contains(action)) {
                 switch action {
+                case .workingTree: self?.showStatus(repository: repository, access: access, paths: [], preferences: preferences)
                 case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences)
                 case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
                 case .pull: self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences)

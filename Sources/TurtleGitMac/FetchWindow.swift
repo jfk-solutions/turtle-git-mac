@@ -230,7 +230,7 @@ import TurtleGitCore
     func abandonPullPresentation(_ result: PullProgressWindowModel) { guard progress === result else { return }; result.invalidate(); progress = nil; busy = false }
     func abandonFetchPresentation(_ result: FetchProgressWindowModel) { guard fetchProgress === result else { return }; result.invalidate(); fetchProgress = nil; busy = false }
     func finish(_ result: PullProgressWindowModel) {
-        guard !invalidated, progress === result, !result.busy, !result.confirmingConflictHint, !result.confirmingCancellation, !result.dispatchingAction else { return }
+        guard !invalidated, progress === result, !result.busy, !result.confirmingConflictHint, !result.confirmingResultClose, !result.confirmingCancellation, !result.dispatchingAction else { return }
         completedPresentation = true; progress = nil; error = nil; result.invalidate(); close()
     }
     func finishFetch(_ result: FetchProgressWindowModel) {
@@ -804,9 +804,10 @@ struct PullProgressContext {
     let followUp: PullFollowUp
 }
 enum PullPostAction: String, CaseIterable, Hashable {
-    case resolve, commit, mergeUnrelated, pull, stash, reset, stashPop, diff, log, push, submoduleUpdate
+    case resolve, commit, mergeUnrelated, pull, stash, reset, stashPop, diff, log, push, submoduleUpdate, workingTree
     var title: String {
         switch self {
+        case .workingTree: return "Check for modifications…"
         case .resolve: return "Resolve…"; case .commit: return "Commit…"; case .mergeUnrelated: return "Merge unrelated history"
         case .pull: return "Pull…"; case .stash: return "Stash save…"; case .reset: return "Reset…"; case .stashPop: return "Stash pop"
         case .diff: return "Pulled Diff"; case .log: return "Pulled Log"; case .push: return "Push…"; case .submoduleUpdate: return "Submodule Update…"
@@ -814,6 +815,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     }
     var icon: MenuIcon {
         switch self {
+        case .workingTree: return .status
         case .resolve: return .resolve; case .commit: return .commit; case .mergeUnrelated: return .merge; case .pull: return .pull
         case .stash: return .stash; case .reset: return .reset; case .stashPop: return .stashPop; case .diff: return .compare
         case .log: return .log; case .push: return .push; case .submoduleUpdate: return .fetch
@@ -839,6 +841,11 @@ enum PullPostAction: String, CaseIterable, Hashable {
     private var cancellation = OperationCancellation()
     private var inspectionToken: OperationCancellation?
     private var started = false, invalidated = false, dispatched = false
+    private(set) var resultIdentity = UUID()
+    private(set) var resultExitCode: Int32?
+    private(set) var resultOutput = ""
+    var active:Bool {!invalidated}
+    var workDidDrain:()->Void = {}
     @Published private(set) var completionWarning:String?
     @Published private(set) var busy = true
     @Published private(set) var success = false
@@ -846,6 +853,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var confirmingConflictHint = false
+    @Published private(set) var confirmingResultClose = false
     @Published private(set) var dispatchingAction = false
     @Published private(set) var output = ""
     @Published private(set) var percentage: Int?
@@ -872,22 +880,23 @@ enum PullPostAction: String, CaseIterable, Hashable {
     @Published private(set) var postActions: [PullPostAction] = []
     @Published private(set) var oldHead = ""
     @Published private(set) var newHead = ""
-    var canCancel: Bool { !confirmingQuit && !confirmingConflictHint && !dispatchingAction && (!busy || !cancelling && !confirmingCancellation) }
+    var canCancel: Bool { !confirmingQuit && !confirmingConflictHint && !confirmingResultClose && !dispatchingAction && (!busy || !cancelling && !confirmingCancellation) }
     var close: () -> Void = {}
     var onCompleted: () -> Void = {}
     var onPostAction: ((PullPostAction, PullProgressContext) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var presentConflictHint: (() async -> Bool)?
+    var presentSeeChanges: (() async -> Bool)?
     var closeAfterCancellation = false
     private func finishCompletion() {
-        guard !invalidated, !busy, !confirmingCancellation, !confirmingConflictHint, !dispatchingAction else { return }
+        guard !invalidated, !busy, !confirmingCancellation, !confirmingConflictHint, !confirmingResultClose, !dispatchingAction else { return }
         if completionWarning==nil && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
     private func completed() { guard !invalidated else { return }; busy = false; cancelling = false; onCompleted(); finishCompletion() }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: PullOptions, followUp: PullFollowUp, preferences: UserDefaults = .standard) {
         self.repository = repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
     }
-    func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; busy = false; confirmingCancellation = false; confirmingConflictHint = false; dispatchingAction = false }
+    func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; resultIdentity=UUID(); busy = false; confirmingCancellation = false; confirmingConflictHint = false; confirmingResultClose = false; dispatchingAction = false }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute(options) }
     private func validateAccess() throws {
@@ -897,7 +906,8 @@ enum PullPostAction: String, CaseIterable, Hashable {
         let repository=self.repository
         guard !invalidated else { return }
         Self.activeOperations += 1; pendingOperations += 1
-        defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {} }
+        defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {};workDidDrain() }
+        resultIdentity=UUID();resultExitCode=nil;resultOutput=""
         busy = true; success = false; cancelled = false; cancelling = false;completionWarning=nil; resetOutput(); postActions = []; newHead = ""
         do { try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } }
         catch { guard !invalidated else { return }; output = error.localizedDescription; cancelled = cancellation.isCancelled; completed(); return }
@@ -906,10 +916,18 @@ enum PullPostAction: String, CaseIterable, Hashable {
             guard let head=try await repository.revisionLookup("HEAD",requirement:.commit,cancellation:cancellation).objectID else{throw SynchronizationFailure.invalidInput}
             guard !invalidated else { return }; oldHead = head; beganPull = true
             let result = try await streamPull(snapshot,repository:repository)
-            guard !invalidated else { return }; rawOutput = result
+            guard !invalidated else { return }; rawOutput = result;resultOutput=result;resultExitCode=0
             if !outputState.hasOutput { output = rawOutput }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; success = true
-        } catch { guard !invalidated else { return }; displayFailure(error); cancelled = cancellation.isCancelled }
+        } catch {
+            guard !invalidated else { return }
+            // Only the actual Pull command can qualify for the source's final
+            // status-1/CONFLICT question. Preparation/inspection failures cannot.
+            if let failure=error as? GitFailure,failure.arguments.first=="pull" {
+                resultExitCode=failure.code;resultOutput=failure.message
+            }
+            displayFailure(error); cancelled = cancellation.isCancelled
+        }
         guard !invalidated else { return }; guard beganPull else { completed(); return }
         // Normal Cancel inspects recovery with a fresh token; forced closure stops it.
         let token = OperationCancellation(); inspectionToken = token
@@ -986,8 +1004,32 @@ enum PullPostAction: String, CaseIterable, Hashable {
             }
         } else { cancelling = true; token.cancel() }
     }
+    /// Only accepted Close copies the source progress log into DoPull's final
+    /// See Changes gate. Cancel/Escape/window-X and post-actions bypass it.
+    func requestClose(accepted:Bool=true) {
+        guard !invalidated,!confirmingQuit,presentationAvailable(),!dispatched,!busy,
+              !confirmingCancellation,!confirmingConflictHint,!confirmingResultClose,!dispatchingAction else{return}
+        guard accepted,!cancelled,resultExitCode==1,resultOutput.contains("CONFLICT"),let presentSeeChanges else {
+            dispatched=true;close();return
+        }
+        let identity=resultIdentity
+        confirmingResultClose=true;Self.activeOperations += 1;pendingOperations += 1
+        Task {
+            defer {Self.activeOperations -= 1;pendingOperations -= 1;withExtendedLifetime(access) {};workDidDrain()}
+            guard !invalidated,resultIdentity==identity,confirmingResultClose else{return}
+            let show=await presentSeeChanges()
+            guard !invalidated,resultIdentity==identity,confirmingResultClose else{return}
+            confirmingResultClose=false
+            guard !confirmingQuit,presentationAvailable(),!dispatched else{return}
+            dispatched=true
+            if show,let onPostAction {
+                let context=PullProgressContext(oldHead:oldHead,newHead:newHead,resetRevision:"",followUp:followUp)
+                finishAndPerform {onPostAction(.workingTree,context)}
+            } else {close()}
+        }
+    }
     func perform(_ action: PullPostAction) {
-        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !dispatchingAction, !confirmingConflictHint, postActions.contains(action) else { return }
+        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !dispatchingAction, !confirmingConflictHint, !confirmingResultClose, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             ProgressActionLog.nextAttempt(self);
             var snapshot = options; snapshot.allowUnrelatedHistories = true
@@ -999,7 +1041,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
             dispatchingAction = true; let token = OperationCancellation(); inspectionToken = token
             Self.activeOperations += 1; pendingOperations += 1
             Task {
-                defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
+                defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil };workDidDrain() }
                 var revision = ""
                 do {
                     try validateAccess()
@@ -1019,11 +1061,25 @@ enum PullPostAction: String, CaseIterable, Hashable {
         }
     }
 }
+enum PullProgressQuestion {case cancellation, conflictHint, seeChanges}
+@MainActor private final class PullProgressQuestionSession {
+    let alert:NSAlert, parent:NSWindow
+    var completion:((NSApplication.ModalResponse)->Void)?
+    var answer:((NSApplication.ModalResponse)->Void)?
+    var release:TransportProgressRelease?
+    var answered=false
+    init(alert:NSAlert,parent:NSWindow,completion:@escaping(NSApplication.ModalResponse)->Void) {
+        self.alert=alert;self.parent=parent;self.completion=completion
+    }
+}
 @MainActor final class PullProgressWindowController: NSWindowController, NSWindowDelegate {
     private var pendingHandoff: (() -> Void)?
     private var presentationParent: NSWindow?
     private var release: TransportProgressRelease?
-    private var finished = false
+    private var question:PullProgressQuestionSession?
+    private var finished = false, closingRequested=false, closingForHandoff=false
+    var questionWindow:NSWindow? {question?.alert.window}
+    var presentQuestion:((PullProgressQuestion,NSAlert,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void)?
     let model: PullProgressWindowModel
     var onClosed: () -> Void = {}
     init(model: PullProgressWindowModel) {
@@ -1032,51 +1088,92 @@ enum PullPostAction: String, CaseIterable, Hashable {
         RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Pull progress", preferences: model.presentationPreferences); window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PullProgressDialog(model: model))
         super.init(window: window); window.delegate = self
-        model.close = { [weak self] in
-            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingConflictHint, self.window?.attachedSheet == nil else { return }
-            if let window = self.window { self.presentationParent = window.sheetParent; window.close() }
+        model.close = { [weak self] in self?.closingRequested=true;self?.closeIfReady() }
+        model.workDidDrain = { [weak self] in if self?.closingRequested==true {self?.closeIfReady()} }
+        model.presentationAvailable = { [weak self] in
+            guard let self else{return false}
+            return !self.finished && self.question==nil && self.window != nil && self.window?.attachedSheet==nil
         }
-        model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
         model.closeForHandoff = { [weak self] action in
-            guard let self, !self.finished, self.pendingHandoff == nil else { return }
-            self.pendingHandoff = action; self.model.close()
+            guard let self,!self.finished,self.pendingHandoff==nil,!self.model.confirmingQuit else{return}
+            self.pendingHandoff=action;self.model.close()
         }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
-            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
-            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        model.confirmCancellation = { [weak self] choose in
+            guard let self else{choose(false);return}
+            let alert=NSAlert();alert.alertStyle = .informational
+            alert.messageText="The process is still running.";alert.informativeText="Are you sure to abort?"
+            let yes=alert.addButton(withTitle:"Yes"),no=alert.addButton(withTitle:"No")
+            alert.layout();yes.keyEquivalent="\r";no.keyEquivalent="\u{1b}";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
+            self.ask(.cancellation,alert:alert) {choose($0 == .alertFirstButtonReturn)}
         }
-        model.presentConflictHint = { [weak window] in
-            guard let window, window.attachedSheet == nil else { return false }
-            return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "TurtleGit"; alert.informativeText = MergeProgressWindowModel.conflictHint
-                let okay = alert.addButton(withTitle: "OK"); okay.keyEquivalent = "\r"; alert.window.defaultButtonCell = okay.cell as? NSButtonCell
-                alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
-                alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
-                alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
+        model.presentConflictHint = { [weak self] in
+            guard let self else{return false}
+            return await withCheckedContinuation {continuation in
+                let alert=NSAlert();alert.alertStyle = .informational
+                alert.messageText="TurtleGit";alert.informativeText=MergeProgressWindowModel.conflictHint
+                alert.addButton(withTitle:"OK").keyEquivalent="\r"
+                alert.showsSuppressionButton=true;alert.suppressionButton?.title="Don't show this message again"
+                self.ask(.conflictHint,alert:alert) {response in
+                    continuation.resume(returning:response == .alertFirstButtonReturn && alert.suppressionButton?.state == .on)
+                }
             }
         }
-
+        model.presentSeeChanges = { [weak self] in
+            guard let self else{return false}
+            return await withCheckedContinuation {continuation in
+                let alert=NSAlert();alert.alertStyle = .informational
+                alert.messageText="TurtleGit";alert.informativeText="Do you want to see changes?"
+                let yes=alert.addButton(withTitle:"Yes"),no=alert.addButton(withTitle:"No")
+                alert.layout();yes.keyEquivalent="\r";no.keyEquivalent="\u{1b}";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
+                self.ask(.seeChanges,alert:alert) {continuation.resume(returning:$0 == .alertFirstButtonReturn)}
+            }
+        }
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
+    private func ask(_ kind:PullProgressQuestion,alert:NSAlert,completion:@escaping(NSApplication.ModalResponse)->Void) {
+        guard !finished,model.active,!model.confirmingQuit,question==nil,let window,window.attachedSheet==nil else{completion(.abort);return}
+        let request=PullProgressQuestionSession(alert:alert,parent:window,completion:completion)
+        question=request;alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.effectiveAppearance
+        let answer:(NSApplication.ModalResponse)->Void = { [weak self,weak request] response in
+            guard let self,let request,!request.answered else{return}
+            request.answered=true
+            let release=TransportProgressRelease(window:request.alert.window,parent:request.parent) { [self,request] in
+                let accepted = !self.finished && self.model.active && !self.model.confirmingQuit && self.question === request
+                if self.question === request {self.question=nil}
+                let callback=request.completion;request.completion=nil;request.answer=nil;request.release=nil
+                request.alert.window.close();callback?(accepted ? response:.abort)
+                if self.closingRequested {self.closeIfReady()}
+            }
+            request.release=release;release.start()
+        }
+        request.answer=answer
+        if let presentQuestion {presentQuestion(kind,alert,window,answer)}
+        else {alert.beginSheetModal(for:window,completionHandler:answer)}
+    }
+    private func closeIfReady() {
+        guard !finished,model.active,!model.confirmingQuit,!model.busy,model.pendingOperations==0,
+              !model.confirmingCancellation,!model.dispatchingAction,!model.confirmingConflictHint,!model.confirmingResultClose,
+              question==nil,let window,window.attachedSheet==nil else{return}
+        presentationParent=window.sheetParent;closingForHandoff=pendingHandoff != nil;window.close()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.confirmingQuit else { return false }
-        if model.busy { model.cancel(); return false }
-        guard !model.confirmingCancellation, !model.confirmingConflictHint, !model.dispatchingAction, sender.attachedSheet == nil else { return false }
-        presentationParent = sender.sheetParent; return true
+        guard !model.confirmingQuit,question==nil else{return false}
+        if model.busy {model.cancel();return false}
+        model.requestClose(accepted:false);return false
     }
     func windowWillClose(_ notification: Notification) {
-        guard !finished else { return }; finished = true
-        model.saveActionLog(); model.invalidate(); model.closeForHandoff = nil
-        guard let window else { pendingHandoff = nil; onClosed(); return }
-        if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        let action = pendingHandoff; pendingHandoff = nil
-        let release = TransportProgressRelease(window: window, parent: presentationParent ?? window.sheetParent) { [self] in
-            self.release = nil; self.presentationParent = nil; onClosed(); action?()
+        guard notification.object as? NSWindow === window,!finished else{return};finished=true
+        model.invalidate();model.closeForHandoff=nil;model.workDidDrain={}
+        question?.answer?(.abort)
+        guard let window else{pendingHandoff=nil;onClosed();return}
+        if let sheet=window.attachedSheet,sheet !== questionWindow {window.endSheet(sheet,returnCode:.abort);sheet.close()}
+        let action=closingForHandoff ? pendingHandoff:nil;pendingHandoff=nil
+        let release=TransportProgressRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in
+            !window.isVisible && model.pendingOperations==0 && question==nil
+        }) { [self] in
+            self.release=nil;self.presentationParent=nil;model.saveActionLog();onClosed();action?()
         }
-        self.release = release; release.start()
+        self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -1099,12 +1196,12 @@ struct PullProgressDialog: View {
                 Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else {
-                    if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
-                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.dispatchingAction)
+                    if !model.success { Button("Cancel") { model.requestClose(accepted:false) }.keyboardShortcut(.cancelAction) }
+                    Button("Close") { model.requestClose() }.keyboardShortcut(.defaultAction).disabled(model.dispatchingAction)
                 }
-            }.disabled(model.confirmingQuit || model.confirmingConflictHint || model.dispatchingAction)
+            }.disabled(model.confirmingQuit || model.confirmingConflictHint || model.confirmingResultClose || model.dispatchingAction)
         }.padding(12)
-        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingConflictHint, percentage: model.percentage))
+        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingConflictHint || model.confirmingResultClose, percentage: model.percentage))
     }
 }
 

@@ -26,14 +26,25 @@ status could enter live contributions and block a fresh Add. Its connected recov
 batch is included in installed build 9; physical acceptance on the reported
 repository remains unverified.
 
-The completed hosted macOS run at `c47640a3` failed during test compilation
-on Swift 6.1.2, before behavioral tests ran. The subsequent typed gradient-assertion
-repair retains the behavioral assertion. At the latest observation, the
-`4b90f77a` macOS run is executing Git integration tests and `d89ad1f6` is pending. Pages for
-`d89ad1f6` succeeded. These results do not establish a current complete hosted
-macOS pass or App Store distribution acceptance.
+At the October 26 observation, the [Pages run for `18a0acd8`](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40242793428)
+succeeded and its [macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40242793370)
+is pending. The immediately preceding macOS runs for `3d892691` and `e832798c`
+were cancelled. Earlier focused local passes do not establish a current complete
+hosted macOS pass or App Store distribution acceptance.
 
 ## Latest source batches
+
+The [Pull conflict-result continuation](PULL-RESULT-PARITY.md) distinguishes accepted
+Close from Cancel, title-bar dismissal and selected post-actions. It captures the
+actual Pull exit status/full result, owns the final See Changes sheet through
+detachment and dispatches captured Working Tree review only after the progress
+and options owners drain. The connected [leading-Squash continuation](REBASE-LEADING-SQUASH-PARITY.md)
+implements source no-commit groups, normal new-commit approval and durable
+conflict/reopen/Skip/Abort handling. The [grouped checkpoint](qa/pull-leading-squash-2026-10-26.json)
+records 35 affected Core methods passing cumulatively, a Debug build and four
+native case/engine pairs. It retains the actual failures and scoped repairs.
+This source is newer than installed build 9; new-group Split and preserve-merges
+orphan topology remain open.
 
 The connected [advanced Cherry Pick parent-choice family](REBASE-MAINLINE-PARITY.md)
 replaces whole-plan merge-parent questions with durable decisions at each reached
@@ -43,8 +54,9 @@ edits retain their session/occurrence ownership. Parent acceptance is fenced to
 the captured HEAD, original parents and replay files. This source is newer than
 installed build 9. Its [grouped checkpoint](qa/rebase-mainline-2026-10-25.json)
 records 15 affected Core methods passing cumulatively, a Debug build and both
-native engine cases passing. First-leader Skip exposing an orphan Squash remains
-an explicit stopped-plan boundary; full source parity is not claimed.
+native engine cases passing. First-leader Skip exposing an orphan Squash was
+that checkpoint’s stopped-plan boundary; the newer continuation above addresses
+supported linear groups. Full source parity is not claimed.
 
 
 The connected [Finder restart-cache recovery](qa/finder-warm-recovery-2026-10-25.json)

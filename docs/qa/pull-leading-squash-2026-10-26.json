@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "18a0acd861f5d29cc89eee1d792271ddb2469ea5",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused_core_and_grouped_native_pass",
+  "implementation": {
+    "pull": [
+      "Accepted Close uses actual Pull-only exit1 and literal full-result CONFLICT, distinct from Cancel/Escape/title close, cancellation and accepted post-actions.",
+      "Owned information/default-Yes See Changes question settles after real detachment, then closes/drains captured progress/options owners before Working Tree dispatch.",
+      "Unified cancellation/conflict-hint/result question ownership; forced retirement, pending workers, duplicate answers, stale presentation and Quit cannot produce late actions."
+    ],
+    "leading_squash": [
+      "Owned linear orphan Squash groups apply with cherry-pick --no-commit and approve with normal new commit, preserving reached pre-question leader metadata or configured identity when no leader was prepared.",
+      "Durable group phases, exact replay/group/index witnesses, selected conflict staging, pending edits, original empty-message ordering, retained empty Commit choice, clean normal-commit Retry/Ignore, reference/notes rewriting and unchecked-index restoration.",
+      "Cancel/reopen/Skip/Abort and interrupted-write recovery preserve prior HEAD/work; interrupted active mutation becomes inspectable uncertainty rather than blind reapplication."
+    ]
+  },
+  "validation": {
+    "debug": {
+      "result": "pass_after_compile_and_behavior_repairs",
+      "log": "pull-leading-squash-debug-behavior-repair-2026-10-26.log"
+    },
+    "core": {
+      "status": "cumulative_pass",
+      "planned_methods": 35,
+      "scope": [
+        "RebaseNoCommitSquashTests (7)",
+        "RebaseMainlineTests (9)",
+        "RebasePendingActionTests (10)",
+        "RebaseProgressTests (4)",
+        "RebaseTests CherryPickBothMergeMainlinesMatchGitAndKeepOriginalMetadataOnRecovery (1)",
+        "RebaseAmendRecoveryTests RetryReopens, CleanSquashFailureIgnore, DirtyFailure, InterruptedAcceptedIgnoreJournal (4)"
+      ],
+      "editor": "Explicit current Debug executable after completed app build",
+      "full_suite": false,
+      "grouped_result": "34_pass_1_failure",
+      "grouped_seconds": 138.517,
+      "recheck_scope": "Only affected empty-intermediate method, including original and regenerated pending-action plans; no complete Core rerun.",
+      "passed_methods": 35,
+      "recheck_result": "pass",
+      "recheck_seconds": 14.02,
+      "recheck_log": "pull-leading-squash-core-recheck-2026-10-26.log"
+    },
+    "native": {
+      "status": "pass_after_scoped_repairs",
+      "runners": [
+        "test-pull-progress.py",
+        "test-rebase-source.py --only add"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "planned_pairs": 4,
+      "passed_pairs": 4,
+      "logs": [
+        "pull-leading-squash-native-pull-recheck-2026-10-26.log",
+        "pull-leading-squash-native-rebase-recheck-2026-10-26.log"
+      ],
+      "owned_receiver_pids": [
+        48850,
+        49550,
+        56204,
+        60370
+      ],
+      "reaped_and_independently_absent": true
+    },
+    "localizations": {
+      "result": "pass",
+      "languages": 38,
+      "keys": 1323,
+      "write_log": "pull-leading-squash-localizations-write-2026-10-26.log",
+      "check_log": "pull-leading-squash-localizations-check-2026-10-26.log"
+    }
+  },
+  "failures": [
+    {
+      "log": "pull-leading-squash-debug-2026-10-26.log",
+      "result": "Debug exit65 before behavioral checks",
+      "cause": "Pull controller nested release closure needed explicit self references; required workDidDrain callback needed {} instead of nil. Core compiled. Controller-only repair, no behavior/assertion removals."
+    },
+    {
+      "log": "pull-leading-squash-native-pull-2026-10-26.log",
+      "result": "System Pull receiver failed owner-hidden assertion; bundled pair not reached",
+      "cause": "Pull progress could dispatch synchronously during windowWillClose while its window was still visible. Scoped release readiness now requires the actual progress window to be hidden before onClosed/action. Assertion retained.",
+      "receiver_pid": 39908,
+      "reaped_and_independently_absent": true
+    },
+    {
+      "log": "pull-leading-squash-core-2026-10-26.log",
+      "result": "35 methods; 34 passed, 1 unexpected failure in 138.517 seconds",
+      "cause": "Initial no-commit empty-message marker was left in TODO instead of exposing the reached warning; executor then required a drop action. Focused repair also retires the already-approved post-empty marker before the following Squash; failed test now covers both original and regenerated pending plans."
+    },
+    {
+      "log": "pull-leading-squash-native-rebase-2026-10-26.log",
+      "result": "System Add receiver failed genuine-conflict setup assertion; bundled case not reached",
+      "cause": "Fixture helper wrote last.txt newline to both source and destination, so add/add was identical and clean. Corrected destination contents only; original recovery assertions retained. Recheck passed both engines without app/Core/Pull repeats.",
+      "receiver_pid": 51611,
+      "reaped_and_independently_absent": true
+    }
+  ],
+  "limits": [
+    "Split in new-commit Squash approval remains disabled although source supports it.",
+    "Preserve Merges orphan topology remains rejected; linear ordinary/Cherry groups are this implementation scope.",
+    "Interrupted active application/commit may require inspection or Abort; no automatic uncertain retry.",
+    "Installed signed build9 predates this source. No current physical Finder/parent acceptance, signed App Store deployment, Intel/minimum-version execution, arbitrary hooks/network/topology or full hosted CI acceptance is established."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "c09f68f95044a7b69de6a0d403d0139521474cfb15585abe6b81043b82e0dce4",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "4a0d8829273da6147999d42da5afafc83b1e7ae07b6b00b23727af2fe4300e50",
+    "Sources/TurtleGitMac/FetchWindow.swift": "ad0ca8c32fd7cb844dca91fdde62b13d90622b2d9b096603feb6eba59bdb6cc1",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "7ec708629ffc58e5e1c5c4fe1fd4dffc0bbe8411647f0154b1fa47e69cacaeaa",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "33da558c695b174a8de8446caacda1a2a3a02ed7af01ba581357db9c650f9ecf",
+    "Tests/TurtleGitCoreTests/RebaseNoCommitSquashTests.swift": "f5253c80606e2067b40e3b66ae96c6ea5b21c380c550a9fcb899c29df0ff2797",
+    "docs/qa/pull-progress-native-2026-10-08.swift": "6df6e50d7c115ace910ca3cac5e7d827e69399a3c7a1439e67b16edd02a2e283",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "0b81016a27814e1111e3c817093fe6d5d0438de700c0f497514852632375a438",
+    "scripts/test-pull-progress.py": "2d34dcb4a92873d115c2fe4e1debf5b1131eeba67c8f8d1ffbbe5cab47284d23"
+  },
+  "log_sha256": {
+    "pull-leading-squash-native-pull-recheck-2026-10-26.log": "f0e4346af9bfbce9b0b8bab26056020b33e104503abd8ce98e5822bbdf2c336c",
+    "pull-leading-squash-debug-2026-10-26.log": "48f3c3678116bf78a6002e04d8d7bbe68630dbf896f02005193b090f1d7dc3c5",
+    "pull-leading-squash-localizations-write-2026-10-26.log": "2527fcb584875cd69b0185db28a33b200d5d40eefe85c1f82ee2be851e68d756",
+    "pull-leading-squash-localizations-check-2026-10-26.log": "2260941b145267f6a5918cc22c44b2f98150718c20f957282f4d232c41b261e6",
+    "pull-leading-squash-native-pull-2026-10-26.log": "9c3812468fe84254dd9a4e74b09657e5ca027cfd2a4d647fc8381420dd973284",
+    "pull-leading-squash-debug-behavior-repair-2026-10-26.log": "4aa2531f29c1c64709d6dab921b40c7c5f5a4a25d6d80475e747e15115df220e",
+    "pull-leading-squash-core-recheck-2026-10-26.log": "5564038fd588caf2585d3afe432aad27213b9f6c29e38c9545575334735f63ab",
+    "pull-leading-squash-native-rebase-recheck-2026-10-26.log": "82bfe1bb47c91eda981e151e454c17942d1cd98354acbc67bd69fc3fc236b4c7",
+    "pull-leading-squash-core-2026-10-26.log": "c0cd2f4a4f3af8d514a4ab5165407b721c75131a149ceefd1ea1cb998b85b4c1",
+    "pull-leading-squash-debug-repair-2026-10-26.log": "5e4437650eaf3e75b79a52c078e3e992588754e6d827ab4abeb7ad47cd021197",
+    "pull-leading-squash-native-rebase-2026-10-26.log": "89dd198e1f65fd719ac6ace5283a6c67fba53be5e345e13adf0a0386f362ed60"
+  }
+}

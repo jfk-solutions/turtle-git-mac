@@ -21,11 +21,37 @@ public struct RebaseProgress: Sendable, Equatable {
 
 public enum RebaseEmptyChoice: Sendable { case commit, skip, cancel }
 public enum RebaseSquashDate: Int, Codable, Sendable { case first = 0, latest = 1, current = 2 }
+public enum RebaseNoCommitSquashPhase:String,Codable,Sendable {case waiting,applying,conflicted,approval,committed,uncertain}
+public struct RebaseNoCommitSquash:Codable,Equatable,Sendable {
+    public let id:String,entryID:String,baseHead:String
+    public let step:Int
+    public let phase:RebaseNoCommitSquashPhase
+    public let preservesLeaderAuthor:Bool
+    fileprivate let files:[String:RebaseActionEditFile]
+}
+private struct RebaseSquashLeader:Codable {
+    let message:String,name:String,email:String,date:String
+}
+private struct RebaseNoCommitGroup:Codable {
+    let id:String,session:String
+    var baseHead:String,step:Int,phase:RebaseNoCommitSquashPhase
+    var message:String,leader:RebaseSquashLeader?,latestDate:String
+    var beforeTree:String?=nil
+    var applied:[String]=[]
+    var prepared:[String]=[]
+    var committedHead:String?=nil
+    var resolvedCurrent=false
+    var reviewedEmpty:[String]=[]
+    var readd:[String]=[],remove:[String]=[]
+    var readdUnchecked=false
+    var allowsEmpty=false
+}
 public struct RebaseSquashMessage: Codable, Sendable {
     public var message: String
     public let datePolicy: RebaseSquashDate
     public let latestDate: String
     public let step: Int
+    public var isNewCommit:Bool? = nil
     public var skipOriginalHead: String? = nil
     public var skipBaseHead: String? = nil
 }
@@ -123,6 +149,8 @@ public struct RebaseMainlineDecision:Codable,Equatable,Sendable {
 private struct RebaseMainlineAnchor:Codable {
     let entryID:String,sessionIdentity:String,head:String
     let parents:[String]
+    var squashLeader:RebaseSquashLeader? = nil
+    var squashCurrentEmpty:Bool? = nil
 }
 /// A failed message commit at a still-clean, stopped replay. Retry leaves the
 /// editor intact; Ignore consumes this exact receipt without running commit again.
@@ -181,6 +209,7 @@ public struct RebaseState: Codable, Sendable {
     public let session: RebaseSessionContext?
     public var emptyMessageWarning:RebaseEmptyMessageWarning? = nil
     public var mainlineDecision:RebaseMainlineDecision? = nil
+    public var noCommitSquash:RebaseNoCommitSquash? = nil
     var hasMainlineCheckpoint = false
     var mainlineCheckpointHead:String? = nil
     public var cleanCommitFailure:RebaseCleanCommitFailure? = nil
@@ -192,20 +221,21 @@ public struct RebaseState: Codable, Sendable {
     private enum CodingKeys:String,CodingKey {
         case active,isCherryPick,branch,originalHead,onto,stoppedEntryID,stoppedCommit,mergeParents,message,currentStep,total,conflicts,remainingCommands,squashMessage,stoppedAction,split,isEditPause,isStructuralMergeEdit,hasStructuralMergeResult,needsFileRecovery,session,emptyMessageWarning,hasFailedPickCleanup
     }
-    public var canSplit: Bool { !hasMainlineCheckpoint && mainlineDecision == nil && conflictMessage == nil && cleanCommitFailure == nil && !hasIgnoredCleanCommitFailure && !hasFailedPickCleanup && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
+    public var canSplit: Bool { noCommitSquash == nil && !hasMainlineCheckpoint && mainlineDecision == nil && conflictMessage == nil && cleanCommitFailure == nil && !hasIgnoredCleanCommitFailure && !hasFailedPickCleanup && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
 /// Identifies the stopped occurrence and original session, not just its step number.
 public struct RebaseConflictIdentity:Equatable,Sendable {
     public let originalHead:String,branch:String,onto:String,entry:String
     public let step:Int,splitParts:Int
     public let cherryPick:Bool
+    public let noCommitGroup:String?
     public static func == (a: Self, b: Self) -> Bool {
-        GitReferenceName.equal(a.originalHead,b.originalHead) && GitReferenceName.equal(a.branch,b.branch) && GitReferenceName.equal(a.onto,b.onto) && GitReferenceName.equal(a.entry,b.entry) && a.step == b.step && a.splitParts == b.splitParts && a.cherryPick == b.cherryPick
+        GitReferenceName.equal(a.originalHead,b.originalHead) && GitReferenceName.equal(a.branch,b.branch) && GitReferenceName.equal(a.onto,b.onto) && GitReferenceName.equal(a.entry,b.entry) && a.step == b.step && a.splitParts == b.splitParts && a.cherryPick == b.cherryPick && a.noCommitGroup == b.noCommitGroup
     }
     public init?(_ state:RebaseState) {
-        guard state.active,!state.hasMainlineCheckpoint,state.conflictMessage == nil,!state.hasFailedPickCleanup,state.squashMessage?.skipBaseHead == nil else {return nil}
+        guard state.active,state.noCommitSquash?.phase != .uncertain,!state.hasMainlineCheckpoint,state.conflictMessage == nil,!state.hasFailedPickCleanup,state.squashMessage?.skipBaseHead == nil else {return nil}
         originalHead=state.originalHead;branch=state.branch;onto=state.onto;entry=state.stoppedEntryID
-        step=state.currentStep;splitParts=state.split?.parts ?? 0;cherryPick=state.isCherryPick
+        step=state.currentStep;splitParts=state.split?.parts ?? 0;cherryPick=state.isCherryPick;noCommitGroup=state.noCommitSquash.map {$0.id+":"+$0.phase.rawValue}
     }
 }
 public struct RebaseSessionSnapshot:Sendable {
@@ -227,9 +257,9 @@ public struct RebaseMessageIdentity: Codable, Equatable, Sendable {
     public let originalHead: String, branch: String, onto: String, entry: String, head: String, phase: String
     public let step: Int
     public init?(state: RebaseState, head: String) {
-        guard state.active,state.conflictMessage?.phase != .complete,state.conflictMessage?.phase != .uncertain, !state.hasFailedPickCleanup,!state.hasIgnoredCleanCommitFailure, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
+        guard state.active,state.noCommitSquash?.phase != .uncertain,state.conflictMessage?.phase != .complete,state.conflictMessage?.phase != .uncertain, !state.hasFailedPickCleanup,!state.hasIgnoredCleanCommitFailure, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
         originalHead = state.originalHead; branch = state.branch; onto = state.onto; entry = state.stoppedEntryID; self.head = head; step = state.currentStep
-        phase = state.conflictMessage != nil ? "conflict-message" : state.squashMessage != nil ? "squash" : state.split?.conflictRecovery == true ? "amend-selection" : state.split != nil ? "split" : state.isEditPause ? "edit" : "conflict"
+        phase = state.noCommitSquash.map {"no-commit-squash:"+$0.id+":"+$0.phase.rawValue} ?? (state.conflictMessage != nil ? "conflict-message" : state.squashMessage != nil ? "squash" : state.split?.conflictRecovery == true ? "amend-selection" : state.split != nil ? "split" : state.isEditPause ? "edit" : "conflict")
     }
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.step == rhs.step && lhs.phase == rhs.phase &&
@@ -253,9 +283,10 @@ public struct RebaseExecution: Sendable {
     }
 }
 public enum RebaseFailure: LocalizedError {
-    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult, actionEditLocked,conflictMessageUncertain
+    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult, actionEditLocked,conflictMessageUncertain,noCommitSquashUncertain
     public var errorDescription: String? {
         switch self {
+        case .noCommitSquashUncertain:return "A no-commit squash was interrupted while applying changes. Inspect the index and working tree, or abort the replay. The patch will not be applied again automatically."
         case .conflictMessageUncertain:return "A conflict-resolution commit may already have been published. Inspect HEAD before continuing, or abort the replay. The initial commit will not be repeated."
         case .actionEditLocked: return "The replay plan is being changed by another operation. Try again when it finishes."
         case .revision: return "Choose valid branch, upstream and onto revisions."
@@ -282,6 +313,8 @@ public enum RebaseEditor {
     }
     static let emptyMessagePrefix="exec false # turtlegit-empty-subject:"
     static let emptyAppliedPrefix="exec false # turtlegit-empty-applied:"
+    static let sourceSquashPrefix="exec false # turtlegit-source-squash:"
+    static func sourceSquashID(_ line:String)->String? {line.hasPrefix(sourceSquashPrefix) ? emptyMessageID(emptyMessagePrefix+line.dropFirst(sourceSquashPrefix.count)):nil}
     static let mainlinePrefix="exec false # turtlegit-mainline:"
     static func mainlineID(_ line:String)->String? {
         guard line.hasPrefix(mainlinePrefix) else{return nil}
@@ -295,15 +328,16 @@ public enum RebaseEditor {
         return id
     }
     static func ownedEmptyLine(_ line:String)->Bool {emptyMessageID(line) != nil || emptyMessageID(line,applied:true) != nil}
-    static func ownedCheckpointLine(_ line:String)->Bool {ownedEmptyLine(line) || mainlineID(line) != nil}
-    static func executionLines(_ entry:RebaseEntry,hash:String?=nil,subject:String?=nil,deferSquash:Bool=false)->[String] {
+    static func ownedCheckpointLine(_ line:String)->Bool {ownedEmptyLine(line) || mainlineID(line) != nil || sourceSquashID(line) != nil}
+    static func executionLines(_ entry:RebaseEntry,hash:String?=nil,subject:String?=nil,deferSquash:Bool=false,noCommitSquash:Bool=false)->[String] {
         // Git validates the whole todo before running the reached checkpoint,
         // and rejects merge OIDs for pick/edit/squash. Drop admits the exact
         // original OID without preparing or applying any parent-dependent patch.
-        let physicalAction=deferSquash || entry.deferredMainline && entry.mainline==nil && entry.action != .skip ? RebaseAction.skip:entry.executionAction
+        let physicalAction=noCommitSquash || deferSquash || entry.deferredMainline && entry.mainline==nil && entry.action != .skip ? RebaseAction.skip:entry.executionAction
         let command=physicalAction.rawValue+" "+(hash ?? entry.commit.hash)+" "+(subject ?? entry.commit.subject).replacingOccurrences(of:"\n",with:" ").replacingOccurrences(of:"\r",with:" ")
         return (entry.requiresEmptyMessageReview ? [emptyMessagePrefix+entry.id]:[])
             + (entry.deferredMainline && entry.action != .skip ? [mainlinePrefix+entry.id]:[])
+            + (noCommitSquash ? [sourceSquashPrefix+entry.id]:[])
             + [command] + (entry.requiresEmptyMessageReview && entry.action == .squash ? [emptyAppliedPrefix+entry.id]:[])
     }
     static func deferredSquashPositions(_ entries:[RebaseEntry])->Set<Int> {
@@ -314,6 +348,16 @@ public enum RebaseEditor {
             if entry.action != .squash {waiting=false}
             if entry.deferredMainline && entry.mainline==nil {waiting=true}
             else if waiting && entry.action == .squash {result.insert(index)}
+        }
+        return result
+    }
+    static func orphanSquashPositions(_ entries:[RebaseEntry])->Set<Int> {
+        var hasLeader=false,result=Set<Int>()
+        for index in entries.indices {
+            let action=entries[index].action
+            if action == .skip {continue}
+            if action == .squash {if !hasLeader {result.insert(index)}}
+            else {hasLeader=true}
         }
         return result
     }
@@ -345,6 +389,9 @@ public enum RebaseEditor {
             }
             if let identityData {
                 try identityData.write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-replay-identities.json"), options: .atomic)
+            }
+            if let metadata=environment["TURTLEGIT_REPLAY_SESSION"] {
+                try Data(contentsOf:URL(fileURLWithPath:metadata)).write(to:target.deletingLastPathComponent().appendingPathComponent("turtlegit-session.json"),options:.atomic)
             }
             if let metadata = environment["TURTLEGIT_REPLAY_MESSAGES"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-message-editor.json"), options: .atomic)
@@ -439,6 +486,10 @@ public enum RebaseEditor {
                     let originals=mapping.filter {$0.key.hasPrefix(fields[1])}.map(\.value)
                     guard identities.contains(where:{identity in originals.isEmpty ? identity.hash.hasPrefix(fields[1]) : originals.contains(identity.hash)}) else {return false}
                 } else {
+                    if let id=sourceSquashID(line) {
+                        guard identities.contains(where:{$0.id==id && $0.noCommitSquash==true}) else{return false}
+                        continue
+                    }
                     if let id=mainlineID(line) {
                         guard identities.contains(where:{$0.id==id && $0.deferredMainline==true}) else{return false}
                         continue
@@ -493,8 +544,8 @@ public enum RebaseEditor {
     static func currentStep(in directory: URL) -> Int {
         let emptyIdentities=(try? JSONDecoder().decode([RebaseReplayIdentity].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
         let emptyDone=((try? String(contentsOf:directory.appendingPathComponent("done"),encoding:.utf8)) ?? "").split(separator:"\n").map(String.init)
-        if let last=emptyDone.last,let id=emptyMessageID(last) ?? emptyMessageID(last,applied:true) ?? mainlineID(last),let index=emptyIdentities.firstIndex(where:{$0.id==id}) {return index+1}
-        if emptyIdentities.contains(where:{$0.emptySubject==true || $0.deferredMainline==true}),!FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
+        if let last=emptyDone.last,let id=emptyMessageID(last) ?? emptyMessageID(last,applied:true) ?? mainlineID(last) ?? sourceSquashID(last),let index=emptyIdentities.firstIndex(where:{$0.id==id}) {return index+1}
+        if emptyIdentities.contains(where:{$0.emptySubject==true || $0.deferredMainline==true || $0.noCommitSquash==true}),!FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
             if let resumed=rescheduledPick(in:directory) {return resumed.step}
             return emptyDone.filter {canonicalLine($0).split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))} != nil}.count
         }
@@ -594,9 +645,10 @@ private struct RebaseReplayIdentity: Codable {
     var mainline: Int? = nil
     var deferredMainline:Bool? = nil
     var deferredSquash:Bool? = nil
+    var noCommitSquash:Bool? = nil
     var emptySubject:Bool? = nil
     var executionAction:String? {emptySubject == true && action != RebaseAction.skip.rawValue && action != RebaseAction.squash.rawValue ? RebaseAction.edit.rawValue:action}
-    var todoAction:String? {deferredSquash==true || deferredMainline==true && mainline==nil && action != RebaseAction.skip.rawValue ? RebaseAction.skip.rawValue:executionAction}
+    var todoAction:String? {noCommitSquash==true || deferredSquash==true || deferredMainline==true && mainline==nil && action != RebaseAction.skip.rawValue ? RebaseAction.skip.rawValue:executionAction}
     var id: String { occurrence == 0 ? hash : hash + ":" + String(occurrence) }
 }
 /// Runs synchronously on the owning repository's command-drain loop. Sampling
@@ -626,7 +678,7 @@ final class RebaseProgressObservation: @unchecked Sendable {
     }
     private func file(_ name:String)->Data? {read(directory.appendingPathComponent(name))}
     private func signature()->[String] {
-        let paths=["orig-head","onto","head-name","turtlegit-replay-identities.json","done","git-rebase-todo","turtlegit-cherry-pick.json","turtlegit-structural-plan","turtlegit-skipped-steps.json","turtlegit-update-refs","update-refs","turtlegit-adopted-plan.json"].map {directory.appendingPathComponent($0)}+[headFile]
+        let paths=["orig-head","onto","head-name","turtlegit-replay-identities.json","done","git-rebase-todo","turtlegit-cherry-pick.json","turtlegit-structural-plan","turtlegit-skipped-steps.json","turtlegit-update-refs","update-refs","turtlegit-adopted-plan.json","turtlegit-no-commit-squash.json"].map {directory.appendingPathComponent($0)}+[headFile]
         return paths.map {path in
             var info=stat();guard lstat(path.path,&info)==0 else{return "missing"}
             return "\(info.st_dev):\(info.st_ino):\(info.st_mode):\(info.st_size):\(info.st_mtimespec.tv_sec):\(info.st_mtimespec.tv_nsec):\(info.st_ctimespec.tv_sec):\(info.st_ctimespec.tv_nsec)"
@@ -650,7 +702,7 @@ final class RebaseProgressObservation: @unchecked Sendable {
         if let identityBytes,identityBytes != encoded {
             guard let previous=try? JSONDecoder().decode([RebaseReplayIdentity].self,from:identityBytes),previous.count==identities.count,
                   zip(previous,identities).allSatisfy({ old,new in
-                      old.hash==new.hash && old.occurrence==new.occurrence && old.action==new.action && old.emptySubject==new.emptySubject && old.deferredMainline==new.deferredMainline && (old.deferredSquash==new.deferredSquash || old.deferredSquash==true && new.deferredSquash==false) &&
+                      old.hash==new.hash && old.occurrence==new.occurrence && old.action==new.action && old.emptySubject==new.emptySubject && old.deferredMainline==new.deferredMainline && (old.noCommitSquash==new.noCommitSquash || old.noCommitSquash != true && new.noCommitSquash==true) && (old.deferredSquash==new.deferredSquash || old.deferredSquash==true && new.deferredSquash==false) &&
                       (old.mainline==new.mainline || old.mainline==nil && new.deferredMainline==true && (new.mainline ?? 0)>0)
                   }) else{retire();return}
         }
@@ -671,7 +723,7 @@ final class RebaseProgressObservation: @unchecked Sendable {
         let structural=structuralBytes != nil || adopted?.structural==true
         for raw in text.split(separator:"\n") {
             let line=RebaseEditor.canonicalLine(String(raw)),fields=line.split(separator:" ").map(String.init)
-            if let id=RebaseEditor.emptyMessageID(line) ?? RebaseEditor.emptyMessageID(line,applied:true) ?? RebaseEditor.mainlineID(line),let index=entries.firstIndex(where:{$0.id==id}) {current=index+1;continue}
+            if let id=RebaseEditor.emptyMessageID(line) ?? RebaseEditor.emptyMessageID(line,applied:true) ?? RebaseEditor.mainlineID(line) ?? RebaseEditor.sourceSquashID(line),let index=entries.firstIndex(where:{$0.id==id}) {current=index+1;continue}
             guard let command=fields.first else{continue}
             if command.hasPrefix("#") {continue}
             guard RebaseAction(rawValue:command) != nil || ["label","reset","merge","break","update-ref","noop"].contains(command) else{return}
@@ -747,7 +799,16 @@ extension GitRepository {
             guard (anchorInfo.st_mode&S_IFMT)==S_IFREG else{throw RebaseFailure.plan}
         } else {
             guard errno==ENOENT else{throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno),userInfo:nil)}
-            let value=RebaseMainlineAnchor(entryID:entryID,sessionIdentity:sessionIdentity,head:try rebaseRevision("HEAD",cancellation:cancellation),parents:parents)
+            var value=RebaseMainlineAnchor(entryID:entryID,sessionIdentity:sessionIdentity,head:try rebaseRevision("HEAD",cancellation:cancellation),parents:parents)
+            let identities=replayIdentities(directory)
+            if let index=identities.firstIndex(where:{$0.id==entryID}),identities.dropFirst(index+1).first(where:{$0.action != RebaseAction.skip.rawValue})?.action==RebaseAction.squash.rawValue,identities[index].action != RebaseAction.squash.rawValue {
+                let original=try rebaseCommit(identities[index].hash,cancellation:cancellation)
+                let session=try? JSONDecoder().decode(RebaseSessionContext.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-session.json")))
+                var message=Self.sourceSquashMessage(original)
+                if session?.addCherryPickedFrom==true {message += (original.historyBody.isEmpty ? "\n":"\n\n")+"(cherry picked from commit "+original.hash+")"}
+                value.squashLeader = .init(message:message,name:original.author,email:original.email,date:original.date)
+                if let first=original.parents.first {value.squashCurrentEmpty=try run(["diff","--quiet",first,original.hash,"--"],successfulExitCodes:0...1).exitCode==0}
+            }
             try JSONEncoder().encode(value).write(to:anchor,options:.atomic)
         }
         guard let bytes=try actionEditFile(directory,anchor.lastPathComponent).bytes else{throw RebaseFailure.changed}
@@ -777,6 +838,7 @@ extension GitRepository {
             return fields.joined(separator: " ")
         }
         let identities = replayIdentities(directory)
+        let noCommit=active ? try noCommitGroup(directory):nil
         let commandSlots=commands.indices.filter {commands[$0].split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))} != nil}
         let commandOffset=identities.count-commandSlots.count
         if commandOffset>=0 {
@@ -792,7 +854,7 @@ extension GitRepository {
         let projected = active && (identities.isEmpty || adopted != nil)
         let logicalDone=Self.adoptionCommands(read("done")),logicalTodo=Self.adoptionCommands(read("git-rebase-todo"))
         let done = read("done").split(separator:"\n").map {RebaseEditor.canonicalLine(String($0))}
-        let warningID=done.last.flatMap {RebaseEditor.emptyMessageID($0)}
+        let warningID=done.last.flatMap {RebaseEditor.emptyMessageID($0)}.flatMap {id in noCommit?.reviewedEmpty.contains(id)==true ? nil:id}
         let mainlineID=done.last.flatMap {RebaseEditor.mainlineID($0)}
         let mainlineIndex=mainlineID.flatMap {id in identities.firstIndex(where:{$0.id==id && $0.deferredMainline==true && $0.action != RebaseAction.skip.rawValue})}
         if mainlineID != nil && mainlineIndex==nil {throw RebaseFailure.plan}
@@ -800,7 +862,8 @@ extension GitRepository {
         let appliedID=done.last.flatMap {RebaseEditor.emptyMessageID($0,applied:true)}
         let emptyIndex=(warningID ?? appliedID).flatMap {id in identities.firstIndex(where:{$0.id==id && $0.emptySubject==true && $0.action != RebaseAction.skip.rawValue})}
         if (warningID != nil || appliedID != nil) && emptyIndex==nil {throw RebaseFailure.plan}
-        checkpointIndex = emptyIndex ?? mainlineIndex
+        let sourceIndex=done.last.flatMap {RebaseEditor.sourceSquashID($0)}.flatMap {id in identities.firstIndex(where:{$0.id==id && $0.noCommitSquash==true})}
+        checkpointIndex = emptyIndex ?? mainlineIndex ?? sourceIndex ?? noCommit.map {$0.step-1}
         let step = checkpointIndex.map{$0+1} ?? (projected ? max(1,logicalDone.count):RebaseEditor.currentStep(in: directory))
         let structural = manager.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path)
         let currentMerge=logicalDone.last?.first == "merge" || identities.indices.contains(step-1) && adopted?.merges.contains(identities[step-1].id) == true
@@ -838,26 +901,43 @@ extension GitRepository {
                 conflictMessage=record
             }
         }
-        let editPause = conflictMessage?.phase == .pending || warningID == nil && mainlineID == nil && active && conflicts.isEmpty && action == .edit && (appliedID != nil || mergeEdit || manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && (split?.conflictRecovery == true && (split?.parts ?? 0) > 0 || split?.conflictRecoveryReturn != nil))
-        let pending = request?.step == step && conflicts.isEmpty ? request : nil
+        let editPause = conflictMessage?.phase == .pending || warningID == nil && mainlineID == nil && active && conflicts.isEmpty && (action == .edit || split?.conflictRecovery==true) && (appliedID != nil || mergeEdit || manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && (split?.conflictRecovery == true && (split?.parts ?? 0) > 0 || split?.conflictRecoveryReturn != nil))
+        var pending = request?.step == step && conflicts.isEmpty ? request : nil
+        if let noCommit,noCommit.phase == .approval,conflicts.isEmpty {
+            let configuration=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-message-editor.json")))
+            pending = .init(message:noCommit.message,datePolicy:configuration.datePolicy,latestDate:noCommit.latestDate,step:step,isNewCommit:true)
+        }
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
         let mergeResult = active && (structural || adopted?.structural == true || projected && currentMerge) && (editPause || pending != nil) ? try rebaseCommit("HEAD", cancellation: cancellation).parents.count > 1 : false
         try cancellation?.check()
+        let displayedMessage:String
+        if let noCommit {displayedMessage=noCommit.message}
+        else if warningID != nil || mainlineID != nil {displayedMessage=try rebaseCommit(originalStopped,cancellation:cancellation).message}
+        else if mergeEdit || appliedID != nil || activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil {displayedMessage=try rebaseCommit("HEAD",cancellation:cancellation).message}
+        else {displayedMessage=try readMessage()}
         var result = RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
-                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, mergeParents: active ? ((try? String(contentsOf:rebasePath("MERGE_HEAD", cancellation: cancellation),encoding:.utf8)) ?? "").split(whereSeparator: \.isWhitespace).map(String.init) : [], message: warningID != nil || mainlineID != nil ? (try rebaseCommit(originalStopped,cancellation:cancellation).message) : mergeEdit || appliedID != nil || activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD", cancellation: cancellation).message : try readMessage(), currentStep: step,
-                           total: projected ? logicalDone.count+logicalTodo.count:referenceUpdates || structural || identities.contains(where:{$0.emptySubject==true || $0.deferredMainline==true}) ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
+                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, mergeParents: active ? ((try? String(contentsOf:rebasePath("MERGE_HEAD", cancellation: cancellation),encoding:.utf8)) ?? "").split(whereSeparator: \.isWhitespace).map(String.init) : [], message: displayedMessage, currentStep: step,
+                           total: projected ? logicalDone.count+logicalTodo.count:referenceUpdates || structural || identities.contains(where:{$0.emptySubject==true || $0.deferredMainline==true || $0.noCommitSquash==true}) ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: structural || projected ? commands.compactMap { command in
                                let fields = command.split(separator:" ").map(String.init)
                                if fields.first == "pick" || fields.first == "edit" || fields.first == "squash" || fields.first == "drop" { return command }
                                if fields.first == "merge", fields.count >= 3 { return "pick " + fields[2] }
                                return nil
                            } : commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
-                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: conflictMessage == nil && warningID == nil && mainlineID == nil && active && !manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path) && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
+                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: noCommit != nil ? noCommit?.phase == .conflicted:conflictMessage == nil && warningID == nil && mainlineID == nil && active && !manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path) && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
+        if let noCommit {
+            guard identities.indices.contains(noCommit.step-1) else{throw RebaseFailure.plan}
+            var files=try actionEditFiles(directory)
+            files["source-index"] = .init(bytes:try conflictMessageIndex())
+            result.noCommitSquash = .init(id:noCommit.id,entryID:identities[noCommit.step-1].id,baseHead:noCommit.baseHead,step:noCommit.step,phase:noCommit.phase == .applying ? .uncertain:noCommit.phase,preservesLeaderAuthor:noCommit.leader != nil,files:files)
+        }
         result.conflictMessage=conflictMessage
         if let index=emptyIndex,warningID != nil {
             let identity=identities[index]
             guard let requested=identity.action.flatMap(RebaseAction.init(rawValue:)),requested != .skip,try rebaseCommit(identity.hash,cancellation:cancellation).hasEmptyReplaySubject else {throw RebaseFailure.changed}
             result.emptyMessageWarning=RebaseEmptyMessageWarning(entryID:identity.id,commit:identity.hash,requestedAction:requested,step:index+1,head:try rebaseRevision("HEAD",cancellation:cancellation))
+            let original=try rebaseCommit(identity.hash,cancellation:cancellation)
+            _ = try reachedMainlineAnchor(directory,entryID:identity.id,sessionIdentity:failedPickSessionIdentity(directory),parents:original.parents,cancellation:cancellation)
         }
         result.hasMainlineCheckpoint=mainlineIndex != nil
         if let index=mainlineIndex {
@@ -866,6 +946,7 @@ extension GitRepository {
             if identity.mainline==nil {
                 var pending=read("git-rebase-todo").components(separatedBy:"\n").map {RebaseEditor.canonicalLine($0.trimmingCharacters(in:.whitespaces))}.filter {!$0.isEmpty && !$0.hasPrefix("#")}
                 if pending.first.flatMap(RebaseEditor.mainlineID)==identity.id {pending.removeFirst()}
+                if pending.first.flatMap(RebaseEditor.sourceSquashID)==identity.id {pending.removeFirst()}
                 guard let first=pending.first else{throw RebaseFailure.changed}
                 let fields=first.split(separator:" ",maxSplits:2)
                 guard fields.count>=2,fields[0]==RebaseAction.skip.rawValue,fields[1].utf8.count>=4,identity.hash.hasPrefix(String(fields[1])) else{throw RebaseFailure.changed}
@@ -1005,11 +1086,11 @@ extension GitRepository {
         var result: [RebaseEntry] = []
         func recovered(_ hash: String, action: RebaseAction, position: Int) throws -> RebaseEntry {
             var entry = RebaseEntry(commit: try rebaseCommit(hash, cancellation: cancellation), action: action)
-            if identities.indices.contains(position), identities[position].hash == entry.commit.hash {entry.occurrence=identities[position].occurrence;entry.mainline=identities[position].mainline;entry.deferredMainline=identities[position].deferredMainline==true;if identities[position].emptySubject==true || identities[position].deferredMainline==true || identities[position].deferredSquash==true {entry.action=identities[position].action.flatMap(RebaseAction.init(rawValue:)) ?? action}}
+            if identities.indices.contains(position), identities[position].hash == entry.commit.hash {entry.occurrence=identities[position].occurrence;entry.mainline=identities[position].mainline;entry.deferredMainline=identities[position].deferredMainline==true;if identities[position].emptySubject==true || identities[position].deferredMainline==true || identities[position].deferredSquash==true || identities[position].noCommitSquash==true {entry.action=identities[position].action.flatMap(RebaseAction.init(rawValue:)) ?? action}}
             return entry
         }
-        if state.emptyMessageWarning==nil,!state.hasMainlineCheckpoint,!state.stoppedCommit.isEmpty { result.append(try recovered(state.stoppedCommit, action: .edit, position: state.currentStep - 1)) }
-        var position = state.currentStep-(state.emptyMessageWarning == nil && !state.hasMainlineCheckpoint ? 0:1)
+        if state.emptyMessageWarning==nil,!state.hasMainlineCheckpoint,state.noCommitSquash == nil || state.noCommitSquash?.phase == .approval || state.noCommitSquash?.phase == .committed,!state.stoppedCommit.isEmpty { result.append(try recovered(state.stoppedCommit, action: .edit, position: state.currentStep - 1)) }
+        var position = state.currentStep-(state.emptyMessageWarning == nil && !state.hasMainlineCheckpoint && (state.noCommitSquash == nil || state.noCommitSquash?.phase == .approval || state.noCommitSquash?.phase == .committed) ? 0:1)
         for line in state.remainingCommands {
             let fields = line.split(separator: " ", maxSplits: 2)
             guard fields.count >= 2, let action = RebaseAction(rawValue: String(fields[0])) else { continue }
@@ -1057,7 +1138,7 @@ extension GitRepository {
         var conflicts:[ConflictEntry]=[],rows:[StatusEntry]=[],statistics:GitPathMap<CommitFile>=[:]
         if recovery {
             conflicts=try self.conflicts(cancellation:cancellation)
-            let group=state.stoppedAction == .squash
+            let group=state.stoppedAction == .squash && state.noCommitSquash == nil
             rows=try commitDialogStatus(amendToParent:group,cancellation:cancellation).filter {$0.state != .untracked && $0.state != .ignored}
             statistics=GitPathMap(try workingTreeFiles(amendToParent:group,cancellation:cancellation).map {($0.path,$0)},uniquingKeysWith:{_,last in last})
         }
@@ -1075,14 +1156,14 @@ extension GitRepository {
         let final=try rebaseState(cancellation:cancellation),finalHead=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         try cancellation?.check()
         guard state.active == final.active,identity == RebaseConflictIdentity(final),state.stoppedAction == final.stoppedAction,
-              state.mainlineDecision == final.mainlineDecision,state.hasMainlineCheckpoint == final.hasMainlineCheckpoint,state.mainlineCheckpointHead == final.mainlineCheckpointHead,
+              state.noCommitSquash == final.noCommitSquash,state.mainlineDecision == final.mainlineDecision,state.hasMainlineCheckpoint == final.hasMainlineCheckpoint,state.mainlineCheckpointHead == final.mainlineCheckpointHead,
               state.remainingCommands == final.remainingCommands,state.conflicts.map({GitReferenceName($0)}) == final.conflicts.map({GitReferenceName($0)}),state.message == final.message,
               state.squashMessage?.message == final.squashMessage?.message,state.isEditPause == final.isEditPause,head == finalHead else {throw RebaseFailure.changed}
         return RebaseSessionSnapshot(state:state,identity:recovery ? identity:nil,fileRecovery:recovery,conflicts:conflicts,rows:rows,statistics:statistics,indexFlags:indexFlags,head:head,remaining:remaining,replay:replay,messageCommit:messageCommit)
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         try validateRebaseIdentities(plan)
-        guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
+        guard plan.entries.first?.action != .squash else { throw RebaseFailure.squash }
         if plan.options.preserveMerges { return try structuralRebaseTodo(plan) }
         if plan.options.isCherryPick {
             for entry in plan.entries where entry.action != .skip {
@@ -1092,9 +1173,11 @@ extension GitRepository {
             }
         }
         if plan.entries.isEmpty { return "noop\n" }
-        return plan.entries.flatMap {value -> [String] in
-            var entry=value;entry.deferredMainline=plan.options.isCherryPick && entry.commit.parents.count>1 && entry.mainline==nil
-            return RebaseEditor.executionLines(entry)
+        var entries=plan.entries
+        for index in entries.indices {entries[index].deferredMainline=plan.options.isCherryPick && entries[index].commit.parents.count>1 && entries[index].mainline==nil}
+        let deferred=RebaseEditor.deferredSquashPositions(entries),orphans=RebaseEditor.orphanSquashPositions(entries)
+        return entries.enumerated().flatMap {index,entry in
+            RebaseEditor.executionLines(entry,deferSquash:deferred.contains(index),noCommitSquash:orphans.contains(index))
         }.joined(separator:"\n")+"\n"
     }
     /// Source parent rewrite semantics for structural Pick, Skip and Edit plans.
@@ -1204,13 +1287,16 @@ extension GitRepository {
         let path = temporary.appendingPathComponent("todo")
         // Validate the original plan first; synthetic merge IDs intentionally differ from its selections.
         let structural = plan.options.preserveMerges
-        let deferredSquashes=RebaseEditor.deferredSquashPositions(replay.entries)
-        let todo = replay.entries.enumerated().flatMap {index,entry in RebaseEditor.executionLines(entry,deferSquash:deferredSquashes.contains(index)).map {line in line.hasPrefix(RebaseEditor.emptyMessagePrefix) ? RebaseEditor.emptyMessagePrefix+plan.entries[index].id:line.hasPrefix(RebaseEditor.emptyAppliedPrefix) ? RebaseEditor.emptyAppliedPrefix+plan.entries[index].id:line.hasPrefix(RebaseEditor.mainlinePrefix) ? RebaseEditor.mainlinePrefix+plan.entries[index].id:line}}.joined(separator:"\n")+"\n"
+        let deferredSquashes=RebaseEditor.deferredSquashPositions(replay.entries),orphans=RebaseEditor.orphanSquashPositions(replay.entries)
+        let todo = replay.entries.enumerated().flatMap {index,entry in RebaseEditor.executionLines(entry,deferSquash:deferredSquashes.contains(index),noCommitSquash:orphans.contains(index)).map {line in line.hasPrefix(RebaseEditor.emptyMessagePrefix) ? RebaseEditor.emptyMessagePrefix+plan.entries[index].id:line.hasPrefix(RebaseEditor.emptyAppliedPrefix) ? RebaseEditor.emptyAppliedPrefix+plan.entries[index].id:line.hasPrefix(RebaseEditor.mainlinePrefix) ? RebaseEditor.mainlinePrefix+plan.entries[index].id:line.hasPrefix(RebaseEditor.sourceSquashPrefix) ? RebaseEditor.sourceSquashPrefix+plan.entries[index].id:line}}.joined(separator:"\n")+"\n"
         try Data((structural ? try structuralRebaseTodo(plan) : replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
         var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
         if structural { environment["TURTLEGIT_STRUCTURAL_PLAN"] = "1" }
+        let earlySession=temporary.appendingPathComponent("session.json")
+        try JSONEncoder().encode(RebaseSessionContext(options:plan.options,afterFetch:afterFetch,autoStart:autoStart,fromLog:fromLog)).write(to:earlySession)
+        environment["TURTLEGIT_REPLAY_SESSION"]=earlySession.path
         let identityFile = temporary.appendingPathComponent("identities.json")
-        try JSONEncoder().encode(plan.entries.enumerated().map { index,entry in RebaseReplayIdentity(hash:entry.commit.hash,occurrence:entry.occurrence,action:entry.action.rawValue,mainline:entry.mainline,deferredMainline:plan.options.isCherryPick && entry.commit.parents.count>1 && entry.mainline==nil,deferredSquash:deferredSquashes.contains(index),emptySubject:entry.commit.hasEmptyReplaySubject) }).write(to: identityFile)
+        try JSONEncoder().encode(plan.entries.enumerated().map { index,entry in RebaseReplayIdentity(hash:entry.commit.hash,occurrence:entry.occurrence,action:entry.action.rawValue,mainline:entry.mainline,deferredMainline:plan.options.isCherryPick && entry.commit.parents.count>1 && entry.mainline==nil,deferredSquash:deferredSquashes.contains(index),noCommitSquash:orphans.contains(index),emptySubject:entry.commit.hasEmptyReplaySubject) }).write(to: identityFile)
         environment["TURTLEGIT_REPLAY_IDENTITIES"] = identityFile.path
         if plan.entries.contains(where: { $0.action == .squash }) {
             let messageFile = temporary.appendingPathComponent("replay-messages.json")
@@ -1245,7 +1331,9 @@ extension GitRepository {
     private func rebaseSquashIsEmptyOwned() throws -> Bool {
         let state = try rebaseState()
         guard state.active, state.squashMessage != nil, state.squashMessage?.skipBaseHead == nil, state.conflicts.isEmpty, state.split == nil else { throw RebaseFailure.plan }
-        let base = try commitComparisonBase(amendToParent: true)
+        if let group=try noCommitGroup(rebasePath("rebase-merge")),group.allowsEmpty {return false}
+        let base:String
+        if let group=state.noCommitSquash {base=group.baseHead}else{base=try commitComparisonBase(amendToParent:true)}
         return try run(["diff", "--cached", "--quiet", base, "--"], successfulExitCodes: 0...1).exitCode == 0
     }
     private func resumeEmptySquashSkip(_ pending: RebaseSquashMessage) throws -> RebaseExecution {
@@ -1259,6 +1347,7 @@ extension GitRepository {
     private func requireRebaseContinuation(_ actual: RebaseState, expected: RebaseState, expectedHead: String) throws {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let sameSquash = try encoder.encode(actual.squashMessage) == encoder.encode(expected.squashMessage)
+        guard actual.noCommitSquash==expected.noCommitSquash else{throw RebaseFailure.changed}
         let sameSplit = try encoder.encode(actual.split) == encoder.encode(expected.split)
         guard actual.active, expected.active, actual.isCherryPick == expected.isCherryPick,
               actual.mainlineCheckpointHead.map({$0==expectedHead}) ?? true,
@@ -1286,6 +1375,11 @@ extension GitRepository {
             try requireRebaseContinuation(actual, expected: expected, expectedHead: expectedHead)
             guard actual.emptyMessageWarning == warning, warning.head == expectedHead else { throw RebaseFailure.changed }
             try removePendingEmptyMarker(warning.entryID, applied: false)
+            let directory=try rebasePath("rebase-merge")
+            if var group=try noCommitGroup(directory) {
+                group.reviewedEmpty.append(warning.entryID)
+                try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+            }
             return try recoverRebase("--continue")
         }
     }
@@ -1321,14 +1415,15 @@ extension GitRepository {
                 guard let index=identities.firstIndex(where:{$0.id==decision.entryID}),index+1==decision.step,identities[index].mainline==nil,identities[index].deferredMainline==true else{throw RebaseFailure.changed}
                 var todo=String(decoding:files["git-rebase-todo"]!.bytes!,as:UTF8.self).components(separatedBy:"\n")
                 if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),RebaseEditor.mainlineID(todo[first])==decision.entryID {todo.remove(at:first)}
-                guard let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}) else{throw RebaseFailure.changed}
+                let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#") && RebaseEditor.sourceSquashID($0) != decision.entryID})
+                guard let first else{throw RebaseFailure.changed}
                 let fields=RebaseEditor.canonicalLine(todo[first]).split(separator:" ",maxSplits:2).map(String.init)
                 guard fields.count>=2,fields[0]==RebaseAction.skip.rawValue,original.hash.hasPrefix(fields[1]),fields[1].utf8.count>=4 else{throw RebaseFailure.changed}
                 guard let executionAction=identities[index].executionAction,executionAction != RebaseAction.skip.rawValue else{throw RebaseFailure.changed}
-                todo[first]=executionAction+" "+hash+" "+fields.dropFirst(2).joined(separator:" ")
+                todo[first]=(identities[index].noCommitSquash==true ? RebaseAction.skip.rawValue:executionAction)+" "+hash+" "+fields.dropFirst(2).joined(separator:" ")
                 var mapping=try JSONDecoder().decode([String:String].self,from:files["turtlegit-cherry-pick.json"]!.bytes!)
                 mapping[hash]=original.hash;identities[index].mainline=parent
-                try restoreDeferredSquashes(after:index,todo:&todo,identities:&identities,mapping:mapping)
+                if identities[index].noCommitSquash != true {try restoreDeferredSquashes(after:index,todo:&todo,identities:&identities,mapping:mapping)}
                 var after=files
                 after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
                 after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))
@@ -1380,6 +1475,306 @@ extension GitRepository {
             try Data(lines.joined(separator: "\n").utf8).write(to: url, options: .atomic)
         }
     }
+    private static let noCommitSquashName="turtlegit-no-commit-squash.json"
+    private func noCommitGroup(_ directory:URL)throws->RebaseNoCommitGroup? {
+        guard let bytes=try actionEditFile(directory,Self.noCommitSquashName).bytes else{return nil}
+        guard bytes.count<=16_777_216 else{throw RebaseFailure.plan}
+        let group=try JSONDecoder().decode(RebaseNoCommitGroup.self,from:bytes)
+        let identities=replayIdentities(directory),known=Set(identities.map(\.id))
+        guard UUID(uuidString:group.id) != nil,group.session == (try failedPickSessionIdentity(directory)),GitLocalReferenceProtocol.validOID(group.baseHead),group.step>0,identities.indices.contains(group.step-1),
+              Set(group.applied).count==group.applied.count,Set(group.prepared).count==group.prepared.count,Set(group.applied).isSubset(of:known),Set(group.prepared).isSubset(of:known),
+              (group.readd+group.remove).allSatisfy({RepositoryBrowserListing.validPath($0,allowRoot:false)}) else{throw RebaseFailure.changed}
+        return group
+    }
+    private func publishNoCommitGroup(_ group:RebaseNoCommitGroup?,directory:URL,files:[String:RebaseActionEditFile],todo:[String]?=nil,done:[String]?=nil,identities:[RebaseReplayIdentity]?=nil)throws {
+        var after=files
+        after[Self.noCommitSquashName] = .init(bytes:try group.map {try JSONEncoder().encode($0)})
+        if let todo {after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))}
+        if let done {after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))}
+        if let identities {after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))}
+        let journal=directory.appendingPathComponent(Self.actionEditJournal)
+        try JSONEncoder().encode(RebaseActionEditJournal(version:2,before:files,after:after)).write(to:journal,options:.atomic)
+        for name in Self.actionEditNames where name != "git-rebase-todo" {try actionEditWrite(after[name]!,directory:directory,name:name)}
+        try actionEditWrite(after["git-rebase-todo"]!,directory:directory,name:"git-rebase-todo")
+        try FileManager.default.removeItem(at:journal)
+    }
+    private func noCommitGroupExecution(_ output:String="",code:Int32=0)throws->RebaseExecution {
+        let state=try rebaseState(),head=try rebaseRevision("HEAD")
+        replayProgressObservation?.sample(force:true)
+        return .init(output:output,exitCode:code,state:state,witnessedHead:head,witnessedSession:try failedPickSessionIdentity(rebasePath("rebase-merge")))
+    }
+    private func startNoCommitGroupIfReached()throws->Bool {
+        let directory=try rebasePath("rebase-merge")
+        if try noCommitGroup(directory) != nil {return true}
+        guard let done=try actionEditFile(directory,"done").bytes,let line=String(decoding:done,as:UTF8.self).split(separator:"\n").last,
+              let id=RebaseEditor.sourceSquashID(String(line)) ?? RebaseEditor.emptyMessageID(String(line)) ?? RebaseEditor.mainlineID(String(line)) else{return false}
+        let identities=replayIdentities(directory)
+        guard let index=identities.firstIndex(where:{$0.id==id && $0.noCommitSquash==true}) else{return false}
+        let original=try rebaseCommit(identities[index].hash)
+        let group=RebaseNoCommitGroup(id:UUID().uuidString,session:try failedPickSessionIdentity(directory),baseHead:try rebaseRevision("HEAD"),step:index+1,phase:.waiting,message:"",leader:nil,latestDate:original.date)
+        try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+        return true
+    }
+    /// Runs only owned no-commit rows. Git's sequencer must not see their staged
+    /// changes until the user's normal commit succeeds (or the group is skipped).
+    private func advanceNoCommitGroup()throws->RebaseExecution {
+        let directory=try rebasePath("rebase-merge")
+        guard var group=try noCommitGroup(directory) else{throw RebaseFailure.plan}
+        if group.phase == .committed {return try finishNoCommitGroup(group)}
+        guard try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.changed}
+        if group.phase == .applying || group.phase == .uncertain {throw RebaseFailure.noCommitSquashUncertain}
+        if group.phase == .conflicted || group.phase == .approval {return try noCommitGroupExecution()}
+        var output=""
+        while true {
+            try replayCancellation?.check()
+            var identities=replayIdentities(directory)
+            guard identities.indices.contains(group.step-1),identities[group.step-1].action==RebaseAction.squash.rawValue else{throw RebaseFailure.changed}
+            let identity=identities[group.step-1]
+            if !group.prepared.contains(identity.id) {
+                if !group.message.isEmpty {group.message += "\n\n"}
+                let original=try rebaseCommit(identity.hash)
+                let originalEmpty:Bool
+                if let parent=original.parents.first {originalEmpty=try run(["diff","--quiet",parent,original.hash,"--"],successfulExitCodes:0...1).exitCode==0}else{originalEmpty=false}
+                if !originalEmpty {group.allowsEmpty=false}else if identity.emptySubject==true {group.allowsEmpty=true}
+                group.message += try noCommitSourceMessage(original,directory:directory)
+                group.latestDate=original.date;group.prepared.append(identity.id)
+                try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+            }
+            let currentState=try rebaseState()
+            if currentState.emptyMessageWarning != nil || currentState.mainlineDecision != nil {return try noCommitGroupExecution(output)}
+            var files=try actionEditFiles(directory)
+            var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+            var done=String(decoding:files["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n").filter {!$0.isEmpty}
+            // Accepted warnings/parent questions have already been validated by
+            // their APIs. Move only this row's remaining owned marker to done.
+            while let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}) {
+                let line=RebaseEditor.canonicalLine(todo[first])
+                let pendingEmpty=RebaseEditor.emptyMessageID(line)==identity.id && !group.reviewedEmpty.contains(identity.id)
+                let pendingMainline=RebaseEditor.mainlineID(line)==identity.id && identity.mainline==nil
+                if pendingEmpty || pendingMainline {
+                    // The first owned group row can itself require review. It
+                    // has no previously applied row to expose this boundary.
+                    // Preparation is durable; the row and index stay unapplied.
+                    done.append(todo.remove(at:first))
+                    try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done)}
+                    return try noCommitGroupExecution(output)
+                }
+                if RebaseEditor.sourceSquashID(line)==identity.id || RebaseEditor.emptyMessageID(line)==identity.id && group.reviewedEmpty.contains(identity.id) || RebaseEditor.mainlineID(line)==identity.id && identity.mainline != nil {done.append(todo.remove(at:first));continue}
+                break
+            }
+            if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("squash ") {todo[first]="drop "+todo[first].dropFirst(7)}
+            if done.last.flatMap(RebaseEditor.sourceSquashID) != identity.id {done.append(RebaseEditor.sourceSquashPrefix+identity.id)}
+            guard let slot=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}) else{throw RebaseFailure.changed}
+            let parts=RebaseEditor.canonicalLine(todo[slot]).split(separator:" ",maxSplits:2).map(String.init)
+            guard parts.count>=2,parts[0]==RebaseAction.skip.rawValue else{throw RebaseFailure.changed}
+            let mapping=try files["turtlegit-cherry-pick.json"]?.bytes.map {try JSONDecoder().decode([String:String].self,from:$0)} ?? [:]
+            guard identity.hash.hasPrefix(mapping[parts[1]] ?? parts[1]) else{throw RebaseFailure.changed}
+            let original=try rebaseCommit(identity.hash)
+            if !group.resolvedCurrent {group.beforeTree=try run(["write-tree"]).text.trimmingCharacters(in:.newlines)}
+            group.phase = .applying
+            try withActionEditLock(directory) {
+                guard files == (try actionEditFiles(directory)),try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.changed}
+                try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done)
+            }
+            do {if !group.resolvedCurrent {output += try run(["cherry-pick","--no-commit",parts[1]]).text}}
+            catch let failure as GitFailure {
+                group.phase = (try hasWorkingTreeConflicts()) ? .conflicted:.uncertain
+                try replayUncancelled {try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}}
+                return try noCommitGroupExecution(output+failure.message,code:failure.code)
+            } catch {
+                group.phase = .uncertain
+                try? replayUncancelled {try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}}
+                throw error
+            }
+            group.phase = .waiting;group.resolvedCurrent=false
+            group.applied.append(identity.id)
+            files=try actionEditFiles(directory)
+            todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+            done=String(decoding:files["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n").filter {!$0.isEmpty}
+            guard let current=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[current]==parts.joined(separator:" ") else{throw RebaseFailure.changed}
+            done.append(todo.remove(at:current))
+            todo.removeAll {RebaseEditor.emptyMessageID($0,applied:true)==identity.id}
+            let next=identities.indices.first { $0>=group.step && identities[$0].action != RebaseAction.skip.rawValue }
+            let followingSquash=next.map {identities[$0].action==RebaseAction.squash.rawValue} ?? false
+            // Empty-subject local Edit pauses even in the middle of a group.
+            if !followingSquash || identity.emptySubject==true {
+                group.phase = .approval
+                try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done)}
+                return try noCommitGroupExecution(output)
+            }
+            let nextIndex=next!
+            // Retire only intervening Skip rows and expose the next warning or
+            // parent question without asking Git to process the staged group.
+            while let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}) {
+                let line=RebaseEditor.canonicalLine(todo[first]),fields=line.split(separator:" ").map(String.init)
+                if fields.first==RebaseAction.skip.rawValue,fields.count>=2,
+                   let skipped=identities.indices.first(where:{$0>=group.step && $0<nextIndex && identities[$0].action==RebaseAction.skip.rawValue && identities[$0].hash.hasPrefix(fields[1])}) {
+                    _ = skipped;done.append(todo.remove(at:first));continue
+                }
+                if RebaseEditor.emptyMessageID(line)==identities[nextIndex].id || RebaseEditor.mainlineID(line)==identities[nextIndex].id {
+                    done.append(todo.remove(at:first));group.step=nextIndex+1
+                    if !group.prepared.contains(identities[nextIndex].id) {
+                        if !group.message.isEmpty {group.message += "\n\n"}
+                        let original=try rebaseCommit(identities[nextIndex].hash)
+                        let originalEmpty=try original.parents.first.map {try run(["diff","--quiet",$0,original.hash,"--"],successfulExitCodes:0...1).exitCode==0} ?? false
+                        if !originalEmpty {group.allowsEmpty=false}else if identities[nextIndex].emptySubject==true {group.allowsEmpty=true}
+                        group.message += try noCommitSourceMessage(original,directory:directory)
+                        group.latestDate=original.date;group.prepared.append(identities[nextIndex].id)
+                    }
+                    identities[nextIndex].noCommitSquash=true
+                    try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done,identities:identities)}
+                    return try noCommitGroupExecution(output)
+                }
+                break
+            }
+            group.step=nextIndex+1;identities[nextIndex].noCommitSquash=true
+            // A formerly normal Squash becomes an owned drop before applying.
+            if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("squash ") {todo[first]="drop "+todo[first].dropFirst(7)}
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done,identities:identities)}
+        }
+    }
+    private static func sourceSquashMessage(_ original:LogEntry)->String {
+        let parts=LogEntry.splitHistoryMessage(original.message)
+        var body=parts.body
+        while body.last?.isWhitespace==true {body.removeLast()}
+        return parts.subject+"\n"+body
+    }
+    private func noCommitSourceMessage(_ original:LogEntry,directory:URL)throws->String {
+        var message=Self.sourceSquashMessage(original)
+        let context=try? JSONDecoder().decode(RebaseSessionContext.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-session.json")))
+        if context?.addCherryPickedFrom==true {message += (original.historyBody.isEmpty ? "\n":"\n\n")+"(cherry picked from commit "+original.hash+")"}
+        return message
+    }
+    private func approveNoCommitGroup(message:String?,emptyChoice:RebaseEmptyChoice?)throws->RebaseExecution {
+        let directory=try rebasePath("rebase-merge")
+        guard var group=try noCommitGroup(directory),group.phase == .approval,try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.changed}
+        let empty=try run(["diff","--cached","--quiet",group.baseHead,"--"],successfulExitCodes:0...1).exitCode==0
+        if empty && !group.allowsEmpty {
+            guard let emptyChoice else{throw RebaseFailure.emptyResult}
+            if emptyChoice == .cancel {return try noCommitGroupExecution()}
+            if emptyChoice == .skip {
+                group.phase = .committed;group.committedHead=group.baseHead
+                try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+                return try finishNoCommitGroup(group)
+            }
+            group.allowsEmpty=true
+        } else if emptyChoice != nil {throw RebaseFailure.changed}
+        guard let message,!message.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw RebaseFailure.message}
+        group.message=message
+        let file=try makeCommitMessageFile(message,appendFinalNewline:false);defer{file.remove()}
+        var arguments=["commit","--cleanup=verbatim","-F",file.url.path]+(empty ? ["--allow-empty"]:[])
+        var environment:[String:String]=[:]
+        if let leader=group.leader {
+            environment=["GIT_AUTHOR_NAME":leader.name,"GIT_AUTHOR_EMAIL":leader.email]
+            let configuration=try JSONDecoder().decode(RebaseMessageConfiguration.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-message-editor.json")))
+            let date=configuration.datePolicy == .first ? leader.date:configuration.datePolicy == .latest ? group.latestDate:ISO8601DateFormatter().string(from:Date())
+            arguments += ["--date",date]
+        }
+        group.phase = .applying
+        try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+        var output=""
+        do {output=try run(arguments,environmentOverrides:environment).text}
+        catch {
+            let unchanged=(try? rebaseRevision("HEAD"))==group.baseHead
+            group.phase=unchanged ? .approval:.uncertain
+            try? replayUncancelled {try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}}
+            if unchanged,let failure=error as? GitFailure {try throwCleanReplayMessageFailure(failure,message:message)}
+            throw error
+        }
+        try clearCleanCommitFailure()
+        group.committedHead=try rebaseRevision("HEAD");group.phase = .committed
+        try replayUncancelled {try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}}
+        let result=try finishNoCommitGroup(group)
+        return .init(output:output+result.output,exitCode:result.exitCode,state:result.state,witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
+    }
+    public func continueRebaseNoCommitSquash(paths:some Sequence<String>,expected:RebaseState,expectedHead:String,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,indexPolicy:CommitCheckboxIndexPolicy?=nil,onProgress:(@Sendable(RebaseProgress)->Void)?=nil)throws->RebaseExecution {
+        let selected=GitPathSet(paths)
+        return try withProtectedReplayIO(cancellation:cancellation,onOutput:onOutput,onProgress:onProgress) {
+            let state=try rebaseState();try requireRebaseContinuation(state,expected:expected,expectedHead:expectedHead)
+            let directory=try rebasePath("rebase-merge")
+            guard var group=try noCommitGroup(directory),group.phase == .conflicted,group.baseHead==expectedHead else{throw RebaseFailure.changed}
+            let changes=try status()
+            guard selected.allSatisfy({path in changes.contains(where:{GitReferenceName.equal($0.path,path) && $0.state != .ignored && $0.state != .untracked})}) else{throw RebaseFailure.plan}
+            // Stage resolution only. An unchecked unresolved path remains a
+            // conflict and keeps this exact no-commit row pending.
+            if !selected.isEmpty {_ = try run(["add","--all","--pathspec-from-file=-","--pathspec-file-nul"],input:literalPathPacket(selected.sorted()))}
+            guard !(try hasWorkingTreeConflicts()) else{throw RebaseFailure.plan}
+            if let indexPolicy {
+                let restoration=try prepareCLICommitIndex(changes:status(),checked:selected,policy:indexPolicy,base:expectedHead,cancellation:nil,onOutput:replayOutput)
+                group.readd=restoration.readd.sorted();group.remove=restoration.remove.sorted();group.readdUnchecked=indexPolicy.readdUnchecked
+            }
+            if FileManager.default.fileExists(atPath:try rebasePath("CHERRY_PICK_HEAD").path) {_ = try run(["cherry-pick","--quit"])}
+            group.phase = .waiting;group.resolvedCurrent=true
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:actionEditFiles(directory))}
+            return try advanceNoCommitGroup()
+        }
+    }
+    private func finishNoCommitGroup(_ saved:RebaseNoCommitGroup)throws->RebaseExecution {
+        var group=saved
+        guard let head=group.committedHead else{throw RebaseFailure.changed}
+        let directory=try rebasePath("rebase-merge"),identities=replayIdentities(directory)
+        let currentHead=try rebaseRevision("HEAD")
+        let next=identities.indices.first {$0>=group.step && identities[$0].action != RebaseAction.skip.rawValue}
+        if let next,identities[next].action==RebaseAction.squash.rawValue {
+            guard currentHead==head || currentHead==group.baseHead else{throw RebaseFailure.changed}
+            let approved=try rebaseCommit(head)
+            guard approved.parents.first==group.baseHead || head==group.baseHead else{throw RebaseFailure.changed}
+            if currentHead==head,head != group.baseHead {_ = try run(["reset","--soft",group.baseHead,"--"])}
+            group.leader = .init(message:group.message,name:approved.author,email:approved.email,date:approved.date)
+            group.latestDate=approved.date;group.step=next+1;group.phase = .waiting;group.committedHead=nil
+            var updated=identities;updated[next].noCommitSquash=true
+            try withActionEditLock(directory) {
+                let files=try actionEditFiles(directory)
+                var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+                // Approval consumes only the post-entry pause for rows whose
+                // no-commit patch was actually applied in this owned group.
+                let applied=Set(group.applied)
+                todo.removeAll {line in RebaseEditor.emptyMessageID(line,applied:true).map {applied.contains($0)} ?? false}
+                if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("squash ") {todo[first]="drop "+todo[first].dropFirst(7)}
+                try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,identities:updated)
+            }
+            return try advanceNoCommitGroup()
+        }
+        guard currentHead==head else{throw RebaseFailure.changed}
+        // Git's own rewrite/notes consumers need the final result even though
+        // their physical commands were deliberately nonapplying drops.
+        let rewrite=directory.appendingPathComponent("rewritten-list")
+        var rewritten=try actionEditFile(directory,"rewritten-list").bytes ?? Data()
+        guard rewritten.count<=16_777_216 else{throw RebaseFailure.plan}
+        for id in group.applied {
+            guard let identity=identities.first(where:{$0.id==id}) else{throw RebaseFailure.changed}
+            let line=Data((identity.hash+" "+head+"\n").utf8)
+            if rewritten.range(of:line)==nil {rewritten.append(line)}
+        }
+        try rewritten.write(to:rewrite,options:.atomic)
+        if group.readdUnchecked {
+            if !group.readd.isEmpty {_ = try run(["add","--ignore-errors","-f","--pathspec-from-file=-","--pathspec-file-nul"],input:literalPathPacket(group.readd))}
+            if !group.remove.isEmpty {_ = try run(["rm","--cached","--ignore-unmatch","--pathspec-from-file=-","--pathspec-file-nul"],input:literalPathPacket(group.remove))}
+        }
+        if !(try replayWorktreeIsClean()) {
+            let commit=try rebaseCommit(head)
+            var selection=RebaseSplitState(entryID:identities[group.step-1].id,step:group.step,expectedHead:head,parts:1,firstAuthor:commit.author+" <"+commit.email+">",firstDate:commit.date,squashDate:nil)
+            selection.conflictRecovery=true;selection.firstParents=commit.parents
+            try JSONEncoder().encode(selection).write(to:directory.appendingPathComponent("turtlegit-split.json"),options:.atomic)
+            try Data((identities[group.step-1].hash+"\n").utf8).write(to:directory.appendingPathComponent("stopped-sha"),options:.atomic)
+            try withActionEditLock(directory) {
+                let files=try actionEditFiles(directory)
+                var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+                let applied=Set(group.applied)
+                todo.removeAll {line in RebaseEditor.emptyMessageID(line,applied:true).map {applied.contains($0)} ?? false}
+                try publishNoCommitGroup(nil,directory:directory,files:files,todo:todo)
+            }
+            return try noCommitGroupExecution()
+        }
+        try withActionEditLock(directory) {
+            let files=try actionEditFiles(directory)
+            var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+            let applied=Set(group.applied)
+            todo.removeAll {line in RebaseEditor.emptyMessageID(line,applied:true).map {applied.contains($0)} ?? false}
+            try publishNoCommitGroup(nil,directory:directory,files:files,todo:todo)
+        }
+        return try recoverRebase("--continue")
+    }
     private func continueRebaseOwned(editorExecutable: URL? = nil, squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil, expectedReplayState: RebaseState? = nil, expectedReplayHead: String? = nil) throws -> RebaseExecution {
         let state = try rebaseState()
         if let expectedReplayState {
@@ -1389,6 +1784,13 @@ extension GitRepository {
         guard state.active else { throw RebaseFailure.inactive }
         guard state.emptyMessageWarning == nil else { throw RebaseFailure.message }
         guard state.mainlineDecision == nil else {throw RebaseFailure.mainline}
+        if let phase=state.noCommitSquash {
+            if let failure=state.cleanCommitFailure {throw failure}
+            if phase.phase == .uncertain {throw RebaseFailure.noCommitSquashUncertain}
+            if phase.phase == .approval {return try approveNoCommitGroup(message:squashMessage,emptyChoice:emptySquashChoice)}
+            if phase.phase == .conflicted {throw RebaseFailure.plan}
+            if state.mainlineDecision == nil {return try advanceNoCommitGroup()}
+        }
         if state.hasMainlineCheckpoint {
             guard state.mainlineCheckpointHead == (try rebaseRevision("HEAD")) else{throw RebaseFailure.changed}
             return try recoverRebase("--continue")
@@ -1467,9 +1869,60 @@ extension GitRepository {
         let result = try recoverRebase("--continue")
         return RebaseExecution(output: output + result.output, exitCode: result.exitCode, state: result.state,witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
     }
+    private func skipNoCommitGroup()throws->RebaseExecution {
+        let directory=try rebasePath("rebase-merge")
+        guard var group=try noCommitGroup(directory),group.phase != .applying,group.phase != .uncertain,group.phase != .committed,try rebaseRevision("HEAD")==group.baseHead else{throw RebaseFailure.noCommitSquashUncertain}
+        var identities=replayIdentities(directory)
+        guard identities.indices.contains(group.step-1) else{throw RebaseFailure.changed}
+        let index=group.step-1,id=identities[index].id
+        if (group.phase == .conflicted || group.phase == .approval),let tree=group.beforeTree {
+            _ = try run(["read-tree","--reset","-u",tree])
+            if FileManager.default.fileExists(atPath:try rebasePath("CHERRY_PICK_HEAD").path) {_ = try run(["cherry-pick","--quit"])}
+        }
+        identities[index].action=RebaseAction.skip.rawValue
+        group.applied.removeAll {$0==id}
+        let files=try actionEditFiles(directory)
+        var todo=String(decoding:files["git-rebase-todo"]!.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+        var done=String(decoding:files["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n").filter {!$0.isEmpty}
+        if group.phase != .approval {
+            while let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}) {
+                let line=RebaseEditor.canonicalLine(todo[first])
+                if RebaseEditor.emptyMessageID(line)==id || RebaseEditor.mainlineID(line)==id || RebaseEditor.sourceSquashID(line)==id {todo.remove(at:first);continue}
+                let parts=line.split(separator:" ",maxSplits:2)
+                guard parts.count>=2,parts[0]==RebaseAction.skip.rawValue else{throw RebaseFailure.changed}
+                done.append(todo.remove(at:first));break
+            }
+        }
+        done.removeAll {RebaseEditor.emptyMessageID($0)==id || RebaseEditor.mainlineID($0)==id || RebaseEditor.sourceSquashID($0)==id}
+        todo.removeAll {RebaseEditor.emptyMessageID($0,applied:true)==id}
+        let next=identities.indices.first {$0>index && identities[$0].action != RebaseAction.skip.rawValue}
+        if let next,identities[next].action==RebaseAction.squash.rawValue {
+            for position in (index+1)..<next {
+                guard identities[position].action==RebaseAction.skip.rawValue,let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("drop ") else{throw RebaseFailure.changed}
+                done.append(todo.remove(at:first))
+            }
+            group.step=next+1;group.phase = .waiting;group.resolvedCurrent=false
+            identities[next].noCommitSquash=true
+            if let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("squash ") {todo[first]="drop "+todo[first].dropFirst(7)}
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done,identities:identities)}
+            return try advanceNoCommitGroup()
+        }
+        if try run(["diff","--cached","--quiet",group.baseHead,"--"],successfulExitCodes:0...1).exitCode != 0 {
+            group.phase = .approval
+            if let last=group.applied.last,let previous=identities.firstIndex(where:{$0.id==last}) {group.step=previous+1}
+            try withActionEditLock(directory) {try publishNoCommitGroup(group,directory:directory,files:files,todo:todo,done:done,identities:identities)}
+            return try noCommitGroupExecution()
+        }
+        try withActionEditLock(directory) {try publishNoCommitGroup(nil,directory:directory,files:files,todo:todo,done:done,identities:identities)}
+        return try recoverRebase("--continue")
+    }
     private func skipRebaseOwned(bookkeepingStep: Int? = nil) throws -> RebaseExecution {
         let before = try rebaseState()
         guard before.active else { throw RebaseFailure.inactive }
+        if before.noCommitSquash != nil {
+            guard before.cleanCommitFailure == nil,!before.hasIgnoredCleanCommitFailure else{throw RebaseFailure.changed}
+            return try withProtectedReplayIO(cancellation:replayCancellation,onOutput:replayOutput) {try skipNoCommitGroup()}
+        }
         guard before.conflictMessage == nil,before.cleanCommitFailure == nil,!before.hasIgnoredCleanCommitFailure else{throw RebaseFailure.changed}
         if before.hasMainlineCheckpoint {guard before.mainlineCheckpointHead == (try rebaseRevision("HEAD")) else{throw RebaseFailure.changed}}
         let checkpoint:RebaseEmptyMessageWarning?
@@ -1519,8 +1972,40 @@ extension GitRepository {
                 done.removeAll {RebaseEditor.emptyMessageID($0)==warning.entryID || RebaseEditor.mainlineID($0)==warning.entryID}
                 identities[index].action = RebaseAction.skip.rawValue
                 let mapping=try files["turtlegit-cherry-pick.json"]?.bytes.map {try JSONDecoder().decode([String:String].self,from:$0)} ?? [:]
-                try restoreDeferredSquashes(after:index,todo:&todo,identities:&identities,mapping:mapping)
+                var orphanIndices=Set<Int>(),hasLeader=false
+                for position in identities.indices {
+                    let requested=identities[position].action
+                    if requested==RebaseAction.skip.rawValue {continue}
+                    if requested==RebaseAction.squash.rawValue {if !hasLeader {orphanIndices.insert(position)}}else{hasLeader=true}
+                }
+                var createdGroup:RebaseNoCommitGroup?
+                if let next=orphanIndices.filter({$0>index}).min() {
+                    for position in orphanIndices {identities[position].noCommitSquash=true;identities[position].deferredSquash=false}
+                    var actionPosition=index,rewritten:[String]=[]
+                    for line in todo {
+                        let parts=RebaseEditor.canonicalLine(line).split(separator:" ",maxSplits:2).map(String.init)
+                        if parts.count>=2,RebaseAction(rawValue:parts[0]) != nil {
+                            if orphanIndices.contains(actionPosition) {
+                                rewritten.append(RebaseEditor.sourceSquashPrefix+identities[actionPosition].id)
+                                rewritten.append("drop "+parts.dropFirst().joined(separator:" "))
+                            }else{rewritten.append(line)}
+                            actionPosition += 1
+                        }else{rewritten.append(line)}
+                    }
+                    todo=rewritten
+                    // The skipped row is consumed without touching HEAD/index.
+                    // Only intervening Skip rows may precede the orphan group.
+                    for position in index..<next {
+                        guard identities[position].action==RebaseAction.skip.rawValue,let first=todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),todo[first].hasPrefix("drop ") else{throw RebaseFailure.changed}
+                        done.append(todo.remove(at:first))
+                    }
+                    let anchor=try reachedMainlineAnchor(directory,entryID:warning.entryID,sessionIdentity:failedPickSessionIdentity(directory),parents:rebaseCommit(warning.commit).parents,cancellation:replayCancellation)
+                    let original=try rebaseCommit(identities[next].hash)
+                    createdGroup = .init(id:UUID().uuidString,session:try failedPickSessionIdentity(directory),baseHead:warning.head,step:next+1,phase:.waiting,message:anchor.squashLeader?.message ?? "",leader:anchor.squashLeader,latestDate:original.date)
+                    createdGroup?.allowsEmpty=anchor.squashCurrentEmpty ?? false
+                }else{try restoreDeferredSquashes(after:index,todo:&todo,identities:&identities,mapping:mapping)}
                 var after = files
+                if let createdGroup {after[Self.noCommitSquashName] = .init(bytes:try JSONEncoder().encode(createdGroup))}
                 after["git-rebase-todo"] = .init(bytes: Data(todo.joined(separator: "\n").utf8))
                 after["done"] = .init(bytes: Data(done.joined(separator: "\n").utf8))
                 after["turtlegit-replay-identities.json"] = .init(bytes: try JSONEncoder().encode(identities))
@@ -1562,6 +2047,7 @@ extension GitRepository {
     }
     private func abortRebaseOwned() throws -> RebaseExecution { try recoverRebase("--abort") }
     private func recoverRebase(_ action: String) throws -> RebaseExecution {
+        if action=="--continue",try noCommitGroup(rebasePath("rebase-merge")) != nil {return try advanceNoCommitGroup()}
         let state=try rebaseState()
         guard state.active else { throw RebaseFailure.inactive }
         let configuration = try rebasePath("rebase-merge/turtlegit-message-editor.json")
@@ -1677,6 +2163,7 @@ extension GitRepository {
     private func executeRebase(_ arguments: [String], environment: [String: String]) throws -> RebaseExecution {
         func execution(_ output:String,_ exitCode:Int32) throws -> RebaseExecution {
             let head=try? rebaseRevision("HEAD"),state=try rebaseState()
+            if state.active,!arguments.contains("--abort"),try startNoCommitGroupIfReached() {return try advanceNoCommitGroup()}
             let session=state.active ? (try? failedPickSessionIdentity(rebasePath("rebase-merge"))) : nil
             let done = state.active ? (try? String(contentsOf: rebasePath("rebase-merge/done"), encoding: .utf8)) : nil
             let last = done?.split(separator: "\n").last.map(String.init)
@@ -2101,6 +2588,7 @@ extension GitRepository {
         let identity=failure.identity
         var expectedFiles=failure.files
         if expectedFiles[Self.conflictMessageName] == nil {expectedFiles[Self.conflictMessageName] = .init(bytes:nil)}
+        if expectedFiles[Self.noCommitSquashName] == nil {expectedFiles[Self.noCommitSquashName] = .init(bytes:nil)}
         guard state.active,!state.hasFailedPickCleanup,state.emptyMessageWarning == nil,
               state.originalHead==identity.originalHead,state.branch==identity.branch,state.onto==identity.onto,
               state.stoppedEntryID==identity.entry,state.currentStep==identity.step,
@@ -2113,11 +2601,7 @@ extension GitRepository {
         let url=try rebasePath("rebase-merge/"+Self.cleanCommitFailureName)
         if FileManager.default.fileExists(atPath:url.path) {try FileManager.default.removeItem(at:url)}
     }
-    private func commitReplayMessage(_ arguments:[String],message:String,environment:[String:String]=[:])throws->String {
-        let result:GitResult
-        do {
-            result=try run(arguments,environmentOverrides:environment)
-        } catch let failure as GitFailure {
+    private func throwCleanReplayMessageFailure(_ failure:GitFailure,message:String)throws->Never {
             try replayCancellation?.check()
             // Pinned CheckCleanWorkTree ignores untracked files and submodules;
             // it may refresh index stat metadata, so capture witnesses afterward.
@@ -2130,6 +2614,13 @@ extension GitRepository {
                 sessionIdentity:try failedPickSessionIdentity(directory),files:try cleanCommitFailureFiles(directory),ignored:false)
             try JSONEncoder().encode(receipt).write(to:directory.appendingPathComponent(Self.cleanCommitFailureName),options:.atomic)
             throw receipt
+    }
+    private func commitReplayMessage(_ arguments:[String],message:String,environment:[String:String]=[:])throws->String {
+        let result:GitResult
+        do {
+            result=try run(arguments,environmentOverrides:environment)
+        } catch let failure as GitFailure {
+            try throwCleanReplayMessageFailure(failure,message:message)
         }
         try clearCleanCommitFailure()
         return result.text
@@ -2184,6 +2675,24 @@ extension GitRepository {
             guard state.cleanCommitFailure==failure,expectedHead==failure.head,
                   try cleanCommitFailureMatches(failure,state:state,directory:directory),
                   try replayWorktreeIsClean() else {throw RebaseFailure.changed}
+            if var group=try noCommitGroup(directory) {
+                guard group.phase == .approval else{throw RebaseFailure.changed}
+                group.phase = .committed;group.committedHead=expectedHead;group.message=failure.message
+                try withActionEditLock(directory) {
+                    var before=try cleanCommitFailureFiles(directory)
+                    before[Self.cleanCommitFailureName]=try actionEditFile(directory,Self.cleanCommitFailureName)
+                    var after=before
+                    after[Self.noCommitSquashName] = .init(bytes:try JSONEncoder().encode(group))
+                    after[Self.cleanCommitFailureName] = .init(bytes:nil)
+                    let journal=directory.appendingPathComponent(Self.actionEditJournal)
+                    try JSONEncoder().encode(RebaseActionEditJournal(version:3,before:before,after:after)).write(to:journal,options:.atomic)
+                    for name in before.keys where name != "git-rebase-todo" {try actionEditWrite(after[name]!,directory:directory,name:name)}
+                    try actionEditWrite(after["git-rebase-todo"]!,directory:directory,name:"git-rebase-todo")
+                    try FileManager.default.removeItem(at:journal)
+                }
+                return try finishNoCommitGroup(group)
+            }
+
             if let phase=state.conflictMessage {
                 try requireConflictMessage(phase,state:state,directory:directory)
                 return try finishConflictMessage(phase,state:state)
@@ -2217,7 +2726,7 @@ extension GitRepository {
             return try recoverRebase("--continue")
         }
     }
-    private static let actionEditNames = ["git-rebase-todo", "done", "turtlegit-replay-identities.json", "turtlegit-message-editor.json", "turtlegit-cherry-pick.json", "turtlegit-adopted-plan.json"]
+    private static let actionEditNames = ["git-rebase-todo", "done", "turtlegit-replay-identities.json", "turtlegit-message-editor.json", "turtlegit-cherry-pick.json", "turtlegit-adopted-plan.json","turtlegit-no-commit-squash.json"]
     private static let actionEditJournal = "turtlegit-action-edit.json"
     private func actionEditFile(_ directory: URL, _ name: String) throws -> RebaseActionEditFile {
         let url = directory.appendingPathComponent(name)
@@ -2253,10 +2762,11 @@ extension GitRepository {
             guard let bytes = try actionEditFile(directory, Self.actionEditJournal).bytes else { return }
             let journal = try JSONDecoder().decode(RebaseActionEditJournal.self, from: bytes)
             let names=Set(journal.before.keys),ordinary=Set(Self.actionEditNames)
-            let bases=[ordinary,ordinary.subtracting([Self.adoptedPlanName])]
+            let legacy=ordinary.subtracting([Self.noCommitSquashName])
+            let bases=[ordinary,ordinary.subtracting([Self.adoptedPlanName]),legacy,legacy.subtracting([Self.adoptedPlanName])]
             let cleanNames=Set(Self.cleanCommitFailureNames+[Self.cleanCommitFailureName])
             guard (1...3).contains(journal.version),names == Set(journal.after.keys),
-                  (journal.version==3 ? names==cleanNames || names==cleanNames.subtracting([Self.conflictMessageName]) : bases.contains(where:{base in names==base || journal.version==2 && (names==base.union(["message","stopped-sha"]) || names==base.union([Self.failedPickIntentName]))})),
+                  (journal.version==3 ? names==cleanNames || names==cleanNames.subtracting([Self.conflictMessageName]) || names==cleanNames.subtracting([Self.noCommitSquashName]) || names==cleanNames.subtracting([Self.conflictMessageName,Self.noCommitSquashName]) : bases.contains(where:{base in names==base || journal.version==2 && (names==base.union(["message","stopped-sha"]) || names==base.union([Self.failedPickIntentName]))})),
                   (journal.version==2 || journal.before["done"] == journal.after["done"]) else { throw RebaseFailure.plan }
             let actual=try Dictionary(uniqueKeysWithValues:names.map {($0,try actionEditFile(directory,$0))})
             let useNew = actual["git-rebase-todo"] == journal.after["git-rebase-todo"]
@@ -2316,7 +2826,7 @@ extension GitRepository {
                     rows[index].action = requested; identities[index].action = requested.rawValue
                 }
                 if rows.map(\.action) == oldRows.map(\.action) { return }
-                guard rows.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
+                guard rows.first?.action != .squash else { throw RebaseFailure.squash }
                 let todo = String(decoding: expected.files["git-rebase-todo"]!.bytes!, as: UTF8.self)
                 let done = String(decoding: expected.files["done"]?.bytes ?? Data(), as: UTF8.self)
                 let structural = FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-structural-plan").path)
@@ -2369,16 +2879,18 @@ extension GitRepository {
                     // Non-native structural/custom todo commands are preserved by
                     // refusing a receipt that cannot be reproduced exactly.
                     guard execution.count == values.count else { throw RebaseFailure.plan }
-                    let deferred=RebaseEditor.deferredSquashPositions(values)
+                    let deferred=RebaseEditor.deferredSquashPositions(values),orphans=RebaseEditor.orphanSquashPositions(values)
                     let custom = try values.indices.map { index -> String in
                         let fields = execution[index], hash = fields[1]
                         let original = originalHash(hash)
                         guard values[index].commit.hash.hasPrefix(original) else { throw RebaseFailure.changed }
-                        return RebaseEditor.executionLines(values[index], hash: hash, subject: fields.dropFirst(2).joined(separator: " "),deferSquash:deferred.contains(index)).joined(separator: "\n")
+                        return RebaseEditor.executionLines(values[index], hash: hash, subject: fields.dropFirst(2).joined(separator: " "),deferSquash:deferred.contains(index),noCommitSquash:orphans.contains(index)).joined(separator: "\n")
                     }.joined(separator: "\n") + "\n"
+                    let applied=Set((try noCommitGroup(directory))?.applied ?? [])
+                    let protectedCustom=custom.components(separatedBy:"\n").filter {line in RebaseEditor.emptyMessageID(line,applied:true).map { !applied.contains($0) } ?? true}.joined(separator:"\n")
                     var positions: [String: Int] = [:]
                     for index in execution.indices where positions[execution[index][1]] == nil { positions[execution[index][1]] = index }
-                    return try RebaseEditor.mergeReferenceUpdates(generated: done + "\n" + todo, custom: custom, originalPositions: positions).todo
+                    return try RebaseEditor.mergeReferenceUpdates(generated: done + "\n" + todo, custom: protectedCustom, originalPositions: positions).todo
                 }
                 func lines(_ text: String) -> [String] {
                     text.split(separator: "\n").map { RebaseEditor.canonicalLine(String($0)) }.filter { !$0.hasPrefix("#") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }.map { line in
@@ -2397,8 +2909,8 @@ extension GitRepository {
                 }
                 let before = try generated(oldRows, execution: commands)
                 guard lines(before) == lines(done + "\n" + todo) else { throw RebaseFailure.changed }
-                let deferred=RebaseEditor.deferredSquashPositions(rows)
-                for index in identities.indices {identities[index].deferredSquash=deferred.contains(index)}
+                let deferred=RebaseEditor.deferredSquashPositions(rows),orphans=RebaseEditor.orphanSquashPositions(rows)
+                for index in identities.indices {identities[index].deferredSquash=deferred.contains(index);identities[index].noCommitSquash=orphans.contains(index)}
                 let updated = try generated(rows, execution: newCommands), completed = lines(done), newLines = lines(updated)
                 var prefix = 0
                 for (index, actual) in completed.enumerated() {
@@ -2742,6 +3254,10 @@ extension GitRepository {
                 let control=Array(fields.prefix(while:{$0 != "#"}))
                 let previousCommand=precedingCommand
                 precedingCommand=line
+                if let id=RebaseEditor.sourceSquashID(line) {
+                    guard identities.contains(where:{$0.id==id && $0.noCommitSquash==true}) else{throw RebaseFailure.plan}
+                    continue
+                }
                 if let id=RebaseEditor.mainlineID(line) {
                     guard identities.contains(where:{$0.id==id && $0.deferredMainline==true}),FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-cherry-pick.json").path) else{throw RebaseFailure.plan}
                     continue
@@ -2794,7 +3310,7 @@ extension GitRepository {
                         if identity.deferredMainline==true && identity.mainline==nil {deferredGroup=true}
                     }
                     let deferredSquash = !isDone && action == .skip && row.action == .squash && identity.deferredSquash==true && deferredGroup
-                    if !isMerge,row.action != action,identity.executionAction != action.rawValue,!deferredDrop,!deferredSquash,!(isDone && skipped.contains(rows.count+1) && row.action == .skip) {throw RebaseFailure.changed}
+                    if !isMerge,row.action != action,identity.executionAction != action.rawValue,!deferredDrop,!deferredSquash,!(identity.noCommitSquash==true && action == .skip && RebaseEditor.sourceSquashID(previousCommand)==identity.id),!(isDone && skipped.contains(rows.count+1) && row.action == .skip) {throw RebaseFailure.changed}
                     row.mainline=identity.mainline;row.deferredMainline=identity.deferredMainline==true;row.originalEmptySubject=identity.emptySubject
                 }
                 if skipped.contains(rows.count+1) {row.action = .skip}
@@ -2856,13 +3372,17 @@ extension GitRepository {
             }
             rows[index].action=requested
         }
-        guard rows.first(where:{$0.action != .skip})?.action != .squash else {throw RebaseFailure.squash}
+        guard rows.first?.action != .squash else {throw RebaseFailure.squash}
         let needsProtection = rows.contains { $0.progress == .pending && $0.requiresEmptyMessageReview && !projection.todo.contains(RebaseEditor.emptyMessagePrefix + $0.id) }
         guard rows.map(\.action) != projection.rows.map(\.action) || needsProtection else {return}
-        let deferred=RebaseEditor.deferredSquashPositions(rows)
+        let deferred=RebaseEditor.deferredSquashPositions(rows),orphans=RebaseEditor.orphanSquashPositions(rows)
         var lines=projection.todo,result:[String]=[]
         for lineIndex in lines.indices {
             let line=lines[lineIndex]
+            if let id=RebaseEditor.sourceSquashID(line) {
+                guard projection.rows.contains(where:{$0.id==id}) else{throw RebaseFailure.plan}
+                continue
+            }
             if let id=RebaseEditor.mainlineID(line) {
                 guard projection.rows.contains(where:{$0.id==id && $0.deferredMainline}) else{throw RebaseFailure.plan}
                 continue
@@ -2889,13 +3409,13 @@ extension GitRepository {
                 guard fields.count==2 else {throw RebaseFailure.plan}
                 let body=String(fields[1]).split(separator:" ",maxSplits:1).map(String.init)
                 guard let hash=body.first else {throw RebaseFailure.plan}
-                result.append(contentsOf:RebaseEditor.executionLines(row,hash:hash,subject:body.dropFirst().joined(separator:" "),deferSquash:deferred.contains(index)))
+                result.append(contentsOf:RebaseEditor.executionLines(row,hash:hash,subject:body.dropFirst().joined(separator:" "),deferSquash:deferred.contains(index),noCommitSquash:orphans.contains(index)))
             }
         }
         var after=expected.files
         after["git-rebase-todo"]=RebaseActionEditFile(bytes:Data(result.joined(separator:"\n").utf8))
         after[Self.adoptedPlanName]=RebaseActionEditFile(bytes:try JSONEncoder().encode(plan))
-        after["turtlegit-replay-identities.json"]=RebaseActionEditFile(bytes:try JSONEncoder().encode(rows.enumerated().map{index,row in RebaseReplayIdentity(hash:row.commit.hash,occurrence:row.occurrence,action:row.action.rawValue,mainline:row.mainline,deferredMainline:row.deferredMainline,deferredSquash:deferred.contains(index),emptySubject:row.commit.hasEmptyReplaySubject)}))
+        after["turtlegit-replay-identities.json"]=RebaseActionEditFile(bytes:try JSONEncoder().encode(rows.enumerated().map{index,row in RebaseReplayIdentity(hash:row.commit.hash,occurrence:row.occurrence,action:row.action.rawValue,mainline:row.mainline,deferredMainline:row.deferredMainline,deferredSquash:deferred.contains(index),noCommitSquash:orphans.contains(index),emptySubject:row.commit.hasEmptyReplaySubject)}))
         let old=try expected.files["turtlegit-message-editor.json"]?.bytes.map{try JSONDecoder().decode(RebaseMessageConfiguration.self,from:$0)}
         var config=try RebaseMessageConfiguration(editorCommand:old?.editorCommand ?? RebaseEditor.messageCommand(executable:editorExecutable),datePolicy:old?.datePolicy ?? .first,dates:old?.dates ?? rows.map{$0.commit.date},actions:rows.map{$0.action.rawValue},messages:old?.messages ?? rows.map{$0.commit.message},commitEncoding:old?.commitEncoding ?? commitMessageEncodingName())
         config.reviewedThrough=old?.reviewedThrough

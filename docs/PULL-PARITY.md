@@ -123,8 +123,10 @@ URL failures do not get the unrelated action. That retry preserves captured flag
 and adds `--allow-unrelated-histories`, without automatically accepting unrelated
 history. Pull opens fresh options; Stash Save requests a return Pull. Reset reads
 the current tracked upstream and opens native Reset with Hard selected, without
-resetting before confirmation. Source's optional post-result See changes question
-still needs its native implementation.
+resetting before confirmation. At that checkpoint the source's optional
+post-result See Changes question was still missing. The later
+[conflict-result review family](PULL-RESULT-PARITY.md) supersedes that implementation
+gap; its current validation scope remains separate from this historical evidence.
 
 Stash Save's Pull action now uses a shared follow-up conversion: Push follows the
 saved `pullShowPush` flag and Stash Pop is requested, as upstream does even when
@@ -248,3 +250,15 @@ the argument-recorder setup repair. Complete hosted/physical/signed parity is
 not established.
 
 The October 17 [source transport form family](FETCH-PARITY.md#source-transport-forms-and-exact-native-selections--october-17-2026) replaces delayed remote updates with captured model-owned controls, guards merge/FF/depth/rebase dependencies and history/chooser ownership, and retires shared native targets. Source layout order and existing transport/recovery routes are retained. Grouped validation and physical/signed acceptance limits are recorded with that family.
+
+
+## Conflict-result Close and owned follow-up — October 26, 2026
+
+[Pull result review](PULL-RESULT-PARITY.md) distinguishes accepted result Close,
+Cancel/window dismissal and accepted post-actions. A real exit-1 conflict result
+can offer the source Yes/No Working Tree review after Close, with actual
+question/detachment/worker ownership and late-answer suppression. Existing Pull
+post-actions and Fetch-before-Rebase completion routes remain distinct.
+The [grouped checkpoint](qa/pull-leading-squash-2026-10-26.json) records the
+Debug build and both native Git engines passing, including the retained initial
+owner-visibility failure and its scoped repair.

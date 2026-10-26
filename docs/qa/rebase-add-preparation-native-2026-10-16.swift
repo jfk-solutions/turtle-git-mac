@@ -172,6 +172,7 @@ import TurtleGitCore
         try await reachedOrdering()
         try await repeatedReachedSkip()
         try await reachedOwnership()
+        try await noCommitSquashRecovery()
         try require(RebaseWindowController.activeCommitPickers == 0, "Picker counter leaked")
         print("PASS: owned Add/draft/picker and reached Cherry Pick merge-parent recovery; cancellation, ordered empty review, repeated Skip, reopen, stale answer and forced close; Git \(CommandLine.arguments[2])")
     }
@@ -251,6 +252,62 @@ import TurtleGitCore
             try require(replayAfter.map(\.id)==replayBefore.map(\.id) && replayAfter.map(\.mainline)==replayBefore.map(\.mainline),"Stale answer persisted a parent into replay metadata")
             await c.cleanup()
         }catch{await c.cleanup();throw error}
+    }
+    @MainActor static func noCommitSquashRecovery()async throws {
+        for mode in ["commit","abort","conflict"] {
+            let c=try ReachedContext("reached-no-commit-"+mode)
+            do {
+                try await c.seed()
+                if mode=="conflict" {
+                    try Data("different destination contents\n".utf8).write(to:c.root.appendingPathComponent("last.txt"))
+                    try await c.repository.stage(["last.txt"])
+                    _=try await c.repository.commit(message:"destination owns last path")
+                    c.originalHead=try await c.repository.rebaseCommit("HEAD").hash
+                }
+                let owner=try await c.open([c.last.hash,c.merge.hash]),model=owner.model
+                let ids=model.plan!.entries.map(\.id)
+                model.setAction(.squash,ids:[ids[1]])
+                try require(model.plan!.entries.map(\.action)==[.pick,.squash] && model.canStart,"Following Squash plan unavailable")
+                c.hold(model);start(model);try await wait {!c.answers.isEmpty}
+                let reached=try await c.repository.rebaseState()
+                try require(reached.mainlineDecision?.entryID==ids[0],"Leading merge parent was not reached before Squash")
+                c.answer(nil);try await wait {!model.busy};try await drain()
+                try require((try await c.repository.rebaseCommit("HEAD")).hash==c.originalHead,"Parent Cancel committed the leading merge")
+                c.request(model,"skip");try await wait {!model.busy && model.state?.noCommitSquash != nil};try await drain()
+                let stopped=try await c.repository.rebaseState(),before=try await c.repository.rebaseCommit("HEAD")
+                try require(before.hash==c.originalHead && stopped.noCommitSquash?.baseHead==c.originalHead && stopped.noCommitSquash?.entryID==ids[1] && stopped.noCommitSquash?.preservesLeaderAuthor==true && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Skipped leader changed HEAD or lost reached author/group identity")
+                if mode=="conflict" {
+                    try require(stopped.noCommitSquash?.phase == .conflicted && stopped.conflicts.contains("last.txt") && model.fileRecovery,"No-commit apply conflict did not reach checked-file recovery")
+                    try Data("resolved combined file\n".utf8).write(to:c.root.appendingPathComponent("last.txt"))
+                    model.setConflictChecked("last.txt",checked:true)
+                    try require(model.checkedConflicts.contains("last.txt"),"Resolved path could not be checked")
+                    c.request(model,"continue");try await wait {!model.busy && model.state?.noCommitSquash?.phase == .approval};try await drain()
+                    let resolvedHead=try await c.repository.rebaseCommit("HEAD").hash,resolvedState=try await c.repository.rebaseState()
+                    try require(resolvedHead==c.originalHead && resolvedState.conflicts.isEmpty,"Selected resolution committed before combined message approval")
+                }
+                let approved=try await c.repository.rebaseState(),index=try await c.repository.run(["ls-files","--stage"]).stdout
+                try require(approved.noCommitSquash?.phase == .approval && approved.squashMessage?.isNewCommit==true && model.canEditMessage && model.primaryActionTitle=="Commit","New combined commit approval was presented as amendment")
+                let draft="Reviewed skipped leader group\n\n"+c.merge.message.trimmingCharacters(in:.newlines)+"\n\n"+c.last.message.trimmingCharacters(in:.newlines)+"\n"
+                model.messageBinding(model.formContext).wrappedValue=draft
+                owner.close();try await drain()
+                let reopened=try await c.open(),next=reopened.model
+                let reopenedHead=try await c.repository.rebaseCommit("HEAD").hash,reopenedIndex=try await c.repository.run(["ls-files","--stage"]).stdout
+                try require(next.state?.noCommitSquash==approved.noCommitSquash && next.state?.squashMessage?.isNewCommit==true && reopenedHead==c.originalHead && reopenedIndex==index,"Reopen lost approval identity or altered staged combined changes")
+                if mode=="abort" {
+                    c.request(next,"abort");try await wait {!next.busy && !next.active};try await drain()
+                    try require((try await c.repository.rebaseCommit("HEAD")).hash==c.originalHead && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("last.txt").path),"Abort failed to restore pre-group HEAD/worktree")
+                } else {
+                    next.messageBinding(next.formContext).wrappedValue=draft
+                    c.request(next,"continue");try await wait {!next.busy && next.finished};try await drain()
+                    let final=try await c.repository.rebaseCommit("HEAD"),state=try await c.repository.rebaseState()
+                    try require(next.error==nil && !state.active && final.parents==[c.originalHead] && final.author==c.merge.author && final.email==c.merge.email && final.date==c.merge.date && final.message.trimmingCharacters(in:.newlines)==draft.trimmingCharacters(in:.newlines),"Normal combined commit lost original parent/reached source author/message")
+                    let expected=mode=="conflict" ? "resolved combined file\n":"last.txt\n"
+                    let actual=try Data(contentsOf:c.root.appendingPathComponent("last.txt"))
+                    try require(actual==Data(expected.utf8),"Combined commit lost checked file contents")
+                }
+                await c.cleanup()
+            }catch{await c.cleanup();throw error}
+        }
     }
     @MainActor final class ReachedContext {
         let root:URL,repository:GitRepository,preferences:UserDefaults,suite:String,editor:URL

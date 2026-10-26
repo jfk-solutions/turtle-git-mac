@@ -752,3 +752,13 @@ retain requested actions. Its [documented orphan-Squash boundary](REBASE-MAINLIN
 retains explicit stopped-plan recovery if Skip removes the first retained group
 leader; dependent work is not silently discarded. That boundary remains open after the
 focused validation.
+
+## Leading Squash continuation — October 26, 2026
+
+The [leading-Squash family](REBASE-LEADING-SQUASH-PARITY.md) supersedes that
+deliberate orphan stopped-plan boundary with an owned no-commit group, normal
+commit approval and source-sensitive retained message/author metadata. Its
+[grouped checkpoint](qa/pull-leading-squash-2026-10-26.json) records 35 affected Core
+methods passing cumulatively, a Debug build and both native Git engines. The
+earlier reached-parent checkpoint retains its original scope, and source Split in this
+new group remains explicitly tracked rather than implied complete.
