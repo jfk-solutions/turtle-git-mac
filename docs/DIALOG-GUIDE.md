@@ -825,6 +825,14 @@ Command-click to select the document. Control-click keeps the native context
 menu. The gutter follows the configured font and light/dark appearance; selecting
 lines preserves the patch bytes and the preview's original read-only policy.
 
+The **Edit → Lines** menu and the text context menu offer Copy Lines, Cut Lines,
+Delete Line, Duplicate Selection or Line, Transpose Lines, Indent Lines and
+Dedent Lines. Read-only previews allow Copy Lines. In editable patch documents,
+Tab/Shift-Tab applies indentation to a multi-line selection; each line edit is
+one Undo/Redo transaction and retains the document's backing byte fragments.
+The [line editing guide](UNIFIED-DIFF-LINE-EDITING-PARITY.md) lists shortcuts and
+source behavior.
+
 In a Unified Diff window or attached partial-patch view, Command-F opens the
 bottom Find bar and seeds it from selected text. Typing searches from the top;
 Previous/Next, Command-G/Shift-Command-G and F3/Shift-F3 continue from the current

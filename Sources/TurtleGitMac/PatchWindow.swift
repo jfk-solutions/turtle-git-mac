@@ -170,10 +170,25 @@ import UniformTypeIdentifiers
         approvedReplacementText = nil
         if editBuffer==nil,let savedDocument {editBuffer=UnifiedDiffEditBuffer(document:savedDocument)}
         editBuffer?.replaceText(text)
-        document = GitPatch(text:text,displayLegacyEncoding:document.displayLegacyEncoding); documentDirty = !GitReferenceName.equal(text,savedText)
-        if !documentDirty { originalDiff = savedDocument }
+        document = GitPatch(text:text,displayLegacyEncoding:document.displayLegacyEncoding)
+        refreshDocumentDirtyState()
         documentChanged()
     }
+    private func refreshDocumentDirtyState() {
+        do {
+            if !GitReferenceName.equal(document.text, savedText) { documentDirty = true }
+            else if let editBuffer, let savedDocument { documentDirty = try editBuffer.snapshot().bytes != savedDocument.bytes }
+            else { documentDirty = false }
+            if !documentDirty { originalDiff = savedDocument }
+        } catch { documentDirty = true } // An unencodable draft stays editable; Save reports the codec error.
+    }
+    func lineEditingBufferSnapshot() throws -> UnifiedDiffEditBuffer {
+        if let editBuffer { return editBuffer }
+        return UnifiedDiffEditBuffer(document: try documentSnapshot())
+    }
+    /// The native editor installs provenance before publishing its didChangeText
+    /// notification. A byte-only permutation is still a dirty document edit.
+    func installLineEditingBuffer(_ buffer: UnifiedDiffEditBuffer) { editBuffer = buffer }
     func markDocumentSaved(_ source:UnifiedDiffDocument) {
         savedText=source.displayText;savedDocument=source
         if editBuffer==nil {editBuffer=UnifiedDiffEditBuffer(document:source)} else {editBuffer?.markSaved(source)}
@@ -571,7 +586,7 @@ struct PatchTextView: NSViewRepresentable {
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
         guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
-        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange(), scrollOrigin = scroll.contentView.bounds.origin
+        let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange(), selectionAffinity = text.selectionAffinity, scrollOrigin = scroll.contentView.bounds.origin
         cache.resetRevision = model.documentResetRevision; cache.needsStyling = false
         cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
         let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
@@ -607,7 +622,7 @@ struct PatchTextView: NSViewRepresentable {
         if contentChanged { text.undoManager?.removeAllActions(); scroll.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
-            text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
+            text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)), affinity: selectionAffinity, stillSelecting: false)
         }
         host.layoutSubtreeIfNeeded()
         scroll.updateDocumentExtent()
@@ -654,6 +669,7 @@ struct PatchTextView: NSViewRepresentable {
     }
     final class PatchText: NSTextView {
         weak var coordinator: Coordinator?
+        var linePasteboard: () -> NSPasteboard = { .general }
         struct WhitespaceMark {
             enum Kind { case space, tab }
             let kind: Kind
@@ -737,6 +753,9 @@ struct PatchTextView: NSViewRepresentable {
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if window?.firstResponder === self, let command = PatchLineCommand.command(for: event) {
+                _ = performLineCommand(command); return true
+            }
             let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
             guard window?.firstResponder === self || enclosingScrollView?.isFindBarVisible == true || coordinator?.model.findVisible == true else { return super.performKeyEquivalent(with: event) }
             if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "f" {
@@ -746,6 +765,14 @@ struct PatchTextView: NSViewRepresentable {
                 find(modifiers.contains(.shift) ? .previousMatch : .nextMatch); return true
             }
             return super.performKeyEquivalent(with: event)
+        }
+        override func insertTab(_ sender: Any?) {
+            if hasMarkedText() || selectedRanges.count != 1 { super.insertTab(sender); return }
+            _ = performLineTab(backwards: false)
+        }
+        override func insertBacktab(_ sender: Any?) {
+            if hasMarkedText() || selectedRanges.count != 1 { super.insertBacktab(sender); return }
+            _ = performLineTab(backwards: true)
         }
         override func cancelOperation(_ sender: Any?) {
             if coordinator?.model.findVisible == true { coordinator?.model.hideFind() }
@@ -818,6 +845,9 @@ struct PatchTextView: NSViewRepresentable {
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let lineMenu = NSMenuItem(title: NSLocalizedString("Lines", comment: "Unified Diff editing menu"), action: nil, keyEquivalent: "")
+            lineMenu.image = MenuIcon.mergeLineEdited.contextImage(defaults: defaults)
+            lineMenu.submenu = makeLineCommandMenu(); menu.addItem(lineMenu)
             let selectAll=NSMenuItem(title:"Select All",action:#selector(NSText.selectAll(_:)),keyEquivalent:"");selectAll.image=MenuIcon.mergeMarked.contextImage(defaults:defaults);menu.addItem(selectAll)
             let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
             find.target = self; find.image=MenuIcon.mergeFind.contextImage(defaults:defaults); menu.addItem(find)

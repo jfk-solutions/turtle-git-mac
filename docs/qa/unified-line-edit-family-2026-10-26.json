@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-26",
+  "status": "scoped-validation-complete",
+  "baseline": "53be14d5",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Whole-line copy/cut/delete, duplicate selection/current line and transpose",
+    "Native source icons, Edit/context Lines menus and editor-local shortcuts",
+    "Source Tab/BackTab and explicit native line indentation",
+    "Retained source-byte spans, byte-only changes, one-command Undo/Redo and Save across mixed codecs",
+    "Editable unrepresentable drafts and removal/Undo recovery",
+    "Read-only previews, source ownership, pending work, sheets, replacement and closure"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/PatchLineEditing.swift": "847d2547106e333227980d58e458ce0d1d7e8a5f8fd4965f9e18c628ad9618bc",
+    "Sources/TurtleGitCore/UnifiedDiffViewer.swift": "7fe195dabc65e7c027c795c623cc03b5c69f72143d2575b7599abc12f8ad575b",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "2697ca8264fb377e074c4b4749f3c8f2d8dc1b82bded7608470560a520198ad6",
+    "Sources/TurtleGitMac/PatchWindow.swift": "33eb9fe614472c408bc0f3e1758ef30762b61e6cc73479ee93721661af2fa561",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "63d94bbeac57eef73406fcb522eca3b093e89124a23171e62d38316dc12b61f6",
+    "Tests/TurtleGitCoreTests/PatchLineEditingTests.swift": "00c003cdf849c15228e228b7a90d0203a3d9c7388215d2ab173d579daf21de59"
+  },
+  "validation": {
+    "core": {
+      "initial_log": "build/qa/unified-line-edit-core-2026-10-26.log",
+      "initial_exit": 1,
+      "initial_failure": "New test long Data concatenation exceeded compiler type-check time before tests ran. Test-only repair split identical bytes into typed append steps.",
+      "repair_log": "build/qa/unified-line-edit-core-repair-2026-10-26.log",
+      "repair_exit": 0,
+      "methods": 22,
+      "new_planner_methods": 13,
+      "retained_byte_buffer_methods": 9,
+      "failures": 0,
+      "scope_note": "Includes 4000-line actual plan/apply correctness without a timing threshold, exact opaque byte permutations, BOMs, all retained codec cases, stale/atomic boundaries and unencodable-draft removal."
+    },
+    "app": {
+      "log": "build/qa/unified-line-edit-app-2026-10-26.log",
+      "exit": 0,
+      "simulator_service_diagnostics": 1,
+      "note": "Successful native macOS Debug build; generic simulator version diagnostic retained. No product source changes after this build."
+    },
+    "native": {
+      "initial_compile_log": "build/qa/unified-line-edit-native-2026-10-26.log",
+      "initial_failure": "Fixture-only long Data expression hit compiler type-check limit; no receiver launched. Repaired with identical append helper.",
+      "attempts": [
+        {
+          "log": "build/qa/unified-line-edit-native-fixture-repair-2026-10-26.log",
+          "receiver": 45802,
+          "result": "Menus/actions/icons/owner route passed system Git; ShiftTab fixture metadata stripped Shift from charactersIgnoringModifiers, so keyboard assertion failed."
+        },
+        {
+          "log": "build/qa/unified-line-edit-native-keyboard-repair-2026-10-26.log",
+          "receiver": 45892,
+          "result": "Correct native BackTab event metadata; keyboard/raw packets/byte-only Save passed system Git. Draft expected wrong public exception type; session translates codec failure to PatchDocumentSession.Failure.encoding."
+        },
+        {
+          "log": "build/qa/unified-line-edit-native-drafts-repair-2026-10-26.log",
+          "receiver": 45937,
+          "result": "Draft deletion and Save passed. Undo assertion failed because synthetic typing and line deletion shared one automatic native event group."
+        },
+        {
+          "log": "build/qa/unified-line-edit-native-draft-undo-diagnostic-2026-10-26.log",
+          "receiver": 45980,
+          "result": "Both model/native editable and focused; one Undo reverted both synthetic actions. Disproved proposed readiness-race product change; no product edit."
+        },
+        {
+          "log": "build/qa/unified-line-edit-native-event-boundary-repair-2026-10-26.log",
+          "receiver": 46081,
+          "result": "Delete draft recovery passed after real native eventgroup readiness. Next Cut typing event group did not close through timer yielding alone; retained bounded timeout and original assertion."
+        }
+      ],
+      "repair": "Final fixture uses correct BackTab Shift-preserving charactersIgnoringModifiers, the public session encoding-error type, and a harmless applicationDefined event posted solely to the private receiver/window followed by actual automatic undo.groupingLevel zero. No desktop input/CGEvent, manual group closing or UndoManager policy changes. All original byte/selection/draft/assertions preserved.",
+      "result": "pass, cumulatively scoped system Git plus full bundled Git",
+      "system_phase_receivers": {
+        "menus_current_line_app_owner": 45802,
+        "keyboard_raw_packets_byte_only_save": 45892,
+        "unencodable_delete_recovery": 46081,
+        "unencodable_cut_and_ownership": 46171
+      },
+      "system_final_log": "build/qa/unified-line-edit-native-event-pump-repair-2026-10-26.log",
+      "bundled_full": {
+        "log": "build/qa/unified-line-edit-native-bundled-final-2026-10-26.log",
+        "receiver": 46201,
+        "exit": 0,
+        "scope": "All menu/action/keyboard/rawbyte/Save/draft/readonly/ownership/Gitstate/cleanup phases; unchanged cached fixture."
+      },
+      "cleanup": "All recorded receivers reaped and independently absent; owned windows/sheets closed, file sessions/Git workers drained, private pasteboard released; exact private Git HEAD/index/config/worktree preserved. No user-owned app terminated.",
+      "fixture_sha256": "7c5cc8bd49e4c036fab16250559459db6fe9cf5a1a9d76011f6c80f715144d49",
+      "runner_sha256": "163a0fbd28718c7376544f40e3ae01212d3d782bf82a6d0fc869fd79246f7c9b",
+      "limitations": "Actual native action routes, injected private key-window lookup and owned keyDown/performKeyEquivalent; physical menu-bar/key dispatch remains separate acceptance. No physical signed-window rendering claim."
+    },
+    "generated": {
+      "localizations": {
+        "exit": 0,
+        "log": "build/qa/unified-line-edit-localizations-check-2026-10-26.log"
+      },
+      "help": {
+        "exit": 0,
+        "log": "build/qa/unified-line-edit-help-check-2026-10-26.log"
+      },
+      "dialog_coverage": {
+        "exit": 0,
+        "log": "build/qa/unified-line-edit-dialog-coverage-2026-10-26.log",
+        "note": "Ledger unchanged; resource/control counts do not certify functional completion."
+      }
+    }
+  },
+  "adaptations": [
+    "Non-Windows source LF for new Duplicate endings; preserve existing term slots",
+    "Editor-local Command-Option-C/X/K/D/T and Command-]/[ preserve native Control-T/Control-D",
+    "Native explicit menu indentation includes current line at column zero; default source Tab semantics kept separate",
+    "Ordinary line clipboard is Unicode text; Copy Patch retains separate exact raw patch format"
+  ],
+  "open_acceptance": [
+    "Rectangular/multiple selections and virtual-space line commands",
+    "Indivisible opaque packet partial splits refused atomically; full packet moves/duplication supported",
+    "Physical keyboard/context menu/VoiceOver acceptance",
+    "Current signed execution, Intel/minimum-OS and complete hosted integration",
+    "Complete upstream dialog/functionality parity remains unproven"
+  ],
+  "distribution": "Installed build13 predates gutter/whole-line batches. No App Store submission authorized."
+}

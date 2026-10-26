@@ -125,13 +125,12 @@ public struct UnifiedDiffEditBuffer:Sendable {
         let offset:Int,removed:[UnifiedDiffByteSpan],inserted:[UnifiedDiffByteSpan]
     }
     private var source:UnifiedDiffDocument
-    private var sourceText:String
     private var presentation:UnifiedDiffBytePresentation
     private var edits:[Edit]=[],keys:[Int],cursor=0
     public private(set) var text:String
     public init(document:UnifiedDiffDocument) {
         let shown=document.displayText
-        source=document;text=shown;sourceText=shown
+        source=document;text=shown
         presentation=document.bytePresentation ?? UnifiedDiffBytePresentation(document:document,text:shown)
         keys=[Data(shown.utf8).hashValue]
     }
@@ -153,7 +152,7 @@ public struct UnifiedDiffEditBuffer:Sendable {
                 pieces=replaced.pieces;position+=1
             }
             if valid,GitReferenceName.equal(pieces.map(\.text).joined(),next) {
-                presentation.pieces=pieces;cursor=target;text=next;restoreSavePoint();return
+                presentation.pieces=pieces;cursor=target;text=next;return
             }
         }
         let before=text.unicodeScalars,after=next.unicodeScalars
@@ -177,15 +176,9 @@ public struct UnifiedDiffEditBuffer:Sendable {
         guard let replacement else{return} // Expanded boundaries always align.
         if cursor<edits.count {edits.removeSubrange(cursor...);keys.removeSubrange((cursor+1)...)}
         edits.append(Edit(offset:offset,removed:replacement.removed,inserted:inserted));keys.append(key);cursor+=1
-        presentation.pieces=replacement.pieces;text=next;restoreSavePoint()
-    }
-    private mutating func restoreSavePoint() {
-        if GitReferenceName.equal(text,sourceText) {
-            presentation=source.bytePresentation ?? UnifiedDiffBytePresentation(document:source,text:text)
-        }
+        presentation.pieces=replacement.pieces;text=next
     }
     public func snapshot() throws ->UnifiedDiffDocument {
-        if GitReferenceName.equal(text,sourceText) {return source}
         var bytes=presentation.prefix,pieces:[UnifiedDiffByteSpan]=[]
         for piece in presentation.pieces {
             let encoded=try piece.encoded();bytes.append(encoded)
@@ -194,9 +187,75 @@ public struct UnifiedDiffEditBuffer:Sendable {
         return UnifiedDiffDocument(bytes:bytes,legacy:source.displayLegacyEncoding,encoding:source.sourceEncoding,
                                    presentation:UnifiedDiffBytePresentation(prefix:presentation.prefix,pieces:pieces))
     }
+    /// Applies a source-bound line transaction without re-encoding moved spans.
+    /// Retain value copies before/after this call for native command Undo/Redo,
+    /// including transactions whose distinct bytes have identical visible text.
+    @discardableResult public mutating func apply(_ plan:PatchLineEditPlan) throws -> Bool {
+        guard GitReferenceName.equal(text,plan.originalText) else {throw FileComparisonEditFailure.encoding}
+        guard plan.hasReplacement else {return false}
+        let total=text.utf16.count
+        var boundaries=Set([0,total])
+        for segment in plan.segments {
+            if case let .source(range)=segment {
+                guard range.location>=0,range.length>=0,range.location<=total,range.length<=total-range.location else {throw FileComparisonEditFailure.encoding}
+                boundaries.insert(range.location);boundaries.insert(NSMaxRange(range))
+            }
+        }
+        // Partition once in source order. Repeated or reordered source receipts
+        // reuse the same retained byte fragments, never re-encode long prefixes.
+        let ordered=boundaries.sorted()
+        var fragments:[UnifiedDiffByteSpan]=[],boundaryIndex:[Int:Int]=[:],position=0,nextBoundary=0
+        for piece in presentation.pieces {
+            let end=position+piece.length
+            var offsets=[0]
+            while nextBoundary<ordered.count,ordered[nextBoundary]<=end {
+                let value=ordered[nextBoundary]
+                if value>=position {offsets.append(value-position)}
+                nextBoundary+=1
+            }
+            offsets.append(piece.length);offsets=Array(Set(offsets)).sorted()
+            guard let parts=piece.partition(at:offsets) else {throw FileComparisonEditFailure.encoding}
+            for (partIndex,part) in parts.enumerated() {
+                boundaryIndex[position+offsets[partIndex]]=fragments.count
+                fragments.append(part)
+            }
+            position=end;boundaryIndex[position]=fragments.count
+        }
+        boundaryIndex[total]=fragments.count
+        if total==0 {boundaryIndex[0]=0}
+        var inserted:[UnifiedDiffByteSpan]=[]
+        for segment in plan.segments {
+            switch segment {
+            case let .source(range):
+                guard let start=boundaryIndex[range.location],let end=boundaryIndex[NSMaxRange(range)] else {throw FileComparisonEditFailure.encoding}
+                inserted.append(contentsOf:fragments[start..<end])
+            case let .inserted(value):
+                // Literal whitespace/endings use the document's retained codec.
+                // Validate before committing so an unrepresentable insertion is atomic.
+                let piece=UnifiedDiffByteSpan(text:value,bytes:nil,mapping:.codec(insertionEncoding(at:0)))
+                _ = try piece.encoded();inserted.append(piece)
+            }
+        }
+        guard GitReferenceName.equal(inserted.map(\.text).joined(),plan.resultText) else {throw FileComparisonEditFailure.encoding}
+        func encoded(_ pieces:[UnifiedDiffByteSpan])->Data? {
+            var result=Data()
+            for piece in pieces {guard let bytes=try? piece.encoded() else {return nil};result.append(bytes)}
+            return result
+        }
+        // A regional-codepage draft can contain newly typed characters which
+        // are not yet encodable. Keep editing/Undo available (including deleting
+        // those characters); Save remains the encoding-validation boundary.
+        if let old=encoded(presentation.pieces),let new=encoded(inserted),old==new {return false}
+        if cursor<edits.count {edits.removeSubrange(cursor...);keys.removeSubrange((cursor+1)...)}
+        edits.append(Edit(offset:0,removed:presentation.pieces,inserted:inserted))
+        keys.append(Data(plan.resultText.utf8).hashValue);cursor+=1
+        presentation.pieces=inserted;text=plan.resultText
+        return true
+    }
+    public func isModified() throws -> Bool {try snapshot().bytes != source.bytes}
     public mutating func markSaved(_ document:UnifiedDiffDocument) {
         guard GitReferenceName.equal(document.displayText,text) else{return}
-        source=document;sourceText=text;presentation=document.bytePresentation ?? UnifiedDiffBytePresentation(document:document,text:text)
+        source=document;presentation=document.bytePresentation ?? UnifiedDiffBytePresentation(document:document,text:text)
     }
     private func insertionEncoding(at offset:Int)->ComparisonTextEncoding {
         var position=0
@@ -297,6 +356,42 @@ struct UnifiedDiffByteSpan:Sendable {
         }
         return String(text.unicodeScalars[String.Index(utf16Offset:from,in:text)..<String.Index(utf16Offset:to,in:text)])
     }
+    /// Cuts requested source boundaries in one forward byte pass. Codec
+    /// verification is chunk-local; an indivisible regional cluster fails closed.
+    func partition(at offsets:[Int])->[Self]? {
+        guard offsets.first==0,offsets.last==length else {return nil}
+        if offsets.count==1 {return []}
+        if offsets.count==2 {return [self]}
+        let units=Array(text.utf16),shown=text as NSString
+        guard offsets.allSatisfy({$0>=0 && $0<=units.count && ($0==units.count || !(0xdc00...0xdfff).contains(units[$0]))}) else {return nil}
+        if case .unmapped=mapping,offsets.count>2 {return nil}
+        let lossy:[Int:Int]?
+        if case .lossyUTF8=mapping,let bytes {lossy=Self.lossyUTF8Offsets(bytes)} else {lossy=nil}
+        var result:[Self]=[],byteOffset=0
+        for i in 0..<(offsets.count-1) {
+            let start=offsets[i],end=offsets[i+1]
+            let value=shown.substring(with:NSRange(location:start,length:end-start))
+            let payload:Data?
+            if let bytes {
+                let count:Int
+                switch mapping {
+                case let .codec(encoding):
+                    guard let encoded=try? encoding.encodePatchPayload(value),byteOffset+encoded.count<=bytes.count,
+                          bytes.subdata(in:byteOffset..<(byteOffset+encoded.count))==encoded else {return nil}
+                    count=encoded.count
+                case .carrier:count=value.unicodeScalars.count
+                case .lossyUTF8:
+                    guard let lo=lossy?[start],let hi=lossy?[end],lo==byteOffset else {return nil};count=hi-lo
+                case .unmapped:count=bytes.count
+                }
+                guard count<=bytes.count-byteOffset else {return nil}
+                payload=bytes.subdata(in:byteOffset..<(byteOffset+count));byteOffset+=count
+            } else {payload=nil}
+            result.append(.init(text:value,bytes:payload,mapping:mapping))
+        }
+        if let bytes,byteOffset != bytes.count {return nil}
+        return result
+    }
     func split(at offset:Int)->(Self,Self)? {
         guard let a=Self.substring(text,from:0,to:offset),let b=Self.substring(text,from:offset,to:length) else{return nil}
         guard let bytes else{return (.init(text:a,bytes:nil,mapping:mapping),.init(text:b,bytes:nil,mapping:mapping))}
@@ -312,10 +407,11 @@ struct UnifiedDiffByteSpan:Sendable {
     // Unicode maximal-subpart boundaries, matching String(decoding:as:UTF8.self).
     // Invalid bytes remain in the fragment they projected, including truncated
     // sequences and malformed BOMs; U+FFFD is never used to regenerate them.
-    private static func lossyUTF8Boundary(_ bytes:Data,utf16 target:Int)->Int? {
-        var index=0,units=0
+    private static func lossyUTF8Boundary(_ bytes:Data,utf16 target:Int)->Int? {lossyUTF8Offsets(bytes)[target]}
+    private static func lossyUTF8Offsets(_ bytes:Data)->[Int:Int] {
+        var index=0,units=0,result=[0:0]
         while index<bytes.count {
-            if units==target {return index}
+            result[units]=index
             let lead=bytes[bytes.startIndex+index],expected:Int
             if lead<0x80 {index+=1;units+=1;continue}
             if (0xc2...0xdf).contains(lead) {expected=2}
@@ -330,8 +426,7 @@ struct UnifiedDiffByteSpan:Sendable {
                 count+=1
             }
             units += count==expected && expected==4 ? 2:1;index+=count
-            if units>target {return nil}
         }
-        return units==target ? index:nil
+        result[units]=index;return result
     }
 }

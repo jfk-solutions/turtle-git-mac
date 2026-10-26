@@ -24,6 +24,7 @@
 		04016107B6B3B5826519F567 /* TurtleGitHelp.help in Resources */ = {isa = PBXBuildFile; fileRef = 2911DE9698278401FF7C4BB2 /* TurtleGitHelp.help */; };
 		04F02D3B66F1FA243BD53565 /* ExcelComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED9FE69138727679FA59D50 /* ExcelComparison.swift */; };
 		04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147C1880748CAF195D6A19CA /* BlameWindow.swift */; };
+		0504620F685A7240AC7F9486 /* PatchLineCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = E73A8AECFFD75E219C9ECA35 /* PatchLineCommands.swift */; };
 		057264010D82F410BA85D60F /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F2A61583D3D0DA7A7D2D9195 /* Localizable.xcstrings */; };
 		05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */; };
 		059BA7BF7B57A98EDFCD39AA /* RepositoryBrowserGitPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E33A0F3B453E9F6422BC256 /* RepositoryBrowserGitPath.swift */; };
@@ -472,6 +473,7 @@
 		EF0A14E185D835D3BAB7033E /* MessageCaretPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ABC9104B3F3E555FB47EC46 /* MessageCaretPosition.swift */; };
 		EF9005F8A36E739565A165F7 /* SendPatchList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A34FF11AFBC8CA0823CFB5 /* SendPatchList.swift */; };
 		EFF9A599551FEE689010B300 /* GitBlamePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */; };
+		F0EFA1E62B503A6397EE4043 /* PatchLineEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99562484F358D71980ABCAFD /* PatchLineEditing.swift */; };
 		F148B1C183CBFE1EBC689E1E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F2A61583D3D0DA7A7D2D9195 /* Localizable.xcstrings */; };
 		F1CB359C0A4D4A0D76A000DD /* Bisect.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B1B4492D159F92D3F03BBA /* Bisect.swift */; };
 		F28EFEC5D2C77F276B76731E /* CommitCheckboxIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC45B25889170370E887B2AC /* CommitCheckboxIndex.swift */; };
@@ -903,6 +905,7 @@
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		985A594AD651C7899145A75C /* UnifiedDiffCaseFold.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffCaseFold.swift; sourceTree = "<group>"; };
 		98FB2A1DFAD46AEBD2A7826D /* MessageSpelling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSpelling.swift; sourceTree = "<group>"; };
+		99562484F358D71980ABCAFD /* PatchLineEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchLineEditing.swift; sourceTree = "<group>"; };
 		99649DB8EC94705917C269A1 /* FinderWatchedRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderWatchedRepositories.swift; sourceTree = "<group>"; };
 		9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileExport.swift; sourceTree = "<group>"; };
 		9A83CE04CFC068728D536C48 /* NativeReportRowGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeReportRowGeometry.swift; sourceTree = "<group>"; };
@@ -1066,6 +1069,7 @@
 		E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProgressOutputState.swift; sourceTree = "<group>"; };
 		E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRuntime.swift; sourceTree = "<group>"; };
 		E720E3E9B15FDAFDB7661C03 /* FinderSelectionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSelectionContext.swift; sourceTree = "<group>"; };
+		E73A8AECFFD75E219C9ECA35 /* PatchLineCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchLineCommands.swift; sourceTree = "<group>"; };
 		E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageURLFinder.swift; sourceTree = "<group>"; };
 		EA1264F794E412CF0DFD5C59 /* FileCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCopy.swift; sourceTree = "<group>"; };
 		EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeInlineComparison.swift; sourceTree = "<group>"; };
@@ -1311,6 +1315,7 @@
 				586A85599BCC6EF0DE6B1042 /* NetworkSettings.swift */,
 				A257C0CA956E0F3CCCBD435C /* PatchClipboard.swift */,
 				513BD09BF0F8FC608F46B9E0 /* PatchDocumentSession.swift */,
+				E73A8AECFFD75E219C9ECA35 /* PatchLineCommands.swift */,
 				7F81D40BCD7CB8888230D7A6 /* PatchLineNumberGutter.swift */,
 				DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */,
 				3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */,
@@ -1643,6 +1648,7 @@
 				336A159F3B08A80B9BBBECCC /* NativeIssueProviderSession.swift */,
 				BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
+				99562484F358D71980ABCAFD /* PatchLineEditing.swift */,
 				85C3BF6E56E2BF6AF1760DED /* PatchLineIndex.swift */,
 				E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */,
 				A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */,
@@ -2298,6 +2304,7 @@
 				45AA8F5271C15E919C1105E9 /* NativeIssueProviderSession.swift in Sources */,
 				828742F77F4A7A8CC586389A /* NetworkSettings.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
+				F0EFA1E62B503A6397EE4043 /* PatchLineEditing.swift in Sources */,
 				55B683FEF7026B02BAA72623 /* PatchLineIndex.swift in Sources */,
 				95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */,
 				A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */,
@@ -2527,6 +2534,7 @@
 				D9322B0364F93F87A7132897 /* NetworkSettings.swift in Sources */,
 				A79BF60CDBEDA5B4F781B0A5 /* PatchClipboard.swift in Sources */,
 				471772E43763EFBC99CF45AB /* PatchDocumentSession.swift in Sources */,
+				0504620F685A7240AC7F9486 /* PatchLineCommands.swift in Sources */,
 				B6B52BDCB2B2E90CF29D6342 /* PatchLineNumberGutter.swift in Sources */,
 				CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */,
 				FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */,

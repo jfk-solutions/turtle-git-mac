@@ -198,3 +198,12 @@ passing after retained layout/capture repairs. Actual light/dark native content
 renders are included in its guide. Physical input/VoiceOver, current signed
 execution and full hosted integration remain open; explicit source whole-line
 editing commands remain a separate missing family.
+
+The [Unified Diff whole-line editing family](UNIFIED-DIFF-LINE-EDITING-PARITY.md)
+adds explicit line menus, editor shortcuts, indentation, byte-preserving moves
+and one-command Undo/Redo. Its [dated checkpoint](qa/unified-line-edit-family-2026-10-26.json)
+records 22 focused Core methods, the native build, a full bundled-Git group and
+cumulative system-Git phases passing. The native fixtures retain their original
+compile/event/exception/grouping failures and scoped repairs. Rectangular/multiple
+selections, physical input/VoiceOver, current signed execution and full hosted
+integration remain open.

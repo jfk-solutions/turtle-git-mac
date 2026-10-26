@@ -17,7 +17,7 @@ Owned processes were closed, original grants retained, and private Git/file data
 preserved. The temporary grant/cache subtree was removed. No main process was
 present before acceptance, and none was restored. Finder registration is enabled;
 physical badge/menu acceptance and fresh workflow screenshots remain open.
-This installed checkpoint predates the Unified Diff gutter continuation below.
+This installed checkpoint predates the Unified Diff gutter and line-editing continuations below.
 
 ## Unified Diff line-number and selection gutter
 
@@ -27,6 +27,14 @@ editor and read-only patch previews. It retains exact patch bytes and existing
 selected-line/hunk operations, with owner-bound cancellation and native appearance.
 Its grouped checkpoint and remaining physical/signed limits are recorded separately;
 this does not mark the full Unified Diff viewer or port complete.
+
+## Unified Diff whole-line editing
+
+The [line editing family](UNIFIED-DIFF-LINE-EDITING-PARITY.md) adds native menus,
+editor-local shortcuts, block indentation and exact-byte line transactions with
+single-operation Undo/Redo. Its source contracts distinguish copy/cut endpoints,
+caret-line deletion, transpose and source Tab/BackTab semantics. Current signed
+execution and the wider port remain separate requirements.
 
 The preceding [build 11](qa/signed-consolidation-build11-2026-10-26.json) was
 installed as a universal app from `77f0f4f9`. Its measured 1,510 source inputs,

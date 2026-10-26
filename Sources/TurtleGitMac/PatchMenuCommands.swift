@@ -8,6 +8,7 @@ import TurtleGitCore
 @MainActor final class PatchMenuContext: ObservableObject {
     @Published private(set) var available = false
     @Published private(set) var darkMode = false
+    @Published private(set) var lineCommands = Set<PatchLineCommand>()
     @Published private(set) var documentAvailable = false
     @Published private(set) var documentVisible = false
     @Published private(set) var partialAvailable = false
@@ -21,7 +22,7 @@ import TurtleGitCore
     private var windowChanges: [AnyCancellable] = []
     init(keyWindow: (() -> NSWindow?)? = nil) {
         self.keyWindow = keyWindow ?? { NSApp.keyWindow }
-        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification, NSWindow.willCloseNotification, NSWindow.didUpdateNotification] {
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification, NSWindow.willCloseNotification, NSWindow.didUpdateNotification, NSTextView.didChangeSelectionNotification] {
             windowChanges.append(NotificationCenter.default.publisher(for: name).sink { [weak self] _ in
                 Task { @MainActor in self?.refresh() }
             })
@@ -50,6 +51,9 @@ import TurtleGitCore
         if darkMode != dark { darkMode = dark }
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil && NSApp.modalWindow == nil } ?? false
         if available != enabled { available = enabled }
+        let text = controller?.window?.firstResponder as? PatchTextView.PatchText
+        let commands = Set(PatchLineCommand.allCases.filter { enabled && text?.canPerformLineCommand($0) == true })
+        if lineCommands != commands { lineCommands = commands }
         let visible = controller?.documentSession.enabled == true
         if documentVisible != visible { documentVisible = visible }
         let document = enabled && visible
@@ -65,6 +69,14 @@ import TurtleGitCore
         if stageHunksAvailable != stageHunks { stageHunksAvailable = stageHunks }
         if unstageLinesAvailable != unstageLines { unstageLinesAvailable = unstageLines }
         if unstageHunksAvailable != unstageHunks { unstageHunksAvailable = unstageHunks }
+    }
+    func performLineCommand(_ command: PatchLineCommand) {
+        refresh()
+        guard lineCommands.contains(command), let controller = current,
+              let text = controller.window?.firstResponder as? PatchTextView.PatchText,
+              text.coordinator?.model === controller.model else { return }
+        _ = text.performLineCommand(command)
+        refresh()
     }
     func apply(staged: Bool, entireHunks: Bool) {
         refresh()
@@ -85,6 +97,7 @@ import TurtleGitCore
 struct PatchFileCommands: Commands {
     @ObservedObject var context: PatchMenuContext
     var body: some Commands {
+        PatchLineEditingCommands(context: context)
         if context.partialAvailable {
             CommandMenu("Staging") {
                 Button { context.apply(staged: false, entireHunks: false) } label: { CommandLabel(title: "Stage selected lines", icon: .add) }.disabled(!context.stageLinesAvailable)

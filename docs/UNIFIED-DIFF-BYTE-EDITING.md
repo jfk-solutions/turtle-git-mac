@@ -21,6 +21,19 @@ Selection does not edit the patch or convert its bytes. Read-only previews retai
 Copy and their existing selected-line or hunk actions; editing remains governed
 by the preview's original policy.
 
+## Whole-line edits
+
+Use **Edit → Lines** or the text context menu for Copy/Cut Lines, Delete Line,
+Duplicate Selection or Line, Transpose Lines, and Indent/Dedent Lines. The
+[line editing guide](UNIFIED-DIFF-LINE-EDITING-PARITY.md) describes their endpoint
+rules and shortcuts. Tab/Shift-Tab handles a selected block without replacing it.
+
+These operations retain original byte spans for moved/copied document content.
+Each explicit line operation has one native Undo/Redo transaction, including a
+byte-only change between identical opaque display projections. Ordinary line
+Copy/Cut uses the native Unicode clipboard; **Copy Patch** retains the separate
+exact patch-byte clipboard format.
+
 ## Encoding and control data
 
 Inserted text uses the encoding of the fragment being edited. UTF-8 text can

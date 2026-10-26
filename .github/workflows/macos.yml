@@ -478,6 +478,8 @@ jobs:
         run: python3 scripts/test-unified-diff-input.py
       - name: Unified Diff native line-number and selection gutter
         run: python3 scripts/test-unified-gutter.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Unified Diff whole-line native editing and exact byte provenance
+        run: python3 scripts/test-unified-line-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Git Properties live parent pages and scoped ownership
         run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family

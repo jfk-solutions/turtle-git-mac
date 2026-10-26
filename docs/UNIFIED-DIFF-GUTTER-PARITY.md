@@ -81,9 +81,7 @@ Windows font/pixel equivalence, current signed execution, Intel/minimum-OS
 execution and complete hosted integration remain separate requirements. This
 family does not certify the full Unified Diff viewer or the complete port.
 
-A separate source review confirmed the next missing editor family: explicit
-whole-line copy/cut/delete, duplicate selection or current line, previous/current
-line transpose, and multi-line indent/dedent. These use live Scintilla default
-key-map commands (`ext/scintilla/src/KeyMap.cxx:159–170`); ordinary inherited
-Cocoa text editing does not supply their source line semantics. They are not
-implemented or certified by this gutter batch.
+The subsequent [whole-line editing family](UNIFIED-DIFF-LINE-EDITING-PARITY.md)
+covers explicit copy/cut/delete, duplication, transpose and indentation. It has
+its own source contracts and validation scope; gutter checks do not certify
+those operations.
