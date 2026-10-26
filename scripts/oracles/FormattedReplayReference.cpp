@@ -21,14 +21,19 @@ static void pixels(Bitmap&b,const std::string&dir,const std::string&stem,std::os
  o<<"{\"png\":\""<<stem<<".png\",\"rgba\":\""<<stem<<".rgba\",\"nonwhitePixels\":"<<count<<",\"paintedBounds\":["<<x0<<","<<y0<<","<<x1<<","<<y1<<"]}";
 }
 static void configure(Graphics&g){ck(g.SetPageUnit(UnitPixel));ck(g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit));}
+static void formatObjects(std::ostream&o,const std::string&path){
+ std::ifstream f(path,std::ios::binary|std::ios::ate);o<<"[";if(!f){o<<"]";return;}auto count=f.tellg();if(count<0||count>1024*1024*16){o<<"]";return;}std::vector<unsigned char>b((size_t)count);f.seekg(0);f.read((char*)b.data(),(std::streamsize)b.size());
+ auto u16=[&](size_t p)->unsigned int{return b[p]|((unsigned int)b[p+1]<<8);};auto u32=[&](size_t p)->unsigned long{return b[p]|((unsigned long)b[p+1]<<8)|((unsigned long)b[p+2]<<16)|((unsigned long)b[p+3]<<24);};bool first=true;
+ for(size_t e=0;e+8<=b.size();){size_t n=u32(e+4);if(n<8||n>b.size()-e)break;if(u32(e)==70&&n>=16&&u32(e+12)==0x2b464d45){for(size_t r=e+16;r+12<=e+n;){size_t z=u32(r+4);if(z<12||z>e+n-r)break;if(u16(r)==0x4008&&((u16(r+2)>>8)&0x7f)==7&&z>=72){if(!first)o<<",";first=false;auto language=u32(r+20),digits=u32(r+36);o<<"{\"offset\":"<<r<<",\"rawLanguage\":"<<language<<",\"effectiveLanguage\":"<<(language&0xffff)<<",\"rawDigitLanguage\":"<<digits<<",\"effectiveDigitLanguage\":"<<(digits&0xffff)<<"}";}r+=z;}}e+=n;}o<<"]";
+}
 static void replay(std::ostream&o,const std::string&path,const std::string&dir,const std::string&name){
- Metafile image(wide(path).c_str());Status loaded=image.GetLastStatus();o<<"{\"loadStatus\":"<<(int)loaded;
+ Metafile image(wide(path).c_str());Status loaded=image.GetLastStatus();o<<"{\"formatObjects\":";formatObjects(o,path);o<<",\"loadStatus\":"<<(int)loaded;
  if(loaded==Ok){RectF bounds;Unit unit;Status bs=image.GetBounds(&bounds,&unit);o<<",\"boundsStatus\":"<<(int)bs;if(bs==Ok){o<<",\"sourceBounds\":";rect(o,bounds);o<<",\"boundsUnit\":"<<(int)unit;}o<<",\"sourceSize\":["<<image.GetWidth()<<","<<image.GetHeight()<<"],\"sourceDPI\":["<<image.GetHorizontalResolution()<<","<<image.GetVerticalResolution()<<"]";
   Bitmap b(240,180,PixelFormat32bppARGB);ck(b.SetResolution(96,96));{Graphics g(&b);ck(g.Clear(Color(255,255,255,255)));configure(g);Status draw=g.DrawImage(&image,Rect(0,0,240,180),0,0,240,180,UnitPixel);o<<",\"drawImageStatus\":"<<(int)draw;}o<<",\"pixels\":";pixels(b,dir,name,o);
  }o<<"}";
 }
-static void draw(Graphics&g,const std::wstring&s,bool display){
- configure(g);Font font(L"Arial",24,FontStyleRegular,UnitPixel);ck(font.GetLastStatus());StringFormat format(StringFormat::GenericTypographic());INT flags=format.GetFormatFlags();ck(format.SetFormatFlags(display?flags|StringFormatFlagsDisplayFormatControl:flags&~StringFormatFlagsDisplayFormatControl));ck(format.SetDigitSubstitution(0,StringDigitSubstituteNone));SolidBrush ink(Color(255,0,0,0));ck(g.DrawString(s.c_str(),(INT)s.size(),&font,RectF(16,16,208,148),&format,&ink));
+static void draw(Graphics&g,const std::wstring&s,LANGID language,StringDigitSubstitute digits,INT extraFlags){
+ configure(g);Font font(L"Arial",24,FontStyleRegular,UnitPixel);ck(font.GetLastStatus());StringFormat format(StringFormat::GenericTypographic());ck(format.SetFormatFlags(format.GetFormatFlags()|extraFlags));ck(format.SetDigitSubstitution(language,digits));SolidBrush ink(Color(255,0,0,0));ck(g.DrawString(s.c_str(),(INT)s.size(),&font,RectF(16,16,208,148),&format,&ink));
 }
 static void cmap(std::ostream&o){
  HDC dc=CreateCompatibleDC(NULL);if(!dc)throw std::runtime_error("cmap DC");HFONT font=CreateFontW(-24,0,0,0,FW_NORMAL,0,0,0,DEFAULT_CHARSET,OUT_TT_PRECIS,CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY,DEFAULT_PITCH,L"Arial");if(!font){DeleteDC(dc);throw std::runtime_error("cmap font");}auto old=SelectObject(dc,font);wchar_t face[256]={};GetTextFaceW(dc,256,face);
@@ -47,18 +52,22 @@ int main(int argc,char**argv){
  const char*names[]={"thai-national","thai-traditional","arabic-national","persian-traditional","latin-control","thai-control","arabic-control","persian-control"};
  for(int i=0;i<8;i++){if(i)o<<",";std::string name=std::string("plus-formatted-digits-")+names[i];o<<"{\"file\":\""<<name<<".emf\",\"replay\":";replay(o,input+"/"+name+".emf",output,name);o<<"}";}
  o<<"],\"nativeRecorded\":[";
- const wchar_t controls[]={0x200e,0x200f,0x200d,0x200c};const char*controlNames[]={"lrm","rlm","zwj","zwnj"};const char*contextNames[]={"alone","latin","separated","arabic"};bool first=true;
- for(int i=0;i<4;i++)for(int context=0;context<4;context++)for(int display=0;display<2;display++){
-  std::wstring c(1,controls[i]),s=context==0?c:context==1?L"A"+c+L"B":context==2?L"A ( "+c+L" ) B":L"\x0633"+c+L"\x0644\x0627\x0645";
-  std::string name=std::string(controlNames[i])+"-"+contextNames[context]+(display?"-display":"-hidden");if(!first)o<<",";first=false;
+ struct DigitCase{std::string name;std::wstring text;LANGID language;StringDigitSubstitute method;INT flags;};std::vector<DigitCase>cases;
+ const LANGID languages[]={0x041e,0x0401,0x0429};const char*languageNames[]={"thai","arabic","persian"};
+ for(int i=0;i<3;i++)for(int method=2;method<=3;method++)for(int context=0;context<2;context++)cases.push_back({std::string(languageNames[i])+(method==2?"-national":"-traditional")+(context?"-arabic-rtl":"-plain"),context?L"\x0633\x0644\x0627\x0645 0123456789":L"0123456789",languages[i],(StringDigitSubstitute)method,context?StringFormatFlagsDirectionRightToLeft:0});
+ const wchar_t*literals[]={L"0123456789",L"\x0e50\x0e51\x0e52\x0e53\x0e54\x0e55\x0e56\x0e57\x0e58\x0e59",L"\x0660\x0661\x0662\x0663\x0664\x0665\x0666\x0667\x0668\x0669",L"\x06f0\x06f1\x06f2\x06f3\x06f4\x06f5\x06f6\x06f7\x06f8\x06f9"};const char*literalNames[]={"ascii","thai","arabic","persian"};
+ for(int i=0;i<4;i++)cases.push_back({std::string("literal-")+literalNames[i],literals[i],0,StringDigitSubstituteNone,0});
+ cases.push_back({"literal-ascii-arabic-rtl",std::wstring(L"\x0633\x0644\x0627\x0645 ")+literals[0],0,StringDigitSubstituteNone,StringFormatFlagsDirectionRightToLeft});
+ cases.push_back({"literal-arabic-arabic-rtl",std::wstring(L"\x0633\x0644\x0627\x0645 ")+literals[2],0,StringDigitSubstituteNone,StringFormatFlagsDirectionRightToLeft});
+ bool first=true;for(const auto&c:cases){const auto&s=c.text;const auto&name=c.name;if(!first)o<<",";first=false;
   std::string path=output+"/"+name+".emf";
   Bitmap reference(240,180,PixelFormat32bppARGB);ck(reference.SetResolution(96,96));Graphics referenceGraphics(&reference);HDC dc=referenceGraphics.GetHDC();if(!dc)throw std::runtime_error("record HDC");
-  {Metafile recording(wide(path).c_str(),dc,RectF(0,0,240,180),MetafileFrameUnitPixel,EmfTypeEmfPlusOnly);ck(recording.GetLastStatus());{Graphics g(&recording);draw(g,s,display!=0);}}
+  {Metafile recording(wide(path).c_str(),dc,RectF(0,0,240,180),MetafileFrameUnitPixel,EmfTypeEmfPlusOnly);ck(recording.GetLastStatus());{Graphics g(&recording);draw(g,s,c.language,c.method,c.flags);}}
   referenceGraphics.ReleaseHDC(dc);ck(referenceGraphics.GetLastStatus());
-  o<<"{\"name\":\""<<name<<"\",\"textUTF16\":";units(o,s);o<<",\"displayFormatControl\":"<<(display?"true":"false")<<",\"emf\":\""<<name<<".emf\",\"replay\":";replay(o,path,output,name+"-replay");o<<",\"direct\":";
-  Bitmap direct(240,180,PixelFormat32bppARGB);ck(direct.SetResolution(96,96));{Graphics g(&direct);ck(g.Clear(Color(255,255,255,255)));draw(g,s,display!=0);}pixels(direct,output,name+"-direct",o);o<<"}";
+  o<<"{\"name\":\""<<name<<"\",\"textUTF16\":";units(o,s);o<<",\"requestedLanguage\":"<<c.language<<",\"effectiveLanguage\":"<<(c.language&0xffff)<<",\"digitSubstitution\":"<<(int)c.method<<",\"extraFlags\":"<<c.flags<<",\"emf\":\""<<name<<".emf\",\"replay\":";replay(o,path,output,name+"-replay");o<<",\"direct\":";
+  Bitmap direct(240,180,PixelFormat32bppARGB);ck(direct.SetResolution(96,96));{Graphics g(&direct);ck(g.Clear(Color(255,255,255,255)));draw(g,s,c.language,c.method,c.flags);}pixels(direct,output,name+"-direct",o);o<<"}";
  }
- o<<"]}";o.close();if(!o)throw std::runtime_error("report write");std::cout<<"Recorded 8 serialized fixtures and 32 native EMF+Only/direct pairs.\n";
+ o<<"]}";o.close();if(!o)throw std::runtime_error("report write");std::cout<<"Recorded 8 aligned serialized fixtures and 18 native digit EMF+Only/direct pairs.\n";
  }catch(const std::exception&e){std::cerr<<e.what()<<"\n";code=1;}GdiplusShutdown(token);return code;
 }
 

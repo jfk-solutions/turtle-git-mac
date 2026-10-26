@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and run serialized formatted replay (8 fixtures and 32 native cases)
+      - name: Compile and run serialized formatted replay (8 aligned fixtures and 18 native digit cases)
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath

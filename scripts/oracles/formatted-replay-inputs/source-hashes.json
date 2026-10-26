@@ -4,50 +4,123 @@
     {
       "file": "plus-formatted-digits-thai-national.emf",
       "bytes": 388,
-      "sha256": "aaee3d8f91aa47dd844fee878cdef27b0f093b6a654194e64cf1e9a34a5cb6fb",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-national.emf"
+      "sha256": "57208b42031a22a701f3aa71dcd244703e9283a39eb4aafb24c3ebf064af4b5f",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-national.emf",
+      "originalSHA256": "aaee3d8f91aa47dd844fee878cdef27b0f093b6a654194e64cf1e9a34a5cb6fb",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-thai-traditional.emf",
       "bytes": 388,
-      "sha256": "f3c7089ea71ae86557fc3d543cfcd3b588c89b0fdad91cc2edbf7404caaa8eb6",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-traditional.emf"
+      "sha256": "663a44429572294a20cb0563b4ad00a770c77a2830910cbcd468d85dc914aaef",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-traditional.emf",
+      "originalSHA256": "f3c7089ea71ae86557fc3d543cfcd3b588c89b0fdad91cc2edbf7404caaa8eb6",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-arabic-national.emf",
       "bytes": 388,
-      "sha256": "ef5d32b0b00b2ed11f925f31e0bb248ac425e17316661c834d9ea6005953b79f",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-arabic-national.emf"
+      "sha256": "d0c8c76fa2450036db7a77349f3c52bed7fdbe594dba8ef7d9b6198bda4a465d",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-arabic-national.emf",
+      "originalSHA256": "ef5d32b0b00b2ed11f925f31e0bb248ac425e17316661c834d9ea6005953b79f",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-persian-traditional.emf",
       "bytes": 388,
-      "sha256": "26d7471ac70e3c54312638f55d835a520af09955e9466975e768887a5a2a8639",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-persian-traditional.emf"
+      "sha256": "d98d7927eadc834b5109f58dfab451d9421544c20d76a8d7dd13cb9d5a0a5990",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-persian-traditional.emf",
+      "originalSHA256": "26d7471ac70e3c54312638f55d835a520af09955e9466975e768887a5a2a8639",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-latin-control.emf",
       "bytes": 388,
-      "sha256": "a28b101bf4ea64ba4040a0f416acd35b3331af014fbc0b7a936d76b87985a0f0",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-latin-control.emf"
+      "sha256": "e5d379cd650a39dfe76488bf3da93869b50e665af5ce846be2df231071804d45",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-latin-control.emf",
+      "originalSHA256": "a28b101bf4ea64ba4040a0f416acd35b3331af014fbc0b7a936d76b87985a0f0",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-thai-control.emf",
       "bytes": 388,
-      "sha256": "03e30aec9e5ba10f4d3028c9e9e2c9dc53d1d700fe77ba71ce603f6da086c8c5",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-control.emf"
+      "sha256": "c5218396137f22ca1e85565a8b88931017673caaa272237450e56a9987e228b9",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-control.emf",
+      "originalSHA256": "03e30aec9e5ba10f4d3028c9e9e2c9dc53d1d700fe77ba71ce603f6da086c8c5",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-arabic-control.emf",
       "bytes": 388,
-      "sha256": "586e850fcc46a8f3f81d2ea7446007c96ed5a09350a951227abb1f9c8ed39726",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-arabic-control.emf"
+      "sha256": "9a9e780e17f75a1ecd67d7e97bd7f682565557c4e14f23ecc2fc849de6223138",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-arabic-control.emf",
+      "originalSHA256": "586e850fcc46a8f3f81d2ea7446007c96ed5a09350a951227abb1f9c8ed39726",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     },
     {
       "file": "plus-formatted-digits-persian-control.emf",
       "bytes": 388,
-      "sha256": "25fc9def2b4a31f04d9973d1ffe6c4162a6dde5895176319faaab25172d7266d",
-      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-persian-control.emf"
+      "sha256": "a3697b700762b584641afbe44dacbb7327a6899b419b19805c5b8b2591e2b183",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-persian-control.emf",
+      "originalSHA256": "25fc9def2b4a31f04d9973d1ffe6c4162a6dde5895176319faaab25172d7266d",
+      "changes": [
+        {
+          "offset": 176,
+          "recordType": 16392,
+          "oldDataSize": 42,
+          "newDataSize": 44
+        }
+      ]
     }
-  ]
+  ],
+  "adjustment": "Align font object and DrawString DataSize to Size-12 only; unchanged offsets, record sizes and file lengths. Original source fixtures retained in main worktree."
 }
