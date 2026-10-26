@@ -115,6 +115,25 @@ pass, every dialog's appearance, Intel execution, distribution signing or an App
 Store export/submission. The compiler warnings remain recorded. Earlier preview
 ZIPs and unsigned archive receipts remain separate artifacts.
 
+## October 26 installed build 12
+
+The [build12 receipt](qa/signed-consolidation-build12-2026-10-26.json) measures
+clean source `37b84cd1`, including dialog reactivation and utility Close. The
+Apple Development candidate passed strict seals, matching sandbox/App Group
+identities, eight universal components and equal 6,362-member inventories before
+and after installation. The build completed without contradictory zero-exit
+compiler diagnostics. Build11 remains recoverable.
+
+Installed About showed version12 and the actual bundled Git version. Repeated
+activation retained About alone in the native Window menu. Commit's permission
+chooser was exercised on a synthetic repository, but UI automation timed out
+after authorization and on a cold retry. No fresh Commit screenshot or app-hang
+claim follows from that failure. Exact process cleanup, private-grant removal,
+unchanged sample Git/file data and restoration of the headless Finder watcher
+are recorded. Original grants remain; their updated recency metadata is retained.
+Physical Finder, wider dialog/keyboard checks, refreshed workflow screenshots,
+full hosted integration and App Store distribution acceptance remain open.
+
 ## October 26 installed build 11
 
 The [build 11 receipt](qa/signed-consolidation-build11-2026-10-26.json) binds the

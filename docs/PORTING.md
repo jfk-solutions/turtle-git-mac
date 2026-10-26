@@ -2,8 +2,22 @@
 
 ## Current installed checkpoint
 
-[Build 11](qa/signed-consolidation-build11-2026-10-26.json) is installed for
-Intel and Apple silicon from `77f0f4f9`. Its measured 1,510 source inputs,
+[Build 12](qa/signed-consolidation-build12-2026-10-26.json) is installed from
+`37b84cd1`, including the dialog-reactivation and scoped utility Close fixes.
+All 1,510 measured inputs, strict signatures, eight universal components and
+6,362-member source/staged/installed inventories pass. Build11 is preserved.
+Actual cold About and repeated reactivation showed only About in the Window
+menu, the green Git banner, version12 and bundled Git2.55.0. Commit reached its
+private permission chooser, but subsequent UI automation and a cold retry timed
+out. A sample showed the first main thread idle; no product hang or successful
+Commit rendering is inferred. Both owned GUI attempts were terminated, the
+private grant removed and sample HEAD/index/files preserved. Original saved
+IDs/paths/bookmarks remain; updated recency metadata was retained. One headless
+instance restores the original Finder watcher with a recent shared publication.
+Fresh workflow screenshots and wider physical/signed acceptance remain open.
+
+The preceding [build 11](qa/signed-consolidation-build11-2026-10-26.json) was
+installed as a universal app from `77f0f4f9`. Its measured 1,510 source inputs,
 strict signatures, all eight universal app components and 6,362-member
 source/staged/installed inventories passed. Build 10 remains preserved for recovery.
 The changed metafile helper was rebuilt from current sources before signing.

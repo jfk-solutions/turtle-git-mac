@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-26",
+  "status": "installed_signed_universal_about_accepted_commit_UI_observation_incomplete",
+  "source_commit": "37b84cd139c49efaede48397f813b48f0509220e",
+  "version": "0.1.0",
+  "build": "12",
+  "build_tool_session": 32103,
+  "source_input_count": 1510,
+  "source_input_sha256": "804eb84e9bf618de56f5974397beb2290f23d9a081163dc3f3f376de1499b4c4",
+  "application_sha256": "e098430454376486107ff8f5300324b96f5a99038db8679edd204c727ef8c47f",
+  "inventory_members": 6362,
+  "universal_components": 8,
+  "signature": "Apple Development, team A49SCA5S8K; strict deep verification passed",
+  "sandbox": "App/Finder/cache matching App Group; inherited runtime representative entitlements verified",
+  "build_exit": 0,
+  "contradictory_zero_exit_diagnostics": 0,
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "preserved_build11": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed12-displaced-installed-2026-10-26",
+  "source_staged_installed_inventories": "equal",
+  "runtime_scope": "Packaged helpers unchanged from build11; six build11 sandbox cases were not repeated. Actual installed build12 About obtained bundled Git2.55.0.",
+  "finder_registration": {
+    "enabled": true,
+    "count": 1,
+    "uuid": "E7C4396B-A3E2-44AF-BF7D-6AC2794EA33A",
+    "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+    "finder_restarted": false,
+    "global_cache_reset": false
+  },
+  "physical_acceptance": {
+    "about": "Cold action URL opened About; repeated app activation retained only About in actual Window menu, no workspace; visible build12, green Git banner and bundled Git2.55.0.",
+    "capture": "build/qa/signed12-acceptance-2026-10-26/about-build12.png",
+    "capture_sha256": "47460a027e94411c9005018f00a3199c0ad2bd25b65b96f66575b0256c5d2a82",
+    "commit": "Permission chooser reached exact private Harbor folder via native Go to Folder and Authorize. CUA timed out afterward and on a cold retry with the saved grant. Sampled first process57502 main thread idle in normal AppKit event loop. No Commit render/hang claim.",
+    "screenshots": "No replacement manual/website screenshots published; prior current native illustrations retained.",
+    "acceptance_cleanup": "First process57502 and unique owned cold retry terminated with SIGTERM because native UI observation/control unavailable; no unrelated user app terminated. Retry PID number was not retained after cleanup diagnostic raised a list-shape TypeError.",
+    "cleanup_diagnostic_repairs": "First repair recognized repository store is a list. Guard then observed only lastOpened changes on original entries; final removal preserved those metadata updates and current order, plus all original IDs/paths/bookmarks."
+  },
+  "integrity": {
+    "retry_owned_main_absent": true,
+    "retry_pid_number_not_retained": "Cleanup script proved exit and Git integrity before a list-shape diagnostic TypeError; no unrelated process terminated",
+    "head_unchanged": true,
+    "semantic_index_unchanged": true,
+    "working_files_unchanged": true,
+    "original_repository_ids_paths_bookmarks_retained": true,
+    "repository_lastOpened_and_current_order": "Updated during app/service access; retained rather than overwriting unrelated metadata",
+    "private_grants_removed": 1,
+    "ui_preferences_unchanged": true
+  },
+  "restored_headless": {
+    "pid": 58270,
+    "argv": [
+      "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac",
+      "--turtlegit-action-only"
+    ],
+    "purpose": "restore original user-serving headless Finder watcher",
+    "matching_main_instances": 1,
+    "snapshot_age_seconds_at_observation": 127.9,
+    "snapshot_roots": [
+      "/Users/jkuehner/Desktop/git/ladybird"
+    ],
+    "snapshot_states": 68234,
+    "live_revision": "BCB438D1-B892-442B-8052-9E4459E58ECE/finder-status-v1/1/1/10240/0/L1VzZXJzL2prdWVobmVyL0Rlc2t0b3AvZ2l0L2xhZHliaXJk:D10069F7-1836-44E1-87AF-1301E0F84ECC:406:406",
+    "test_instance_leak": false
+  },
+  "hosted_observation": {
+    "pages": {
+      "run": 40335643713,
+      "head": "37b84cd1",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macOS": {
+      "run": 40335643582,
+      "head": "37b84cd1",
+      "status": "in_progress",
+      "conclusion": null
+    }
+  },
+  "remaining": [
+    "Commit/Settings/Log current signed visual and physical keyboard/Dock acceptance",
+    "Refreshed manual/website screenshots for the remaining workflow windows",
+    "Physical Finder overlays/context-menu gestures, Rebase child reactivation and tooltip hover",
+    "Full hosted integration, Intel/minimum-OS execution and App Store distribution rights/signing/submission"
+  ]
+}
