@@ -39,7 +39,7 @@ import TurtleGitCore
         }
         func seed()async throws {
             _=try await repo.run(["init","-b","main"])
-            for(key,value)in [("user.name","Structural Group QA"),("user.email","structural@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("rebase.updateRefs","false")] {_=try await repo.run(["config",key,value])}
+            for(key,value)in [("user.name","Structural Group QA"),("user.email","structural@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("rebase.updateRefs","false"),("rebase.rescheduleFailedExec","true")] {_=try await repo.run(["config",key,value])}
             try await commit("base")
             _=try await repo.run(["switch","-c","upstream"]);try await commit("upstream");upstream=commits["upstream"]!.hash
             _=try await repo.run(["switch","-c","side","main"]);try await commit("side")

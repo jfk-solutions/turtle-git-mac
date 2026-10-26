@@ -264,3 +264,37 @@ workflow with both Git engines. A real duplication of rescheduled owned markers
 was repaired with only the affected Core case repeated; the native fixture also
 needed to select its target row before requesting its menu. Physical/signed/VoiceOver, minimum-version/Intel execution,
 whole-dialog layout and complete hosted CI acceptance remain separate.
+
+
+### Rescheduled owned checkpoints across Git versions — October 26, 2026
+
+Hosted run40335643582 exposed a Git-version difference before structural group
+approval, before the test injected its transport failure. With
+`rebase.rescheduleFailedExec=true`, older Git can append the preceding instruction
+to `done` again while putting the failed owned exec first in todo. Newer Git
+retains the reached exec without that duplicate predecessor. Inspecting only the
+last physical done line lost the logical approval checkpoint.
+
+Read-only state, current-row and progress projection now recognize the exact
+owned source-Squash, empty-message, applied-empty, mainline and structural-result
+receipt. Reading does not rewrite replay files. Before a mutation retires the
+legacy duplicate, the executor reconstructs and compares the complete owned plan,
+including structural cursors, reference updates and completed result markers,
+and rechecks file witnesses under the existing action-edit lock. The existing
+journal publishes done and todo together. An altered predecessor, pending marker
+or unrelated instruction is refused; arbitrary user exec commands are not adopted.
+
+This recovery is shared by group approval, pending action edits, reached message
+and parent decisions, Continue, Split and Abort ownership. The native structural
+fixture now enables failed-exec rescheduling for the full Split/reopen/Abort
+workflows with both Git engines. The new [checkpoint](qa/rebase-rescheduled-checkpoints-2026-10-26.json)
+records actual grouped results and remaining boundaries; the earlier normal-path
+checkpoint does not certify this Git-version recovery.
+
+The checkpoint records 54 distinct relevant Core methods passing cumulatively
+across recorded fixture repairs, the original hosted regression passing, and
+two native structural case/engine pairs passing. The older receipt is injected
+at a genuine failed-exec boundary; local native engines are Git 2.54 and 2.55.
+Debug returned exit zero with contradictory generic compiler diagnostics retained
+in the record. All native receivers are absent. Complete hosted integration and
+signed/physical acceptance remain open.

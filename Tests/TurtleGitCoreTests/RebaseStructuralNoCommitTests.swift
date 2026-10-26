@@ -5,7 +5,9 @@ import Darwin
 final class RebaseStructuralNoCommitTests:XCTestCase {
     var editor:URL {RebaseTests().editor}
     struct Fixture {
-        let root:URL,repo:GitRepository,onto:LogEntry,leader:LogEntry,a:LogEntry,b:LogEntry,side:LogEntry,merge:LogEntry,tail:LogEntry
+        let root:URL
+        var repo:GitRepository
+        let onto:LogEntry,leader:LogEntry,a:LogEntry,b:LogEntry,side:LogEntry,merge:LogEntry,tail:LogEntry
         var plan:RebasePlan
     }
     func commit(_ repo:GitRepository,_ path:String,_ message:String?=nil)async throws->LogEntry {
@@ -281,6 +283,199 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         let expectedTree=try await f.repo.run(["rev-parse","HEAD^{tree}"]).stdout
         XCTAssertEqual(actualTree,expectedTree)
     }
+
+    /// Preserve the real paused plan and checkpoint while selecting the two
+    /// sequencer encodings observed with rescheduleFailedExec on Git 2.39/2.55.
+    /// Git 2.39's save_todo duplicates the exact predecessor after failed exec.
+    func rescheduledCheckpoint(_ root:URL,kind:String,id:String,duplicatePredecessor:Bool)throws {
+        let directory=root.appendingPathComponent(".git/rebase-merge")
+        let doneURL=directory.appendingPathComponent("done"),todoURL=directory.appendingPathComponent("git-rebase-todo")
+        let marker="exec false # turtlegit-"+kind+":"+id
+        var done=try String(contentsOf:doneURL,encoding:.utf8).components(separatedBy:"\n")
+        while done.last=="" {done.removeLast()}
+        let position=try XCTUnwrap(done.lastIndex(where:{$0.trimmingCharacters(in:.whitespaces)==marker}),marker)
+        XCTAssertGreaterThan(position,0,"Fixture must include the actual preceding command")
+        guard position>0 else {throw RebaseFailure.plan}
+        let predecessor=done[position-1]
+        if position+1<done.count {
+            XCTAssertEqual(Array(done[(position+1)...]),[predecessor],"Only Git's observed duplicate predecessor may follow this owned exec")
+            guard Array(done[(position+1)...])==[predecessor] else {throw RebaseFailure.plan}
+            done.removeLast()
+        }
+        var todo=try String(contentsOf:todoURL,encoding:.utf8).components(separatedBy:"\n")
+        let first=todo.firstIndex(where:{!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.trimmingCharacters(in:.whitespaces).hasPrefix("#")}) ?? todo.count
+        if first<todo.count,todo[first].trimmingCharacters(in:.whitespaces)==marker {todo.remove(at:first)}
+        todo.insert(marker,at:first)
+        if duplicatePredecessor {done.append(predecessor)}
+        try Data((done.joined(separator:"\n")+"\n").utf8).write(to:doneURL)
+        try Data(todo.joined(separator:"\n").utf8).write(to:todoURL)
+        try Data().write(to:directory.appendingPathComponent("reschedule-failed-exec"))
+    }
+
+    /// Observe Git's actual failed exec before Core resumes its owned driver.
+    /// Both supported sequencer versions are transformed only at that boundary,
+    /// never after the squash payload has already reached approval.
+    func checkpointRepository(_ f:Fixture,duplicate:Bool,mutation:String="none")throws->GitRepository {
+        let folder=f.root.appendingPathComponent(".git/rescheduled-exec-fixture")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:false)
+        let wrapper=folder.appendingPathComponent("git")
+        func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        let script="""
+        #!/bin/sh
+        is_rebase=0
+        for arg in "$@"; do
+          [ "$arg" = rebase ] && is_rebase=1
+        done
+        \(quote(f.repo.executable.path)) "$@"
+        result=$?
+        if [ "$is_rebase" = 1 ] && [ "$result" != 0 ]; then
+          /usr/bin/python3 - \(quote(f.root.path)) \(duplicate ? "1":"0") \(quote(mutation)) <<'PY'
+        import pathlib, sys
+        root=pathlib.Path(sys.argv[1]); directory=root/'.git/rebase-merge'; output=root/'.git/rescheduled-exec-fixture'
+        done=directory/'done'; todo=directory/'git-rebase-todo'
+        if done.exists() and todo.exists() and (directory/'reschedule-failed-exec').exists():
+            finished=done.read_text().splitlines(); pending=todo.read_text().splitlines()
+            first=next((i for i,s in enumerate(pending) if s.strip() and not s.lstrip().startswith('#')),None)
+            prefixes=['exec false # turtlegit-'+kind+':' for kind in ['source-squash','empty-subject','mainline','structural-result']]
+            marker=pending[first] if first is not None else ''
+            if any(marker.startswith(prefix) for prefix in prefixes):
+                modern=len(finished)>=2 and finished[-1]==marker
+                legacy=len(finished)>=3 and finished[-2]==marker and finished[-1]==finished[-3]
+                if modern or legacy:
+                    if legacy: finished.pop()
+                    if sys.argv[2]=='1': finished.append(finished[-2])
+                    if sys.argv[3]=='done': finished[-1]+=' external-change'
+                    if sys.argv[3]=='todo': pending[first]+=' external-change'
+                    done.write_text('\\n'.join(finished)+'\\n'); todo.write_text('\\n'.join(pending)+'\\n')
+                    with (output/'events').open('a') as f: f.write('owned\\n')
+                    if sys.argv[3]!='none':
+                        (output/'captured-done').write_bytes(done.read_bytes()); (output/'captured-todo').write_bytes(todo.read_bytes())
+        PY
+        fi
+        exit "$result"
+        """
+        try Data(script.utf8).write(to:wrapper)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+        return GitRepository(root:f.root,executable:wrapper,libgit2Configuration:.init(enabled:false))
+    }
+    func assertCheckpointObserved(_ root:URL,file:StaticString=#filePath,line:UInt=#line)throws {
+        let events=try String(contentsOf:root.appendingPathComponent(".git/rescheduled-exec-fixture/events"),encoding:.utf8)
+        XCTAssertTrue(events.hasPrefix("owned\n"),"Fixture never reached a real rescheduled owned exec",file:file,line:line)
+    }
+
+    func checkpointBytes(_ root:URL)throws->[String:Data] {
+        let directory=root.appendingPathComponent(".git/rebase-merge")
+        return try Dictionary(uniqueKeysWithValues:["done","git-rebase-todo","turtlegit-replay-identities.json"].map {($0,try Data(contentsOf:directory.appendingPathComponent($0)))})
+    }
+    func testRescheduledOwnedExecEncodingsKeepStructuralApprovalAndFinish()async throws {
+        for duplicate in [false,true] {
+            var f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+            _ = try await f.repo.run(["config","rebase.rescheduleFailedExec","true"])
+            f.repo=try checkpointRepository(f,duplicate:duplicate)
+            let approval=try await self.approval(f)
+            let current=try XCTUnwrap(approval.state.stoppedEntryID)
+            try assertCheckpointObserved(f.root)
+            let bytes=try checkpointBytes(f.root),index=try await f.repo.run(["ls-files","--stage","-z"]).stdout
+            let reopened=GitRepository(root:f.root,executable:f.repo.executable,libgit2Configuration:.init(enabled:false))
+            let state=try await reopened.rebaseState()
+            XCTAssertEqual(state.noCommitSquash,approval.state.noCommitSquash)
+            XCTAssertEqual(state.stoppedEntryID,current);XCTAssertEqual(state.currentStep,approval.state.currentStep)
+            XCTAssertNotNil(state.squashMessage);XCTAssertFalse(state.needsFileRecovery)
+            XCTAssertEqual(try checkpointBytes(f.root),bytes,"Reading a rescheduled checkpoint must not publish repairs")
+            let rows=try await reopened.rebaseSessionSnapshot()
+            XCTAssertEqual(rows.replay.first{$0.id==current}?.progress,.current)
+            let unchanged=try await reopened.run(["ls-files","--stage","-z"]).stdout
+            XCTAssertEqual(unchanged,index)
+            let finished=try await reopened.continueRebase(squashMessage:"Reviewed rescheduled group",expectedReplayState:state,expectedReplayHead:f.onto.hash,editorExecutable:editor)
+            XCTAssertEqual(finished.exitCode,0,finished.output);XCTAssertFalse(finished.state.active)
+            let group=try await reopened.rebaseCommit("group-end")
+            XCTAssertEqual(group.subject,"Reviewed rescheduled group")
+            try await verifyDescendants(f,groupHead:group.hash)
+        }
+    }
+    func testRescheduledOwnedExecCancellationKeepsRawBytesAndAbortRestoresBranch()async throws {
+        for duplicate in [false,true] {
+            var f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+            _ = try await f.repo.run(["config","rebase.rescheduleFailedExec","true"])
+            f.repo=try checkpointRepository(f,duplicate:duplicate)
+            _ = try await self.approval(f)
+            try assertCheckpointObserved(f.root)
+            let state=try await f.repo.rebaseState(),bytes=try checkpointBytes(f.root)
+            let index=try await f.repo.run(["ls-files","--stage","-z"]).stdout
+            let cancellation=OperationCancellation();cancellation.cancel()
+            do {
+                _ = try await f.repo.continueRebase(squashMessage:"Cancelled approval",expectedReplayState:state,expectedReplayHead:f.onto.hash,cancellation:cancellation,editorExecutable:editor)
+                XCTFail("Cancelled rescheduled checkpoint continued")
+            } catch OperationCancellationFailure.cancelled {}
+            XCTAssertEqual(try checkpointBytes(f.root),bytes)
+            let head=try await f.repo.rebaseCommit("HEAD"),after=try await f.repo.run(["ls-files","--stage","-z"]).stdout
+            XCTAssertEqual(head.hash,f.onto.hash);XCTAssertEqual(after,index)
+            _ = try await f.repo.abortRebase()
+            let original=try await f.repo.rebaseCommit("HEAD"),group=try await f.repo.rebaseCommit("group-end")
+            XCTAssertEqual(original.hash,f.plan.branchHash);XCTAssertEqual(group.hash,f.b.hash)
+            let restored=try await f.repo.run(["status","--porcelain"]).stdout
+            XCTAssertTrue(restored.isEmpty)
+        }
+    }
+    func testRescheduledOwnedExecRefusesChangedDuplicateOrPendingReceipt()async throws {
+        for mutateDuplicate in [false,true] {
+            var f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+            _ = try await f.repo.run(["config","rebase.rescheduleFailedExec","true"])
+            f.repo=try checkpointRepository(f,duplicate:true,mutation:mutateDuplicate ? "done":"todo")
+            do {
+                let stopped = try await f.repo.startRebase(f.plan,editorExecutable:editor)
+                XCTAssertNotEqual(stopped.exitCode,0,stopped.output)
+                XCTAssertTrue(stopped.state.active)
+                XCTAssertNil(stopped.state.noCommitSquash,"Foreign checkpoint must not create an approval group")
+                XCTAssertNil(stopped.state.squashMessage)
+            } catch RebaseFailure.changed {} catch RebaseFailure.plan {}
+            try assertCheckpointObserved(f.root)
+            let directory=f.root.appendingPathComponent(".git/rebase-merge"),captured=f.root.appendingPathComponent(".git/rescheduled-exec-fixture")
+            XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent("done")),try Data(contentsOf:captured.appendingPathComponent("captured-done")))
+            XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent("git-rebase-todo")),try Data(contentsOf:captured.appendingPathComponent("captured-todo")))
+            let head=try await f.repo.rebaseCommit("HEAD"),index=try await f.repo.run(["diff","--cached","--name-only","-z"]).stdout
+            XCTAssertEqual(head.hash,f.onto.hash);XCTAssertTrue(index.isEmpty,"Foreign checkpoint cannot apply the squash payload")
+            XCTAssertFalse(FileManager.default.fileExists(atPath:f.root.appendingPathComponent("payload-a.txt").path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath:f.root.appendingPathComponent("payload-b.txt").path))
+            _ = try await f.repo.abortRebase()
+            let restored=try await f.repo.rebaseCommit("HEAD");XCTAssertEqual(restored.hash,f.plan.branchHash)
+        }
+    }
+    func testRescheduledEmptyThenMainlineCheckpointsRetainOccurrenceAndRequireApproval()async throws {
+        for duplicate in [false,true] {
+            let helper=RebaseMainlineTests(),f=try await helper.fixture(emptyMerge:true)
+            defer{try? FileManager.default.removeItem(at:f.root)}
+            _ = try await f.repo.run(["config","rebase.rescheduleFailedExec","true"])
+            let reached=try await f.repo.startRebase(f.plan,editorExecutable:editor)
+            let warning=try XCTUnwrap(reached.state.emptyMessageWarning)
+            try rescheduledCheckpoint(f.root,kind:"empty-subject",id:warning.entryID,duplicatePredecessor:duplicate)
+            let reopened=GitRepository(root:f.root,executable:f.repo.executable,libgit2Configuration:.init(enabled:false))
+            let empty=try await reopened.rebaseState(),raw=try checkpointBytes(f.root)
+            XCTAssertEqual(empty.emptyMessageWarning,warning);XCTAssertNil(empty.mainlineDecision)
+            XCTAssertEqual(empty.stoppedEntryID,warning.entryID);XCTAssertEqual(empty.currentStep,warning.step)
+            XCTAssertEqual(try checkpointBytes(f.root),raw)
+            do {_ = try await reopened.continueRebase(editorExecutable:editor);XCTFail("Unreviewed empty subject continued")}catch RebaseFailure.message {}
+            let parent=try await reopened.acknowledgeRebaseEmptyMessage(warning,expected:empty,expectedHead:warning.head)
+            let choice=try XCTUnwrap(parent.state.mainlineDecision)
+            XCTAssertEqual(choice.entryID,warning.entryID)
+            try rescheduledCheckpoint(f.root,kind:"mainline",id:choice.entryID,duplicatePredecessor:duplicate)
+            let mainline=try await reopened.rebaseState(),pending=try checkpointBytes(f.root)
+            let liveChoice=try XCTUnwrap(mainline.mainlineDecision)
+            XCTAssertEqual(liveChoice.entryID,choice.entryID);XCTAssertEqual(liveChoice.parents,choice.parents);XCTAssertEqual(liveChoice.head,choice.head)
+            XCTAssertNil(mainline.emptyMessageWarning)
+            XCTAssertEqual(mainline.stoppedEntryID,choice.entryID);XCTAssertEqual(mainline.currentStep,choice.step)
+            do {_ = try await reopened.continueRebase(editorExecutable:editor);XCTFail("Unanswered mainline continued")}catch RebaseFailure.mainline {}
+            XCTAssertEqual(try checkpointBytes(f.root),pending)
+            let approved=try await reopened.selectRebaseMainline(liveChoice,parent:1,expected:mainline,expectedHead:liveChoice.head)
+            XCTAssertTrue(approved.state.isEditPause);XCTAssertNil(approved.state.mainlineDecision)
+            let finished=try await reopened.continueRebase(editMessage:"Reviewed rescheduled merge",editorExecutable:editor)
+            XCTAssertEqual(finished.exitCode,0,finished.output);XCTAssertFalse(finished.state.active)
+            let merge=try await reopened.rebaseCommit("HEAD~1")
+            XCTAssertEqual(merge.subject,"Reviewed rescheduled merge")
+            XCTAssertTrue(FileManager.default.fileExists(atPath:f.root.appendingPathComponent("after.txt").path))
+        }
+    }
+
     func testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes()async throws {
         let f=try await fixture();defer {try? FileManager.default.removeItem(at:f.root)}
         _ = try await f.repo.run(["config","rebase.rescheduleFailedExec","true"])

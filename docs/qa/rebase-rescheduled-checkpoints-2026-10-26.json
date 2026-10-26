@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-26",
+  "source_parent": "d6b64b72",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused_grouped_checks_passed_after_recorded_fixture_repairs",
+  "trigger": {
+    "run": 40335643582,
+    "source": "37b84cd139c49efaede48397f813b48f0509220e",
+    "method": "RebaseStructuralNoCommitTests.testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes",
+    "observed": "Approval was missing before transport injection; older Git rescheduled an owned exec and duplicated its predecessor in done."
+  },
+  "implementation": [
+    "Read-only owned checkpoint projection for old duplicated-predecessor and newer consumed exec representations.",
+    "Full owned plan reconstruction and exact raw file recheck before journaled done/todo normalization.",
+    "Shared source-Squash, empty-message/applied-empty, mainline, structural-result, pending edits and Continue recovery.",
+    "Native structural Split/reopen/Abort fixtures explicitly enable rebase.rescheduleFailedExec."
+  ],
+  "validation": {
+    "core": "54 distinct relevant methods passed cumulatively: initial 49, focused four, final refusal method one. Original hosted regression passed in initial group. No complete Core or hosted pass claimed.",
+    "debug": "exit 0; current Debug framework exercised by both native engine pairs. Xcode emitted contradictory generic SwiftCompile exit-code-zero error diagnostics with warning-only source output; this is recorded rather than treated as a clean diagnostic log.",
+    "native": "passed: two case/engine pairs, failed-exec rescheduling enabled; actual Split children, future-row menu/icon, exact DAG/tree, Cancel/reopen/Abort and drained owners",
+    "core_filter": "RebaseStructuralNoCommitTests|RebaseEmptyMessageTests|RebaseMainlineTests|RebaseFailedPickTests",
+    "native_case": "scripts/test-rebase-source.py --only structural-group --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "localizations": "No literal native UI labels changed.",
+    "help": "No guide included by help-topics.json changed.",
+    "dialog_coverage": "reconciled successfully",
+    "owned_receivers_reaped": [
+      70708,
+      74313
+    ],
+    "owned_receivers_independently_absent": true,
+    "git_versions": {
+      "system": "2.54.0 (Apple Git-157)",
+      "bundled": "2.55.0"
+    },
+    "core_methods_passed_cumulatively": 54,
+    "native_case_engine_pairs_passed": 2,
+    "core_editor_recheck": "Current Debug app executable via TURTLEGIT_REBASE_EDITOR, matching hosted setup.",
+    "legacy_representation": "Exact older-Git duplicated predecessor injected at real failed-exec boundary by a private wrapper; native engines are Apple Git2.54 and bundled Git2.55, not a physical Git2.39 run."
+  },
+  "limits": [
+    "Focused local checks do not prove the complete hosted suite.",
+    "No installed signed, physical Finder, minimum-macOS/Intel or complete upstream dialog acceptance in this checkpoint.",
+    "Arbitrary external todo instructions and unverified checkpoint edits remain refused."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "2285a48fce5d445f6eb8308ffee4be834ac3d70c93f1aaff0c7afa077bc04772",
+    "Tests/TurtleGitCoreTests/RebaseStructuralNoCommitTests.swift": "31cf2fc740caa3409866b048ed50349717732424286190920fda96551520663e",
+    "docs/qa/rebase-structural-no-commit-native-2026-10-26.swift": "3d70efccb04b867f46d45cbddb71b8bfb951bd611b584d92505737ae21dbde9d"
+  },
+  "logs": {
+    "core": "build/qa/rebase-rescheduled-core-2026-10-26.log",
+    "debug": "build/qa/rebase-rescheduled-debug-2026-10-26.log",
+    "native": "build/qa/rebase-rescheduled-native-2026-10-26.log",
+    "dialog_coverage": "build/qa/rebase-rescheduled-coverage-2026-10-26.log",
+    "core_repair": "build/qa/rebase-rescheduled-core-repair-2026-10-26.log",
+    "core_refusal": "build/qa/rebase-rescheduled-core-refusal-2026-10-26.log"
+  },
+  "failures": [
+    {
+      "scope": "two existing Mainline methods",
+      "failure": "Root omitted TURTLEGIT_REBASE_EDITOR; Core-only SwiftPM used the stale Oct25 unbundled editor instead of the current Debug executable.",
+      "resolution": "Both affected methods passed using the current Debug editor."
+    },
+    {
+      "scope": "three new synthetic structural checkpoint methods",
+      "failure": "Test helper assumed an already consumed source checkpoint was a raw reached Git stop; the legitimate post-driver drop B tail differs from predecessor drop A. Fixture failed before reaching its behavioral assertions.",
+      "resolution": "A private wrapper now selects the exact modern or legacy receipt at the genuine failed Git exec boundary before Core consumption. Completion and cancellation methods passed."
+    },
+    {
+      "scope": "altered receipt method in five-method focused recheck",
+      "failure": "Fixture required a thrown failure even though executor safely returned a nonzero active checkpoint without changing bytes or applying payload.",
+      "resolution": "Accept either typed refusal or nonzero active operation with no approval group/message; retain exact bytes, index, HEAD, payload absence and Abort restoration assertions. Only this method repeated. Final focused method passed, no production changes or repeated native/build checks."
+    }
+  ]
+}
