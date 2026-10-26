@@ -10,22 +10,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and run serialized formatted replay (8 aligned fixtures and 18 native digit cases)
+      - name: Compile and run compact and batched text reference
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw "Windows C++ toolchain missing" }
           $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
-          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\FormattedReplayReference.cpp /Fe:FormattedReplayReference.exe /link gdiplus.lib gdi32.lib user32.lib usp10.lib`r`n"
+          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\CompactTextReference.cpp /Fe:CompactTextReference.exe /link gdiplus.lib gdi32.lib user32.lib usp10.lib`r`n"
           Set-Content -Path oracle-build.cmd -Value $compile -Encoding Ascii
           cmd /c oracle-build.cmd
           if ($LASTEXITCODE -ne 0) { throw "Reference compile failed" }
-          .\FormattedReplayReference.exe scripts/oracles/formatted-replay-inputs oracle-output
+          .\CompactTextReference.exe scripts/oracles/compact-text-inputs oracle-output
           if ($LASTEXITCODE -ne 0) { throw "Reference execution failed" }
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
-          Get-FileHash scripts/oracles/FormattedReplayReference.cpp -Algorithm SHA256
-          Get-FileHash scripts/oracles/formatted-replay-inputs/*.emf -Algorithm SHA256 | Format-Table -AutoSize
-          Copy-Item scripts/oracles/formatted-replay-inputs/source-hashes.json oracle-output/source-hashes.json
+          Get-FileHash scripts/oracles/CompactTextReference.cpp -Algorithm SHA256
+          Get-FileHash scripts/oracles/compact-text-inputs/*.emf -Algorithm SHA256 | Format-Table -AutoSize
           Get-FileHash oracle-output/*.emf -Algorithm SHA256 | ConvertTo-Json | Set-Content oracle-output/generated-emf-hashes.json
       - uses: actions/upload-artifact@v4
         if: always()
