@@ -5,6 +5,7 @@ import TurtleGitCore
 
 @MainActor enum DialogLaunchVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
+    static func phase(_ message:String) {fputs("Dialog launch phase: "+message+"\n",stderr);fflush(stderr)}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:"Dialog launch: "+message)}}
     static func wait(_ message:String,_ ready:()->Bool)async throws {for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(description:"Dialog launch timeout: "+message)}
     static func children(since baseline:Set<ObjectIdentifier>)->[NSWindowController] {
@@ -28,7 +29,49 @@ import TurtleGitCore
             NSAppleEventManager.shared().dispatchRawAppleEvent(rawEvent,withRawReply:UnsafeMutablePointer(mutating:rawReply),handlerRefCon:UnsafeMutableRawPointer(pointer))
         }
     }
+    static func verifyCommitReopen(delegate:TurtleGitApplicationDelegate,repository:GitRepository,presentations:()->Int,expectedWorkspace:NSWindow?)async throws {
+        phase("Commit child constructing")
+        let suite="TurtleGit.DialogReopen.Commit."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        prefs.set(true,forKey:"HintStagingMode");prefs.set(1,forKey:"CommitMergeHint");prefs.set(7,forKey:"NothingToCommitShowUnversioned");prefs.set(false,forKey:"Autocompletion");prefs.set(false,forKey:"UseLibgit2")
+        defer {prefs.removePersistentDomain(forName:suite)}
+        let head=try await repository.run(["rev-parse","HEAD"]).stdout,index=try await repository.run(["ls-files","--stage","-z"]).stdout
+        let child=CommitWindowController(repository:repository,access:nil,defaults:prefs)
+        defer {child.close()}
+        child.showWindow(nil);child.model.reload()
+        try await wait("actual Commit reopen child ready") {!child.model.busy && CommitWindowModel.activeReloads==0 && CommitWindowModel.activePreferenceOperations==0}
+        phase("Commit child loaded")
+        guard let window=child.window else {throw Failure(description:"Actual Commit window missing")}
+        child.model.message="Unsaved standalone Commit draft 雪\nsecond line"
+        let draft=child.model.message,before=presentations(),windows=Set(NSApp.windows.map(ObjectIdentifier.init))
+        try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && presentations()==before && child.window === window && child.model.message==draft && Set(NSApp.windows.map(ObjectIdentifier.init))==windows,"Reopen changed actual Commit draft/owner or created workspace")
+        phase("Commit child visible reopen retained")
+        let sheet=NSWindow(contentRect:.init(x:-24000,y:-24000,width:300,height:120),styleMask:[.titled],backing:.buffered,defer:false)
+        sheet.isReleasedWhenClosed=false;sheet.alphaValue=0
+        defer {if let parent=sheet.sheetParent {parent.endSheet(sheet)};sheet.orderOut(nil);sheet.close()}
+        window.beginSheet(sheet,completionHandler:nil)
+        try require(window.attachedSheet === sheet,"Owned Commit activation sheet did not attach")
+        try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && presentations()==before && window.attachedSheet === sheet && child.model.message==draft,"Reopen dismissed actual Commit child sheet or lost draft")
+        phase("Commit child sheet reopen retained; ending sheet")
+        window.endSheet(sheet);sheet.orderOut(nil);sheet.close()
+        phase("Commit child miniaturizing")
+        window.miniaturize(nil)
+        try await wait("actual minimized Commit child") {window.isMiniaturized}
+        phase("Commit child miniaturized")
+        // AppKit explicitly counts miniaturized windows as visible for this flag.
+        try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && presentations()==before && window.isMiniaturized && child.model.message==draft,"Minimized child reopen was replaced by workspace")
+        phase("Commit child minimized reopen retained; restoring")
+        window.deminiaturize(nil)
+        try await wait("owned Commit restored") {!window.isMiniaturized}
+        try require(delegate.repositoryModel?.workspaceWindow === expectedWorkspace,"Child reopen replaced existing workspace owner")
+        phase("Commit child closing")
+        child.close()
+        try await wait("actual Commit activation child drain") {CommitWindowModel.activeReloads==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeMetadataOperations==0 && child.window?.isVisible != true && child.window?.attachedSheet==nil}
+        let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try await repository.run(["ls-files","--stage","-z"]).stdout
+        try require(afterHead==head && afterIndex==index,"Activation changed repository HEAD/index")
+        phase("Commit child drained; HEAD/index retained")
+    }
     static func verify(repository:GitRepository,existing:RepositoryModel,preferences:UserDefaults)async throws {
+        phase("begin")
         let git=repository.executable,folder=repository.root
         var models=[RepositoryModel](),delegates=[TurtleGitApplicationDelegate](),settings=[SettingsPresentationService](),appearances=[AppAppearance]()
         defer {
@@ -37,6 +80,11 @@ import TurtleGitCore
             for service in settings {service.controller?.close()}
         }
         func configure(_ delegate:TurtleGitApplicationDelegate)throws->RepositoryModel {
+            delegate.startupMergeToolExit={status in
+                fputs("UNEXPECTED dialog launch tool-exit callback status=\(status)\n"+Thread.callStackSymbols.joined(separator:"\n")+"\n",stderr)
+                fflush(stderr)
+                exit(status)
+            }
             // A real persisted private bookmark grants the selected repository
             // to both CLI and later Finder requests. No interactive system panel
             // or user bookmark archive belongs to this offscreen receiver.
@@ -104,7 +152,9 @@ import TurtleGitCore
         eventModel.stopMonitoringForTermination();successorModel.stopMonitoringForTermination()
         // Tool processes hand every accepted external URL to their existing
         // separate-host handoff, never to the waiting Git tool's own workspace.
+        phase("cold/warm URL delivery ownership retained")
         for marker in ["--merge-tool","--unified-diff"] {
+            phase("tool handoff "+marker)
             let tool=TurtleGitApplicationDelegate(),toolModel=try configure(tool)
             tool.startupArguments=[marker];tool.activateStandaloneApplication={}
             tool.startupCommandHandler={_,_,_ in}
@@ -127,7 +177,9 @@ import TurtleGitCore
         internalDelegate.startupDidFinishLaunching()
         try require(internalDelegate.startupLaunchMode == .actionOnly && internalPresentations==0 && internalActivations==0 && internalModel.workspaceWindow==nil,"Bare action-only bootstrap presented/activated workspace")
         internalDelegate.retireFinderServices();internalModel.stopMonitoringForTermination()
+        phase("internal bare bootstrap retained")
         for command in ["about","settings","log"] {
+            phase("cold command "+command+" starting")
             let baseline=Set(NSApp.windows.map(ObjectIdentifier.init)),delegate=TurtleGitApplicationDelegate(),model=try configure(delegate)
             var workspacePresentations=0,forcedActivations=0
             delegate.presentWorkspace={workspacePresentations += 1};delegate.activateStandaloneApplication={forcedActivations += 1}
@@ -143,7 +195,12 @@ import TurtleGitCore
             }
             try require(delegate.actionRepositoryModel === model && model.workspaceWindow==nil && workspacePresentations==0 && forcedActivations==1 && !delegate.applicationShouldOpenUntitledFile(NSApp),"Cold CLI action lost dialog activation or presented a workspace: "+command)
             try require(delegate.actionErrorController==nil,"Cold valid action produced error: "+command)
-            try await closeChildren(since:baseline)
+            phase("cold command "+command+" presented")
+            let actionChildren=children(since:baseline),actionWindows=actionChildren.compactMap(\.window)
+            let beforeReopenWindows=Set(NSApp.windows.map(ObjectIdentifier.init)),beforeReopenActivations=forcedActivations
+            try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true),"Visible cold dialog did not retain normal AppKit reopen: "+command)
+            try require(workspacePresentations==0 && forcedActivations==beforeReopenActivations && model.workspaceWindow==nil && Set(NSApp.windows.map(ObjectIdentifier.init))==beforeReopenWindows && actionChildren.allSatisfy{child in actionWindows.contains{$0 === child.window}},"Visible cold dialog reopen created/replaced/activated workspace: "+command)
+            phase("cold command "+command+" visible reopen retained")
             // Explicit Open is deliberately a new workspace intent, whereas the
             // action above must never have launched it implicitly.
             var forwarded=[[URL]](),configurations=[[String]]()
@@ -160,6 +217,7 @@ import TurtleGitCore
             defer {explicitHost.close();if model.workspaceWindow === explicitHost {model.workspaceWindow=nil}}
             delegate.requestWorkspace()
             try require(workspacePresentations==1 && forwarded.isEmpty && configurations.isEmpty && delegate.repositoryModel === model,"Explicit workspace request did not retain in-process presentation")
+            try require(actionChildren.allSatisfy{child in actionWindows.contains{$0 === child.window} && child.window?.isVisible==true},"Explicit workspace intent retired the still-open action dialog: "+command)
             var opened=[[URL]]()
             delegate.workspaceOpenSelectionHandler={target,paths in
                 guard target === model else {return false};opened.append(paths);return true
@@ -167,6 +225,9 @@ import TurtleGitCore
             let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()};board.writeObjects([folder as NSURL])
             var error:NSString?;delegate.finderServicesProvider.openInTurtleGit(board,userData:"open",error:&error)
             try require(error==nil && opened.count==1 && opened[0].map(\.path)==[folder.path] && forwarded.isEmpty,"Generic public Service did not explicitly route workspace Open")
+            phase("cold command "+command+" explicit Open retained; closing")
+            try await closeChildren(since:baseline)
+            phase("cold command "+command+" drained")
             delegate.retireFinderServices();model.stopMonitoringForTermination()
         }
         let originalRoot=existing.root,originalWindow=existing.workspaceWindow
@@ -174,6 +235,7 @@ import TurtleGitCore
         var requested=0;delegate.startupArguments=[];delegate.repositoryModel=existing;delegate.presentWorkspace={requested += 1};delegate.startupDidFinishLaunching()
         delegate.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))
         for action in [RepositoryAction.about,.settings,.log] {
+            phase("warm action "+action.rawValue+" starting")
             let baseline=Set(NSApp.windows.map(ObjectIdentifier.init)),before=requested
             guard let url=FinderRequest(action:action,paths:[folder]).url else{throw Failure(description:"Action URL unavailable")}
             try dispatchURL(url.absoluteString)
@@ -185,17 +247,27 @@ import TurtleGitCore
                 }
             }
             try require(existing.root==originalRoot && existing.workspaceWindow===originalWindow && requested==before && delegate.actionRepositoryModel === privateModel && privateModel.workspaceWindow==nil,"Warm dialog retargeted/presented existing workspace: "+action.rawValue)
+            let warmWindows=Set(NSApp.windows.map(ObjectIdentifier.init))
+            try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && requested==before && Set(NSApp.windows.map(ObjectIdentifier.init))==warmWindows && existing.workspaceWindow===originalWindow,"Warm visible dialog reopen presented/retargeted workspace: "+action.rawValue)
             if action == .settings {
                 guard let owner=children(since:baseline).first(where:{$0.window?.contentViewController is SettingsNavigationController}),let navigation=owner.window?.contentViewController as? SettingsNavigationController else {throw Failure(description:"Actual private Settings navigation missing")}
                 var dirty=true
                 navigation.transaction.register("launch-dirty",participant:.init(page:.git,modified:{dirty},validate:{nil},apply:{dirty=false;return true},cancel:{dirty=false}))
+                phase("warm Settings dirty Quit refusal")
                 try require(delegate.applicationShouldTerminate(NSApp) == .terminateCancel && dirty && navigation.transaction.modified && !navigation.completionPending,"Quit discarded/retired dirty private Settings")
-                if let sheet=owner.window?.attachedSheet {owner.window?.endSheet(sheet);sheet.close()}
+                guard let settingsWindow=owner.window,let sheet=settingsWindow.attachedSheet else {throw Failure(description:"Dirty private Settings did not retain its owned warning sheet")}
+                let heldController=owner,heldNavigation=navigation,beforeSheetReopen=requested
+                try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && requested==beforeSheetReopen && settingsWindow.attachedSheet === sheet && owner === heldController && owner.window?.contentViewController === heldNavigation && dirty && navigation.transaction.modified && !navigation.completionPending,"Reopen replaced dirty scoped Settings, dismissed its sheet or requested workspace")
+                phase("warm Settings dirty sheet reopen retained; ending sheet")
+                settingsWindow.endSheet(sheet);sheet.close()
                 navigation.transaction.unregister("launch-dirty")
             }
             try await closeChildren(since:baseline)
         }
+        try await verifyCommitReopen(delegate:delegate,repository:repository,presentations:{requested},expectedWorkspace:originalWindow)
+        phase("final explicit workspace request")
         delegate.requestWorkspace();try require(requested==1 && existing.workspaceWindow===originalWindow,"Explicit warm workspace request lost existing route")
         delegate.retireFinderServices();privateModel.stopMonitoringForTermination()
+        phase("all dialog activation scenarios complete")
     }
 }

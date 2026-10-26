@@ -138,6 +138,13 @@ private extension NSWindow {
         c.delegate.application(NSApp,open:[FinderRequest(action:.about,paths:[c.folder]).url!])
         try await wait("warm action isolation") {NSApp.windows.contains{!baseline.contains(ObjectIdentifier($0)) && $0.windowController is TurtleGitAboutController}}
         try require(c.delegate.repositoryModel === model && model.root==root && c.controllers.count==hostCount && c.delegate.actionRepositoryModel !== model,"Warm action replaced/adopted workspace owner")
+        window.performClose(nil)
+        try await wait("workspace closed beside About") {model.workspaceWindow==nil && !window.isVisible}
+        let beforeReopen=c.presentations
+        try require(c.delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true),"Existing About did not retain AppKit reopen handling")
+        try require(c.presentations==beforeReopen && model.workspaceWindow==nil && !window.isVisible && c.scene.storedController === owner,"Reactivating About reopened/duplicated the closed workspace")
+        c.delegate.requestWorkspace()
+        try require(c.presentations==beforeReopen+1 && model.workspaceWindow === window && c.scene.storedController === owner,"Explicit Open beside About lost the retained workspace")
     }
     static func main()async {
         NSApplication.shared.setActivationPolicy(.prohibited)

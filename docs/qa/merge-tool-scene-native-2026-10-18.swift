@@ -9,6 +9,7 @@ enum MergeToolSceneVerification {
         for _ in 0..<1800 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         throw Failure(description: "Merge-tool scene timeout at \(line)")
     }
+    static func unwrap<T>(_ value:T?)throws->T {guard let value else{throw Failure(description:"Utility owner unavailable")};return value}
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
         let suite = "TurtleGit.MergeToolScene." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
@@ -142,7 +143,48 @@ enum MergeToolSceneVerification {
         try require(context.canClose && context.close(), "Close did not dispatch to owned Open chooser")
         try await wait { openerClosed == 1 && opener.window?.isVisible == false && opener.pendingChoices == 0 }
         try require(!context.close(), "Retired Open chooser retained Close action")
+        // The utility command must target its own native controller, even
+        // when it overlays an existing Merge document or scoped Settings owner.
+        let about=TurtleGitAboutController(tool:.merge,information:.init(application:root,version:"1.0",build:"private"))
+        defer{about.close()}
+        var aboutClosed=0;about.onClosed={aboutClosed += 1}
+        about.window!.alphaValue=0;about.window!.setFrameOrigin(.init(x:-20000,y:-20000));about.showWindow(nil);about.window!.orderFront(nil)
+        focused=about.window;context.refresh()
+        try require(context.canClose && !context.canSaveAll,"About did not own Close independently of the background editor")
+        let utilitySheet=NSWindow(contentRect:.init(x:0,y:0,width:160,height:80),styleMask:[.titled],backing:.buffered,defer:false)
+        utilitySheet.isReleasedWhenClosed=false;utilitySheet.alphaValue=0;utilitySheet.setFrameOrigin(.init(x:-20000,y:-20000))
+        about.window!.beginSheet(utilitySheet,completionHandler:nil);context.refresh()
+        try require(!context.canClose && !context.close() && aboutClosed==0,"About Close bypassed its attached sheet")
+        about.window!.endSheet(utilitySheet);utilitySheet.orderOut(nil);utilitySheet.close()
+        try await wait{about.window?.attachedSheet==nil && utilitySheet.sheetParent==nil}
+        context.refresh();try require(context.canClose && context.close(),"About custom Close was unavailable")
+        try await wait{about.retired && aboutClosed==1 && about.window?.isVisible==false}
+        try require(!context.close() && aboutClosed==1,"Closed About accepted a duplicate Close")
+        let utilityWorkspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        utilityWorkspace.fileComparisonPreferences=prefs
+        defer{utilityWorkspace.stopMonitoringForTermination()}
+        let utilityAppearance=AppAppearance(preferences:prefs),scoped=SettingsPresentationService()
+        scoped.install(workspace:utilityWorkspace,appearance:utilityAppearance)
+        scoped.present={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-20000,y:-20000));owner.showWindow(nil);owner.window?.orderFront(nil)}
+        scoped.show(globalOnly:true,initialPage:.advanced)
+        defer{scoped.controller?.close()}
+        try await wait{scoped.controller?.window?.isVisible==true && scoped.navigation?.canDismiss==true}
+        let settings=try unwrap(scoped.controller?.window),navigation=try unwrap(scoped.navigation)
+        try require(SettingsPresentationService.shared.controller?.window !== settings,"Fixture used shared rather than scoped Settings")
+        focused=settings;context.refresh()
+        try require(context.canClose && !context.canSaveAll,"Scoped Settings did not own custom Close")
+        var save:CheckedContinuation<Bool,Never>?,dirty=true
+        navigation.transaction.register("private-held-utility-save",participant:.init(page:.advanced,modified:{dirty},validate:{nil},apply:{await withCheckedContinuation{save=$0}},cancel:{dirty=false}))
+        navigation.transaction.apply(closeAfter:false)
+        defer{if let pending=save{save=nil;pending.resume(returning:false)}}
+        try await wait{save != nil}
+        context.refresh();try require(!context.canClose && !context.close() && scoped.controller?.window === settings,"Scoped Settings Close bypassed an active save")
+        dirty=false;save?.resume(returning:true);save=nil
+        try await wait{navigation.canDismiss && !navigation.transaction.busy}
+        context.refresh();try require(context.canClose && context.close(),"Scoped Settings failed to close through its own delegate")
+        try await wait{scoped.controller==nil && !settings.isVisible && SettingsTransaction.activeApplications==0 && SettingsTransaction.activeRetirements==0}
+        try require(!context.close(),"Retired scoped Settings accepted duplicate Close")
         focused = nil
-        print("PASS standalone scene classification/bootstrap, lazy workspace, focused native menus and Save All ownership")
+        print("PASS standalone scene classification/bootstrap, lazy workspace, focused native menus and Save All ownership, exact About/scoped Settings Close and sheet/save guards")
     }
 }

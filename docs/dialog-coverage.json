@@ -336,6 +336,7 @@
         "docs/WORKSPACE-OPEN-HANDOFF-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/dialog-reactivation-2026-10-26.json",
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/merge-editor-open-2026-10-14.json",
         "docs/qa/merge-frame-2026-10-18.json",

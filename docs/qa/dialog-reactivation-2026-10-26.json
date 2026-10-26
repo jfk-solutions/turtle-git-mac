@@ -1,0 +1,279 @@
+{
+  "date": "2026-10-26",
+  "base_commit": "0c620344c46adc662087970d03337b34f0e6ade4",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused_native_pass",
+  "changes": [
+    "Use authoritative AppKit hasVisibleWindows for general-app reopen; keep explicit workspace intents and no-visible singleton reopen",
+    "Admit exact live About and scoped Settings owners for Merge Close via performClose, retaining sheet/save/completion guards"
+  ],
+  "build": {
+    "initial_exit": 0,
+    "initial_diagnostics": "Two contradictory failed-with-exit-code-0 SwiftCompile messages with warnings; not treated as a clean build",
+    "incremental_recheck_exit": 0,
+    "incremental_recheck_swift_errors": 0,
+    "logs": [
+      "build/qa/dialog-reactivation-build-2026-10-26.log",
+      "build/qa/dialog-reactivation-build-recheck-2026-10-26.log"
+    ]
+  },
+  "validation": {
+    "native_distinct_case_engine_pairs": 4,
+    "core": "Not rerun: no Core or Git-operation source changes",
+    "attempts": [
+      {
+        "label": "compile-attempt",
+        "results": [
+          {
+            "script": "scripts/test-finder-registration.py",
+            "args": [
+              "--only",
+              "launch"
+            ],
+            "result": "failure",
+            "error": "Command '['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library', '-swift-version', '5', '-target', 'arm64-apple-macos13.0', '-I', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug', '-F', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/finder-registration-native-sources/LinkedFixture0.swift', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/finder-registration-native-sources/LinkedFixture1.swift', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/finder-registration-native-sources/LinkedMain.swift', '-L', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3', '-lTurtleGitNativeQA', '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug', '-Xlinker', '-rpath', '-Xlinker', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3', '-Xlinker', '-e', '-Xlinker', '_turtlegit_native_qa_main', '-o', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/finder-registration-native-sources/linked-receiver']' returned non-zero exit status 1.",
+            "elapsed": 2.423627583
+          }
+        ],
+        "receivers": []
+      },
+      {
+        "label": "early-exit-attempt",
+        "results": [
+          {
+            "script": "scripts/test-finder-registration.py",
+            "args": [
+              "--only",
+              "launch"
+            ],
+            "result": "failure",
+            "error": "Finder registration receiver exited before completion",
+            "elapsed": 16.517439208
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 50972,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-25b2a0e56eb56833d18cf3f638226c7cd3db945be385acb6065b3558f707b8e1",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-finder-registration-launch-ws57axcg/fixture",
+              "/usr/bin/git",
+              "launch"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          }
+        ]
+      },
+      {
+        "label": "phase-attempt",
+        "results": [
+          {
+            "script": "scripts/test-finder-registration.py",
+            "args": [
+              "--only",
+              "launch"
+            ],
+            "result": "failure",
+            "error": "Finder registration receiver exited before completion",
+            "elapsed": 15.884065584
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 51447,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-f13624c1ff7158a8c3a1d68715791222249fc4dd5d0875f3d48dbfb2c7337989",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-finder-registration-launch-gi9y3bl0/fixture",
+              "/usr/bin/git",
+              "launch"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          }
+        ]
+      },
+      {
+        "label": "cleanup-attempt",
+        "results": [
+          {
+            "script": "scripts/test-finder-registration.py",
+            "args": [
+              "--only",
+              "launch"
+            ],
+            "result": "failure",
+            "error": "Finder registration receiver exited before completion",
+            "elapsed": 15.667966959000001
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 51818,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-d3b8afe0e1459a60f715532d9ac7d5924fa24acef8c4fa61061e696774235029",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-finder-registration-launch-nnsffire/fixture",
+              "/usr/bin/git",
+              "launch"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          }
+        ]
+      },
+      {
+        "label": "quit-diagnostic-attempt",
+        "results": [
+          {
+            "script": "scripts/test-finder-registration.py",
+            "args": [
+              "--only",
+              "launch"
+            ],
+            "result": "failure",
+            "error": "Finder registration receiver exited before completion",
+            "elapsed": 13.527478166
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 52168,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-2cea4ddf460017d989b56c2c4be92206613dc0c570e16cb25f89cc8f19ada6f1",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-finder-registration-launch-oq3t1vmw/fixture",
+              "/usr/bin/git",
+              "launch"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          }
+        ]
+      },
+      {
+        "label": "workspace-utilities",
+        "results": [
+          {
+            "script": "scripts/test-workspace-launch.py",
+            "args": [
+              "--only",
+              "workspace",
+              "--git",
+              "/usr/bin/git"
+            ],
+            "result": "pass",
+            "elapsed": 3.358716958
+          },
+          {
+            "script": "scripts/test-merge-tool-entry.py",
+            "args": [
+              "--only",
+              "scene",
+              "--git",
+              "/usr/bin/git"
+            ],
+            "result": "pass",
+            "elapsed": 7.133340582999999
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 51339,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-fb155fe0b392644b90bd011f0a8c0ee61258ae6a96e7a788740bea55214512b9",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-workspace-launch-1l8o0pnt/fixture",
+              "/usr/bin/git",
+              "workspace"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          },
+          {
+            "pid": 51356,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-ba3dd160f58560671b33685b055cab415cded4870647940f4b8aac02b8c9c949",
+              "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-merge-tool-entry-_74cd81k/scene0",
+              "/usr/bin/git"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          }
+        ]
+      },
+      {
+        "label": "final-launch",
+        "results": [
+          {
+            "script": "scripts/test-finder-registration.py",
+            "args": [
+              "--only",
+              "launch"
+            ],
+            "result": "pass",
+            "elapsed": 24.375410625
+          }
+        ],
+        "receivers": [
+          {
+            "pid": 52486,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-fde2a0668d5290e0d8ae234bfb94984eaa85eec57e316629d14d3b0c34d00198",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-finder-registration-launch-atkk3kqz/fixture",
+              "/usr/bin/git",
+              "launch"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          },
+          {
+            "pid": 52780,
+            "command": [
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/092719dbf8c654bb4afe6fe96ae56a5260b88e60ff02da0b4f220a6d91f191f3/receiver-fde2a0668d5290e0d8ae234bfb94984eaa85eec57e316629d14d3b0c34d00198",
+              "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-finder-registration-launch-41iwzblg/fixture",
+              "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+              "launch"
+            ],
+            "returncode": 0,
+            "reaped": true,
+            "independently_absent": true
+          }
+        ]
+      }
+    ],
+    "receiver_pids": [
+      50972,
+      51447,
+      51818,
+      52168,
+      51339,
+      51356,
+      52486,
+      52780
+    ],
+    "all_receivers_reaped_and_independently_absent": true
+  },
+  "failures_and_repairs": [
+    "Fixture initially selected async beginSheet overload; explicit completionHandler:nil repaired compilation",
+    "Four launch receivers exited0 before completion marker during asynchronous cleanup; one diagnostic stack proved AppKit _handleAEQuit/terminate, not a failed dialog assertion. Sender and trigger remain unproven. Private receiver lifetime now declines external Quit while verification drains; direct production Quit and all actual dialog/minimization assertions retained."
+  ],
+  "limitations": [
+    "Offscreen injected reopen flag and command dispatch, not physical Dock or Command-W delivery",
+    "Actual Commit child covered, Rebase child reactivation unverified",
+    "Installed signed build11 is unchanged and predates these source fixes",
+    "No full hosted CI or App Store acceptance claimed"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "889e973d936fcf01297a3e9c5104c850d54d60b5514aba145bb80c0831d25798",
+    "Sources/TurtleGitMac/MergeToolPresentation.swift": "8fff5a4b7be4dc806f699bf4a6f2227af2b80085a0e539b8c860ea6ac6839c8d",
+    "docs/qa/dialog-launch-native-2026-10-25.swift": "7144b87705e92e8350bc3e9f8cfa646079eb19cfb3c901257c8ac99227541079",
+    "docs/qa/finder-registration-native-2026-10-25.swift": "c875381511eae6bfc361b21e43a6d87f87ef28b08b126e4860d15402032da88e",
+    "docs/qa/merge-tool-scene-native-2026-10-18.swift": "6c9de03b21e706ab5f711bb1d68e3091d0cef1288795fe85a7310750fef22d5e",
+    "docs/qa/workspace-launch-native-2026-10-25.swift": "38a294a657d73cb14f53f72e2e3b5081e3a5557dedfbecb8dc7b2cc833f0a362"
+  }
+}

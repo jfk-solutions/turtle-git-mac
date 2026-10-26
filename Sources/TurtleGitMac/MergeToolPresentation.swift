@@ -209,8 +209,13 @@ enum TurtleGitLaunchMode: Equatable {
             guard owner.window === window else { return nil }
         } else if let owner = window.delegate as? ReviewPatchWorkflow {
             guard owner.window === window else { return nil }
-        } else if SettingsPresentationService.shared.controller?.window === window {
-            guard SettingsPresentationService.shared.navigation?.canDismiss == true else { return nil }
+        } else if let owner = window.delegate as? TurtleGitAboutController {
+            guard owner.window === window, !owner.retired else { return nil }
+        } else if let navigation = window.contentViewController as? SettingsNavigationController {
+            // Each scoped service has its own delegate proxy and draft. Admit
+            // that exact native owner rather than borrowing shared Settings.
+            guard navigation.view.window === window, navigation.canDismiss,
+                  !navigation.completionPending else { return nil }
         } else { return nil }
         return window
     }

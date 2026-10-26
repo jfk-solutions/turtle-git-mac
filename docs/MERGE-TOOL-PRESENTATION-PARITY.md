@@ -48,8 +48,14 @@ remain in use. The standalone command provider omits repository New/Open Recent,
 Clone/Create/Close Repository, repository actions and unrelated startup commands.
 Standard macOS clipboard, Undo/Redo, Window and Quit are retained. A dedicated
 Close command (Command-W) supplies the document action missing from a Settings-only
-scene. It re-resolves the visible key tool/Open/patch/settings owner, rejects
+scene. It re-resolves the visible key tool/Open/patch/About/settings owner, rejects
 foreign/closed/retired/sheet/Quit-confirmation owners, and calls `performClose`.
+Settings admission uses the exact window's navigation owner, including a scoped
+action service, and refuses pending completion or active operations. About uses
+its own live controller and retires through its normal close callback.
+The [26 October checkpoint](qa/dialog-reactivation-2026-10-26.json) includes
+actual offscreen About Close, attached-sheet refusal, scoped Settings save
+refusal and normal retirement. It does not verify physical Command-W delivery.
 Existing controller save prompts and load cancellation remain authoritative;
 it never force-closes a busy or dirty editor. The
 application About entry identifies TurtleGitMerge. Merge Editor Settings continues

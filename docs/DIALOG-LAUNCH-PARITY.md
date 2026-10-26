@@ -18,6 +18,8 @@ must not be a prerequisite for each native dialog.
 | Finder Add to TurtleGit | Folder authorization if needed, then registration and initial badge publication; no workspace |
 | Services → Open in TurtleGit | Explicit workspace entry for the captured selection, or repository chooser at that location |
 | Normal application opening / explicit Open Repository | Workspace entry |
+| Reactivation with an existing visible or minimized dialog | AppKit raises the existing window; no implicit workspace |
+| Dock reopen with no visible windows | Restore the retained workspace |
 | Existing Merge / Unified Diff tool invocation | Existing standalone tool, retaining its own save, output and process ownership |
 
 Opening a dialog must preserve any existing workspace's repository, selection,
@@ -64,7 +66,13 @@ URL-launch limitations remain separate from injected receiver checks.
 The general application uses a Settings-only SwiftUI scene on macOS 13 and later.
 A retained AppKit controller creates the workspace only for a default application
 launch, explicit Open Repository/Open Recent, the public Open Service or Dock
-reopen. AppKit's `launchIsDefaultUserInfoKey` supplies the initial launch intent;
+reopen with no visible windows. Reactivating a general application with an
+existing dialog lets AppKit handle that window without requesting a workspace.
+AppKit includes minimized windows in the delegate's `hasVisibleWindows` flag;
+the application does not replace that flag with an `isVisible` scan. Explicit
+workspace requests remain independent of this automatic reactivation policy.
+See the [AppKit reopen contract](https://developer.apple.com/documentation/appkit/nsapplicationdelegate/applicationshouldhandlereopen(_:hasvisiblewindows:)).
+AppKit's `launchIsDefaultUserInfoKey` supplies the initial launch intent;
 there is no timeout that guesses whether a URL will arrive. See the
 [AppKit launch metadata](https://developer.apple.com/documentation/appkit/nsapplication/launchisdefaultuserinfokey).
 
@@ -83,6 +91,32 @@ the dedicated Merge scene/menu lifecycle. Receiver processes were reaped and
 independently absent. These checks inject launch metadata; they do not certify
 physical Launch Services delivery or migration of previously saved window state.
 The installed build3 acceptance below describes the preceding candidate.
+
+## Dialog reactivation and utility Close — 26 October 2026
+
+The [grouped checkpoint](qa/dialog-reactivation-2026-10-26.json) covers the
+general application's visible-window reopen route and the retained workspace,
+plus Merge's custom Close command for About and scoped Settings. Four native
+case/engine pairs pass cumulatively: action launch with system/bundled Git,
+retained workspace ownership with system Git, and Merge utility/menu ownership.
+Actual About/Settings/Log windows, a dirty Settings draft and its warning sheet,
+and a Commit draft with its own sheet and minimized window retain their owners.
+Explicit Open still presents the workspace; no-window Dock reopen retains the
+same workspace controller. Commit HEAD and semantic index remain unchanged.
+
+The initial build emitted contradictory zero-exit Swift diagnostics; the
+incremental recheck is clean. Native verification first required an explicit
+sheet completion-handler overload. Later attempts reached the activation
+assertions but exited before cleanup completed. A diagnostic stack identified
+AppKit handling AEQuit during asynchronous receiver cleanup; its sender and
+trigger are unproven. A private receiver lifetime delegate now declines that
+external Quit until verification drains. Direct production Quit assertions,
+actual minimization and completion markers remain required. Every attempted
+receiver was reaped and independently absent.
+
+These are offscreen checks of current Debug objects, not physical Dock/keyboard
+acceptance or a replacement of installed build11. Rebase child reactivation,
+physical accessibility and the next signed distribution remain unverified.
 
 ## Installed application acceptance — 25 October 2026
 

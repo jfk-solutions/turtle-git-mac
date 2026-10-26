@@ -419,12 +419,16 @@ import TurtleGitCore
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         guard acceptingOpenURLs,!confirmingQuit else{return false}
+        // Let AppKit raise the existing operation/utility window. Its flag also
+        // includes minimized windows; scanning isVisible would miss those and
+        // create an unrelated workspace over the user's dialog. Explicit Open
+        // Repository, workspace URLs and the Open Service keep their own route.
+        if isGeneralApplication, flag {return true}
         if startupLaunchMode == .actionOnly {requestWorkspace();return false}
         guard startupLaunchMode == .workspace else{return false}
         guard let presentWorkspace else { return true }
         activateStandaloneApplication()
-        // openWindow targets the single identified scene even when only a child
-        // workflow is visible, or the user closed the workspace earlier.
+        // With no visible windows, Dock reopen restores the retained workspace.
         presentWorkspace()
         return false
     }

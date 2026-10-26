@@ -13,6 +13,17 @@ final class RegistrationBookmarks:RepositoryBookmarkProvider {
 private extension NSWindow {
     @objc func registrationOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {alphaValue=0;setFrameOrigin(.init(x:-24000,y:-24000));registrationOrder(mode,relativeTo:number)}
 }
+@MainActor private final class RegistrationReceiverLifetime:NSObject,NSApplicationDelegate {
+    // After a real miniaturize/deminiaturize round trip, this unbundled receiver
+    // received AEQuit while asynchronous cleanup drained (AppKit stack recorded).
+    // Only the private receiver stays alive; production delegate Quit decisions
+    // are still exercised directly by the dialog fixture and remain unchanged.
+    func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
+        fputs("Finder receiver: declined external Quit while owned verification drains\n",stderr)
+        return .terminateCancel
+    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {false}
+}
 @MainActor
 @main enum FinderRegistrationVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
@@ -91,11 +102,13 @@ private extension NSWindow {
         func block()throws {try? FileManager.default.removeItem(at:release);try? FileManager.default.removeItem(at:started);try Data().write(to:hold)}
         func unblock() {try? Data().write(to:release);try? FileManager.default.removeItem(at:hold)}
         func cleanup()async throws {
+            fputs("Finder registration cleanup: begin\n",stderr)
             unblock();answer(.cancel);workspace.stopMonitoringForTermination()
             for clone in clones {clone.progressController?.model.invalidate();clone.progressController?.close();clone.model.invalidate();clone.close()}
-            await manager.shutdown();parent.close()
+            await manager.shutdown();fputs("Finder registration cleanup: manager drained\n",stderr);parent.close()
             try await FinderRegistrationVerification.wait {!workspace.hasPendingFinderServiceWork && !workspace.busy && manager.pendingOperations==0 && CloneWindowModel.activeOperations==0 && CloneProgressWindowModel.activeOperations==0 && CloneWindowController.activeChildReleases==0}
             prefs.removePersistentDomain(forName:suite)
+            fputs("Finder registration cleanup: complete\n",stderr)
         }
     }
     static func registration(_ c:Context)async throws {
@@ -305,6 +318,9 @@ private extension NSWindow {
     }
     static func main()async {
         NSApp.setActivationPolicy(.prohibited)
+        let lifetime=RegistrationReceiverLifetime(),originalDelegate=NSApp.delegate
+        NSApp.delegate=lifetime
+        defer{NSApp.delegate=originalDelegate;withExtendedLifetime(lifetime){}}
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.registrationOrder(_:relativeTo:))) {method_exchangeImplementations(original,replacement)}
         var context:Context?
         do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "publication":try await publication(c);case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
