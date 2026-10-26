@@ -105,11 +105,11 @@ The Commit window in light appearance:
 
 Choose **Classic** or **Git Gui-style staging** from the compact dropdown at the upper right. TurtleGit remembers your choice.
 
-![Commit in light mode: message, author options and checked files](site/assets/mac-commit-compact-light-2026-10-25.png)
+![Commit in light mode: message, author options and checked files](site/assets/mac-commit-classic-light-2026-10-27.png)
 
 The same window in dark appearance:
 
-![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-compact-dark-2026-10-25.png)
+![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-classic-dark-2026-10-27.png)
 
 ## Choose a commit window
 
@@ -128,6 +128,10 @@ It exposes the essential staging, message and Amend controls without duplicating
 Git Gui's menus. Switch back to Classic for author/date, branch and issue-provider
 controls. Changing the interface preserves the message and index; switching back
 restores the repository's classic staging preference.
+
+![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-10-27.png)
+
+![Git Gui-style Commit in dark appearance](site/assets/mac-commit-staging-dark-2026-10-27.png)
 
 ## Use the staging area
 
@@ -163,9 +167,9 @@ The Log window shows the revision graph before the commit list, with the selecte
 commit's message and changed paths below. This example selects a merge so you can
 inspect its differences against each parent.
 
-![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-26.png)
+![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-27.png)
 
-![The same Log window in dark mode](site/assets/mac-log-dark-2026-10-26.png)
+![The same Log window in dark mode](site/assets/mac-log-dark-2026-10-27.png)
 
 These examples show the native controls using the offline Harbor sample
 repository. Available actions depend on the repository and selection. The
@@ -335,6 +339,16 @@ bytes and an optional window title; see [standalone Unified Diff](COMMAND-LINE.m
 The viewer has Find and a window-local Light/Dark choice. Saving writes the patch
 document; applying it to a working tree is a separate action that requires a
 repository and folder access.
+
+The numbered gutter selects whole lines. Use **Option-drag** to select a column,
+or **Command-Option-Shift-Arrows** to extend it from the keyboard. **Edit → Lines**
+offers copying, cutting, duplication, transposition and indentation. Undo restores
+the document and selection. Column copying carries its shape to another TurtleGit
+patch view; ordinary typing affects the active row.
+
+![Native Unified Diff with line numbers, colored changes and a column selection](site/assets/mac-unified-diff-light-2026-10-27.png)
+
+![The same patch preview in dark appearance](site/assets/mac-unified-diff-dark-2026-10-27.png)
 
 ## Appearance and folder access
 

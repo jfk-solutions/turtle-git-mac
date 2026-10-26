@@ -127,9 +127,11 @@ def entitlements(path):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('app',type=Path);parser.add_argument('--team',required=True)
-    parser.add_argument('--only',choices=('history','metafile'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
+    parser.add_argument('--only',choices=('history','metafile','unified-diff'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
+    parser.add_argument('--skip-metafile',action='store_true',help='Run App Group, history and Unified Diff phases without unchanged metafile coverage.')
     parser.add_argument('--identity',required=True,help='Installed Apple Development signing identity SHA-1.')
     parser.add_argument('--report',required=True,type=Path);args=parser.parse_args()
+    if args.skip_metafile and args.only:parser.error('--skip-metafile cannot be combined with --only')
     group=app_group(args.team);app=args.app.resolve(strict=True)
     if not re.fullmatch(r'[A-Fa-f0-9]{40}',args.identity):raise ValueError('Use an explicit installed identity SHA-1.')
     subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict',str(app)],check=True)
@@ -159,7 +161,10 @@ def main():
         raise ValueError('Packaged LibGit2 lacks same-team inherited sandbox signing')
     source=ROOT/'docs/qa/signed-finder-runtime-probe-2026-10-17.swift'
     products=app.parent
-    record={'requested_runtime_phases':args.only or ['app-group','history','metafile'],'team':args.team,'group':group,'app':str(app),'actual_peer_signatures':3,'packaged_git_inherits_sandbox':True,'packaged_metafile_inherits_sandbox':True,'packaged_libgit2_inherits_sandbox':True,'cases':[],'finder_activation':'not performed','service_registration':'not performed'}
+    record={'requested_runtime_phases':args.only or (['app-group','history','unified-diff'] if args.skip_metafile else ['app-group','history','metafile','unified-diff']),'team':args.team,'group':group,'app':str(app),'actual_peer_signatures':3,'packaged_git_inherits_sandbox':True,'packaged_metafile_inherits_sandbox':True,'packaged_libgit2_inherits_sandbox':True,'cases':[],'finder_activation':'not performed','service_registration':'not performed'}
+    framework=app/'Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore'
+    record['packaged_core_sha256']=hashlib.sha256(framework.read_bytes()).hexdigest()
+    record['probe_source_sha256']=hashlib.sha256(source.read_bytes()).hexdigest()
     try:
         with tempfile.TemporaryDirectory(prefix='signed-finder-',dir=ROOT/'build/qa') as temporary:
             folder=Path(temporary);binary=folder/'probe'
@@ -227,7 +232,18 @@ def main():
                     finally:
                         if hasattr(history_children,'result'):record['history_children']=history_children.result
                     record['packaged_history_and_notes_run_from_sandbox']=True
-                if args.only is None or 'metafile' in args.only:
+                if args.only is None or 'unified-diff' in args.only:
+                    receipt=run(clones[0],'unified-diff')
+                    value=receipt.get('unified_diff',{})
+                    for key in ['rectangle_cut_raw_bytes','whole_line_duplicate','value_undo_redo','byte_only_transpose_dirty','sandbox_save_reload']:
+                        if value.get(key) is not True:raise ValueError('Signed Unified Diff missing assertion: '+key)
+                    if value.get('native_ui_executed') is not False or receipt.get('outside_file_grants') is not False or receipt.get('shipping_gui_launched') is not False:
+                        raise ValueError('Signed Unified Diff scope receipt is incorrect')
+                    for key in ['input_sha256','saved_sha256','byte_only_sha256']:
+                        if not re.fullmatch('[0-9a-f]{64}',value.get(key,'')):raise ValueError('Signed Unified Diff byte receipt is incomplete')
+                    record['packaged_unified_diff_core_runs_from_sandbox']=True
+                    record['unified_diff_native_ui']='not exercised; separate native receiver covers TextKit/gestures/NSUndoManager'
+                if not args.skip_metafile and (args.only is None or 'metafile' in args.only):
                     payload,originals=metafile_request()
                     children=OwnedRuntimeChildren({'metafile':clones[0].parent.parent/'Helpers/Metafile/metafile-convert'},required={'metafile'})
                     try:

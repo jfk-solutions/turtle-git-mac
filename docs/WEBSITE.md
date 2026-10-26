@@ -7,7 +7,8 @@ GitHub Actions publishing source. Repository name: `jfk-solutions/turtle-git-mac
 
 The GitHub Pages site has a compact product homepage and a linked user manual,
 with local search and navigation. The homepage uses a neutral blue/gray palette,
-one history screenshot and planned Mac App Store availability. It has no download
+eight light/dark screenshots covering Log, Classic Commit, Git Gui-style Commit
+and editable Unified Diff, alongside planned Mac App Store availability. It has no download
 links. Markdown under `docs/` remains the manual source.
 Build it in a private Python environment:
 
@@ -155,3 +156,19 @@ outdated mail section link was corrected, and generated cross-page anchors
 validated without unresolved fragments. These checks cover generated structure
 and search behavior, not physical browser/theme/VoiceOver acceptance or completion
 of the manual chapters. See [dated evidence](qa/manual-site-2026-10-13.json).
+
+
+## October 27 current native captures
+
+The homepage, Getting Started and dialog guide use eight current sample-only
+captures from source `958455b7`. Log, Classic Commit, Git Gui-style Commit and
+editable Unified Diff each have light/dark images. The patch pair uses a real
+landscape window showing its gutter and rectangular selection. All final PNGs
+were reviewed individually. They are native offscreen ScreenCaptureKit captures
+from current Debug objects, not reconstructed dialogs or signed-runtime evidence.
+
+[The capture record](qa/manual-current-captures-2026-10-27.json) retains original
+bytes, dimensions, hashes, the initial precompile launcher repair and the
+portrait-to-landscape patch-only continuation. All owned windows/processes closed;
+the private repository's HEAD, index, configuration and worktree were preserved.
+The signed preview checkpoint records deployment separately.

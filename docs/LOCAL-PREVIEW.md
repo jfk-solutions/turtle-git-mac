@@ -1,10 +1,28 @@
-# Trying the local preview
+# Trying TurtleGit locally
 
-TurtleGit for Mac is a macOS fork of TortoiseGit. The full port and App Store
-release remain in progress. A local preview packages the implemented application
-and its Git/helpers so it can be tried without a terminal Git installation.
+TurtleGit for Mac is a macOS fork of TortoiseGit. Its local builds include Git
+and runtime helpers. The team-signed development app supports Finder integration;
+the ad-hoc archive is a separate channel.
 
-## Open the app
+## Team-signed development app
+
+On the development Mac, open **TurtleGit for Mac** from Applications. Check its
+version and build in **About TurtleGit** before reporting a problem. The latest
+measured installation and its verification scope are recorded in
+[release checkpoints](RELEASE-BLOCKERS.md). Follow the
+[signed development guide](SIGNED-FINDER-DEVELOPMENT.md) for building and enabling
+the Finder extension.
+
+Try a disposable repository first: Classic Commit, the staging workspace, Log,
+comparison, patch documents and Finder registration/badges. Cancel a dialog when
+you only want to inspect it. Include the workflow, expected and actual results,
+macOS version and About build number in a bug report. Keep credentials and private
+repository contents out of screenshots.
+
+This is a local development build, not a published Mac App Store product or a
+notarized Developer ID download. Store submission follows owner testing.
+
+## Ad-hoc archive
 
 The preview directory contains `TurtleGitMac.app`, a ZIP, `SHA256SUMS`, `LICENSE`,
 `NOTICE`, installation notes and a measured build manifest. Use the app directly
@@ -24,7 +42,7 @@ minimum supported macOS release. Local build checks do not certify every workflo
 
 ## Finder needs the signed development channel
 
-The local preview has an ad-hoc code seal. It has no authorized developer-team
+The ad-hoc archive has a local code seal. It has no authorized developer-team
 App Group, so it cannot share status and menu data with the Finder extension or
 independent cache service. Enabling the extension alone does not grant that access.
 The app's repository and dialog workflows remain available.
@@ -55,7 +73,7 @@ remaining work. Nothing is installed, registered, uploaded or submitted by local
 packaging. The website's screenshots are actual native captures from their dated
 workflow checks; each parity guide records the remaining acceptance.
 
-## Current measured package — 23 October 2026
+## Historical ad-hoc package — 23 October 2026
 
 The local package is `build/previews/TurtleGit-2ba5f945-build3/`. Its app, Finder
 extension and cache service all report version `0.1.0`, build `3`. The ZIP is

@@ -261,6 +261,65 @@ import TurtleGitCore
         let observation=try await observedNotesRead(helper:helper,root:root,folder:folder,revision:head)
         return ["observed_notes_read":observation,"git":git.path,"libgit2":helper.path,"head":head,"tree":tree.objectID!,"raw_tag_oid":rawTag,"literal_references_distinct":true,"browser_pinned":true,"gitlink_oid":old,"notes_engine":accepted.engine!.rawValue,"notes_ref":accepted.notesRef,"notes_utf8_bytes":expected.count,"notes_sha256":digest(expected),"notes_empty":true,"configured_signature":signatureOK,"head_unchanged":headOK,"index_unchanged":indexOK,"config_unchanged":configOK,"working_unchanged":fileOK && nestedOK]
     }
+    /// Executes the candidate's packaged Core framework, not source-linked
+    /// native editor types. Value Undo/Redo mirrors their exact snapshot contract;
+    /// native gestures, TextKit geometry and NSUndoManager remain separately checked.
+    static func unifiedDiff(_ folder:URL)throws->[String:Any] {
+        let directory=folder.appendingPathComponent("unified-diff",isDirectory:true)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        let rows=[Data("A日本語\r\n".utf8),Data([0x42,0xff,0x0a]),Data([0x43,0x98,0x00,0xff,0x0d]),Data("Dtail".utf8)]
+        let original=rows.reduce(into:Data()){$0.append($1)}
+        let input=directory.appendingPathComponent("input.patch"),output=directory.appendingPathComponent("saved.patch")
+        try original.write(to:input,options:.atomic)
+        let document=UnifiedDiffDocument(bytes:try Data(contentsOf:input),displayLegacyEncoding:.windows1251)
+        var buffer=UnifiedDiffEditBuffer(document:document)
+        let before=buffer,index=PatchLineIndex(text:buffer.text)
+        try require(index.lineCount==4,"Mixed byte document line framing changed")
+        let selections=index.lineStarts.enumerated().map{PatchLineEditSelection(id:10+$0.offset,anchor:$0.element,caret:$0.element+1)}
+        guard let cut=PatchLineEditing.cutSelections(text:buffer.text,selections:selections,primarySelectionID:13,rectangular:true) else {throw Failure(description:"Packaged rectangle cut rejected valid rows")}
+        try require(cut.clipboardRectangular && cut.clipboardText=="A\nB\nC\nD\n","Rectangle clipboard row contract changed")
+        try require(try buffer.apply(cut),"Rectangle cut did not change captured bytes")
+        let cutExpected=rows.reduce(into:Data()){$0.append($1.dropFirst())}
+        try require(try buffer.snapshot().bytes==cutExpected,"Rectangle cut re-encoded untouched raw bytes/endings")
+        let afterCut=buffer
+        buffer=before
+        try require(try buffer.snapshot().bytes==original,"Value Undo lost original bytes")
+        buffer=afterCut
+        try require(try buffer.snapshot().bytes==cutExpected,"Value Redo lost cut bytes")
+        let tail=(buffer.text as NSString).range(of:"tail")
+        guard tail.location != NSNotFound,let duplicate=PatchLineEditing.plan(text:buffer.text,anchor:tail.location,caret:NSMaxRange(tail),command:.duplicate) else {throw Failure(description:"Packaged duplicate rejected tail selection")}
+        try require(try buffer.apply(duplicate),"Whole-line family duplicate did not edit")
+        let edited=Data(cutExpected.dropLast(4))+Data("tailtail".utf8)
+        let afterDuplicate=buffer,saved=try buffer.snapshot()
+        try require(saved.bytes==edited,"Duplicate changed retained mixed byte spans")
+        buffer=afterCut
+        try require(try buffer.snapshot().bytes==cutExpected,"Duplicate value Undo failed")
+        buffer=afterDuplicate
+        try require(try buffer.snapshot().bytes==edited,"Duplicate value Redo failed")
+        try saved.write(to:output)
+        try require(try Data(contentsOf:output)==edited && Data(contentsOf:input)==original,"Sandbox Save/reload changed input or output bytes")
+        let equalSource=Data("я\n".utf8)+Data([0xff,0x0a])
+        var equal=UnifiedDiffEditBuffer(document:UnifiedDiffDocument(bytes:equalSource,displayLegacyEncoding:.windows1251))
+        let equalBefore=equal,shown=equal.text,second=PatchLineIndex(text:shown).lineStarts[1]
+        guard let transpose=PatchLineEditing.plan(text:shown,anchor:second,caret:second,command:.transpose) else {throw Failure(description:"Byte-only transpose rejected")}
+        try require(try equal.apply(transpose),"Byte-only transpose was discarded")
+        let swapped=Data([0xff,0x0a])+Data("я\n".utf8),equalAfter=equal
+        let swappedSnapshot=try equal.snapshot(),swappedDirty=try equal.isModified()
+        try require(equal.text==shown && swappedSnapshot.bytes==swapped && swappedDirty,"Equal display transpose lost byte dirty state")
+        equal=equalBefore
+        let undoSnapshot=try equal.snapshot(),undoDirty=try equal.isModified()
+        try require(undoSnapshot.bytes==equalSource && !undoDirty,"Byte-only Undo failed")
+        equal=equalAfter
+        try require(try equal.snapshot().bytes==swapped,"Byte-only Redo failed")
+        let byteOnly=directory.appendingPathComponent("byte-only.patch")
+        try equal.snapshot().write(to:byteOnly)
+        try require(try Data(contentsOf:byteOnly)==swapped,"Byte-only Save failed")
+        return ["framework":"packaged TurtleGitCore.framework",
+                "input_sha256":digest(original),"saved_sha256":digest(edited),"byte_only_sha256":digest(swapped),
+                "rectangle_cut_raw_bytes":true,"whole_line_duplicate":true,"value_undo_redo":true,"byte_only_transpose_dirty":true,"sandbox_save_reload":true,
+                "native_ui_executed":false,"undo_scope":"Core value snapshots; not NSUndoManager"]
+    }
+
     static func main() async throws {
         let args=CommandLine.arguments
         guard args.count>=4, let uuid=UUID(uuidString:args[2]), let expected=FinderIntegration.groupIdentifier(team:args[3]) else { throw Failure(description:"Invalid signed QA request") }
@@ -316,6 +375,9 @@ import TurtleGitCore
         } else if mode=="history" {
             guard args.count==4 else{throw Failure(description:"Unexpected signed history arguments")}
             details["history"]=try await history(folder);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false
+        } else if mode=="unified-diff" {
+            guard args.count==4 else {throw Failure(description:"Unexpected Unified Diff arguments")}
+            details["unified_diff"]=try unifiedDiff(folder);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false
         } else if mode=="metafile" {
             guard args.count==5 else {throw Failure(description:"Missing captured metafile payload")}
             details["images"]=try await metafiles(args[4]);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false

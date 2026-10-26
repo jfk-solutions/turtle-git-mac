@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-27",
+  "status": "documentation-and-capture-complete; signed-build-pending",
+  "planned_build": "14",
+  "baseline": "958455b78d0e93b4a50d6078b77d49f8c7c8fc72",
+  "scope": [
+    "Package Unified Diff gutter, whole-line editing and column-selection batches into a current universal team-signed local preview",
+    "Refresh README, homepage, Getting Started, dialog guide and offline Help with eight reviewed current native captures",
+    "Verify changed packaged Core inside an inherited sandbox and perform bounded installed native acceptance"
+  ],
+  "app_store_submission": "Deferred until owner testing. No upload, Connect change, notarization or store submission authorized/performed.",
+  "capture": {
+    "manifest": "docs/qa/manual-current-captures-2026-10-27.json",
+    "source": "958455b7",
+    "final_images": 8,
+    "review": "All final images individually reviewed; only two tall portrait patch captures repeated at real native landscape size.",
+    "method": "Actual offscreen native ScreenCaptureKit images from current Debug app objects; not signed-runtime evidence."
+  },
+  "documentation_validation": {
+    "site_build": {
+      "exit": 0,
+      "log": "build/qa/signed14-site-build-2026-10-27.log"
+    },
+    "site_tests": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/signed14-site-check-2026-10-27.log"
+    },
+    "help_generate": {
+      "exit": 0,
+      "documents": 58,
+      "topics": 51,
+      "files": 90,
+      "bytes": 8689085,
+      "log": "build/qa/signed14-help-generate-2026-10-27.log"
+    },
+    "help_check": {
+      "exit": 0,
+      "log": "build/qa/signed14-help-check-2026-10-27.log"
+    },
+    "localizations_check": {
+      "exit": 0,
+      "log": "build/qa/signed14-localizations-check-2026-10-27.log"
+    },
+    "dialog_coverage": {
+      "exit": 0,
+      "log": "build/qa/signed14-dialog-coverage-2026-10-27.log",
+      "note": "Unchanged partial ledger, not completion percentage."
+    },
+    "browser_review": {
+      "scope": "Actual local homepage hero/gallery and illustrated Getting Started Commit section at normal desktop width; no complete mobile/browser matrix claim.",
+      "screenshots": [
+        "build/qa/signed14-site-gallery-2026-10-27.png",
+        "build/qa/signed14-site-manual-2026-10-27.png"
+      ],
+      "cleanup": "Temporary IAB tab closed; owned localhost server50607 terminated and session reaped.",
+      "sha256": {
+        "build/qa/signed14-site-gallery-2026-10-27.png": "5f18aaea0c4f2bfaf75823ed65be59fefb29bfb465134c50f46cbd407037afc2",
+        "build/qa/signed14-site-manual-2026-10-27.png": "e3311bb9c0bb4156dbab4f00923a520d3116bbc8df3cb611757839f21f8d328b"
+      }
+    }
+  },
+  "scope_selection_review": {
+    "source": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "method": "Three parallel read-only bounded source/current-code reviews; no tests or ordinary-workflow completeness certification.",
+    "findings": [
+      "Commit/Log/Sync explicit ordinary Git routes inspected were already connected; smaller inherited SciEdit whole-line/zoom usability gap remains.",
+      "Merge source block choices, tabs/spaces/trim/endings/encoding and pane-aware key/navigation routes inspected were already implemented.",
+      "Browser/Refs/Worktree/Submodule ordinary actions inspected already connected; raw-byte Browser filesystem/history delivery remains a qualified Mac implementation restriction, while upstream decodes such names lossily."
+    ],
+    "decision": "Prioritize current signed preview and owner-facing documentation/acceptance instead of inventing another absent broad Git workflow."
+  },
+  "core_validation": "Not repeated: no Core/native behavior edits in this consolidation. Prior 35-method column checkpoint and native groups retain their separate evidence.",
+  "hosted_observation": {
+    "latest_pages": {
+      "run": 40420018773,
+      "source": "958455b7",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "latest_macOS": {
+      "run": 40420018687,
+      "source": "958455b7",
+      "status": "pending"
+    },
+    "active_macOS": {
+      "run": 40404859332,
+      "source": "02ae49b4",
+      "job": 121879373781,
+      "step": "Git integration tests",
+      "status": "in_progress"
+    },
+    "note": "No hosted run restarted or cancelled."
+  },
+  "remaining": [
+    "Complete source dialog/behavior/physical/VoiceOver acceptance",
+    "Current full hosted integration pass",
+    "Actual Intel/minimum-supported-macOS execution",
+    "External authentication and signed folder/volume/Finder scenarios beyond recorded scope",
+    "App Store distribution rights/signing/export and eventual owner-approved submission"
+  ]
+}

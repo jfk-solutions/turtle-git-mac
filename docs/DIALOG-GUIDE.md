@@ -108,9 +108,17 @@ original filenames, including Unicode and embedded line breaks.
 Use the compact selector at the upper right to choose **Classic** or
 **Git Gui-style staging**. The choice is remembered for later Commit windows.
 
-![Commit message, options and checked files in light appearance](site/assets/mac-commit-compact-light-2026-10-25.png)
+Classic Commit keeps the message above its checked-file list:
 
-![Commit controls and file status colors in dark appearance](site/assets/mac-commit-compact-dark-2026-10-25.png)
+![Commit message, options and checked files in light appearance](site/assets/mac-commit-classic-light-2026-10-27.png)
+
+![Commit controls and file status colors in dark appearance](site/assets/mac-commit-classic-dark-2026-10-27.png)
+
+The alternative staging workspace separates the index and working tree:
+
+![Git Gui-style staging with separate index and working-tree lists](site/assets/mac-commit-staging-light-2026-10-27.png)
+
+![The staging workspace in dark appearance](site/assets/mac-commit-staging-dark-2026-10-27.png)
 
 The Check links follow the source action categories: **Added** includes copies,
 while **Modified** selects modification/type-change actions rather than every row
@@ -211,9 +219,9 @@ message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. [Finding revisions](LOG-FIND.md) explains Log's Find flow.
 
-![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-10-26.png)
+![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-10-27.png)
 
-![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-10-26.png)
+![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-10-27.png)
 
 Drag a file from the changed-file list to another application to copy the
 selected revision's contents. Working-tree rows offer the actual working file.
@@ -842,6 +850,10 @@ Ordinary typing and Return affect the active row. Line commands retain their
 source-specific primary-row or per-row behavior. Undo restores the exact document
 and all selections. See [column editing](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md)
 for details and acceptance scope.
+
+![Unified Diff line numbers and column selection in light appearance](site/assets/mac-unified-diff-light-2026-10-27.png)
+
+![Unified Diff patch colors and column selection in dark appearance](site/assets/mac-unified-diff-dark-2026-10-27.png)
 
 In a Unified Diff window or attached partial-patch view, Command-F opens the
 bottom Find bar and seeds it from selected text. Typing searches from the top;

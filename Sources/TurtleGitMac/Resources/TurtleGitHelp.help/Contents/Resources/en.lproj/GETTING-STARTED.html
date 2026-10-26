@@ -83,9 +83,9 @@ and result before continuing. <a href="https://jfk-solutions.github.io/turtle-gi
 source comparisons, verification and remaining work.</p>
 <p>The Commit window in light appearance:</p>
 <p>Choose <strong>Classic</strong> or <strong>Git Gui-style staging</strong> from the compact dropdown at the upper right. TurtleGit remembers your choice.</p>
-<p><img src="images/faa1b24ec079-mac-commit-compact-light-2026-10-25.png" alt="Commit in light mode: message, author options and checked files" /></p>
+<p><img src="images/43a1ebc091da-mac-commit-classic-light-2026-10-27.png" alt="Commit in light mode: message, author options and checked files" /></p>
 <p>The same window in dark appearance:</p>
-<p><img src="images/07e7cd480d03-mac-commit-compact-dark-2026-10-25.png" alt="Commit in dark mode with colored status rows and changelists" /></p>
+<p><img src="images/442f7399b864-mac-commit-classic-dark-2026-10-27.png" alt="Commit in dark mode with colored status rows and changelists" /></p>
 <h2 id="choose-a-commit-window">Choose a commit window</h2>
 <p>The <strong>Commit window</strong> selector offers <strong>Classic</strong> and <strong>Git Gui-style staging</strong>.
 Classic remains the default. The choice is saved for subsequent Commit windows.
@@ -101,6 +101,8 @@ It exposes the essential staging, message and Amend controls without duplicating
 Git Gui's menus. Switch back to Classic for author/date, branch and issue-provider
 controls. Changing the interface preserves the message and index; switching back
 restores the repository's classic staging preference.</p>
+<p><img src="images/4032584c64bd-mac-commit-staging-light-2026-10-27.png" alt="Git Gui-style Commit with unstaged and staged lists and an embedded patch" /></p>
+<p><img src="images/c40dd63a4ad0-mac-commit-staging-dark-2026-10-27.png" alt="Git Gui-style Commit in dark appearance" /></p>
 <h2 id="use-the-staging-area">Use the staging area</h2>
 <p>Enable <strong>Staging support (EXPERIMENTAL)</strong> to use the Git index. The same file list
 shows unstaged, staged and mixed checkbox states. Mixed means that a file has
@@ -128,8 +130,8 @@ implemented commands and remaining differences.</p>
 <p>The Log window shows the revision graph before the commit list, with the selected
 commit's message and changed paths below. This example selects a merge so you can
 inspect its differences against each parent.</p>
-<p><img src="images/db0021b39b65-mac-log-light-2026-10-26.png" alt="Log in light mode showing a branch and merge graph, message and changed files" /></p>
-<p><img src="images/8e94f630451d-mac-log-dark-2026-10-26.png" alt="The same Log window in dark mode" /></p>
+<p><img src="images/61bb4ff85220-mac-log-light-2026-10-27.png" alt="Log in light mode showing a branch and merge graph, message and changed files" /></p>
+<p><img src="images/3d106a75087c-mac-log-dark-2026-10-27.png" alt="The same Log window in dark mode" /></p>
 <p>These examples show the native controls using the offline Harbor sample
 repository. Available actions depend on the repository and selection. The
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/partial-staging.png">partial-staging example</a> shows the patch controls.</p>
@@ -278,6 +280,13 @@ bytes and an optional window title; see <a href="https://jfk-solutions.github.io
 The viewer has Find and a window-local Light/Dark choice. Saving writes the patch
 document; applying it to a working tree is a separate action that requires a
 repository and folder access.</p>
+<p>The numbered gutter selects whole lines. Use <strong>Option-drag</strong> to select a column,
+or <strong>Command-Option-Shift-Arrows</strong> to extend it from the keyboard. <strong>Edit → Lines</strong>
+offers copying, cutting, duplication, transposition and indentation. Undo restores
+the document and selection. Column copying carries its shape to another TurtleGit
+patch view; ordinary typing affects the active row.</p>
+<p><img src="images/21aac1cf93c1-mac-unified-diff-light-2026-10-27.png" alt="Native Unified Diff with line numbers, colored changes and a column selection" /></p>
+<p><img src="images/bd6937300caa-mac-unified-diff-dark-2026-10-27.png" alt="The same patch preview in dark appearance" /></p>
 <h2 id="appearance-and-folder-access">Appearance and folder access</h2>
 <p>Windows follow the application or system Light/Dark appearance, with separate
 color palettes for comparison, patch and Blame views. Standalone Unified Diff can

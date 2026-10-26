@@ -1,0 +1,133 @@
+{
+  "source_commit": "958455b78d0e93b4a50d6078b77d49f8c7c8fc72",
+  "build": "Existing current unsigned Debug application objects; not the installed signed shipping app",
+  "method": "ScreenCaptureKit SCScreenshotManager desktopIndependentWindow, actual native windows offscreen; untouched original PNG bytes",
+  "repository": "Private synthetic offline Harbor repository with real merge graph, staged/unstaged files and draft; fixture commits before capture baseline only",
+  "preserved": "HEAD, index tree, raw index/config bytes and porcelain working status; no Commit/stage/apply/save mutations during capture",
+  "preferences": "Private suite removed; private HOME/CFFIXED_USER_HOME/TMPDIR/XDG; no user pasteboard use",
+  "network": false,
+  "owned_receiver_pids": [
+    50401
+  ],
+  "owned_receiver_reaped_independently": true,
+  "owned_windows": "Eight final distinct native window assets. Original run captured eight; focused landscape repair captured only two standalone editable Unified Diff documents. Every owner closed after its capture, all workers drained.",
+  "current_attempt_window_ids": [
+    71142,
+    71144
+  ],
+  "current_attempt_scope": "Unified Diff light/dark only",
+  "unified_diff_mode": "Standalone editable PatchWindowController document; actual native gutter and rectangular selection; no staging/apply mutation",
+  "fixture_sha256": "fc1f066654cbe20ba35073422578031ce108767a3b9b3d66ef8065333eabafdc",
+  "runner_sha256": "72e5683287a166d96df04465d03fc29ed587f650ba6504b8187bbcbd8fbf6cc4",
+  "receiver_sha256": "608903f6253acd58299fd82bc7a0f42f70ce7ee09d7d44952dfed04a4c5489fe",
+  "stdout_sha256": "fbf839ddbc6dd651f2eaeb15593f022f23f534a7157bfe0b391e1c7e832d9d82",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "assets": [
+    {
+      "path": "docs/site/assets/mac-log-light-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-log-light-2026-10-27.png",
+      "width": 2240,
+      "height": 1624,
+      "bytes": 401802,
+      "sha256": "63f88e83c1c71ef2d7214e63b59c7f21d9fc6385fde7243fb417a3f656329e7d",
+      "capture_attempt": "initial-eight"
+    },
+    {
+      "path": "docs/site/assets/mac-log-dark-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-log-dark-2026-10-27.png",
+      "width": 2240,
+      "height": 1624,
+      "bytes": 412993,
+      "sha256": "1bc35004d730e96e3eecc254de8064891eee611138e94024431898b4000b4083",
+      "capture_attempt": "initial-eight"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-classic-light-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-commit-classic-light-2026-10-27.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 412896,
+      "sha256": "dba02aa206adf81553ed7e5e8fe137d0124ec4f0f7ae2add6a2928db51f31a1e",
+      "capture_attempt": "initial-eight"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-classic-dark-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-commit-classic-dark-2026-10-27.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 422507,
+      "sha256": "80f105dc73bca2fc1bf8a5e5e2e146a837209f5d0785da16920b26e64628e41c",
+      "capture_attempt": "initial-eight"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-light-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-commit-staging-light-2026-10-27.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 445324,
+      "sha256": "4e56d57f75453271bdc07a8e80e9838b63e32255b07da24485820571b0a978f6",
+      "capture_attempt": "initial-eight"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-dark-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-commit-staging-dark-2026-10-27.png",
+      "width": 2000,
+      "height": 1584,
+      "bytes": 434901,
+      "sha256": "02b23a1d89413298b397029d2b34c578c7e8ae5999566edaad690b4b3144ed5f",
+      "capture_attempt": "initial-eight"
+    },
+    {
+      "path": "docs/site/assets/mac-unified-diff-light-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-unified-diff-light-2026-10-27.png",
+      "width": 2000,
+      "height": 1024,
+      "bytes": 394898,
+      "sha256": "1c4660e17d9aa2b87d0a34324699faa3ff0d833304b708cd6d271e2d24dc839d",
+      "capture_attempt": "landscape-repair"
+    },
+    {
+      "path": "docs/site/assets/mac-unified-diff-dark-2026-10-27.png",
+      "raw_path": "build/qa/manual-current-captures-2026-10-27/mac-unified-diff-dark-2026-10-27.png",
+      "width": 2000,
+      "height": 1024,
+      "bytes": 348520,
+      "sha256": "0b201b41ff910ea810dbc2dc5a56a79c63ca0c6cd883cf362988de0b2ec20338",
+      "capture_attempt": "landscape-repair"
+    }
+  ],
+  "prior_attempt": {
+    "manifest": "build/qa/manual-current-captures-2026-10-27/first-portrait-attempt/manual-current-captures-2026-10-27.json",
+    "sha256": "d98e331e48a2c9b5b4da9e1976543db620d1236d4ecaa1ff73478594623824da",
+    "owned_receiver_pids": [
+      49938
+    ],
+    "scope": "Initial eight actual native windows, including portrait Unified Diff; six approved Log/Commit assets retained byte-exact"
+  },
+  "all_owned_receiver_pids": [
+    49938,
+    50401
+  ],
+  "visual_review": {
+    "reviewer": "primary agent",
+    "final_assets_reviewed": [
+      "mac-log-light-2026-10-27.png",
+      "mac-log-dark-2026-10-27.png",
+      "mac-commit-classic-light-2026-10-27.png",
+      "mac-commit-classic-dark-2026-10-27.png",
+      "mac-commit-staging-light-2026-10-27.png",
+      "mac-commit-staging-dark-2026-10-27.png",
+      "mac-unified-diff-light-2026-10-27.png",
+      "mac-unified-diff-dark-2026-10-27.png"
+    ],
+    "result": "All eight final native captures reviewed individually: graph and changed-file groups, classic source controls/status rows, compact selectors, staged/unstaged lists/patch and landscape gutter/rectangle are visible.",
+    "portrait_repair": "Original patch window was too tall/narrow for documentation; only two patch captures repeated at real native landscape size. No pixel cropping, glyph reconstruction or compositing.",
+    "scope": "Current Debug native view capture, not installed-signed or full upstream layout certification."
+  },
+  "post_capture_source_normalization": {
+    "captured_fixture_sha256": "fc1f066654cbe20ba35073422578031ce108767a3b9b3d66ef8065333eabafdc",
+    "current_fixture_sha256": "a34e92edee451c0183946b14c9f3501ccab69177e60eb4a87a0176a84e767643",
+    "original_source": "build/qa/manual-current-captures-2026-10-27/landscape-capture-fixture-before-whitespace.swift",
+    "change": "Express the literal one-space patch context line as Swift Unicode escape and remove indentation on the empty final literal line. Runtime string value and all captured PNG bytes are unchanged; no recapture or behavior check repeated."
+  }
+}

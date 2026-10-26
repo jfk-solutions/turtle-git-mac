@@ -28,7 +28,7 @@ See the [user manual](docs/GETTING-STARTED.md) for workflows and
 
 ## Screenshots
 
-![Native Log with revision graph and changed files](docs/site/assets/mac-log-light-2026-10-26.png)
+![Native Log with revision graph and changed files](docs/site/assets/mac-log-light-2026-10-27.png)
 
 [See Commit and dark-mode screenshots](https://jfk-solutions.github.io/turtle-git-mac/#screenshots) or follow the [illustrated Getting Started guide](docs/GETTING-STARTED.md).
 
