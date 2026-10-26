@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "file": "plus-formatted-digits-thai-national.emf",
+      "bytes": 388,
+      "sha256": "aaee3d8f91aa47dd844fee878cdef27b0f093b6a654194e64cf1e9a34a5cb6fb",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-national.emf"
+    },
+    {
+      "file": "plus-formatted-digits-thai-traditional.emf",
+      "bytes": 388,
+      "sha256": "f3c7089ea71ae86557fc3d543cfcd3b588c89b0fdad91cc2edbf7404caaa8eb6",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-traditional.emf"
+    },
+    {
+      "file": "plus-formatted-digits-arabic-national.emf",
+      "bytes": 388,
+      "sha256": "ef5d32b0b00b2ed11f925f31e0bb248ac425e17316661c834d9ea6005953b79f",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-arabic-national.emf"
+    },
+    {
+      "file": "plus-formatted-digits-persian-traditional.emf",
+      "bytes": 388,
+      "sha256": "26d7471ac70e3c54312638f55d835a520af09955e9466975e768887a5a2a8639",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-persian-traditional.emf"
+    },
+    {
+      "file": "plus-formatted-digits-latin-control.emf",
+      "bytes": 388,
+      "sha256": "a28b101bf4ea64ba4040a0f416acd35b3331af014fbc0b7a936d76b87985a0f0",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-latin-control.emf"
+    },
+    {
+      "file": "plus-formatted-digits-thai-control.emf",
+      "bytes": 388,
+      "sha256": "03e30aec9e5ba10f4d3028c9e9e2c9dc53d1d700fe77ba71ce603f6da086c8c5",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-thai-control.emf"
+    },
+    {
+      "file": "plus-formatted-digits-arabic-control.emf",
+      "bytes": 388,
+      "sha256": "586e850fcc46a8f3f81d2ea7446007c96ed5a09350a951227abb1f9c8ed39726",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-arabic-control.emf"
+    },
+    {
+      "file": "plus-formatted-digits-persian-control.emf",
+      "bytes": 388,
+      "sha256": "25fc9def2b4a31f04d9973d1ffe6c4162a6dde5895176319faaab25172d7266d",
+      "source": "Tests/TurtleGitCoreTests/Fixtures/Metafile/plus-formatted-digits-persian-control.emf"
+    }
+  ]
+}
