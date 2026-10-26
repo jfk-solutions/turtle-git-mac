@@ -10,21 +10,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Compile and run open versus closed boundary (one focused profile only)
+      - name: Compile and run formatted controls and digits (86 bounded cases)
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw "Windows C++ toolchain missing" }
           $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
-          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\OpenPathGradientReference.cpp /Fe:OpenPathGradientReference.exe /link gdiplus.lib gdi32.lib user32.lib`r`n"
+          $compile = "@echo off`r`ncall `"$vcvars`"`r`nif errorlevel 1 exit /b 1`r`ncl /nologo /EHsc /std:c++17 scripts\oracles\FormattedControlsReference.cpp /Fe:FormattedControlsReference.exe /link gdiplus.lib gdi32.lib user32.lib usp10.lib`r`n"
           Set-Content -Path oracle-build.cmd -Value $compile -Encoding Ascii
           cmd /c oracle-build.cmd
           if ($LASTEXITCODE -ne 0) { throw "Reference compile failed" }
-          .\OpenPathGradientReference.exe scripts/oracles/open-gradient-controls oracle-output
+          .\FormattedControlsReference.exe oracle-output
           if ($LASTEXITCODE -ne 0) { throw "Reference execution failed" }
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber
-          Get-FileHash scripts/oracles/OpenPathGradientReference.cpp -Algorithm SHA256
-          Get-FileHash scripts/oracles/open-gradient-controls/*.emf -Algorithm SHA256 | Format-Table -AutoSize
+          Get-FileHash scripts/oracles/FormattedControlsReference.cpp -Algorithm SHA256
       - uses: actions/upload-artifact@v4
         if: always()
         with:
