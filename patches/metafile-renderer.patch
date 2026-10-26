@@ -543,7 +543,7 @@ index 0000000..466f760
 +    }
 +    return oldEmfRecord.call(this,type,data);
 +  };
-+  require('./turtleGitPositionedText')({EmfPlusDrawer,EmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix});
++  require('./turtleGitPositionedText')({EmfPlusDrawer,EmfDrawer,WmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix});
 +  require('./turtleGitGdiClip')({EmfDrawer,fail,u32,i32,escape});
 +  require('./turtleGitRaster')({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors});
 +  function validateRecords(bytes){
@@ -625,7 +625,7 @@ index 0000000..466f760
 +    }
 +    if(parent){
 +      const t=drawer.coordinateTransformer,m=playback.matrix;
-+      const names=/wmf/.test(parsed.fileType)?['processRectangle','processEllipse','processRoundRect','processArc','processPie','processChord','processTextOut','processExtTextOut']:['processEmfExtTextOutA'];
++      const names=/wmf/.test(parsed.fileType)?['processRectangle','processEllipse','processRoundRect','processArc','processPie','processChord']:['processEmfExtTextOutA'];
 +      for(const name of names){const action=drawer[name];if(typeof action!=='function')continue;
 +        drawer[name]=function(...args){const mapped=t.transform,old=context._turtleLocalPaintMatrix,oldWmf=context._turtleLocalPaintWmf;t.transform=t._turtleOriginalTransform;context._turtleLocalPaintMatrix=m;context._turtleLocalPaintWmf=/wmf/.test(parsed.fileType);
 +          try{return action.apply(this,args);}finally{t.transform=mapped;context._turtleLocalPaintMatrix=old;context._turtleLocalPaintWmf=oldWmf;}};
@@ -2089,12 +2089,12 @@ index 0000000..cf3cee4
 diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 --- /dev/null
 +++ b/src/turtleGitPositionedText.js
-@@ -0,0 +1,261 @@
+@@ -0,0 +1,339 @@
 +// Original TurtleGit positioned EMF+/GDI text playback, MIT.
 +// MS-EMFPLUS DrawDriverString; MS-EMF EmrText/EMR_EXTTEXTOUTW.
 +// Native CoreText outlines are painted through existing brush/clip consumers.
-+module.exports = function installPositionedText({EmfPlusDrawer,EmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix}) {
-+  const ep=EmfPlusDrawer.prototype,ed=EmfDrawer.prototype,identity=()=>[1,0,0,1,0,0];
++module.exports = function installPositionedText({EmfPlusDrawer,EmfDrawer,WmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix}) {
++  const ep=EmfPlusDrawer.prototype,ed=EmfDrawer.prototype,wd=WmfDrawer.prototype,identity=()=>[1,0,0,1,0,0];
 +  function charge(ctx,count) {
 +    if(count>32768)fail('positioned text unit limit');
 +    const total=(ctx._turtlePositionedUnits||0)+count;
@@ -2163,8 +2163,10 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +  function rectangle(d,rect) {
 +    // ExtTextOut maps the two RECT corners then orders the device rectangle;
 +    // font escapement does not rotate its opaque/clipping rectangle.
-+    const a=point(d,rect[0],rect[1]),b=point(d,rect[2],rect[3]),l=Math.min(a[0],b[0]),r=Math.max(a[0],b[0]),t=Math.min(a[1],b[1]),bottom=Math.max(a[1],b[1]);
-+    return [[l,t],[r,t],[r,bottom],[l,bottom]];
++    const transformer=d.coordinateTransformer,embedded=d.ctx._turtleEmbeddedMatrix;
++    const device=(x,y)=>{if(!embedded)return point(d,x,y);const p=transformer._turtleOriginalTransform.call(transformer,x,y);return[p.x,p.y];};
++    const a=device(rect[0],rect[1]),b=device(rect[2],rect[3]),l=Math.min(a[0],b[0]),r=Math.max(a[0],b[0]),t=Math.min(a[1],b[1]),bottom=Math.max(a[1],b[1]);
++    const points=[[l,t],[r,t],[r,bottom],[l,bottom]];return embedded?points.map(p=>mapped(embedded,p[0],p[1])):points;
 +  }
 +  function clipRect(d,rect) {
 +    const ctx=d.ctx,id='turtle-positioned-clip-'+ctx._defs.length;
@@ -2177,13 +2179,13 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +  // alignment, clipping, paths and current-position continuation have one owner.
 +  const singleByteCharsets={0:'windows-1252',161:'windows-1253',162:'windows-1254',163:'windows-1258',177:'windows-1255',178:'windows-1256',186:'windows-1257',204:'windows-1251',222:'windows-874',238:'windows-1250'};
 +  const dbcsCharsets={128:'windows-932',129:'windows-949',134:'windows-936',136:'windows-950'};
-+  function ansiValues(d,bytes) {
++  function ansiValues(d,bytes,wmf=false) {
 +    const selected=d.gdiObjectManager.currentFont||{},charset=Number.isInteger(selected.charset)?selected.charset:1;
 +    if(charset===2&&bytes.length)fail('ANSI Symbol charset requires a font-specific code mapping');
-+    const label=singleByteCharsets[charset]||dbcsCharsets[charset],spans=[];
++    const label=singleByteCharsets[charset]||dbcsCharsets[charset]||(wmf&&charset===255?'windows-437':wmf&&charset===130?'windows-1361':null),spans=[];
 +    for(let p=0;p<bytes.length;) {
 +      const first=bytes[p];let width=1;
-+      if(dbcsCharsets[charset]) {
++      if(dbcsCharsets[charset]||wmf&&charset===130) {
 +        if(charset===128){if(first>=0x81&&first<=0x9f||first>=0xe0&&first<=0xfc)width=2;else if(first>=0x80&&!(first>=0xa1&&first<=0xdf)&&![0x80,0xa0,0xfd,0xfe,0xff].includes(first))fail('invalid Shift-JIS lead byte');}
 +        else if(first>=0x80&&!(charset===134&&first===0x80))width=2;
 +      }
@@ -2324,7 +2326,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +    const localOutput=output.slice(),embedded=this.ctx._turtleEmbeddedMatrix;
 +    if(embedded){const a=embedded,b=output;output=[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
 +    matrix(output);matrix(nativeMatrix);matrix(layoutMatrix);
-+    const result=layout(face,Math.abs(height),(font.weight||400)>=700,!!font.italic,{values,cmap:!(options&0x10),positions,realizedAdvance:!dxOffset,vertical:false,limitSubpixel:false,matrix:nativeMatrix,layoutMatrix,outputTransform:output,horizontal,baseline,underline:!!font.underline,strikeout:!!font.strikeOut,cellHeight:height>0,averageWidth:font.width||0,classic:true,advance});
++    const result=layout(face,Math.abs(height),(font.weight||400)>=700,!!font.italic,{values,cmap:!(options&0x10),positions,realizedAdvance:!dxOffset,vertical:false,limitSubpixel:false,matrix:nativeMatrix,layoutMatrix,outputTransform:output,horizontal,baseline,underline:!!font.underline,strikeout:!!font.strikeOut,cellHeight:height>0,averageWidth:font.width||0,classic:true,advance,characterExtra:this._turtleWmfText&&!dxOffset?ts.characterExtra||0:0,breakSpacing:this._turtleWmfText&&!dxOffset&&ts.breakCount?Math.trunc(ts.breakExtra*16/ts.breakCount)/16:0});
 +    const ctx=this.ctx;
 +    if(this.pathState==='active') {
 +      if(result.path){ctx._segments.push(result.path);ctx._hasSubpath=true;const b=ctx._turtlePaintBounds;ctx._turtlePaintBounds=b?[Math.min(b[0],result.bounds[0]),Math.min(b[1],result.bounds[1]),Math.max(b[2],result.bounds[2]),Math.max(b[3],result.bounds[3])]:result.bounds.slice();}
@@ -2349,6 +2351,82 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +      this.currentPos={x:reference.x+(base.d*dx-base.c*dy)/determinant,y:reference.y+(-base.b*dx+base.a*dy)/determinant};
 +    }
 +    ctx._nodes.push('<desc>'+escape(face)+' positioned '+(options&0x10?'glyph indexes':'Unicode')+'</desc>');
++  };
++
++  // Classic WMF has WORD-sized fields and ANSI byte counts. Normalize those
++  // wire differences, then use exactly the same native font/clip/CP painter.
++  const word=(data,o)=>{if(o<0||o+2>data.length)fail('truncated WMF text value');return data[o]|data[o+1]<<8;};
++  const short=(data,o)=>word(data,o)<<16>>16;
++  const wmfState=d=>{const s=textState(d);if(s.characterExtra===undefined){s.characterExtra=0;s.breakExtra=0;s.breakCount=0;}return s;};
++  const wmfDraw=wd.draw;
++  wd.draw=function(document,options){this._turtlePositionedTextState=null;return wmfDraw.call(this,document,options);};
++  wd.processSetTextAlign=function(data){
++    if(data.length!==2)fail('invalid WMF text alignment extent');const value=word(data,0);
++    if(value&~0x1f||![0,2,6].includes(value&6)||![0,8,24].includes(value&24))fail('unsupported WMF text alignment');
++    wmfState(this).align=value;this.textAlignFlags=value;this.textUpdateCp=!!(value&1);
++  };
++  wd.processCreateFontIndirect=function(data){
++    if(data.length<18||data.length>50||data.length%2)fail('invalid WMF LOGFONT extent');
++    const charset=data[13],end=data.indexOf(0,18),bytes=data.slice(18,end<0?Math.min(data.length,50):end);
++    // Face names use the selected charset too. Empty names retain the native
++    // scalable default; font mapper family/quality hints remain metadata.
++    const probe={gdiObjectManager:{currentFont:{charset}}};
++    const values=bytes.every(v=>v<128)?Array.from(bytes):ansiValues(probe,bytes,true).values,faceName=String.fromCharCode(...values)||'Arial';
++    this.gdiObjectManager.createObject({type:'font',height:short(data,0),width:short(data,2),escapement:short(data,4),orientation:short(data,6),weight:word(data,8),italic:!!data[10],underline:!!data[11],strikeOut:!!data[12],charset,faceName,outPrecision:data[14],clipPrecision:data[15],quality:data[16],pitchAndFamily:data[17]});
++  };
++  function wmfText(d,data,extended) {
++    const count=short(data,extended?4:0);if(count<0||count>32768)fail('invalid WMF text count');
++    const wireOptions=extended?word(data,6):0;
++    if(wireOptions&~0x2006)fail('unsupported WMF text options');
++    // Windows PlayMetaFileRecord ignores WMF's PDY flag: it passes horizontal
++    // WORD advances, not modern ExtTextOut XY pairs. Keep surplus PDY words
++    // bounded and inert instead of assigning them invented vertical meaning.
++    const options=wireOptions&~0x2000;
++    const start=extended?8+(options&6?8:0):2,padded=(count+1)&~1,end=start+padded;
++    if(end>data.length)fail('truncated WMF text string');
++    let x,y,hasDx=false;
++    if(extended) {
++      x=short(data,2);y=short(data,0);
++      hasDx=data.length!==end;
++      if(wireOptions&0x2000){if(data.length!==end+count*4)fail('invalid WMF PDY displacement extent');}
++      else if(hasDx&&data.length!==end+count*2)fail('invalid WMF text displacement extent');
++    } else {
++      if(data.length!==end+4)fail('invalid WMF TextOut extent');
++      y=short(data,end);x=short(data,end+2);
++    }
++    const ts=wmfState(d),decoded=ansiValues(d,data.slice(start,start+count),true),values=decoded.values,n=values.length;
++    const dxStart=(68+n*2+3)&~3,result=new Uint8Array(hasDx?dxStart+n*4:dxStart);
++    put32(result,16,1);putFloat(result,20,1);putFloat(result,24,1);
++    put32(result,28,x);put32(result,32,y);put32(result,36,n);put32(result,40,n?76:0);put32(result,44,options);put32(result,64,hasDx?dxStart+8:0);
++    if(options&6)for(let i=0;i<4;i++)put32(result,48+i*4,short(data,8+i*2));
++    values.forEach((value,i)=>{result[68+i*2]=value&255;result[69+i*2]=value>>>8;});
++    if(hasDx)decoded.spans.forEach(([first,width],i)=>{
++      // Native JOHAB conversion preserves the first Unicode-count DX entries;
++      // the four ordinary DBCS charsets instead sum source-byte entries.
++      let advance=0;if(d.gdiObjectManager.currentFont&&d.gdiObjectManager.currentFont.charset===130)advance=short(data,end+i*2);
++      else for(let j=0;j<width;j++)advance+=short(data,end+(first+j)*2);
++      // Display DC playback retains character-extra with explicit DX, even for
++      // negative advances. Natural justification does not alter caller DX.
++      put32(result,dxStart+i*4,advance+ts.characterExtra);
++    });
++    ts.background=d._turtleRasterBkMode||2;
++    d.currentPos={x:d.currentPosX||0,y:d.currentPosY||0};
++    charge(d.ctx,count-n);
++    const prior=d._turtleWmfText;d._turtleWmfText=true;
++    try {ed.processEmfExtTextOutW.call(d,result);}
++    finally {d._turtleWmfText=prior;if(ts.align&1){d.currentPosX=d.currentPos.x;d.currentPosY=d.currentPos.y;d.hasValidPosition=true;}}
++  }
++  wd.processTextOut=function(data){return wmfText(this,data,false);};
++  wd.processExtTextOut=function(data){if(data.length<8)fail('truncated WMF extended text');return wmfText(this,data,true);};
++  const wmfRecord=wd.processRecord;
++  wd.processRecord=function(record){
++    const data=record.data,type=record.functionId;
++    if(type===0x108){if(data.length!==2)fail('invalid WMF character extra extent');wmfState(this).characterExtra=short(data,0);return;}
++    if(type===0x20a){
++      if(data.length!==4)fail('invalid WMF justification extent');const ts=wmfState(this),count=short(data,0);
++      if(count<0)fail('invalid WMF justification break count');ts.breakCount=count;ts.breakExtra=short(data,2);return;
++    }
++    return wmfRecord.call(this,record);
 +  };
 +};
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
@@ -2655,8 +2733,8 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(!masked&&rect.some((v,i)=>i>1&&v<=0))fail('mirrored transparent/alpha source is unsupported');
 +    advancedTransfer(d,m,dib,rect,mask,maskRect,options);
 +  }
-+  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkRef:d._turtleRasterBkRef,text:d.textColor,textRef:d._turtleRasterTextRef,palette:d.currentPalette,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,font:d.gdiObjectManager._currentFont,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
-+  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkRef=s.bkRef;d.textColor=s.text;d._turtleRasterTextRef=s.textRef;d.currentPalette=s.palette;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d.gdiObjectManager._currentFont=s.font;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
++  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkRef:d._turtleRasterBkRef,text:d.textColor,textRef:d._turtleRasterTextRef,palette:d.currentPalette,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,font:d.gdiObjectManager._currentFont,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},textState:d._turtlePositionedTextState&&{...d._turtlePositionedTextState},textAlign:d.textAlignFlags,textUpdate:d.textUpdateCp,charset:d.currentCharset,fontFace:d.currentFontFace,posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
++  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkRef=s.bkRef;d.textColor=s.text;d._turtleRasterTextRef=s.textRef;d.currentPalette=s.palette;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d.gdiObjectManager._currentFont=s.font;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d._turtlePositionedTextState=s.textState&&{...s.textState};d.textAlignFlags=s.textAlign;d.textUpdateCp=s.textUpdate;d.currentCharset=s.charset;d.currentFontFace=s.fontFace;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
 +  const wp=WmfDrawer.prototype,ep=EmfDrawer.prototype;
 +  // Preserve ROP/selected brushes alongside existing EMF clip/mapping snapshots.
 +  const capture=ep._captureDcState,release=ep._restoreDcState;

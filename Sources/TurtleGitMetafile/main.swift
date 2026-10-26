@@ -1,5 +1,6 @@
 // Copyright (C) TurtleGit contributors. Licensed under GPL-2.0-or-later.
 import Foundation
+import Darwin
 import JavaScriptCore
 import CoreText
 import CoreGraphics
@@ -10,6 +11,27 @@ import AppKit
 private let inputLimit = 64 * 1024 * 1024
 private let outputLimit = 128 * 1024 * 1024
 private enum ConversionError: Error { case invalid(String) }
+/// CoreFoundation advertises CP1361 but has no working Johab decoder on
+/// supported hosts. The system codec stays in this sandboxed process: no shell,
+/// executable, files or conversion fallback are exposed to the document.
+private func decodeJohab(_ bytes:Data)throws->String {
+    guard bytes.count<=32_768 else {throw ConversionError.invalid("Johab text unit limit")}
+    if bytes.isEmpty {return ""}
+    guard let converter=iconv_open("UTF-8","JOHAB"),converter != OpaquePointer(bitPattern:-1) else {throw ConversionError.invalid("System Johab decoder unavailable")}
+    defer {_ = iconv_close(converter)}
+    var input=bytes.map{CChar(bitPattern:$0)},output=[CChar](repeating:0,count:bytes.count*4+4)
+    var inputLeft=input.count,outputLeft=output.count
+    let converted=input.withUnsafeMutableBufferPointer {source in
+        output.withUnsafeMutableBufferPointer {destination in
+            var from=source.baseAddress,to=destination.baseAddress
+            return iconv(converter,&from,&inputLeft,&to,&outputLeft)
+        }
+    }
+    guard converted==0,inputLeft==0 else {throw ConversionError.invalid("Invalid encoded Johab text")}
+    let used=output.count-outputLeft
+    guard let text=output.withUnsafeBytes({String(bytes:$0.prefix(used),encoding:.utf8)}) else {throw ConversionError.invalid("Invalid Johab decoder output")}
+    return text
+}
 /// GDI+ exposes timed/looping GIFs as animation (default frame zero), but
 /// flattens an untimed, nonlooping sequence to its final composited canvas.
 /// ImageIO clamps zero delays and supplies a default LoopCount, so classify
@@ -1262,6 +1284,8 @@ private final class NativeTextLayout {
         _ = try boolean("limitSubpixel") // Vector outlines have no glyph bitmap cache.
         let underline=try boolean("underline"),strikeout=try boolean("strikeout"),cellHeight=try boolean("cellHeight")
         let horizontal=try number(options,"horizontal"),baseline=try number(options,"baseline")
+        let characterExtra=try number(options,"characterExtra"),breakSpacing=try number(options,"breakSpacing")
+        guard (characterExtra==0 && breakSpacing==0) || (classic && realized && cmap) else {throw invalid("spacing requires realized classic character text")}
         guard [0.0,1,2].contains(horizontal),[0.0,1,2].contains(baseline),
               let values=options.forProperty("values"),let positions=options.forProperty("positions"),positions.isArray else {throw invalid("invalid positioned alignment or arrays")}
         let kind=JSValueGetTypedArrayType(values.context.jsGlobalContextRef,values.jsValueRef,nil)
@@ -1328,10 +1352,35 @@ private final class NativeTextLayout {
         var glyphs=[CGGlyph](repeating:0,count:count)
         if cmap {if count>0 {_ = CTFontGetGlyphsForCharacters(font,units,&glyphs,count)}}
         else {glyphs=units}
-        let glyphCount=CTFontGetGlyphCount(font)
-        guard glyphs.enumerated().allSatisfy({skipped[$0.offset] || Int($0.element)<glyphCount}) else {throw invalid("raw glyph index exceeds selected font")}
+        // Unicode character lookup may fall outside the requested face's cmap.
+        // Keep the chosen font with that scalar's glyph, advance and outline;
+        // raw glyph-index records must retain their exact original font.
+        var glyphFonts=[CTFont](repeating:font,count:count)
+        var glyphLimits=[Int](repeating:CTFontGetGlyphCount(font),count:count)
         var advances=[CGSize](repeating:.zero,count:count)
         if count>0 {_ = CTFontGetAdvancesForGlyphs(font,.horizontal,glyphs,&advances,count)}
+        var fallbacks=[UInt32:(font:CTFont,glyph:CGGlyph,advance:CGSize,limit:Int)]()
+        if cmap {
+            for index in 0..<count where !skipped[index] && glyphs[index]==0 {
+                let pair=(0xd800...0xdbff).contains(units[index]),scalar=pair ? 0x10000+(UInt32(units[index])-0xd800)*0x400+UInt32(units[index+1])-0xdc00:UInt32(units[index])
+                let entry:(font:CTFont,glyph:CGGlyph,advance:CGSize,limit:Int)
+                if let cached=fallbacks[scalar] {entry=cached}
+                else {
+                    let text=String(decoding:units[index..<(index+(pair ? 2:1))],as:UTF16.self)
+                    let fallback=CTFontCreateForString(font,text as CFString,CFRange(location:0,length:pair ? 2:1))
+                    guard !(CTFontCopyPostScriptName(fallback) as String).lowercased().contains("lastresort") else {throw invalid("Unicode character has no installed fallback font")}
+                    let characters=Array(units[index..<(index+(pair ? 2:1))]),limit=CTFontGetGlyphCount(fallback)
+                    var mapped=[CGGlyph](repeating:0,count:characters.count)
+                    _ = CTFontGetGlyphsForCharacters(fallback,characters,&mapped,characters.count)
+                    guard mapped[0] != 0,Int(mapped[0])<limit else {throw invalid("Unicode character has no native fallback glyph")}
+                    var glyph=mapped[0],advance=CGSize.zero
+                    _ = CTFontGetAdvancesForGlyphs(fallback,.horizontal,&glyph,&advance,1)
+                    entry=(font:fallback,glyph:glyph,advance:advance,limit:limit);fallbacks[scalar]=entry
+                }
+                glyphFonts[index]=entry.font;glyphs[index]=entry.glyph;advances[index]=entry.advance;glyphLimits[index]=entry.limit
+            }
+        }
+        guard glyphs.enumerated().allSatisfy({skipped[$0.offset] || Int($0.element)<glyphLimits[$0.offset]}) else {throw invalid("raw glyph index exceeds selected font")}
         guard advances.allSatisfy({$0.width.isFinite && $0.height.isFinite && abs($0.width)<=10_000_000 && abs($0.height)<=10_000_000}) else {throw invalid("positioned glyph advance limit")}
         func fontVector(_ x:CGFloat,_ y:CGFloat)->CGPoint {
             // Input uses font y-up. Convert to page y-down, apply the driver's
@@ -1349,13 +1398,29 @@ private final class NativeTextLayout {
             let px=x*widthScale,py = -y
             return CGPoint(x:layoutMatrix.a*px+layoutMatrix.c*py,y:layoutMatrix.b*px+layoutMatrix.d*py)
         }
+        // Windows native WMF playback applies natural character-extra only when
+        // that character's resulting advance remains positive. Justification
+        // instead clamps a break cell at zero. The break character belongs to
+        // the selected font, not an arbitrary Unicode whitespace category.
+        var breakCharacter:UniChar=0x20
+        if breakSpacing != 0,let table=CTFontCopyTable(font,CTFontTableTag(0x4f532f32),[]) as Data?,table.count>=94 {
+            let version=UInt16(table[0])<<8|UInt16(table[1])
+            if version>=2 {breakCharacter=UInt16(table[92])<<8|UInt16(table[93])}
+        }
         var origins=[CGPoint](repeating:.zero,count:count),cursor=CGPoint.zero,first=CGPoint.zero,lastIndex:Int?
         if count>0 {first=try vector(positions.atIndex(0));cursor=first}
         for index in 0..<count where !skipped[index] {
             if realized {origins[index]=cursor} else {origins[index]=try vector(positions.atIndex(index))}
             lastIndex=index
-            let step=layoutVector(advances[index].width,0)
-            if realized {cursor.x+=step.x;cursor.y+=step.y}
+            var step=layoutVector(advances[index].width,0)
+            if realized {
+                if characterExtra != 0 && step.x+CGFloat(characterExtra)>0 {step.x+=CGFloat(characterExtra)}
+                if breakSpacing != 0 && units[index]==breakCharacter {
+                    step.x+=CGFloat(breakSpacing)
+                    if step.x<0 {step = .zero}
+                }
+                cursor.x+=step.x;cursor.y+=step.y
+            }
         }
         var advance=CGPoint.zero
         if let explicitAdvance {advance=explicitAdvance}
@@ -1370,10 +1435,10 @@ private final class NativeTextLayout {
         for index in 0..<count where !skipped[index] {
             let origin=CGPoint(x:origins[index].x+shift.x,y:origins[index].y+shift.y)
             let transform=CGAffineTransform(a:columnX.x,b:columnX.y,c:columnY.x,d:columnY.y,tx:origin.x,ty:origin.y)
-            if let path=CTFontCreatePathForGlyph(font,glyphs[index],nil) {try append(path,to:output,transform:transform)}
+            if let path=CTFontCreatePathForGlyph(glyphFonts[index],glyphs[index],nil) {try append(path,to:output,transform:transform)}
             else {
                 var glyph=glyphs[index],rect=CGRect.zero
-                _ = CTFontGetBoundingRectsForGlyphs(font,.horizontal,&glyph,&rect,1)
+                _ = CTFontGetBoundingRectsForGlyphs(glyphFonts[index],.horizontal,&glyph,&rect,1)
                 guard rect.isNull || rect.isEmpty else {throw invalid("selected positioned glyph has no vector outline")}
             }
         }
@@ -1738,8 +1803,13 @@ private func run() throws {
             "windows-932": CFStringEncoding(CFStringEncodings.dosJapanese.rawValue),
             "windows-936": CFStringEncoding(CFStringEncodings.dosChineseSimplif.rawValue),
             "windows-949": CFStringEncoding(CFStringEncodings.dosKorean.rawValue),
-            "windows-950": CFStringEncoding(CFStringEncodings.dosChineseTrad.rawValue)]
+            "windows-950": CFStringEncoding(CFStringEncodings.dosChineseTrad.rawValue),
+            "windows-437": CFStringEncoding(CFStringEncodings.dosLatinUS.rawValue)]
         let label = encoding.lowercased()
+        if label=="windows-1361" {
+            do {return try decodeJohab(bytes)}
+            catch {nativeError("Invalid encoded Johab text");return ""}
+        }
         let swiftEncoding: String.Encoding
         if label == "utf-8" || label == "utf8" { swiftEncoding = .utf8 }
         else if label == "utf-16le" { swiftEncoding = .utf16LittleEndian }

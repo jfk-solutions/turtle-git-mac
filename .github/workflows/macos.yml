@@ -481,7 +481,7 @@ jobs:
       - name: Image native command family
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: WMF and EMF native comparison consumers and colors
-        run: python3 scripts/test-metafile-workflows.py --only classic-text-records --only formatted-digits --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: python3 scripts/test-metafile-workflows.py --only wmf-text --only classic-text-records --only formatted-digits --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic WMF and EMF Boolean raster consumers and conflict ownership
         run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic EMF masked and transparent bitmap transfers

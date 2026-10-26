@@ -74,14 +74,22 @@ adapter adds no independent app, persistent worker or document mutation.
 
 ## Explicit limits
 
-Source rotation/shear for bitmap transfers, device-dependent WMF bitmap variants,
-unsupported bitmap encodings and unsupported pattern-brush variants remain errors.
-The connected classic EMF masked/transparent extension below covers its own
-record and operand requirements. The classic DIB path accepts bounded RGB, RLE4/RLE8,
-indexed palettes, bitfields and core headers; JPEG/PNG-compressed DIB layouts,
-embedded/external bitmap profiles and device-dependent bitmap layouts remain
-unsupported. Dynamic DC_BRUSH/DC_PEN color state, monochrome
-creation variants and obsolete device-dependent brush records remain unsupported.
+Source rotation/shear for required bitmap operands remains an error, matching
+the baseline BitBlt/StretchBlt restriction. Embedded device-dependent WMF bitmap
+transfers, external/profiled bitmap layouts and unrepresented encodings remain
+refusals. The connected classic EMF masked/transparent extension below covers
+its own record and operand requirements.
+
+The classic DIB path accepts bounded RGB, RLE4/RLE8, indexed palettes, bitfields
+and core headers. Later [compressed-raster support](METAFILE-COMPRESSED-RASTER-PARITY.md)
+adds its restricted JPEG/PNG stretched-transfer forms; the original refusal in
+this guide no longer applies to those forms. Likewise, the
+[classic brush family](METAFILE-CLASSIC-BRUSH-PARITY.md) covers its monochrome and
+serialized pattern-brush layouts, while the
+[drawing-state family](METAFILE-DRAWING-STATE-PARITY.md) covers stock DC brush/pen
+selection, saved state, the explicit default-palette profile and recorded ordinary
+color-object replacement. These extensions do not invent serialized live Win32
+color-setter records or support arbitrary device-dependent color bitmaps.
 In the ROP3 record family, any nonzero high byte in an operation code is refused, including
 flags that request operating-system screen capture or alter mirroring. Such flags
 are not interchangeable with a Boolean truth byte. MASKBLT's separate ROP4

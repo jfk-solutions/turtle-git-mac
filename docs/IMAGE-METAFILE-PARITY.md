@@ -98,8 +98,10 @@ to native outlines, with its own checkpoint and font/record limits. This is
 useful three-format support, not complete GDI compatibility. The
 [compact and batched classic text continuation](METAFILE-CLASSIC-TEXT-RECORDS-PARITY.md)
 connects SmallTextOut, PolyTextOutA/W and ANSI ExtTextOut to shared text painting;
-its evidence is separate from earlier positioned-text results. Remaining
-unsupported features include measured-character-range queries, gradients outside the
+its evidence is separate from earlier positioned-text results. The
+[WMF text continuation](METAFILE-WMF-TEXT-PARITY.md) connects the older byte-string
+records, selected font, spacing and saved drawing state to the same native painter.
+Remaining unsupported features include measured-character-range queries, gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md),
 file-format-only Left/Outset/Right pen alignment, alternate-format/terminal-server
 records. The [SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md) adds ordered alpha

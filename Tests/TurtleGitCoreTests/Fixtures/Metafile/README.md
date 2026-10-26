@@ -546,3 +546,33 @@ installed font cmap at runtime and compared against the UInt16 glyph record.
 Windows-measured NO_RECT ignores opaque/clip flags; Poly offDx zero uses
 bounded DWORD advances from its source record header, with independent
 UPDATECP witnesses and literal ExtTextOutW controls.
+
+`generate-wmf-text.py` writes only new `wmf-text-*` originals and
+`unsupported-wmf-text-*` refusals. Run it with Python3 from the repository root.
+WMF TextOut/ExtTextOut records retain byte counts, odd-byte padding, signed WORD
+spacing and complete LOGFONT metadata. Independently framed Unicode ExtTextOutW
+EMF controls use the same compatible graphics mode and logical font; comparisons
+crop the EMF's extra frame pixel without rescaling. Cases include real glyph ink,
+font cell/width/angle/decorations, current-position updates, positive/negative DX,
+clipping/opaque backgrounds, SaveDC/RestoreDC, charset/DBCS bytes and an affine
+EMF+ parent around WMF and EMF child images. Inner framing/encoding failures and
+conversion-wide text budgets refuse the complete image and preserve input bytes.
+No earlier fixtures, font bytes or upstream pictures are rewritten or copied.
+Windows replay evidence also drives the WMF-specific controls: an explicit null
+pen is created and selected instead of assuming an EMF-style stock selector;
+signed character extra applies with explicit DX while break justification is
+ignored in that case. Natural character-extra ink assertions preserve each glyph
+outline and shift its origin; natural justification conserves the total over the
+breaks. WMF PDY replay consumes the first character-count WORDs as ordinary DX
+and ignores the additional vertical-looking WORDs, so its Unicode control uses
+that measured sequence. OEM437 and JOHAB bytes have literal Unicode controls.
+
+This WMF family has 62 positive/control pairs, five additional natural-spacing
+subjects and 29 refusals. JOHAB's DX control intentionally consumes the first
+Unicode-character-count WORDs rather than summing lead/trail byte advances;
+the other four DBCS codepages retain byte sums. PDY negative fixtures require the
+full twice-count WORD framing even though playback uses horizontal-only values.
+Independent Core checks resolve the installed font's actual missing-CJK fallback,
+render its real native glyph path and compare source ink, then check repeated
+fallback scalars at three supplied origins. Shared-budget refusals remain in the
+same group; no screen count or fixture count establishes whole-port completion.

@@ -77,6 +77,16 @@ No native UI receivers were launched for this Core/helper correction.
 
 ## Latest source batches
 
+The [WMF text family](METAFILE-WMF-TEXT-PARITY.md) replaces legacy SVG text
+with shared native font outlines, charset decoding, saved text state, alignment,
+spacing, clipping and embedded transforms. Independent Windows playback resolves
+WMF PDY, stock selectors and signed spacing; Unicode fallback retains the actual
+selected glyph font. The [checkpoint](qa/metafile-wmf-text-2026-10-26.json) records
+26 distinct relevant Core methods passing cumulatively, the rebuilt universal
+helper, Debug app and both native engine pairs, including valid Johab decoding
+through system libiconv. Both owned receivers are absent. Current signed build12
+does not include this source batch.
+
 The [compact/batched classic text family](METAFILE-CLASSIC-TEXT-RECORDS-PARITY.md)
 connects SmallTextOut, PolyTextOutA/W and ANSI ExtTextOut through shared native
 font, background, clipping, path and current-position execution. Independent

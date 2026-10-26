@@ -2461,3 +2461,121 @@ extension MetafileImageTests {
         }
     }
 }
+
+extension MetafileImageTests {
+    private func wmfTextPixels(_ filename:String)throws->[UInt8] {
+        let rendered=try image(filename),width=96,height=64
+        let source=try interior(rendered,width:width,height:height,emf:filename.hasSuffix(".emf"),name:filename)
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes {storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.draw(source,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return bytes
+    }
+    private func wmfTextInk(_ name:String)throws->TextInk {
+        let bytes=try wmfTextPixels(name)
+        return TextInk(width:96,height:64,points:Set((0..<96*64).filter{let p=$0*4;return bytes[p+3]>128 && bytes[p]<128 && bytes[p+1]<128 && bytes[p+2]<128}))
+    }
+    func testWMFTextFamilyOutlinedPaintMatchesIndependentUnicodeEMFControls()throws {
+        let controls=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("wmf-text-") && $0.hasSuffix("-control.emf")}.sorted()
+        XCTAssertEqual(controls.count,62)
+        for control in controls {
+            let name=String(control.dropLast("-control.emf".count)),filename=name+(name.contains("embedded-") ? ".emf":".wmf"),original=try data(filename)
+            XCTAssertEqual(try wmfTextPixels(filename),try wmfTextPixels(control),filename)
+            XCTAssertEqual(try data(filename),original,"WMF rendering must preserve original bytes")
+        }
+    }
+    func testWMFTextFamilyRealInkSpacingClipBackgroundFontAndSavedState()throws {
+        let normal=try wmfTextInk("wmf-text-ext-even.wmf")
+        XCTAssertGreaterThan(normal.points.count,40)
+        XCTAssertEqual(try wmfTextInk("wmf-text-textout-even.wmf").points,normal.points)
+        let explicit=try wmfTextInk("wmf-text-ext-dx.wmf")
+        XCTAssertEqual(explicit.columnRuns.count,3)
+        if explicit.columnRuns.count==3 {XCTAssertEqual(explicit.columnRuns[1].minX-explicit.columnRuns[0].minX,28);XCTAssertEqual(explicit.columnRuns[2].minX-explicit.columnRuns[1].minX,28)}
+        let clipped=try wmfTextInk("wmf-text-ext-clip.wmf")
+        XCTAssertFalse(clipped.points.isEmpty);XCTAssertTrue(clipped.points.allSatisfy{$0%96<24})
+        let cp=try wmfTextInk("wmf-text-ext-updatecp-dx.wmf")
+        XCTAssertEqual(cp.columnRuns.count,2);XCTAssertLessThan(try XCTUnwrap(cp.bounds).minX,20)
+        for name in ["ext-opaque","ext-empty-opaque"] {
+            let value=try image("wmf-text-"+name+".wmf"),inside=try rgb(value,6,6),outside=try rgb(value,2,2)
+            XCTAssertLessThan(inside[0],0.05);XCTAssertGreaterThan(inside[1],0.95);XCTAssertGreaterThan(outside[0],0.95)
+        }
+        XCTAssertTrue(try wmfTextInk("wmf-text-ext-empty-opaque.wmf").points.isEmpty)
+        let restore=try wmfTextInk("wmf-text-restore.wmf")
+        XCTAssertTrue(restore.points.contains{$0%96>60 && $0/96>35},"RestoreDC must restore black text and release the earlier clip")
+        XCTAssertGreaterThan(try wmfTextInk("wmf-text-font-decorated.wmf").points.count,40)
+        XCTAssertNotEqual(try wmfTextInk("wmf-text-translated.wmf").points,try wmfTextInk("wmf-text-ext-dx.wmf").points)
+        XCTAssertGreaterThan(try wmfTextInk("wmf-text-embedded-affine.emf").points.count,30,"Embedded text may not disappear or be mapped twice")
+        let justificationBase=try wmfTextInk("wmf-text-justify-natural-base.wmf"),justified=try wmfTextInk("wmf-text-justify-natural-positive.wmf")
+        XCTAssertEqual(justificationBase.columnRuns.count,3);XCTAssertEqual(justified.columnRuns.count,3)
+        if justificationBase.columnRuns.count==3,justified.columnRuns.count==3 {
+            XCTAssertEqual(justified.columnRuns[0].minX,justificationBase.columnRuns[0].minX)
+            XCTAssertEqual(justified.columnRuns[2].minX-justificationBase.columnRuns[2].minX,11,"Break justification must distribute the total over spaces")
+            let firstBreak=justified.columnRuns[1].minX-justificationBase.columnRuns[1].minX
+            XCTAssertTrue(firstBreak==5 || firstBreak==6,"An eleven-pixel total over two spaces must distribute its remainder without losing it")
+        }
+        let spaced=try wmfTextInk("wmf-text-ext-odd.wmf")
+        XCTAssertEqual(spaced.columnRuns.count,3)
+        if spaced.columnRuns.count==3 {
+            for (label,extra) in [("positive",5),("negative",-5)] {
+                let expected=Set(spaced.points.map{point -> Int in
+                    let x=point%96,index=spaced.columnRuns.firstIndex{$0.minX<=CGFloat(x) && CGFloat(x)<$0.maxX} ?? 0
+                    return point+index*extra
+                })
+                XCTAssertEqual(try wmfTextInk("wmf-text-extra-natural-"+label+".wmf").points,expected,"Signed natural character extra must shift each later glyph without changing its outline")
+            }
+        }
+    }
+    func testWMFTextFamilyMalformedFramingEncodingAndSharedBudgetRefuseWholeImage()throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-wmf-text-") && $0.hasSuffix(".wmf")}.sorted()
+        XCTAssertEqual(names.count,29)
+        for filename in names {
+            let original=try data(filename)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),filename) {error in
+                if filename.contains("aggregate-budget") {
+                    guard let failure=error as? MetafileImageFailure,case .failed(let diagnostic)=failure else{return XCTFail("Expected explicit shared WMF text budget, got \(error)")}
+                    XCTAssertTrue(diagnostic.contains("aggregate") && diagnostic.contains("text"),diagnostic)
+                }
+            }
+            XCTAssertEqual(try data(filename),original)
+        }
+        for name in ["textout-short","ext-short-dx","dbcs-128-lead","symbol-ascii"] {XCTAssertNil(ComparisonImage(bytes:try data("unsupported-wmf-text-"+name+".wmf")),name)}
+    }
+}
+
+extension MetafileImageTests {
+    func testWMFTextFamilyUsesActualNativeFallbackGlyphOutlinesAndRepeatedOrigins()throws {
+        for (name,text) in [("128","あ"),("johab","가")] {
+            let base=CTFontCreateWithName("Helvetica" as CFString,18,nil),string=text as NSString
+            let fallback=CTFontCreateForString(base,text as CFString,CFRange(location:0,length:string.length))
+            var character=UniChar(string.character(at:0)),glyph=CGGlyph(),missing=CGGlyph()
+            XCTAssertTrue(CTFontGetGlyphsForCharacters(fallback,&character,&glyph,1));XCTAssertGreaterThan(glyph,0)
+            _=CTFontGetGlyphsForCharacters(base,&character,&missing,1)
+            XCTAssertEqual(missing,0,"Fixture must exercise a scalar absent from the selected Helvetica cmap")
+            let nativePath=try XCTUnwrap(CTFontCreatePathForGlyph(fallback,glyph,nil))
+            var transform=CGAffineTransform(a:1,b:0,c:0,d:-1,tx:8,ty:28)
+            let placed=try XCTUnwrap(nativePath.copy(using:&transform))
+            var bytes=[UInt8](repeating:0,count:96*64*4)
+            try bytes.withUnsafeMutableBytes {storage in
+                let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:96,height:64,bitsPerComponent:8,bytesPerRow:96*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+                // `placed` uses the metafile's top-left pixel coordinates.
+                // A direct Quartz path uses bottom-left user coordinates; flip
+                // the canvas to match wmfTextPixels' normalized CGImage rows.
+                context.translateBy(x:0,y:64);context.scaleBy(x:1,y:-1)
+                context.setFillColor(CGColor(gray:0,alpha:1));context.addPath(placed);context.fillPath()
+            }
+            let expected=TextInk(width:96,height:64,points:Set((0..<96*64).filter{bytes[$0*4+3]>128}))
+            let actual=try wmfTextInk("wmf-text-dbcs-single-"+name+".wmf")
+            XCTAssertGreaterThan(actual.points.count,30)
+            let a=try XCTUnwrap(actual.bounds),e=try XCTUnwrap(expected.bounds)
+            XCTAssertEqual(a.minX,e.minX,accuracy:1);XCTAssertEqual(a.minY,e.minY,accuracy:1)
+            XCTAssertEqual(a.width,e.width,accuracy:1);XCTAssertEqual(a.height,e.height,accuracy:1)
+            let matched=actual.points.filter{point in (-1...1).contains{dy in (-1...1).contains{dx in expected.points.contains(point+dy*96+dx)}}}.count
+            XCTAssertGreaterThan(Double(matched)/Double(actual.points.count),0.9,"Must paint the actual fallback scalar outline, not .notdef")
+        }
+        let single=try wmfTextInk("wmf-text-dbcs-single-128.wmf"),repeated=try wmfTextInk("wmf-text-dbcs-repeat-128.wmf")
+        let expected=single.points.union(single.points.map{$0+28}).union(single.points.map{$0+56})
+        XCTAssertEqual(repeated.points,expected,"Repeated fallback scalars must retain actual glyph ink and independent supplied origins")
+    }
+}
