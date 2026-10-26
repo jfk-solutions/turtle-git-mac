@@ -1,0 +1,589 @@
+{
+  "schema": 1,
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sources": [
+    {
+      "path": "src/Resources/TortoiseGitBlameENG.rc",
+      "sha256": "0b75a14448577d886a3e9bdf13f23fc81b8f15f1c9f2cf601812f6c3c64a7b09"
+    },
+    {
+      "path": "src/TortoiseGitBlame/MainFrm.cpp",
+      "sha256": "1e6ecfa9a8991aa5499614a2ec134fdf031df29cb7348cf1e610677810c46fec"
+    }
+  ],
+  "sourceBehavior": [
+    {
+      "path": "src/TortoiseGitBlame/MainFrm.cpp",
+      "lines": "94\u2013110",
+      "contract": "Standard toolbar, customization button, InitUserToolbars range"
+    },
+    {
+      "path": "src/TortoiseGitBlame/MainFrm.cpp",
+      "lines": "277\u2013299",
+      "contract": "Customize dialog scans menus; enables user-defined toolbars; new bars gain Customize button"
+    }
+  ],
+  "defaultSourceToolbar": [
+    "ID_FILE_OPEN",
+    "separator",
+    "ID_VIEW_PREV",
+    "ID_VIEW_NEXT",
+    "separator",
+    "ID_EDIT_COPY",
+    "separator",
+    "ID_APP_ABOUT"
+  ],
+  "mainMenuInventory": [
+    {
+      "line": 131,
+      "sourceID": "ID_FILE_OPEN",
+      "caption": "&Open...\\tCtrl+O",
+      "paletteCommand": "open"
+    },
+    {
+      "line": 134,
+      "sourceID": "ID_FILE_MRU_FILE1",
+      "caption": "Recent File",
+      "nativeContract": "Dynamic recent-file submenu; immutable toolbar item open opens picker; filenames are not stored as toolbar command IDs"
+    },
+    {
+      "line": 136,
+      "sourceID": "ID_FILE_SETTINGS",
+      "caption": "&Settings...",
+      "paletteCommand": "settings"
+    },
+    {
+      "line": 138,
+      "sourceID": "ID_APP_EXIT",
+      "caption": "E&xit",
+      "paletteCommand": "close"
+    },
+    {
+      "line": 143,
+      "sourceID": "ID_EDIT_COPY",
+      "caption": "&Copy\\tCtrl+C",
+      "paletteCommand": "copy"
+    },
+    {
+      "line": 144,
+      "sourceID": "ID_EDIT_FIND",
+      "caption": "&Find\\tCtrl+F",
+      "paletteCommand": "find"
+    },
+    {
+      "line": 145,
+      "sourceID": "ID_EDIT_GOTO",
+      "caption": "&Go to\\tCtrl+G",
+      "paletteCommand": "goTo"
+    },
+    {
+      "line": 149,
+      "sourceID": "IDM_FORMAT_UTF8",
+      "caption": "UTF-8",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 150,
+      "sourceID": "IDM_FORMAT_UTF16LE",
+      "caption": "UTF-16 LE",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 151,
+      "sourceID": "IDM_FORMAT_UTF16BE",
+      "caption": "UTF-16 BE",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 154,
+      "sourceID": "IDM_FORMAT_ISO_8859_6",
+      "caption": "ISO 8859-6",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 155,
+      "sourceID": "IDM_FORMAT_DOS_720",
+      "caption": "OEM 720",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 156,
+      "sourceID": "IDM_FORMAT_WIN_1256",
+      "caption": "Windows-1256",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 160,
+      "sourceID": "IDM_FORMAT_ISO_8859_4",
+      "caption": "ISO 8859-4",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 161,
+      "sourceID": "IDM_FORMAT_ISO_8859_13",
+      "caption": "ISO 8859-13",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 162,
+      "sourceID": "IDM_FORMAT_DOS_775",
+      "caption": "OEM 775",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 163,
+      "sourceID": "IDM_FORMAT_WIN_1257",
+      "caption": "Windows-1257",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 167,
+      "sourceID": "IDM_FORMAT_ISO_8859_14",
+      "caption": "ISO 8859-14",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 171,
+      "sourceID": "IDM_FORMAT_ISO_8859_5",
+      "caption": "ISO 8859-5",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 172,
+      "sourceID": "IDM_FORMAT_KOI8R_CYRILLIC",
+      "caption": "KOI8-R",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 173,
+      "sourceID": "IDM_FORMAT_KOI8U_CYRILLIC",
+      "caption": "KOI8-U",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 174,
+      "sourceID": "IDM_FORMAT_MAC_CYRILLIC",
+      "caption": "Macintosh",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 175,
+      "sourceID": "IDM_FORMAT_DOS_855",
+      "caption": "OEM 855",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 176,
+      "sourceID": "IDM_FORMAT_DOS_866",
+      "caption": "OEM 866",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 177,
+      "sourceID": "IDM_FORMAT_WIN_1251",
+      "caption": "Windows-1251",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 181,
+      "sourceID": "IDM_FORMAT_ISO_8859_16",
+      "caption": "ISO 8859-16",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 182,
+      "sourceID": "IDM_FORMAT_DOS_852",
+      "caption": "OEM 852",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 183,
+      "sourceID": "IDM_FORMAT_WIN_1250",
+      "caption": "Windows-1250",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 187,
+      "sourceID": "IDM_FORMAT_BIG5",
+      "caption": "Big5 (Traditional)",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 188,
+      "sourceID": "IDM_FORMAT_GB2312",
+      "caption": "GB2312 (Simplified)",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 192,
+      "sourceID": "IDM_FORMAT_ISO_8859_2",
+      "caption": "ISO 8859-2",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 196,
+      "sourceID": "IDM_FORMAT_ISO_8859_7",
+      "caption": "ISO 8859-7",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 197,
+      "sourceID": "IDM_FORMAT_DOS_737",
+      "caption": "OEM 737",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 198,
+      "sourceID": "IDM_FORMAT_DOS_869",
+      "caption": "OEM 869",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 199,
+      "sourceID": "IDM_FORMAT_WIN_1253",
+      "caption": "Windows-1253",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 203,
+      "sourceID": "IDM_FORMAT_ISO_8859_8",
+      "caption": "ISO 8859-8",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 204,
+      "sourceID": "IDM_FORMAT_DOS_862",
+      "caption": "OEM 862",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 205,
+      "sourceID": "IDM_FORMAT_WIN_1255",
+      "caption": "Windows-1255",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 209,
+      "sourceID": "IDM_FORMAT_SHIFT_JIS",
+      "caption": "Shift-JIS",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 213,
+      "sourceID": "IDM_FORMAT_EUC_KR",
+      "caption": "EUC-KR",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 217,
+      "sourceID": "IDM_FORMAT_DOS_861",
+      "caption": "OEM 861: Icelandic",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 218,
+      "sourceID": "IDM_FORMAT_DOS_865",
+      "caption": "OEM 865: Nordic",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 222,
+      "sourceID": "IDM_FORMAT_ISO_8859_11",
+      "caption": "ISO 8859-11",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 223,
+      "sourceID": "IDM_FORMAT_TIS_620",
+      "caption": "TIS-620",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 227,
+      "sourceID": "IDM_FORMAT_ISO_8859_3",
+      "caption": "ISO 8859-3",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 228,
+      "sourceID": "IDM_FORMAT_ISO_8859_9",
+      "caption": "ISO 8859-9",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 229,
+      "sourceID": "IDM_FORMAT_DOS_857",
+      "caption": "OEM 857",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 230,
+      "sourceID": "IDM_FORMAT_WIN_1254",
+      "caption": "Windows-1254",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 234,
+      "sourceID": "IDM_FORMAT_ISO_8859_1",
+      "caption": "ISO 8859-1",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 235,
+      "sourceID": "IDM_FORMAT_ISO_8859_10",
+      "caption": "ISO 8859-10",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 236,
+      "sourceID": "IDM_FORMAT_ISO_8859_15",
+      "caption": "ISO 8859-15",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 237,
+      "sourceID": "IDM_FORMAT_DOS_850",
+      "caption": "OEM 850",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 238,
+      "sourceID": "IDM_FORMAT_DOS_858",
+      "caption": "OEM 858",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 239,
+      "sourceID": "IDM_FORMAT_DOS_860",
+      "caption": "OEM 860: Portuguese",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 240,
+      "sourceID": "IDM_FORMAT_DOS_863",
+      "caption": "OEM 863: French",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 241,
+      "sourceID": "IDM_FORMAT_DOS_437",
+      "caption": "OEM-US",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 242,
+      "sourceID": "IDM_FORMAT_WIN_1252",
+      "caption": "Windows-1252",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 246,
+      "sourceID": "IDM_FORMAT_WIN_1258",
+      "caption": "Windows-1258",
+      "paletteFamily": "encoding.<WindowsCodePage>",
+      "availability": "Uses existing GitBlameEncodingMenu codec availability; unavailable codecs excluded"
+    },
+    {
+      "line": 252,
+      "sourceID": "ID_VIEW_NEXT",
+      "caption": "Next",
+      "paletteCommand": "nextChange"
+    },
+    {
+      "line": 253,
+      "sourceID": "ID_VIEW_PREV",
+      "caption": "Previous",
+      "paletteCommand": "previousChange"
+    },
+    {
+      "line": 257,
+      "sourceID": "ID_VIEW_TOOLBAR",
+      "caption": "<placeholder>",
+      "paletteCommand": "toolbar"
+    },
+    {
+      "line": 259,
+      "sourceID": "ID_VIEW_STATUS_BAR",
+      "caption": "&Status Bar",
+      "paletteCommand": "statusBar"
+    },
+    {
+      "line": 261,
+      "sourceID": "ID_VIEW_SHOWLOGID",
+      "caption": "Show log ID instead of SHA-1",
+      "paletteCommand": "logID"
+    },
+    {
+      "line": 262,
+      "sourceID": "ID_VIEW_SHOWAUTHOR",
+      "caption": "Show author",
+      "paletteCommand": "author"
+    },
+    {
+      "line": 263,
+      "sourceID": "ID_VIEW_SHOWDATE",
+      "caption": "Show date",
+      "paletteCommand": "date"
+    },
+    {
+      "line": 264,
+      "sourceID": "ID_VIEW_SHOWFILENAME",
+      "caption": "Show file name",
+      "paletteCommand": "filename"
+    },
+    {
+      "line": 265,
+      "sourceID": "ID_VIEW_SHOWORIGINALLINENUMBER",
+      "caption": "Show original line number",
+      "paletteCommand": "original"
+    },
+    {
+      "line": 269,
+      "sourceID": "ID_VIEW_DETECT_MOVED_OR_COPIED_LINES_DISABLED",
+      "caption": "&Disabled",
+      "paletteCommand": "detectDisabled"
+    },
+    {
+      "line": 270,
+      "sourceID": "ID_VIEW_DETECT_MOVED_OR_COPIED_LINES_WITHIN_FILE",
+      "caption": "&Within file",
+      "paletteCommand": "detectWithinFile"
+    },
+    {
+      "line": 271,
+      "sourceID": "ID_VIEW_DETECT_MOVED_OR_COPIED_LINES_FROM_MODIFIED_FILES",
+      "caption": "From &modified files",
+      "paletteCommand": "detectModifiedFiles"
+    },
+    {
+      "line": 272,
+      "sourceID": "ID_VIEW_DETECT_MOVED_OR_COPIED_LINES_FROM_EXISTING_FILES_AT_FILE_CREATION",
+      "caption": "At file &creation",
+      "paletteCommand": "detectFileCreation"
+    },
+    {
+      "line": 273,
+      "sourceID": "ID_VIEW_DETECT_MOVED_OR_COPIED_LINES_FROM_EXISTING_FILES",
+      "caption": "From &existing files",
+      "paletteCommand": "detectExistingFiles"
+    },
+    {
+      "line": 275,
+      "sourceID": "ID_VIEW_IGNORE_WHITESPACE",
+      "caption": "&Ignore whitespace",
+      "paletteCommand": "ignoreWhitespace"
+    },
+    {
+      "line": 277,
+      "sourceID": "ID_VIEW_SHOWCOMPLETELOG",
+      "caption": "Show com&plete log",
+      "paletteCommand": "completeLog"
+    },
+    {
+      "line": 278,
+      "sourceID": "ID_VIEW_FOLLOWRENAMES",
+      "caption": "&Follow renames",
+      "paletteCommand": "followRenames"
+    },
+    {
+      "line": 279,
+      "sourceID": "ID_VIEW_ONLYCONSIDERFIRSTPARENTS",
+      "caption": "Only consider first parents on blame",
+      "paletteCommand": "firstParent"
+    },
+    {
+      "line": 281,
+      "sourceID": "ID_VIEW_COLORBYAGE",
+      "caption": "Color by age, &continuous",
+      "paletteCommand": "colorAge"
+    },
+    {
+      "line": 282,
+      "sourceID": "ID_VIEW_ENABLELEXER",
+      "caption": "Enable syntax highlighting",
+      "paletteCommand": "syntax"
+    },
+    {
+      "line": 283,
+      "sourceID": "ID_VIEW_DARKMODE",
+      "caption": "&Dark Mode",
+      "paletteCommand": "dark"
+    },
+    {
+      "line": 285,
+      "sourceID": "ID_VIEW_WRAPLONGLINES",
+      "caption": "Wrap long lines",
+      "paletteCommand": "wrap"
+    },
+    {
+      "line": 289,
+      "sourceID": "ID_HELP_FINDER",
+      "caption": "&Help Topics",
+      "nativeContract": "Inactive in source; not exposed as actionable toolbar button"
+    },
+    {
+      "line": 291,
+      "sourceID": "ID_APP_ABOUT",
+      "caption": "&About TortoiseGitBlame...",
+      "paletteCommand": "about"
+    }
+  ],
+  "model": "Sources/TurtleGitCore/BlameToolbarConfiguration.swift",
+  "sourceBoundaries": [
+    "Model provides named simultaneous bars, ordered compositions, per-bar visibility and icon/text mode, mutable standard composition, persistent identity, reset and bounds. Native controller owns command dispatch and ownership.",
+    "Native toolbar customization translates MFC docking/customization to NSToolbar and auxiliary strips; floating MFC docking is not implied.",
+    "Output-pane context popup Clear/Hide is not the scanned main menu; no nonexistent clear-output operation invented.",
+    "Disabled Help Finder remains excluded; recent-file contents remain dynamic menu state, not persisted executable commands."
+  ],
+  "validation": "Implementation only. No builds or tests run before the root grouped batch checkpoint."
+}

@@ -1474,3 +1474,14 @@ validation and remaining physical/signed/full-port acceptance.
 ## Embedded Log reference presentation and controls — October 21, 2026
 
 The [connected embedded Log family](BLAME-HISTORY-PRESENTATION-PARITY.md) adds captured all-reference/tracking and HEAD state, shared colored/pointed labels, configured fonts and adaptive rows, single-line captions with raw tooltips, source Graph/Message visibility and migrated layouts, decorated content-fit Reset, guarded header callbacks and first-selected activation. It also drains actual Reset ownership across document replacement and closure. The family records its grouped checkpoint and remaining physical/signed/full-port acceptance separately. Earlier missing-label/font/column descriptions are superseded by this continuation.
+
+
+## Toolbar customization — October 26, 2026
+
+The [connected toolbar family](BLAME-TOOLBAR-PARITY.md) replaces the fixed native
+button row with an AppKit customization palette and the source default
+Open/Previous/Next/Copy/About commands. Named custom bars have independent
+visibility, composition, ordering, overflow and saved display modes. This adapts
+the source user-toolbar workflow without claiming MFC floating toolbar gestures.
+Ordinary menu access remains available with the toolbar hidden. The family QA
+record separates implementation from physical, signed and complete hosted checks.

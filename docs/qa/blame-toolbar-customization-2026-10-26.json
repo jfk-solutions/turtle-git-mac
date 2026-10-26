@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-26",
+  "status": "focused_core_debug_app_and_grouped_native_pass_after_fixture_repairs",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_audit": "docs/qa/blame-toolbar-source-audit-2026-10-26.json",
+  "implementation": [
+    "Source default Open/Previous/Next/Copy/About on a document-owned NSToolbar",
+    "Native palette, spacing, icon/text modes and overflow",
+    "Multiple simultaneous named custom bars with composition/order/visibility/rename/delete/reset",
+    "Private injected preference persistence, bounded restoration and legacy visibility migration",
+    "Hidden-toolbar menu access and owned routing through busy/sheet/document-replacement/closure"
+  ],
+  "validation": {
+    "core": {
+      "result": "pass",
+      "command": "swift test --filter BlameToolbarConfigurationTests",
+      "tests": 6,
+      "failures": 0,
+      "log": "build/qa/blame-toolbar-core-2026-10-26.log"
+    },
+    "debug_app": {
+      "result": "pass",
+      "exit_code": 0,
+      "log": "build/qa/blame-toolbar-app-2026-10-26.log",
+      "diagnostics": "Xcode emitted generic SwiftCompile command-failed-with-exit-code-0 diagnostics while the overall build completed with exit code 0; also existing actor/deprecation and simulator-version warnings."
+    },
+    "help": {
+      "result": "pass",
+      "documents": 58,
+      "topics": 51,
+      "files": 86,
+      "bytes": 6802651
+    },
+    "localization": {
+      "result": "pass",
+      "languages": 38,
+      "keys": 1324,
+      "scope": "Generated resource check, not translation completeness"
+    },
+    "native_attempts": [
+      {
+        "result": "fixture_loader_failure_before_receiver_compile",
+        "reason": "Shared helper expects @main immediately followed by struct; the fixture placed @MainActor in between. No receiver launched.",
+        "log": "build/qa/blame-toolbar-native-2026-10-26.log"
+      },
+      {
+        "result": "fixture_compile_failure",
+        "reason": "Swift concurrency selected the async NSWindow.beginSheet overload in the async test. Fixed explicit completionHandler:nil; no receiver launched.",
+        "log": "build/qa/blame-toolbar-native-repair-2026-10-26.log"
+      },
+      {
+        "result": "fixture_palette_cleanup_crash_repaired",
+        "signal": "SIGSEGV",
+        "pid": 29849,
+        "reaped": true,
+        "independently_absent": true,
+        "crash_report": "/Users/jkuehner/Library/Logs/DiagnosticReports/receiver-b44b848af1ae7de91a00363e2a8eb0f794c94f94ffa59f31c69ef61-2026-10-26-211447.ips",
+        "stack": "objc_retain \u2192 NSGlassFrameView dealloc \u2192 KVO deallocate \u2192 autorelease pool drain",
+        "log": "build/qa/blame-toolbar-native-repair2-2026-10-26.log",
+        "repair": "Fixture now invokes the actual native Done control and waits for palette release rather than forcibly ending/closing AppKit-owned palette windows. Later runs pass through that phase; no production mutation was needed."
+      },
+      {
+        "result": "fixture_timing_assertion_failure",
+        "pid": 30065,
+        "reaped": true,
+        "independently_absent": true,
+        "reason": "The View menu updates the model immediately and native toolbar visibility on the queued refresh. Replaced immediate assertion with bounded wait checking both actual states; assertion retained.",
+        "log": "build/qa/blame-toolbar-native-palette-repair.log"
+      }
+    ],
+    "native": {
+      "result": "pass",
+      "cases": 2,
+      "scope": "One complete toolbar workflow receiver per Git engine; same frozen fixture and production source. Native palette Done, defaults/icons/order, reorder/display/reset, named bars CRUD/composition/visibility/multiple rows/overflow/flexible spaces/check states, private Copy/About/Open, menus when hidden, deferred replacement/late callback, active editor cross-window save merge, stale items, busy/sheets/retirement and close cleanup. HEAD/index/working files unchanged.",
+      "receivers": [
+        {
+          "engine": "/usr/bin/git",
+          "pid": 30165,
+          "reaped": true,
+          "independently_absent": true,
+          "log": "build/qa/blame-toolbar-native-palette-repair-2.log"
+        },
+        {
+          "engine": "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+          "pid": 30317,
+          "reaped": true,
+          "independently_absent": true,
+          "log": "build/qa/blame-toolbar-native-bundled.log"
+        }
+      ],
+      "windows": "All automated windows, including native palette and sheets, intercepted before ordering and kept alpha zero/offscreen; no user app was terminated."
+    },
+    "coverage": {
+      "result": "pass",
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "scope": "Ledger counts are audit coverage, not feature completion."
+    }
+  },
+  "limits": [
+    "Physical palette dragging, keyboard/VoiceOver, small-screen overflow and multiple-display acceptance remain open",
+    "MFC floating arbitrary toolbar docking is not implemented by this macOS adaptation",
+    "Installed signed build12 predates this batch",
+    "No complete hosted CI, complete Blame parity or App Store acceptance is implied"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/BlameToolbarConfiguration.swift": "93e21d7a3ffc10ac830306d7931c6c53ae7e8f4b040ebdf8ee0d3cd1c5c9327f",
+    "Sources/TurtleGitMac/BlameToolbar.swift": "eb46eeecdf4bfefce31bea8b1987837223285802e961e3eb70bb73ef8a16cc03",
+    "Sources/TurtleGitMac/BlameToolbarViews.swift": "ea04f430fa88cf49677a20106dfcb6b879b0ad9e09999845996c0f7d71d0b570",
+    "Sources/TurtleGitMac/BlameWindow.swift": "7828cafe2219684840fe771cbe0a3e0984b6c3f799a90b51556f1989ff75a91d",
+    "Sources/TurtleGitMac/BlameMenuCommands.swift": "166c9bae8f6956c5bfbfc44cb1431ae5704f9487d2d0f7aa4afd386d74682716",
+    "Tests/TurtleGitCoreTests/BlameToolbarConfigurationTests.swift": "d6f05e5487b6c4c645afb29df58571ad60fdacfada23caa4f5e3a0938edd84a7",
+    "docs/qa/blame-toolbar-native-2026-10-26.swift": "54f5fd13f84111c6f47cb16eb111473600ec6eb43e7bb66f40e3b3d7a10bb0c8",
+    "scripts/test-blame-toolbar.py": "95666c60745827f46785c9cdb3509276227d9531323d0112e629a43f65c1fa97",
+    "docs/qa/blame-toolbar-source-audit-2026-10-26.json": "bd29499ec86ae7648ac75dc3b684ec6f0f93ddd54447b67bbdb08da1a49f4d6b"
+  }
+}

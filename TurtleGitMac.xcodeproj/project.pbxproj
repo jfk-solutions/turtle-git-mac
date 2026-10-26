@@ -52,6 +52,7 @@
 		11E2CC727FCB9A795D663F7F /* ClientHookRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5CA377E560923FE6C0F849 /* ClientHookRuntime.swift */; };
 		1228E2395F47936026DD26F4 /* GitRevisionLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84C2693689E5CF29E36E368D /* GitRevisionLookup.swift */; };
 		12945D97CBBE46999F74661D /* MessageEditorLineLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */; };
+		1299D6AC0AA6B3281C639DDE /* RebaseCompletionMailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6E8CE8EDE5E4A756321DD /* RebaseCompletionMailWindow.swift */; };
 		1301BA2C5FE3CE34CB73318E /* BareRepositoryResultSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF8CAAEDB347125AFE8C0A9 /* BareRepositoryResultSetup.swift */; };
 		135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */; };
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
@@ -104,6 +105,7 @@
 		2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */; };
 		2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */; };
 		2D11419DF7A44BFFC87F88DB /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */; };
+		2D1E5C1B878989ED06CB2FD2 /* BlameToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED52170BDC5482B05F6DBB7 /* BlameToolbar.swift */; };
 		2D9636CAF8ECE838038BF5F8 /* IssueProviderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E6DA5F93A0F9287456B57C /* IssueProviderSettings.swift */; };
 		2E0B5DA2366E0924AB0820A7 /* MergeEditorOpenWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2869120D635B20C49CD699C /* MergeEditorOpenWorkflow.swift */; };
 		2F14DE017B1E764AE81A4A20 /* AboutBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA1DB0B2E3DCDDE760C501F /* AboutBannerView.swift */; };
@@ -173,6 +175,7 @@
 		50CED80A268D3933D37E244B /* WorkingCopyRevision.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F77D286A7FCB5C673A934 /* WorkingCopyRevision.swift */; };
 		510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870D95A7EC384863F1C04342 /* RevisionComparison.swift */; };
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
+		52BB329215CA22B8CF3571A7 /* BlameToolbarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFC45A1FAC54431EE119A4E1 /* BlameToolbarConfiguration.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
 		53C589EB138EEF1AB4FAC39F /* MergePaneSaveAs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31E4D36A977C544ECB552B24 /* MergePaneSaveAs.swift */; };
 		5511945EC2CEDA6F840BFAE9 /* FinderStatusPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A333B80F3B2E462F38238928 /* FinderStatusPolicy.swift */; };
@@ -290,7 +293,6 @@
 		91035494CCDC3A8E494D50D6 /* GitDiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA7659920C4236C2BDDFE7FC /* GitDiffEngine.swift */; };
 		917A6F3AD15CB48EDD3A82FD /* PrimaryCommandInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0E07642065156B7B7D1788 /* PrimaryCommandInvocation.swift */; };
 		91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3329485A1DA9D2066A853483 /* MessageCompletion.swift */; };
-		CCEFA540612CEAA403477C77 /* RebaseCompletionMailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298322EEFA8B08267DC9E8FD /* RebaseCompletionMailWindow.swift */; };
 		9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */; };
 		92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA1D2D9DD08218C53951382F /* StatusListGroups.swift */; };
 		9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */; };
@@ -361,6 +363,7 @@
 		B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */; };
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
 		B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809D37BDD2634840B77F0A85 /* EmailSettings.swift */; };
+		B6458949536DBA8D98AE8912 /* BlameToolbarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E765993F3CC56D2839B1DC2 /* BlameToolbarViews.swift */; };
 		B6D197C224C21635D6ADDD58 /* GitBlamePresentationInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B98C30D7BBA3C23B6F0643 /* GitBlamePresentationInteraction.swift */; };
 		B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16465B7DCE5BB303F553610 /* AutotextTester.swift */; };
 		B8A7AF9FEA0FB08862822AE4 /* RevisionGraphLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */; };
@@ -724,6 +727,7 @@
 		3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPageSetup.swift; sourceTree = "<group>"; };
 		3B2C20E57D290CF64F63761F /* TurtleGitCache.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitCache.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentation.swift; sourceTree = "<group>"; };
+		3E765993F3CC56D2839B1DC2 /* BlameToolbarViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameToolbarViews.swift; sourceTree = "<group>"; };
 		3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuIcons.swift; sourceTree = "<group>"; };
 		42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailSMTP.swift; sourceTree = "<group>"; };
 		443A2A0BA4D3502CBF7EBE98 /* RepositoryBrowserTransferPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserTransferPolicy.swift; sourceTree = "<group>"; };
@@ -920,11 +924,11 @@
 		A3F90E32273723C62C5C2E88 /* FinderOverlaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderOverlaySettings.swift; sourceTree = "<group>"; };
 		A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictPrompts.swift; sourceTree = "<group>"; };
 		A510140DB1615F0EFEE1ABDD /* TurtleGitPatch.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = TurtleGitPatch.icns; sourceTree = "<group>"; };
+		A5B6E8CE8EDE5E4A756321DD /* RebaseCompletionMailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseCompletionMailWindow.swift; sourceTree = "<group>"; };
 		A6CAABC1071730FA9E23CCD4 /* SSHKeyConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyConversion.swift; sourceTree = "<group>"; };
 		A72CA1F57921800C12336E06 /* MergeToolPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolPresentation.swift; sourceTree = "<group>"; };
 		A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateProgressWindow.swift; sourceTree = "<group>"; };
 		A903049DFE6395BCA1EB8078 /* SSHKeyGeneration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGeneration.swift; sourceTree = "<group>"; };
-		298322EEFA8B08267DC9E8FD /* RebaseCompletionMailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseCompletionMailWindow.swift; sourceTree = "<group>"; };
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
 		AA554BDD79BBAD3E89EF3CD2 /* SupportReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReport.swift; sourceTree = "<group>"; };
 		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
@@ -1046,6 +1050,7 @@
 		DF564D01D7A2390D6F148B73 /* MergeResultPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeResultPresentation.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
+		DFC45A1FAC54431EE119A4E1 /* BlameToolbarConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameToolbarConfiguration.swift; sourceTree = "<group>"; };
 		E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertWindow.swift; sourceTree = "<group>"; };
 		E2B98C30D7BBA3C23B6F0643 /* GitBlamePresentationInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentationInteraction.swift; sourceTree = "<group>"; };
 		E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailMIME.swift; sourceTree = "<group>"; };
@@ -1092,6 +1097,7 @@
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		FD45183DEC1DC8D873F67BD7 /* LocalizationManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = LocalizationManifest.json; sourceTree = "<group>"; };
 		FE8175F24932EC0B2A88B24E /* FileListDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileListDrag.swift; sourceTree = "<group>"; };
+		FED52170BDC5482B05F6DBB7 /* BlameToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameToolbar.swift; sourceTree = "<group>"; };
 		FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFind.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 		FF916A1DC9051A8C70F0370C /* FileMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMove.swift; sourceTree = "<group>"; };
@@ -1188,6 +1194,8 @@
 				7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */,
 				90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */,
 				9ABE7B92864A28F4229F6063 /* BlameSettings.swift */,
+				FED52170BDC5482B05F6DBB7 /* BlameToolbar.swift */,
+				3E765993F3CC56D2839B1DC2 /* BlameToolbarViews.swift */,
 				147C1880748CAF195D6A19CA /* BlameWindow.swift */,
 				136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */,
 				69C742F936FA4A0276A54856 /* CleanWindow.swift */,
@@ -1309,8 +1317,8 @@
 				7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */,
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
 				B0ADAB5E1FCC13EE50B581A7 /* RebaseColumnLayout.swift */,
+				A5B6E8CE8EDE5E4A756321DD /* RebaseCompletionMailWindow.swift */,
 				0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */,
-				298322EEFA8B08267DC9E8FD /* RebaseCompletionMailWindow.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
 				6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */,
 				0A48AB398ECFD8FB04FA6048 /* ReferenceFormControls.swift */,
@@ -1486,6 +1494,7 @@
 				7738FB630AB0A69B82BECAB9 /* AppLanguages.generated.swift */,
 				F5B1B4492D159F92D3F03BBA /* Bisect.swift */,
 				1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */,
+				DFC45A1FAC54431EE119A4E1 /* BlameToolbarConfiguration.swift */,
 				AEF033FD709E38B51520EF19 /* BundledComparisonTools.swift */,
 				15C11C6126548BD0E66453DA /* BundledTextHelper.swift */,
 				D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */,
@@ -2139,6 +2148,7 @@
 				809097D262F02EC9DCE694C2 /* AppLanguages.generated.swift in Sources */,
 				F1CB359C0A4D4A0D76A000DD /* Bisect.swift in Sources */,
 				32999DFDD4058AD782D22857 /* BlameSyntax.swift in Sources */,
+				52BB329215CA22B8CF3571A7 /* BlameToolbarConfiguration.swift in Sources */,
 				E847C81071844EF5F2EE76AB /* BundledComparisonTools.swift in Sources */,
 				E41F368C58761603E031762B /* BundledTextHelper.swift in Sources */,
 				52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */,
@@ -2396,6 +2406,8 @@
 				C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */,
 				0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */,
 				C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */,
+				2D1E5C1B878989ED06CB2FD2 /* BlameToolbar.swift in Sources */,
+				B6458949536DBA8D98AE8912 /* BlameToolbarViews.swift in Sources */,
 				04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */,
 				7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */,
 				A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */,
@@ -2517,8 +2529,8 @@
 				2D11419DF7A44BFFC87F88DB /* ProjectDialogSettings.swift in Sources */,
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
 				6945355043AA95201E2EB4CD /* RebaseColumnLayout.swift in Sources */,
+				1299D6AC0AA6B3281C639DDE /* RebaseCompletionMailWindow.swift in Sources */,
 				2F7C9D3158F3B1EA926CE15F /* RebaseReplayTable.swift in Sources */,
-				CCEFA540612CEAA403477C77 /* RebaseCompletionMailWindow.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,
 				10DEF02C4073108A457F85DC /* ReferenceBrowserWindow.swift in Sources */,
 				3F86914217C0BA99DCA54E80 /* ReferenceFormControls.swift in Sources */,

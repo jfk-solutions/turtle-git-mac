@@ -165,3 +165,20 @@ Copy also supports an empty value. Group headings have no Copy command. Parent
 labels use eight hash characters; their descriptions retain full hashes. The
 Log SHA-1 cells contain full hashes, clipped by the column width. Changing focus
 while Log details are being read prevents a late clipboard replacement.
+
+
+## Customize toolbars
+
+The standard Blame toolbar starts with **Open**, **Previous Change**,
+**Next Change**, **Copy** and **About TurtleGitBlame**. Use the native toolbar
+customization palette to rearrange its commands and spacing or change icon/text
+display. View's toolbar controls remain available when the toolbar is hidden.
+
+Toolbar management lets you create several named command bars, choose their
+commands and order, rename or delete them, and show or hide each independently.
+Commands that do not fit move into that bar's overflow menu. **Reset All
+Toolbars** restores the standard commands and removes custom bars. Layouts are
+saved for later viewers. Other open viewers adopt saved changes while their
+toolbar editor and native customization palette are closed.
+See [the source comparison](BLAME-TOOLBAR-PARITY.md) for scope and remaining
+physical acceptance.

@@ -6,6 +6,7 @@ import TurtleGitCore
 
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     private(set) var model: BlameWindowModel
+    private(set) var toolbarChrome:BlameToolbarController?
     var onClosed: () -> Void = {}
     private(set) var goToWindow: BlameGoToLineWindowController?
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
@@ -52,7 +53,14 @@ import TurtleGitCore
         configureHistoryActions()
         configurePaneLayout()
         applyWindowAppearance()
+        installToolbarChrome()
         DialogGeometry.attach(window, identifier: "BlameWindowController")
+    }
+    private func installToolbarChrome(){
+        guard let window else{return}
+        toolbarChrome?.retire()
+        let chrome=BlameToolbarController(owner:self,preferences:preferences);toolbarChrome=chrome
+        window.contentViewController=NSHostingController(rootView:BlameDialog(model:model,toolbarChrome:chrome))
     }
     private let requireScope:Bool
     private let scopeProvider:any RepositoryBookmarkProvider
@@ -102,6 +110,7 @@ import TurtleGitCore
                 let document=try await documentOpener.prepare(file:file,scope:scope,options:options,regexExecutable:old.historyRegexExecutable)
                 guard openingGeneration==identity,!old.retired else { return }
                 cancelGoToLine();focusGeneration += 1
+                toolbarChrome?.retire();toolbarChrome=nil
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
                 let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences,historyRegexExecutable:old.historyRegexExecutable)
                 replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details);replacement.recentHistoryError=old.recentHistoryError
@@ -109,7 +118,7 @@ import TurtleGitCore
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
                 Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
-                configureHistoryActions();configurePaneLayout();findWindow?.rebind(replacement);applyWindowAppearance()
+                configureHistoryActions();configurePaneLayout();findWindow?.rebind(replacement);applyWindowAppearance();installToolbarChrome()
                 NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
                 window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
                 do { try recentDocuments?.remember(root:document.repository.root,path:document.snapshot.path,lease:document.access,replacing:recentID) }
@@ -270,6 +279,7 @@ import TurtleGitCore
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
         guard !closing else{return};closing=true
+        toolbarChrome?.retire();toolbarChrome=nil
         let pendingColumnAlert=columnAlert
         cancelGoToLine();focusGeneration += 1
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
@@ -988,63 +998,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 
 private struct BlameDialog: View {
     @ObservedObject var model: BlameWindowModel
+    var toolbarChrome:BlameToolbarController? = nil
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if model.showToolbar { HStack(spacing:8) {
-                Button { model.reload(saveThresholds:true) } label: { CommandLabel(title:"Reload",icon:.refresh) }
-                Button { model.navigateChange(previous:true) } label: { CommandLabel(title:"Previous change",icon:.jumpUp) }.disabled(model.selectedLogHashes.isEmpty)
-                Button { model.navigateChange(previous:false) } label: { CommandLabel(title:"Next change",icon:.jumpDown) }.disabled(model.selectedLogHashes.isEmpty)
-                Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }.keyboardShortcut("f",modifiers:.command)
-                Spacer()
-                Menu("File") {
-                    Button { model.onOpenDocument?() } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o",modifiers:.command)
-                    if let recent=model.recentDocuments { BlameRecentFileMenu(store:recent,open:{ model.onOpenRecent?($0) }) }
-                    Divider()
-                    Button { model.showSettings() } label: { CommandLabel(title:"Settings…",icon:.settings) }
-                    Button("Close") { NSApp.sendAction(#selector(NSWindow.performClose(_:)),to:nil,from:nil) }.keyboardShortcut("w",modifiers:.command)
-                }
-                Menu("Edit") {
-                    Button { NSApp.sendAction(Selector(("copy:")),to:nil,from:nil) } label: { CommandLabel(title:"Copy",icon:.copy) }
-                    Button { model.onFind?() } label: { CommandLabel(title:"Find…",icon:.mergeFind) }
-                    Button { model.findLine(previous:false) } label: { CommandLabel(title:"Find Next",icon:.jumpDown) }.keyboardShortcut("g",modifiers:.command)
-                    Button { model.findLine(previous:true) } label: { CommandLabel(title:"Find Previous",icon:.jumpUp) }.keyboardShortcut("g",modifiers:[.command,.shift])
-                    Button { model.onGoTo?() } label: { CommandLabel(title:"Go To Line…",icon:.log) }.keyboardShortcut("l",modifiers:.command)
-                    Divider()
-                    BlameEncodingMenu(selection: Binding(get: { model.sourceEncoding }, set: { model.setEncoding($0) }))
-                }
-                Menu("View") {
-                    Button("Next") { model.navigateChange(previous:false) }.disabled(model.selectedLogHashes.isEmpty)
-                    Button("Previous") { model.navigateChange(previous:true) }.disabled(model.selectedLogHashes.isEmpty)
-                    Divider()
-                    Button { model.zoomIn() } label: { CommandLabel(title:"Zoom In",icon:.imageZoomIn) }.disabled(!model.canZoomIn)
-                    Button { model.zoomOut() } label: { CommandLabel(title:"Zoom Out",icon:.imageZoomOut) }.disabled(!model.canZoomOut)
-                    Button { model.resetZoom() } label: { CommandLabel(title:"Actual Size",icon:.imageOriginal) }.disabled(!model.canResetZoom)
-                    Divider()
-                    ForEach(BlameMarginField.allCases,id:\.self) { field in
-                        Toggle(field.title,isOn:Binding(get:{model.marginFields.contains(field)},set:{model.setMargin(field,visible:$0)}))
-                    }
-                    Divider()
-                    Picker("Detect moved or copied lines",selection:Binding(get:{model.detectionMode},set:{model.setDetectionMode($0)})) {
-                        ForEach(GitBlameDetectionMode.allCases) { mode in Text(mode.title).tag(mode) }
-                    }
-                    Toggle("Ignore whitespace",isOn:Binding(get:{model.ignoreWhitespace},set:{model.setIgnoreWhitespace($0)}))
-                    Divider()
-                    Toggle("Show complete log",isOn:Binding(get:{model.canShowCompleteLog && model.showCompleteLog},set:{model.setShowCompleteLog($0)})).disabled(!model.canShowCompleteLog)
-                    Toggle("Follow renames",isOn:Binding(get:{model.canShowCompleteLog && model.showCompleteLog && model.followRenames},set:{model.setFollowRenames($0)})).disabled(!model.canShowCompleteLog || !model.showCompleteLog)
-                    Toggle("Only consider first parents on blame",isOn:Binding(get:{model.onlyFirstParent},set:{model.setOnlyFirstParent($0)}))
-                    Divider()
-                    Toggle("Color by age, continuous",isOn:$model.colorAge)
-                    Toggle("Enable syntax highlighting",isOn:Binding(get:{model.syntaxEnabled},set:{model.setSyntaxEnabled($0)}))
-                    Toggle("Log",isOn:$model.showLog)
-                    Toggle("Properties",isOn:$model.showProperties)
-                    Divider();BlamePaneLayoutMenu(model:model)
-                    Toggle("Status Bar",isOn:$model.showStatusBar)
-                    Toggle("Toolbar",isOn:$model.showToolbar)
-                    Divider()
-                    Toggle("Wrap long lines",isOn:Binding(get:{model.wrapLongLines},set:{model.setWrapLongLines($0)}))
-                }
-                Button { model.showSettings() } label: { CommandLabel(title:"Settings…",icon:.settings) }
-            }.disabled(model.busy || model.openingDocument || model.searchFeedbackBusy) }
+            if let toolbarChrome { BlameCustomToolbars(chrome:toolbarChrome) }
             if let error=model.recentHistoryError { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
             if model.openingDocument { HStack { ProgressView(model.cancellingDocument ? "Cancelling…" : "Opening file…").controlSize(.small);Button("Cancel") { model.onCancelDocumentOpen?() }.disabled(model.cancellingDocument) } }
             if model.busy { HStack {

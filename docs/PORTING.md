@@ -4944,3 +4944,16 @@ Windows parity evidence.
 reference failures and actual validation scope. Full font/version/locale
 compatibility, physical signed image acceptance and complete hosted integration
 remain open; installed build12 predates this source.
+
+
+## Blame toolbar customization — October 26, 2026
+
+The [toolbar workflow family](BLAME-TOOLBAR-PARITY.md) adds the source default
+commands, native palette and overflow, saved standard layouts, multiple named
+custom bars and View menu management. Bar edits include command order, visibility,
+icon/text mode, rename, delete and reset. Controllers retain their own targets
+and retire them during document replacement or closure. Source menu/encoding
+commands remain available without the toolbar. See the
+[dated checkpoint](qa/blame-toolbar-customization-2026-10-26.json) for actual
+validation and remaining platform acceptance; installed build12 predates this
+source batch.

@@ -76,17 +76,8 @@ private struct BlameMenuState:Equatable {
         if state != next { state=next }
     }
     func perform(_ action:BlameMenuAction) {
-        refresh();guard allowed(action),let owner else { return };let model=owner.model
-        switch action {
-        case .zoomIn:model.zoomIn();case .zoomOut:model.zoomOut();case .actualSize:model.resetZoom()
-        case .find:model.onFind?();case .findNext:model.findLine(previous:false);case .findPrevious:model.findLine(previous:true);case .goTo:model.onGoTo?()
-        case .nextPane:owner.focusNextPane(previous:false);case .previousPane:owner.focusNextPane(previous:true)
-        case .nextChange:model.navigateChange(previous:false);case .previousChange:model.navigateChange(previous:true)
-        case .toolbar:model.showToolbar.toggle();case .log:model.showLog.toggle();case .properties:model.showProperties.toggle();case .statusBar:model.showStatusBar.toggle()
-        case .logID:model.setMargin(.logID,visible:!model.marginFields.contains(.logID));case .author:model.setMargin(.author,visible:!model.marginFields.contains(.author));case .date:model.setMargin(.date,visible:!model.marginFields.contains(.date));case .filename:model.setMargin(.filename,visible:!model.marginFields.contains(.filename));case .original:model.setMargin(.original,visible:!model.marginFields.contains(.original))
-        case .ignoreWhitespace:model.setIgnoreWhitespace(!model.ignoreWhitespace);case .completeLog:model.setShowCompleteLog(!model.showCompleteLog);case .followRenames:model.setFollowRenames(!model.followRenames);case .firstParent:model.setOnlyFirstParent(!model.onlyFirstParent)
-        case .colorAge:model.colorAge.toggle();case .syntax:model.setSyntaxEnabled(!model.syntaxEnabled);case .dark:owner.setDarkMode(!checked(.dark));case .wrap:model.setWrapLongLines(!model.wrapLongLines)
-        }
+        refresh();guard allowed(action),let owner else { return }
+        owner.performToolbarMenuAction(action)
         refresh()
     }
     func setEncoding(_ value:GitBlameEncoding?) { refresh();guard available else { return };owner?.model.setEncoding(value) }
@@ -104,7 +95,14 @@ struct BlameCommands:Commands {
     // Keep each builder fragment small for the hosted SDK while preserving the
     // View menu's relative order and resolving the focused owner on every action.
     @ViewBuilder private var paneAndZoomChoices:some View {
-        Menu("Toolbars and Panes") { toggle(.toolbar);toggle(.log);toggle(.properties);if let model=context.owner?.model { Divider();BlamePaneLayoutMenu(model:model) } }
+        Menu("Toolbars and Panes") {
+            toggle(.toolbar)
+            Button("Customize Toolbar…"){context.owner?.toolbarChrome?.customize()}.disabled(!context.available)
+            Button("Manage Toolbars…"){context.owner?.toolbarChrome?.edit()}.disabled(!context.available)
+            if let chrome=context.owner?.toolbarChrome {BlameCustomToolbarMenu(chrome:chrome)}
+            toggle(.log);toggle(.properties)
+            if let model=context.owner?.model {Divider();BlamePaneLayoutMenu(model:model)}
+        }
         toggle(.statusBar)
         item(.nextChange);item(.previousChange)
         Divider()
@@ -131,7 +129,11 @@ struct BlameCommands:Commands {
     }
     var body:some Commands {
         CommandGroup(after:.newItem) {
-            if context.focused,let store=context.owner?.recentDocuments { BlameRecentFileMenu(store:store,open:{ context.owner?.openRecent($0) }).disabled(!context.available) }
+            if context.focused {
+                Button("Reload"){context.owner?.toolbarChrome?.perform("reload")}.disabled(!context.available)
+                if let store=context.owner?.recentDocuments {BlameRecentFileMenu(store:store,open:{context.owner?.openRecent($0)}).disabled(!context.available)}
+                Button("Blame Settings…"){context.owner?.toolbarChrome?.perform("settings")}.disabled(!context.available)
+            }
         }
         CommandGroup(after:.textEditing) {
             if context.focused {
@@ -202,5 +204,28 @@ struct BlameEncodingMenu: View {
                 }
             }
         }
+    }
+}
+
+@MainActor extension BlameWindowController {
+    func performToolbarMenuAction(_ action:BlameMenuAction){
+        guard commandsAvailable,NSApp.modalWindow==nil else{return};let owner=self,model=self.model
+        switch action {
+        case .zoomIn:model.zoomIn();case .zoomOut:model.zoomOut();case .actualSize:model.resetZoom()
+        case .find:model.onFind?();case .findNext:model.findLine(previous:false);case .findPrevious:model.findLine(previous:true);case .goTo:model.onGoTo?()
+        case .nextPane:owner.focusNextPane(previous:false);case .previousPane:owner.focusNextPane(previous:true)
+        case .nextChange:model.navigateChange(previous:false);case .previousChange:model.navigateChange(previous:true)
+        case .toolbar:model.showToolbar.toggle();case .log:model.showLog.toggle();case .properties:model.showProperties.toggle();case .statusBar:model.showStatusBar.toggle()
+        case .logID:model.setMargin(.logID,visible:!model.marginFields.contains(.logID));case .author:model.setMargin(.author,visible:!model.marginFields.contains(.author));case .date:model.setMargin(.date,visible:!model.marginFields.contains(.date));case .filename:model.setMargin(.filename,visible:!model.marginFields.contains(.filename));case .original:model.setMargin(.original,visible:!model.marginFields.contains(.original))
+        case .ignoreWhitespace:model.setIgnoreWhitespace(!model.ignoreWhitespace);case .completeLog:model.setShowCompleteLog(!model.showCompleteLog);case .followRenames:model.setFollowRenames(!model.followRenames);case .firstParent:model.setOnlyFirstParent(!model.onlyFirstParent)
+        case .colorAge:model.colorAge.toggle();case .syntax:model.setSyntaxEnabled(!model.syntaxEnabled);case .dark:owner.setDarkMode(owner.window?.effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) != .darkAqua);case .wrap:model.setWrapLongLines(!model.wrapLongLines)
+        }
+    }
+    func showToolbarEncodingMenu(){
+        guard commandsAvailable,let window else{return}
+        let menu=NSMenu(title:"Encode");menu.autoenablesItems=false
+        guard let chrome=toolbarChrome else{return}
+        for id in BlameToolbarCommand.availableItemIDs where id.hasPrefix("encoding."){menu.addItem(chrome.menuItem(id,barID:nil,standalone:true))}
+        menu.popUp(positioning:nil,at:NSPoint(x:20,y:max(0,(window.contentView?.bounds.height ?? 0)-4)),in:window.contentView)
     }
 }
