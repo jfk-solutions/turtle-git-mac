@@ -166,3 +166,11 @@ reopened a workspace; it was separately quit and shell inspection confirmed no
 main app. Known two geometry preference keys were restored absent without
 resetting other preferences. This selected signed acceptance does not certify
 the complete source menu/visual or every signed file grant.
+
+## Native line-number gutter continuation
+
+The [gutter family](UNIFIED-DIFF-GUTTER-PARITY.md) connects the source line-number
+margin to the existing standalone document and shared read-only previews. Numbering,
+whole-line selection and dragging use the actual displayed UTF-16 text without
+changing byte-backed editing, file/stream loading, Save, Apply or Quit ownership.
+The family checkpoint records its own actual validation and remaining limits.

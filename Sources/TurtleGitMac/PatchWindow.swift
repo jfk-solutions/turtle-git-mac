@@ -477,21 +477,36 @@ private struct PartialPatchFindBar: View {
 /// PatchView's unwrapped lines must scroll horizontally rather than clip.
 @MainActor final class PatchScrollView: NSScrollView {
     private var measuring = false
+    weak var lineNumberGutter: PatchLineNumberGutter?
     var resetToStart = false
     override func layout() { super.layout(); updateDocumentExtent() }
     func updateDocumentExtent() {
         guard !measuring, let text = documentView as? NSTextView,
               let layout = text.layoutManager, let container = text.textContainer,
-              contentSize.width > 0, contentSize.height > 0 else { return }
+              contentView.bounds.width > 0, contentView.bounds.height > 0 else { return }
         measuring = true; defer { measuring = false }
         layout.ensureLayout(for: container)
         let used = layout.usedRect(for: container), inset = text.textContainerInset
-        let size = NSSize(width: max(contentSize.width, ceil(used.maxX + inset.width * 2)), height: max(contentSize.height, ceil(used.maxY + inset.height * 2)))
+        // The actual clip viewport is authoritative, including native borders,
+        // scrollers and a visible find bar.
+        let viewport = contentView.bounds.size
+        // NSTextView may perform another native sizeToFit after this layout.
+        // Keep that resize from shrinking underneath the actual viewport.
+        if text.minSize != viewport { text.minSize = viewport }
+        let size = NSSize(width: max(viewport.width, ceil(used.maxX + inset.width * 2)), height: max(viewport.height, ceil(used.maxY + inset.height * 2)))
         if text.frame.size != size { text.setFrameSize(size) }
+        restoreDocumentOrigin(contentView.bounds.origin)
         if resetToStart {
             resetToStart = false; text.setSelectedRange(NSRange(location: 0, length: 0))
             contentView.scroll(to: .zero); reflectScrolledClipView(contentView)
         }
+    }
+    func restoreDocumentOrigin(_ origin: NSPoint) {
+        guard let text = documentView else { return }
+        let viewport = contentView.bounds.size
+        let point = NSPoint(x: min(max(0, origin.x), max(0, text.frame.width - viewport.width)),
+                            y: min(max(0, origin.y), max(0, text.frame.height - viewport.height)))
+        if contentView.bounds.origin != point { contentView.scroll(to: point); reflectScrolledClipView(contentView) }
     }
 }
 
@@ -500,7 +515,7 @@ struct PatchTextView: NSViewRepresentable {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
-    func makeNSView(context: Context) -> NSScrollView {
+    func makeNSView(context: Context) -> PatchTextHost {
         let text = PatchText()
         text.isEditable = model.canEditText; text.allowsUndo = true; text.isSelectable = true; text.delegate = context.coordinator
         text.isAutomaticQuoteSubstitutionEnabled = false; text.isAutomaticDashSubstitutionEnabled = false; text.isAutomaticTextReplacementEnabled = false; text.isAutomaticSpellingCorrectionEnabled = false
@@ -515,9 +530,11 @@ struct PatchTextView: NSViewRepresentable {
         let scroll = PatchScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.findBarPosition = .belowContent
         scroll.autohidesScrollers = true; scroll.borderType = .bezelBorder; scroll.documentView = text
-        return scroll
+        let gutter = PatchLineNumberGutter(scroll: scroll, text: text)
+        return PatchTextHost(scroll: scroll, gutter: gutter)
     }
-    func updateNSView(_ scroll: NSScrollView, context: Context) {
+    func updateNSView(_ host: PatchTextHost, context: Context) {
+        let scroll = host.scroll
         guard !model.retired, let text = scroll.documentView as? PatchText else { return }
         if context.coordinator.model !== model {
             let previous=context.coordinator.model
@@ -531,6 +548,10 @@ struct PatchTextView: NSViewRepresentable {
         let identity=context.coordinator.identity
         model.sourceOwnerID = identity
         let callbackRevision=model.sourceCallbackRevision
+        scroll.lineNumberGutter?.bind(identity: identity, revision: callbackRevision) { [weak text, weak model] in
+            guard let text, let model else { return false }
+            return model.canFind && model.sourceCallbacksCurrent(identity, revision: callbackRevision) && text.coordinator?.model === model
+        }
         model.sourceAttached={ [weak text,weak model] in
             guard let text,let model else{return false};return model.sourceCallbacksCurrent(identity,revision:callbackRevision) && text.coordinator?.model === model && text.window != nil
         }
@@ -582,15 +603,19 @@ struct PatchTextView: NSViewRepresentable {
             text.textStorage?.endEditing()
         } else { text.textStorage?.setAttributedString(value) }
         text.needsDisplay = true
-        if contentChanged { text.undoManager?.removeAllActions(); (scroll as? PatchScrollView)?.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
+        scroll.lineNumberGutter?.refresh(font: font, dark: dark, highContrast: highContrast)
+        if contentChanged { text.undoManager?.removeAllActions(); scroll.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
             text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
         }
-        (scroll as? PatchScrollView)?.updateDocumentExtent()
-        if !contentChanged {scroll.contentView.scroll(to:scrollOrigin);scroll.reflectScrolledClipView(scroll.contentView)}
+        host.layoutSubtreeIfNeeded()
+        scroll.updateDocumentExtent()
+        if !contentChanged {scroll.restoreDocumentOrigin(scrollOrigin)}
     }
-    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+    static func dismantleNSView(_ host: PatchTextHost, coordinator: Coordinator) {
+        let scroll = host.scroll
+        host.gutter.retire(); scroll.lineNumberGutter = nil
         if let text = scroll.documentView as? PatchText { text.delegate = nil; text.coordinator = nil }
         if coordinator.model.sourceOwnerID == coordinator.identity {
             coordinator.model.sourceOwnerID = nil;coordinator.model.sourceAttached={false}
@@ -608,6 +633,7 @@ struct PatchTextView: NSViewRepresentable {
         init(model: PatchWindowModel) { self.model = model }
         func textDidChange(_ notification: Notification) {
             guard let text = notification.object as? NSTextView, !text.hasMarkedText(), model.canEditText else { return }
+            (text.enclosingScrollView as? PatchScrollView)?.lineNumberGutter?.documentChanged()
             lastText = text.string; needsStyling = true; model.editDocument(text.string)
         }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool { model.canEditText }

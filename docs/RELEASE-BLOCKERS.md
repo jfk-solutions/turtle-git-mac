@@ -189,3 +189,12 @@ responder ownership. Its [local checkpoint](qa/commit-focus-readiness-family-202
 passes with both Git engines; hosted macOS 15.5/Swift 6.1.2 acceptance remains
 open. The [8f28db9f Pages run40108225312](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40108225312)
 succeeded; its macOS run was in progress at observation and predates these fixes.
+
+The [Unified Diff gutter family](UNIFIED-DIFF-GUTTER-PARITY.md) now adds native
+line numbering, whole-line selection, directional dragging and appearance to the
+editor and read-only previews. Its [dated checkpoint](qa/unified-gutter-family-2026-10-26.json)
+records six focused Core methods and the full native checks with both Git engines
+passing after retained layout/capture repairs. Actual light/dark native content
+renders are included in its guide. Physical input/VoiceOver, current signed
+execution and full hosted integration remain open; explicit source whole-line
+editing commands remain a separate missing family.

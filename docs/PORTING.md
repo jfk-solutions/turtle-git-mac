@@ -2,19 +2,31 @@
 
 ## Current installed checkpoint
 
-[Build 12](qa/signed-consolidation-build12-2026-10-26.json) is installed from
-`37b84cd1`, including the dialog-reactivation and scoped utility Close fixes.
-All 1,510 measured inputs, strict signatures, eight universal components and
-6,362-member source/staged/installed inventories pass. Build11 is preserved.
-Actual cold About and repeated reactivation showed only About in the Window
-menu, the green Git banner, version12 and bundled Git2.55.0. Commit reached its
-private permission chooser, but subsequent UI automation and a cold retry timed
-out. A sample showed the first main thread idle; no product hang or successful
-Commit rendering is inferred. Both owned GUI attempts were terminated, the
-private grant removed and sample HEAD/index/files preserved. Original saved
-IDs/paths/bookmarks remain; updated recency metadata was retained. One headless
-instance restores the original Finder watcher with a recent shared publication.
-Fresh workflow screenshots and wider physical/signed acceptance remain open.
+[Build 13](qa/signed-consolidation-build13-2026-10-26.json) is installed from
+`a3a38c07`, including Blame toolbar customization/placement and the newer WMF/EMF
+text/bitmap work. Its 1,516 measured inputs, strict signatures, eight universal
+components and equal 6,362-member candidate/staged/installed inventories pass.
+Build12 is preserved. The selected signed runtime checkpoint includes 17 image
+cases and actual history/Notes helpers; its original cache-build and process
+observation failures and focused repairs remain recorded.
+
+The installed workspace and native repository chooser were observed, but UI
+automation timed out after private folder authorization. The sampled main thread
+was idle; no successful post-authorization rendering or app-hang claim follows.
+Owned processes were closed, original grants retained, and private Git/file data
+preserved. The temporary grant/cache subtree was removed. No main process was
+present before acceptance, and none was restored. Finder registration is enabled;
+physical badge/menu acceptance and fresh workflow screenshots remain open.
+This installed checkpoint predates the Unified Diff gutter continuation below.
+
+## Unified Diff line-number and selection gutter
+
+The [gutter family](UNIFIED-DIFF-GUTTER-PARITY.md) adds source-style line numbering,
+dynamic font/digit width and whole-line click/Shift/drag selection to the native
+editor and read-only patch previews. It retains exact patch bytes and existing
+selected-line/hunk operations, with owner-bound cancellation and native appearance.
+Its grouped checkpoint and remaining physical/signed limits are recorded separately;
+this does not mark the full Unified Diff viewer or port complete.
 
 The preceding [build 11](qa/signed-consolidation-build11-2026-10-26.json) was
 installed as a universal app from `77f0f4f9`. Its measured 1,510 source inputs,

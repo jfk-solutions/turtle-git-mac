@@ -183,6 +183,7 @@
 		552406DDFBEB165400BBDC81 /* IssueRegexTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC889BB298CAB567A75F53F6 /* IssueRegexTester.swift */; };
 		5530D7CAC8A20AD3B4EEA016 /* MergeClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96C5E1496CBC8B6DFC29A687 /* MergeClipboard.swift */; };
 		55596DCA0B24730D0BD592B2 /* FinderStatusOperationLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A0B3EA9093FB6577B585FC /* FinderStatusOperationLease.swift */; };
+		55B683FEF7026B02BAA72623 /* PatchLineIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C3BF6E56E2BF6AF1760DED /* PatchLineIndex.swift */; };
 		55B7CD6C3BF86B590E0F64B9 /* TurtleGitSMTP.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1F81A7BFF0565C5791A405B0 /* TurtleGitSMTP.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		564344059CE4E64FF08A09FF /* FileMoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70196B2A8593EF35543D4620 /* FileMoveWindow.swift */; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
@@ -365,6 +366,7 @@
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
 		B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 809D37BDD2634840B77F0A85 /* EmailSettings.swift */; };
 		B6458949536DBA8D98AE8912 /* BlameToolbarViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E765993F3CC56D2839B1DC2 /* BlameToolbarViews.swift */; };
+		B6B52BDCB2B2E90CF29D6342 /* PatchLineNumberGutter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F81D40BCD7CB8888230D7A6 /* PatchLineNumberGutter.swift */; };
 		B6D197C224C21635D6ADDD58 /* GitBlamePresentationInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B98C30D7BBA3C23B6F0643 /* GitBlamePresentationInteraction.swift */; };
 		B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16465B7DCE5BB303F553610 /* AutotextTester.swift */; };
 		B8A7AF9FEA0FB08862822AE4 /* RevisionGraphLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */; };
@@ -842,6 +844,7 @@
 		7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAdd.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
 		7EAE32B6BBDB65F26BDA7DCB /* CommitScopeReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitScopeReport.swift; sourceTree = "<group>"; };
+		7F81D40BCD7CB8888230D7A6 /* PatchLineNumberGutter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchLineNumberGutter.swift; sourceTree = "<group>"; };
 		7FA9CD77011B00EE76A976A3 /* SynchronizationFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationFileList.swift; sourceTree = "<group>"; };
 		7FCFCDB728C608CE307F104D /* GitCommandPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitCommandPresentation.swift; sourceTree = "<group>"; };
 		809D37BDD2634840B77F0A85 /* EmailSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSettings.swift; sourceTree = "<group>"; };
@@ -854,6 +857,7 @@
 		84B5A4085E27A98640F37626 /* ReferenceLogOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogOperations.swift; sourceTree = "<group>"; };
 		84C2693689E5CF29E36E368D /* GitRevisionLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRevisionLookup.swift; sourceTree = "<group>"; };
 		8507AEE60EB25AB3DFDC1830 /* ImageWindowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageWindowPresentation.swift; sourceTree = "<group>"; };
+		85C3BF6E56E2BF6AF1760DED /* PatchLineIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchLineIndex.swift; sourceTree = "<group>"; };
 		85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleDiffWindow.swift; sourceTree = "<group>"; };
 		870D95A7EC384863F1C04342 /* RevisionComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionComparison.swift; sourceTree = "<group>"; };
 		87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorFont.swift; sourceTree = "<group>"; };
@@ -1307,6 +1311,7 @@
 				586A85599BCC6EF0DE6B1042 /* NetworkSettings.swift */,
 				A257C0CA956E0F3CCCBD435C /* PatchClipboard.swift */,
 				513BD09BF0F8FC608F46B9E0 /* PatchDocumentSession.swift */,
+				7F81D40BCD7CB8888230D7A6 /* PatchLineNumberGutter.swift */,
 				DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */,
 				3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */,
 				07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */,
@@ -1638,6 +1643,7 @@
 				336A159F3B08A80B9BBBECCC /* NativeIssueProviderSession.swift */,
 				BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
+				85C3BF6E56E2BF6AF1760DED /* PatchLineIndex.swift */,
 				E2D25384D2D6DFB1195D0656 /* PatchMailMIME.swift */,
 				A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */,
 				42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */,
@@ -2292,6 +2298,7 @@
 				45AA8F5271C15E919C1105E9 /* NativeIssueProviderSession.swift in Sources */,
 				828742F77F4A7A8CC586389A /* NetworkSettings.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
+				55B683FEF7026B02BAA72623 /* PatchLineIndex.swift in Sources */,
 				95BAD6A5438DD5C71269869B /* PatchMailMIME.swift in Sources */,
 				A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */,
 				A6B48099B1D35ECDB24B6A1D /* PatchMailSMTP.swift in Sources */,
@@ -2520,6 +2527,7 @@
 				D9322B0364F93F87A7132897 /* NetworkSettings.swift in Sources */,
 				A79BF60CDBEDA5B4F781B0A5 /* PatchClipboard.swift in Sources */,
 				471772E43763EFBC99CF45AB /* PatchDocumentSession.swift in Sources */,
+				B6B52BDCB2B2E90CF29D6342 /* PatchLineNumberGutter.swift in Sources */,
 				CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */,
 				FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */,
 				591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */,

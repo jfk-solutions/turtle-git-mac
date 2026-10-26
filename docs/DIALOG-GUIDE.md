@@ -819,6 +819,12 @@ Review/apply single patch uses the comparison/review workflow. Its source-file c
 or conflicted application in its owning dialog before continuing. A Unified Diff
 document can be edited and saved without staging those edits automatically.
 
+The Unified Diff gutter numbers the patch document's lines. Click a number to
+select its whole line, Shift-click or drag to extend that selection, and
+Command-click to select the document. Control-click keeps the native context
+menu. The gutter follows the configured font and light/dark appearance; selecting
+lines preserves the patch bytes and the preview's original read-only policy.
+
 In a Unified Diff window or attached partial-patch view, Command-F opens the
 bottom Find bar and seeds it from selected text. Typing searches from the top;
 Previous/Next, Command-G/Shift-Command-G and F3/Shift-F3 continue from the current

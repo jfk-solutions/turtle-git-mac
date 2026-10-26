@@ -7,6 +7,20 @@ A mixed UTF-8/regional patch can therefore be edited without converting the enti
 document into one code page. Original Patch and serial-import previews remain
 read-only, and partial staging continues to use the original Git patch packets.
 
+## Select lines in the gutter
+
+The left gutter numbers the lines of the patch document. Click a number to select
+that complete line, including its line ending. Shift-click extends the selection
+from its anchor; drag across the gutter to select a range. Dragging beyond the
+visible text scrolls the selection. Command-click selects the whole document.
+Control-click retains the native context menu.
+
+The gutter uses the editor font and follows light, dark and increased-contrast
+appearance. Its width grows when the document needs another line-number digit.
+Selection does not edit the patch or convert its bytes. Read-only previews retain
+Copy and their existing selected-line or hunk actions; editing remains governed
+by the preview's original policy.
+
 ## Encoding and control data
 
 Inserted text uses the encoding of the fragment being edited. UTF-8 text can
