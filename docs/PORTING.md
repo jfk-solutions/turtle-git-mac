@@ -45,6 +45,16 @@ repeated projection/decoding/ordering and measures 21.54 to 12.86 seconds for th
 same synthetic workload, with identical results. Complete installed Commit timing
 and remaining publication cost still need attention.
 
+## Shared Commit display reads
+
+The [Commit loading continuation](COMMIT-REFRESH-PERFORMANCE.md#shared-display-read--october-27-2026)
+shares three combined diff comparisons and one tagged index inventory within a
+reload. Parent-Amend reuses those same facts; classic/staging rows, flags, file
+recovery, hooks and atomic native publication remain connected. The
+[checkpoint](qa/commit-shared-display-read-2026-10-27.json) records actual command
+counts and grouped validation. Complete installed startup latency remains a
+separate measurement; build16 predates the continuation.
+
 ## Unified Diff line-number and selection gutter
 
 The [gutter family](UNIFIED-DIFF-GUTTER-PARITY.md) adds source-style line numbering,

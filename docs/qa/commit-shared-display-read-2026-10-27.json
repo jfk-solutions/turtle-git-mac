@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "92f39d8c",
+  "status": "grouped-focused-checkpoint-passed-after-recorded-repairs",
+  "scope": [
+    "One per-reload CommitDialogRead shares status,3comparison inventories and1index inventory.",
+    "CLI --raw --numstat -z percomparison replaces3 independent name/stat/raw passes; derive names from raw.",
+    "Amend status projection reuses the same staged/working arrays.",
+    "Index --stage -v -z supplies exact submodule paths and visible-row index flags.",
+    "Native default reload consumes snapshot while retaining message/provider/Start-Commit/recovery-before-publication order.",
+    "queryCommitStatus injection explicitly selects legacy path for existing tests; shipping-path verification does not override it.",
+    "Missing-file recovery keeps read ownership during Cancel confirmation; real candidates await answer and sheet drainage before prompting/mutation."
+  ],
+  "production": [
+    "Sources/TurtleGitCore/CommitDialogRead.swift",
+    "Sources/TurtleGitCore/CommitAmend.swift",
+    "Sources/TurtleGitMac/CommitWindow.swift",
+    "Sources/TurtleGitMac/MissingStagedFileRecovery.swift"
+  ],
+  "core_tests": "Tests/TurtleGitCoreTests/CommitDialogReadTests.swift",
+  "native_fixture": "docs/qa/commit-refresh-native-2026-10-10.swift",
+  "runner": "scripts/test-commit-refresh.py",
+  "draft_manifest": "build/qa/commit-read-draft-2026-10-27/manifest.json",
+  "protocol_source": {
+    "origin": "Existing local build/git-source/git-2.55.0.tar.xz; extracted source only, no executable invoked.",
+    "tar_sha256": "457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357",
+    "files": [
+      {
+        "path": "protocol/Documentation/diff-format.adoc",
+        "sha256": "3303188bfffb5051bca812fa927c96b9e05f7b01748ae298fc963faab03eec7f"
+      },
+      {
+        "path": "protocol/builtin/ls-files.c",
+        "sha256": "c52ba55b1ea1427e3591caf18a17e802162b1ed2f92ca8d4efa4cd95e30f84f6"
+      },
+      {
+        "path": "protocol/diff.c",
+        "sha256": "91ee06889cd5c86375382d2bf18987db866a1210e9b7322cdfb850a1d59f042b"
+      },
+      {
+        "path": "protocol/diff.h",
+        "sha256": "6a8b692aa594ba6e2b60729cf212f70e763a74b4e70439ee298a023232501097"
+      }
+    ],
+    "anchors": {
+      "diff.c:5299-5312": "NAME_STATUS disables RAW and NUMSTAT; never pass all3.",
+      "diff.c:6469-6501": "Raw NUL headers followed by1path or2rename/copy paths.",
+      "diff.c:7196-7234": "All raw records precede numstat section, no section sentinel.",
+      "diff.c:3243-3278": "Numstat binary marker and rename empty-path framing.",
+      "builtin/ls-files.c:111-123,337-351,442-445": "tag case, full stage/mode/objectID/path framing and conflict stages."
+    }
+  },
+  "implementation_reviews": [
+    "Do not combine NAME_STATUS with RAW/NUMSTAT; parse complete raw section then stat records, consuming rename pairs statefully.",
+    "Keep conflict U+M multiplicities and legacy M-without-numstat exclusion.",
+    "Pin normal staged and working comparisons to the captured HEAD OID; unborn display remains a display read, not mutation authority.",
+    "Treat only quiet revision exit1 as missing; fatal Git errors and malformed OIDs remain failures.",
+    "Reject asymmetric binary counters and unrepresentable numeric counts.",
+    "Default native shipping path observed through argv wrapper, not substituted queryCommitStatus.",
+    "Cancel/close owns helper drainage; timeout backstop requires exact wrapper plus open private resource before signaling.",
+    "Ownership accepts only exact literal/resolved wrapper spellings paired with private resource; no broad PID/name cleanup.",
+    "Regenerate Xcode project for new Core file; deterministic output also normalizes two existing message-editor file IDs/order without changing providers or settings.",
+    "Read-only peer review of recovery lifetime/presentation split found no concrete blocker; Status caller uses unchanged default readiness."
+  ],
+  "planned_validation": {
+    "core_filter": "CommitDialogReadTests|CommitAmendTests|CommitSelectionTests|CommitRefreshTests|CommitFileModeTests|CommitConflictSelectionTests|CommitReadCancellationTests|MissingStagedFileRecoveryTests",
+    "core_engine": "Actual Git2.39.5 selected by new captured-read fixtures; existing family fixtures retain their original default engine.",
+    "native": "Existing Commit refresh receiver with actual Git2.39.5 and bundled2.55; default reader classic/staging/amend plus held Cancel/close, existing legacy injection checks."
+  },
+  "validation": {
+    "core": {
+      "session": 55796,
+      "exit": 0,
+      "tests": 52,
+      "failures": 0,
+      "seconds": 39.723,
+      "log": "build/qa/commit-shared-read-core-2026-10-27.log",
+      "scope": "All eight planned affected Core classes; new six captured-read methods use actual Git2.39.5, older fixtures retain default system engine."
+    },
+    "localizations_write": {
+      "session": 6191,
+      "exit": 0,
+      "languages": 38,
+      "keys": 1324
+    },
+    "app": {
+      "session": 90632,
+      "log": "build/qa/commit-shared-read-app-2026-10-27.log",
+      "status": "passed",
+      "exit": 0,
+      "contradictory_exit_zero_diagnostics": 0,
+      "warning": "Xcode reports unrelated iOS Simulator service version mismatch; generic macOS build succeeds."
+    },
+    "native_initial": {
+      "session": 53432,
+      "exit": 1,
+      "log": "build/qa/commit-shared-read-native-2026-10-27.log",
+      "receiver": 45089,
+      "receiver_absent": true,
+      "scope": "Actual Git2.39.5 stopped in existing injected legacy-reader Cancel/No case at line78, before new shipping-reader cases or bundled engine.",
+      "failure": "Missing staged-file recovery treated a pending Cancel decision as retired ownership before determining whether any file needed recovery. The read ended without publishing; declining Cancel could not enable Commit.",
+      "repair": "Separate lifetime validity from interaction readiness. Read-only candidate discovery may finish during confirmation; actual recovery waits for the decision and attached-sheet drainage before any prompt or mutation. Accepted cancellation and closure still cancel and drain ownership."
+    },
+    "native_repair_app": {
+      "session": 23692,
+      "exit": 0,
+      "log": "build/qa/commit-shared-read-native-repair-app-2026-10-27.log",
+      "status": "passed"
+    },
+    "native_repair_attempts": [
+      {
+        "session": 19877,
+        "exit": 1,
+        "receiver": 45763,
+        "log": "build/qa/commit-shared-read-native-repair-2026-10-27.log",
+        "failure": "Timeout in old fixture; no call-site line in original diagnostic.",
+        "receiver_absent": true
+      },
+      {
+        "session": 60483,
+        "exit": 1,
+        "receiver": 46050,
+        "log": "build/qa/commit-shared-read-native-diagnostic-2026-10-27.log",
+        "failure": "Adding default #line isolated timeout to existing metadata blocking wrapper at line134. Wrapper expected obsolete config user.name form; production uses config --includes --null --get user.name.",
+        "repair": "Match --get user.name; assert real identity initialization and simulate actual Set-author transition. Assertions and original child cancellation retained.",
+        "receiver_absent": true
+      },
+      {
+        "session": 11976,
+        "exit": 1,
+        "receiver": 46358,
+        "receiver_absent": true,
+        "log": "build/qa/commit-shared-read-native-metadata-fixture-2026-10-27.log",
+        "scope": "Legacy cancellation/metadata and all3actual missing-file confirmation cases pass; classic/staging/amend shipping-reader counts/rows pass.",
+        "failure": "New held shipping-helper ownership proof failed before Cancel due resource path spelling."
+      },
+      {
+        "session": 33896,
+        "exit": 1,
+        "receiver": 46985,
+        "receiver_absent": true,
+        "helper": 47553,
+        "helper_absent": true,
+        "log": "build/qa/commit-shared-read-native-ownership-diagnostic-2026-10-27.log",
+        "failure": "Exact wrapper argv passed. Diagnostic proved fd9 open to private resource under /private/var; Foundation resolvingSymlinksInPath retained /var, so string equality failed.",
+        "repair": "Use Darwin realpath for exact open-resource path; retain both exact wrapper argv and open-private-resource assertions before any fallback signals."
+      }
+    ],
+    "localizations_check": {
+      "exit": 0,
+      "log": "build/qa/commit-shared-read-localizations-check-2026-10-27.log"
+    },
+    "coverage": {
+      "exit": 0,
+      "log": "build/qa/commit-shared-read-coverage-2026-10-27.log"
+    },
+    "native_final": {
+      "session": 80012,
+      "exit": 0,
+      "log": "build/qa/commit-shared-read-native-final-2026-10-27.log",
+      "receivers": [
+        47583,
+        48190
+      ],
+      "engines": [
+        "actual Git2.39.5",
+        "bundled Git2.55"
+      ],
+      "scope": "Existing injected late read/Cancel/metadata guards; actual missing staged-file No/Yes/close recovery; unchanged default shipping reader classic/staging/parentAmend asserts3diff+1status+1ls-files, rows/stats/base; held shipping reader Cancel/direct close proves own child reaped and no stale publication.",
+      "receivers_absent": true,
+      "native_only_repairs": "Core52pass retained without rerun. Production native recovery repair rebuilt once; subsequent metadata/path fixture repairs only relink fixture."
+    },
+    "hosted_observation": {
+      "run": 40462664745,
+      "source": "b010b30eca0ad2bee7b320e5c79afcc9adb35616",
+      "state": "in_progress",
+      "step": "Git integration tests",
+      "meaning": "Superseded source does not establish hosted pass for this batch."
+    },
+    "help_check": {
+      "exit": 0,
+      "documents": 58,
+      "topics": 51,
+      "files": 90,
+      "log": "build/qa/commit-shared-read-help-check-2026-10-27.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 487,
+      "unresolved_fragments": [],
+      "log": "build/qa/commit-shared-read-site-2026-10-27.log"
+    },
+    "protected_wip": "Both pre-existing user files retain recorded SHA256 values; excluded from staging."
+  },
+  "limits": [
+    "Reduced argv counts do not prove complete installed startup latency.",
+    "Repository actor ownership does not freeze external processes; fresh mutation preflight/index authority stays separate.",
+    "No current signed installation, full hosted, Intel/minimum macOS or complete upstream parity acceptance.",
+    "Installed build16 predates this batch."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/CommitDialogRead.swift": "d4f64d5085b8f7c41a82408c32cd0c1e47901f7771cfa82437044461a9ba8d91",
+    "Sources/TurtleGitCore/CommitAmend.swift": "f22cd31f67f2bd739a1f3566284cf4dc46d615e01c4395d17d64d3a7c53497e7",
+    "Sources/TurtleGitMac/CommitWindow.swift": "2eda2a6a3da6323a8a7834e3d63de755270b078e0f5f7af8dd24051a09ebc54e",
+    "Tests/TurtleGitCoreTests/CommitDialogReadTests.swift": "d08088c445058afa61704f7fd99a7120e548c3cdfae0e9dde1e1076e2cd2f4a0",
+    "docs/qa/commit-refresh-native-2026-10-10.swift": "10e2f80296274dc5130028eb26ce427b19ba3227d955178153d60937e9b89860",
+    "scripts/test-commit-refresh.py": "8cc2b97df122e71a1d76b1d5c96fdf39d0c09262700b05783ce4b189bfbcdaa6",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "d1ac8b632956be6408f008180b967d1d40793ea10d06684ccecda31bcb35dec2",
+    "Sources/TurtleGitMac/MissingStagedFileRecovery.swift": "bd8865d7361be839c3c15e03bf8b52ff79855b9567358b73caf61674c20afdfc"
+  }
+}

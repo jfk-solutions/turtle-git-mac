@@ -32,6 +32,7 @@ import TurtleGitCore
         alert.window.orderOut(nil)
     }
     func process(repository: GitRepository, entries: [StatusEntry], token: OperationCancellation,
+                 isPresentationReady: @escaping () -> Bool = { true },
                  isAvailable: @escaping () -> Bool) async throws {
         guard !busy, !retired else { throw OperationCancellationFailure.cancelled }
         func check() throws {
@@ -56,14 +57,25 @@ import TurtleGitCore
         guard !eligible.isEmpty else { return }
         let candidates = try await repository.missingStagedFiles(in: eligible, cancellation: token)
         try check()
+        // A pending Cancel decision does not invalidate the accepted status
+        // read. With no missing files it can finish normally. Actual recovery
+        // waits for the decision before presenting a second question or writing
+        // the index; an accepted cancellation still retires the owning token.
+        func awaitPresentation() async throws {
+            try check()
+            while !isPresentationReady() {
+                try await Task.sleep(nanoseconds: 10_000_000)
+                try check()
+            }
+        }
         var repeated: Choice?
         for candidate in candidates {
-            try check()
+            try await awaitPresentation()
             let choice: Choice?
             if let repeated { choice = repeated }
             else if let choose { choice = await choose(candidate) }
             else { choice = await chooseNative(candidate) }
-            try check()
+            try await awaitPresentation()
             guard let choice else { token.cancel(); throw OperationCancellationFailure.cancelled }
             if choice.doSameForRest { repeated = choice }
             if choice.action == .ignore { continue }
@@ -72,7 +84,7 @@ import TurtleGitCore
                 try check()
                 refreshRequired = refreshRequired || result.changed
             } catch {
-                try check()
+                try await awaitPresentation()
                 let message = (choice.action == .restoreFromIndex ? "Restoring from index failed:\n" : "Removing from index failed:\n") + candidate.path + "\n\n" + error.localizedDescription
                 if let showFailure { await showFailure(message) }
                 else { await showNative(message, style: .critical) }
@@ -80,6 +92,7 @@ import TurtleGitCore
             }
         }
         if refreshRequired {
+            try await awaitPresentation()
             if let showRefreshNotice { await showRefreshNotice() }
             else { await showNative("Due to changes to the index, please refresh the dialog (e.g., by pressing F5).", style: .informational) }
             try check()

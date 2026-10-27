@@ -928,7 +928,10 @@ import TurtleGitCore
     var presentUnversionedFiles:(() async -> (show:Bool,remember:Bool)?)?
     var cancelUnversionedFilesPrompt:()->Void = {}
     @Published private var pendingReloadCancel = false
-    var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
+    private var usesCapturedCommitRead=true
+    // Existing injected status readers retain their complete legacy read path;
+    // shipping dialogs share one bounded Core display read instead.
+    var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry] {didSet{usesCapturedCommitRead=false}}
     var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> GitPathMap<CommitStagingState>
     @Published var statistics: GitPathMap<CommitFile> = [:]
     @Published var checked = GitPathSet()
@@ -1948,15 +1951,26 @@ import TurtleGitCore
                 let preferences:CommitPreferences?
                 if loadedPreferences { preferences=nil }
                 else { preferences=try await readReload(token) { try await repository.commitPreferences(cancellation:token) } }
-                let nextOperation = try await readReload(token) { try await repository.commitOperation(cancellation:token) }
-                let nextHasHead = try await readReload(token) { (try? await repository.run(["rev-parse","--verify","HEAD"],cancellation:token)) != nil }
-                let nextHasParent = try await readReload(token) { (try? await repository.run(["rev-parse","--verify","HEAD^1"],cancellation:token)) != nil }
+                let captured:CommitDialogRead?
+                if usesCapturedCommitRead {captured=try await readReload(token) {try await repository.commitDialogRead(amend:amend,amendDiffToLastCommit:amendDiffToLastCommit,cancellation:token)}}
+                else {captured=nil}
+                let nextOperation:CommitOperation?,nextHasHead:Bool,nextHasParent:Bool
+                if let captured {nextOperation=captured.operation;nextHasHead=captured.hasHead;nextHasParent=captured.hasParent}
+                else {
+                    nextOperation=try await readReload(token) {try await repository.commitOperation(cancellation:token)}
+                    nextHasHead=try await readReload(token) {(try? await repository.run(["rev-parse","--verify","HEAD"],cancellation:token)) != nil}
+                    nextHasParent=try await readReload(token) {(try? await repository.run(["rev-parse","--verify","HEAD^1"],cancellation:token)) != nil}
+                }
                 let nextAmend = nextOperation == nil && amend
                 let nextAmendDiff = nextAmend && !nextHasParent ? true : amendDiffToLastCommit
                 let compareParent = nextAmend && !nextAmendDiff
-                let nextBase = compareParent ? try await readReload(token) { try await repository.commitComparisonBase(amendToParent:true,cancellation:token) } : nil
-                let nextEntries = try await readReload(token) { try await queryCommitStatus(compareParent,token) }
-                let nextSubmodules = try await readReload(token) { try await repository.submodulePathNames(cancellation:token).map(\.rawValue) }
+                let nextBase:String?,nextEntries:[StatusEntry],nextSubmodules:[String]
+                if let captured {nextBase=captured.comparisonBase;nextEntries=captured.entries;nextSubmodules=Array(captured.submodules)}
+                else {
+                    nextBase=compareParent ? try await readReload(token) {try await repository.commitComparisonBase(amendToParent:true,cancellation:token)}:nil
+                    nextEntries=try await readReload(token) {try await queryCommitStatus(compareParent,token)}
+                    nextSubmodules=try await readReload(token) {try await repository.submodulePathNames(cancellation:token).map(\.rawValue)}
+                }
                 let nextBranch = try await readReload(token) { try await repository.branch(cancellation:token) }
                 let nextReportInEnglish=try await readReload(token) {try await repository.commitFileListReportInEnglish(cancellation:token)}
                 // Commit never displays ignored paths. Avoid resolving/statting
@@ -1970,11 +1984,20 @@ import TurtleGitCore
                 // The Working Tree dialog needs every tracked file; Commit only
                 // needs index flags for its current change rows. Keep this read
                 // inside the same cancellable, atomically published reload.
-                let nextIndexFlags = try await readReload(token) { try await repository.workingTreeIndexFlags(entries:displayedCandidates,cancellation:token) }
+                let nextIndexFlags:[WorkingTreeFile]
+                if let captured {nextIndexFlags=captured.indexFlags}
+                else {nextIndexFlags=try await readReload(token) {try await repository.workingTreeIndexFlags(entries:displayedCandidates,cancellation:token)}}
                 let nextConflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation:token) }
-                let nextStatistics = GitPathMap(try await readReload(token) { try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
-                let nextStaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
-                let nextUnstaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:false,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let working:[CommitFile],staged:[CommitFile],unstaged:[CommitFile]
+                if let captured {working=captured.working;staged=captured.staged;unstaged=captured.unstaged}
+                else {
+                    working=try await readReload(token) {try await repository.workingTreeFiles(amendToParent:compareParent,cancellation:token)}
+                    staged=try await readReload(token) {try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token)}
+                    unstaged=try await readReload(token) {try await repository.stagingFiles(staged:false,cancellation:token)}
+                }
+                let nextStatistics=GitPathMap(working.map{($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextStaged=GitPathMap(staged.map{($0.path,$0)},uniquingKeysWith:{_,new in new})
+                let nextUnstaged=GitPathMap(unstaged.map{($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextAuthor:String?
                 if !hasLoaded && (author.isEmpty || pendingRecommitSession) {
                     if !pendingRecommitSession,let identity=acceptedCommitIdentity {nextAuthor="\(identity.authorName) <\(identity.authorEmail)>"}
@@ -2134,9 +2157,12 @@ import TurtleGitCore
                 GitReferenceName.equal($0, entry.path) || entry.path.utf8.starts(with: ($0 + "/").utf8)
             }
         }
-        try await missingStagedRecovery.process(repository: repository, entries: included, token: token) { [weak self] in
+        try await missingStagedRecovery.process(repository: repository, entries: included, token: token,
+                                               isPresentationReady: { [weak self] in
+            self?.pendingReloadCancel == false && self?.comparisonWindow?.attachedSheet == nil
+        }) { [weak self] in
             guard let self else { return false }
-            return self.messageFocusAvailable && self.reloadCancellation === token && !self.confirmingQuit && !self.pendingReloadCancel
+            return self.messageFocusAvailable && self.reloadCancellation === token && !self.confirmingQuit
         }
     }
     /// Check on both sides of every suspension: even an injected read that

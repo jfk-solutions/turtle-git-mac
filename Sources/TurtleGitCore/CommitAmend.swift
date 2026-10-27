@@ -167,7 +167,18 @@ extension GitRepository {
 
     public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil, refreshIndex: Bool = true) throws -> [StatusEntry] {
         try cancellation?.check()
-        var current = try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,cancellation:cancellation)
+        let current=try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,cancellation:cancellation)
+        let indexed:[CommitFile],working:[CommitFile]
+        if amendToParent {
+            let base=try commitComparisonBase(amendToParent:true,cancellation:cancellation)
+            indexed=try stagingFiles(staged:true,base:base,cancellation:cancellation)
+            working=try workingTreeFiles(amendToParent:true,cancellation:cancellation)
+        } else {indexed=[];working=[]}
+        return try commitDialogEntries(current:current,amendToParent:amendToParent,indexed:indexed,working:working,cancellation:cancellation)
+    }
+    /// Shared projection for legacy/preflight readers and a captured display read.
+    func commitDialogEntries(current input:[StatusEntry],amendToParent:Bool,indexed:[CommitFile],working:[CommitFile],cancellation:OperationCancellation?)throws->[StatusEntry] {
+        var current=input
         // Omitting the ignored inventory must not hide a staged deletion's
         // recreated local copy. Porcelain would otherwise report a second !!
         // record and the parser would merge that fact into this versioned row.
@@ -183,12 +194,10 @@ extension GitRepository {
         }
         try cancellation?.check()
         guard amendToParent else { return current }
-        let base = try commitComparisonBase(amendToParent: true, cancellation: cancellation)
-        let indexed = try stagingFiles(staged: true, base: base, cancellation: cancellation)
         let indexedByPath = GitPathMap(indexed.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         let currentByPath = GitPathMap(current.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         var result = current.filter { $0.state == .untracked || $0.state == .ignored || $0.state == .conflicted }
-        for file in try workingTreeFiles(amendToParent: true, cancellation: cancellation) {
+        for file in working {
             if currentByPath[file.path]?.state == .conflicted { continue }
             let staged = indexedByPath[file.path]
             let old = staged?.oldPath ?? file.oldPath

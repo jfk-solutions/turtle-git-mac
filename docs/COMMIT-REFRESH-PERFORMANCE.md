@@ -54,3 +54,39 @@ The ordinary and parent-Amend projections retain the enriched metadata. Four
 focused refresh methods pass; the [connected Revert checkpoint](qa/working-file-revert-disposition-2026-10-26.json)
 records the discovered failure and affected native recheck separately from the
 earlier performance measurements. No new large-checkout timing is claimed.
+
+## Shared display read — October 27, 2026
+
+A normal reload still requested three independent formats for each of its
+working, staged and unstaged comparisons: nine diff invocations. Parent-Amend
+also rebuilt two of those inventories while projecting its status entries. The
+connected continuation shares those facts within one display-read lifetime. Each
+comparison requests raw and numstat output together; names and rename pairs come
+from raw records because Git's name-status option disables the other formats.
+One tagged staged index inventory supplies both gitlink names and index flags.
+
+The captured result retains normal, staging, parent-Amend, parentless and unborn
+behavior, including index-only rows canceled out by working files, binary/mode
+changes, conflict stages and exact unusual path spellings. It remains display
+data: mutation preflight and raw index witnesses are read freshly. Nothing is
+cached across reloads or used to authorize a write.
+
+Native owner/cancellation checks still surround the read and final atomic
+publication. Metadata, message/provider loading, Start-Commit hooks, missing
+staged-file recovery and row restoration retain their existing order. Injected
+status readers retain their complete legacy path for existing callers; the new
+native check counts actual Git commands on the default shipping path instead
+of replacing that reader.
+
+Recovery separates read ownership from permission to present a question. A pending
+Cancel confirmation allows an otherwise valid read with no missing files to
+finish; declining Cancel retains that result. If staged files really are missing,
+recovery waits for the answer and sheet detachment before asking or changing the
+index. Accepting Cancel or closing the window still cancels and drains the read.
+
+The [shared-read checkpoint](qa/commit-shared-display-read-2026-10-27.json) records
+implementation and grouped verification separately. Reduced process counts do
+not establish complete installed Commit startup timing. Signed Finder activity,
+first-launch grants, external hooks/providers and minimum-version/Intel
+acceptance remain separate from this change. No dialog layout or source option
+is removed.

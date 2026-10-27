@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2734E98178C6CC2C8CCDA405 /* MessageEditorMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6878D99C477ABE72FC4186FD /* MessageEditorMenuCommands.swift */; };
-		40C61C0DD6C13F4D60838D7E /* MessageEditorLineCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891BD38E7977B858EF98C181 /* MessageEditorLineCommands.swift */; };
 		001B1EBF54B372A9FFDE31DB /* GitSingleCommitDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44383F950F24C4B2CFFBD82 /* GitSingleCommitDetails.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
 		00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */; };
@@ -140,6 +138,7 @@
 		3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */; };
 		3A784328FF03E7DD69994DA7 /* StatisticsMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = F014467B16BE2AE672DF757F /* StatisticsMenuCommands.swift */; };
 		3AA2AF5E3D5C21A539D1C793 /* FileCopyWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24D3EE6E5499487E3423341 /* FileCopyWindow.swift */; };
+		3AE5A75B8DD369AC5ED2FAAA /* MessageEditorLineCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB832BC123B764E4DAA2906 /* MessageEditorLineCommands.swift */; };
 		3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */; };
 		3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
@@ -317,6 +316,7 @@
 		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
 		9AF25DFC2150DDD85C7DF7B2 /* SynchronizationReferenceResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9CB1F5743F536DB3F72DE3 /* SynchronizationReferenceResults.swift */; };
 		9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A118CF3A03416CA1144F4DE /* RequestPull.swift */; };
+		9C7EA96722550AE145D9D198 /* MessageEditorMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3DF679C54B8FB0DA5EE2457 /* MessageEditorMenuCommands.swift */; };
 		9E622C7C59E4097D00A01885 /* HookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6C7223527745421AF60617 /* HookSettings.swift */; };
 		9E86F9AB226AFE398D3E1F6E /* LFSLocksTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49FCBFED2C9CC4E19476062C /* LFSLocksTable.swift */; };
 		9EAA76B0018911240EAC2639 /* RemoteSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3343365A5D1715F6611CABA /* RemoteSettings.swift */; };
@@ -508,6 +508,7 @@
 		FC70E4ECEA3F0C2EFA442E19 /* SSHAgentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */; };
 		FCFA5A3F5338AE17BB60CE16 /* MissingStagedFileRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D177F1DEEE2930BFFDABEE0 /* MissingStagedFileRecovery.swift */; };
 		FCFF2D4AD581CB49571B0E4F /* GitSVNAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C4600CE92C92F579616719 /* GitSVNAuthenticationPrompt.swift */; };
+		FDC98019696C2B69FDA5D2BE /* CommitDialogRead.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C6FE6CA37F6260AE387EDFC /* CommitDialogRead.swift */; };
 		FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */; };
 		FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */; };
 		FED983DAC1D3DA69EF249094 /* SubmoduleSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6627A941719314D5D2976D6E /* SubmoduleSync.swift */; };
@@ -622,8 +623,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		6878D99C477ABE72FC4186FD /* MessageEditorMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorMenuCommands.swift; sourceTree = "<group>"; };
-		891BD38E7977B858EF98C181 /* MessageEditorLineCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorLineCommands.swift; sourceTree = "<group>"; };
 		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
@@ -677,6 +676,7 @@
 		1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHAgentSession.swift; sourceTree = "<group>"; };
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFileTable.swift; sourceTree = "<group>"; };
+		1AB832BC123B764E4DAA2906 /* MessageEditorLineCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorLineCommands.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSyntax.swift; sourceTree = "<group>"; };
 		1D60C3ADD6C9700F29412601 /* UnifiedDiffInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffInvocation.swift; sourceTree = "<group>"; };
@@ -757,6 +757,7 @@
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
 		4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlame.swift; sourceTree = "<group>"; };
 		4B9D315EB0CEBA9F35268A81 /* RevisionGraphVectorScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphVectorScene.swift; sourceTree = "<group>"; };
+		4C6FE6CA37F6260AE387EDFC /* CommitDialogRead.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitDialogRead.swift; sourceTree = "<group>"; };
 		4C9968DC28764DEFABDB7D67 /* MergeBlameComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeBlameComparison.swift; sourceTree = "<group>"; };
 		4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertDialogSelection.swift; sourceTree = "<group>"; };
 		4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TurtleGitSMTP.h; sourceTree = "<group>"; };
@@ -1098,6 +1099,7 @@
 		F2A61583D3D0DA7A7D2D9195 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F2E43773297420C7FDAE9748 /* GitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepository.swift; sourceTree = "<group>"; };
 		F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleProgressCompletion.swift; sourceTree = "<group>"; };
+		F3DF679C54B8FB0DA5EE2457 /* MessageEditorMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorMenuCommands.swift; sourceTree = "<group>"; };
 		F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitCompletionPopup.swift; sourceTree = "<group>"; };
 		F4775C31E6075FC3D1A669AC /* TurtleGitGitAskpass */ = {isa = PBXFileReference; includeInIndex = 0; path = TurtleGitGitAskpass; sourceTree = BUILT_PRODUCTS_DIR; };
 		F47F25E9F85B9274F63464E0 /* ReferenceLogNativeTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogNativeTable.swift; sourceTree = "<group>"; };
@@ -1313,10 +1315,10 @@
 				A72CA1F57921800C12336E06 /* MergeToolPresentation.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
 				87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */,
+				1AB832BC123B764E4DAA2906 /* MessageEditorLineCommands.swift */,
 				6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */,
+				F3DF679C54B8FB0DA5EE2457 /* MessageEditorMenuCommands.swift */,
 				96E940ECCB7183AF9D421680 /* MessageEditorStylingSession.swift */,
-				6878D99C477ABE72FC4186FD /* MessageEditorMenuCommands.swift */,
-				891BD38E7977B858EF98C181 /* MessageEditorLineCommands.swift */,
 				5223DFD2A4DD4A2D03A544FA /* MissingStagedFileRecovery.swift */,
 				73FBA2748CF498A05D89BA95 /* NativeFileTransfer.swift */,
 				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
@@ -1535,6 +1537,7 @@
 				EC45B25889170370E887B2AC /* CommitCheckboxIndex.swift */,
 				88E4B9E7A2D7EA1313E086BF /* CommitCheckPolicy.swift */,
 				08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */,
+				4C6FE6CA37F6260AE387EDFC /* CommitDialogRead.swift */,
 				DAA4675C4521ED35D847FB62 /* CommitFileDrop.swift */,
 				DF6352B22FB03878FC59F470 /* CommitHistory.swift */,
 				1559DC3926805ADF57166DCE /* CommitMessage.swift */,
@@ -2192,6 +2195,7 @@
 				807FEE29880D78AA1E998FC7 /* CommitCheckPolicy.swift in Sources */,
 				F28EFEC5D2C77F276B76731E /* CommitCheckboxIndex.swift in Sources */,
 				DDEB7F7F1B5C5A57B8BD9AF8 /* CommitContainingReferences.swift in Sources */,
+				FDC98019696C2B69FDA5D2BE /* CommitDialogRead.swift in Sources */,
 				805E34A3C95926C9E1244C75 /* CommitFileDrop.swift in Sources */,
 				FB06077C7097755667D83917 /* CommitHistory.swift in Sources */,
 				7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */,
@@ -2538,10 +2542,10 @@
 				DF04AA39801191C59FDD035A /* MergeToolPresentation.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
 				B9C46EA0242416CA6D538C73 /* MessageEditorFont.swift in Sources */,
+				3AE5A75B8DD369AC5ED2FAAA /* MessageEditorLineCommands.swift in Sources */,
 				12945D97CBBE46999F74661D /* MessageEditorLineLayout.swift in Sources */,
+				9C7EA96722550AE145D9D198 /* MessageEditorMenuCommands.swift in Sources */,
 				786E39DA3EFAA4527CBD79D4 /* MessageEditorStylingSession.swift in Sources */,
-				2734E98178C6CC2C8CCDA405 /* MessageEditorMenuCommands.swift in Sources */,
-				40C61C0DD6C13F4D60838D7E /* MessageEditorLineCommands.swift in Sources */,
 				0F5692E27DE7CC5C20F31062 /* MissingStagedFileRecovery.swift in Sources */,
 				F89EA6A7879ABB0D54D9B258 /* NativeFileTransfer.swift in Sources */,
 				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,
