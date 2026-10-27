@@ -21,13 +21,17 @@ serials=[i for i,r in enumerate(plus) if struct.unpack_from('<H',r)[0]==0x4038]
 draws=[i for i,r in enumerate(plus) if struct.unpack_from('<H',r)[0] in (0x401a,0x401b)]
 if len(serials)<2 or len(draws)<6:raise ValueError(f'Native recorder did not serialize expected effects: serials={serials},draws={draws}')
 manifest={'seedSHA256':hashlib.sha256(source).hexdigest(),'records':[{'index':i,'type':hex(struct.unpack_from('<H',r)[0]),'flags':hex(struct.unpack_from('<H',r,2)[0]),'size':len(r)}for i,r in enumerate(plus)],'variants':[]}
-def emit(name,keep_serials=None,force_e=None):
+def emit(name,keep_serials=None,force_e=None,clear_first=False,prefix_first=()):
     records=[]
     for i,r in enumerate(plus):
         t,f=struct.unpack_from('<HH',r)
         if t==0x4038 and keep_serials is not None and i not in keep_serials:continue
         if t in (0x401a,0x401b) and force_e is not None:
             r=bytearray(r);struct.pack_into('<H',r,2,(f|0x2000) if force_e else (f&~0x2000));r=bytes(r)
+        if i==draws[0]:
+            records.extend(prefix_first)
+            if clear_first:
+                r=bytearray(r);struct.pack_into('<H',r,2,struct.unpack_from('<H',r,2)[0]&~0x2000);r=bytes(r)
         records.append(r)
     comments=[]
     for r in records:
@@ -41,10 +45,27 @@ def emit(name,keep_serials=None,force_e=None):
         else:result.append(r)
     header=bytearray(result[0]);struct.pack_into('<II',header,48,sum(map(len,result)),len(result));result[0]=bytes(header)
     out=b''.join(result);(root/(name+'.emf')).write_bytes(out)
-    manifest['variants'].append({'name':name,'sha256':hashlib.sha256(out).hexdigest(),'keepSerializableIndices':None if keep_serials is None else sorted(keep_serials),'forceE':force_e})
+    manifest['variants'].append({'name':name,'sha256':hashlib.sha256(out).hexdigest(),'keepSerializableIndices':None if keep_serials is None else sorted(keep_serials),'forceE':force_e,'clearFirstE':clear_first,'prefixFirstTypes':[hex(struct.unpack_from('<H',r)[0]) for r in prefix_first]})
 emit('state-all-native-serials-E',None,True)
 emit('state-first-effect-persists',{serials[0]},True)
 emit('state-two-effects-save-restore',{serials[0],serials[1]},True)
 emit('state-effect-nonE-ignored',None,False)
 emit('state-E-without-effect',set(),True)
+# A genuinely plain DrawImagePoints immediately before the first E draw. The
+# recorder's plain DrawImage record is not a substitute: its E bit is reserved.
+plain=bytearray(plus[draws[0]])
+kind,flags=struct.unpack_from('<HH',plain)
+if kind!=0x401b or not flags&0x4000 or flags&0x800:raise ValueError('Expected native absolute compressed DrawImagePoints')
+if u32(plain,36)!=3:raise ValueError('Expected three native destination points')
+struct.pack_into('<H',plain,2,flags&~0x2000)
+for point in range(3):
+ y=struct.unpack_from('<h',plain,42+point*4)[0]
+ struct.pack_into('<h',plain,42+point*4,y+4)
+emit('pending-effect-across-plain-draw',{serials[0]},True,prefix_first=(bytes(plain),))
+save=next(r for r in plus if struct.unpack_from('<H',r)[0]==0x4025)
+restore=next(r for r in plus if struct.unpack_from('<H',r)[0]==0x4026)
+container=next(r for r in plus if struct.unpack_from('<H',r)[0]==0x4028)
+end_container=next(r for r in plus if struct.unpack_from('<H',r)[0]==0x4029)
+emit('pending-effect-save-restore-before-E',{serials[0]},True,prefix_first=(save,restore))
+emit('pending-effect-container-before-E',{serials[0]},True,prefix_first=(container,end_container))
 (root/'wire-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')

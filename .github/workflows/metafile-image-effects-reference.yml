@@ -1,16 +1,24 @@
 name: Metafile image effects native Windows reference
 on:
   workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Existing native-reference run to reuse (empty records new ramps)
+        required: false
+        default: ''
   push:
     paths:
       - '.github/workflows/metafile-image-effects-reference.yml'
       - 'docs/qa/metafile-image-effects-reference-2026-10-27/**'
 permissions:
   contents: read
+  actions: read
 jobs:
   reference:
     runs-on: windows-2022
     timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: ${{ github.event_name == 'push' && '40491004875' || inputs.source_run_id }}
     steps:
       - uses: actions/checkout@v6
       - uses: ilammy/msvc-dev-cmd@v1
@@ -20,7 +28,15 @@ jobs:
           cl /nologo /std:c++17 /EHsc /W4
           docs\qa\metafile-image-effects-reference-2026-10-27\ImageEffectsReference.cpp
           /Fe:ImageEffectsReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - uses: actions/download-artifact@v4
+        if: env.SOURCE_RUN_ID != ''
+        with:
+          name: metafile-image-effects-native-windows
+          path: reference-output
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
       - name: Record direct effects and original native EMF
+        if: env.SOURCE_RUN_ID == ''
         shell: pwsh
         run: |
           ./ImageEffectsReference.exe generate reference-output
@@ -34,6 +50,8 @@ jobs:
         shell: pwsh
         run: |
           ./ImageEffectsReference.exe replay reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./ImageEffectsReference.exe replay-v1 reference-output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
           Get-Item $env:WINDIR/System32/gdiplus.dll -ErrorAction SilentlyContinue | Select-Object -ExpandProperty VersionInfo | Select-Object FileVersion,ProductVersion | ConvertTo-Json | Set-Content reference-output/gdiplus-version.json
