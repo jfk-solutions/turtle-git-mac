@@ -174,7 +174,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
                 menu.addItem(entry)
             }
             if values.count==1,let entry=values.first,model.snapshot?.objectID != nil {
-                item("Open",#selector(open),.open,requiresPath:entry.kind != .directory)
+                item("Open",#selector(open),.open,requiresPath:entry.kind == .submodule)
                 if !entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind) {
                     item("View stored blob",#selector(inspectStoredBlob),.open,requiresPath:false)
                     item("Open stored blob (unfiltered)",#selector(openStoredBlob),.open,requiresPath:false)
@@ -182,20 +182,20 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
                     item("View stored blob with alternative editor",#selector(editStoredBlob),.editor,requiresPath:false)
                     item("Save stored blob (unfiltered) to…",#selector(saveStoredBlob),.saveAs,requiresPath:false)
                 }
-                if entry.kind != .directory { item("Open With…",#selector(openWith),.open);item("View revision with alternative editor",#selector(alternativeEditor),.editor) }
+                if entry.kind != .directory { item("Open With…",#selector(openWith),.open,requiresPath:entry.kind == .submodule);item("View revision with alternative editor",#selector(alternativeEditor),.editor,requiresPath:entry.kind == .submodule) }
                 menu.addItem(.separator())
                 if entry.kind != .directory && model.snapshot?.bare==false { item("Compare with working tree",#selector(compare),.compare);menu.addItem(.separator()) }
                 item("Show log",#selector(log),.log,requiresPath:false)
                 if entry.kind == .submodule { item("Show submodule log",#selector(submoduleLog),.log) }
                 if ![.directory,.submodule].contains(entry.kind) {
                     if model.snapshot?.bare==false { item("Blame",#selector(blame),.blame,requiresPath:false) }
-                    menu.addItem(.separator());item("Save revision to…",#selector(save),.saveAs)
+                    menu.addItem(.separator());item("Save revision to…",#selector(save),.saveAs,requiresPath:false)
                 };menu.addItem(.separator())
             }
             if !values.isEmpty && model.snapshot?.bare==false && values.allSatisfy({ ![.directory,.submodule].contains($0.kind) }) { item("Revert to this revision",#selector(revert),.revert);menu.addItem(.separator()) }
             if values.count==1,let entry=values.first,![.directory,.submodule].contains(entry.kind) {
-                item("Mark for comparison",#selector(mark),.compare)
-                if let mark=model.comparisonMark { item("Compare with "+mark.label(for:entry.displayPath),#selector(compareMarked),.compare,enabled:model.onPreparedFileCompare != nil) };menu.addItem(.separator())
+                item("Mark for comparison",#selector(mark),.compare,requiresPath:false)
+                if let mark=model.comparisonMark { item("Compare with "+mark.label(for:entry.path),#selector(compareMarked),.compare,enabled:model.onPreparedFileCompare != nil && (entry.isPathRepresentable || mark.workingAccess == nil && !mark.revision.isEmpty),requiresPath:false) };menu.addItem(.separator())
             }
             if !values.isEmpty { item(values.contains(where:{!$0.isPathRepresentable}) ? "Copy displayed names (escaped)":"Copy to clipboard",#selector(copyNames),.copy,requiresPath:false);item("Copy hash",#selector(copyHashes),.copy,requiresPath:false) }
         }

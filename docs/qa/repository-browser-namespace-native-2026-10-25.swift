@@ -16,12 +16,12 @@ private extension NSWindow {
         let folder=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let suite="TurtleGit.BrowserNamespace."+UUID().uuidString
         let prefs:UserDefaults
-        var logs:[LogWindowController]=[],blames:[BlameWindowController]=[]
+        var logs:[LogWindowController]=[],blames:[BlameWindowController]=[],comparisons:[FileComparisonWindowController]=[]
         var owners:[RepositoryBrowserWindowController]=[],releases:[()->Void]=[],previewFiles:[URL]=[]
         let text=Data("stored body\n".utf8),binary=Data([0,0xff,0x10,0x41])
         var revision="",head=Data(),index:Data?,config=Data()
         init(){prefs=UserDefaults(suiteName:suite)!;prefs.set(false,forKey:"UseLibgit2");prefs.set(false,forKey:"EnableGravatar")}
-        func repository()->GitRepository{GitRepository(root:folder,executable:git,askpass:nil,libgit2Configuration:.init(enabled:false))}
+        func repository(backend:GitLibGit2Configuration? = nil)->GitRepository{GitRepository(root:folder,executable:git,askpass:nil,libgit2Configuration:backend ?? .init(enabled:false))}
         func oid(_ args:[String],input:Data?=nil)async throws->String{String(decoding:try await repository().run(args,input:input).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)}
         func tree(_ records:[(String,String,String,Data)])async throws->String{
             var data=Data();for(mode,type,oid,name)in records{data.append(Data("\(mode) \(type) \(oid)\t".utf8));data.append(name);data.append(0)}
@@ -36,8 +36,8 @@ private extension NSWindow {
             revision=try await oid(["commit-tree",root,"-m","namespace"]);_=try await repo.run(["update-ref","refs/heads/main",revision])
             head=try await repo.run(["rev-parse","HEAD"]).stdout;index=try? Data(contentsOf:folder.appendingPathComponent(".git/index"));config=try Data(contentsOf:folder.appendingPathComponent(".git/config"))
         }
-        func owner()async throws->RepositoryBrowserWindowController{
-            let owner=RepositoryBrowserWindowController(repository:repository(),access:nil,revision:revision,preferences:prefs)
+        func owner(repository accepted:GitRepository? = nil)async throws->RepositoryBrowserWindowController{
+            let owner=RepositoryBrowserWindowController(repository:accepted ?? repository(),access:nil,revision:revision,preferences:prefs)
             owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.window?.isReleasedWhenClosed=false
             owner.presentStoredBlobWindow={child in child.window?.alphaValue=0;child.window?.setFrameOrigin(.init(x:-24000,y:-24000));_ = child.window?.contentView}
             owners.append(owner);owner.model.refresh();try await RepositoryBrowserNamespaceVerification.wait{!owner.model.busy && !owner.model.hasPendingWork}
@@ -54,9 +54,9 @@ private extension NSWindow {
             try RepositoryBrowserNamespaceVerification.require(files==[".git"],"A path action wrote a working file")
         }
         func cleanup()async{
-            releases.forEach{$0()};releases=[];owners.forEach{$0.close()};logs.forEach{$0.close()};blames.forEach{$0.close()}
-            for _ in 0..<3000{if owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeFileOpenReads==0 && LogWindowModel.activeActionReads==0 && BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
-            previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[]
+            releases.forEach{$0()};releases=[];owners.forEach{$0.close()};logs.forEach{$0.close()};blames.forEach{$0.close()};comparisons.forEach{$0.close()}
+            for _ in 0..<3000{if owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeFileOpenReads==0 && LogWindowModel.activeActionReads==0 && BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && comparisons.allSatisfy({!$0.model.mergeToolHasPendingWork}) && DiffToolApplication.activeRequests==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
+            previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[];DiffToolApplication.discardAll()
             UserDefaults.standard.removePersistentDomain(forName:suite)
         }
     }
@@ -73,7 +73,7 @@ private extension NSWindow {
             table.selectRowIndexes(IndexSet(integer:m.entries.firstIndex(of:raw.first{$0.kind != .directory}!)!),byExtendingSelection:false)
             m.selection=[raw.first{$0.kind != .directory}!.id];menu.delegate?.menuNeedsUpdate?(menu)
             try require(menu.items.contains{$0.title=="View stored blob" && $0.isEnabled},"Raw blob inspection action missing")
-            try require(menu.items.contains{$0.title=="Open" && !$0.isEnabled},"Raw path Open enabled")
+            try require(menu.items.contains{$0.title=="Open" && $0.isEnabled && $0.image != nil && $0.action != nil},"Raw historical Open unavailable or missing native icon/selector")
         } else {throw Failure(description:"Shipping contents table absent")}
         try await c.unchanged()
     }
@@ -90,11 +90,13 @@ private extension NSWindow {
     static func actions(_ c:Context)async throws{
         let owner=try await c.owner(),m=owner.model,raw=m.entries.first{$0.rawName==Data([0xff,0x2e,0x74,0x78,0x74])}!,valid=m.entries.first{$0.name=="valid.txt"}!
         var dispatches=0;m.onLog={_,_ in dispatches+=1};m.onBlame={_,_ in dispatches+=1};m.onCompare={_,_ in dispatches+=1};m.onPreparedFileCompare={_,_ in dispatches+=1};m.presentFile={_,_ in dispatches+=1}
-        m.open(raw);m.showEntryLog(raw);m.showEntryBlame(raw);m.compareEntryToWorkingTree(raw);m.markForComparison(raw);m.revert([raw])
-        try require(dispatches==2 && m.comparisonMark==nil && !m.mutating && m.error==RepositoryBrowserWindowModel.rawPathReason,"Raw history or filesystem boundary changed")
+        m.open(raw);try await wait{!m.hasPendingWork};m.showEntryLog(raw);m.showEntryBlame(raw);m.compareEntryToWorkingTree(raw)
+        m.markForComparison(raw);try await wait{!m.busy && !m.hasPendingWork};m.revert([raw])
+        try require(dispatches==3 && m.comparisonMark?.path==raw.path && m.comparisonMark?.revision==c.revision && !m.mutating && m.error==RepositoryBrowserWindowModel.rawPathReason,"Raw historical delivery or filesystem boundary changed")
+        m.comparisonMark=nil
         m.selection=[raw.id]
         try require(m.dragProvider(raw)==nil && m.captureTransfer([raw.id])==nil,"Raw drag offered")
-        m.error=nil;m.showEntryLog(valid);try require(dispatches==3,"Valid sibling Log suppressed")
+        m.error=nil;m.showEntryLog(valid);try require(dispatches==4,"Valid sibling Log suppressed")
         let badFolder=m.entries.first{$0.name=="valid-folder"}!
         m.error=nil;m.selection=[badFolder.id];try require(m.captureTransfer([badFolder.id])==nil && m.error?.contains("cannot be delivered")==true,"Representable folder with raw descendant offered a transfer")
         m.error=nil;m.selection=[valid.id]
@@ -103,7 +105,7 @@ private extension NSWindow {
         defer{try? FileManager.default.removeItem(at:delivered)}
         try await promise.write(to:delivered)
         try require(promise.name=="valid.txt" && (try Data(contentsOf:delivered))==c.text,"Actual valid sibling promise delivery changed")
-        m.open(valid);try await wait{!m.busy && !m.hasPendingWork};try require(dispatches==4,"Valid sibling materialized Open suppressed")
+        m.open(valid);try await wait{!m.busy && !m.hasPendingWork};try require(dispatches==5,"Valid sibling materialized Open suppressed")
         owner.window?.appearance=NSAppearance(named:.darkAqua)
         let binary=m.entries.first{$0.rawName==Data([0xfe,0x2e,0x74,0x78,0x74])}!
         guard let table=owner.contentsTable,let menu=table.menu else{throw Failure(description:"Shipping native menu absent")}
@@ -137,7 +139,7 @@ private extension NSWindow {
         }
         func invoke(_ item:NSMenuItem)throws{guard let action=item.action else{throw Failure(description:"Delivery selector absent")};try require(NSApp.sendAction(action,to:item.target,from:item),"Delivery selector did not dispatch")}
         for title in ["Open stored blob (unfiltered)","Open stored blob with…","View stored blob with alternative editor","Save stored blob (unfiltered) to…"]{_=try item(title)}
-        for title in ["Open","Open With…","View revision with alternative editor","Save revision to…","Compare with working tree","Mark for comparison"]{
+        for title in ["Compare with working tree"]{
             guard let filtered=menu.items.first(where:{$0.title==title})else{throw Failure(description:"Ordinary filtered command disappeared: "+title)}
             try require(!filtered.isEnabled,"Unfiltered delivery enabled a pathname-dependent action: "+title)
         }
@@ -350,12 +352,197 @@ private extension NSWindow {
         for url in [wrapper,resource,pid,hold]{try? FileManager.default.removeItem(at:url)}
         try await c.unchanged()
     }
+    static func historical(_ c:Context)async throws {
+        let selected=GitLibGit2Configuration(enabled:true,mask:GitLibGit2Operation.getOneFile.mask)
+        c.prefs.set(true,forKey:"UseLibgit2");c.prefs.set(GitLibGit2Operation.getOneFile.mask,forKey:"UseLibgit2_mask")
+        let repo=c.repository(backend:selected)
+        let backendDescription="selected helper GetOneFile mask="+String(selected.mask)
+        _=try await repo.run(["config","filter.qa.smudge","sed 's/stored/filtered/g'"])
+        try FileManager.default.createDirectory(at:c.folder.appendingPathComponent(".git/info"),withIntermediateDirectories:true)
+        try Data("*.txt filter=qa\n".utf8).write(to:c.folder.appendingPathComponent(".git/info/attributes"))
+        c.config=try Data(contentsOf:c.folder.appendingPathComponent(".git/config"))
+        let owner=try await c.owner(repository:repo),m=owner.model,raw=m.entries.first{$0.rawName==Data([0xff,0x2e,0x74,0x78,0x74])}!
+        let filtered=Data("filtered body\n".utf8),expectedLeaf="Git-blob-"+raw.objectID+".txt"
+        guard let table=owner.contentsTable,let menu=table.menu else{throw Failure(description:"Historical native menu absent")}
+        func item(_ title:String)throws->NSMenuItem {
+            table.selectRowIndexes(IndexSet(integer:m.entries.firstIndex(of:raw)!),byExtendingSelection:false);m.selection=[raw.id];menu.delegate?.menuNeedsUpdate?(menu)
+            guard let value=menu.items.first(where:{$0.title==title})else{throw Failure(description:"Missing historical command "+title)}
+            try require(value.isEnabled && value.image != nil,"Historical command disabled/icon absent: "+title);return value
+        }
+        func invoke(_ value:NSMenuItem)throws {
+            guard let selector=value.action else{throw Failure(description:"Historical selector absent")}
+            try require(NSApp.sendAction(selector,to:value.target,from:value),"Historical selector not delivered")
+        }
+        for title in ["Open","Open With…","View revision with alternative editor","Save revision to…","Mark for comparison"]{_=try item(title)}
+        let destination=c.folder.deletingLastPathComponent().appendingPathComponent("filtered-historical.txt")
+        defer{try? FileManager.default.removeItem(at:destination)}
+        var names:[String]=[],writes=0
+        let write=owner.writeDocument
+        owner.writeDocument={bytes,url,token in writes+=1;try await write(bytes,url,token)}
+        owner.saveDestination={_ in destination};owner.presentSavePanel={panel,_,reply in names.append(panel.nameFieldStringValue);reply(.OK);reply(.OK)}
+        try invoke(item("Save revision to…"));try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(m.error==nil,"Filtered raw Save failed ("+backendDescription+"): "+(m.error ?? ""))
+        try require(names==[expectedLeaf],"Filtered Save names=\(names), expected=\(expectedLeaf), "+backendDescription)
+        try require(writes==1,"Filtered Save writes=\(writes), expected=1, "+backendDescription)
+        let savedBytes=try Data(contentsOf:destination)
+        try require(savedBytes==filtered,"Filtered Save actual=\(String(decoding:savedBytes,as:UTF8.self)), expected=\(String(decoding:filtered,as:UTF8.self)), "+backendDescription)
+        let app=c.folder.deletingLastPathComponent().appendingPathComponent("PrivateHistoricalViewer.app")
+        var launched:[URL]=[]
+        owner.defaultApplication={_ in app};owner.selectedApplication={_ in app}
+        owner.launchDocument={application,documents,_ in
+            try require(application==app && documents.count==1,"Historical launch retargeted program")
+            let file=documents[0];c.previewFiles.append(file);launched.append(file)
+            try require(file.lastPathComponent=="Git-blob-"+raw.objectID+"-"+String(c.revision.prefix(7))+".txt" && (try Data(contentsOf:file))==filtered,"Filtered preview used escaped path or unfiltered bytes")
+        }
+        try invoke(item("Open"));try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(launched.count==1 && m.error==nil,"Raw ordinary Open failed")
+        owner.presentApplicationPanel={_,_,reply in reply(.cancel)}
+        try invoke(item("Open With…"));try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(launched.count==1,"Cancelled ordinary raw Open With launched")
+        owner.presentApplicationPanel={_,_,reply in reply(.OK);reply(.OK)}
+        try invoke(item("Open With…"));try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(launched.count==2 && launched[0] != launched[1] && m.error==nil,"Raw Open With reused preview or dispatched twice")
+        let native=m.presentFile;var alternative=0
+        m.presentFile={content,action in if action == .alternativeEditor && content.path==raw.path && content.objectID==raw.objectID && content.bytes==filtered{alternative+=1}}
+        try invoke(item("View revision with alternative editor"));try await wait{!m.hasPendingWork}
+        try require(alternative==1,"Alternative editor lost filtered content/exact source identity");m.presentFile=native
+        try invoke(item("Mark for comparison"));try await wait{!m.hasPendingWork && !m.busy}
+        try require(m.comparisonMark?.path==raw.path && m.comparisonMark?.revision==c.revision,"Raw historical mark retargeted")
+        var compared=0
+        m.onPreparedFileCompare={base,to in if base.path==raw.path && to.path==raw.path && base.revision==c.revision && to.revision==c.revision{compared+=1}}
+        m.compareWithMarkedFile(raw);try await wait{!m.hasPendingWork && !m.busy};try require(compared==1,"Raw historical mark comparison did not dispatch")
+        m.comparisonMark=PreparedFileComparisonMark(path:"valid.txt",revision:"")
+        m.compareWithMarkedFile(raw);try require(m.error==RepositoryBrowserWindowModel.rawPathReason && compared==1,"Raw working-tree mark crossed filesystem boundary");m.error=nil
+        // A retained application chooser cannot deliver to a retired Browser.
+        var reply:((NSApplication.ModalResponse)->Void)?
+        owner.presentApplicationPanel={_,_,callback in reply=callback};c.releases.append{reply?(.cancel);reply=nil}
+        try invoke(item("Open With…"));try await wait{reply != nil};owner.close();reply?(.OK);reply=nil
+        try await wait{!owner.hasPendingWork && !m.hasPendingWork};try require(launched.count==2,"Late filtered application choice launched after retirement")
+        let nextBlob=try await c.oid(["hash-object","-w","--stdin"],input:Data("stored next\n".utf8))
+        let nextTree=try await c.tree([("100644","blob",nextBlob,raw.rawName)])
+        let next=try await c.oid(["commit-tree",nextTree,"-p",c.revision,"-m","next raw version"])
+        let comparison=try await repo.preparedPathComparison(from:.revision(c.revision),fromPath:raw.path,to:.revision(next),toPath:raw.path)
+        let merge=FileComparisonWindowController(repository:repo,access:nil,snapshot:comparison,path:raw.path,preferences:c.prefs);c.comparisons.append(merge)
+        merge.model.load();try await wait{!merge.model.busy && !merge.model.mergeToolHasPendingWork}
+        try require(merge.model.error==nil && merge.model.document?.base.bytes==c.text && merge.model.document?.destination.bytes==Data("stored next\n".utf8),"Raw comparison did not load exact original revisions: "+(merge.model.error ?? ""))
+        try require(!merge.model.windowTitle.contains("\0") && !merge.model.paneHeader(base:true).contains("\0") && !merge.model.paneHelp(base:false).contains("\0"),"Comparison exposed opaque path key")
+        var saveNames:[String]=[]
+        merge.model.chooseExportLocation={_,name,_ in saveNames.append(name);return nil};merge.model.saveAs(base:false)
+        try await wait{!merge.model.mergeToolHasPendingWork}
+        try require(saveNames==["Git-blob-"+nextBlob+".txt"],"Comparison Save As suggested raw/escaped path")
+        let patch=c.folder.deletingLastPathComponent().appendingPathComponent("raw-historical.diff")
+        defer{try? FileManager.default.removeItem(at:patch)}
+        merge.model.patchExecutable=c.git;merge.model.choosePatchLocation={_,name,_ in saveNames.append(name);return patch}
+        merge.model.createUnifiedPatch();try await wait{!merge.model.mergeToolHasPendingWork}
+        let bytes=try Data(contentsOf:patch)
+        try require(merge.model.error==nil && bytes.range(of:Data("\\377.txt".utf8)) != nil && !bytes.contains(0),"Edited-buffer patch lost quoted exact raw filename")
+        let blame=BlameWindowController(repository:repo,access:nil,path:raw.path,revision:next,options:GitBlameOptions(),preferences:c.prefs,requireScope:false);c.blames.append(blame)
+        try await wait{!blame.model.busy && BlameWindowModel.activeHistoryOperations==0}
+        var parentsReady=false
+        blame.model.prepareParentMenu(number:1){parentsReady=true};try await wait{parentsReady && !blame.model.loadingParents}
+        guard let target=blame.model.sourceParentTarget(next),let choice=blame.model.parentChoices.first else{throw Failure(description:"Raw Blame previous-origin choice missing: "+(blame.model.error ?? ""))}
+        try require(choice.path==raw.path && choice.revision==c.revision,"Blame parent origin lost raw bytes or old commit")
+        var previous=0,blameCompared=0,unified=0
+        blame.model.onPrevious={path,revision,_,_ in if path==raw.path && revision==c.revision{previous+=1}}
+        blame.model.onChanges={snapshot in if snapshot.from == .revision(c.revision) && snapshot.to == .revision(next) && snapshot.files.first?.path==raw.path{blameCompared+=1}}
+        blame.model.onHistoryUnified={bytes,title,_ in
+            try require(bytes.range(of:Data("\\377.txt".utf8)) != nil && !title.contains("\0"),"Blame unified diff lost raw header/display caption");unified+=1
+        }
+        blame.model.performHistoryParent(target,choices:[choice],action:.previous)
+        blame.model.performHistoryParent(target,choices:[choice],action:.compare)
+        blame.model.performHistoryParent(target,choices:[choice],action:.unified)
+        try await wait{BlameWindowModel.activeHistoryOperations==0}
+        try require(previous==1 && blameCompared==1 && unified==1 && blame.model.error==nil,"Raw Blame previous/compare/unified family did not deliver")
+        let log=LogWindowController(repository:repo,access:nil,labelDefaults:c.prefs,savesGeometry:false,initialRevision:c.revision,loadsImmediately:false);c.logs.append(log)
+        log.model.showWorkingTree=false;log.model.setPathScope([raw.path]);try await wait{!log.model.busy && log.model.pendingHistoryLoads==0 && LogWindowModel.activeActionReads==0}
+        guard let file=log.model.files.first(where:{$0.path==raw.path})else{throw Failure(description:"Historical Log raw row absent")}
+        var saved:ComparisonFileContent?,opened:ComparisonFileContent?,pairPaths:[String]=[]
+        log.model.presentHistoricalSave={value,_ in saved=value};log.model.saveHistoricalFile([file.id]);try await wait{LogWindowModel.activeFileOpenReads==0}
+        try require(saved?.bytes==filtered && saved?.path==raw.path && saved?.objectID==raw.objectID,"Log Save did not preserve filtered raw origin")
+        log.model.presentHistoricalOpen={value,_ in opened=value};log.model.openHistoricalFile([file.id],action:.openWith);try await wait{LogWindowModel.activeFileOpenReads==0}
+        try require(opened?.bytes==filtered && opened?.path==raw.path,"Log Open did not use filtered raw historical content")
+        log.model.onFileComparisons={requests in pairPaths=requests.flatMap{$0.2}}
+        log.model.compareFiles([file.id]);try require(pairPaths==[raw.path],"Log parent comparison replaced raw path")
+        log.model.compareFiles([file.id],workingTree:true);try require(log.model.error==RepositoryBrowserWindowModel.rawPathReason && pairPaths==[raw.path],"Log raw working-tree comparison dispatched");log.model.error=nil
+        // Generic external comparison receives real private files separately
+        // from escaped labels; original raw keys never become argv or URLs.
+        guard let externalDocument=merge.model.document else{throw Failure(description:"External comparison document absent")}
+        var program=DiffToolProgram();program.enabled=true;program.applicationPath=app.path;program.arguments="%base %mine %bname %yname %bpath %ypath"
+        var externalCalls=0,privateFiles:[URL]=[]
+        let openedExternal=try await DiffToolApplication.open(externalDocument,root:c.folder,permissions:[],alternate:false,preferences:c.prefs,selection:.program(program),launch:{application,configuration in
+            let args=configuration.arguments;externalCalls+=1
+            try require(application==app && args.count==6 && args.allSatisfy{!$0.contains("\0")},"External raw comparison passed opaque argv")
+            let a=URL(fileURLWithPath:args[0]),b=URL(fileURLWithPath:args[1]);privateFiles += [a,b]
+            try require(a.lastPathComponent==expectedLeaf && b.lastPathComponent=="Git-blob-"+nextBlob+".txt" && args[4]==a.path && args[5]==b.path,"External raw path arguments were not private safe leaves")
+            try require(args[2]==RepositoryBrowserGitPath.display(key:raw.path)+" : "+c.revision && args[3]==RepositoryBrowserGitPath.display(key:raw.path)+" : "+next,"External raw display labels changed identity")
+            try require((try Data(contentsOf:a))==c.text && (try Data(contentsOf:b))==Data("stored next\n".utf8),"External comparison altered original source bytes")
+            for file in [a,b]{try require((try FileManager.default.attributesOfItem(atPath:file.path)[.posixPermissions] as? NSNumber)?.intValue==0o444,"External input not read-only")}
+        })
+        try require(openedExternal && externalCalls==1 && DiffToolApplication.activeRequests==0,"External comparison ownership did not settle")
+        let absentSnapshot=try await repo.revisionComparison(from:.emptyTree,to:.revision(next),paths:[raw.path])
+        let absentDocument=try await repo.comparisonFile(absentSnapshot,path:raw.path)
+        let addedMerge=FileComparisonWindowController(repository:repo,access:nil,snapshot:absentSnapshot,path:raw.path,preferences:c.prefs);c.comparisons.append(addedMerge)
+        addedMerge.model.load();try await wait{!addedMerge.model.busy && !addedMerge.model.mergeToolHasPendingWork}
+        try require(addedMerge.model.error==nil && addedMerge.model.document?.base.mode==nil,"Added raw comparison did not expose absent base")
+        var absentNames:[String]=[]
+        addedMerge.model.chooseExportLocation={_,name,_ in absentNames.append(name);return nil};addedMerge.model.saveAs(base:true)
+        try await wait{!addedMerge.model.mergeToolHasPendingWork}
+        try require(absentNames==["base-absent.txt"],"Added raw absent-base Save As required a fictional blob")
+        let deletedSnapshot=try await repo.revisionComparison(from:.revision(next),to:.emptyTree,paths:[raw.path])
+        let deletedMerge=FileComparisonWindowController(repository:repo,access:nil,snapshot:deletedSnapshot,path:raw.path,preferences:c.prefs);c.comparisons.append(deletedMerge)
+        deletedMerge.model.load();try await wait{!deletedMerge.model.busy && !deletedMerge.model.mergeToolHasPendingWork}
+        try require(deletedMerge.model.error==nil && deletedMerge.model.document?.destination.mode==nil,"Deleted raw comparison did not expose absent destination")
+        deletedMerge.model.chooseExportLocation={_,name,_ in absentNames.append(name);return nil};deletedMerge.model.saveAs(base:false)
+        try await wait{!deletedMerge.model.mergeToolHasPendingWork}
+        deletedMerge.model.choosePatchLocation={_,name,_ in absentNames.append(name);return nil};deletedMerge.model.createUnifiedPatch()
+        try await wait{!deletedMerge.model.mergeToolHasPendingWork}
+        try require(absentNames==["base-absent.txt","mine-absent.txt","mine-absent.txt.diff"] && deletedMerge.model.error==nil,"Raw deletion patch/Save As proposal required an absent blob")
+        _=try await DiffToolApplication.open(absentDocument,root:c.folder,permissions:[],alternate:false,preferences:c.prefs,selection:.program(program),launch:{_,configuration in
+            let args=configuration.arguments;externalCalls+=1
+            try require(args.count==6,"Absent-side external argument count changed")
+            let file=URL(fileURLWithPath:args[0]);privateFiles.append(file)
+            try require(file.lastPathComponent=="base-absent.txt" && (try Data(contentsOf:file)).isEmpty && args[4]==file.path,"Absent raw side invented a blob or original filesystem path")
+        })
+        let cancelled=OperationCancellation();cancelled.cancel()
+        do{_=try await DiffToolApplication.open(externalDocument,root:c.folder,permissions:[],alternate:false,preferences:c.prefs,cancellation:cancelled,selection:.program(program),launch:{_,_ in externalCalls+=1});throw Failure(description:"Cancelled external raw comparison dispatched")}
+        catch is OperationCancellationFailure{}
+        try require(externalCalls==2 && DiffToolApplication.activeRequests==0,"Cancelled external comparison lost ownership")
+        let ordinarySnapshot=try await repo.preparedPathComparison(from:.revision(c.revision),fromPath:"valid.txt",to:.revision(c.revision),toPath:"valid.txt")
+        let ordinaryDocument=try await repo.comparisonFile(ordinarySnapshot,path:"valid.txt")
+        _=try await DiffToolApplication.open(ordinaryDocument,root:c.folder,permissions:[],alternate:false,preferences:c.prefs,selection:.program(program),launch:{_,configuration in
+            let args=configuration.arguments;externalCalls+=1
+            try require(args.count==6 && args[4]=="valid.txt" && args[5]=="valid.txt" && args[2]=="valid.txt : "+c.revision,"Ordinary external path/title arguments changed")
+            try require(URL(fileURLWithPath:args[0]).lastPathComponent=="valid.txt","Ordinary private preview leaf changed")
+        })
+        DiffToolApplication.discardAll();try require(privateFiles.allSatisfy{!FileManager.default.fileExists(atPath:$0.path)},"External private previews survived owned cleanup")
+        // Hold the real selected-helper smudge child, then force retirement.
+        // Its exact authored script/resource is recognized by runner cleanup.
+        let wrapper=c.folder.appendingPathComponent("held-helper"),hold=c.folder.appendingPathComponent("hold-filter"),pid=c.folder.appendingPathComponent("filter.pid"),resource=c.folder.appendingPathComponent("owned-filter-resource")
+        func quote(_ value:String)->String{"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        try Data().write(to:resource);try Data().write(to:hold)
+        let script="#!/bin/sh\nexec 9<"+quote(resource.path)+"\necho $$ >"+quote(pid.path)+"\nwhile [ -e "+quote(hold.path)+" ]; do sleep 0.02; done\nsed 's/stored/filtered/g'\n"
+        try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+        _=try await repo.run(["config","filter.qa.smudge",quote(wrapper.path)])
+        c.releases.append{try? FileManager.default.removeItem(at:hold)}
+        let heldRepository=c.repository(backend:selected)
+        let held=RepositoryBrowserWindowController(repository:heldRepository,access:nil,revision:c.revision,preferences:c.prefs);c.owners.append(held)
+        try await wait{!held.model.busy && !held.model.hasPendingWork}
+        guard let heldFile=held.model.entries.first(where:{$0.rawName==raw.rawName})else{throw Failure(description:"Held filtered raw row missing")}
+        var late=0;held.model.presentFile={_,_ in late+=1};held.model.open(heldFile)
+        try await wait{FileManager.default.fileExists(atPath:pid.path)}
+        held.close();try require(held.model.hasPendingWork && !held.model.active,"Filtered producer ownership disappeared on close")
+        try? FileManager.default.removeItem(at:hold);try await wait{!held.model.hasPendingWork && RepositoryBrowserWindowModel.activeOperations==0}
+        try require(late==0,"Retired filtered producer launched a document")
+        _=try await repo.run(["config","filter.qa.smudge","sed 's/stored/filtered/g'"])
+        for url in [wrapper,hold,pid,resource]{try? FileManager.default.removeItem(at:url)}
+        try await c.unchanged()
+    }
     static func main()async{
         NSApplication.shared.setActivationPolicy(.prohibited)
         let methods=[(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.namespaceFrame(_:to:)))),(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.namespaceOrder(_:relativeTo:))))]
         for(a,b)in methods{if let a,let b{method_exchangeImplementations(a,b)}}
         defer{for(a,b)in methods.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
         let c=Context(),name=CommandLine.arguments[3]
-        do{try await c.prepare();switch name{case "listing":try await listing(c);case "navigation":try await navigation(c);case "actions":try await actions(c);case "ownership":try await ownership(c);case "delivery":try await delivery(c);case "history":try await history(c);default:throw Failure(description:"Unknown case")};await c.cleanup();print("PASS: Browser namespace "+name)}catch{await c.cleanup();fputs("\(error)\n",stderr);exit(1)}
+        do{try await c.prepare();switch name{case "listing":try await listing(c);case "navigation":try await navigation(c);case "actions":try await actions(c);case "ownership":try await ownership(c);case "delivery":try await delivery(c);case "history":try await history(c);case "historical":try await historical(c);default:throw Failure(description:"Unknown case")};await c.cleanup();print("PASS: Browser namespace "+name)}catch{await c.cleanup();fputs("\(error)\n",stderr);exit(1)}
     }
 }

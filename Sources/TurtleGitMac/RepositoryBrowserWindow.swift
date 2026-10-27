@@ -229,7 +229,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             return self.fileOperation === operation && self.model.active && !operation.cancellation.isCancelled && self.window === window && window != nil && self.model.generation==generation && Data(self.model.revision.utf8)==Data(revision.utf8) && self.model.snapshot?.objectID==object && Data((self.model.snapshot?.directory ?? "").utf8)==Data((directory ?? "").utf8)
         }
         if action == .save {
-            let panel=NSSavePanel();panel.title="Save revision to…";panel.nameFieldStringValue=(content.path as NSString).lastPathComponent;ownedSheet=panel
+            let name:String
+            do{name=try HistoricalFileDeliveryName.leaf(for:content)}catch{model.error=error.localizedDescription;finishFile(operation);return}
+            let panel=NSSavePanel();panel.title="Save revision to…";panel.nameFieldStringValue=name;panel.directoryURL=model.repository.root;ownedSheet=panel
             var answered=false
             let reply:(NSApplication.ModalResponse)->Void = { [weak self] response in
                 guard !answered,let self,self.fileOperation === operation,self.ownedSheet === panel else {return};answered=true
@@ -427,7 +429,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var presentStoredBlob:(Data,RepositoryBrowserEntry)->Void = {_,_ in}
     var readStoredBlob:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->Data)?
     var readStoredFile:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->ComparisonFileContent)?
-    static let rawPathReason="This Git pathname cannot be represented as a macOS text path. Use the stored blob actions to view, save or open its unfiltered contents under a safe filename. Original-path filesystem and mutation actions are unavailable."
+    static let rawPathReason="This Git pathname cannot be represented as a macOS text path. Historical Open, Save and comparison use safe temporary files. Working-tree filesystem and mutation actions are unavailable."
     func requireRepresentable(_ path:String)->Bool {
         guard (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true else {error=Self.rawPathReason;return false};return true
     }
@@ -627,7 +629,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, snapshot.entries.contains(entry) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path,select:true); return }
-        guard requireRepresentable(entry.path) else{return}
+        if entry.kind == .submodule, !requireRepresentable(entry.path) {return}
         if entry.kind == .submodule && action == .open && !snapshot.bare { loadSubmodule(snapshot,entry:entry,showLog:false); return }
         if let openRequest { requests[openRequest]?.cancel() }
         let (request,cancellation) = startRequest(), identity = generation,backend=materializationBackend()
@@ -762,7 +764,6 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func markForComparison(_ entry: RepositoryBrowserEntry) {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, let revision = snapshot.objectID,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
-        guard requireRepresentable(entry.path) else{return}
         resolveNavigationRevision(revision) { [weak self] resolved in
             self?.comparisonMark = PreparedFileComparisonMark(path:entry.path,revision:resolved)
         }
@@ -771,7 +772,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, let revision = snapshot.objectID, let comparisonMark = capturedMark ?? comparisonMark,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         let markIdentity=comparisonMarkRevision
-        guard requireRepresentable(entry.path) else{return}
+        if comparisonMark.workingAccess != nil || comparisonMark.revision.isEmpty {
+            guard requireRepresentable(entry.path) else{return}
+        }
         resolveNavigationRevision(revision) { [weak self] resolved in
             guard let self,self.comparisonMarkRevision==markIdentity else{return}
             self.onPreparedFileCompare?(comparisonMark,PreparedFileComparisonMark(path:entry.path,revision:resolved))

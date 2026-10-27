@@ -142,10 +142,10 @@ public struct DiffToolPreferences: Codable, Equatable, Sendable {
     }
     /// AppUtils::PickDiffTool: destination filename, base filename, destination extension.
     public func selection(base: String, destination: String, alternate: Bool = false) throws -> DiffToolSelection {
-        let filename = (destination as NSString).lastPathComponent.lowercased()
-        let baseName = (base as NSString).lastPathComponent.lowercased()
-        let ext = (filename as NSString).pathExtension
-        let candidates = [filename, baseName] + (ext.isEmpty ? [] : ["." + ext])
+        let filename = HistoricalGitPath.filename(destination)?.lowercased()
+        let baseName = HistoricalGitPath.filename(base)?.lowercased()
+        let ext = HistoricalGitPath.fileExtension(destination).lowercased()
+        let candidates = [filename, baseName].compactMap { $0 } + (ext.isEmpty ? [] : ["." + ext])
         let association = candidates.compactMap { name in associations.first { $0.patternIdentity == Data(name.utf8) } }.first
         // Source built-in image comparison precedes the default text diff tool.
         if association == nil, DiffToolSelection.imageExtensions.contains(ext) { return alternate ? .merge : .image }
@@ -188,9 +188,10 @@ public struct MergeToolPreferences: Codable, Equatable, Sendable {
         defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGit.MergeTools")
     }
     public func selected(path: String, alternate: Bool = false) throws -> DiffToolProgram? {
-        let name = (path as NSString).lastPathComponent.lowercased(), ext = (path as NSString).pathExtension.lowercased()
-        let keys = ["." + name] + (ext.isEmpty ? [] : ["." + ext])
-        let found = keys.compactMap { key in associations.first { $0.patternIdentity == Data(key.utf8) } }.first?.program ?? program
+        let name = HistoricalGitPath.filename(path)?.lowercased(), ext = HistoricalGitPath.fileExtension(path).lowercased()
+        let keys = name.map { ["." + $0] } ?? []
+        let candidates = keys + (ext.isEmpty ? [] : ["." + ext])
+        let found = candidates.compactMap { key in associations.first { $0.patternIdentity == Data(key.utf8) } }.first?.program ?? program
         guard found.enabled != alternate, found.builtIn != nil || !found.applicationPath.isEmpty else { return nil }
         var result = found; result.enabled = true
         guard result.valid, Self.supports(result.builtIn) else { throw DiffToolFailure.application }; return result

@@ -472,7 +472,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                   choice.parentNumber>0 && choice.comparison.root==repository.root && choice.comparison.from == .revision(choice.revision) && choice.comparison.to == .revision(target.entries[0].hash) && choice.comparison.files.count==1 && choice.comparison.files.first.map { GitReferenceName.equal(choice.path,$0.oldPath ?? $0.path) } == true
               }) else { return }
         if action == .previous { for choice in choices { guard acceptsHistory(target) else { return };onPrevious?(choice.path,choice.revision,originalLine,appliedOptions) };return }
-        guard choices.allSatisfy({(try? RepositoryBrowserGitPath(key:$0.path).isRepresentable)==true && $0.comparison.files.allSatisfy(\.isPathRepresentable)}) else{error=RepositoryBrowserWindowModel.rawPathReason;return}
+        guard choices.allSatisfy({$0.comparison.from != .workingTree && $0.comparison.to != .workingTree || $0.comparison.files.allSatisfy(\.isPathRepresentable)}) else{error=RepositoryBrowserWindowModel.rawPathReason;return}
         if action == .compare {
             guard let onOwnedChanges else {
                 // Compatibility for independent consumers of the original
@@ -1641,7 +1641,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                     let source:HistoryContextCommand = action == .previous ? .blamePrevious : action == .compare ? .comparePrevious : .unifiedDiff
                     guard policy.contains(source), action != .unified || model.historyHasWorkingTree else { continue }
                     func command(_ number:Int,_ title:String)->NSMenuItem {
-                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled && (action == .previous || parents[number]!.allSatisfy{(try? RepositoryBrowserGitPath(key:$0.path).isRepresentable)==true});result.representedObject=ParentInvocation(target,parents[number]!,action)
+                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled;result.representedObject=ParentInvocation(target,parents[number]!,action)
                         if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") && number==parents.keys.min() { result.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };return result
                     }
                     if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,title)) }
@@ -1973,7 +1973,7 @@ private struct BlameTable: NSViewRepresentable {
             let choices=contextTarget == nil ? model.parentChoices:contextParents
             func item(_ title:String,_ command:String,_ icon:MenuIcon?,choice:GitBlameParentComparison? = nil,enabled:Bool=true,into parent:NSMenu? = nil) {
                 let value=NSMenuItem(title:title,action:#selector(invokeSource(_:)),keyEquivalent:"");value.target=self
-                value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled && (command == "previous" || (choice.map{(try? RepositoryBrowserGitPath(key:$0.path).isRepresentable)==true} ?? true));(parent ?? menu).addItem(value)
+                value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled;(parent ?? menu).addItem(value)
                 if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),choice?.id==choices.first?.id { value.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
             }
             if contextTarget==nil && model.loadingParents {let value=NSMenuItem(title:"Reading previous revisions…",action:nil,keyEquivalent:"");value.isEnabled=false;menu.addItem(value)}

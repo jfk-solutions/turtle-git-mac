@@ -3,6 +3,10 @@ import UniformTypeIdentifiers
 import SwiftUI
 import TurtleGitCore
 
+private func displayedComparisonPath(_ path:String) -> String {
+    path.contains("\0") ? RepositoryBrowserGitPath.display(key:path):path
+}
+
 private extension FileComparisonDocument {
     func exchangingSides() -> Self { replacingPane(base:true,content:destination).replacingPane(base:false,content:base) }
 }
@@ -438,7 +442,7 @@ private extension FileComparisonDocument {
     var windowTitle:String {
         guard !sourceComparisonTitles.isEmpty,standaloneImages==nil,imageComparison==nil else {
             let name=standaloneImages == nil ? (sidesReversed ? document?.destination.path ?? path:path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")
-            return name+" – "+(imageComparison == nil ? "TurtleGitMerge":"TurtleGitIDiff")
+            return displayedComparisonPath(name)+" – "+(imageComparison == nil ? "TurtleGitMerge":"TurtleGitIDiff")
         }
         // MainFrm::SetWindowTitle shortening/order, independent of full pane
         // captions. storageSide maps the current right/left presentation.
@@ -529,11 +533,11 @@ private extension FileComparisonDocument {
     func paneHeader(base: Bool) -> String {
         let content = base ? document?.base : document?.destination
         if let name = mergeToolDescriptiveName(base: base), !name.isEmpty { return name }
-        return (content?.path ?? path) + " : " + (content?.revision.label ?? (base ? snapshot.from.label : snapshot.to.label))
+        return displayedComparisonPath(content?.path ?? path) + " : " + (content?.revision.label ?? (base ? snapshot.from.label : snapshot.to.label))
     }
     func paneHelp(base: Bool) -> String {
         let content = base ? document?.base : document?.destination
-        return [content?.path, mergeToolReflectedName(base: base)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+        return [content.map{displayedComparisonPath($0.path)}, mergeToolReflectedName(base: base)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
     }
     private var mergeToolNeedsOutput: Bool { mergeToolOutput != nil && !mergeToolSaved && !mergeToolReadOnly }
     private var saveAllSides: [Bool] {
@@ -1005,7 +1009,8 @@ private extension FileComparisonDocument {
         spacePanes[base] = editorPreferences.useSpaces
         smartTabPanes[base] = editorPreferences.smartTab
         editorConfigLoading.remove(base)
-        guard enabled else { return }
+        // Repository byte names are not paths into the current checkout.
+        guard enabled,!content.path.contains("\0") else { return }
         let read = makeEditorConfigRead(); editorConfigReads[base] = read
         editorConfigLoading.insert(base)
         let permissions = openPermissions; ownedMergeOperations += 1
@@ -1336,7 +1341,8 @@ private extension FileComparisonDocument {
             if onePaneActive, !base, let combined, let selectedEncoding { bytes = try selectedEncoding.encode(combined.sourceSaveText) }
             else { bytes = try drafts?.exported(base: base) ?? content.bytes }
             let directory = paneTargets[base]?.url.deletingLastPathComponent() ?? (sourceSnapshotRoot == nil ? snapshot.root : FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.homeDirectoryForCurrentUser)
-            let name = (content.path as NSString).lastPathComponent
+            let name:String
+            if content.path.contains("\0"){name=try ComparisonPreviewInputName.leaf(for:content,other:base ? document.destination:document.base,side:base ? "base":"mine",fallbackExtension:"")}else{name=(content.path as NSString).lastPathComponent}
             let chooser = chooseExportLocation
             guard let request = beginOutput() else { return }
             Task {
@@ -1381,7 +1387,9 @@ private extension FileComparisonDocument {
         Task {
             defer { finishOutput(request) }
             do {
-                guard acceptsOutput(request), let target = await chooser(window, label(document.destination) + ".diff", directory), acceptsOutput(request) else { return }
+                let suggested:String
+                if document.destination.path.contains("\0"){suggested=try ComparisonPreviewInputName.leaf(for:document.destination,other:document.base,side:"mine",fallbackExtension:"")+".diff"}else{suggested=label(document.destination)+".diff"}
+                guard acceptsOutput(request), let target = await chooser(window, suggested, directory), acceptsOutput(request) else { return }
                 let permission = RepositoryAccessLease(url: target)
                 let executable = try generator ?? GitRuntime.executable()
                 func savedContent(_ content: ComparisonFileContent) throws -> ComparisonFileContent {
@@ -1940,7 +1948,11 @@ private extension FileComparisonDocument {
         let content=base ? document.base : document.destination
         let proposed = base == mergeToolResultSide ? mergeToolOutput?.url : nil
         let directory=proposed?.deletingLastPathComponent() ?? paneTargets[base]?.url.deletingLastPathComponent() ?? snapshot.root
-        guard let url=await chooseExportLocation(window,((proposed?.path ?? content.path) as NSString).lastPathComponent,directory) else {return false}
+        let name:String
+        if let proposed{name=proposed.lastPathComponent}
+        else if content.path.contains("\0"){name=try ComparisonPreviewInputName.leaf(for:content,other:base ? document.destination:document.base,side:base ? "base":"mine",fallbackExtension:"")}
+        else{name=(content.path as NSString).lastPathComponent}
+        guard let url=await chooseExportLocation(window,name,directory) else {return false}
         try ensurePaneSave(request)
         let permission=RepositoryAccessLease(url:url)
         if let sourceSnapshotRoot,url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") {throw FileComparisonEditFailure.unsupported}
@@ -2014,6 +2026,11 @@ private extension FileComparisonDocument {
                         try drafts?.didSave(savedContent,base:base)
                         if inputEncodingOverrides[storageSide(base)] != nil,let codec=savedContent.encoding {inputEncodingOverrides[storageSide(base)]=codec}
                         mergeToolDidSave = true; mergeToolSaveRequired = false
+                        continue
+                    }
+                    if content.path.contains("\0") {
+                        guard content.revision != .workingTree else{throw FileComparisonEditFailure.unsupported}
+                        guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request,wrote:{writtenURLs.append($0)}) else{return}
                         continue
                     }
                     let file=content.path.hasPrefix("/") ? URL(fileURLWithPath:content.path) : snapshot.root.appendingPathComponent(content.path)

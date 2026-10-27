@@ -419,7 +419,7 @@ extension GitRepository {
         if entry.kind == .submodule {
             return ComparisonFileContent(path: entry.displayPath + ".txt", revision: .revision(object), bytes: Data(("Subproject commit " + entry.objectID).utf8), mode: "100644")
         }
-        return ComparisonFileContent(path: entry.displayPath, revision: .revision(object), bytes: try storedRepositoryBrowserBlob(snapshot,entry:entry,cancellation:cancellation), mode: entry.mode)
+        return ComparisonFileContent(path: entry.path, revision: .revision(object), bytes: try storedRepositoryBrowserBlob(snapshot,entry:entry,cancellation:cancellation), mode: entry.mode,objectID:entry.objectID)
     }
     /// Stored bytes only: no smudge filters, attributes, pathspecs or native
     /// filenames. The exact row/OID must belong to this pinned tree receipt.
@@ -443,7 +443,6 @@ extension GitRepository {
         let backend = backend ?? snapshot.acceptedBackend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
-        try RepositoryBrowserTransferPolicy.validate(snapshot,entries:[entry])
         if entry.kind == .submodule { return try repositoryBrowserFile(snapshot, entry: entry, cancellation: token) }
         return try materializedBlob(objectID: entry.objectID, path: entry.path, revision: object, mode: entry.mode, cancellation: token, backend: backend)
     }

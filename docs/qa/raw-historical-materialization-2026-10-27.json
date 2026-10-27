@@ -1,0 +1,285 @@
+{
+  "date": "2026-10-27",
+  "family": "Exact-byte historical materialization and comparison",
+  "status": "focused_grouped_checkpoint_passed_remaining_scope_open",
+  "source_parent": "63f8771645c8ed6d9a1e66913d56e6ca306a83c5",
+  "source_state": "Current implementation batch is uncommitted; this parent identifies its starting context, not a validated final source receipt.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/Git/Git.cpp:2777-2871 (GetOneFile helper filters versus CLI stored output)",
+    "src/TortoiseProc/RepositoryBrowser.cpp:1229-1309 (Save/Open/alternative editor)",
+    "src/TortoiseProc/RepositoryBrowser.cpp:733-837 (historical actions)"
+  ],
+  "scope": [
+    "Exact historical tree lookup, renamed old/new paths and pinned source OIDs/modes without replacement-name routing",
+    "Historical-only Browser marks, Log/Blame comparisons, selected/scoped unified diffs on CLI and selected libgit2 helper",
+    "Ordinary historical single-file Open/Open With/alternative editor/Save with existing selected GetOneFile backend policy",
+    "Safe OID-derived output leaves, private historical preview/external-tool inputs, explicit pane Save As and original-byte patch labels/symlink targets",
+    "Owned panels/reads/children, generation receipts, cancellation/drainage and Quit/retirement; existing raw checkout/export/worktree fences"
+  ],
+  "content_policy": {
+    "comparisons_and_attribution": "Stored blob bytes; no checkout filters. Preserve original objectID independently of text decoder or output transformations.",
+    "ordinary_open_save_cli": "Raw stored blob using cat-file blob; preserves source fallback policy.",
+    "ordinary_open_save_selected_helper": "Checkout/smudge filtering uses original byte pathname and live current attribute policy; captured source revision/OID/mode remain pinned.",
+    "stored_object_actions": "Always unfiltered. Existing inspector8MiB display bound remains separate from delivery.",
+    "safe_leaf": "Git-blob-<full original blob OID> with optional1..16ASCII alphanumeric extension from original leaf; native private preview/revision suffixes remain. Filtered output OID label identifies stored input, not a hash of transformed output.",
+    "symlink": "Stored target bytes delivered as file content; never follow the raw Git filename into a checkout destination."
+  },
+  "external_policy": {
+    "association": "Exact decodable leaf plus extension/default lookup; never lossy replacement caption.",
+    "inputs": "Private read-only regular copies under safe leaves; escaped titles and prepared native-path placeholders for opaque historical inputs. Existing security scopes/tool preferences/lifetime remain.",
+    "empty_side": "An absent historical side has a clearly labelled private <side>-absent.<format> leaf. It has no invented stored OID; safe typed preview formats remain separate from the original Git path.",
+    "limits": "No physical receiving application, automation, signed sandbox or complete tool compatibility acceptance implied."
+  },
+  "implementation_files": [
+    "Sources/TurtleGitCore/HistoricalGitPath.swift",
+    "Sources/TurtleGitCore/HistoricalMaterialization.swift",
+    "Sources/TurtleGitCore/HistoricalFileDeliveryName.swift",
+    "Sources/TurtleGitCore/FileComparison.swift",
+    "Sources/TurtleGitCore/RevisionComparison.swift",
+    "Sources/TurtleGitCore/GitDiffEngine.swift",
+    "Sources/TurtleGitLibgit2/main.swift",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
+    "Sources/TurtleGitMac/LogWindow.swift",
+    "Sources/TurtleGitMac/BlameWindow.swift",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift",
+    "Sources/TurtleGitMac/DiffToolSettings.swift"
+  ],
+  "planned_validation": {
+    "core": "Parent-selected grouped check covering new RawHistoricalMaterializationTests and HistoricalFileDeliveryTests plus directly affected historical/comparison/helper/namespace regressions; both actual selected Git engines where applicable.",
+    "native": "Existing cached repository-browser namespace receiver historical case and directly affected grouped cases; private repositories/preferences/pasteboards, invisible/offscreen owned windows, injected output/launch responses, before/after repository bytes and process cleanup.",
+    "dependency_and_application": "Parent owns selected libgit2 helper reconstruction and affected unsigned Debug app build after complete source/docs freeze. This is not a request to rerun unrelated Core/native suites.",
+    "generated": "Parent runs localizations/Help after bundled guide freeze and coverage reconciliation before commit."
+  },
+  "validation": {
+    "executed": true,
+    "core": {
+      "distinct_methods": 154,
+      "initial": {
+        "log": "build/qa/raw-materialization-core-2026-10-27.log",
+        "passed_methods": 153,
+        "failed_methods": 1,
+        "failed_assertions": 2
+      },
+      "repair": "Swift String.contains prefix ending at a CR was replaced by stricter Data matching of complete signed CRLF lines. Both actual backend patches retain two CR bytes; no production normalization change was needed.",
+      "affected_recheck": {
+        "log": "build/qa/raw-materialization-core-repaired-2026-10-27.log",
+        "methods": 1,
+        "passed": true,
+        "patch_byte_receipts": {
+          "command_line": {
+            "bytes": 326,
+            "CR": 2
+          },
+          "selected_libgit2_4": {
+            "bytes": 514,
+            "CR": 2
+          }
+        }
+      },
+      "cumulative": "All 154 distinct methods passed; not 155 distinct methods."
+    },
+    "native": {
+      "status": "passed_cumulatively",
+      "initial_failure": "Listing fixture retained obsolete disabled Open expectation. Repaired to require enabled action with icon and selector.",
+      "initial_log": "build/qa/raw-materialization-native-2026-10-27.log",
+      "second_attempt_log": "build/qa/raw-materialization-native-repaired-2026-10-27.log",
+      "system_passed": [
+        "listing",
+        "navigation",
+        "actions",
+        "ownership",
+        "delivery",
+        "history"
+      ],
+      "second_failure": "Historical fixture selected CLI GetOneFile while expecting helper filtering. Corrected private preferences/repository to explicitly select GetOneFile helper; final held operation uses the actual private smudge child, not an ineffective Git wrapper. No product backend-policy change.",
+      "owned_receivers_reaped": [
+        32936,
+        33122,
+        33169,
+        33244,
+        33296,
+        33361,
+        33562,
+        33781,
+        34104,
+        34338,
+        34375,
+        34431,
+        34478,
+        34527,
+        34619,
+        34832
+      ],
+      "logs": [
+        "build/qa/raw-materialization-native-2026-10-27.log",
+        "build/qa/raw-materialization-native-repaired-2026-10-27.log",
+        "build/qa/raw-materialization-native-system-final-2026-10-27.log",
+        "build/qa/raw-materialization-native-bundled-2026-10-27.log"
+      ],
+      "distinct_engine_case_pairs": 14,
+      "passed_pairs": [
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "actions"
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "delivery"
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "historical"
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "history"
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "listing"
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "navigation"
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "ownership"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "actions"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "delivery"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "historical"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "history"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "listing"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "navigation"
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "ownership"
+        }
+      ],
+      "independently_absent_pids": [
+        32936,
+        33122,
+        33169,
+        33244,
+        33296,
+        33361,
+        33562,
+        33781,
+        34104,
+        34338,
+        34375,
+        34431,
+        34478,
+        34527,
+        34619,
+        34832
+      ],
+      "attempts": 16,
+      "repair_scope": "Initial failed listing then six system cases passed; only remaining system historical plus seven unrun bundled cases reran. No passed system case repeated.",
+      "ownership": "All attempted receivers reaped and independently absent. Native assertions cover retired filtered-child drainage, panels, read counters, discarded previews and unchanged private repository state. No visible application launch."
+    },
+    "application": {
+      "unsigned_debug_initial": {
+        "passed": true,
+        "log": "build/qa/raw-materialization-debug-2026-10-27.log"
+      },
+      "after_absent_side_native_repair": {
+        "passed": true,
+        "log": "build/qa/raw-materialization-debug-final-2026-10-27.log"
+      },
+      "libgit2_universal": {
+        "passed": true,
+        "log": "build/qa/raw-materialization-libgit2-build-2026-10-27.log",
+        "scope": "Universal helper and pinned cached static slices; structure only."
+      }
+    },
+    "generated_checks": {
+      "localizations": {
+        "passed": true,
+        "languages": 38,
+        "keys": 1325
+      },
+      "help": {
+        "passed": true,
+        "documents": 60,
+        "topics": 51,
+        "files": 92,
+        "bytes": 8708162
+      },
+      "coverage": {
+        "passed": true,
+        "command": "python3 scripts/reconcile-dialog-coverage.py",
+        "scope": "Pinned dialog resource/control inventory reconciliation; counts are not feature completion."
+      }
+    },
+    "physical": "not performed",
+    "signed_deployment": "not performed",
+    "hosted_ci": "No current batch success claimed"
+  },
+  "prior_evidence": [
+    "docs/qa/raw-history-family-2026-10-27.json establishes earlier Log/Blame byte-path family only",
+    "docs/qa/repository-browser-stored-file-2026-10-27.json establishes explicit unfiltered stored delivery only"
+  ],
+  "remaining_gaps": [
+    "Raw original-path checkout, working-tree/index mutation and working-side comparison",
+    "Filesystem reveal, folder export/promises containing raw descendants, and raw submodule checkout resolution",
+    "External receiving applications/Office automation, physical gestures/VoiceOver, signed sandbox grants, Intel/minimum-OS execution and complete upstream visual parity",
+    "Complete historical helper/CLI filter parity is not claimed: their deliberate source policies differ"
+  ],
+  "documentation": [
+    "docs/RAW-HISTORY-PARITY.md",
+    "docs/REPOSITORY-BROWSER-NAMESPACE-PARITY.md",
+    "docs/REPOSITORY-BROWSER-PARITY.md",
+    "docs/GETTING-STARTED.md"
+  ],
+  "ownership": "Current batch source/resources are verified by the focused groups above. Protected pre-existing WIP untouched; unrelated spatial-image implementation remains uncommitted and is not certified by this checkpoint.",
+  "source_sha256": {
+    "Sources/TurtleGitCore/HistoricalGitPath.swift": "7a06cdd6720c9a3092c6bfabf5d963f6a2acbdf9b68820551d1e94d9b8f931c3",
+    "Sources/TurtleGitCore/HistoricalMaterialization.swift": "79beac578678b4f3649ea4d7b00b7e1e0f795a9a08d4b5950f8a8283dcd8ae77",
+    "Sources/TurtleGitCore/HistoricalFileDeliveryName.swift": "6c3bc1b4b6eeb09a6f5630c3355e7c1d79a82b979621485ef83b487f15c8f2ab",
+    "Sources/TurtleGitCore/FileComparison.swift": "07a4f0b9346a0dbd2e7f2acd3cd25d6a184ccd35e4aac2209caeeed5ee0f1ef8",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "2906815bb85fa199198b790263f52ea5cf12d4563d6cc8806cdbe4922fb8c8ba",
+    "Sources/TurtleGitCore/GitDiffEngine.swift": "31f324f68597516d5e800bf8dfca47bf774d2c5460b2692a2592fe2d225758e2",
+    "Sources/TurtleGitLibgit2/main.swift": "9054050c4c97a7fc971488ad5f34c4379c84d066beb34dcee8a3f27c4841b632",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "901873f3815489726ead61c2b30e49fa3ebd36111a8d89a414ec044b3bc6234a",
+    "Sources/TurtleGitMac/LogWindow.swift": "e6da25bedfc92a06a09297a6d757d4724d4ad3c9cfccc38050d68310f6e06881",
+    "Sources/TurtleGitMac/BlameWindow.swift": "4068737c2970f5c0ecc0f7d0f44f0c36012566e01afda6a58b431e2dd423a805",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "0027df1dd9c62241b9a4e5f5acb60fc0c8e43e8f8793a5ed276aa7c773bfa026",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "030f69945a178b13b8a2d692b9882a632785de6573c9be67f8f56c0f8e189bc8",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "b3648ad083b2947897b9f7638c741f7a7b5296828dab6d357bb94cb022e36121",
+    "Sources/TurtleGitCore/BundledComparisonTools.swift": "f541f9b9f416b0669cc02398f43ebccc2487d49eefdf949665f67954b8fa6259",
+    "Sources/TurtleGitCore/ExcelComparison.swift": "5d192e97775766651ea705336fc639bead695dd55d22113ae8c01aa79bb6ceb5",
+    "Sources/TurtleGitCore/PresentationComparison.swift": "28a8d6af1795ea9583501390c83d4eb3590f70aabea352732ccc1192526174cb",
+    "Sources/TurtleGitCore/WordComparison.swift": "df49d0b7b5698a197145c9bee345563aaf9e5b06ea966a6bdf41584c6c27d096",
+    "Sources/TurtleGitCore/DiffToolPreferences.swift": "da425d9bb863f225d185962a098ebcd6cbee23f835f8e7aee7bb51b20c6af314",
+    "Sources/TurtleGitCore/MergeCommentProfiles.swift": "00f4a040cd8e28953eae43206c009235f8a79b6af29b38b71489352d0ef0ce4d",
+    "Sources/TurtleGitCore/ComparisonFileList.swift": "c57a9daa93d18dbb1962d3f7f7290bf21447b585b7a906bc6d1f2b050eda594a",
+    "Tests/TurtleGitCoreTests/HistoricalFileDeliveryTests.swift": "85abca82532bff86fb56c109da7a5a6ef7763f291fb0b0e46a1f9aed36977f25",
+    "Tests/TurtleGitCoreTests/RawHistoricalMaterializationTests.swift": "3fb0a53f6a93416a4ab71522e15ae00d22e0bc7e4cc5fe40544d5db1f7e23419",
+    "Tests/TurtleGitCoreTests/RawComparisonPreviewTests.swift": "e5fdb59fff2d260a8380971427286c010398df8d9af0e547a059eeb2163c92e8",
+    "docs/qa/repository-browser-namespace-native-2026-10-25.swift": "b434be89da3a18de4242c732beec29cc67ff1a9ce8684a79425b3b57408050e2",
+    "scripts/test-repository-browser-namespace.py": "eb54531f78a213e998b77e52fae5fd761c70a22da8fb513f715892cbe9116866"
+  },
+  "helper_sha256": "f8e163b1f06a88a4aa513b77d20fe746ec15944e03f1b5b991df84d9f090248a"
+}

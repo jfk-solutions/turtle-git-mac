@@ -260,9 +260,12 @@ unified diff** opens the patch, and merges provide additional modes under
 In **Browse repository**, right-click a file or folder for **Show log**, or a
 file for **Blame**. These views keep the Browser's selected revision. Git names
 that cannot be displayed as UTF-8 have an escaped byte label; history and Blame
-still read the original Git path. Their filesystem actions remain unavailable;
-the stored-blob commands can open or save their unfiltered contents under a safe
-filename. See [historical filename handling](RAW-HISTORY-PARITY.md).
+still read the original Git path. You can compare historical versions and use
+**Open** or **Save revision to…** under a safe suggested filename. These outputs
+follow the selected backend's checkout-filter policy; the explicit stored-blob
+commands always deliver unfiltered contents. Working-tree comparison, original-name
+checkout and folder export remain unavailable for these names. See
+[historical filename handling](RAW-HISTORY-PARITY.md).
 
 Select two commit rows to open **Compare revisions**, a unified diff, or one of
 three **Show log of** ranges. The menu labels identify the endpoints:

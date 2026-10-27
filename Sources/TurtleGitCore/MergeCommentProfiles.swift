@@ -35,7 +35,7 @@ public struct MergeCommentProfiles: Sendable {
     /// Source chooses Base, then Mine, then Theirs extension. Keep tokens
     /// literal, including SQL's required space after its -- line marker.
     public func tokens(paths: [String]) -> MergeCommentTokens? {
-        paths.lazy.compactMap { profiles[($0 as NSString).pathExtension.lowercased()] }.first
+        paths.lazy.compactMap { profiles[HistoricalGitPath.fileExtension($0).lowercased()] }.first
     }
     public func tokens(fileExtension: String) -> MergeCommentTokens? { profiles[fileExtension.lowercased()] }
 }

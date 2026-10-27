@@ -138,7 +138,7 @@ extension GitRepository {
         try cancellation?.check()
 
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
-        for path in paths { _ = try restoreLocation(path) }
+        for path in paths { try validateComparisonPath(path,allowsRaw:from != .workingTree && to != .workingTree) }
         return try selectedFileComparison(revisionComparison(from: from, to: to, cancellation: cancellation), paths: paths, cancellation: cancellation)
     }
     private func selectedFileComparison(_ snapshot: RevisionComparisonSnapshot, paths: [String], cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
@@ -161,13 +161,9 @@ extension GitRepository {
                 } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) { return nil }
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
-            for record in try read(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0) {
-                guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
-                let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
-                guard header.count == 3, ["100644", "100755", "120000", "160000"].contains(String(header[0])) else { throw RevisionComparisonFailure.selection }
-                return String(header[0])
-            }
-            return nil
+            guard let record=try historicalTreeRecord(revision:hash,path:path,cancellation:cancellation) else {return nil}
+            guard ["100644","100755","120000","160000"].contains(record.mode) else {throw RevisionComparisonFailure.selection}
+            return record.mode
         }
         var files: [CommitFile] = []
         for path in GitPathSet(paths).sorted(by: { $0.utf8.lexicographicallyPrecedes($1.utf8) }) {
@@ -186,7 +182,7 @@ extension GitRepository {
     }
     public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions(), useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil, paths: [String] = []) throws -> RevisionComparisonSnapshot {
         let scope = paths.filter { $0 != "." }
-        for path in scope { _ = try restoreLocation(path) }
+        for path in scope { try validateComparisonPath(path,allowsRaw:from != .workingTree && to != .workingTree) }
         let token = cancellation ?? OperationCancellation()
         try token.check()
         func resolve(_ side: ComparisonRevision) throws -> (ComparisonRevision,ComparisonRevisionDetails?) {
@@ -212,7 +208,12 @@ extension GitRepository {
             if inspection.fastForward,let base=inspection.base {old = .revision(base)}
         }
         let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
-        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"] + scope, cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"] + scope, cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"] + scope, cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
+        func scoped(_ flags:[String])throws->Data {
+            var arguments=args+flags+["--"],overrides:[Int:Data]=[:]
+            for key in scope {let path=try HistoricalGitPath.argument(key);overrides[arguments.count]=path.bytes;arguments.append(path.caption)}
+            return try run(arguments,argumentBytes:overrides,cancellation:token).stdout
+        }
+        let files=CommitFile.parse(names:try scoped(["--name-status","-z"]),statistics:try scoped(["--numstat","-z"]),raw:try scoped(["--raw","-z"])).filter {$0.hasStatistics || $0.isSubmodule}
         return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: resolvedOld.1, toDetails: resolvedNew.1, files: files, options: options, scopePaths: scope, diffDetection: diffDetection)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
@@ -222,7 +223,7 @@ extension GitRepository {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { GitReferenceName.equal($0.path,path) } }) else { throw RevisionComparisonFailure.selection }
         let selected = paths.isEmpty ? snapshot.scopePaths : snapshot.files.filter { GitPathSet(paths).contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
-        for path in selected { _ = try restoreLocation(path) }
+        for path in selected { try validateComparisonPath(path,allowsRaw:snapshot.from != .workingTree && snapshot.to != .workingTree) }
         return try unifiedDiffData(arguments:comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + GitPathSet(selected).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) },cancellation:token,backend:backend)
     }
     private func comparisonDetails(_ details:GitSingleCommitDetails,cancellation:OperationCancellation?=nil) throws -> ComparisonRevisionDetails? {

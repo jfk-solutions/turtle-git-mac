@@ -449,13 +449,15 @@ final class LogHistoryWindow: NSWindow {
     }
     private func saveHistoricalFile(_ content: ComparisonFileContent, short: String) {
         guard let window, window.attachedSheet == nil else { return }
-        let name = (content.path as NSString).lastPathComponent as NSString
+        let leaf:String
+        do{leaf=try HistoricalFileDeliveryName.leaf(for:content)}catch{model.error=error.localizedDescription;return}
+        let name = leaf as NSString
         let ext = name.pathExtension
         let panel = NSSavePanel(); panel.title = "Save file at revision " + short
         panel.nameFieldStringValue = name.deletingPathExtension + "-" + short + (ext.isEmpty ? "" : "." + ext)
         panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]; panel.allowsOtherFileTypes = true
         panel.canCreateDirectories = true
-        panel.directoryURL = model.repository.root.appendingPathComponent(content.path).deletingLastPathComponent()
+        panel.directoryURL = (try? RepositoryBrowserGitPath(key:content.path).isRepresentable)==true ? model.repository.root.appendingPathComponent(content.path).deletingLastPathComponent():model.repository.root
         chooseFile(panel) { [weak model] url in
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -1856,7 +1858,7 @@ struct LogCommandRequest: Identifiable {
     private func compareFollowed(from: ComparisonRevision, to: ComparisonRevision, parentOf: String? = nil) {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard canStartHistoryTransport, let path = followedPath, let onFollowedFileComparison else { return }
-        guard (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true else{error=RepositoryBrowserWindowModel.rawPathReason;return}
+        if from == .workingTree || to == .workingTree {guard (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true else{error=RepositoryBrowserWindowModel.rawPathReason;return}}
         let rows = entries, selected = self.selected, request = generation, detail = detailGeneration
         let session = FileListComparisonSession(window: window, preferences: labelDefaults)
         followedSession = session; busy = true; error = nil
@@ -2807,6 +2809,11 @@ struct LogCommandRequest: Identifiable {
         }
         return true
     }
+    @discardableResult private func requireHistoricalFilePaths(_ ids:some Sequence<String>) -> Bool {
+        let ids=GitPathSet(ids)
+        guard !isInvalidated,!confirmingQuit,!ids.isEmpty,ids.isSubset(of:GitPathSet(visibleFiles.map(\.id))) else{return false}
+        return !selectedWorkingTree || requireNativeFilePaths(ids)
+    }
     func canBlameFile(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !confirmingQuit, onBlame != nil, ids.count == 1,
@@ -2910,7 +2917,7 @@ struct LogCommandRequest: Identifiable {
     }
     func saveHistoricalFile(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
         if selectedWorkingTree {
             guard !busy, !isInvalidated, !bare, ids.count == 1, window?.attachedSheet == nil,
                   let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
@@ -2938,7 +2945,7 @@ struct LogCommandRequest: Identifiable {
     }
     func openHistoricalFile(_ ids: some Sequence<String>, action: HistoricalOpenAction) {
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
         if selectedWorkingTree { openWorkingFile(ids, action: action); return }
         guard !busy, !isInvalidated, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
@@ -3000,15 +3007,23 @@ struct LogCommandRequest: Identifiable {
     }
     func markForComparison(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
         guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, ids.count == 1, let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         comparisonMark = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
     }
+    func canCompareMarkedFile(_ ids:some Sequence<String>) -> Bool {
+        guard let mark=comparisonMark else{return false}
+        if selectedWorkingTree || mark.workingAccess != nil || mark.revision.isEmpty{return hasRepresentableFilePaths(ids) && (try? RepositoryBrowserGitPath(key:mark.path).isRepresentable)==true}
+        return true
+    }
     func compareWithMarkedFile(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
         guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        if comparisonMark.workingAccess != nil || comparisonMark.revision.isEmpty || selectedWorkingTree {
+            guard requireNativeFilePaths(ids),(try? RepositoryBrowserGitPath(key:comparisonMark.path).isRepresentable)==true else{return}
+        }
         let current = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
         onPreparedFileCompare(comparisonMark, current)
     }
@@ -3268,7 +3283,7 @@ struct LogCommandRequest: Identifiable {
     func selectedFileDiff(_ ids: some Sequence<String>, alternate: Bool = false) {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
         guard !busy, !isInvalidated, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
         let working = selectedWorkingTree, revision = self.revision
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
@@ -3298,13 +3313,13 @@ struct LogCommandRequest: Identifiable {
     }
     func canCompareFilePair(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
-        guard hasRepresentableFilePaths(ids) else { return false }
+        guard !selectedWorkingTree || hasRepresentableFilePaths(ids) else { return false }
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         return chosen.count == 2 && !GitReferenceName.equal(chosen[0].path, chosen[1].path) && chosen.allSatisfy { !$0.isSubmodule }
     }
     func compareFilePair(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
         if selectedWorkingTree {
             guard !busy, !isInvalidated, !bare, canCompareFilePair(ids), let onWorkingFilePairCompare else { return }
             onWorkingFilePairCompare(fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }.map(\.path)); return
@@ -3328,7 +3343,8 @@ struct LogCommandRequest: Identifiable {
     }
     func compareFiles(_ ids: some Sequence<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
         let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
+        guard requireHistoricalFilePaths(ids) else { return }
+        if workingTree || parentWorkingTree {guard requireNativeFilePaths(ids) else{return}}
         guard !busy, !isInvalidated, onFileCompare != nil || onFileComparisons != nil else { return }
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }; guard !chosen.isEmpty else { return }
         var requests: [(ComparisonRevision, ComparisonRevision, [String])] = []
@@ -3607,6 +3623,18 @@ struct LogDialog: View {
     @ViewBuilder private func fileContextActions(_ ids: GitPathSet) -> some View {
         let snapshot = model.fileMenuSnapshot(ids)
         if !model.hasRepresentableFilePaths(ids) {
+            if !model.selectedWorkingTree {
+                Button { model.withFileMenu(snapshot) { model.compareFiles(ids) } } label: { CommandLabel(title:"Compare with base",icon:.compare) }.disabled(model.busy || model.revision == nil || model.onFileCompare == nil && model.onFileComparisons == nil)
+                Button { model.withFileMenu(snapshot) { model.selectedFileDiff(ids,alternate:NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff) }.disabled(model.busy || model.revision == nil)
+                if model.canCompareFilePair(ids) {
+                    Button { model.withFileMenu(snapshot) { model.compareFilePair(ids) } } label: { CommandLabel(title:"Compare two files",icon:.compare) }.disabled(model.busy || model.onFilePairCompare == nil)
+                }
+                if ids.count == 1,let file=model.visibleFiles.first(where:{ids.contains($0.id)}),!file.isSubmodule,!file.action.hasPrefix("D") {
+                    historicalFileActions(ids,snapshot:snapshot)
+                    preparedComparisonActions(ids,file:file,snapshot:snapshot)
+                }
+                Divider()
+            }
             if ids.count == 1, let file=model.visibleFiles.first(where:{ids.contains($0.id)}) {
                 Button { model.withFileMenu(snapshot) { model.fileLog(ids) } } label: { CommandLabel(title:"Show log",icon:.log) }.disabled(model.busy || model.onFileLog == nil)
                 if file.oldPath != nil {
@@ -3708,7 +3736,7 @@ struct LogDialog: View {
         Divider()
         Button { model.withFileMenu(snapshot) { model.markForComparison(ids) } } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil)
         if let mark = model.comparisonMark {
-            Button { model.withFileMenu(snapshot) { model.compareWithMarkedFile(ids) } } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil)
+            Button { model.withFileMenu(snapshot) { model.compareWithMarkedFile(ids) } } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil || !model.canCompareMarkedFile(ids))
         }
     }
     @ViewBuilder private func historicalFileActions(_ ids: GitPathSet, snapshot: LogFileMenuSnapshot) -> some View {

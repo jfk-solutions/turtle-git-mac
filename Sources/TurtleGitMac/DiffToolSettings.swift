@@ -547,8 +547,13 @@ struct DiffToolAssociationEditor: View {
             }
         } onCancel: {token.cancel()}
     }
+    private static func displayPath(_ path:String) -> String {
+        path.contains("\0") ? RepositoryBrowserGitPath.display(key:path):path
+    }
     static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, selection: DiffToolSelection? = nil, line: Int? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
+        guard !(document.base.revision == .workingTree && document.base.path.contains("\0")),
+              !(document.destination.revision == .workingTree && document.destination.path.contains("\0")) else{throw RevisionComparisonFailure.selection}
         let chosen = try selection ?? DiffToolPreferences.load(from: preferences).selection(base: document.base.path, destination: document.destination.path, alternate: alternate)
         guard case .program(let program) = chosen else { return false }
         if program.builtIn == .zipInventory {
@@ -623,9 +628,11 @@ struct DiffToolAssociationEditor: View {
                 exportCompleted=true
                 try token.check();try Task.checkCancellation()
                 guard owner?.attachedSheet==nil else{throw CocoaError(.userCancelled)}
-                let protectedInputs=[document.base.path,document.destination.path].map{path in path.hasPrefix("/") ? URL(fileURLWithPath:path):root.appendingPathComponent(path)}
+                let protectedInputs=[(document.base,preview.base),(document.destination,preview.destination)].map{content,prepared in
+                    content.path.contains("\0") ? prepared:(content.path.hasPrefix("/") ? URL(fileURLWithPath:content.path):root.appendingPathComponent(content.path))
+                }
                 let controller=PresentationComparisonWindowController(preview:preview,manifest:manifest,permissions:permissions,preferences:preferences,
-                    baseTitle:document.base.path+" : "+document.base.revision.label,destinationTitle:document.destination.path+" : "+document.destination.revision.label,protectedInputs:protectedInputs,initialReview:initialReview)
+                    baseTitle:displayPath(document.base.path)+" : "+document.base.revision.label,destinationTitle:displayPath(document.destination.path)+" : "+document.destination.revision.label,protectedInputs:protectedInputs,initialReview:initialReview)
                 controller.window?.appearance=owner?.appearance
                 let identity=UUID();presentationWindows[identity]=controller
                 controller.onClosed={presentationWindows.removeValue(forKey:identity)}
@@ -669,22 +676,28 @@ struct DiffToolAssociationEditor: View {
         let folder = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitDiffTool-" + UUID().uuidString)
         try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         do {
-            func file(_ content: ComparisonFileContent, side: String) throws -> URL {
-                let original = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : root.appendingPathComponent(content.path)
-                if content.revision == .workingTree, ["100644", "100755"].contains(content.mode ?? ""), manager.fileExists(atPath: original.path) {
-                    guard !GitRuntime.isAppStoreBuild || permissions.contains(where: { $0.hasSecurityScope && $0.contains(original) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    return original
+            func file(_ content: ComparisonFileContent,other:ComparisonFileContent, side: String) throws -> URL {
+                if content.revision == .workingTree {
+                    guard !content.path.contains("\0") else{throw RevisionComparisonFailure.selection}
+                    let original = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : root.appendingPathComponent(content.path)
+                    if ["100644", "100755"].contains(content.mode ?? ""), manager.fileExists(atPath: original.path) {
+                        guard !GitRuntime.isAppStoreBuild || permissions.contains(where: { $0.hasSecurityScope && $0.contains(original) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        return original
+                    }
                 }
                 let directory = folder.appendingPathComponent(side); try manager.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-                let name = (content.path as NSString).lastPathComponent
-                let target = directory.appendingPathComponent(name.isEmpty || name == "." || name == ".." ? "empty" : name)
+                let oldName=(content.path as NSString).lastPathComponent
+                let name:String
+                if !content.path.contains("\0"),(oldName.isEmpty || oldName == "." || oldName == ".."){name="empty"}
+                else{name=try ComparisonPreviewInputName.leaf(for:content,other:other,side:side,fallbackExtension:"")}
+                let target = directory.appendingPathComponent(name)
                 try content.bytes.write(to: target, options: .withoutOverwriting)
                 try manager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: target.path); return target
             }
             try cancellation?.check()
-            let base = try file(document.base, side: "base"), mine = try file(document.destination, side: "mine")
+            let base = try file(document.base,other:document.destination, side: "base"), mine = try file(document.destination,other:document.base, side: "mine")
             func revisionID(_ revision: ComparisonRevision) -> String { if case .revision(let value) = revision { return value }; return "" }
-            let arguments = try program.expandedArguments(values: ["base": base.path, "mine": mine.path, "bname": document.base.path + " : " + document.base.revision.label, "yname": document.destination.path + " : " + document.destination.revision.label, "bpath": document.base.path, "ypath": document.destination.path, "brev": revisionID(document.base.revision), "yrev": revisionID(document.destination.revision), "wtroot": root.path, "line": String(line ?? 0)])
+            let arguments = try program.expandedArguments(values: ["base": base.path, "mine": mine.path, "bname": displayPath(document.base.path) + " : " + document.base.revision.label, "yname": displayPath(document.destination.path) + " : " + document.destination.revision.label, "bpath": document.base.path.contains("\0") ? base.path:document.base.path, "ypath": document.destination.path.contains("\0") ? mine.path:document.destination.path, "brev": revisionID(document.base.revision), "yrev": revisionID(document.destination.revision), "wtroot": root.path, "line": String(line ?? 0)])
             let configuration = NSWorkspace.OpenConfiguration(); configuration.arguments = arguments; configuration.createsNewApplicationInstance = true
             activeRequests += 1
             defer { activeRequests -= 1; withExtendedLifetime(grant) {}; withExtendedLifetime(permissions) {} }

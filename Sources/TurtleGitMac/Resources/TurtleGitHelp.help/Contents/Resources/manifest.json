@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "c3587288d7eca3f63eaae9de85acfd69d02ec60172a0c505b291cd15f5a78d26",
+    "Contents/Info.plist": "3d592b8bbcb202d86ea3b3cb8705ae61620111cb30356a219370ef759d5235db",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "703014638c22c6b47a300c252bbdebf534ccb35304dbd5302d1d0b4729d5a3bf",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
@@ -16,7 +16,7 @@
     "Contents/Resources/en.lproj/FINDER-DELIVERY-SERVICES-PARITY.html": "245b06ffe465f23e9c4331c947bed5cff6ff38ea9244b176893fff22cb091322",
     "Contents/Resources/en.lproj/FINDER-SERVICES.html": "23c64e4df339587bb915d7b8cec7b150cfca8a34a51ef6585655b8468f89b17d",
     "Contents/Resources/en.lproj/FINDER-STATUS-POLICY.html": "66393165356eac18bb1027af5a60937959be9b942ddb0d2de928cdac47ff2c1c",
-    "Contents/Resources/en.lproj/GETTING-STARTED.html": "32b0de469d7bc580ef1fbaeec8c6d9c4935b5e5f2e8e235eed69251487d36cea",
+    "Contents/Resources/en.lproj/GETTING-STARTED.html": "6220f5a77b2bac0a75da253ad010c7d74567bb598122c2920e7d100d37b100db",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "392416945285f7768adc216e5868d5a77b93424e6d283b9d550ec72e72402868",
     "Contents/Resources/en.lproj/GIT-NOTES.html": "1e854dfbaa5c051606590f845634db650e0c6c506ce6d69ae3d409b5fbda86d7",
     "Contents/Resources/en.lproj/GIT-PROPERTIES.html": "eaae7522bd069839b1ace49c51f0196dc96ee3a2435dd3fa088b689c1f83073c",
@@ -108,7 +108,7 @@
     "docs/FINDER-DELIVERY-SERVICES-PARITY.md": "e6b4af67a87570cb955afa8c6c48355ee6ac1a26561b04e038afc334858d2924",
     "docs/FINDER-SERVICES.md": "9418ee4884fab374c87e94459f3f4615c77d8ab3ee4762ad6689264d0a4a239b",
     "docs/FINDER-STATUS-POLICY.md": "d1a9b6869b1fe43fe5418f2e03074634ea4cd0ef33d7407e003722cc824c2b11",
-    "docs/GETTING-STARTED.md": "3e79ffeba250649e64f1c9fefcdcaffe681d02eac50e2de365593d35c95c7e51",
+    "docs/GETTING-STARTED.md": "bd8675cc0288671522f1762af6040d2087781b0dc59c39d60e659c12f9064904",
     "docs/GIT-AUTHENTICATION.md": "dd6d943d89e823349419471ce62e60259e1425516409cb0c7d033c93f0f00120",
     "docs/GIT-NOTES.md": "cb9c30366a111688bcf6e31c8a649023a818a5888dca6d57d7e3b6ac29e6622a",
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",

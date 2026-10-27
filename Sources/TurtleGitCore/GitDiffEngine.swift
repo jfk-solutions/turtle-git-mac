@@ -125,7 +125,25 @@ extension GitRepository {
     /// source GetUnifiedDiff has no index endpoint.
     public func unifiedDiffData(arguments:[String],cancellation:OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil)throws->Data {
         let selected=backend ?? libgit2Configuration ?? .load()
-        guard selected.requests(.diff),!arguments.contains("--cached"),!arguments.contains("--staged") else{return try run(arguments,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout}
+        var cliArguments=arguments,argumentBytes:[Int:Data]=[:]
+        if let separator=arguments.firstIndex(of:"--") {
+            for index in arguments.indices where index>separator {
+                let value=try HistoricalGitPath.argument(arguments[index])
+                if arguments[index].utf8.contains(0) {argumentBytes[index]=value.bytes;cliArguments[index]=value.caption}
+            }
+        }
+        if !argumentBytes.isEmpty {
+            let identity=GitCommandIdentity(arguments)
+            let before=Array(identity.arguments.prefix(while:{$0 != "--"}))
+            var skip=false,revisions:[String]=[]
+            for argument in before {
+                if skip {skip=false;continue}
+                if argument=="--unified" || argument=="-U" {skip=true;continue}
+                if !argument.hasPrefix("-") {revisions.append(argument)}
+            }
+            guard !skip,!arguments.contains("--cached"),!arguments.contains("--staged"),identity.command != "diff" || revisions.count>=2 else {throw GitDiffEngineFailure.request}
+        }
+        guard selected.requests(.diff),!arguments.contains("--cached"),!arguments.contains("--staged") else{return try run(cliArguments,argumentBytes:argumentBytes,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout}
         guard let executor=try selected.executor(for:.diff) else{throw GitDiffEngineFailure.request}
         try cancellation?.check()
         let identity=GitCommandIdentity(arguments)
@@ -142,7 +160,11 @@ extension GitRepository {
             revisions.append(arg)
         }
         if paths.contains(".") {paths=[]}
-        guard !skip,revisions.count<=2,paths.count<=100_000,paths.allSatisfy({GitTransferNotificationDecoder.validPath($0)}) else{throw GitDiffEngineFailure.request}
+        guard !skip,revisions.count<=2,paths.count<=100_000,paths.allSatisfy({key in
+            if !key.utf8.contains(0) {return GitTransferNotificationDecoder.validPath(key)}
+            guard let value=try? RepositoryBrowserGitPath(key:key),!value.rawData.isEmpty else {return false}
+            return !value.rawData.split(separator:47).contains {String(data:Data($0),encoding:.utf8)?.caseInsensitiveCompare(".git") == .orderedSame}
+        }) else{throw GitDiffEngineFailure.request}
         // Source4 returns empty in an unborn repository even for supplied trees.
         let head=try run(["rev-parse","--verify","--quiet","HEAD^{commit}"],successfulExitCodes:0...1,cancellation:cancellation)
         if head.exitCode==1{return Data()}
@@ -160,7 +182,12 @@ extension GitRepository {
             guard !revisions.isEmpty else{throw GitDiffEngineFailure.request}
             old=revisions.count==2 ? try captured(revisions[0]):"";new=try captured(revisions.last!)
         }
-        let input=try JSONSerialization.data(withJSONObject:["version":1,"old":old,"new":new,"paths":paths,"noPrefix":noPrefix],options:.sortedKeys)
+        let hasRaw=paths.contains{$0.utf8.contains(0)}
+        guard !hasRaw || (old != "WORKTREE" && new != "WORKTREE") else {throw GitDiffEngineFailure.request}
+        let request:[String:Any]
+        if hasRaw {request=["version":2,"old":old,"new":new,"pathData":try paths.map{try RepositoryBrowserGitPath(key:$0).rawData.base64EncodedString()},"noPrefix":noPrefix]}
+        else {request=["version":1,"old":old,"new":new,"paths":paths,"noPrefix":noPrefix]}
+        let input=try JSONSerialization.data(withJSONObject:request,options:.sortedKeys)
         guard input.count<=2*1024*1024 else{throw GitDiffEngineFailure.budget}
         var output=Data()
         do {

@@ -92,7 +92,8 @@ final class RawHistoricalPathTests:XCTestCase {
         XCTAssertEqual(copied.lines.map(\.hash),snapshot.lines.map(\.hash))
         let parentChoices=try await repo.blameParentComparisons(revision:c3,path:newKey)
         XCTAssertEqual(parentChoices.map(\.revision),[c2]);XCTAssertEqual(parentChoices.map(\.path),[newKey])
-        do {_ = try await repo.historicalFile(revision:c3,path:newKey);XCTFail("Raw filename entered ordinary materialization")} catch is WorkingFileRestoreFailure {}
+        let historical=try await repo.historicalFile(revision:c3,path:newKey);XCTAssertEqual(historical.bytes,changed)
+        do {_ = try await repo.revisionFileComparison(from:.revision(c3),to:.workingTree,paths:[newKey]);XCTFail("Raw filename entered worktree comparison")} catch is WorkingFileRestoreFailure {}
         let source=try await repo.blame(path:oldKey,revision:c1)
         XCTAssertEqual(source.contents,original)
         let entry=try XCTUnwrap(followed.first{$0.hash==c2})

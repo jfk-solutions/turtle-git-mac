@@ -15,7 +15,11 @@ public struct ComparisonFileSortKey: Comparable, Sendable {
     }
 }
 extension CommitFile {
-    public var fileExtension: String { isSubmodule ? "" : (path as NSString).pathExtension }
+    public var fileExtension: String {
+        guard !isSubmodule else {return ""}
+        if path.utf8.contains(0) {return String(StatusListClipboard.fileExtension(path).dropFirst())}
+        return (path as NSString).pathExtension
+    }
     public var sortPath: ComparisonFileSortKey { ComparisonFileSortKey(text: path, path: path) }
     public var sortExtension: ComparisonFileSortKey { ComparisonFileSortKey(text: fileExtension, path: path) }
     public var sortAction: ComparisonFileSortKey {
@@ -31,10 +35,10 @@ extension CommitFile {
 public enum ComparisonFileList {
     public static func clipboard(_ files: [CommitFile], extended: Bool, label:(String)->String = {$0}) -> String {
         files.map { file in
-            extended ? [file.path, file.fileExtension, label(file.status), file.addedText, file.removedText].joined(separator: "\t") : file.path + "\t"
+            extended ? [file.displayPath, file.fileExtension, label(file.status), file.addedText, file.removedText].joined(separator: "\t") : file.displayPath + "\t"
         }.map { $0 + "\n" }.joined()
     }
     public static func savedList(_ files: [CommitFile], from: ComparisonRevision, to: ComparisonRevision) -> String {
-        "Changed files between \(from.label) and \(to.label)\n" + files.map { $0.path + "\n" }.joined()
+        "Changed files between \(from.label) and \(to.label)\n" + files.map { $0.displayPath + "\n" }.joined()
     }
 }

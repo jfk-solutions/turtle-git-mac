@@ -63,7 +63,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["turtlegit-repository-diagnosis","turtlegit-notes-read","turtlegit-notes-write","turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["turtlegit-repository-diagnosis","turtlegit-notes-read","turtlegit-notes-write","turtlegit-historical-gitlink","turtlegit-revision-lookup","clone","fetch","ls-remote","push","cat-file","turtlegit-materialize-blob","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-history-diff-batch","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-checkout-refs","turtlegit-configured-remotes","turtlegit-tag-object","turtlegit-tag-objects","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -115,7 +115,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-repository-diagnosis" || command == "turtlegit-notes-read" || command == "turtlegit-notes-write" || command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
+        if command == "turtlegit-materialize-blob" || command == "turtlegit-repository-diagnosis" || command == "turtlegit-notes-read" || command == "turtlegit-notes-write" || command == "turtlegit-historical-gitlink" || command == "turtlegit-revision-lookup" || command == "turtlegit-unified-diff" || (command == "turtlegit-history-diff" || command == "turtlegit-history-diff-batch") || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -153,8 +153,40 @@ struct Arguments{
     }
 }
 
+/// Raw paths cross the Swift argument boundary only in bounded private stdin
+/// packets. Canonical base64 and strict component checks prevent opaque keys or
+/// replacement-decoded strings from becoming C filenames.
+enum PrivateTreePath {
+    static func decode(_ value:String)throws->Data {
+        guard let bytes=Data(base64Encoded:value),bytes.base64EncodedString()==value,valid(bytes) else {try refuse("Invalid encoded historical path")}
+        return bytes
+    }
+    static func valid(_ bytes:Data)->Bool {
+        !bytes.isEmpty && bytes.count<=1_048_576 && !bytes.contains(0) && bytes.first != 47 && bytes.split(separator:47,omittingEmptySubsequences:false).allSatisfy {!$0.isEmpty && $0 != Data([46]) && $0 != Data([46,46])}
+    }
+    static func read()throws->Data {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65_536),!part.isEmpty {
+            guard !cancelled(),part.count<=2_097_152-data.count else {try refuse("Historical request exceeds bounds or was cancelled")};data.append(part)
+        }
+        return data
+    }
+}
+struct PrivateMaterializeRequest {
+    let oid:String,path:Data
+    init()throws {
+        struct Wire:Decodable {let version:Int,oid:String,pathData:String}
+        let data=try PrivateTreePath.read()
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(fields.keys)==["version","oid","pathData"] else {try refuse("Invalid historical blob request fields")}
+        let wire=try JSONDecoder().decode(Wire.self,from:data)
+        guard wire.version==1,PrivateDiffRequest.fullOID(wire.oid) else {try refuse("Invalid historical blob request")}
+        oid=wire.oid;path=try PrivateTreePath.decode(wire.pathData)
+    }
+}
+
 struct PrivateDiffRequest {
-    struct Unified:Decodable {let version:Int;let old:String;let new:String;let paths:[String];let noPrefix:Bool}
+    struct Unified {let old:String;let new:String;let paths:[Data];let noPrefix:Bool}
+    struct UnifiedWire:Decodable {let version:Int;let old:String;let new:String;let paths:[String]?;let pathData:[String]?;let noPrefix:Bool}
     struct History:Decodable {let version:Int;let revision:String;let simple:Bool;let threshold:UInt32}
     let unified:Unified?,history:History?
     var batch:[History]=[]
@@ -164,11 +196,17 @@ struct PrivateDiffRequest {
         while let part=try FileHandle.standardInput.read(upToCount:65536),!part.isEmpty {guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Diff request exceeds bounds or was cancelled")};data.append(part)}
         guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{try refuse("Invalid diff request")}
         if command == "turtlegit-unified-diff" {
-            guard Set(fields.keys)==Set(["version","old","new","paths","noPrefix"]) else{try refuse("Invalid unified diff request fields")}
-            let value=try JSONDecoder().decode(Unified.self,from:data)
-            guard value.version==1,(!value.old.isEmpty || !value.new.isEmpty),[value.old,value.new].allSatisfy({$0.isEmpty || $0=="WORKTREE" || Self.fullOID($0)}),value.paths.count<=100_000,
-                  value.paths.allSatisfy({!$0.isEmpty && !$0.contains("\0") && $0.utf8.count<=1_048_576 && !$0.hasPrefix("/") && !$0.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0==".."})}) else{try refuse("Invalid unified diff endpoints or paths")}
-            unified=value;history=nil
+            let value=try JSONDecoder().decode(UnifiedWire.self,from:data)
+            let paths:[Data]
+            if value.version==1 {
+                guard Set(fields.keys)==Set(["version","old","new","paths","noPrefix"]),let strings=value.paths,strings.count<=100_000,strings.allSatisfy({!$0.isEmpty && !$0.contains("\0") && $0.utf8.count<=1_048_576 && !$0.hasPrefix("/") && !$0.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0==".."})}) else {try refuse("Invalid unified diff paths")}
+                paths=strings.map{Data($0.utf8)}
+            } else if value.version==2 {
+                guard Set(fields.keys)==Set(["version","old","new","pathData","noPrefix"]),let encoded=value.pathData,encoded.count<=100_000,value.old != "WORKTREE",value.new != "WORKTREE" else {try refuse("Invalid byte-path unified diff request")}
+                paths=try encoded.map(PrivateTreePath.decode)
+            } else {try refuse("Unsupported unified diff request version")}
+            guard (!value.old.isEmpty || !value.new.isEmpty),[value.old,value.new].allSatisfy({$0.isEmpty || $0=="WORKTREE" || Self.fullOID($0)}) else {try refuse("Invalid unified diff endpoints")}
+            unified=Unified(old:value.old,new:value.new,paths:paths,noPrefix:value.noPrefix);history=nil
         }else if command == "turtlegit-history-diff-batch" {
             guard Set(fields.keys)==Set(["version","revisions","simple","threshold"]),let version=fields["version"] as? Int,version==1,
                   let revisions=fields["revisions"] as? [String],!revisions.isEmpty,revisions.count<=128,revisions.allSatisfy(Self.fullOID),
@@ -686,18 +724,23 @@ final class CallbackContext{
     }
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
-    func externalFilter(command:String,path:String,directory:String,index privateIndex:String?,input:Data)throws->Data{
+    func externalFilter(command:String,path:Data,directory:String,index privateIndex:String?,input:Data)throws->Data{
         guard !cancelled() else{try refuse("Filter cancelled")}
         // Adapt source %f expansion to POSIX shell quoting; path bytes never
         // become shell syntax. %% remains one literal percent.
-        let quoted="'"+path.replacingOccurrences(of:"'",with:"'\\''")+"'"
-        var expanded="",index=command.startIndex
-        while index<command.endIndex{let c=command[index];index=command.index(after:index)
-            if c != "%"{expanded.append(c);continue}
-            guard index<command.endIndex else{expanded.append("%");break}
-            let token=command[index];index=command.index(after:index)
-            if token == "f"{expanded+=quoted}else if token == "%"{expanded.append("%")}
+        guard !path.contains(0),path.count<=1_048_576 else {try refuse("Invalid filter path bytes")}
+        var quoted=Data([39])
+        for byte in path {if byte==39 {quoted.append(contentsOf:[39,92,39,39])} else {quoted.append(byte)}}
+        quoted.append(39)
+        let commandBytes=Array(command.utf8);var expanded=Data(),position=0
+        while position<commandBytes.count {
+            let byte=commandBytes[position];position+=1
+            if byte != 37 {expanded.append(byte);continue}
+            guard position<commandBytes.count else {expanded.append(37);break}
+            let token=commandBytes[position];position+=1
+            if token==102 {expanded.append(quoted)} else if token==37 {expanded.append(37)}
         }
+        let commandStorage=try OwnedByteStrings([expanded])
         let temporary=FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-smudge-"+UUID().uuidString,isDirectory:true)
         try FileManager.default.createDirectory(at:temporary,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700]);defer{try? FileManager.default.removeItem(at:temporary)}
         var handles:[FileHandle]=[];defer{for handle in handles{try? handle.close()}}
@@ -718,7 +761,7 @@ final class CallbackContext{
         for (index,entry) in configs.enumerated(){let parts=entry.split(separator:"=",maxSplits:1,omittingEmptySubsequences:false);childEnvironment["GIT_CONFIG_KEY_\(index)"]=String(parts[0]);childEnvironment["GIT_CONFIG_VALUE_\(index)"]=String(parts[1])}
         let status=withStrings(childEnvironment.map{$0.key+"="+$0.value}){values,count in
             var env=Array(UnsafeBufferPointer(start:values,count:count));env.append(nil)
-            return env.withUnsafeBufferPointer{tg_run_filter(expanded,directory,handles[0].fileDescriptor,handles[1].fileDescriptor,handles[2].fileDescriptor,$0.baseAddress,&options)}
+            return env.withUnsafeBufferPointer{environment in commandStorage.withStrings{commands,_ in tg_run_filter(commands![0]!,directory,handles[0].fileDescriptor,handles[1].fileDescriptor,handles[2].fileDescriptor,environment.baseAddress,&options)}}
         }
         try handles[2].seek(toOffset:0)
         while let diagnostics=try handles[2].read(upToCount:65_536),!diagnostics.isEmpty{FileHandle.standardError.write(diagnostics)}
@@ -851,7 +894,7 @@ func callbacks(_ owner:CallbackContext)->tg_callbacks{
     }
     value.filter={command,path,directory,index,input,count,result,length,raw in
         guard let command,let path,let directory,let result,let length else{return -1}
-        do{let bytes=try context(raw).externalFilter(command:String(cString:command),path:String(cString:path),directory:String(cString:directory),index:index.map{String(cString:$0)},input:count>0 ? Data(bytes:input!,count:count):Data())
+        do{let bytes=try context(raw).externalFilter(command:String(cString:command),path:Data(bytes:path,count:strnlen(path,1_048_577)),directory:String(cString:directory),index:index.map{String(cString:$0)},input:count>0 ? Data(bytes:input!,count:count):Data())
             guard let copy=malloc(bytes.count+1) else{return -1};bytes.copyBytes(to:copy.assumingMemoryBound(to:UInt8.self),count:bytes.count);copy.assumingMemoryBound(to:UInt8.self)[bytes.count]=0;result.pointee=copy.assumingMemoryBound(to:UInt8.self);length.pointee=bytes.count;return 0
         }catch{output("External filter: "+error.localizedDescription+"\n");return -1}
     }
@@ -862,6 +905,23 @@ func withStrings<T>(_ values:[String],_ body:(UnsafePointer<UnsafePointer<CChar>
     let copies=values.map{strdup($0)};defer{copies.forEach{free($0)}}
     let immutable=copies.map{$0.map{UnsafePointer($0)}}
     return immutable.withUnsafeBufferPointer{body($0.baseAddress,$0.count)}
+}
+final class OwnedByteStrings {
+    private var storage:[UnsafeMutablePointer<CChar>]=[]
+    init(_ values:[Data])throws {
+        do {
+            for bytes in values {
+                guard !bytes.contains(0),let value=malloc(bytes.count+1)?.assumingMemoryBound(to:CChar.self) else {try refuse("Cannot allocate historical paths")}
+                bytes.withUnsafeBytes {if let base=$0.baseAddress {memcpy(value,base,bytes.count)}}
+                value[bytes.count]=0;storage.append(value)
+            }
+        } catch {for value in storage {free(value)};storage=[];throw error}
+    }
+    deinit {for value in storage {free(value)}}
+    func withStrings<T>(_ body:(UnsafePointer<UnsafePointer<CChar>?>?,Int)->T)->T {
+        let pointers=storage.map{Optional(UnsafePointer($0))}
+        return pointers.withUnsafeBufferPointer {body($0.baseAddress,$0.count)}
+    }
 }
 func withOptionalString<T>(_ value:String?,_ body:(UnsafePointer<CChar>?)->T)->T{if let value{return value.withCString(body)};return body(nil)}
 func run()throws->Int32{
@@ -898,6 +958,9 @@ func run()throws->Int32{
         }
     }
     let diffRequest=try (args.command == "turtlegit-unified-diff" || args.command == "turtlegit-history-diff" || args.command == "turtlegit-history-diff-batch") ? PrivateDiffRequest(command:args.command):nil
+    let materializeRequest=try args.command=="turtlegit-materialize-blob" ? PrivateMaterializeRequest():nil
+    let materializePaths=try materializeRequest.map{try OwnedByteStrings([$0.path])}
+    let unifiedPaths=try diffRequest?.unified.map{try OwnedByteStrings($0.paths)}
     let localRequest=try PrivateLocalReferenceRequest.commands.contains(args.command) ? PrivateLocalReferenceRequest(command:args.command):nil
     let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
     let finderRequest=try args.command=="turtlegit-finder-status" ? PrivateFinderRequest.read():nil
@@ -1032,7 +1095,7 @@ func run()throws->Int32{
             if let contains=request.contains{return tg_containing_references(args.directory,contains.revision,contains.includeTags ? 1:0,contains.includeLocal ? 1:0,contains.includeRemote ? 1:0,&options)}
             if let deletion=request.deletion{return withOptionalString(deletion.expectedSymbolicTarget){target in tg_delete_local_reference(args.directory,deletion.reference,deletion.expectedOID,target,&options)}}
         }
-        if let request=diffRequest?.unified {return withStrings(request.paths){paths,count in tg_unified_diff(args.directory,request.old,request.new,paths,count,request.noPrefix ? 1:0,&options)}}
+        if let request=diffRequest?.unified,let unifiedPaths {return unifiedPaths.withStrings{paths,count in tg_unified_diff(args.directory,request.old,request.new,paths,count,request.noPrefix ? 1:0,&options)}}
         if let batch=diffRequest?.batch,!batch.isEmpty {
             for request in batch {
                 owner.resetHistory()
@@ -1050,6 +1113,7 @@ func run()throws->Int32{
         if args.command == "clone"{
             return withOptionalString(args.branch){branch in withOptionalString(args.origin){origin in withOptionalString(args.ssh){ssh in tg_clone(args.source,args.destination,args.bare ? 1:0,args.noCheckout ? 1:0,args.recursive ? 1:0,branch,origin,Int32(args.depth),ssh,&options)}}}
         }
+        if let request=materializeRequest,let materializePaths {return materializePaths.withStrings{paths,_ in tg_materialize_blob(args.directory,request.oid,paths![0]!,&options)}}
         if args.command == "cat-file"{return tg_materialize_blob(args.directory,args.blobOID,args.blobPath!,&options)}
         if args.command == "ls-remote"{return tg_list_remote(args.directory,args.remote,args.listRefs ? 1:0,args.listTags ? 1:0,args.listHeads ? 1:0,&options)}
         if args.command == "push"{return withStrings(args.refspecs){refs,count in tg_delete_remote(args.directory,args.remote,refs,count,&options)}}

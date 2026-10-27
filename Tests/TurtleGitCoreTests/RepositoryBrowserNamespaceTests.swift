@@ -82,15 +82,15 @@ final class RepositoryBrowserNamespaceTests:XCTestCase {
         XCTAssertEqual(try Data(contentsOf:f.root.appendingPathComponent(".git/index")),index)
         let head=try await f.repository.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines);XCTAssertEqual(head,f.head)
     }
-    func testStoredBlobInspectionIsPinnedAndAllPathDependentActionsRefuseRawNames()async throws {
+    func testHistoricalDeliveryIsPinnedAndFilesystemActionsRefuseRawNames()async throws {
         let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
         let snapshot=try await f.repository.browseRepository(revision:f.tree)
         let raw=try XCTUnwrap(snapshot.entries.first{$0.rawPath==Data([255])})
         let index=try Data(contentsOf:f.root.appendingPathComponent(".git/index")),config=try Data(contentsOf:f.root.appendingPathComponent(".git/config"))
         let contents=try await f.repository.storedRepositoryBrowserBlob(snapshot,entry:raw);XCTAssertEqual(contents,f.contents)
         let view=try await f.repository.repositoryBrowserFile(snapshot,entry:raw)
-        XCTAssertEqual(view.path,raw.displayPath);XCTAssertFalse(view.path.utf8.contains(0));XCTAssertEqual(view.bytes,f.contents)
-        do {_ = try await f.repository.materializedRepositoryBrowserFile(snapshot,entry:raw);XCTFail("Opaque key entered attribute/filter path")}catch is RepositoryBrowserTransferFailure{}
+        XCTAssertEqual(view.path,raw.path);XCTAssertEqual(view.objectID,raw.objectID);XCTAssertEqual(view.bytes,f.contents)
+        let delivered=try await f.repository.materializedRepositoryBrowserFile(snapshot,entry:raw,backend:.init(mask:0));XCTAssertEqual(delivered.bytes,f.contents);XCTAssertEqual(delivered.path,raw.path);XCTAssertEqual(delivered.objectID,raw.objectID)
         do {try await f.repository.validateRepositoryBrowserWorkingPath(snapshot,entry:raw);XCTFail("Opaque key entered filesystem lookup")}catch is RepositoryBrowserTransferFailure{}
         do {try await f.repository.revertRepositoryBrowserFile(snapshot,entry:raw);XCTFail("Opaque key entered checkout")}catch is RepositoryBrowserTransferFailure{}
         let gitlink=try XCTUnwrap(snapshot.entries.first{$0.kind == .submodule})

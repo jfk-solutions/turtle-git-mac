@@ -92,10 +92,10 @@ final class RepositoryBrowserNamespaceTransferTests:XCTestCase {
         XCTAssertFalse(child.isPathRepresentable)
         XCTAssertFalse(RepositoryBrowserListing.validPath(path.key,allowRoot:false))
         let missing=GitLibGit2Configuration(enabled:true,helperURL:f.root.appendingPathComponent("missing-helper"))
-        do{_=try await f.repo.materializedHistoricalFile(revision:"not-a-revision",path:path.key,backend:missing);XCTFail("Opaque key reached historical lookup")}
-        catch RevisionComparisonFailure.selection {}
-        do{_=try await f.repo.materializedBlob(objectID:child.objectID,path:path.key,revision:child.objectID,mode:"100644",cancellation:OperationCancellation(),backend:missing);XCTFail("Opaque key reached checkout filter")}
-        catch RevisionComparisonFailure.selection {}
+        do{_=try await f.repo.materializedHistoricalFile(revision:"not-a-revision",path:path.key,backend:missing);XCTFail("Invalid revision reached historical materialization")}
+        catch is GitFailure {}
+        do{_=try await f.repo.materializedBlob(objectID:child.objectID,path:path.key,revision:child.objectID,mode:"100644",cancellation:OperationCancellation(),backend:missing);XCTFail("Missing selected helper silently fell back")}
+        catch GitLibGit2Failure.runtimeMissing {}
         XCTAssertThrowsError(try RepositoryBrowserTransferPolicy.validate(f.snapshot,entries:[child]))
         try RepositoryBrowserTransferPolicy.validateDirectory("good")
         try RepositoryBrowserTransferPolicy.validateDirectory("")

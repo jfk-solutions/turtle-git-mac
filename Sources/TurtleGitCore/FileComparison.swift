@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public struct ComparisonFileContent: Sendable {
     public let path: String
@@ -8,23 +9,26 @@ public struct ComparisonFileContent: Sendable {
     public let permissions: Int?
     public let encoding: ComparisonTextEncoding?
     public let isDeleted: Bool
+    /// Stored source identity, independent of checkout filters or text decoding.
+    public let objectID: String?
     private let interpretedText:String?
-    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false, detectEncoding:Bool = true,interpretedText:String? = nil) {
+    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false, detectEncoding:Bool = true,interpretedText:String? = nil, objectID: String? = nil) {
         self.isDeleted = isDeleted
         self.path = path; self.revision = revision; self.bytes = bytes; self.mode = mode; self.permissions = permissions
         self.encoding = encoding ?? (detectEncoding ? ComparisonTextEncoding.detect(bytes) : nil)
         self.interpretedText=interpretedText
+        self.objectID=objectID
     }
     public func usingMergeEncoding(preferUTF8: Bool, legacyEncoding:ComparisonTextEncoding = .windows1252) -> Self {
         Self(path: path, revision: revision, bytes: bytes, mode: mode, permissions: permissions,
-             encoding: ComparisonTextEncoding.detectMerge(bytes, preferUTF8: preferUTF8, legacyEncoding:legacyEncoding), isDeleted: isDeleted, detectEncoding:false)
+             encoding: ComparisonTextEncoding.detectMerge(bytes, preferUTF8: preferUTF8, legacyEncoding:legacyEncoding), isDeleted: isDeleted, detectEncoding:false, objectID:objectID)
     }
     /// Reload input bytes under a chosen decoder, rather than converting the
     /// already-decoded text to a new output format.
     public func reinterpreting(encoding:ComparisonTextEncoding) throws -> Self {
         guard let text = isDeleted ? "" : encoding.decodeInput(bytes) else {throw FileComparisonEditFailure.encoding}
         return Self(path:path,revision:revision,bytes:bytes,mode:mode,permissions:permissions,encoding:encoding.inputEncoding,
-                    isDeleted:isDeleted,detectEncoding:false,interpretedText:text)
+                    isDeleted:isDeleted,detectEncoding:false,interpretedText:text,objectID:objectID)
     }
     public var text: String? { isDeleted ? "" : interpretedText ?? encoding?.decode(bytes) }
 }
@@ -72,8 +76,7 @@ public struct HistoricalFilePreview: Sendable {
         guard case .revision(let hash) = content.revision, [40, 64].contains(hash.count),
               hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) || (65...70).contains($0) }),
               ["100644", "100755", "120000"].contains(content.mode ?? "") else { throw RevisionComparisonFailure.selection }
-        let name = (content.path as NSString).lastPathComponent as NSString
-        guard name.length > 0, ![".", ".."].contains(name as String), !content.path.utf8.contains(0) else { throw RevisionComparisonFailure.selection }
+        let name = try HistoricalFileDeliveryName.leaf(for:content) as NSString
         let ext = name.pathExtension
         let filename = name.deletingPathExtension + "-" + hash.prefix(7) + (ext.isEmpty ? "" : "." + ext)
         let manager = FileManager.default
@@ -197,7 +200,8 @@ extension GitRepository {
     /// Pin each historical side; working sides remain live and editable.
     public func preparedPathComparison(from: ComparisonRevision, fromPath: String, to: ComparisonRevision, toPath: String, cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
         try cancellation?.check()
-        _ = try restoreLocation(fromPath); _ = try restoreLocation(toPath)
+        try validateComparisonPath(fromPath,allowsRaw:from != .workingTree && to != .workingTree)
+        try validateComparisonPath(toPath,allowsRaw:from != .workingTree && to != .workingTree)
         if from == .workingTree || to == .workingTree { guard try !isBare(cancellation: cancellation) else { throw RevisionComparisonFailure.selection } }
         func pin(_ revision: ComparisonRevision) throws -> ComparisonRevision {
             if revision == .workingTree { return revision }
@@ -225,6 +229,9 @@ extension GitRepository {
         }
 
         guard snapshot.root == root, let file = snapshot.files.first(where: { GitReferenceName.equal($0.path,path) }), !file.isSubmodule else { throw RevisionComparisonFailure.selection }
+        let historicalOnly=snapshot.from != .workingTree && snapshot.to != .workingTree
+        try validateComparisonPath(path,allowsRaw:historicalOnly)
+        if let old=file.oldPath {try validateComparisonPath(old,allowsRaw:historicalOnly)}
         func content(_ revision: ComparisonRevision, _ path: String, absent: Bool) throws -> ComparisonFileContent {
             try cancellation?.check()
             if absent || revision == .emptyTree { return ComparisonFileContent(path: path, revision: revision, bytes: Data(), mode: nil) }
@@ -240,15 +247,8 @@ extension GitRepository {
                 return ComparisonFileContent(path: path, revision: revision, bytes: try Data(contentsOf: location), mode: executable & 0o111 == 0 ? "100644" : "100755", permissions: executable)
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
-            // Literal, NUL-delimited tree lookup handles colons, tabs and newlines.
-            let records = try read(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0)
-            for record in records {
-                guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
-                let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
-                guard header.count == 3, header[1] == "blob" else { throw RevisionComparisonFailure.selection }
-                return ComparisonFileContent(path: path, revision: revision, bytes: try read(["cat-file", "blob", String(header[2])]).stdout, mode: String(header[0]))
-            }
-            throw RevisionComparisonFailure.selection
+            guard let record=try historicalTreeRecord(revision:hash,path:path,cancellation:cancellation),["100644","100755","120000"].contains(record.mode) else {throw RevisionComparisonFailure.selection}
+            return ComparisonFileContent(path:path,revision:revision,bytes:try read(["cat-file","blob",record.oid]).stdout,mode:record.mode,objectID:record.oid)
         }
         return FileComparisonDocument(base: try replacements[true] ?? content(snapshot.from, file.oldPath ?? path, absent: file.action.hasPrefix("A")),
                                       destination: try replacements[false] ?? content(snapshot.to, path, absent: file.action.hasPrefix("D")))
@@ -335,7 +335,17 @@ public enum MergeUnifiedPatch {
     public static func create(base: ComparisonFileContent, destination: ComparisonFileContent,
                               baseLabel: String, destinationLabel: String, contextLines: Int = -1,
                               executable: URL, cancellation: OperationCancellation? = nil) async throws -> Data {
-        guard (-1...1000).contains(contextLines), [baseLabel, destinationLabel].allSatisfy({ !$0.isEmpty && !$0.contains("\0") }) else { throw RevisionComparisonFailure.selection }
+        guard (-1...1000).contains(contextLines) else { throw RevisionComparisonFailure.selection }
+        func labelBytes(_ label:String) throws -> Data {
+            guard !label.isEmpty else {throw RevisionComparisonFailure.selection}
+            if label.utf8.contains(0) {
+                let path=try RepositoryBrowserGitPath(key:label)
+                guard !path.rawData.isEmpty else {throw RevisionComparisonFailure.selection}
+                return path.rawData
+            }
+            return Data(label.utf8)
+        }
+        let basePath=try labelBytes(baseLabel),destinationPath=try labelBytes(destinationLabel)
         let token = cancellation ?? OperationCancellation(); try token.check()
         let folder = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMergePatch-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -344,8 +354,14 @@ public enum MergeUnifiedPatch {
             if content.isDeleted { return "/dev/null" }
             let file = folder.appendingPathComponent(name)
             if content.mode == "120000" {
-                guard let target = String(data: content.bytes, encoding: .utf8), !target.contains("\0") else { throw RevisionComparisonFailure.selection }
-                try FileManager.default.createSymbolicLink(atPath: file.path, withDestinationPath: target)
+                guard !content.bytes.isEmpty, !content.bytes.contains(0) else { throw RevisionComparisonFailure.selection }
+                let target=Array(content.bytes)+[UInt8(0)]
+                let status=target.withUnsafeBytes { raw in
+                    file.path.withCString { destination in
+                        Darwin.symlink(raw.baseAddress!.assumingMemoryBound(to:CChar.self),destination)
+                    }
+                }
+                guard status == 0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
             } else {
                 try content.bytes.write(to: file, options: .withoutOverwriting)
                 try FileManager.default.setAttributes([.posixPermissions: content.mode == "100755" ? 0o755 : 0o644], ofItemAtPath: file.path)
@@ -361,8 +377,8 @@ public enum MergeUnifiedPatch {
         try token.check()
         // Header paths must not expose temporary storage. Rewrite only headers;
         // hunk bytes (including non-UTF-8 text) are never decoded or replaced.
-        let old = quotedPath("a/" + (base.isDeleted ? destinationLabel : baseLabel))
-        let new = quotedPath("b/" + (destination.isDeleted ? baseLabel : destinationLabel))
+        let old = quotedPath(Data("a/".utf8) + (base.isDeleted ? destinationPath : basePath))
+        let new = quotedPath(Data("b/".utf8) + (destination.isDeleted ? basePath : destinationPath))
         var result = Data(), inHeader = true
         let lines = output.split(separator: 10, omittingEmptySubsequences: false)
         for (index, raw) in lines.enumerated() {
@@ -381,9 +397,9 @@ public enum MergeUnifiedPatch {
         return result
     }
     /// Git C-style path quoting, including octal UTF-8 bytes.
-    private static func quotedPath(_ path: String) -> String {
-        let bytes = Array(path.utf8)
-        guard bytes.contains(where: { $0 <= 32 || $0 >= 127 || $0 == 34 || $0 == 92 }) else { return path }
+    private static func quotedPath(_ path: Data) -> String {
+        let bytes = Array(path)
+        guard bytes.contains(where: { $0 <= 32 || $0 >= 127 || $0 == 34 || $0 == 92 }) else { return String(decoding:path,as:UTF8.self) }
         return "\"" + bytes.map { byte -> String in
             switch byte {
             case 34: return "\\\""

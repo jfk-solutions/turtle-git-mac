@@ -29,8 +29,9 @@ public struct PresentationComparisonPreview: Sendable {
     public static func prepare(_ document: FileComparisonDocument, in root: URL, cancellation: OperationCancellation) throws -> Self {
         try cancellation.check()
         guard !document.base.isDeleted, !document.destination.isDeleted else { throw PresentationComparisonFailure.absent }
-        for content in [document.base, document.destination] {
-            guard ["ppt", "pptx", "pptm"].contains((content.path as NSString).pathExtension.lowercased()), !content.path.utf8.contains(0) else { throw PresentationComparisonFailure.format }
+        for (content,other) in [(document.base,document.destination),(document.destination,document.base)] {
+            let path=content.path.utf8.contains(0) && ComparisonPreviewInputName.absent(content) ? other.path:content.path
+            guard ["ppt", "pptx", "pptm"].contains(HistoricalGitPath.fileExtension(path).lowercased()) else { throw PresentationComparisonFailure.format }
         }
         let manager = FileManager.default
         let directory = root.appendingPathComponent("TurtleGitPresentationDiff-" + UUID().uuidString, isDirectory: true)
@@ -40,7 +41,8 @@ public struct PresentationComparisonPreview: Sendable {
                 try cancellation.check()
                 let folder = directory.appendingPathComponent(side, isDirectory: true)
                 try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-                let file = folder.appendingPathComponent((content.path as NSString).lastPathComponent)
+                let name=try ComparisonPreviewInputName.leaf(for:content,other:side=="base" ? document.destination:document.base,side:side,fallbackExtension:"pptx")
+                let file = folder.appendingPathComponent(name)
                 try content.bytes.write(to: file, options: .withoutOverwriting)
                 try manager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path)
                 try cancellation.check(); return file

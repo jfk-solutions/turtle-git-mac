@@ -240,7 +240,9 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 - The earlier invalid UTF-8 path/mode policy gap is superseded by the
   [namespace continuation](REPOSITORY-BROWSER-NAMESPACE-PARITY.md): byte identity,
   tree-OID navigation, stored-object inspection and explicit unrepresentable
-  filesystem-action refusal are implemented. Full raw-byte delivery remains open.
+  filesystem-action refusal are implemented. Historical single-file Open/Save
+  and comparison now have a [pending continuation](RAW-HISTORY-PARITY.md#historical-comparison-and-file-delivery-continuation).
+  Raw original-path checkout, working comparison and folder transfer remain open.
 
 The source inventory keeps this dialog and command files partial. The complete
 application, all source commands and App Store distribution remain unfinished.

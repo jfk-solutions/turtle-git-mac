@@ -32,8 +32,9 @@ public struct WordComparisonPreview: Sendable {
                 try cancellation.check()
                 let folder = directory.appendingPathComponent(side, isDirectory: true)
                 try manager.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions:0o700])
-                let name = (content.path as NSString).lastPathComponent
-                let target = folder.appendingPathComponent(name.isEmpty || name == "." || name == ".." ? side + ".docx" : name)
+                let other=side=="base" ? document.destination:document.base
+                let name=try ComparisonPreviewInputName.leaf(for:content,other:other,side:side,fallbackExtension:"docx")
+                let target = folder.appendingPathComponent(name)
                 try content.bytes.write(to: target, options: .withoutOverwriting)
                 try manager.setAttributes([.posixPermissions:0o444], ofItemAtPath:target.path)
                 try cancellation.check(); return target
@@ -66,6 +67,7 @@ public struct WordMergePreview: Sendable {
     public let result: URL
     public static func prepare(_ input: ExternalMergeInputs, in root: URL, cancellation: OperationCancellation) throws -> Self {
         try cancellation.check()
+        guard !input.entry.path.utf8.contains(0) else {throw DiffToolFailure.arguments}
         let manager=FileManager.default,directory=root.appendingPathComponent("TurtleGitWordMerge-"+UUID().uuidString,isDirectory:true)
         try manager.createDirectory(at:directory,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
         do {
@@ -73,7 +75,7 @@ public struct WordMergePreview: Sendable {
                 try cancellation.check()
                 let folder=directory.appendingPathComponent(side,isDirectory:true)
                 try manager.createDirectory(at:folder,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
-                let name=(input.entry.path as NSString).lastPathComponent
+                let name=HistoricalGitPath.filename(input.entry.path) ?? ""
                 let file=folder.appendingPathComponent(side+"-"+(name.isEmpty || name == "." || name == ".." ? "document.docx" : name))
                 try bytes.write(to:file,options:.withoutOverwriting)
                 // Word's merge works with tracked revisions in private editable

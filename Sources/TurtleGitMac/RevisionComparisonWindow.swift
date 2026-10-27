@@ -155,7 +155,9 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         model.chooseHistoricalSave={ [weak self] content in
             guard let self, !self.model.closed else { return nil }
             let panel = NSSavePanel(); panel.title = "Save file at revision"; panel.canCreateDirectories = true; panel.allowsOtherFileTypes = true
-            let name = (content.path as NSString).lastPathComponent as NSString, ext = name.pathExtension
+            let leaf:String
+            do{leaf=try HistoricalFileDeliveryName.leaf(for:content)}catch{self.model.error=error.localizedDescription;return nil}
+            let name = leaf as NSString, ext = name.pathExtension
             panel.nameFieldStringValue = name.deletingPathExtension + "-" + String(content.revision.label.prefix(8)) + (ext.isEmpty ? "":"."+ext)
             panel.alphaValue = self.window?.alphaValue ?? 1
             return await self.filePanels.choose(panel)
@@ -584,9 +586,9 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     guard !closed, !token.isCancelled else { return }
                     if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))", permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access, preferences:preferences)
-                        controller.presentDocument(bytes, title: "\(file.path) – Unified Diff – TurtleGit",
+                        controller.presentDocument(bytes, title: "\(file.displayPath) – Unified Diff – TurtleGit",
                             comparison: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))",
-                            information: "Unified diff for \(file.path). Right-click to save the patch.", paths: [file.path], refreshAvailable: true, refresh: { [weak self, weak controller] in
+                            information: "Unified diff for \(file.displayPath). Right-click to save the patch.", paths: [file.path], refreshAvailable: true, refresh: { [weak self, weak controller] in
                                 guard let self, let controller, !self.closed, !controller.model.busy, !controller.model.confirmingQuit else { return }
                                 let identity = controller.documentSession.documentIdentity
                                 controller.model.busy = true
@@ -605,7 +607,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                         controller.onClosed = { [weak self] in self?.unifiedWindows.removeValue(forKey: file.path) }
                         unifiedWindows[file.path] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
                     }
-                } catch { failures.append(file.path + ": " + error.localizedDescription) }
+                } catch { failures.append(file.displayPath + ": " + error.localizedDescription) }
             }
             if !closed, !token.isCancelled, !failures.isEmpty { error = failures.joined(separator: "\n") }
         }
@@ -666,13 +668,13 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
               let context=captureFileMenu(orderedPaths),claimFileMenu(context,consume:false),let snapshot else{return nil}
         let lookup=GitPathMap(uniqueKeysWithValues:context.files.map{($0.path,$0)})
         let files=orderedPaths.compactMap{lookup[$0]}
-        guard files.count==orderedPaths.count else{return nil}
+        guard files.count==orderedPaths.count,files.allSatisfy(\.isPathRepresentable) else{return nil}
         return FileListSelectionDrag(repository:repository,access:access,files:files,
             revision:snapshot.to,backend:materializationBackend())
     }
     func fileDragProvider(_ context:FileMenuContext?)->NSItemProvider? {
         guard canStartFileDrag(),NSApp.modalWindow==nil,!hasOwnedPreparation,
-              claimFileMenu(context,consume:false),let context,let snapshot,
+              claimFileMenu(context,consume:false),let context,context.files.allSatisfy(\.isPathRepresentable),let snapshot,
               let plan=try? FileListDragPlan(root:repository.root,revision:snapshot.to,files:context.files,backend:materializationBackend()),
               !plan.items.isEmpty else{return nil}
         return FileListDrag.provider(repository:repository,access:access,plan:plan,itemAt:0)
@@ -684,7 +686,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
     func canRevertFiles(_ ids:some Sequence<String>,base:Bool)->Bool {
         let ids = GitPathSet(ids)
-        guard !closed,!busy,!bare,let snapshot,let first=visibleFiles.first(where:{ids.contains($0.path)}),(base ? snapshot.from : snapshot.to) != .workingTree else { return false }
+        guard !closed,!busy,!bare,let snapshot,let first=visibleFiles.first(where:{ids.contains($0.path)}),(base ? snapshot.from : snapshot.to) != .workingTree,
+              visibleFiles.filter({ids.contains($0.path)}).allSatisfy(\.isPathRepresentable) else { return false }
         return base || snapshot.from == .workingTree || !first.action.hasPrefix("D")
     }
     func revertTitle(base:Bool)->String {
@@ -756,7 +759,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                 catch {
                     if let failure=error as? WorkingFileRevertFailure {actionTrash += failure.trashedFiles;changed=true}
                     guard !closed,!token.isCancelled else { break }
-                    if !(await fileActionFailure(file.path+"\n"+error.localizedDescription)) {break}
+                    if !(await fileActionFailure(file.displayPath+"\n"+error.localizedDescription)) {break}
                 }
             }
             if changed {onFilesChanged()}
@@ -927,7 +930,7 @@ struct RevisionComparisonFileList:View {
     private func color(_ file: CommitFile) -> Color { model.selection.contains(file.path) ? .primary:state(file).textColor(preferences:model.preferences) }
     var body:some View {
             Table(of:RevisionComparisonFileRow.self, selection: $model.nativeSelection, sortOrder: Binding(get:{model.sortOrder.map(RevisionComparisonFileSort.init)},set:{model.sortOrder=$0.map(\.comparator)})) {
-                TableColumn(LocalizedStringKey(pathTitle), sortUsing: RevisionComparisonFileSort(column: .path)) { row in let file = row.file; HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(color(file)) }.repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.preferences) }.width(min: 260, ideal: 500)
+                TableColumn(LocalizedStringKey(pathTitle), sortUsing: RevisionComparisonFileSort(column: .path)) { row in let file = row.file; HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(color(file)) }.repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + RepositoryBrowserGitPath.display(key:$0) } ?? "", preferences: model.preferences) }.width(min: 260, ideal: 500)
                 TableColumn("Extension", sortUsing: RevisionComparisonFileSort(column: .fileExtension)) { row in let file = row.file; Text(model.fileText(file, column: .fileExtension)).foregroundStyle(color(file)) }.width(min: 45, ideal: 75, max: 320)
                 TableColumn(LocalizedStringKey(statusTitle), sortUsing: RevisionComparisonFileSort(column: .status)) { row in let file = row.file; Text(FileListLabels.caption(file.status)).foregroundStyle(color(file)) }.width(min: 65, ideal: 100, max: 320)
                 TableColumn("Lines added", sortUsing: RevisionComparisonFileSort(column: .added)) { row in let file = row.file; Text(file.addedText).foregroundStyle(color(file)) }.width(min: 65, ideal: 85, max: 320)

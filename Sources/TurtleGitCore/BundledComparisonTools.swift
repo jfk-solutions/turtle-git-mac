@@ -2,6 +2,34 @@
 // Native adaptations of diff-dll.js and diff-nb.js from the pinned upstream.
 import Foundation
 
+/// Output names for owned comparison inputs are independent of Git paths.
+/// An absent historical side has no blob identity: give it an explicit empty
+/// input name rather than borrowing the other side's OID.
+public enum ComparisonPreviewInputName {
+    static func absent(_ content:ComparisonFileContent)->Bool {
+        content.mode==nil && content.objectID==nil && content.bytes.isEmpty && !content.isDeleted
+    }
+    private static func safeExtension(_ value:String)->Bool {
+        (1...16).contains(value.utf8.count) && value.utf8.allSatisfy{(48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0)}
+    }
+    public static func leaf(for content:ComparisonFileContent,other:ComparisonFileContent,side:String,fallbackExtension:String)throws->String {
+        guard !side.isEmpty,side.utf8.count<=32,side.utf8.allSatisfy({(48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0==45}),fallbackExtension.isEmpty || safeExtension(fallbackExtension) else {throw RevisionComparisonFailure.selection}
+        if !content.path.utf8.contains(0) {
+            let name=HistoricalGitPath.filename(content.path) ?? ""
+            if ["",".",".."].contains(name) {return side+(fallbackExtension.isEmpty ? "":"."+fallbackExtension)}
+            return try HistoricalFileDeliveryName.leaf(for:content)
+        }
+        // Validate the key even for an empty side before deriving its suffix.
+        _ = try RepositoryBrowserGitPath(key:content.path)
+        if absent(content) {
+            let candidates=[HistoricalGitPath.fileExtension(other.path),HistoricalGitPath.fileExtension(content.path),fallbackExtension]
+            let ext=candidates.first(where:safeExtension) ?? ""
+            return side+"-absent"+(ext.isEmpty ? "":"."+ext)
+        }
+        return try HistoricalFileDeliveryName.leaf(for:content)
+    }
+}
+
 public struct BinaryComparisonReport: Sendable {
     public let identical: Bool
     public let text: String
@@ -18,7 +46,8 @@ public struct BinaryComparisonReport: Sendable {
             }
         }
         let av = BinaryFileVersion.read(a.bytes), bv = BinaryFileVersion.read(b.bytes)
-        var common: [String] = [], old: [String] = ["Base", "  File: " + a.path], new: [String] = ["New", "  File: " + b.path]
+        func caption(_ content:ComparisonFileContent)->String {content.path.utf8.contains(0) ? RepositoryBrowserGitPath.display(key:content.path):content.path}
+        var common: [String] = [], old: [String] = ["Base", "  File: " + caption(a)], new: [String] = ["New", "  File: " + caption(b)]
         if sameSize { common.append("File sizes: \(b.bytes.count) bytes") }
         else { old.append("  Size: \(a.bytes.count) bytes"); new.append("  Size: \(b.bytes.count) bytes") }
         if !same && sameSize { common.append("File content differs!") }
@@ -180,8 +209,9 @@ public struct NotebookComparisonPreview: Sendable {
             func target(_ content: ComparisonFileContent, side: String) throws -> URL {
                 let folder = directory.appendingPathComponent(side, isDirectory: true)
                 try manager.createDirectory(at:folder,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
-                let name = (content.path as NSString).lastPathComponent
-                return folder.appendingPathComponent(name.isEmpty || name == "." || name == ".." ? side + ".nb" : name)
+                let other=side=="base" ? document.destination:document.base
+                let name=try ComparisonPreviewInputName.leaf(for:content,other:other,side:side,fallbackExtension:"nb")
+                return folder.appendingPathComponent(name)
             }
             let base = try target(document.base, side:"base"), destination = try target(document.destination, side:"new"), notebook = directory.appendingPathComponent("Compare.nb")
             try document.base.bytes.write(to: base, options: .withoutOverwriting); try cancellation?.check()

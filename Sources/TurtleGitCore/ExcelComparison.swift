@@ -37,8 +37,12 @@ public struct ExcelComparisonPreview:Sendable {
         try manager.createDirectory(at:directory,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
         do {
             func copy(_ content:ComparisonFileContent,side:String) throws -> URL {
-                try cancellation.check();let name=(content.path as NSString).lastPathComponent
-                let target=directory.appendingPathComponent(side+"-"+(name.isEmpty || name == "." || name == ".." ? "workbook.xlsx" : name))
+                try cancellation.check()
+                let original=HistoricalGitPath.filename(content.path) ?? ""
+                let name:String
+                if !content.path.utf8.contains(0),["",".",".."].contains(original) {name="workbook.xlsx"}
+                else {name=try ComparisonPreviewInputName.leaf(for:content,other:side=="base" ? document.destination:document.base,side:side,fallbackExtension:"xlsx")}
+                let target=directory.appendingPathComponent(side+"-"+name)
                 try content.bytes.write(to:target,options:.withoutOverwriting);try manager.setAttributes([.posixPermissions:0o444],ofItemAtPath:target.path);try cancellation.check();return target
             }
             let base=try copy(document.base,side:"base"),destination=try copy(document.destination,side:"new")

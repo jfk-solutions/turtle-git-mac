@@ -1,4 +1,4 @@
-# Historical Git filenames and native history
+# Historical Git filenames, comparison and file delivery
 
 This family extends the Browser namespace workflow against pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`. It is a partial workflow review,
@@ -46,10 +46,95 @@ loader paths. A late Browser or annotation callback cannot retarget another
 repository or a retired owner. Owned history reads retain their cancellation,
 process-group drainage, repository access and Quit protection.
 
-## Verification and remaining boundaries
+## Historical comparison and file delivery continuation
 
-The [dated checkpoint](qa/raw-history-family-2026-10-27.json) records the actual
-implementation and validation state. All 149 distinct relevant Core methods
+The new [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json)
+is **awaiting grouped validation**. Its implementation connects historical file
+comparison and Open/Save to the same exact byte identity as Log and Blame; the
+older successful history checkpoint below does not validate this continuation.
+
+Browser **Mark for comparison** and **Compare with marked file**, Log parent or
+selected historical comparisons, and Blame's historical comparison callbacks
+retain each pinned revision and original path. Both comparison endpoints must be
+historical for an opaque path. The tree reader resolves the exact entry and blob
+OID, including a renamed old path, without consulting the current checkout or
+substituting a valid replacement-character sibling. Regular files, executable
+files and symlink blobs retain stored bytes and modes. Comparisons and attribution
+read stored data, independently of checkout filters.
+
+Ordinary **Open**, **Open With…**, **View revision with alternative editor** and
+**Save revision to…** now accept a raw historical file. They follow the existing
+source `GetOneFile` backend policy, rather than silently changing all historical
+outputs to filtered or unfiltered data:
+
+| Selected read path | Output policy |
+| --- | --- |
+| Command-line fallback | Stored blob bytes, as in the source fallback |
+| Selected libgit2 GetOneFile helper | Checkout/smudge filters using the exact original byte path and current attribute policy |
+| Explicit stored-blob commands | Always stored, unfiltered object bytes |
+
+Pinned source `src/Git/Git.cpp:2777–2871` selects the corresponding GetOneFile
+branches; `src/TortoiseProc/RepositoryBrowser.cpp:1229–1309` owns Save/Open and
+alternative-editor delivery. The native helper accepts a bounded typed packet
+containing the blob OID and encoded pathname bytes. Filters receive the original
+pathname, including `%f`, as one argument; no escaped caption or shell-evaluated
+filename replaces it. Changing an attribute can change a later filtered output;
+it does not change the captured blob OID, file mode or Browser revision.
+
+A raw Git filename never becomes a native destination. Historical deliveries
+propose `Git-blob-<full-source-blob-OID>` plus an optional 1–16-character ASCII
+alphanumeric extension from the original leaf. The OID identifies the stored
+source even if filters transform the delivered bytes. Existing preview/revision
+suffixes and private per-operation folders remain in place. A Save panel grants
+authority for the user's actual chosen destination. A symlink's bytes are
+materialized as file content rather than followed as a native link.
+
+External comparison tools receive private, read-only copies under safe leaves.
+Their displayed titles use escaped original paths; file/path placeholders for
+opaque historical inputs receive prepared native paths. Filename associations
+use an exact decodable leaf when available, with extension/default fallback;
+lossy replacement text does not select a different file's rule. Existing tool
+selection, alternate-tool policy, security scopes and uncertain external-launch
+cleanup remain applicable. Built-in document/notebook preview inputs use the same
+safe naming boundary. An absent comparison side uses a labelled
+`<side>-absent.<format>` placeholder with no invented stored OID. This does not
+establish acceptance by receiving apps.
+
+Historical scoped unified diffs retain byte path arguments for both CLI and the
+selected helper. Patch headers use Git-style quoting of original bytes, including
+rename endpoints. Hunk data is not decoded and rewritten to hide an invalid
+filename. Creating a patch from comparison panes likewise keeps source-byte
+labels, modes and symlink target bytes; its Save panel proposes a safe leaf.
+Historical pane edits can be saved to an explicitly chosen output, not written
+back through an opaque key into the checkout. Native captions, lists, tooltips and
+clipboard presentation remain escaped and contain no internal NUL-prefixed keys.
+
+All these reads and output panels retain the existing owner/session receipts,
+revision and backend capture, cancellation and Quit gates. A refresh, navigation,
+close or retired chooser cannot launch or write a late output. Ordinary UTF-8
+paths keep their established authority and filesystem checks.
+
+## Materialization/comparison checkpoint
+
+The [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json)
+records 154 distinct Core methods passing cumulatively and all seven native
+Browser cases passing with both system and bundled Git (14 engine/case pairs).
+The initial Core fixture used a CR-terminated string prefix; stricter signed
+CRLF byte assertions passed with both actual patch backends. Native fixture
+repairs replaced an obsolete disabled-Open expectation and selected the helper
+explicitly for filtered-output checks. The final case holds and retires the
+actual smudge child. These repairs preserve the behavioral assertions.
+
+The universal helper and unsigned Debug app passed. All 16 attempted native
+receivers were reaped and independently absent. Generated localization and Help
+checks passed. These focused results do not establish physical Finder behavior,
+external Office automation, signed deployment or full hosted CI.
+
+## Earlier verification and remaining boundaries
+
+The earlier [history-only checkpoint](qa/raw-history-family-2026-10-27.json)
+records that family's implementation and validation state. It does not establish
+the materialization continuation above. All 149 distinct relevant Core methods
 passed cumulatively: the initial group caught an ordinary-path Blame admission
 regression, then the nine affected ordinary/raw cases passed after restoring the
 existing path checks. The universal helper, regenerated project/resources and
@@ -65,12 +150,15 @@ read retirement. All 13 attempted receivers were reaped and independently absent
 There was no physical screenshot or signed deployment check. Earlier Browser
 checks establish their dated families, not these new paths.
 
-Raw original-path checkout, filtered comparison/materialization, filesystem
-exports/promises, working-tree mutation and submodule checkout resolution remain
-separate implementation work. Their path-dependent dispatchers refuse a raw key
-instead of addressing a replacement spelling. Hash-only revision actions remain
-independent of that restriction. Stored-object inspection and explicit unfiltered
-delivery under a safe chosen filename remain available.
+Raw original-path checkout, working-tree comparisons/mutation, filesystem
+reveal, folder exports/promises and submodule checkout resolution remain separate
+implementation work. Their pathname-dependent dispatchers refuse a raw key
+instead of addressing a replacement spelling. A mark involving a working-tree
+endpoint retains that refusal even when its other side is historical. Historical
+single-file comparisons/materialization and safe chosen-name delivery are now
+implemented in this continuation; folder transfer still preflights every
+descendant and refuses an unrepresentable name. Hash-only revision actions remain
+independent of these restrictions.
 
 Physical gestures, VoiceOver, signed sandbox grants, external receiving
 applications, Intel/minimum-OS execution, full hosted CI and complete source

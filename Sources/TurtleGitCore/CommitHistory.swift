@@ -1597,7 +1597,9 @@ extension GitRepository {
         var seen = Set<String>(), patch = Data()
         for file in files where seen.insert(file.id).inserted {
             try cancellation?.check()
-            guard !file.path.isEmpty, !file.path.contains("\0") else { throw RevisionComparisonFailure.selection }
+            guard !file.path.isEmpty else {throw RevisionComparisonFailure.selection}
+            try validateComparisonPath(file.path,allowsRaw:!workingTree)
+            if let old=file.oldPath {try validateComparisonPath(old,allowsRaw:!workingTree)}
             var scoped = entry
             if let index = file.parentIndex {
                 guard entry.parents.indices.contains(index) else { throw RevisionComparisonFailure.selection }
@@ -1641,7 +1643,9 @@ extension GitRepository {
             }
         }
         args.insert(contentsOf: workingTree ? diffDetection.comparisonArguments : diffDetection.historyArguments, at: 1)
-        args.append("--"); args += path.map { [$0] } ?? paths
+        let scope=path.map {[$0]} ?? paths
+        for value in scope {try validateComparisonPath(value,allowsRaw:!workingTree)}
+        args.append("--"); args += scope
         return try unifiedDiffData(arguments:args,cancellation:cancellation,backend:backend)
     }
     /// FillPatchView: whole changes with stats, or selected versioned rows in list order.
@@ -1669,7 +1673,7 @@ extension GitRepository {
         let flags = ["--no-ext-diff", "--no-textconv", "--no-color"] + (working ? diffDetection.comparisonArguments : diffDetection.historyArguments)
         if let files {
             var output = Data()
-            func validPath(_ path: String) -> Bool { !path.isEmpty && !path.hasPrefix("/") && !path.contains("\0") && !path.split(separator: "/").contains("..") }
+            func validPath(_ path:String)->Bool {(try? validateComparisonPath(path,allowsRaw:!working)) != nil}
             for file in files where file.action != "?" {
                 try cancellation?.check()
                 guard validPath(file.path), file.oldPath.map(validPath) != false else { throw RevisionComparisonFailure.selection }

@@ -59,12 +59,16 @@ receipt. The saved filename is a suggested leaf: the user still chooses its
 actual destination. Blob mode and exact bytes retain their existing typed
 content ownership; a symlink blob is delivered as its stored bytes, not followed.
 
-Filtered filesystem delivery, working comparison, marks, submodule checkout
-resolution and Revert require a representable path. Their menus and underlying
-dispatchers refuse raw names with an explanation. Double-clicking a raw directory
-still navigates it; a raw file can be inspected or explicitly delivered through
-its stored object commands.
-Valid sibling files retain ordinary actions.
+The [historical materialization continuation](RAW-HISTORY-PARITY.md#historical-comparison-and-file-delivery-continuation)
+now connects ordinary file Open/Save and historical comparison marks for raw
+names; its [grouped validation is pending](qa/raw-historical-materialization-2026-10-27.json).
+Open/Save retain the selected backend's established filter policy and propose a
+safe blob-OID leaf, while explicit stored-object commands remain unfiltered.
+Two historical endpoints can compare exact source bytes; a working-tree endpoint,
+submodule checkout resolution and Revert still require a representable path.
+Their menus and underlying dispatchers refuse raw names with an explanation.
+Double-clicking a raw directory still navigates it. Valid siblings retain their
+ordinary actions.
 
 The [historical filename continuation](RAW-HISTORY-PARITY.md) now connects raw
 file/folder Show log and file Blame to exact Git byte arguments and the pinned
@@ -115,12 +119,13 @@ receipts, held read refresh/close/Quit gates, and unchanged repository state.
 It uses the existing private receiver and invisible-window ownership policy.
 No physical receiving application or signed-sandbox acceptance is implied.
 
-Full raw-byte filesystem checkout, filtered save/export/promise delivery and working
-comparison remain unimplemented. The explicit refusal keeps
-these pathname-dependent operations from targeting a replacement spelling.
-Unfiltered stored-blob delivery is now available separately; it does not claim
-support for those filtered or raw filesystem workflows. Physical gestures, VoiceOver, signed sandbox grants,
+Full raw-byte original-path checkout, working comparison and folder
+export/promise delivery remain unimplemented. Their explicit refusal prevents a
+replacement spelling from addressing another file. Single historical file
+materialization, comparison and output under a safe chosen name are implemented
+in the new continuation awaiting validation; the earlier namespace/stored-blob
+results above do not validate those new routes. Physical gestures, VoiceOver, signed sandbox grants,
 receiving-app delivery and complete upstream visual parity require separate
 acceptance. This review supplies no whole-port completion percentage.
-The installed signed application remains the earlier viewer-family candidate;
-this Browser batch is verified in the local unsigned Debug build only.
+Earlier signed installation receipts do not validate this continuation; its
+new materialization/comparison grouped checkpoint remains pending.
