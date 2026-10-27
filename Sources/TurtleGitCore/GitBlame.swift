@@ -56,6 +56,7 @@ public struct GitBlameLine: Identifiable, Sendable {
     public let timezone: String
     public let summary: String
     public let filename: String
+    public var displayFilename:String { RepositoryBrowserGitPath.display(key:filename) }
     public let boundary: Bool
     public let source: String
     /// Exact payload bytes between Git's tab prefix and LF record delimiter.
@@ -64,6 +65,7 @@ public struct GitBlameLine: Identifiable, Sendable {
 public struct GitBlameSnapshot: Sendable {
     public let revision: String
     public let path: String
+    public var displayPath:String { RepositoryBrowserGitPath.display(key:path) }
     public let contents: Data
     public let encoding: GitBlameEncoding
     public let lines: [GitBlameLine]
@@ -204,7 +206,9 @@ public enum GitBlameFailure: LocalizedError {
 public enum GitBlameParser {
     static func filename(_ value: String) throws -> String {
         guard !value.isEmpty, !value.utf8.contains(0) else { throw GitBlameFailure.format }
-        guard value.hasPrefix("\"") else { return value }
+        guard value.hasPrefix("\"") else {
+            guard let key=HistoricalGitPath.key(Data(value.utf8)) else { throw GitBlameFailure.format }; return key
+        }
         guard value.hasSuffix("\"") else { throw GitBlameFailure.format }
         let input = Array(value.utf8.dropFirst().dropLast()); var output: [UInt8] = [], i = 0
         let escapes: [UInt8: UInt8] = [97: 7, 98: 8, 116: 9, 110: 10, 118: 11, 102: 12, 114: 13, 34: 34, 92: 92]
@@ -220,7 +224,7 @@ public enum GitBlameParser {
                 guard number <= 255 else { throw GitBlameFailure.format }; output.append(UInt8(number)); i += 2
             } else { throw GitBlameFailure.format }
         }
-        guard !output.isEmpty, !output.contains(0), let result = String(bytes: output, encoding: .utf8) else { throw GitBlameFailure.format }
+        guard !output.isEmpty, let result = HistoricalGitPath.key(Data(output)) else { throw GitBlameFailure.format }
         return result
     }
     public static func parse(_ data: Data, encoding: GitBlameEncoding = .utf8) throws -> [GitBlameLine] {
@@ -387,7 +391,8 @@ extension GitRepository {
         }
         if options.usesCompleteLog {
             let args = ["-c","core.precomposeunicode=false","log", "--encoding=UTF-8", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
-            return try records(run(args + [snapshot.revision, "--", snapshot.path],cancellation:cancellation).stdout).map { $0.0 }
+            let path=try HistoricalGitPath.argument(snapshot.path)
+            return try records(run(args + [snapshot.revision, "--", path.caption],argumentBytes:[args.count+2:path.bytes],cancellation:cancellation).stdout).map { $0.0 }
         }
         let hashes = Set(snapshot.lines.map(\.hash)).sorted()
         var entries: [(LogEntry, Int64)] = []
@@ -407,7 +412,7 @@ extension GitRepository {
     /// Only parents that changed an existing origin file are relevant, matching
     /// TortoiseBlame's menu gates. Preserve each parent's old rename path.
     public func blameParentComparisons(revision:String,path:String,cancellation:OperationCancellation? = nil) throws -> [GitBlameParentComparison] {
-        let file=try historicalFile(revision:revision,path:path,cancellation:cancellation)
+        let file=try path.utf8.contains(0) ? blameContents(revision:revision,path:path,cancellation:cancellation) : historicalFile(revision:revision,path:path,cancellation:cancellation)
         guard case .revision(let hash)=file.revision,["100644","100755","120000"].contains(file.mode ?? "") else { throw GitBlameFailure.unsupported }
         return try blameParentComparisons(revision:hash,paths:[path],cancellation:cancellation)
     }
@@ -421,7 +426,10 @@ extension GitRepository {
     }
     private func blameParentComparisons(revision:String,paths:[String],cancellation:OperationCancellation?) throws -> [GitBlameParentComparison] {
         try cancellation?.check()
-        for path in paths { _ = try restoreLocation(path) }
+        for path in paths {
+            if path.utf8.contains(0) {guard !(try RepositoryBrowserGitPath(key:path)).rawData.isEmpty else {throw GitBlameFailure.format}}
+            else {_ = try restoreLocation(path)}
+        }
         let parents=try run(["rev-list","--parents","-n","1",revision],cancellation:cancellation).text.split(whereSeparator: \.isWhitespace).dropFirst().map(String.init)
         var result:[GitBlameParentComparison]=[]
         for (index,parent) in parents.enumerated() {
@@ -437,10 +445,15 @@ extension GitRepository {
     }
     /// A pinned single-file read, without diffing the entire repository tree.
     private func blameContents(revision:String,path:String,cancellation:OperationCancellation?) throws -> ComparisonFileContent {
-        _ = try restoreLocation(path)
+        // Ordinary UTF-8 callers retain the existing working-path authority
+        // fence (including symlink parents/admin paths and its refusal type).
+        // Opaque keys have no host pathname and are validated as tree bytes only.
+        if !path.utf8.contains(0) { _ = try restoreLocation(path) }
+        let gitPath=try RepositoryBrowserGitPath(key:path)
+        guard !gitPath.rawData.isEmpty else { throw GitBlameFailure.unsupported }
         let resolved=try run(["-c","core.precomposeunicode=false","rev-parse","--verify","--end-of-options",revision+"^{commit}"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
-        for record in try run(["-c","core.precomposeunicode=false","ls-tree","-z",resolved,"--",path],cancellation:cancellation).stdout.split(separator:0) {
-            guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { continue }
+        for record in try run(["-c","core.precomposeunicode=false","ls-tree","-z",resolved,"--",gitPath.display],argumentBytes:[6:gitPath.rawData],cancellation:cancellation).stdout.split(separator:0) {
+            guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==gitPath.rawData else { continue }
             let header=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ")
             // A symlink is a blob containing the link text, not a request to
             // inspect its target. Read its object just like Git's pinned blame.
@@ -457,11 +470,12 @@ extension GitRepository {
               case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
         let encoding = try options.encoding ?? GitBlameEncoding.detect(content.bytes)
         try encoding.validate(content.bytes)
-        var args = ["-c","core.precomposeunicode=false","-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
+        var args = ["-c","core.precomposeunicode=false","-c", "blame.blankBoundary=false", "-c", "core.quotePath=true", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
         if options.ignoreWhitespace { args.append("-w") }
         if options.onlyFirstParent { args.append("--first-parent") }
         args += options.detectionArguments
-        let lines = try GitBlameParser.parse(run(args + [hash, "--", path],cancellation:cancellation).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
+        let gitPath=try RepositoryBrowserGitPath(key:path)
+        let lines = try GitBlameParser.parse(run(args + [hash, "--", gitPath.display],argumentBytes:[args.count+2:gitPath.rawData],cancellation:cancellation).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
         // Git appends LF to each porcelain record even when the source has no final LF.
         // Compare individual source bytes to the pinned blob, preserving CR, tabs and BOM.
         let records = content.bytes.split(separator: UInt8(10), omittingEmptySubsequences: false)

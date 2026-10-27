@@ -2828,3 +2828,14 @@ command order and existing behavior remain; full dialog acceptance stays open.
 ## Captured file drag delivery — October 21, 2026
 
 The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) connects changed-file rows to captured historical or live working-file delivery. Merge-parent occurrence identities remain separate; group headers and combined selections without a single revision cannot offer historical contents. Source-window changes cannot retarget an accepted provider. Its grouped checkpoint and physical/signed acceptance limits are recorded with the family.
+
+## Exact-byte historical filenames — October 27, 2026
+
+The [historical filename family](RAW-HISTORY-PARITY.md) connects Browser raw-file
+and raw-folder Show log with the pinned revision, ordinary walk/filter metadata,
+rename following and exact changed-file identities. CLI and selected libgit2
+history metadata preserve distinct raw/replacement-character siblings; captions
+and copy paths use escaped labels. Hash-only revision actions remain independent
+of the explicit raw filesystem/comparison restrictions. The
+[checkpoint](qa/raw-history-family-2026-10-27.json) records actual scoped checks
+and remaining physical/signed/full-port work separately.

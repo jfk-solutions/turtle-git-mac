@@ -196,6 +196,7 @@
 		57D0F31F4AA8A43D27C48511 /* SMTP.c in Sources */ = {isa = PBXBuildFile; fileRef = 205A616C02EABD9EE7DB57A2 /* SMTP.c */; };
 		57F5458D5F380EC55CF581E3 /* ReplayRowDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEE4FE7D1D60DD01647E285 /* ReplayRowDrag.swift */; };
 		5891A8F4129A4F0F519264F8 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
+		58EE6C9DB6173D2034EEC217 /* HistoricalGitPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B23585A4E74B4747458A0FF /* HistoricalGitPath.swift */; };
 		591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */; };
 		598373332ED12F83F595391D /* SupportReportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A6D2F04D1237B7F601A4AE /* SupportReportWindow.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
@@ -816,6 +817,7 @@
 		686D88F916A3D20A7C2982D9 /* MergeSourceExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeSourceExport.swift; sourceTree = "<group>"; };
 		69C742F936FA4A0276A54856 /* CleanWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanWindow.swift; sourceTree = "<group>"; };
 		6A72CBF70DA62980294AB41A /* TurtleGitMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6B23585A4E74B4747458A0FF /* HistoricalGitPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricalGitPath.swift; sourceTree = "<group>"; };
 		6CFEE049A0098A0212AD01DA /* ResetWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetWindow.swift; sourceTree = "<group>"; };
 		6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorLineLayout.swift; sourceTree = "<group>"; };
 		6D854D45255E20E630E8A738 /* Completion */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Completion; path = Sources/TurtleGitCore/Resources/Completion; sourceTree = SOURCE_ROOT; };
@@ -1608,6 +1610,7 @@
 				D5C4600CE92C92F579616719 /* GitSVNAuthenticationPrompt.swift */,
 				50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */,
 				11701990270B34CB8F67C3B3 /* GraphVectorScene.swift */,
+				6B23585A4E74B4747458A0FF /* HistoricalGitPath.swift */,
 				586E7A3F3C0CC083AF092FFE /* HistoricalMaterialization.swift */,
 				785EA4A8140D3A35CD9D32F5 /* HistoryContextMenu.swift */,
 				94119EBF871C901C8A360D50 /* HistoryFileCache.swift */,
@@ -2267,6 +2270,7 @@
 				001B1EBF54B372A9FFDE31DB /* GitSingleCommitDetails.swift in Sources */,
 				135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */,
 				EEF26076B054473011EF7A55 /* GraphVectorScene.swift in Sources */,
+				58EE6C9DB6173D2034EEC217 /* HistoricalGitPath.swift in Sources */,
 				AEC88C50F8FBB93AC096E86C /* HistoricalMaterialization.swift in Sources */,
 				48DD87A5E7EFF4B3B5A65756 /* HistoryContextMenu.swift in Sources */,
 				98A8FFA226505DFD1B6F2B69 /* HistoryFileCache.swift in Sources */,

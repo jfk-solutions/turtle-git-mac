@@ -43,7 +43,7 @@ public enum GitBlameTooltip {
         let subject = matching?.historySubject ?? line.summary
         let body = matching.map { bodyExcerpt($0.historyBody) } ?? ""
         var rows = [String(localized: "Revision") + ": " + field(revision)]
-        if showFilename { rows.append(String(localized: "Filename") + ": " + field(line.filename)) }
+        if showFilename { rows.append(String(localized: "Filename") + ": " + field(line.displayFilename)) }
         rows.append(String(localized: "Author") + ": " + field(author) + (email.isEmpty ? "" : " <" + field(email) + ">"))
 
         let parser = ISO8601DateFormatter()

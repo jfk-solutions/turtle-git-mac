@@ -1496,3 +1496,13 @@ transient grip dragging with Escape cancellation, native placement menus and
 Option-drag command relocation. The fixed-top-only limitation of the first
 customization checkpoint is superseded. The placement record retains its own
 actual grouped checks and physical/signed/full-port boundaries.
+
+## Exact-byte historical filenames — October 27, 2026
+
+The [historical filename family](RAW-HISTORY-PARITY.md) connects Browser raw-file
+Blame, exact stored source and renamed/copied origins to ordinary annotation and
+history settings. Parent metadata and Previous navigation retain the original
+Git pathname; displayed labels are escaped. Filesystem materialization and
+comparison keep explicit refusals. Its [checkpoint](qa/raw-history-family-2026-10-27.json)
+records the scoped implementation and validation independently of earlier Blame
+acceptance; this does not certify the whole viewer or signed deployment.

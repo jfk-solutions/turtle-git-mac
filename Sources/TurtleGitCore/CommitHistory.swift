@@ -107,11 +107,12 @@ public struct HistoryPathScope: Sendable, Equatable {
     /// Match FillLogMessageCtrl's literal prefix and directory/gitlink boundary rules.
     public func contains(_ file: CommitFile) -> Bool {
         if path.isEmpty || path == "." { return true }
-        let directoryPath = path.hasSuffix("/") ? String(path.dropLast()) : path
-        let prefix = isDirectory ? directoryPath + "/" : path
+        let raw=(try? HistoricalGitPath.argument(path).bytes) ?? Data(path.utf8)
+        let directoryPath = raw.last == 47 ? Data(raw.dropLast()) : raw
+        let prefix = isDirectory ? directoryPath + Data([47]) : raw
         func matches(_ candidate: String) -> Bool {
-            if isDirectory && file.isSubmodule && candidate.utf8.elementsEqual(directoryPath.utf8) { return true }
-            return candidate.utf8.starts(with: prefix.utf8)
+            if isDirectory && file.isSubmodule && ((try? HistoricalGitPath.argument(candidate).bytes) ?? Data(candidate.utf8)) == directoryPath { return true }
+            return ((try? HistoricalGitPath.argument(candidate).bytes) ?? Data(candidate.utf8)).starts(with:prefix)
         }
         return matches(file.path) || ((file.action.hasPrefix("R") || file.action.hasPrefix("C")) && file.oldPath.map(matches) == true)
     }
@@ -271,7 +272,7 @@ public struct HistoryFileFilter {
     private let query: HistoryTextQuery
     public init(_ text: String) { query = HistoryTextQuery(text, caseSensitive: false) }
     public func matches(_ file: CommitFile) -> Bool {
-        query.matches(file.path + (file.oldPath.map { "\n" + $0 } ?? ""))
+        query.matches(file.displayPath + (file.displayOldPath.map { "\n" + $0 } ?? ""))
     }
 }
 
@@ -671,6 +672,9 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
     public let parentIndex: Int?
     public let path: String
     public let oldPath: String?
+    public var displayPath:String { RepositoryBrowserGitPath.display(key:path) }
+    public var displayOldPath:String? { oldPath.map { RepositoryBrowserGitPath.display(key:$0) } }
+    public var isPathRepresentable:Bool { (try? RepositoryBrowserGitPath(key:path).isRepresentable) == true && (oldPath.map { (try? RepositoryBrowserGitPath(key:$0).isRepresentable) == true } ?? true) }
     public let action: String
     public let added: Int?
     public let removed: Int?
@@ -708,47 +712,40 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
         }
     }
     public static func parse(names: Data, statistics: Data, raw: Data = Data()) -> [CommitFile] {
-        let rawRecords = raw.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
-        var gitlinks = Set<GitReferenceName>(), cursor = 0
-        while cursor + 1 < rawRecords.count {
-            let header = rawRecords[cursor].split(separator: " "); cursor += 1
-            guard header.count == 5, header[0].hasPrefix(":") else { break }
-            var path = rawRecords[cursor]; cursor += 1
+        let rawRecords=raw.split(separator:0).map { Data($0) }
+        var gitlinks=GitPathSet(),cursor=0
+        while cursor+1<rawRecords.count {
+            let header=String(decoding:rawRecords[cursor],as:UTF8.self).split(separator:" ");cursor+=1
+            guard header.count==5,header[0].hasPrefix(":") else { break }
+            var bytes=rawRecords[cursor];cursor+=1
             if header[4].hasPrefix("R") || header[4].hasPrefix("C") {
-                guard cursor < rawRecords.count else { break }; path = rawRecords[cursor]; cursor += 1
+                guard cursor<rawRecords.count else { break };bytes=rawRecords[cursor];cursor+=1
             }
-            if header[1] == "160000" || (header[1] == "000000" && header[0] == ":160000") { gitlinks.insert(GitReferenceName(path)) }
+            if let path=HistoricalGitPath.key(bytes),header[1]=="160000" || (header[1]=="000000" && header[0]==":160000") {gitlinks.insert(path)}
         }
-        let numbers = statistics.split(separator: 0, omittingEmptySubsequences: false)
-        var stats = GitPathMap<(Int?,Int?)>()
-        var i = 0
-        while i < numbers.count {
-            let parts = String(decoding: numbers[i], as: UTF8.self).split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
-            i += 1
-            guard parts.count == 3 else { continue }
-            var path = String(parts[2])
-            if path.isEmpty, i + 1 < numbers.count {
-                // In -z output a rename has an empty path, followed by old and new paths.
-                path = String(decoding: numbers[i + 1], as: UTF8.self); i += 2
-            }
-            stats[path] = (Int(parts[0]), Int(parts[1]))
+        let numbers=statistics.split(separator:0,omittingEmptySubsequences:false).map { Data($0) }
+        var stats=GitPathMap<(Int?,Int?)>(),i=0
+        while i<numbers.count {
+            let parts=numbers[i].split(separator:9,maxSplits:2,omittingEmptySubsequences:false);i+=1
+            guard parts.count==3 else {continue}
+            var bytes=Data(parts[2])
+            if bytes.isEmpty,i+1<numbers.count {bytes=numbers[i+1];i+=2}
+            if let path=HistoricalGitPath.key(bytes) {stats[path]=(Int(String(decoding:parts[0],as:UTF8.self)),Int(String(decoding:parts[1],as:UTF8.self)))}
         }
-        let records = names.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
-        i = 0
-        var files: [CommitFile] = []
-        while i + 1 < records.count {
-            let action = records[i]; i += 1
-            var oldPath: String?
+        let records=names.split(separator:0).map { Data($0) };i=0
+        var files:[CommitFile]=[]
+        while i+1<records.count {
+            let action=String(decoding:records[i],as:UTF8.self);i+=1
+            var oldPath:String?
             if action.hasPrefix("R") || action.hasPrefix("C") {
-                oldPath = records[i]; i += 1
+                guard i+1<records.count,let old=HistoricalGitPath.key(records[i]) else {break};oldPath=old;i+=1
             }
-            guard i < records.count else { break }
-            let path = records[i]; i += 1
-            files.append(CommitFile(path: path, oldPath: oldPath, action: action,
-                                    added: stats[path]?.0, removed: stats[path]?.1, hasStatistics: stats[path] != nil, isSubmodule: gitlinks.contains(GitReferenceName(path))))
+            guard i<records.count,let path=HistoricalGitPath.key(records[i]) else {break};i+=1
+            files.append(CommitFile(path:path,oldPath:oldPath,action:action,added:stats[path]?.0,removed:stats[path]?.1,hasStatistics:stats[path] != nil,isSubmodule:gitlinks.contains(path)))
         }
         return files
     }
+
 }
 
 /// A lane is a pending ancestor, not a branch name. Edges remain continuous across rows.
@@ -1139,8 +1136,11 @@ extension GitRepository {
         if let since = options.since { args.append("--since=@\(Int(since.timeIntervalSince1970))") }
         if let until = options.until { args.append("--until=@\(Int(until.timeIntervalSince1970))") }
         args.append("--")
-        if let path = options.path, !path.isEmpty { args.append(path) }
-        args += options.paths
+        var pathArguments:[Int:Data]=[:]
+        for key in (options.path.map { $0.isEmpty ? [] : [$0] } ?? []) + options.paths {
+            let path=try HistoricalGitPath.argument(key)
+            pathArguments[args.count+2]=path.bytes;args.append(path.caption)
+        }
         let refObjects = try historyReferenceObjects(cancellation: cancellation)
         var references: [String: [RevisionReference]] = [:]
         var peeledReferenceNames: [String: [String]] = [:]
@@ -1186,7 +1186,7 @@ extension GitRepository {
             for (hash,files) in changes {
                 var paths=Set<GitReferenceName>()
                 for file in files { paths.insert(GitReferenceName(file.path));if let old=file.oldPath { paths.insert(GitReferenceName(old)) } }
-                pathCache[hash]=paths.map(\.rawValue).sorted()
+                pathCache[hash]=paths.map { RepositoryBrowserGitPath.display(key:$0.rawValue) }.sorted()
             }
             return pathCache[hash] ?? []
         }
@@ -1288,7 +1288,7 @@ extension GitRepository {
         }
         let stream=HistoryRecordStream()
         var lastWalkBytes=Date()
-        _ = try run(["-c", "core.precomposeunicode=false"] + args,cancellation:cancellation,retainStandardOutput:false,consumeOutput:{ chunk in
+        _ = try run(["-c", "core.precomposeunicode=false"] + args,argumentBytes:pathArguments,cancellation:cancellation,retainStandardOutput:false,consumeOutput:{ chunk in
             guard case .stdout=chunk.stream else { return }
             if !chunk.data.isEmpty {
                 lastWalkBytes=Date()
@@ -1309,13 +1309,15 @@ extension GitRepository {
     }
     public func canFollowHistory(paths: [String], revision: String? = nil, cancellation: OperationCancellation? = nil) throws -> Bool {
         try cancellation?.check()
-        guard paths.count == 1, let path = paths.first, !path.isEmpty, path != ".", !path.hasSuffix("/") else { return false }
+        guard paths.count == 1, let path = paths.first else {return false}
+        let rawPath=try HistoricalGitPath.argument(path).bytes
+        guard !rawPath.isEmpty,rawPath != Data([46]),rawPath.last != 47 else {return false}
         let bare = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
-        if !bare, (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { return false }
+        if !bare, !path.utf8.contains(0), (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { return false }
         let pinned = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
         if pinned.exitCode == 1 { return true }
         let hash = pinned.text.trimmingCharacters(in: .newlines)
-        let tree = try run(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout
+        let tree = try run(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", try HistoricalGitPath.argument(path).caption], argumentBytes:[6:try HistoricalGitPath.argument(path).bytes], cancellation: cancellation).stdout
         let record = String(decoding: tree, as: UTF8.self)
         return !record.hasPrefix("040000 ") && !record.hasPrefix("160000 ")
     }
@@ -1326,10 +1328,11 @@ extension GitRepository {
         let hash = pinned.text.trimmingCharacters(in: .newlines)
         return try paths.map { path in
             try cancellation?.check()
-            var directory = path == "." || path.hasSuffix("/")
-            if !bare, (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { directory = true }
+            let rawPath=try HistoricalGitPath.argument(path).bytes
+            var directory = rawPath == Data([46]) || rawPath.last == 47
+            if !bare, !path.utf8.contains(0), (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { directory = true }
             if !directory, pinned.exitCode == 0 {
-                let record = String(decoding: try run(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout, as: UTF8.self)
+                let record = String(decoding: try run(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", try HistoricalGitPath.argument(path).caption], argumentBytes:[6:try HistoricalGitPath.argument(path).bytes], cancellation: cancellation).stdout, as: UTF8.self)
                 directory = record.hasPrefix("040000 ") || record.hasPrefix("160000 ")
             }
             return HistoryPathScope(path: path, isDirectory: directory)
@@ -1366,8 +1369,8 @@ extension GitRepository {
             var side = entry; side.parents = parent.map { [$0] } ?? []
             for file in try files(in: side, cancellation: cancellation) {
                 try cancellation?.check()
-                text += "\(file.status): \(file.path)"
-                if let old = file.oldPath { text += " (from \(old))" }
+                text += "\(file.status): \(file.displayPath)"
+                if let old = file.oldPath { text += " (from \(RepositoryBrowserGitPath.display(key:old)))" }
                 text += "\n"
             }
         }
@@ -1423,7 +1426,7 @@ extension GitRepository {
             fields += entry.references.map { $0.name + ($0.kind == .annotatedTag ? "^{}" : "") }
             if !entry.references.isEmpty { fields.append(dateSettings.tagInfo(entry.tagInfo)) }
             if let cached = cachedFiles[entry.hash] {
-                fields += cached.map { $0.path + "|" + ($0.oldPath ?? "") }
+                fields += cached.map { $0.displayPath + "|" + ($0.displayOldPath ?? "") }
             } else if entry.hash.isEmpty {
                 let working = try workingTreeHistory(cancellation: cancellation)
                 fields += (working?.files ?? []).map { $0.path + "|" + ($0.oldPath ?? "") }
@@ -1431,11 +1434,11 @@ extension GitRepository {
                 // --no-renames matches SafeGetSimpleList's tree diff: a rename
                 // contributes both its deleted old path and added new path.
                 if selected.requests(.logListDiff) {
-                    fields += try historyDiff(revision:entry.hash,simple:true,backend:selected,cancellation:cancellation).paths
+                    fields += try historyDiff(revision:entry.hash,simple:true,backend:selected,cancellation:cancellation).paths.map { RepositoryBrowserGitPath.display(key:$0) }
                 } else {
                 let paths = try run(["diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", entry.hash, "--"],
                                     environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
-                fields += paths.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+                fields += paths.split(separator: 0).compactMap { HistoricalGitPath.key(Data($0)) }.map { RepositoryBrowserGitPath.display(key:$0) }
                 }
             }
             try cancellation?.check()

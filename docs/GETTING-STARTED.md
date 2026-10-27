@@ -257,6 +257,13 @@ offer a parent submenu. Root commits have no previous revision. **Show changes a
 unified diff** opens the patch, and merges provide additional modes under
 **Unified diff with**. **Browse repository** opens the files at that revision.
 
+In **Browse repository**, right-click a file or folder for **Show log**, or a
+file for **Blame**. These views keep the Browser's selected revision. Git names
+that cannot be displayed as UTF-8 have an escaped byte label; history and Blame
+still read the original Git path. Their filesystem actions remain unavailable;
+the stored-blob commands can open or save their unfiltered contents under a safe
+filename. See [historical filename handling](RAW-HISTORY-PARITY.md).
+
 Select two commit rows to open **Compare revisions**, a unified diff, or one of
 three **Show log of** ranges. The menu labels identify the endpoints:
 

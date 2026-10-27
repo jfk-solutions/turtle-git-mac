@@ -48,11 +48,11 @@ final class GitHistoryDiffDecoder {
                 guard parents==nil,Set(object.keys)==["kind","revision","parents"],object["revision"] as? String==revision,let values=object["parents"] as? [String],values.count<=4096,values.allSatisfy({Self.oid($0,length:revision.utf8.count,zero:false)}) else{throw GitDiffEngineFailure.metadata}
                 parents=values
             case "path":
-                guard simple,parents != nil,Set(object.keys)==["kind","path"],let path=object["path"] as? String,GitTransferNotificationDecoder.validPath(path),identities.insert(Data(path.utf8)).inserted else{throw GitDiffEngineFailure.metadata}
+                guard simple,parents != nil,Set(object.keys)==["kind","path"],let path=object["path"] as? String,Self.path(path),identities.insert(Data(path.utf8)).inserted else{throw GitDiffEngineFailure.metadata}
                 paths.append(path);count+=1
             case "delta":
                 struct Delta:Decodable {let parentIndex:UInt64,status:String,path:String,oldPath:String?,oldOID:String,newOID:String,oldMode:UInt32,newMode:UInt32,binary:Bool,added:UInt64?,deleted:UInt64?}
-                guard !simple,let parents,Set(object.keys)==["kind","parentIndex","status","path","oldPath","oldOID","newOID","oldMode","newMode","binary","added","deleted"],let value=try? JSONDecoder().decode(Delta.self,from:payload),value.parentIndex<UInt64(max(1,parents.count)),value.parentIndex>=UInt64(lastParent),["A","D","M","R","C","T"].contains(value.status),GitTransferNotificationDecoder.validPath(value.path),value.oldPath.map({GitTransferNotificationDecoder.validPath($0)}) != false,Self.oid(value.oldOID,length:revision.utf8.count),Self.oid(value.newOID,length:revision.utf8.count),Self.mode(value.oldMode),Self.mode(value.newMode),value.added.map({$0<=UInt64(Int.max)}) != false,value.deleted.map({$0<=UInt64(Int.max)}) != false,(value.added==nil)==(value.deleted==nil),!value.binary || value.added==nil,!["R","C"].contains(value.status) || value.oldPath != nil else{throw GitDiffEngineFailure.metadata}
+                guard !simple,let parents,Set(object.keys)==["kind","parentIndex","status","path","oldPath","oldOID","newOID","oldMode","newMode","binary","added","deleted"],let value=try? JSONDecoder().decode(Delta.self,from:payload),value.parentIndex<UInt64(max(1,parents.count)),value.parentIndex>=UInt64(lastParent),["A","D","M","R","C","T"].contains(value.status),Self.path(value.path),value.oldPath.map({Self.path($0)}) != false,Self.oid(value.oldOID,length:revision.utf8.count),Self.oid(value.newOID,length:revision.utf8.count),Self.mode(value.oldMode),Self.mode(value.newMode),value.added.map({$0<=UInt64(Int.max)}) != false,value.deleted.map({$0<=UInt64(Int.max)}) != false,(value.added==nil)==(value.deleted==nil),!value.binary || value.added==nil,!["R","C"].contains(value.status) || value.oldPath != nil else{throw GitDiffEngineFailure.metadata}
                 let oldZero=value.oldOID.allSatisfy{$0=="0"},newZero=value.newOID.allSatisfy{$0=="0"}
                 switch value.status {
                 case "A":guard oldZero,value.oldMode==0,!newZero,value.newMode != 0 else{throw GitDiffEngineFailure.metadata}
@@ -74,6 +74,10 @@ final class GitHistoryDiffDecoder {
     func finish()throws->GitHistoryDiffResult {
         guard pending.isEmpty,ended,let parents else{throw GitDiffEngineFailure.metadata}
         return .init(revision:revision,parents:parents,deltas:deltas,paths:paths)
+    }
+    private static func path(_ key:String)->Bool {
+        guard let value=try? RepositoryBrowserGitPath(key:key) else {return false}
+        return !value.rawData.isEmpty && value.rawData.count<=1_048_576 && !value.rawData.split(separator:47).contains { String(data:Data($0),encoding:.utf8)?.caseInsensitiveCompare(".git") == .orderedSame }
     }
     static func oid(_ value:String,length:Int,zero:Bool=true)->Bool {
         [40,64].contains(length) && value.utf8.count==length && value.utf8.allSatisfy {(48...57).contains($0) || (97...102).contains($0)} && (zero || value.contains(where:{$0 != "0"}))

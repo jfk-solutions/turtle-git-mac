@@ -185,10 +185,10 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
                 if entry.kind != .directory { item("Open With…",#selector(openWith),.open);item("View revision with alternative editor",#selector(alternativeEditor),.editor) }
                 menu.addItem(.separator())
                 if entry.kind != .directory && model.snapshot?.bare==false { item("Compare with working tree",#selector(compare),.compare);menu.addItem(.separator()) }
-                item("Show log",#selector(log),.log)
+                item("Show log",#selector(log),.log,requiresPath:false)
                 if entry.kind == .submodule { item("Show submodule log",#selector(submoduleLog),.log) }
                 if ![.directory,.submodule].contains(entry.kind) {
-                    if model.snapshot?.bare==false { item("Blame",#selector(blame),.blame) }
+                    if model.snapshot?.bare==false { item("Blame",#selector(blame),.blame,requiresPath:false) }
                     menu.addItem(.separator());item("Save revision to…",#selector(save),.saveAs)
                 };menu.addItem(.separator())
             }

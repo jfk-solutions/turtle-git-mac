@@ -5,8 +5,11 @@ import Darwin
 /// Cancellation targets that group while its leader PID is still unreaped, so
 /// helper children stop too and the numeric ID cannot be reused by another job.
 enum CancellableGitProcess {
-    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, input: Int32? = nil, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil, cancellationReady: (() -> Bool)? = nil) throws -> Int32 {
+    static func run(executable: URL, arguments: [String], argumentBytes: [Int: Data] = [:], environment: [String: String], output: Int32, error: Int32, input: Int32? = nil, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil, cancellationReady: (() -> Bool)? = nil) throws -> Int32 {
         try cancellation?.check()
+        guard argumentBytes.keys.allSatisfy(arguments.indices.contains) else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(EINVAL))
+        }
         func check(_ code: Int32) throws {
             guard code == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
         }
@@ -21,9 +24,16 @@ enum CancellableGitProcess {
         let inputCopy=input.map { fcntl($0,F_DUPFD_CLOEXEC,3) }
         if let inputCopy, inputCopy < 0 { throw NSError(domain:NSPOSIXErrorDomain,code:Int(errno)) }
         defer { if let inputCopy { close(inputCopy) } }
-        func strings<T>(_ values: [String], _ body: (UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws -> T) throws -> T {
-            guard values.allSatisfy({ !$0.contains("\0") }) else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EINVAL)) }
-            var pointers = values.map { strdup($0) }
+        func strings<T>(_ values: [Data], _ body: (UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws -> T) throws -> T {
+            guard values.allSatisfy({ !$0.contains(0) }) else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(EINVAL)) }
+            var pointers: [UnsafeMutablePointer<CChar>?] = values.map { value in
+                guard let pointer = malloc(value.count + 1)?.assumingMemoryBound(to: CChar.self) else { return nil }
+                value.withUnsafeBytes { bytes in
+                    if let base = bytes.baseAddress { memcpy(pointer, base, value.count) }
+                }
+                pointer[value.count] = 0
+                return pointer
+            }
             defer { for pointer in pointers { free(pointer) } }
             guard pointers.allSatisfy({ $0 != nil }) else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(ENOMEM)) }
             pointers.append(nil)
@@ -49,8 +59,9 @@ enum CancellableGitProcess {
         let flags = Int16(POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_CLOEXEC_DEFAULT)
         try check(posix_spawnattr_setflags(&attributes, flags))
         var pid: pid_t = 0
-        try strings([executable.path] + arguments) { argv in
-            try strings(environment.keys.sorted().map { $0 + "=" + environment[$0]! }) { env in
+        let argvBytes = [Data(executable.path.utf8)] + arguments.enumerated().map { argumentBytes[$0.offset] ?? Data($0.element.utf8) }
+        try strings(argvBytes) { argv in
+            try strings(environment.keys.sorted().map { Data(($0 + "=" + environment[$0]!).utf8) }) { env in
                 try cancellation?.check()
                 try check(posix_spawn(&pid, executable.path, &actions, &attributes, argv, env))
             }

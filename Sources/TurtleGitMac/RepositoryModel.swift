@@ -3644,7 +3644,7 @@ private enum TransportBatchPresentationContext {
         let serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
         controller.model.onLog = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults, sourceWindow: controller.window)} }
-        controller.model.onBlame = { [weak self] path, hash in show {self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults)} }
+        controller.model.onBlame = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults)} }
         controller.model.onCompare = { [weak self, weak controller] path, hash in
             guard let controller, controller.model.active else { return }
             let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
@@ -3699,13 +3699,13 @@ private enum TransportBatchPresentationContext {
             child.onBrowse={ [weak self] name in self?.showRepositoryBrowser(repository:repository,access:access,revision:name,preferences:preferences) }
             child.onCompare={ [weak self] from,to in self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:preferences) }
         }
-        controller.model.onLog={ [weak self] origin,hash in self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash,selectedRevision:hash,preferences:preferences) }
+        controller.model.onLog={ [weak self,weak controller] origin,hash in guard let controller,!controller.model.retired else{return};self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash,selectedRevision:hash,preferences:preferences) }
         controller.model.onChanges=nil
         controller.model.onOwnedChanges={ [weak self, weak controller] snapshots,alternate,token in
             guard let self,let controller else { throw OperationCancellationFailure.cancelled }
             try await self.showOwnedFileComparisons(repository:repository,access:access,snapshots:snapshots,owner:controller.window,preferences:preferences,alternate:alternate,cancellation:token)
         }
-        controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited,preferences:preferences) }
+        controller.model.onPrevious={ [weak self,weak controller] origin,hash,number,inherited in guard let controller,!controller.model.retired else{return};self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited,preferences:preferences) }
     }
     private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false,preferences:UserDefaults? = nil) {
         let defaults=preferences ?? fileComparisonPreferences

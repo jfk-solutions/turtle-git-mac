@@ -307,6 +307,21 @@ private struct AdvancedWindowProbe: NSViewRepresentable {
     }
 }
 
+/// Display-only help: an opaque Git name is not a native filesystem URL.
+enum RepositoryFileHelpText {
+    static func text(repository:URL,path:String,detail:String = "") -> String {
+        let caption:String
+        if let gitPath=try? RepositoryBrowserGitPath(key:path),!gitPath.isRepresentable {
+            caption=String(localized:"Git path")+": "+gitPath.display
+        } else if path.contains("\0") {
+            caption=String(localized:"Invalid Git path")
+        } else {
+            caption=repository.appendingPathComponent(path).standardizedFileURL.path
+        }
+        return caption+(detail.isEmpty ? "":"\n"+detail)
+    }
+}
+
 private struct RepositoryFileHelp: ViewModifier {
     let repository: URL
     let path: String
@@ -317,8 +332,7 @@ private struct RepositoryFileHelp: ViewModifier {
         _enabled = AppStorage(wrappedValue: 1, "ShowListFullPathTooltip", store: preferences)
     }
     func body(content: Content) -> some View {
-        let fullPath = repository.appendingPathComponent(path).standardizedFileURL.path
-        content.help(enabled == 1 ? fullPath + (detail.isEmpty ? "" : "\n" + detail) : "")
+        content.help(enabled == 1 ? RepositoryFileHelpText.text(repository:repository,path:path,detail:detail) : "")
     }
 }
 extension View {

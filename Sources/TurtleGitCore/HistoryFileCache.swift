@@ -182,7 +182,7 @@ extension GitRepository {
         do { indexDigest = HistoryFileCache.digest(try HistoryFileCache.readFile(index.path, cancellation: cancellation)) }
         catch let error as NSError where error.domain == NSPOSIXErrorDomain && error.code == Int(ENOENT) { indexDigest = "absent" }
         let diffEnvironment = ["GIT_DIFF_OPTS", "GIT_ATTR_SOURCE", "GIT_ATTR_NOSYSTEM"].map { $0 + "=" + (environment[$0] ?? "") }
-        let context = HistoryFileCache.digest(trees + [engineIdentity,"diff-detection-v1=" + diffDetection.historyArguments.joined(separator: ","), HistoryFileCache.digest(config), indexDigest, String(describing: engine[.modificationDate]), String(describing: engine[.size])] + diffEnvironment)
+        let context = HistoryFileCache.digest(trees + ["exact-tree-paths-v2",engineIdentity,"diff-detection-v1=" + diffDetection.historyArguments.joined(separator: ","), HistoryFileCache.digest(config), indexDigest, String(describing: engine[.modificationDate]), String(describing: engine[.size])] + diffEnvironment)
         return (key, context, info, global)
     }
     func historyFileAttributesFingerprint(_ files: [CommitFile], info: URL, global: URL, cancellation: OperationCancellation?) throws -> String {
@@ -190,7 +190,7 @@ extension GitRepository {
         for path in [root.appendingPathComponent(".gitattributes"), info, global] { paths[Data(path.path.utf8)] = path }
         for file in files {
             for path in [file.path] + (file.oldPath.map { [$0] } ?? []) {
-                guard !path.hasPrefix("/"), !path.split(separator: "/").contains("..") else { throw RevisionComparisonFailure.range }
+                guard !path.utf8.contains(0), !path.hasPrefix("/"), !path.split(separator: "/").contains("..") else { throw RevisionComparisonFailure.range }
                 var directory = root.appendingPathComponent(path).deletingLastPathComponent()
                 while directory != root && directory.path.hasPrefix(root.path + "/") {
                     let path = directory.appendingPathComponent(".gitattributes"); paths[Data(path.path.utf8)] = path; directory.deleteLastPathComponent()

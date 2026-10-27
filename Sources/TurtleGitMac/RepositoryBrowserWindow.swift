@@ -427,7 +427,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var presentStoredBlob:(Data,RepositoryBrowserEntry)->Void = {_,_ in}
     var readStoredBlob:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->Data)?
     var readStoredFile:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->ComparisonFileContent)?
-    static let rawPathReason="This Git pathname cannot be represented as a macOS text path. Use the stored blob actions to view, save or open its unfiltered contents under a safe filename. Original-path filesystem and history actions are unavailable."
+    static let rawPathReason="This Git pathname cannot be represented as a macOS text path. Use the stored blob actions to view, save or open its unfiltered contents under a safe filename. Original-path filesystem and mutation actions are unavailable."
     func requireRepresentable(_ path:String)->Bool {
         guard (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true else {error=Self.rawPathReason;return false};return true
     }
@@ -834,7 +834,6 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func showFolderLog(_ path: String) {
         guard folderObjectID(path) != nil, let revision = snapshot?.objectID else { return }
         guard snapshot?.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
-        guard requireRepresentable(path) else{return}
         onLog(path,revision)
     }
     func copyFolder(_ path: String, hashes: Bool = false, pasteboard:NSPasteboard? = nil) {
@@ -846,14 +845,12 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func showEntryLog(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, snapshot.entries.contains(entry), let revision = snapshot.objectID else { return }
         guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
-        guard requireRepresentable(entry.path) else{return}
         onLog(entry.path,revision)
     }
     func showEntryBlame(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
               ![.directory,.submodule].contains(entry.kind), let revision = snapshot.objectID else { return }
         guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
-        guard requireRepresentable(entry.path) else{return}
         onBlame(entry.path,revision)
     }
     func compareEntryToWorkingTree(_ entry: RepositoryBrowserEntry) {
@@ -1137,7 +1134,6 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
                 let caption=index==2 && (try? RepositoryBrowserGitPath(key:item.path).isRepresentable)==false ? "Copy displayed name (escaped)":title
                 let entry=NSMenuItem(title:caption,action:#selector(invoke(_:)),keyEquivalent:"");entry.target=self
                 entry.image=icon.contextImage(defaults:model.preferences);entry.representedObject=Invocation(path:item.path,target:target,command:index)
-                if index==1,(try? RepositoryBrowserGitPath(key:item.path).isRepresentable) != true {entry.isEnabled=false;entry.toolTip=RepositoryBrowserWindowModel.rawPathReason}
                 menu.addItem(entry)
             }
         }

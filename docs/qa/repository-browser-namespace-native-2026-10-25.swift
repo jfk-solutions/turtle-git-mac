@@ -16,6 +16,7 @@ private extension NSWindow {
         let folder=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let suite="TurtleGit.BrowserNamespace."+UUID().uuidString
         let prefs:UserDefaults
+        var logs:[LogWindowController]=[],blames:[BlameWindowController]=[]
         var owners:[RepositoryBrowserWindowController]=[],releases:[()->Void]=[],previewFiles:[URL]=[]
         let text=Data("stored body\n".utf8),binary=Data([0,0xff,0x10,0x41])
         var revision="",head=Data(),index:Data?,config=Data()
@@ -53,8 +54,8 @@ private extension NSWindow {
             try RepositoryBrowserNamespaceVerification.require(files==[".git"],"A path action wrote a working file")
         }
         func cleanup()async{
-            releases.forEach{$0()};releases=[];owners.forEach{$0.close()}
-            for _ in 0..<3000{if owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
+            releases.forEach{$0()};releases=[];owners.forEach{$0.close()};logs.forEach{$0.close()};blames.forEach{$0.close()}
+            for _ in 0..<3000{if owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeFileOpenReads==0 && LogWindowModel.activeActionReads==0 && BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
             previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[]
             UserDefaults.standard.removePersistentDomain(forName:suite)
         }
@@ -90,10 +91,10 @@ private extension NSWindow {
         let owner=try await c.owner(),m=owner.model,raw=m.entries.first{$0.rawName==Data([0xff,0x2e,0x74,0x78,0x74])}!,valid=m.entries.first{$0.name=="valid.txt"}!
         var dispatches=0;m.onLog={_,_ in dispatches+=1};m.onBlame={_,_ in dispatches+=1};m.onCompare={_,_ in dispatches+=1};m.onPreparedFileCompare={_,_ in dispatches+=1};m.presentFile={_,_ in dispatches+=1}
         m.open(raw);m.showEntryLog(raw);m.showEntryBlame(raw);m.compareEntryToWorkingTree(raw);m.markForComparison(raw);m.revert([raw])
-        try require(dispatches==0 && m.comparisonMark==nil && !m.mutating && m.error==RepositoryBrowserWindowModel.rawPathReason,"Raw path dispatched an action")
+        try require(dispatches==2 && m.comparisonMark==nil && !m.mutating && m.error==RepositoryBrowserWindowModel.rawPathReason,"Raw history or filesystem boundary changed")
         m.selection=[raw.id]
         try require(m.dragProvider(raw)==nil && m.captureTransfer([raw.id])==nil,"Raw drag offered")
-        m.error=nil;m.showEntryLog(valid);try require(dispatches==1,"Valid sibling Log suppressed")
+        m.error=nil;m.showEntryLog(valid);try require(dispatches==3,"Valid sibling Log suppressed")
         let badFolder=m.entries.first{$0.name=="valid-folder"}!
         m.error=nil;m.selection=[badFolder.id];try require(m.captureTransfer([badFolder.id])==nil && m.error?.contains("cannot be delivered")==true,"Representable folder with raw descendant offered a transfer")
         m.error=nil;m.selection=[valid.id]
@@ -102,7 +103,7 @@ private extension NSWindow {
         defer{try? FileManager.default.removeItem(at:delivered)}
         try await promise.write(to:delivered)
         try require(promise.name=="valid.txt" && (try Data(contentsOf:delivered))==c.text,"Actual valid sibling promise delivery changed")
-        m.open(valid);try await wait{!m.busy && !m.hasPendingWork};try require(dispatches==2,"Valid sibling materialized Open suppressed")
+        m.open(valid);try await wait{!m.busy && !m.hasPendingWork};try require(dispatches==4,"Valid sibling materialized Open suppressed")
         owner.window?.appearance=NSAppearance(named:.darkAqua)
         let binary=m.entries.first{$0.rawName==Data([0xfe,0x2e,0x74,0x78,0x74])}!
         guard let table=owner.contentsTable,let menu=table.menu else{throw Failure(description:"Shipping native menu absent")}
@@ -136,7 +137,7 @@ private extension NSWindow {
         }
         func invoke(_ item:NSMenuItem)throws{guard let action=item.action else{throw Failure(description:"Delivery selector absent")};try require(NSApp.sendAction(action,to:item.target,from:item),"Delivery selector did not dispatch")}
         for title in ["Open stored blob (unfiltered)","Open stored blob with…","View stored blob with alternative editor","Save stored blob (unfiltered) to…"]{_=try item(title)}
-        for title in ["Open","Open With…","View revision with alternative editor","Save revision to…","Show log","Blame","Compare with working tree","Mark for comparison"]{
+        for title in ["Open","Open With…","View revision with alternative editor","Save revision to…","Compare with working tree","Mark for comparison"]{
             guard let filtered=menu.items.first(where:{$0.title==title})else{throw Failure(description:"Ordinary filtered command disappeared: "+title)}
             try require(!filtered.isEnabled,"Unfiltered delivery enabled a pathname-dependent action: "+title)
         }
@@ -244,12 +245,117 @@ private extension NSWindow {
         let other=try await c.owner();try require(other.model.entries.count==7,"Independent Browser invalidated")
         try await c.unchanged()
     }
+    static func history(_ c:Context)async throws {
+        // HEAD deliberately has neither raw spelling: all navigation must use
+        // the Browser's captured object, never the current branch or checkout.
+        let futureBlob=try await c.oid(["hash-object","-w","--stdin"],input:Data("future\n".utf8))
+        let futureTree=try await c.tree([("100644","blob",futureBlob,Data("future.txt".utf8))])
+        let future=try await c.oid(["commit-tree",futureTree,"-p",c.revision,"-m","future"])
+        _=try await c.repository().run(["update-ref","refs/heads/main",future]);c.head=try await c.repository().run(["rev-parse","HEAD"]).stdout
+        let owner=try await c.owner(),model=owner.model
+        let raw=model.entries.first{$0.rawName==Data([0xff,0x2e,0x74,0x78,0x74])}!
+        let directory=model.entries.first{$0.kind == .directory && !$0.isPathRepresentable}!
+        let expected=RepositoryBrowserGitPath.display(key:raw.path)
+        let rawHelp=RepositoryFileHelpText.text(repository:c.folder,path:raw.path)
+        try require(rawHelp.contains(expected) && !rawHelp.contains(c.folder.path) && !rawHelp.contains("\0"),"Raw tooltip fabricated a native path")
+        try require(RepositoryFileHelpText.text(repository:c.folder,path:"valid.txt",detail:"detail")==c.folder.appendingPathComponent("valid.txt").path+"\ndetail","Ordinary tooltip changed")
+        let rawMark=PreparedFileComparisonMark(path:raw.path,revision:c.revision)
+        try require(rawMark.label(for:raw.path)==c.revision,"Comparison label compared escaped caption instead of exact key")
+        var logCalls:[(String,String)]=[],blameCalls:[(String,String)]=[]
+        model.onLog={logCalls.append(($0,$1))};model.onBlame={blameCalls.append(($0,$1))}
+        guard let table=owner.contentsTable,let menu=table.menu else{throw Failure(description:"History contents table absent")}
+        func item(_ title:String)throws->NSMenuItem {
+            table.selectRowIndexes(IndexSet(integer:model.entries.firstIndex(of:raw)!),byExtendingSelection:false);model.selection=[raw.id]
+            menu.delegate?.menuNeedsUpdate?(menu)
+            guard let result=menu.items.first(where:{$0.title==title}) else{throw Failure(description:"Missing history menu "+title)}
+            try require(result.isEnabled && result.image != nil,"Raw history disabled or source icon missing: "+title);return result
+        }
+        func invoke(_ item:NSMenuItem)throws {
+            guard let action=item.action else{throw Failure(description:"History selector missing")}
+            try require(NSApp.sendAction(action,to:item.target,from:item),"Native history selector refused")
+        }
+        try invoke(item("Show log"));try invoke(item("Blame"))
+        try require(logCalls.count==1 && blameCalls.count==1 && logCalls[0].0==raw.path && blameCalls[0].0==raw.path && logCalls[0].1==c.revision && blameCalls[0].1==c.revision,"History replaced raw bytes or pinned revision")
+        let retained=try item("Blame")
+        model.refresh();try await wait{!model.busy && !model.hasPendingWork};try invoke(retained)
+        try require(blameCalls.count==1,"Retained native history action survived Browser refresh")
+        func outline(in view:NSView)->NSOutlineView? {
+            if let value=view as? NSOutlineView{return value}
+            return view.subviews.lazy.compactMap{outline(in:$0)}.first
+        }
+        guard let view=owner.window?.contentView,let tree=outline(in:view),let folderMenu=tree.menu else{throw Failure(description:"Folder outline absent")}
+        tree.expandItem(nil,expandChildren:true);try await wait{!model.busy && !model.hasPendingWork}
+        let folderRow=(0..<tree.numberOfRows).first{row in
+            (tree.view(atColumn:0,row:row,makeIfNecessary:true) as? NSTableCellView)?.textField?.stringValue==directory.displayName+" [raw]"
+        }
+        guard let folderRow else{throw Failure(description:"Raw folder row absent")}
+        (tree as? RepositoryBrowserFolderOutline)?.contextSelection(folderRow);folderMenu.delegate?.menuNeedsUpdate?(folderMenu)
+        guard let folderAction=folderMenu.items.first(where:{$0.title=="Show log"})else{throw Failure(description:"Raw folder Log menu absent")}
+        try require(folderAction.isEnabled && folderAction.image != nil,"Raw folder Log disabled or missing source icon");try invoke(folderAction)
+        try require(logCalls.count==2 && logCalls[1].0==directory.path && logCalls[1].1==c.revision,"Raw directory history lost captured path")
+        model.refresh();try await wait{!model.busy && !model.hasPendingWork};try invoke(folderAction)
+        try require(logCalls.count==2,"Retained folder menu survived refreshed snapshot")
+        let folderLog=LogWindowController(repository:c.repository(),access:nil,labelDefaults:c.prefs,savesGeometry:false,initialRevision:c.revision,loadsImmediately:false);c.logs.append(folderLog)
+        folderLog.model.showWorkingTree=false;folderLog.model.setPathScope([directory.path]);try await wait{!folderLog.model.busy && folderLog.model.pendingHistoryLoads==0}
+        try require(folderLog.model.error==nil && folderLog.model.entries.map(\.hash)==[c.revision],"Pinned raw directory Log read failed: "+(folderLog.model.error ?? "wrong history"))
+        let log=LogWindowController(repository:c.repository(),access:nil,labelDefaults:c.prefs,savesGeometry:false,initialRevision:c.revision,loadsImmediately:false)
+        c.logs.append(log);log.window?.alphaValue=0
+        log.model.showWorkingTree=false;log.model.setPathScope([raw.path])
+        try await wait{!log.model.busy && log.model.pendingHistoryLoads==0}
+        try require(log.model.error==nil && log.model.entries.map(\.hash)==[c.revision],"Raw pinned Log failed: "+(log.model.error ?? "wrong revisions"))
+        try require(log.window?.title.contains("\0")==false && log.window?.title.contains(expected)==true,"Log title exposed opaque key or lost scope")
+        log.model.select([c.revision]);try await wait{!log.model.busy && !log.model.loadingNote && !log.model.savingNote && LogWindowModel.activeActionReads==0 && log.model.files.contains{$0.path==raw.path}}
+        guard let file=log.model.files.first(where:{$0.path==raw.path})else{throw Failure(description:"Raw changed file missing")}
+        try require(log.model.changedFileText(file,column:.path).contains(expected),"Log row did not escape raw pathname")
+        let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()};log.model.clipboard=board
+        log.model.copyChangedFileIDs([file.id]);try require(board.string(forType:.string)==expected,"Log copied opaque key or replacement spelling")
+        var navigated:[String]=[];log.model.onFileLog={path,hash in if hash==c.revision{navigated.append(path)}};log.model.onBlame={path,hash in if hash==c.revision{navigated.append(path)}}
+        let receipt=log.model.fileMenuSnapshot(GitPathSet([file.id]))
+        log.model.withFileMenu(receipt){log.model.fileLog([file.id])}
+        log.model.blameFile([file.id]);try require(navigated==[raw.path,raw.path],"Log to Log/Blame origin changed raw identity")
+        try require(!log.model.canRevertHistoricalFiles([file.id],parent:false) && !log.model.hasRepresentableFilePaths([file.id]),"Raw history enabled filesystem mutation")
+        log.model.revealFile([file.id]);try require(log.model.error==RepositoryBrowserWindowModel.rawPathReason,"Raw reveal did not refuse explicitly");log.model.error=nil
+        let blame=BlameWindowController(repository:c.repository(),access:nil,path:raw.path,revision:c.revision,preferences:c.prefs,requireScope:false)
+        c.blames.append(blame);blame.window?.alphaValue=0
+        try await wait{!blame.model.busy && BlameWindowModel.activeHistoryOperations==0}
+        try require(blame.model.error==nil && blame.model.snapshot?.revision==c.revision && blame.model.snapshot?.path==raw.path && blame.model.snapshot?.contents==c.text,"Raw pinned Blame failed: "+(blame.model.error ?? "wrong source"))
+        try require(blame.window?.title.contains(expected)==true && blame.window?.title.contains("\0")==false,"Blame title exposed opaque path")
+        try require(blame.model.lines.allSatisfy{$0.filename==raw.path} && blame.model.marginText("filename",row:0)==expected,"Blame origins/margin lost exact/display identity")
+        var origin:String?;blame.model.onLog={path,hash in if hash==c.revision{origin=path}}
+        if let first=blame.model.lines.first{blame.model.showLog(first)}
+        try require(origin==raw.path,"Blame Show log retargeted escaped spelling")
+        // Exact authored wrapper owns one open fixture resource. Cancellation
+        // must reap its process group before any late history can publish.
+        let wrapper=c.folder.appendingPathComponent("held-helper"),hold=c.folder.appendingPathComponent("hold-history"),pid=c.folder.appendingPathComponent("history.pid"),resource=c.folder.appendingPathComponent("owned-history-resource")
+        func quote(_ value:String)->String{"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        try Data().write(to:resource)
+        let script="#!/bin/sh\nexec 9<"+quote(resource.path)+"\nfor arg in \"$@\"; do\n if [ \"$arg\" = log ] || [ \"$arg\" = blame ]; then\n  if [ -e "+quote(hold.path)+" ]; then\n   echo $$ >"+quote(pid.path)+"\n   while [ -e "+quote(hold.path)+" ]; do sleep 0.02; done\n  fi\n fi\ndone\nexec "+quote(c.git.path)+" \"$@\"\n"
+        try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+        c.releases.append{try? FileManager.default.removeItem(at:hold)}
+        let heldRepo=GitRepository(root:c.folder,executable:wrapper,askpass:nil,libgit2Configuration:.init(enabled:false))
+        try Data().write(to:hold)
+        let heldLog=LogWindowController(repository:heldRepo,access:nil,labelDefaults:c.prefs,savesGeometry:false,initialRevision:c.revision,loadsImmediately:false);c.logs.append(heldLog)
+        heldLog.model.showWorkingTree=false;heldLog.model.historyPaths=[raw.path];heldLog.model.showWholeProject=false;heldLog.model.reload()
+        try await wait{FileManager.default.fileExists(atPath:pid.path)}
+        heldLog.close();try? FileManager.default.removeItem(at:hold)
+        try await wait{LogWindowModel.activeHistoryLoads==0}
+        try require(heldLog.model.isInvalidated && heldLog.model.entries.isEmpty,"Retired Log published held raw history")
+        try? FileManager.default.removeItem(at:pid);try Data().write(to:hold)
+        let heldBlame=BlameWindowController(repository:heldRepo,access:nil,path:raw.path,revision:c.revision,preferences:c.prefs,requireScope:false);c.blames.append(heldBlame)
+        try await wait{FileManager.default.fileExists(atPath:pid.path)}
+        heldBlame.close();try? FileManager.default.removeItem(at:hold)
+        try await wait{BlameWindowModel.activeHistoryOperations==0}
+        try require(heldBlame.model.retired && heldBlame.model.snapshot==nil,"Retired Blame published held raw source")
+        // This wrapper is test setup, not a working-tree mutation by an action.
+        for url in [wrapper,resource,pid,hold]{try? FileManager.default.removeItem(at:url)}
+        try await c.unchanged()
+    }
     static func main()async{
         NSApplication.shared.setActivationPolicy(.prohibited)
         let methods=[(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.namespaceFrame(_:to:)))),(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.namespaceOrder(_:relativeTo:))))]
         for(a,b)in methods{if let a,let b{method_exchangeImplementations(a,b)}}
         defer{for(a,b)in methods.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
         let c=Context(),name=CommandLine.arguments[3]
-        do{try await c.prepare();switch name{case "listing":try await listing(c);case "navigation":try await navigation(c);case "actions":try await actions(c);case "ownership":try await ownership(c);case "delivery":try await delivery(c);default:throw Failure(description:"Unknown case")};await c.cleanup();print("PASS: Browser namespace "+name)}catch{await c.cleanup();fputs("\(error)\n",stderr);exit(1)}
+        do{try await c.prepare();switch name{case "listing":try await listing(c);case "navigation":try await navigation(c);case "actions":try await actions(c);case "ownership":try await ownership(c);case "delivery":try await delivery(c);case "history":try await history(c);default:throw Failure(description:"Unknown case")};await c.cleanup();print("PASS: Browser namespace "+name)}catch{await c.cleanup();fputs("\(error)\n",stderr);exit(1)}
     }
 }

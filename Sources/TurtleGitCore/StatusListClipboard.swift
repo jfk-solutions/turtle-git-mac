@@ -15,10 +15,10 @@ public enum StatusListCopy: Sendable {
 
 public enum StatusListClipboard {
     public static func fileExtension(_ path: String, isDirectory: Bool = false) -> String {
-        guard !isDirectory, !path.hasSuffix("/") else { return "" }
-        let name = (path as NSString).lastPathComponent
-        guard let dot = name.lastIndex(of: ".") else { return "" }
-        return String(name[dot...])
+        guard !isDirectory else {return ""}
+        let bytes=(try? HistoricalGitPath.argument(path).bytes) ?? Data(path.utf8)
+        guard bytes.last != 47,let name=bytes.split(separator:47).last,let dot=name.lastIndex(of:46) else {return ""}
+        return RepositoryBrowserGitPath.componentDisplay(Data(name[dot...]))
     }
     public static func displayedPath(_ entry: StatusEntry, abbreviate: Bool = UserDefaults.standard.bool(forKey: "AbbreviateRenamings")) -> String {
         if let old = entry.originalPath, !old.isEmpty, [entry.index, entry.worktree].contains(where: { $0 == "R" || $0 == "C" }) {
@@ -28,10 +28,10 @@ public enum StatusListClipboard {
     }
 
     public static func displayedPath(_ file: CommitFile, abbreviate: Bool = UserDefaults.standard.bool(forKey: "AbbreviateRenamings")) -> String {
-        if let old = file.oldPath, !old.isEmpty, file.action.hasPrefix("R") || file.action.hasPrefix("C") {
-            return abbreviate ? abbreviatedRename(from: old, to: file.path) : file.path + " (from " + old + ")"
+        if let old=file.displayOldPath,!old.isEmpty,file.action.hasPrefix("R") || file.action.hasPrefix("C") {
+            return abbreviate ? abbreviatedRename(from:old,to:file.displayPath) : file.displayPath+" (from "+old+")"
         }
-        return file.path
+        return file.displayPath
     }
 
     /// CTGitPath::GetAbbreviatedRename shares directory prefixes/suffixes,
@@ -76,7 +76,7 @@ public enum StatusListClipboard {
         func cell(_ file: CommitFile, _ column: StatusListColumn) -> String {
             switch column {
             case .path: return displayedPath(file)
-            case .fileName: return (file.path as NSString).lastPathComponent
+            case .fileName: return (file.displayPath as NSString).lastPathComponent
             case .lastModified, .fileSize: return "–"
             case .lfsOwner: return ""
             case .fileExtension: return fileExtension(file.path, isDirectory: file.isSubmodule)
@@ -85,7 +85,7 @@ public enum StatusListClipboard {
             case .removed: return file.removedText
             }
         }
-        return format(files, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, label:label, cell: cell)
+        return format(files, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.displayPath }, label:label, cell: cell)
     }
 
     /// Copy the displayed row order. Explicit single-column output has no

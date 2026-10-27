@@ -649,10 +649,19 @@ final class CallbackContext{
         guard PrivateDiffRequest.fullOID(revision),values.allSatisfy(PrivateDiffRequest.fullOID) else{try refuse("Invalid history object IDs")}
         try historyRecord(["kind":"header","revision":revision,"parents":values])
     }
+    // Tree namespace only: retain malformed UTF-8 as the same opaque key used
+    // by the Core Browser. Transfer/filesystem notification contracts stay UTF-8.
+    func historyPath(_ value:UnsafePointer<CChar>?)throws->String {
+        guard let value else {try refuse("Missing history path")}
+        let count=strnlen(value,1_048_577)
+        guard count>0,count<=1_048_576 else {try refuse("Invalid history path")}
+        let bytes=Data(bytes:value,count:count)
+        guard bytes.first != 47,bytes.split(separator:47,omittingEmptySubsequences:false).allSatisfy({!$0.isEmpty && $0 != Data([46]) && $0 != Data([46,46])}) else {try refuse("Invalid history path")}
+        return String(data:bytes,encoding:.utf8) ?? "\0TurtleGitBrowserPath:"+bytes.base64EncodedString()
+    }
     func historyDelta(_ pointer:UnsafePointer<tg_history_delta>?)throws {
         guard let value=pointer?.pointee else{try refuse("Missing history delta")}
-        let path=try notificationString(value.path)
-        guard !path.isEmpty,!path.contains("\0"),!path.hasPrefix("/"),!path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0=="." || $0==".."}) else{try refuse("Invalid history path")}
+        let path=try historyPath(value.path)
         if historySimple {
             let key=Data(path.utf8)
             guard historyPaths.count<100_000 || historyPaths[key] != nil,key.count<=67_108_864-historyPathBytes else{try refuse("History simple paths exceed bounds")}
@@ -660,7 +669,7 @@ final class CallbackContext{
         }
         let statuses=[1:"A",2:"D",3:"M",4:"R",5:"C",8:"T"]
         guard let status=statuses[Int(value.status)] else{try refuse("Unsupported history delta status")}
-        let oldPath=try notificationString(value.old_path),oldOID=try notificationString(value.old_hash),newOID=try notificationString(value.new_hash)
+        let oldPath=try historyPath(value.old_path),oldOID=try notificationString(value.old_hash),newOID=try notificationString(value.new_hash)
         guard PrivateDiffRequest.fullOID(oldOID),PrivateDiffRequest.fullOID(newOID) else{try refuse("Invalid history delta object IDs")}
         let none=NSNull()
         try historyRecord(["kind":"delta","parentIndex":value.parent_index,"status":status,"path":path,"oldPath":oldPath.utf8.elementsEqual(path.utf8) ? none:oldPath as Any,"oldOID":oldOID,"newOID":newOID,"oldMode":value.old_mode,"newMode":value.new_mode,"binary":value.binary != 0,"added":value.counts_known != 0 ? UInt64(value.additions) as Any:none,"deleted":value.counts_known != 0 ? UInt64(value.deletions) as Any:none])

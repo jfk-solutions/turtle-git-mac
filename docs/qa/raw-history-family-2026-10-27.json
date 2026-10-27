@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-27",
+  "family": "Browser exact-byte historical Log and Blame",
+  "status": "implemented_with_focused_local_checkpoint",
+  "source_parent": "c0b78afe8e7aaea95e2c068eef2bb793a82051a3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseProc/RepositoryBrowser.cpp:733-772,817-837",
+    "src/TortoiseGitBlame/TortoiseGitBlameData.cpp:168-176,194"
+  ],
+  "scope": [
+    "Explicit byte argument transport on the existing owned process runner",
+    "Raw file/directory history, query/walk options, rename following and exact Blame source/origins",
+    "CLI and selected libgit2 history metadata preserve raw identity; invalidate lossy cache contexts",
+    "Native Browser menu receipts, pinned Log/Blame, escaped presentation and retained-owner cancellation",
+    "Explicit refusal of unsupported raw filesystem/comparison routes; preserve hash-only revision actions"
+  ],
+  "planned_validation": {
+    "core": "One focused group: new byte argument/raw historical path cases plus directly affected process/history/blame/diff/cache/clipboard regressions",
+    "native": "Existing repository-browser namespace grouped cases plus history, both Git engines; private repositories/preferences/pasteboards and offscreen owned windows",
+    "application": "Regenerated resources/project; universal libgit2 helper then unsigned Debug app, no new metafile source rebuild needed",
+    "resources": "Localization write/check, bundled Help write/check, dialog coverage reconciliation before commit"
+  },
+  "validation": {
+    "executed": true,
+    "dependency_build": {
+      "log": "build/qa/raw-history-libgit2-build-2026-10-27.log",
+      "result": "Final successful build message follows successful structure validation and installed universal helper. Session handle was unavailable on wait; no build/compiler process remained. No restart.",
+      "source_matches": true,
+      "binary_sha256": "fa8e31dc052497461bdf91357991b608c3651919628c30ce35ba4e8cb97635fb",
+      "scope": "Universal helper compile/provenance structure; actual raw metadata exercised by following focusedCore/native checks."
+    },
+    "core_initial": {
+      "command": "swift test --filter 'RawGitArgumentTests|RawHistoricalPathTests|GitProcessExitTests|GitProcessCancellationTests|CommitHistoryTests|GitBlameTests|GitBlameParentActionTests|GitBlamePresentationInteractionTests|SymlinkBlameTests|GitDiffEngineTests|HistoryFileCacheTests|StatusListClipboardTests|HistoryMetadataBatchTests|HistoryWorkflowTests'",
+      "exit": 1,
+      "log": "build/qa/raw-history-core-2026-10-27.log",
+      "methods": 149,
+      "failure_assertions": 2,
+      "unexpected_failures": 1,
+      "failed_method": "SymlinkBlameTests.testParentEscapeAdminGitlinkAndCancellationRefuseWithoutReadingOutside",
+      "new_raw_methods_passed": 8,
+      "repair": "Restore ordinary UTF-8 restoreLocation admission before namespace parsing; opaque raw keys remain validated tree-only. Original tests retained."
+    },
+    "application_initial": {
+      "exit": 0,
+      "log": "build/qa/raw-history-debug-2026-10-27.log",
+      "qualification": "Initial unsigned Debug before the Core admission repair; incremental final build pending.",
+      "generic_exit_zero_diagnostics": 14
+    },
+    "core_repair": {
+      "command": "swift test --filter 'SymlinkBlameTests|RawHistoricalPathTests'",
+      "exit": 0,
+      "log": "build/qa/raw-history-core-repaired-2026-10-27.log",
+      "methods": 9,
+      "failures": 0,
+      "result": "149 distinct relevant methods cumulatively passed; only the failed ordinary-path admission family and adjacent raw-path contract repeated."
+    },
+    "application_final": {
+      "exit": 0,
+      "log": "build/qa/raw-history-debug-repaired-2026-10-27.log",
+      "scope": "Unsigned Debug with ordinary-path admission repair"
+    },
+    "native_initial": {
+      "command": "python3 scripts/test-repository-browser-namespace.py",
+      "exit": 1,
+      "log": "build/qa/raw-history-native-2026-10-27.log",
+      "passed": [
+        "system/listing",
+        "system/navigation"
+      ],
+      "failure": "system/actions line106 retained old total2 after newly enabled raw Log+Blame added2 dispatches. Fixture counter correction pending; production not implicated.",
+      "reaped_pids": [
+        23679,
+        23716,
+        23772
+      ],
+      "independently_absent": true
+    },
+    "resources": {
+      "localization_check": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1325
+      },
+      "help_check": {
+        "exit": 0,
+        "documents": 60,
+        "topics": 51,
+        "files": 92,
+        "bytes": 8707919
+      }
+    },
+    "native_repair": {
+      "command": "python3 scripts/test-repository-browser-namespace.py --git /usr/bin/git --only actions --only ownership --only delivery --only history",
+      "exit": 0,
+      "log": "build/qa/raw-history-native-system-repaired-2026-10-27.log",
+      "passed": [
+        "system/actions",
+        "system/ownership",
+        "system/delivery",
+        "system/history"
+      ],
+      "repair": "Retained dispatch count corrected to rawLog+rawBlame2 + validLog1 + validOpen1 =4. Assertions retained; fixture-only recompile; no app/Core repeat."
+    },
+    "native_bundled": {
+      "command": "python3 scripts/test-repository-browser-namespace.py --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "exit": 0,
+      "log": "build/qa/raw-history-native-bundled-2026-10-27.log",
+      "passed": [
+        "bundled/listing",
+        "bundled/navigation",
+        "bundled/actions",
+        "bundled/ownership",
+        "bundled/delivery",
+        "bundled/history"
+      ]
+    },
+    "native_result": {
+      "distinct_case_engine_pairs": 12,
+      "attempted_receivers": 13,
+      "reaped_pids": [
+        23679,
+        23716,
+        23772,
+        23939,
+        23982,
+        24032,
+        24123,
+        24345,
+        24381,
+        24436,
+        24481,
+        24531,
+        24621
+      ],
+      "independently_absent": true,
+      "scope": "Private repositories/configuration/preferences/pasteboards; offscreen/invisible owner and child windows. Actual pinned Log/Blame reads and held Git cancellation; no physical/signed/Intel acceptance."
+    },
+    "coverage_reconciled": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certified": 0,
+      "mapped_controls": 1574,
+      "pending_controls": 85,
+      "qualification": "Not a feature completion percentage"
+    }
+  },
+  "remaining": [
+    "Original-path raw checkout, filtered filesystem delivery/export/promise and comparison remain unimplemented",
+    "Physical/VoiceOver/signed external grants and receiving-app behavior",
+    "Intel/minimumOS execution, complete hosted CI and App Store distribution acceptance",
+    "Spatial image effects remain independent unfinished WIP"
+  ],
+  "resource_generation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1325,
+      "mode": "write"
+    },
+    "help": {
+      "documents": 60,
+      "topics": 51,
+      "files": 92,
+      "bytes": 8707919,
+      "mode": "write"
+    },
+    "project": "xcodegen generate exit0"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/CancellableGitProcess.swift": "2ca8a20c4fcd8414451de2b635d146233f2c6e1cebe8dfd6fa8a68a40f113e13",
+    "Sources/TurtleGitCore/GitRepository.swift": "f8fc9cdeead3574eb36206d1fd08365001883dea9de3d4c732f3197edc2be375",
+    "Sources/TurtleGitCore/HistoricalGitPath.swift": "f3bc6f99a0ca0126b92f7eebe5bfd220947d72137a94bd2b68cc2e7923376900",
+    "Sources/TurtleGitCore/CommitHistory.swift": "6f80c10b9771dbfb6a54db9eb83b8a47fab2dbb7b31ead57deb1a3c0bc5a7f2d",
+    "Sources/TurtleGitCore/GitBlame.swift": "066d718429ccca02987fa81092b99ceebe24d1cd10b59856c3f6461e3f8b51dd",
+    "Sources/TurtleGitCore/GitDiffEngine.swift": "e32e7bdbded5bc60d0df063f61d8f58177bd85fcfa7209e13d3dbb794ce3a8b4",
+    "Sources/TurtleGitCore/HistoryFileCache.swift": "2e45f5853dd23638ebf489e84cc0e5bf4706f3c40e404116c86b16e8ddcc55a2",
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "b3abcf4acca53280cc743c7d0b5db7ca6026b2d7e88c712177cc14ccec5f2798",
+    "Sources/TurtleGitCore/GitBlamePresentationInteraction.swift": "8b2de573f6c406b2ba202ef0c0570fc9d3ccd522f183638b0d3b41218102997e",
+    "Sources/TurtleGitLibgit2/main.swift": "5205a6f7b246915e2153bb1602794b0dba7ea997721f2b1c5592284fc86534c8",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "625aac238d4915292f91eafbf44941fc78d3b768f559588ef09f0710f8ccb547",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "399f8480281cec11b2138033cd6c74b7253f88738d557c944c5ea8a14ab3f5f4",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "ff76ff0972342cbfadccd4f60daf36922e6a2f2359c12b75863b39e9780d9532",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "d11fc4a9347592b9851611e5d1af07c7343c5fe507b24a045469f5b4cfe91c41",
+    "Sources/TurtleGitMac/LogWindow.swift": "a66e7657b01774fcf5f656b554b582f73b481b834e1a09b2c15c3232105c4b11",
+    "Sources/TurtleGitMac/BlameWindow.swift": "ce7fa263e9cc0c2ce1f47c2f291aed89a174e54f810dd849a83be6a41f137aa7",
+    "Tests/TurtleGitCoreTests/RawGitArgumentTests.swift": "0c0df6da6075eb79c33c3a1217ceb2ffc66b4d25d98d5816db9820c1c1d94e4d",
+    "Tests/TurtleGitCoreTests/RawHistoricalPathTests.swift": "26ddf3ed50d54b8dccbd4ea9431a9e55f73280ebff207d9de8e45ebdf7dc764a",
+    "docs/qa/repository-browser-namespace-native-2026-10-25.swift": "4f6362dc816586ee258639157ad3a49cb173bbe7e0e03dac65c5a0bc87336145",
+    "scripts/test-repository-browser-namespace.py": "be075eee7bd6ada577a34b4207ae1facab9edfdae7c4d0273dac2f731797f389",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "0b10e7d5af27b600139c18590d291a97d9cba8a4ebb304160f71e46d343923e7"
+  },
+  "implementation_notes": [
+    "The new historical path domain does not replace ordinary UTF-8 Blame admission: restoreLocation still fences symlink parents/admin/absolute/traversal paths before parsing.",
+    "Explicit raw byte argument overrides retain the existing process group, drain, cancellation and no-shell execution. NUL/index rejection precedes spawn.",
+    "Native tooltip formatter labels raw names as Git paths without synthesizing native filesystem URLs; exact comparison mark identity stays separate from display.",
+    "No stale worker/metadata callback may publish after refresh/retirement. The native history receiver forces real held Git log/blame close and waits actual work counters."
+  ]
+}

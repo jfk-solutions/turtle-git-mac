@@ -60,7 +60,7 @@ def retire_owned_helpers(context, approved_images):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['listing', 'navigation', 'actions', 'ownership', 'delivery'], action='append')
+parser.add_argument('--only', choices=['listing', 'navigation', 'actions', 'ownership', 'delivery', 'history'], action='append')
 args = parser.parse_args()
 root = next(parent for parent in Path(__file__).resolve().parents if (parent / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/repository-browser-namespace-native-sources'
@@ -69,7 +69,7 @@ receiver = build_receiver(root, [root / 'docs/qa/repository-browser-namespace-na
 results = []
 for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
     git = git.absolute()
-    for case in args.only or ['listing', 'navigation', 'actions', 'ownership', 'delivery']:
+    for case in args.only or ['listing', 'navigation', 'actions', 'ownership', 'delivery', 'history']:
         with tempfile.TemporaryDirectory(prefix='turtlegit-browser-namespace-' + case + '-') as temporary:
             # Canonicalize the private test root once, before argv/environment
             # construction; literal Unicode leaf assertions remain unchanged.

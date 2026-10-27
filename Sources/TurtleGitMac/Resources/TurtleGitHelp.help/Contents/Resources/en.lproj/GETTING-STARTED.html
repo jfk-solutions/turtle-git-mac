@@ -196,6 +196,12 @@ revision graph and a context menu for the selected commits.</p>
 offer a parent submenu. Root commits have no previous revision. <strong>Show changes as
 unified diff</strong> opens the patch, and merges provide additional modes under
 <strong>Unified diff with</strong>. <strong>Browse repository</strong> opens the files at that revision.</p>
+<p>In <strong>Browse repository</strong>, right-click a file or folder for <strong>Show log</strong>, or a
+file for <strong>Blame</strong>. These views keep the Browser's selected revision. Git names
+that cannot be displayed as UTF-8 have an escaped byte label; history and Blame
+still read the original Git path. Their filesystem actions remain unavailable;
+the stored-blob commands can open or save their unfiltered contents under a safe
+filename. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/RAW-HISTORY-PARITY.html">historical filename handling</a>.</p>
 <p>Select two commit rows to open <strong>Compare revisions</strong>, a unified diff, or one of
 three <strong>Show log of</strong> ranges. The menu labels identify the endpoints:</p>
 <table>

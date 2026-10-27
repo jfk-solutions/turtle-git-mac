@@ -40,12 +40,12 @@ import TurtleGitCore
         documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable) });self.requireScope=requireScope;self.scopeProvider=provider
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options:options,labelDefaults:preferences,historyRegexExecutable:regexExecutable,gravatar:gravatar)
         let window = BlameCommandWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
+        window.title = "\(RepositoryBrowserGitPath.display(key:path)) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
         super.init(window: window); window.delegate = self; TurtleGitHelp.attach(window, topic: .blame); window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onGoTo = { [weak self] in self?.showGoToLine() }; model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) };model.onOpenDocument={ [weak self] in self?.openDocument() };model.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };model.onOpenRecent={ [weak self] in self?.openRecent($0) };model.recentDocuments=recentDocuments;model.onLoaded={ [weak self] in
-            guard let self,revision=="HEAD",let recentDocuments=self.recentDocuments else { return }
+            guard let self,revision=="HEAD",(try? RepositoryBrowserGitPath(key:self.model.path).isRepresentable)==true,let recentDocuments=self.recentDocuments else { return }
             let lease=self.model.repositoryAccess ?? RepositoryAccessLease(url:self.model.repository.root,provider:self.scopeProvider)
             do { try recentDocuments.remember(root:self.model.repository.root,path:self.model.path,lease:lease) } catch { self.model.error=error.localizedDescription }
         };model.reload()
@@ -120,7 +120,7 @@ import TurtleGitCore
                 Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
                 configureHistoryActions();configurePaneLayout();findWindow?.rebind(replacement);applyWindowAppearance();installToolbarChrome()
                 NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
-                window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
+                window?.title="\(RepositoryBrowserGitPath.display(key:document.snapshot.path)) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
                 do { try recentDocuments?.remember(root:document.repository.root,path:document.snapshot.path,lease:document.access,replacing:recentID) }
                 catch { replacement.error="Opened file; recent-file access could not be saved: "+error.localizedDescription }
                 onDocumentChanged()
@@ -385,7 +385,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             return String(line.hash.prefix(8))
         case "author": return repeated ? "" : line.author
         case "date": return repeated ? "" : attributionDate(line.date)
-        case "filename": return repeated && lines[row - 1].filename == line.filename ? "" : line.filename
+        case "filename": return repeated && lines[row - 1].filename == line.filename ? "" : RepositoryBrowserGitPath.display(key:line.filename)
         case "original": return String(line.originalLine)
         default: return String(line.number)
         }
@@ -472,6 +472,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                   choice.parentNumber>0 && choice.comparison.root==repository.root && choice.comparison.from == .revision(choice.revision) && choice.comparison.to == .revision(target.entries[0].hash) && choice.comparison.files.count==1 && choice.comparison.files.first.map { GitReferenceName.equal(choice.path,$0.oldPath ?? $0.path) } == true
               }) else { return }
         if action == .previous { for choice in choices { guard acceptsHistory(target) else { return };onPrevious?(choice.path,choice.revision,originalLine,appliedOptions) };return }
+        guard choices.allSatisfy({(try? RepositoryBrowserGitPath(key:$0.path).isRepresentable)==true && $0.comparison.files.allSatisfy(\.isPathRepresentable)}) else{error=RepositoryBrowserWindowModel.rawPathReason;return}
         if action == .compare {
             guard let onOwnedChanges else {
                 // Compatibility for independent consumers of the original
@@ -504,7 +505,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                     if let readHistoryPatch { bytes=try await readHistoryPatch(choice.comparison,token) }
                     else { bytes=try await repository.revisionComparisonPatchData(choice.comparison,paths:choice.comparison.files.map(\.path),cancellation:token) }
                     guard acceptsHistory(target),!token.isCancelled else { return }
-                    let title="Parent \(choice.parentNumber) → \(target.entries[0].hash.prefix(8)) — \(choice.path)"
+                    let title="Parent \(choice.parentNumber) → \(target.entries[0].hash.prefix(8)) — \(RepositoryBrowserGitPath.display(key:choice.path))"
                     if let onHistoryUnified { try await onHistoryUnified(bytes,title,alternate) }
                     else { try await onOwnedHistoryUnified?(bytes,title,alternate,token) }
                 }
@@ -943,7 +944,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         let selected = min(number, lines.count)
         goToLine(selected)
     }
-    func showLog(_ line: GitBlameLine) { onLog?(line.filename, line.hash) }
+    func showLog(_ line: GitBlameLine) { guard canFind,lines.contains(where:{$0.number==line.number && $0.hash==line.hash && GitReferenceName.equal($0.filename,line.filename)}) else{return};onLog?(line.filename, line.hash) }
     func copyLogMessage(_ hash:String) { copyHistoryDetails([hash],includePaths:true) }
     func copyHistoryDetails(_ hashes:[String],includePaths:Bool,available:@escaping () -> Bool = { true }) {
         guard canFind,available(),!hashes.isEmpty else { return }
@@ -1017,7 +1018,7 @@ private struct BlameDialog: View {
             else {BlamePaneWorkspace(model:model).frame(maxWidth:.infinity,maxHeight:.infinity)}
             if model.showStatusBar { if let line = model.selectedLine {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
-                Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
+                Text("\(line.summary)\nOrigin: \(RepositoryBrowserGitPath.display(key:line.filename)), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary) }
         }.padding(12).disabled(model.historyChildBlocked || model.confirmingQuit).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }.onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in model.refreshAuthorPreferences() }
@@ -1640,7 +1641,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                     let source:HistoryContextCommand = action == .previous ? .blamePrevious : action == .compare ? .comparePrevious : .unifiedDiff
                     guard policy.contains(source), action != .unified || model.historyHasWorkingTree else { continue }
                     func command(_ number:Int,_ title:String)->NSMenuItem {
-                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled;result.representedObject=ParentInvocation(target,parents[number]!,action)
+                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled && (action == .previous || parents[number]!.allSatisfy{(try? RepositoryBrowserGitPath(key:$0.path).isRepresentable)==true});result.representedObject=ParentInvocation(target,parents[number]!,action)
                         if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") && number==parents.keys.min() { result.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };return result
                     }
                     if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,title)) }
@@ -1897,7 +1898,7 @@ private struct BlameTable: NSViewRepresentable {
                     measured = width([String(repeating:"8",count:digits)])
                 case "revision": measured = width([model.marginFields.contains(.logID) ? String(max(1,model.historyCount)) : "ffffffff"])
                 case "author": measured = width(Set(model.lines.map(\.author)))
-                case "filename": measured = width(Set(model.lines.map(\.filename)))
+                case "filename": measured = width(Set(model.lines.map { RepositoryBrowserGitPath.display(key:$0.filename) }))
                 case "original": measured = width([String(model.lines.map(\.originalLine).max() ?? 1)])
                 case "date": measured = width(Set(Set(model.lines.map(\.date)).map { model.attributionDate($0) }))
                 default: continue
@@ -1972,7 +1973,7 @@ private struct BlameTable: NSViewRepresentable {
             let choices=contextTarget == nil ? model.parentChoices:contextParents
             func item(_ title:String,_ command:String,_ icon:MenuIcon?,choice:GitBlameParentComparison? = nil,enabled:Bool=true,into parent:NSMenu? = nil) {
                 let value=NSMenuItem(title:title,action:#selector(invokeSource(_:)),keyEquivalent:"");value.target=self
-                value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled;(parent ?? menu).addItem(value)
+                value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled && (command == "previous" || (choice.map{(try? RepositoryBrowserGitPath(key:$0.path).isRepresentable)==true} ?? true));(parent ?? menu).addItem(value)
                 if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),choice?.id==choices.first?.id { value.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
             }
             if contextTarget==nil && model.loadingParents {let value=NSMenuItem(title:"Reading previous revisions…",action:nil,keyEquivalent:"");value.isEnabled=false;menu.addItem(value)}
@@ -2477,7 +2478,7 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
         syntaxGeneration += 1; let generation = syntaxGeneration
         syntaxToken?.cancel(); syntaxTask?.cancel(); syntaxResult = nil
         syntaxText = editor.string; syntaxPath = model.path; syntaxTabs = model.presentation.tabSize
-        let text = editor.string, path = model.path, tabs = model.presentation.tabSize, helper = model.syntaxExecutable
+        let text = editor.string, path = (try? RepositoryBrowserGitPath(key:model.path)).map { String(decoding:$0.rawData,as:UTF8.self) } ?? "", tabs = model.presentation.tabSize, helper = model.syntaxExecutable
         let token = OperationCancellation(); syntaxToken = token
         model.syntaxWorking = true; model.syntaxError = nil; BlameWindowModel.syntaxStarted()
         syntaxTask = Task { @MainActor [weak self] in

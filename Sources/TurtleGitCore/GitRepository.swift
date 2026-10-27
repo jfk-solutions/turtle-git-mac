@@ -51,7 +51,13 @@ public actor GitRepository {
     }
     /// With retainStandardOutput false, stdout is delivered only through onOutput;
     /// stderr and exit/cancellation diagnostics remain in the returned result.
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, executorOverride: URL? = nil) throws -> GitResult {
+    /// `argumentBytes` replaces only explicitly indexed arguments at spawn time.
+    /// It carries Git path bytes that have no UTF-8 spelling; the corresponding
+    /// String is a diagnostic caption, never a replacement filesystem pathname.
+    public func run(_ arguments: [String], argumentBytes: [Int: Data] = [:], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, executorOverride: URL? = nil) throws -> GitResult {
+        guard argumentBytes.keys.allSatisfy(arguments.indices.contains), argumentBytes.values.allSatisfy({ !$0.contains(0) }) else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(EINVAL))
+        }
         let cancellation = cancellation ?? replayCancellation
         let onOutput = onOutput ?? replayCommandOutput(arguments)
         let replayObservation=["rebase","commit","reset","cherry-pick"].contains(GitCommandIdentity(arguments).command ?? "") ? replayProgressObservation:nil
@@ -70,6 +76,8 @@ public actor GitRepository {
         let output = try FileHandle(forWritingTo: out), error = try FileHandle(forWritingTo: err)
         defer { try? output.close(); try? error.close() }
         let commandArguments = commandInvocation(arguments, literalPathspecs: literalPathspecs, executorOverride: executorOverride).arguments
+        let prefixCount = commandArguments.count - arguments.count
+        let commandArgumentBytes = Dictionary(uniqueKeysWithValues: argumentBytes.map { ($0.key + prefixCount, $0.value) })
         let promptCancellation = try executorOverride.map { _ in try GitRemotePromptCancellation(directory: temporary) }
         let certificateAcceptances = try (executorOverride != nil && GitAskpassRuntime.mayAuthenticate(arguments) ? GitRemoteCertificateAcceptanceExchange(directory: temporary) : nil)
         defer { certificateAcceptances?.consume(cancelled: cancellation?.isCancelled == true || promptCancellation.map { FileManager.default.fileExists(atPath: $0.cancelURL.path) } == true) }
@@ -150,14 +158,14 @@ public actor GitRepository {
                     if !drain { return }
                 } while true
             }
-            status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: processCancellation, pollOutput: {
+            status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, argumentBytes: commandArgumentBytes, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: processCancellation, pollOutput: {
                 if cancellation?.isCancelled==true { processCancellation.cancel() }
                 read(outputReader, stream:.stdout);read(errorReader, stream:.stderr)
             }, cancellationReady: promptCancellation.map { gate in { gate.cancellationReady() } })
             read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
             if let consumerError { throw consumerError }
         } else {
-            status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
+            status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, argumentBytes: commandArgumentBytes, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
         }
         let result = GitResult(exitCode: status, stdout: retainStandardOutput ? try Data(contentsOf: out) : Data(), stderr: try Data(contentsOf: err))
         if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result,outputWasDelivered:outputWasDelivered) }
