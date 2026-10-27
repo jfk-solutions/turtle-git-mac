@@ -14,6 +14,10 @@ import TurtleGitCore
     let appearance = AppAppearance()
     private weak var applicationDelegate: TurtleGitApplicationDelegate?
     var makeModel: () -> RepositoryModel = { RepositoryModel() }
+    var installWorkspaceServices: (NSWindow) -> Void = { window in
+        FirstStartWizardService.shared.install(isAvailable: { [weak window] in window?.isVisible == true })
+        ReleaseUpdateService.shared.install()
+    }
     var makeController: (RepositoryModel, AppAppearance, TurtleGitApplicationDelegate) -> WorkspaceWindowController = {
         WorkspaceWindowController(model: $0, appearance: $1, applicationDelegate: $2)
     }
@@ -37,7 +41,9 @@ import TurtleGitCore
     @discardableResult func presentWorkspace() -> RepositoryModel? {
         guard let applicationDelegate else { return nil }
         if let storedController {
-            storedController.present(); return storedModel
+            storedController.present()
+            if let window=storedController.window {installWorkspaceServices(window)}
+            return storedModel
         }
         // Switching the shared Settings context must never discard its draft.
         guard SettingsPresentationService.shared.prepareContextChange() else { return nil }
@@ -47,6 +53,10 @@ import TurtleGitCore
         applicationDelegate.attachWorkspaceModel(model, appearance: appearance)
         commandModel = model
         controller.present()
+        // Automatic setup/update presentation is owned by this attached host.
+        // Constructing an action router (including folder permission UI) cannot
+        // create unrelated setup windows or start automatic update presentation.
+        if let window=controller.window {installWorkspaceServices(window)}
         return model
     }
 }

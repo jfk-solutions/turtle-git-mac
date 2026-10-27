@@ -126,6 +126,7 @@ import TurtleGitCore
         oldGitPath.wrappedValue="/stale/git";oldExtraPath.wrappedValue="/stale/path";model.next(context:gitContext)
         try require(model.page == .git && model.git.draft.path==originalPath && model.git.draft.extraPath.isEmpty,"Pending picker accepted old fields or Next")
         pickerReply?(.cancel);pickerReply?(.OK)
+        try await wait {!model.git.selecting && GeneralGitSettingsModel.activeDialogs==0}
         try require(model.canNavigate && GeneralGitSettingsModel.activeDialogs==0 && model.git.draft.bookmark==nil,"Repeated picker reply changed the cancelled draft")
         oldExtraPath.wrappedValue="/after/cancel"
         try require(model.git.draft.extraPath.isEmpty,"Cancelled picker revived an old form binding")
@@ -238,7 +239,34 @@ import TurtleGitCore
         pickerOwner.model.browseGit(context:pickerOwner.model.formContext)
         try require(GeneralGitSettingsModel.activeDialogs==1,"Picker not accounted")
         pickerOwner.close();retiredReply?(.OK)
+        try await wait {GeneralGitSettingsModel.activeDialogs==0}
         try require(GeneralGitSettingsModel.activeDialogs==0 && pickerOwner.model.git.draft.path==pickerTool.path,"Closed wizard accepted picker reply or leaked ownership")
+        // Automatic onboarding belongs to an attached workspace. Closing that
+        // actual native owner before the deferred callback must not spawn it;
+        // a later explicit workspace presentation can still onboard once.
+        let (_,_,_,deferredPrefs)=try fixture("deferred-workspace")
+        let service=FirstStartWizardService()
+        let workspace=NSWindow(contentRect:.init(x:-24000,y:-24000,width:400,height:200),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        workspace.isReleasedWhenClosed=false;workspace.alphaValue=0;workspace.orderFront(nil)
+        var availabilityChecks=0,created=0,presented=0
+        service.create={_,page in
+            created += 1
+            let value=FirstStartWizardController(preferences:deferredPrefs,initialPage:page)
+            value.window?.alphaValue=0;value.window?.setFrameOrigin(.init(x:-24000,y:-24000));owners.append(value)
+            return value
+        }
+        service.present={value in presented += 1;value.window?.alphaValue=0;value.showWindow(nil)}
+        let available:()->Bool={ [weak workspace] in availabilityChecks += 1;return workspace?.isVisible==true}
+        service.install(isAvailable:available);workspace.close()
+        try await wait {availabilityChecks>0}
+        try require(created==0 && presented==0 && service.controller==nil,"Closed workspace spawned deferred onboarding")
+        workspace.orderFront(nil);service.install(isAvailable:available)
+        try await wait {presented==1 && service.controller != nil}
+        try require(created==1 && service.controller?.window?.alphaValue==0,"Later explicit workspace could not onboard privately")
+        service.install(isAvailable:available)
+        try require(created==1 && presented==1,"Repeated workspace installation duplicated onboarding")
+        service.controller?.close();workspace.close()
+        try await wait {service.controller==nil}
         try require(UserDefaults.standard.object(forKey:"TurtleGit.FirstStartComplete") as? Bool == standardBefore, "Wizard wrote shared completion preferences")
         try require(FirstStartWizardModel.activeWrites == 0 && GeneralGitSettingsModel.activeOperations == 0 && CredentialSettingsModel.activeReads == 0, "Setup operation counts did not settle")
         print("PASS: First Start source forms/order, captured form/picker/check/focus generations, once-only Finish, captured engine/identity, Don't store/Advanced/SSH sheets, private Finish, cached General Apply, cancellable reads and accepted-write/partial-failure lifetime")

@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-27",
+  "status": "physical-registration-passes-with-unwanted-workspace-defect",
+  "source_commit": "ac39e48fe2c9f8108b86e8804bb22aa51017fb91",
+  "version": "0.1.0",
+  "build": "17",
+  "scope": [
+    "Consolidate deferred Finder startup and targeted authorization refresh",
+    "Finder publication and nearest-root lookup performance",
+    "Rebase owned instruction line boundaries on actual older Git",
+    "Shared classic/staging/amend Commit display reads and Cancel/recovery ownership"
+  ],
+  "candidate_worktree": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac",
+  "source_input_sha256": "a2178e487bfa4dcfa2422f40e2a324251a6062b7a515fcc9a5a4cef609876b24",
+  "build_session": 23816,
+  "build_log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed17-build-2026-10-27.log",
+  "previous_installed_build": "16",
+  "preceding_validation": [
+    "docs/qa/finder-startup-publication-2026-10-27.json",
+    "docs/qa/finder-publication-pipeline-2026-10-27.json",
+    "docs/qa/replay-instruction-framing-2026-10-27.json",
+    "docs/qa/commit-shared-display-read-2026-10-27.json"
+  ],
+  "physical_acceptance": {
+    "status": "scoped acceptance completed; launch-routing defect open",
+    "fixture": "build/qa/signed17-ui-2026-10-27/before.json",
+    "tracked_files": 1500,
+    "changed_files": 21,
+    "goal": "Actual Add-to-TurtleGit/Finder and Commit read lifecycle; close every owned window and preserve private repository bytes.",
+    "passed": [
+      "Cold Finder Add command presents repository folder permission; exact private folder grant succeeds",
+      "Registered repository gains full repository commands; Services contains only Open in TurtleGit",
+      "Actual Finder icon view shows modified Sources and untracked question-mark badges",
+      "Installed Finder Commit loads expected21unstaged/5staged rows on main in saved GitGui interface",
+      "Actual Cancel/No retains exact draft and enables Commit; Cancel/Yes closes without commit"
+    ],
+    "defects": [
+      "After initial folder permission completes, empty workspace opens despite headless Add request; observed via existing CUA app binding without getApp/reopen. Routing fix in progress."
+    ],
+    "finder_process": "System updated extension from71233 to51525 without agent Finder/Dock restart or process signal",
+    "cleanup": "Native Cancel/Yes; forget only private saved permission, original ladybird/web-component-designer entries retained; native Quit; own Finder window closed. Clipboard restored by CUA paste.",
+    "repository_unchanged": true,
+    "repository_after": "build/qa/signed17-ui-2026-10-27/after.json",
+    "limits": [
+      "No precise end-to-end Commit startup latency claimed from UI sampling",
+      "Headless registration still creates empty workspace after permission; build17 not final acceptance",
+      "Current arm64 host only; no Intel/minimum macOS execution"
+    ],
+    "main_pid": 51558,
+    "main_independently_absent": true
+  },
+  "app_store_submission": "not performed or authorized",
+  "remaining": [
+    "Headless first-use empty-workspace defect; source/native correction tracked in launch-intent-ownership-2026-10-27.json, not yet physically accepted in a later installed build.",
+    "Full upstream dialog parity remains unproven",
+    "Full current hosted integration, Intel/minimum macOS execution, VoiceOver/IME and distribution/legal acceptance remain separate"
+  ],
+  "build_exit": 0,
+  "build_attempts": [
+    {
+      "log": "build/qa/signed17-build-2026-10-27.log",
+      "status": "succeeded",
+      "exit_code": 0,
+      "session": 23816
+    }
+  ],
+  "static_audit_session": 35476,
+  "static_validation": {
+    "source_inputs_unchanged": true,
+    "source_input_sha256": "a2178e487bfa4dcfa2422f40e2a324251a6062b7a515fcc9a5a4cef609876b24",
+    "application_sha256": "c3ab212caab503d4e5b20700ad1927e2e9f9aef5ff0ce24bd796706b3163b449",
+    "codesign_deep_strict_exit": 0,
+    "bundle_file_count": 6366,
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 90,
+    "generated_apple_help_index": {
+      "kind": "file",
+      "size": 364129,
+      "mode": "0o644",
+      "sha256": "15161fe3c2ac77bfc0d7e701449580194af8a42c16666c52f5e5d735b96b6838"
+    },
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "sandbox_runtime_session": 52884,
+  "source_input_count": 1535,
+  "installation": {
+    "status": "installed_verified",
+    "source_commit": "ac39e48fe2c9f8108b86e8804bb22aa51017fb91",
+    "source": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed17-displaced-installed-2026-10-27",
+    "old_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "16",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "16"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "16"
+        }
+      }
+    },
+    "new_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "17",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "17"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "17"
+        }
+      }
+    },
+    "source_input_sha256": "a2178e487bfa4dcfa2422f40e2a324251a6062b7a515fcc9a5a4cef609876b24",
+    "application_sha256": "c3ab212caab503d4e5b20700ad1927e2e9f9aef5ff0ce24bd796706b3163b449",
+    "inventory_members": 6366,
+    "strict_signature": "pass",
+    "source_staged_installed_inventories": "equal",
+    "finder_restarted": false,
+    "global_cache_reset": false,
+    "registration_pending": true
+  },
+  "registration": "+    org.turtlegit.macos.finder(0.1.0)\n",
+  "sandbox_runtime": {
+    "session": 52884,
+    "exit": 0,
+    "report": "build/qa/signed17-runtime-2026-10-27.json",
+    "phases": [
+      "app-group",
+      "history",
+      "unified-diff"
+    ],
+    "passed": true,
+    "metafile": "unchanged runtime; not repeated in this focused consolidation check",
+    "scope": "Actual signed disposable sandbox peers and packaged helpers; no shipping GUI or installed Finder activation.",
+    "owned_helpers_drained": true,
+    "forced_cleanup_needed": false
+  }
+}

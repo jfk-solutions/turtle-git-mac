@@ -22,6 +22,29 @@ must not be a prerequisite for each native dialog.
 | Dock reopen with no visible windows | Restore the retained workspace |
 | Existing Merge / Unified Diff tool invocation | Existing standalone tool, retaining its own save, output and process ownership |
 
+### First-use permission and launch ownership — October 27, 2026
+
+[Installed build17](qa/signed-consolidation-build17-2026-10-27.json) accepted an
+actual private Finder folder grant, published modified/untracked badges and full
+repository menus, and loaded the expected staged/unstaged Commit rows. It also
+opened an unwanted empty workspace after the first-use permission picker. The
+observation used an existing app binding without issuing an app reopen. The
+precise AppKit callback responsible was not captured.
+
+The [launch-intent continuation](qa/launch-intent-ownership-2026-10-27.json)
+separates AppKit's automatic untitled fallback from explicit workspace entry,
+fences callbacks before startup command delivery, and rechecks a queued normal
+default-launch request against accepted URL/Service intent. Automatic setup and
+update installation belongs to an attached workspace; delayed first-run setup
+checks that host still exists. A later genuine Dock reopen and explicit Open
+retain their workspace routes, including onboarding after an action-only launch.
+An action that still owns permission, preparation or publication work also keeps
+that ownership while no panel is visible; background workspace work does not
+participate in this guard. Once the action drains, Dock reopen can open the host.
+Bounded callback diagnostics omit paths and request payloads. Source/native
+coverage and a subsequent signed physical first-use check remain distinct; the
+source holes alone do not prove which callback caused build17's visible defect.
+
 Opening a dialog must preserve any existing workspace's repository, selection,
 window and in-flight operations. Folder registration must preserve unrelated
 watches and the user's background-refresh preference. A path or URL is input,

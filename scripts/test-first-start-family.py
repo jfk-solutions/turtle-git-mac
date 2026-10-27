@@ -14,7 +14,8 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-first-start-') as temporary:
     folder=Path(temporary);inputs=root/'build/qa/first-start-fixtures';inputs.mkdir(parents=True,exist_ok=True)
     source=inputs/'first-start-native-2026-10-15.swift';source.write_text((root/'docs/qa'/source.name).read_text())
     receiver=build_receiver(root,[source],folder)
-    env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
+    for name in ['home','preferences','xdg','temporary']:(folder/name).mkdir(mode=0o700)
+    env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',HOME=str(folder/'home'),CFFIXED_USER_HOME=str(folder/'preferences'),XDG_CONFIG_HOME=str(folder/'xdg'),TMPDIR=str(folder/'temporary')+'/')
     for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
         fixture=folder/str(index);fixture.mkdir();env.pop('TURTLEGIT_FIRST_START_CAPTURE',None)
         if args.captures and index==0:

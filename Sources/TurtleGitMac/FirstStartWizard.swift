@@ -476,18 +476,21 @@ private struct FirstStartWizardDialog: View {
     var create: (UserDefaults, Int) -> FirstStartWizardController = { FirstStartWizardController(preferences: $0, initialPage: $1) }
     var present: (FirstStartWizardController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var consideredFirstRun = false
-    func install() {
-        if TurtleGitLaunchMode.resolve(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath) != .workspace { return }
-        if (try? MergeToolInvocation.parse(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath)) != nil { return }
+    func install(isAvailable: @escaping () -> Bool = { true }) {
+        // Installation is now called only after WorkspaceSceneOwner attaches an
+        // explicitly requested workspace. Process argv may still identify the
+        // earlier action-only launch when the user later reopens from the Dock.
         guard !consideredFirstRun else { return }
         consideredFirstRun = true
-        // An explicit wizard page must not race the automatic first-run page.
-        if let invocation = try? PrimaryCommandInvocation.parse(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath), invocation.request.action == .firstStartWizard { return }
         guard !UserDefaults.standard.bool(forKey: "TurtleGit.FirstStartComplete"),
               Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") != true,
               ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
-        // Wait until SwiftUI has attached the main window before presenting setup.
-        Task { @MainActor in await Task.yield(); self.show() }
+        // Present after the explicitly owned workspace has completed attachment.
+        Task { @MainActor in
+            await Task.yield()
+            guard isAvailable() else {self.consideredFirstRun=false;return}
+            self.show()
+        }
     }
     func show(initialPage: Int = 0, preferences: UserDefaults = .standard) {
         if let controller { present(controller); return }

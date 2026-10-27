@@ -45,6 +45,15 @@ when already enabled, newly saved watches synchronize through authenticated IPC.
 
 ## Verification and remaining acceptance
 
+[Build17's actual first-use check](qa/signed-consolidation-build17-2026-10-27.json)
+confirms the folder grant, expanded repository menu and visible modified/untracked
+badges, followed by Commit loading and Cancel/No/Yes on a disposable 1,500-file
+repository. HEAD, index, configuration and working files remain unchanged. The
+same check exposes an unwanted empty workspace after authorization; the
+[launch ownership continuation](DIALOG-LAUNCH-PARITY.md#first-use-permission-and-launch-ownership--october-27-2026)
+tracks that defect separately from successful registration. No complete physical
+Clone, background-service or source-dialog acceptance follows from this check.
+
 The [grouped checkpoint](qa/context-registration-2026-10-25.json) records 63
 distinct focused Core methods cumulatively passing, the final Debug build, actual
 Finder-builder and Services-provider checks, and six registration/Clone/ownership
@@ -56,9 +65,10 @@ receivers reaped; the Services check retains sandbox-extension diagnostics.
 The private cases cover unchanged workspace, both independent persistence stores,
 linked metadata grants, duplicate/watch identities, accepted Clone registration,
 failure warnings and cancellation/retirement. They do not establish actual signed
-folder grants or installed extension activation. Expanded signed Finder menus,
-physical permission prompts, automatic Clone registration and background-service
-behavior remain pending for this candidate. Badge size/placement remains owned
+folder grants or installed extension activation. Build17's bounded physical
+acceptance above adds first-use permission, menu and badge evidence. Broader
+automatic Clone registration and background-service behavior remain separate.
+Badge size/placement remains owned
 by macOS; complete source/VoiceOver and App Store distribution acceptance remain
 open.
 

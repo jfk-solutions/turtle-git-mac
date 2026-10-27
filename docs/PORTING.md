@@ -55,6 +55,17 @@ recovery, hooks and atomic native publication remain connected. The
 counts and grouped validation. Complete installed startup latency remains a
 separate measurement; build16 predates the continuation.
 
+## First-use Finder permission and launch intent
+
+[Build17](qa/signed-consolidation-build17-2026-10-27.json) packages the Finder,
+replay-framing and shared Commit-read batches. Actual private registration,
+Finder badges/menus and Commit staged/unstaged inventories pass, with repository
+bytes preserved and owned UI closed. It exposes an unwanted empty workspace
+after the first folder grant. The [connected launch ownership correction](DIALOG-LAUNCH-PARITY.md#first-use-permission-and-launch-ownership--october-27-2026)
+separates automatic AppKit callbacks, explicit workspace intent and attached-host
+onboarding. Build17 predates that correction; subsequent native and signed
+physical evidence must be assessed separately.
+
 ## Unified Diff line-number and selection gutter
 
 The [gutter family](UNIFIED-DIFF-GUTTER-PARITY.md) adds source-style line numbering,

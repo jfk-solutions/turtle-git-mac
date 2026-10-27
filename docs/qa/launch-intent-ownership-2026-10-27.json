@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "ac39e48fe2c9f8108b86e8804bb22aa51017fb91",
+  "status": "focused-grouped-native-checkpoint-passed-after-recorded-fixture-and-ownership-repairs",
+  "trigger": "Actual signed17 Finder registration grants/publishes correctly but empty workspace also appears after first folder authorization. Precise Cocoa callback not captured.",
+  "production": [
+    "Sources/TurtleGitMac/ApplicationDelegate.swift",
+    "Sources/TurtleGitMac/MergeToolPresentation.swift",
+    "Sources/TurtleGitMac/FirstStartWizard.swift"
+  ],
+  "behavior": [
+    "Refuse automatic untitled host creation; preserve separate normal/default/Open/Dock paths",
+    "Fence pre-delivery reopen; later explicit reopen has no timer suppression",
+    "Queue and recheck normal default launch against accepted URL/Service intent",
+    "Attach automatic first-run/update install to workspace rather than command router",
+    "Delayed first-run checks attached host; action-only to explicit-workspace can onboard",
+    "Headless direct primary registration avoids unconditional activation",
+    "Bounded payload-free reopen trace distinguishes source routes for later physical acceptance",
+    "No-window reactivation while the action owner holds permission/preparation/publication work retains that owner; unrelated workspace background work does not suppress reopen."
+  ],
+  "draft_manifest": "build/qa/headless-launch-draft-2026-10-27/manifest.json",
+  "validation": {
+    "app": {
+      "session": 12900,
+      "exit": 0,
+      "log": "build/qa/launch-intent-app-2026-10-27.log"
+    },
+    "native_initial": {
+      "session": 82445,
+      "exit": 1,
+      "log": "build/qa/launch-intent-native-workspace-2026-10-27.log",
+      "passed_before_failure": [
+        "cold",
+        "late",
+        "workspace"
+      ],
+      "receivers": [
+        52624,
+        52641,
+        52650,
+        52660
+      ],
+      "failure": "New action-only assertion compared raw /private/var fixture root with canonical /var saved root. Registration publication existed; bounded diagnostic needed to isolate predicate."
+    },
+    "native_diagnostic": {
+      "session": 30060,
+      "exit": 1,
+      "receiver": 52796,
+      "log": "build/qa/launch-intent-native-action-diagnostic-2026-10-27.log",
+      "evidence": "error=nil, one watch row, persisted root and success output under /var while expected path was /private/var.",
+      "repair": "Canonicalize private Context root once using same Foundation transform as bookmark persistence. Preserve all grant/watch/cache and no-workspace assertions; no production change or app/Core rebuild."
+    },
+    "coverage": {
+      "exit": 0,
+      "log": "build/qa/launch-intent-final-coverage-2026-10-27.log"
+    },
+    "localizations": {
+      "exit": 0,
+      "languages": 38,
+      "keys": 1324,
+      "log": "build/qa/launch-intent-localizations-2026-10-27.log",
+      "write": "No native UI literal labels changed; catalog unchanged."
+    },
+    "site": {
+      "exit": 0,
+      "documents": 487,
+      "unresolved_fragments": [],
+      "log": "build/qa/launch-intent-final-site-2026-10-27.log"
+    },
+    "native_remaining": {
+      "session": 89876,
+      "exit": 1,
+      "scope": "New action-only, cancel, error, late-default and existing dialog-launch cases pass before FirstStart fixture failure",
+      "workspace_log": "build/qa/launch-intent-native-remaining-workspace-2026-10-27.log",
+      "dialog_log": "build/qa/launch-intent-native-dialog-2026-10-27.log",
+      "first_start_failure": "Existing immediate picker assertion precedes asynchronous GeneralSettings.releaseDialog drainage. No production behavior change required."
+    },
+    "first_start_repair": {
+      "session": 71404,
+      "exit": 0,
+      "receiver": 53457,
+      "log": "build/qa/launch-intent-native-first-start-repair-2026-10-27.log",
+      "repair": "Await real picker cleanup after cancel/retired reply; retain draft/bookmark/navigation and activeDialogs assertions. Includes new deferred workspace Close/reopen onboarding check."
+    },
+    "presentation_gap_review": {
+      "source": "Peer review of source lifetime boundary, not captured physical Cocoa callback",
+      "finding": "Reopen false can arrive after startup while permission panel is not yet ordered or already dismissing. Action owner pending-work inventory must retain presentation ownership until complete.",
+      "repair": "Use only live actionRepositoryModel busy/pending-work guard after existing-window handling; later quiescent explicit reopen retained. Native fixture now delivers false before panel ordering and after reply before worker drain.",
+      "affected_app_session": 22812,
+      "core": "unchanged; not repeated",
+      "first_start": "unchanged after pass; not repeated"
+    },
+    "final_app": {
+      "session": 22812,
+      "exit": 0,
+      "log": "build/qa/launch-intent-presentation-gap-app-2026-10-27.log"
+    },
+    "final_native": {
+      "session": 80192,
+      "exit": 0,
+      "logs": [
+        "build/qa/launch-intent-final-workspace-2026-10-27.log",
+        "build/qa/launch-intent-final-dialog-2026-10-27.log"
+      ],
+      "workspace_cases": [
+        "cold",
+        "late",
+        "workspace",
+        "action-only",
+        "action-cancel",
+        "action-error",
+        "late-default"
+      ],
+      "dialog_cases": [
+        "launch"
+      ],
+      "first_start": "Previously passed71404; unchanged by subsequent delegate guard, not repeated.",
+      "core": "No Core change or Core test rerun."
+    },
+    "cleanup": {
+      "receivers_by_log": {
+        "build/qa/launch-intent-native-workspace-2026-10-27.log": [
+          52624,
+          52641,
+          52650,
+          52660
+        ],
+        "build/qa/launch-intent-native-action-diagnostic-2026-10-27.log": [
+          52796
+        ],
+        "build/qa/launch-intent-native-remaining-workspace-2026-10-27.log": [
+          52954,
+          53004,
+          53030,
+          53047
+        ],
+        "build/qa/launch-intent-native-dialog-2026-10-27.log": [
+          53074
+        ],
+        "build/qa/launch-intent-native-first-start-2026-10-27.log": [
+          53358
+        ],
+        "build/qa/launch-intent-native-first-start-repair-2026-10-27.log": [
+          53457
+        ],
+        "build/qa/launch-intent-final-workspace-2026-10-27.log": [
+          53839,
+          53888,
+          53902,
+          53919,
+          53963,
+          53989,
+          54005
+        ],
+        "build/qa/launch-intent-final-dialog-2026-10-27.log": [
+          54025
+        ]
+      },
+      "distinct_receivers": 20,
+      "all_independently_absent": true,
+      "private_preferences_and_repositories": true,
+      "automated_windows": "alpha0/offscreen, including panel/error/wizard windows"
+    },
+    "protected_user_wip": "Unchanged and excluded from staging."
+  },
+  "planned_checkpoint": {
+    "core": "No Core changes; no repeat of previously passing Core groups.",
+    "native": "Workspace-launch all7cases, Finder-registration launch case and First-start family, bundled Git only; lifecycle correction has no Git-version-specific behavior.",
+    "app": "One Debug app build after functionality and fixtures freeze.",
+    "physical": "Requires later signed candidate first-use grant; no physical repair pass claimed from native/injected callbacks."
+  },
+  "limits": [
+    "Installed build17 predates correction",
+    "One queued launch boundary does not classify arbitrarily delayed external events",
+    "Full source parity, hosted integration, Intel/minimum OS, VoiceOver/IME and App Store distribution acceptance remain separate"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "09ba761bb7a8ac0d17068b0f111cdd364eca87ae1bcd402ed08edb1e95d8bbab",
+    "Sources/TurtleGitMac/MergeToolPresentation.swift": "42e2afbf5e06b20e390b50e80eb2fb3516387bbbdeb2c2c21c1187a626232874",
+    "Sources/TurtleGitMac/FirstStartWizard.swift": "87b0829cde02e7d19caa42de5e90dcd76ccb7283f3275c2c9c9ad538e6375fb8",
+    "docs/qa/workspace-launch-native-2026-10-25.swift": "0f7380a4314f009c3c35cae1a5c3c4188e1618e89fd3d29b445ee7347d11d4cf",
+    "docs/qa/first-start-native-2026-10-15.swift": "3dab1370d111b8cf5f2adad9fb4c8c4c81b9ba92bf7974339ad4db75aee6b5fb",
+    "scripts/test-workspace-launch.py": "36ad1f42b1aff0162389e068bfeca1107f1c8ac2dedf1756a59c6e3a3f45911d",
+    "scripts/test-first-start-family.py": "a82f3ccbf7c1ac7fce34754faec9155a10f157d5a0da7dbc6ba7dbaea8b2c421"
+  },
+  "fixture_manifest": "build/qa/headless-launch-fixture-draft-2026-10-27/manifest.json"
+}

@@ -71,7 +71,10 @@ import TurtleGitCore
     private(set) var generalApplicationConfigured=false
     private var inboundURLBridge: InboundURLAppleEvents?
     private var inboundURLBridgeRetired = false
-    private var receivedURLLaunchIntent = false
+    private var receivedExternalLaunchIntent = false
+    private var pendingDefaultWorkspaceLaunch = false
+    private var reopenTraceCount = 0
+    private static let launchLog = Logger(subsystem: "org.turtlegit.macos", category: "LaunchRouting")
     func applicationWillFinishLaunching(_ notification: Notification) {
         installInboundURLBridge()
     }
@@ -154,6 +157,7 @@ import TurtleGitCore
             workspaceOpenHandoff.submit([try TurtleGitFinderServicesProvider.openSelectionURL(captured)]);return
         }
         guard pendingOpenServiceSelection==nil,pendingFinderServiceRequest==nil,repositoryModel?.busy != true,repositoryModel?.hasPendingRepositoryWork != true else{throw TurtleGitFinderServicesProvider.Failure.busy}
+        receivedExternalLaunchIntent=true
         pendingOpenServiceSelection=captured;deliverPendingFinderService()
     }
     func submitServiceRequest(_ request: FinderRequest) throws {
@@ -164,6 +168,7 @@ import TurtleGitCore
             workspaceOpenHandoff.submit([try command.serviceURL(paths:captured.paths,alternateTool:captured.alternateTool)]);return
         }
         guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
+        receivedExternalLaunchIntent=true
         if captured.action != .registerRepository {activateStandaloneApplication()}
         if startupReady,startupDelivered {
             let target=actionRoutingModel()
@@ -226,7 +231,7 @@ import TurtleGitCore
     }()
     func application(_ application: NSApplication, open urls: [URL]) {
         guard acceptingOpenURLs else { return }
-        if urls.contains(where: WorkspaceOpenHandoff.accepts) { receivedURLLaunchIntent = true }
+        if urls.contains(where: WorkspaceOpenHandoff.accepts) { receivedExternalLaunchIntent = true }
         if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit(urls) }
         else {
             for url in urls {
@@ -303,6 +308,8 @@ import TurtleGitCore
     }
     func requestWorkspace(openRepository:Bool = false) {
         guard acceptingOpenURLs,!confirmingQuit else{return}
+        pendingDefaultWorkspaceLaunch=false
+        defaultWorkspaceRequested=true
         activateStandaloneApplication()
         if isGeneralApplication,(presentWorkspace != nil || startupLaunchMode == .workspace) {
             pendingWorkspaceRepositoryChoice = pendingWorkspaceRepositoryChoice || openRepository
@@ -386,7 +393,8 @@ import TurtleGitCore
     var configureStandaloneServices: (RepositoryModel, AppAppearance) -> Void = { workspace, appearance in
         appearance.apply()
         SettingsPresentationService.shared.install(workspace: workspace, appearance: appearance)
-        FirstStartWizardService.shared.install();ReleaseUpdateService.shared.install()
+        // Automatic first-run/update UI belongs to an explicitly presented
+        // workspace, not this lightweight command/URL routing owner.
     }
     func bootstrapStandaloneToolIfNeeded() {
         guard (startupLaunchMode != .workspace || generalApplicationConfigured), repositoryModel == nil, standaloneWorkspace == nil else { return }
@@ -398,32 +406,80 @@ import TurtleGitCore
     func startupDidFinishLaunching(defaultLaunch:Bool? = nil) {
         configureGeneralApplicationIfNeeded()
         bootstrapStandaloneToolIfNeeded(); startupReady = true
-        if standaloneWorkspace != nil, startupLaunchMode != .workspace, startupArguments != ["--turtlegit-action-only"], !standaloneActivationRequested {
+        if standaloneWorkspace != nil, startupLaunchMode != .workspace, !headlessRegistrationStartup, !standaloneActivationRequested {
             standaloneActivationRequested = true; activateStandaloneApplication()
         }
         if startupLaunchMode == .actionOnly || generalApplicationConfigured {_ = actionRoutingModel()}
         deliverStartupCommand();deliverPendingOpenURLs();deliverPendingFinderService()
-        // AppKit supplies authoritative launch intent. A missing key is not an
-        // inferred default launch, and primary/tool commands never open a host.
-        if generalApplicationConfigured,startupLaunchMode == .workspace,defaultLaunch == true,!receivedURLLaunchIntent,!defaultWorkspaceRequested {
-            defaultWorkspaceRequested=true;requestWorkspace()
+        // Defer the fallback through the initial Apple-event delivery boundary.
+        // An accepted URL/Service or an explicit workspace request in that same
+        // launch transaction takes precedence over AppKit's default-launch flag.
+        // A missing flag is never inferred to mean a default launch.
+        if generalApplicationConfigured,startupLaunchMode == .workspace,defaultLaunch == true,!receivedExternalLaunchIntent,!defaultWorkspaceRequested {
+            pendingDefaultWorkspaceLaunch=true
+            DispatchQueue.main.async { [weak self] in self?.finishPendingDefaultWorkspaceLaunch() }
         }
+    }
+    private var headlessRegistrationStartup:Bool {
+        startupArguments == ["--turtlegit-action-only"] ||
+            (try? PrimaryCommandInvocation.parse(arguments:startupArguments,currentDirectory:startupDirectory))?.request.action == .registerRepository
+    }
+    /// Also used by the launch fixture to drive the same queued boundary without
+    /// manufacturing an application activation or a user Dock reopen.
+    func finishPendingDefaultWorkspaceLaunch() {
+        guard pendingDefaultWorkspaceLaunch else{return}
+        pendingDefaultWorkspaceLaunch=false
+        guard acceptingOpenURLs,!confirmingQuit,startupReady,startupDelivered,
+              generalApplicationConfigured,startupLaunchMode == .workspace,
+              !receivedExternalLaunchIntent,!defaultWorkspaceRequested else{return}
+        Self.launchLog.notice("Presenting workspace for default application launch")
+        requestWorkspace()
     }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {false}
     func applicationOpenUntitledFile(_ sender:NSApplication)->Bool {
-        guard isGeneralApplication,acceptingOpenURLs,!confirmingQuit else{return false}
-        requestWorkspace();return true
+        // This callback is AppKit's untitled-document fallback, not an explicit
+        // repository request. In particular, activating a standalone permission
+        // panel must never promote its headless command owner into a workspace.
+        // Normal launch, Dock reopen and Open Repository have separate routes.
+        Self.launchLog.notice("Refused automatic untitled workspace presentation")
+        return false
     }
     // Closing the workspace must not end an owned Git/editor child or stop
     // Finder routing. Reopen and the next external request use the same scene.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    private var actionPresentationPending:Bool {
+        guard let action=actionRepositoryModel,!action.isRetired else{return false}
+        return action.busy || action.hasPendingRepositoryWork
+    }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Diagnostic metadata is deliberately bounded and excludes URLs, paths,
+        // command arguments and permission payloads. Physical acceptance can
+        // distinguish this route from the default/untitled routes without
+        // inferring which Cocoa callback caused an unexpected host.
+        if reopenTraceCount < 32 {
+            reopenTraceCount += 1
+            let mode=String(describing:startupLaunchMode)
+            let branch = !acceptingOpenURLs || confirmingQuit ? "retired-or-quitting" :
+                (!startupReady || !startupDelivered ? "startup-pending" :
+                    (isGeneralApplication && flag ? "existing-window" :
+                        (isGeneralApplication && actionPresentationPending ? "action-work-pending" :
+                            (isGeneralApplication ? "workspace-request" : "tool-refused"))))
+            Self.launchLog.notice("Reopen route: \(branch, privacy: .public); mode=\(mode, privacy: .public); startupReady=\(self.startupReady, privacy: .public); startupDelivered=\(self.startupDelivered, privacy: .public); hasVisibleWindows=\(flag, privacy: .public)")
+        }
         guard acceptingOpenURLs,!confirmingQuit else{return false}
+        // A launch-time callback cannot outrun initial command/URL ownership.
+        // Once startup has delivered, an actual Dock reopen remains an explicit
+        // request, including after a headless registration has finished.
+        guard startupReady,startupDelivered else{return false}
         // Let AppKit raise the existing operation/utility window. Its flag also
         // includes minimized windows; scanning isVisible would miss those and
         // create an unrelated workspace over the user's dialog. Explicit Open
         // Repository, workspace URLs and the Open Service keep their own route.
         if isGeneralApplication, flag {return true}
+        // A command can own preparation before its panel becomes visible and
+        // while that panel detaches. Preserve that owner across the presentation
+        // gap; only the action model participates, not background workspace work.
+        if isGeneralApplication,actionPresentationPending {return false}
         if startupLaunchMode == .actionOnly {requestWorkspace();return false}
         guard startupLaunchMode == .workspace else{return false}
         guard let presentWorkspace else { return true }
