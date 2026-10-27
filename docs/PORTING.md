@@ -23,6 +23,15 @@ captures. [Build13](qa/signed-consolidation-build13-2026-10-26.json) retains its
 separate toolbar, metafile and packaged-runtime evidence. Those older checks are
 not a repeated certification of every current workflow.
 
+## Replay instruction framing and older Git
+
+The [owned replay framing continuation](REBASE-LEADING-SQUASH-PARITY.md#owned-instruction-framing--october-27-2026)
+addresses the actual Git2.39 failure found in hosted integration. Reconstructed
+nonempty done/todo streams now retain line boundaries across regroup, approval,
+Split and recovery publishers; raw external receipts and journals keep exact byte
+witnesses. The [checkpoint](qa/replay-instruction-framing-2026-10-27.json) records
+the causal reproduction and grouped validation. Installed build16 predates it.
+
 ## Finder action startup and publication
 
 The [startup/publication family](FINDER-STARTUP-PERFORMANCE.md) separates action

@@ -348,6 +348,14 @@ public enum RebaseEditor {
         ["p":"pick", "e":"edit", "s":"squash", "d":"drop", "m":"merge",
          "l":"label", "t":"reset", "u":"update-ref", "b":"break", "f":"fixup"][command] ?? command
     }
+    /// Serialize only instruction text this operation has reconstructed. Git
+    /// appends to done verbatim (notably 2.39 save_todo); an unterminated final
+    /// instruction would absorb the next label/command. Preserve existing text,
+    /// comments and blank lines, and leave genuinely empty streams empty.
+    /// Raw before-images and untouched files must never pass through this helper.
+    static func sequencerBytes(_ text: String) -> Data {
+        Data((text.isEmpty || text.hasSuffix("\n") ? text : text + "\n").utf8)
+    }
     static let emptyMessagePrefix="exec false # turtlegit-empty-subject:"
     static let emptyAppliedPrefix="exec false # turtlegit-empty-applied:"
     static let sourceSquashPrefix="exec false # turtlegit-source-squash:"
@@ -1537,8 +1545,8 @@ extension GitRepository {
                 mapping[hash]=original.hash;identities[index].mainline=parent
                 if identities[index].noCommitSquash != true {try restoreDeferredSquashes(after:index,todo:&todo,identities:&identities,mapping:mapping)}
                 var after=files
-                if let normalizedDone { after["done"] = .init(bytes: Data(normalizedDone.utf8)) }
-                after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
+                if let normalizedDone { after["done"] = .init(bytes: RebaseEditor.sequencerBytes(normalizedDone)) }
+                after["git-rebase-todo"] = .init(bytes:RebaseEditor.sequencerBytes(todo.joined(separator:"\n")))
                 after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))
                 after["turtlegit-cherry-pick.json"] = .init(bytes:try JSONEncoder().encode(mapping))
                 if let bytes=files["turtlegit-message-editor.json"]?.bytes {
@@ -1586,8 +1594,8 @@ extension GitRepository {
             guard let first = lines.firstIndex(where: { !$0.isEmpty && !$0.hasPrefix("#") }), RebaseEditor.emptyMessageID(RebaseEditor.canonicalLine(lines[first]), applied: applied) == id else { return }
             lines.remove(at: first)
             var after = files
-            after["git-rebase-todo"] = .init(bytes: Data(lines.joined(separator: "\n").utf8))
-            if let normalized { after["done"] = .init(bytes: Data(normalized.utf8)) }
+            after["git-rebase-todo"] = .init(bytes: RebaseEditor.sequencerBytes(lines.joined(separator: "\n")))
+            if let normalized { after["done"] = .init(bytes: RebaseEditor.sequencerBytes(normalized)) }
             let journal = directory.appendingPathComponent(Self.actionEditJournal)
             try JSONEncoder().encode(RebaseActionEditJournal(version: 2, before: files, after: after)).write(to: journal, options: .atomic)
             for name in Self.actionEditNames where name != "git-rebase-todo" { try actionEditWrite(after[name]!, directory: directory, name: name) }
@@ -1798,14 +1806,14 @@ extension GitRepository {
     }
     private func publishNoCommitGroup(_ group:RebaseNoCommitGroup?,directory:URL,files:[String:RebaseActionEditFile],todo:[String]?=nil,done:[String]?=nil,identities:[RebaseReplayIdentity]?=nil,groupBytes:Data?=nil)throws {
         var after=files
-        if let normalized = try checkedCheckpointDone(directory, files: files) { after["done"] = .init(bytes: Data(normalized.utf8)) }
+        if let normalized = try checkedCheckpointDone(directory, files: files) { after["done"] = .init(bytes: RebaseEditor.sequencerBytes(normalized)) }
         let bytes:Data?
         if let groupBytes {bytes=groupBytes}else{bytes=try group.map {try JSONEncoder().encode($0)}}
         after[Self.noCommitSquashName] = .init(bytes:bytes)
-        if let todo {after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))}
+        if let todo {after["git-rebase-todo"] = .init(bytes:RebaseEditor.sequencerBytes(todo.joined(separator:"\n")))}
         if let done {
             let text = done.joined(separator:"\n")
-            after["done"] = .init(bytes:Data(RebaseEditor.checkpointDone(in:directory,text:text).utf8))
+            after["done"] = .init(bytes:RebaseEditor.sequencerBytes(RebaseEditor.checkpointDone(in:directory,text:text)))
         }
         if let identities {after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))}
         if let group,let cursor=group.topology,let data=after["turtlegit-message-editor.json"]?.bytes {
@@ -2326,8 +2334,8 @@ extension GitRepository {
         // Preserve the true before image for crash recovery, including config.
         var after=owned
         after[Self.noCommitSquashName] = .init(bytes:try JSONEncoder().encode(group))
-        after["done"] = .init(bytes:Data((done.joined(separator:"\n")+"\n").utf8))
-        after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
+        after["done"] = .init(bytes:RebaseEditor.sequencerBytes(done.joined(separator:"\n")))
+        after["git-rebase-todo"] = .init(bytes:RebaseEditor.sequencerBytes(todo.joined(separator:"\n")))
         after["turtlegit-replay-identities.json"] = .init(bytes:try JSONEncoder().encode(identities))
         let journal=directory.appendingPathComponent(Self.actionEditJournal)
         try JSONEncoder().encode(RebaseActionEditJournal(version:2,before:files,after:after)).write(to:journal,options:.atomic)
@@ -2436,8 +2444,8 @@ extension GitRepository {
                 }else{try restoreDeferredSquashes(after:index,todo:&todo,identities:&identities,mapping:mapping)}
                 var after = files
                 if let createdGroup {after[Self.noCommitSquashName] = .init(bytes:try JSONEncoder().encode(createdGroup))}
-                after["git-rebase-todo"] = .init(bytes: Data(todo.joined(separator: "\n").utf8))
-                after["done"] = .init(bytes: Data(done.joined(separator: "\n").utf8))
+                after["git-rebase-todo"] = .init(bytes: RebaseEditor.sequencerBytes(todo.joined(separator: "\n")))
+                after["done"] = .init(bytes: RebaseEditor.sequencerBytes(done.joined(separator: "\n")))
                 after["turtlegit-replay-identities.json"] = .init(bytes: try JSONEncoder().encode(identities))
                 if let bytes = files["turtlegit-message-editor.json"]?.bytes {
                     var configuration = try JSONDecoder().decode(RebaseMessageConfiguration.self, from: bytes)
@@ -3189,7 +3197,7 @@ extension GitRepository {
             guard let bytes=files["git-rebase-todo"]?.bytes,let text=String(data:bytes,encoding:.utf8) else{throw RebaseFailure.plan}
             var lines=text.components(separatedBy:"\n")
             if let first=lines.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}),RebaseEditor.emptyMessageID(RebaseEditor.canonicalLine(lines[first]),applied:true)==state.stoppedEntryID {lines.remove(at:first)}
-            after["git-rebase-todo"] = .init(bytes:Data(lines.joined(separator:"\n").utf8))
+            after["git-rebase-todo"] = .init(bytes:RebaseEditor.sequencerBytes(lines.joined(separator:"\n")))
         }
         let next=state.remainingCommands.compactMap {$0.split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))}}.first {$0 != .skip}
         if (state.squashMessage != nil || next == .squash),let bytes=files["turtlegit-message-editor.json"]?.bytes {
@@ -3492,9 +3500,9 @@ extension GitRepository {
                 // Keep Git's actual object IDs (including synthetic Cherry Pick
                 // mainline objects), not normalized display identities.
                 let rawLines = updated.split(separator: "\n").map(String.init).filter { !$0.hasPrefix("#") && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                let newTodo = Data((rawLines.dropFirst(prefix).joined(separator: "\n") + "\n").utf8)
+                let newTodo = RebaseEditor.sequencerBytes(rawLines.dropFirst(prefix).joined(separator: "\n"))
                 var after = expected.files
-                if let normalizedDone { after["done"] = .init(bytes:Data(normalizedDone.utf8)) }
+                if let normalizedDone { after["done"] = .init(bytes:RebaseEditor.sequencerBytes(normalizedDone)) }
                 after["git-rebase-todo"] = RebaseActionEditFile(bytes: newTodo)
                 after["turtlegit-replay-identities.json"] = RebaseActionEditFile(bytes: try JSONEncoder().encode(identities))
                 let oldConfig = try expected.files["turtlegit-message-editor.json"]?.bytes.map { try JSONDecoder().decode(RebaseMessageConfiguration.self, from: $0) }
@@ -3718,8 +3726,8 @@ extension GitRepository {
                             todo[first]="drop "+fields[1]
                         }
                     }
-                    after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))
-                    after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
+                    after["done"] = .init(bytes:RebaseEditor.sequencerBytes(done.joined(separator:"\n")))
+                    after["git-rebase-todo"] = .init(bytes:RebaseEditor.sequencerBytes(todo.joined(separator:"\n")))
                     if action == .skip {
                         let marker=try actionEditFile(directory,Self.failedPickIntentName)
                         guard marker.bytes==nil else {throw RebaseFailure.changed}
@@ -3986,7 +3994,7 @@ extension GitRepository {
             }
         }
         var after=expected.files
-        after["git-rebase-todo"]=RebaseActionEditFile(bytes:Data(result.joined(separator:"\n").utf8))
+        after["git-rebase-todo"]=RebaseActionEditFile(bytes:RebaseEditor.sequencerBytes(result.joined(separator:"\n")))
         after[Self.adoptedPlanName]=RebaseActionEditFile(bytes:try JSONEncoder().encode(plan))
         after["turtlegit-replay-identities.json"]=RebaseActionEditFile(bytes:try JSONEncoder().encode(rows.enumerated().map{index,row in RebaseReplayIdentity(hash:row.commit.hash,occurrence:row.occurrence,action:row.action.rawValue,mainline:row.mainline,deferredMainline:row.deferredMainline,deferredSquash:deferred.contains(index),noCommitSquash:orphans.contains(index),emptySubject:row.commit.hasEmptyReplaySubject)}))
         let old=try expected.files["turtlegit-message-editor.json"]?.bytes.map{try JSONDecoder().decode(RebaseMessageConfiguration.self,from:$0)}

@@ -298,3 +298,27 @@ at a genuine failed-exec boundary; local native engines are Git 2.54 and 2.55.
 Debug returned exit zero with contradictory generic compiler diagnostics retained
 in the record. All native receivers are absent. Complete hosted integration and
 signed/physical acceptance remain open.
+
+### Owned instruction framing — October 27, 2026
+
+An actual Git 2.39.5 reproduction of hosted run40428318167 found a second
+connected defect after regroup approval. The owned `done` publisher joined
+consumed instructions without a final newline. Git appended the next label
+directly to the preceding Drop subject. Label and rewrite witnesses were still
+valid, but complete-plan validation correctly rejected the damaged stream before
+the intended transport refusal. The earlier injected legacy receipt checks did
+not exercise this actual append behavior.
+
+Newly reconstructed nonempty instruction text now ends at a line boundary across
+no-commit approval, Split, checkpoint normalization, pending-action changes,
+failed-Pick recovery and adopted todo publication. Existing comments and blank
+lines are retained; empty instruction streams stay empty. Raw before-images,
+untouched files, session witnesses and action-edit journals remain exact. This
+does not infer permission to repair arbitrary already-damaged replay files or
+weaken the full-plan comparison.
+
+The [framing checkpoint](qa/replay-instruction-framing-2026-10-27.json) records the
+actual older-Git reproduction, original diagnostic capture repair and grouped
+validation separately. Installed build16 predates this continuation. Full hosted,
+signed/physical, minimum-version/Intel and complete upstream acceptance remain
+open.

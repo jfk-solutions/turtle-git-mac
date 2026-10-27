@@ -71,7 +71,14 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         let head=try await f.repo.rebaseCommit("HEAD");XCTAssertEqual(head.hash,f.onto.hash)
         XCTAssertFalse(FileManager.default.fileExists(atPath:f.root.appendingPathComponent("leader.txt").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath:f.root.appendingPathComponent("side.txt").path),"Structural reset/side replay ran while group changes were staged")
+        try assertOwnedSequencerFraming(f.root)
         return result
+    }
+    func assertOwnedSequencerFraming(_ root:URL,file:StaticString=#filePath,line:UInt=#line)throws {
+        for name in ["done","git-rebase-todo"] {
+            let bytes=try Data(contentsOf:root.appendingPathComponent(".git/rebase-merge/"+name))
+            if !bytes.isEmpty {XCTAssertEqual(bytes.last,10,"Owned \(name) must separate the next instruction Git appends",file:file,line:line)}
+        }
     }
     func verifyDescendants(_ f:Fixture,groupHead:String)async throws {
         let final=try await f.repo.rebaseCommit("HEAD"),merge=try await f.repo.rebaseCommit("HEAD^"),side=try await f.repo.rebaseCommit("side-witness")
@@ -476,8 +483,104 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         }
     }
 
+    func testPendingActionPublicationPreservesUntouchedUnterminatedDoneBytes()async throws {
+        let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+        _ = try await approval(f)
+        let done=f.root.appendingPathComponent(".git/rebase-merge/done")
+        var external=try Data(contentsOf:done)
+        while external.last==10 {external.removeLast()}
+        try external.write(to:done)
+        let snapshot=try await f.repo.rebaseActionEditSnapshot()
+        _ = try await f.repo.changePendingRebaseActions(.edit,ids:[f.plan.entries.last!.id],expected:snapshot,editorExecutable:editor)
+        XCTAssertEqual(try Data(contentsOf:done),external,"Editing pending actions must not normalize an untouched done receipt")
+        let todo=try Data(contentsOf:f.root.appendingPathComponent(".git/rebase-merge/git-rebase-todo"))
+        XCTAssertEqual(todo.last,10,"Newly authored pending instructions must remain line-framed")
+        _ = try await f.repo.abortRebase()
+        let original=try await f.repo.rebaseCommit("HEAD");XCTAssertEqual(original.hash,f.plan.branchHash)
+    }
+    func testPendingActionPublicationRefusesAlreadyConcatenatedStructuralReceiptWithoutRepair()async throws {
+        let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+        _ = try await approval(f)
+        let directory=f.root.appendingPathComponent(".git/rebase-merge")
+        let doneURL=directory.appendingPathComponent("done"),todoURL=directory.appendingPathComponent("git-rebase-todo")
+        var done=try Data(contentsOf:doneURL)
+        while done.last==10 {done.removeLast()}
+        var todo=try String(contentsOf:todoURL,encoding:.utf8).components(separatedBy:"\n")
+        let first=try XCTUnwrap(todo.firstIndex(where:{!$0.isEmpty && !$0.hasPrefix("#")}))
+        XCTAssertTrue(todo[first].hasPrefix("label turtlegit-"))
+        done.append(Data((todo.remove(at:first)+"\n").utf8))
+        try done.write(to:doneURL);try Data(todo.joined(separator:"\n").utf8).write(to:todoURL)
+        let before=try checkpointBytes(f.root)
+        let head=try await f.repo.rebaseCommit("HEAD"),index=try await f.repo.run(["ls-files","--stage","-z"]).stdout
+        do {
+            let snapshot=try await f.repo.rebaseActionEditSnapshot()
+            _ = try await f.repo.changePendingRebaseActions(.edit,ids:[f.plan.entries.last!.id],expected:snapshot,editorExecutable:editor)
+            XCTFail("A concatenated instruction must not be guessed back into an owned plan")
+        } catch RebaseFailure.changed {} catch RebaseFailure.plan {}
+        XCTAssertEqual(try checkpointBytes(f.root),before)
+        let after=try await f.repo.rebaseCommit("HEAD"),afterIndex=try await f.repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertEqual(after.hash,head.hash);XCTAssertEqual(afterIndex,index)
+        _ = try await f.repo.abortRebase()
+        let original=try await f.repo.rebaseCommit("HEAD");XCTAssertEqual(original.hash,f.plan.branchHash)
+    }
     func testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes()async throws {
         let f=try await fixture();defer {try? FileManager.default.removeItem(at:f.root)}
+        // Capture raw receipts before disposal without calling rebaseState(),
+        // whose journal recovery could change the state under investigation.
+        // Only this private fixture is copied, with hard file/count/byte bounds.
+        func capture(_ phase:String,error:Error?=nil)async {
+            let manager=FileManager.default
+            let destination=URL(fileURLWithPath:manager.currentDirectoryPath)
+                .appendingPathComponent("build/qa/rebase-consumed-checkpoint-"+f.root.lastPathComponent)
+                .appendingPathComponent(phase)
+            do {
+                try manager.createDirectory(at:destination,withIntermediateDirectories:true)
+                var manifest:[String:Any]=["phase":phase,"repository":f.root.path,"git":f.repo.executable.path,"editor":editor.path,
+                    "error":error.map {String(reflecting:$0)} ?? "","capturePolicy":"Raw fixture-only files; no Core recovery/state call; 128 files, 1MiB/file, 8MiB total."]
+                let git=f.root.appendingPathComponent(".git")
+                var paths=["HEAD","ORIG_HEAD","packed-refs","config","index"]
+                for name in ["rebase-merge","refs/rewritten","checkpoint-transport"] {
+                    let directory=git.appendingPathComponent(name)
+                    // Relative enumeration avoids /var -> /private/var URL
+                    // canonicalization changing the prefix length on macOS.
+                    if let enumerator=manager.enumerator(atPath:directory.path) {
+                        while let relative=enumerator.nextObject() as? String,paths.count<128 {
+                            let file=directory.appendingPathComponent(relative)
+                            let properties=try file.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey])
+                            if properties.isRegularFile==true,properties.isSymbolicLink != true {
+                                paths.append(name+"/"+relative)
+                            }
+                        }
+                    }
+                }
+                var copied=[String](),omitted=[String](),total=0
+                for path in paths.prefix(128) {
+                    let file=git.appendingPathComponent(path)
+                    guard manager.fileExists(atPath:file.path) else{continue}
+                    let properties=try file.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
+                    guard properties.isRegularFile==true,properties.isSymbolicLink != true,
+                          let size=properties.fileSize,size<=1_048_576,total+size<=8_388_608 else{omitted.append(path);continue}
+                    let bytes=try Data(contentsOf:file)
+                    guard bytes.count<=1_048_576,total+bytes.count<=8_388_608 else{omitted.append(path);continue}
+                    let output=destination.appendingPathComponent("git/"+path)
+                    try manager.createDirectory(at:output.deletingLastPathComponent(),withIntermediateDirectories:true)
+                    try bytes.write(to:output);copied.append(path);total+=bytes.count
+                }
+                manifest["copiedFiles"]=copied;manifest["omittedFiles"]=omitted;manifest["copiedBytes"]=total
+                // Suppress optional index refresh; retain raw stdout,
+                // rather than interpreting status through another replay read.
+                for (name,arguments) in [("version",["--version"]),("head",["rev-parse","HEAD"]),
+                    ("rewritten-refs",["for-each-ref","--format=%(refname)%00%(objectname)","refs/rewritten/"]),
+                    ("status",["status","--porcelain=v2","-z","--untracked-files=no"])] {
+                    do {
+                        let result=try await f.repo.run(arguments,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"])
+                        try Data(result.stdout.prefix(1_048_576)).write(to:destination.appendingPathComponent(name+".stdout"))
+                    } catch {manifest[name+"Error"]=String(reflecting:error)}
+                }
+                try JSONSerialization.data(withJSONObject:manifest,options:[.prettyPrinted,.sortedKeys]).write(to:destination.appendingPathComponent("manifest.json"))
+                print("Structural checkpoint evidence: \(destination.path)")
+            } catch {print("Structural checkpoint evidence capture failed: \(error)")}
+        }
         _ = try await f.repo.run(["config","rebase.rescheduleFailedExec","true"])
         _ = try await f.repo.run(["notes","add","-m","checkpoint merge note",f.merge.hash])
         _ = try await approval(f)
@@ -485,6 +588,7 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         _ = try await f.repo.changePendingRebaseActions(.squash,ids:[f.plan.entries[3].id],expected:snapshot,editorExecutable:editor)
         let regroup=try await f.repo.continueRebase(squashMessage:"Approved first subgroup",editorExecutable:editor)
         XCTAssertEqual(regroup.state.noCommitSquash?.phase,.approval,regroup.output)
+        try assertOwnedSequencerFraming(f.root)
         let folder=f.root.appendingPathComponent(".git/checkpoint-transport")
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:false)
         let wrapper=folder.appendingPathComponent("git"),attempts=folder.appendingPathComponent("attempts"),failed=folder.appendingPathComponent("failed"),pidFile=folder.appendingPathComponent("refused-pid")
@@ -510,6 +614,7 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         exec \(quote(f.repo.executable.path)) "$@"
         """
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+        if ProcessInfo.processInfo.environment["TURTLEGIT_REPLAY_CAPTURE"]=="1" {await capture("before-final-collapse")}
         let transport=GitRepository(root:f.root,executable:wrapper,libgit2Configuration:.init(enabled:false)),token=OperationCancellation()
         let watchdog=Task<Void,Never> {
             do {try await Task.sleep(nanoseconds:30_000_000_000)}
@@ -523,6 +628,7 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         } catch {
             watchdog.cancel()
             await watchdog.value
+            await capture("failed-final-collapse",error:error)
             throw error
         }
         watchdog.cancel()
@@ -531,6 +637,7 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         XCTAssertEqual(failure.exitCode,73,failure.output);XCTAssertTrue(failure.state.hasStructuralResultCheckpoint)
         XCTAssertTrue(failure.state.active);XCTAssertFalse(failure.state.needsFileRecovery);XCTAssertFalse(failure.state.canSplit)
         XCTAssertNil(failure.state.noCommitSquash);XCTAssertNil(failure.state.mainlineDecision)
+        try assertOwnedSequencerFraming(f.root)
         XCTAssertEqual(try String(contentsOf:attempts,encoding:.utf8),"continue\n")
         let pid=try XCTUnwrap(Int32(try String(contentsOf:pidFile,encoding:.utf8).trimmingCharacters(in:.newlines)))
         XCTAssertEqual(kill(pid,0),-1);XCTAssertEqual(errno,ESRCH,"Refused private wrapper was not reaped")

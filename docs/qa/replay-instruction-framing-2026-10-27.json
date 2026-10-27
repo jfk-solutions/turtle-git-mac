@@ -1,0 +1,216 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "8fe0d7ef",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "grouped-checkpoint-passed",
+  "scope": "Owned replay instruction framing across no-commit approval, regroup, split, checkpoint normalization, pending actions, failed-Pick recovery and adopted plans.",
+  "trigger": {
+    "hosted_run": 40428318167,
+    "source": "ca40de260093c2b4dad8a8975ef63bf40b74d3f9",
+    "test": "RebaseStructuralNoCommitTests.testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes",
+    "failure": "RebaseFailure.changed during strict complete-plan validation, before expected transport failure"
+  },
+  "diagnostic_attempts": [
+    {
+      "session": 9105,
+      "exit": 1,
+      "log": "build/qa/rebase-consumed-git239-reproducer-2026-10-27.log",
+      "failure": "Same production changed; fixture capture had /var to /private/var prefix error and omitted raw control files."
+    },
+    {
+      "session": 33428,
+      "exit": 1,
+      "log": "build/qa/rebase-consumed-git239-reproducer-capture-repair-2026-10-27.log",
+      "failure": "Same production changed; corrected relative capture records raw done/todo/labels/rewrite evidence."
+    }
+  ],
+  "root_cause": "Owned publication omitted LF after consumed drop. Actual Git2.39 O_APPEND concatenated following label into the drop subject. Label/HEAD and rewritten-list checks passed, but complete structural plan comparison correctly refused the damaged instruction stream. No transport retry was reached.",
+  "raw_evidence": {
+    "before-final-collapse": {
+      "manifest": "build/qa/rebase-consumed-checkpoint-CE0274F2-C498-45CD-8966-18BEEA0F943B/before-final-collapse/manifest.json",
+      "copied_files": 25,
+      "copied_bytes": 9453,
+      "error": "",
+      "files": {
+        "done": {
+          "sha256": "c32597b41a87c14870d1203538a06492485cf4c93e84d7409e90ed36a7b825fb",
+          "bytes": 523,
+          "ends_in_lf": false,
+          "last_lines": [
+            "drop 78be9501d8f35145ded853d444d66f7d4b9f34d1 payload-a.txt",
+            "exec false # turtlegit-source-squash:63c18d8d94c0459747d99428a2c28f2cddb2e76c",
+            "drop 63c18d8d94c0459747d99428a2c28f2cddb2e76c payload-b.txt",
+            "exec false # turtlegit-source-squash:3e30b84ee99110168fa28e93f103ae07f8162ce9",
+            "drop 3e30b84ee99110168fa28e93f103ae07f8162ce9 side.txt"
+          ]
+        },
+        "git-rebase-todo": {
+          "sha256": "52dc219a18d9c77265878b95ed07d17ef6a883732b2ba1dace4622e19be85400",
+          "bytes": 735,
+          "ends_in_lf": true,
+          "last_lines": [
+            "exec false # turtlegit-structural-result:2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d",
+            "reset turtlegit-2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d",
+            "pick 7b46d411478213b49420b6034766eec12bb319b3 tail.txt",
+            "label turtlegit-7b46d411478213b49420b6034766eec12bb319b3",
+            "update-ref refs/heads/tail-witness"
+          ]
+        },
+        "rewritten-list": {
+          "present": false
+        }
+      }
+    },
+    "failed-final-collapse": {
+      "manifest": "build/qa/rebase-consumed-checkpoint-CE0274F2-C498-45CD-8966-18BEEA0F943B/failed-final-collapse/manifest.json",
+      "copied_files": 29,
+      "copied_bytes": 9476,
+      "error": "TurtleGitCore.RebaseFailure.changed",
+      "files": {
+        "done": {
+          "sha256": "a578a89f137c457cead61b5e0d33df975a85c0db48a11b38022999941eef725c",
+          "bytes": 1090,
+          "ends_in_lf": true,
+          "last_lines": [
+            "reset turtlegit-3e30b84ee99110168fa28e93f103ae07f8162ce9",
+            "label turtlegit-2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d",
+            "update-ref refs/heads/merge-witness",
+            "exec false # turtlegit-structural-result:2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d",
+            "update-ref refs/heads/merge-witness"
+          ]
+        },
+        "git-rebase-todo": {
+          "sha256": "fed51423dc977cfdb8e765d7ed35beb7cdf732df7a5f958092d1657c0c243b8b",
+          "bytes": 286,
+          "ends_in_lf": true,
+          "last_lines": [
+            "exec false # turtlegit-structural-result:2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d",
+            "reset turtlegit-2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d",
+            "pick 7b46d411478213b49420b6034766eec12bb319b3 tail.txt",
+            "label turtlegit-7b46d411478213b49420b6034766eec12bb319b3",
+            "update-ref refs/heads/tail-witness"
+          ]
+        },
+        "rewritten-list": {
+          "sha256": "abdec109e677c2d6873a99d4c3020f47f154db1e98ad9c6c4f42d3f84ba63b89",
+          "bytes": 328,
+          "ends_in_lf": true,
+          "last_lines": [
+            "78be9501d8f35145ded853d444d66f7d4b9f34d1 9c13d2c73e4fb1137936f9455175b97b69b95801",
+            "63c18d8d94c0459747d99428a2c28f2cddb2e76c 9c13d2c73e4fb1137936f9455175b97b69b95801",
+            "3e30b84ee99110168fa28e93f103ae07f8162ce9 9c13d2c73e4fb1137936f9455175b97b69b95801",
+            "2ec864f4f75f88df18ccc3569a8ba3e3f46dc17d 9c13d2c73e4fb1137936f9455175b97b69b95801"
+          ]
+        }
+      },
+      "concatenated_instruction": [
+        "drop 3e30b84ee99110168fa28e93f103ae07f8162ce9 side.txtlabel turtlegit-78be9501d8f35145ded853d444d66f7d4b9f34d1"
+      ]
+    }
+  },
+  "validation": {
+    "app": {
+      "session": 80919,
+      "status": "passed",
+      "log": "build/qa/replay-instruction-framing-app-2026-10-27.log",
+      "exit": 0,
+      "contradictory_exit_zero_diagnostics": 0
+    },
+    "planned_core_filter": "RebaseStructuralNoCommitTests|RebaseNoCommitSquashTests|RebaseNoCommitSplitTests|RebasePendingActionTests|RebaseFailedPickTests|RebaseSessionAdoptionTests|RebaseMainlineTests|RebaseEmptyMessageTests",
+    "planned_engines": [
+      "Actual local Git2.39.5",
+      "Bundled Git2.55.0"
+    ],
+    "native": {
+      "session": 18304,
+      "exit": 0,
+      "case": "structural-group",
+      "pairs": 2,
+      "engines": [
+        "Actual Git2.39.5",
+        "Bundled Git2.55.0"
+      ],
+      "log": "build/qa/replay-instruction-framing-native-2026-10-27.log",
+      "scope": "Native approval, future action menu/icon, actual Split children, exact descendant DAG/tree, Cancel/reopen/Abort, drained windows/workers.",
+      "owned_receivers_reaped": [
+        84532,
+        88567
+      ],
+      "independently_absent": true,
+      "compiler_cache": "Linked current Debug objects; compiled fixtures only."
+    },
+    "core_git239": {
+      "exit": 0,
+      "tests": 93,
+      "failures": 0,
+      "seconds": 332.838,
+      "log": "build/qa/replay-instruction-framing-core-git239-2026-10-27.log",
+      "original_regression": "Passed in7.233s; exactly-once refusal, explicit reopen/retry, notes and reference witnesses retained.",
+      "fixture_environment": "Initial disposable fixture creation uses default system Git; affected replay operations explicitly use local upstream Git2.39.5."
+    },
+    "core_group_session": 73770,
+    "core_bundled": {
+      "exit": 0,
+      "tests": 93,
+      "failures": 0,
+      "seconds": 337.19,
+      "log": "build/qa/replay-instruction-framing-core-bundled-2026-10-27.log",
+      "original_regression": "Passed in6.991s; all assertions retained."
+    },
+    "core_results": [
+      {
+        "engine": "git239",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/git-2.39.5/installed/bin/git",
+        "pid": 79291,
+        "exit": 0,
+        "log": "build/qa/replay-instruction-framing-core-git239-2026-10-27.log"
+      },
+      {
+        "engine": "bundled",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "pid": 9674,
+        "exit": 0,
+        "log": "build/qa/replay-instruction-framing-core-bundled-2026-10-27.log"
+      }
+    ],
+    "cleanup": {
+      "swift_test_pids_reaped": [
+        79291,
+        9674
+      ],
+      "observed_xctest_pids_absent": [
+        79389,
+        9728
+      ],
+      "native_receiver_pids_absent": [
+        84532,
+        88567
+      ],
+      "user_apps_terminated": false
+    },
+    "resources": {
+      "literal_native_labels": "Unchanged; no localization regeneration required.",
+      "help_listed_guides": "Unchanged; no Help regeneration required.",
+      "coverage_log": "build/qa/replay-instruction-framing-coverage-2026-10-27.log",
+      "site_log": "build/qa/replay-instruction-framing-site-2026-10-27.log",
+      "site_documents": 487,
+      "unresolved_fragments": []
+    },
+    "source_sha256_unchanged": true
+  },
+  "limits": [
+    "No complete hosted pass yet.",
+    "No automatic adoption or repair of ambiguous already-corrupted instruction streams; strict external-edit refusal remains.",
+    "Current installed build16 predates this source repair. Signed/physical acceptance and Intel/minimum macOS remain separate."
+  ],
+  "implementation": [
+    "Terminate nonempty newly reconstructed sequencer instructions at all inspected done/todo journal publication sites; preserve comments, blank lines and existing termination.",
+    "Keep untouched files and exact journal before-images unchanged.",
+    "Assert actual files after owned approval, regroup before Git resume, and consumed structural checkpoint.",
+    "Preserve unterminated untouched external done during pending edit; refuse concatenated structural receipts without altering HEAD/index/metadata, then allow Abort."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "ab7ef1fc699d63db532b809dbb320f1e00488b5c236983305ad4b6801223f24b",
+    "Tests/TurtleGitCoreTests/RebaseStructuralNoCommitTests.swift": "e0d1df6e68fd258982f1a6a8761411f83ae4166efbc1abc93a59c0d1dace1650"
+  }
+}
