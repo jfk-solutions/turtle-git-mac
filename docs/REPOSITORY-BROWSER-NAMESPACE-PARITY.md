@@ -4,7 +4,7 @@ This is a partial workflow review against pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`, not certification of the whole Browser.
 The reviewed dialog is `src/Resources/TortoiseProcENG.rc / IDD_REPOSITORY_BROWSER`.
 
-## Source behavior and the missing native behavior
+## Source behavior and native filename handling
 
 `src/TortoiseProc/RepositoryBrowser.cpp:368–425` enumerates tree entries, converts
 each name with `CUnicodeUtils::GetUnicode`, and inserts it into a `CString` map.
@@ -42,10 +42,28 @@ explicit 8 MiB display bound. Closing the Browser closes its inspectors; cancell
 or retired reads cannot publish another window. Inspection neither edits the
 working tree nor substitutes for the normal filtered Open/Save workflow.
 
-Filesystem delivery, working comparison, marks, history/Blame, submodule checkout
+The explicit **Open stored blob (unfiltered)**, **Open stored blob with…**,
+**View stored blob with alternative editor**, and **Save stored blob (unfiltered)
+to…** actions deliver the exact Git object bytes even when its Git filename is
+not representable as UTF-8. These are deliberately unfiltered object actions:
+they do not apply checkout/smudge filters or manufacture a replacement spelling
+for the Git pathname. The proposed leaf is `Git-blob-<full-object-id>` with an
+optional1–16-character ASCII alphanumeric extension taken from the original raw
+leaf. The private Open preview additionally carries the existing short revision
+suffix. Neither internal row keys nor escaped display names become destinations.
+
+Open/Save reuse the Browser's owned application/save panels, private historical
+previews, launch permissions and cancellation/Quit lifetime. Refresh, navigation,
+retirement or a late chooser/read callback cannot publish under a stale tree
+receipt. The saved filename is a suggested leaf: the user still chooses its
+actual destination. Blob mode and exact bytes retain their existing typed
+content ownership; a symlink blob is delivered as its stored bytes, not followed.
+
+Filtered filesystem delivery, working comparison, marks, history/Blame, submodule checkout
 resolution and Revert require a representable path. Their menus and underlying
 dispatchers refuse raw names with an explanation. Double-clicking a raw directory
-still navigates it; a raw file can be inspected through its stored object command.
+still navigates it; a raw file can be inspected or explicitly delivered through
+its stored object commands.
 Valid sibling files retain ordinary actions.
 
 Selected folder transfers preflight the complete selected descendants. A raw
@@ -76,9 +94,24 @@ pasteboards with invisible/offscreen windows. All 14 owned receivers were reaped
 the final process check found no remaining receiver or Debug app. No physical
 screenshot was captured. Full Core and unrelated native families were not rerun.
 
-Full raw-byte filesystem checkout, save, history routing and delivery remain
-unimplemented. The explicit refusal keeps these operations from targeting a
-replacement spelling. Physical gestures, VoiceOver, signed sandbox grants,
+The stored-blob delivery extension has a [separate grouped checkpoint](qa/repository-browser-stored-file-2026-10-27.json): 12 focused Core methods passed
+after a fixture-only filter repair, and eight native listing/actions/ownership/
+delivery case/engine pairs passed after a native compile repair. All eight
+owned receivers were reaped and independently confirmed absent. The older results
+above establish the original namespace/inspection batch only.
+The new native delivery case covers invalid-name binary Save and its safe leaf,
+actual private preview preparation with an injected document launch, the distinct
+alternative-editor action, selected Open With success in a new private preview,
+duplicate Save/chooser completion suppression, Open With cancellation/late retirement, retained menu
+receipts, held read refresh/close/Quit gates, and unchanged repository state.
+It uses the existing private receiver and invisible-window ownership policy.
+No physical receiving application or signed-sandbox acceptance is implied.
+
+Full raw-byte filesystem checkout, filtered save/export/promise delivery, working
+comparison and history routing remain unimplemented. The explicit refusal keeps
+these pathname-dependent operations from targeting a replacement spelling.
+Unfiltered stored-blob delivery is now available separately; it does not claim
+support for those filtered or raw filesystem workflows. Physical gestures, VoiceOver, signed sandbox grants,
 receiving-app delivery and complete upstream visual parity require separate
 acceptance. This review supplies no whole-port completion percentage.
 The installed signed application remains the earlier viewer-family candidate;

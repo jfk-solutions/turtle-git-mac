@@ -16,7 +16,7 @@ private extension NSWindow {
         let folder=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let suite="TurtleGit.BrowserNamespace."+UUID().uuidString
         let prefs:UserDefaults
-        var owners:[RepositoryBrowserWindowController]=[],releases:[()->Void]=[]
+        var owners:[RepositoryBrowserWindowController]=[],releases:[()->Void]=[],previewFiles:[URL]=[]
         let text=Data("stored body\n".utf8),binary=Data([0,0xff,0x10,0x41])
         var revision="",head=Data(),index:Data?,config=Data()
         init(){prefs=UserDefaults(suiteName:suite)!;prefs.set(false,forKey:"UseLibgit2");prefs.set(false,forKey:"EnableGravatar")}
@@ -55,6 +55,7 @@ private extension NSWindow {
         func cleanup()async{
             releases.forEach{$0()};releases=[];owners.forEach{$0.close()}
             for _ in 0..<3000{if owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
+            previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[]
             UserDefaults.standard.removePersistentDomain(forName:suite)
         }
     }
@@ -120,6 +121,117 @@ private extension NSWindow {
         owner.storedBlobWindows[0].close();try require(owner.storedBlobWindows.count==1,"Closed inspector retained its byte buffer")
         try await c.unchanged();owner.close();try require(owner.storedBlobWindows.isEmpty,"Owned inspectors survived parent")
     }
+    static func delivery(_ c:Context)async throws{
+        let owner=try await c.owner(),m=owner.model
+        let entry=m.entries.first{$0.rawName==Data([0xfe,0x2e,0x74,0x78,0x74])}!
+        let expectedName="Git-blob-"+entry.objectID+".txt"
+        let previewName="Git-blob-"+entry.objectID+"-"+String(m.snapshot!.objectID!.prefix(7))+".txt"
+        guard let table=owner.contentsTable,let menu=table.menu else{throw Failure(description:"Delivery native table/menu absent")}
+        func item(_ title:String)throws->NSMenuItem{
+            table.selectRowIndexes(IndexSet(integer:m.entries.firstIndex(of:entry)!),byExtendingSelection:false);m.selection=[entry.id]
+            menu.delegate?.menuNeedsUpdate?(menu)
+            guard let found=menu.items.first(where:{$0.title==title}) else{throw Failure(description:"Missing stored delivery menu: "+title)}
+            try require(found.isEnabled && found.image != nil,"Stored delivery unavailable or missing source icon: "+title)
+            return found
+        }
+        func invoke(_ item:NSMenuItem)throws{guard let action=item.action else{throw Failure(description:"Delivery selector absent")};try require(NSApp.sendAction(action,to:item.target,from:item),"Delivery selector did not dispatch")}
+        for title in ["Open stored blob (unfiltered)","Open stored blob with…","View stored blob with alternative editor","Save stored blob (unfiltered) to…"]{_=try item(title)}
+        for title in ["Open","Open With…","View revision with alternative editor","Save revision to…","Show log","Blame","Compare with working tree","Mark for comparison"]{
+            guard let filtered=menu.items.first(where:{$0.title==title})else{throw Failure(description:"Ordinary filtered command disappeared: "+title)}
+            try require(!filtered.isEnabled,"Unfiltered delivery enabled a pathname-dependent action: "+title)
+        }
+        // Save the invalid-UTF8-named binary object through the shipping controller.
+        let destination=c.folder.deletingLastPathComponent().appendingPathComponent("stored-delivery.bin")
+        defer{try? FileManager.default.removeItem(at:destination)}
+        var suggestions:[String]=[],savePanels=0,saveWrites=0
+        let originalWriter=owner.writeDocument
+        owner.writeDocument={bytes,url,token in saveWrites+=1;try await originalWriter(bytes,url,token)}
+        owner.saveDestination={_ in destination}
+        owner.presentSavePanel={panel,_,reply in suggestions.append(panel.nameFieldStringValue);savePanels+=1;reply(.OK);reply(.OK)}
+        try invoke(item("Save stored blob (unfiltered) to…"))
+        try await wait{!m.hasPendingWork && !owner.hasPendingWork}
+        try require(savePanels==1 && saveWrites==1 && suggestions==[expectedName],"Stored Save suggested a lossy filename: \(suggestions)")
+        try require(try Data(contentsOf:destination)==c.binary,"Stored Save altered invalid bytes or applied filters")
+        // Actual preview preparation/launch path, with launch injected before NSWorkspace.
+        var launched:[URL]=[],applicationCalls=0
+        let app=c.folder.deletingLastPathComponent().appendingPathComponent("PrivateViewer.app")
+        owner.defaultApplication={_ in app}
+        owner.launchDocument={application,documents,configuration in
+            try require(application==app && documents.count==1 && configuration.arguments.isEmpty,"Stored Open lost native document route")
+            let file=documents[0];c.previewFiles.append(file);launched.append(file)
+            try require(file.lastPathComponent==previewName,"Stored Open materialized escaped or opaque path")
+            try require(try Data(contentsOf:file)==c.binary,"Stored Open changed raw object bytes")
+        }
+        try invoke(item("Open stored blob (unfiltered)"))
+        try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(launched.count==1 && m.error==nil,"Stored Open failed: \(m.error ?? "no launch")")
+        // Open With cancellation must not prepare/launch another receiving document.
+        owner.presentApplicationPanel={_,_,reply in applicationCalls+=1;reply(.cancel)}
+        try invoke(item("Open stored blob with…"));try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(applicationCalls==1 && launched.count==1 && !m.handlingFile,"Cancelled stored Open With launched or retained ownership")
+        // A selected application opens a distinct private preview exactly once,
+        // even if a faulty chooser sends its completion twice.
+        var selectedApplications=0
+        owner.selectedApplication={_ in selectedApplications+=1;return app}
+        owner.presentApplicationPanel={_,_,reply in applicationCalls+=1;reply(.OK);reply(.OK)}
+        try invoke(item("Open stored blob with…"));try await wait{!owner.hasPendingWork && !m.hasPendingWork}
+        try require(applicationCalls==2 && selectedApplications==1 && launched.count==2 && m.error==nil,"Stored Open With did not launch exactly once")
+        try require(launched[0].deletingLastPathComponent() != launched[1].deletingLastPathComponent(),"Stored Open With reused the first preview directory")
+        try require(try Data(contentsOf:launched[1])==c.binary,"Selected application preview changed stored bytes")
+        // Alternative-editor menu carries the same exact content and distinct action.
+        let nativePresent=m.presentFile;var alternative=0
+        m.presentFile={content,action in
+            if action == .alternativeEditor && content.bytes==c.binary && content.path==expectedName{alternative+=1}
+        }
+        try invoke(item("View stored blob with alternative editor"));try await wait{!m.hasPendingWork}
+        try require(alternative==1,"Alternative editor lost unfiltered bytes/action")
+        m.presentFile=nativePresent
+        // Retained table receipts cannot become current after a fresh snapshot.
+        let retained=try item("Open stored blob (unfiltered)")
+        m.refresh();try await wait{!m.busy && !m.hasPendingWork}
+        try invoke(retained);try await Task.sleep(nanoseconds:20_000_000)
+        try require(launched.count==2 && !m.hasPendingWork,"Retained delivery menu survived refresh")
+        // Quit gate rejects new delivery before invoking the injected object reader.
+        var reads=0;m.readStoredFile={snapshot,entry,token in reads+=1;return try await c.repository().storedRepositoryBrowserFile(snapshot,entry:entry,cancellation:token)}
+        m.confirmingQuit=true;m.openStoredBlob(entry);m.confirmingQuit=false
+        try require(reads==0 && !m.hasPendingWork,"Quit gate started a stored-object read")
+        // A read completing during Quit may not publish to the controller either.
+        var reply:CheckedContinuation<Data,Error>?
+        m.readStoredFile={snapshot,entry,token in
+            reads+=1
+            let _:Data=try await withCheckedThrowingContinuation{reply=$0}
+            return try await c.repository().storedRepositoryBrowserFile(snapshot,entry:entry,cancellation:token)
+        }
+        m.openStoredBlob(entry);try await wait{reply != nil}
+        c.releases.append{reply?.resume(returning:c.binary);reply=nil}
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Quit escaped live stored delivery")
+        m.confirmingQuit=true;reply?.resume(returning:c.binary);reply=nil
+        try await wait{!m.hasPendingWork};m.confirmingQuit=false
+        try require(launched.count==2,"Quit-pending read published a stored document")
+        // A cancelled generation keeps the held worker owned but cannot launch.
+        m.openStoredBlob(entry);try await wait{reply != nil}
+        m.refresh();reply?.resume(returning:c.binary);reply=nil
+        try await wait{!m.busy && !m.hasPendingWork}
+        try require(launched.count==2,"Stale stored read survived a refreshed tree receipt")
+        // Forced close keeps actual object I/O owned until its late reply settles.
+        m.openStoredBlob(entry);try await wait{reply != nil};owner.close()
+        try require(!m.active && m.hasPendingWork && RepositoryBrowserWindowModel.activeOperations>0,"Closed delivery dropped unfinished read ownership")
+        reply?.resume(returning:c.binary);reply=nil;try await wait{!owner.hasPendingWork && RepositoryBrowserWindowModel.activeOperations==0}
+        try require(launched.count==2,"Retired delivery read launched late")
+        // A held Open With panel callback after retirement cannot launch either.
+        let second=try await c.owner(),other=second.model
+        let otherEntry=other.entries.first{$0.rawName==entry.rawName}!
+        var panelReply:((NSApplication.ModalResponse)->Void)?
+        second.selectedApplication={_ in app};second.launchDocument={_,_,_ in launched.append(app)}
+        second.presentApplicationPanel={_,_,reply in panelReply=reply}
+        c.releases.append{panelReply?(.cancel);panelReply=nil}
+        other.openStoredBlob(otherEntry,action:.openWith);try await wait{panelReply != nil}
+        try require(other.handlingFile && second.hasPendingWork,"Held stored Open With lost its owned request")
+        second.close();panelReply?(.OK);panelReply=nil
+        try await wait{!second.hasPendingWork && RepositoryBrowserFileOperation.activeRequests==0}
+        try require(launched.count==2 && !other.active,"Retired Open With callback launched a document")
+        try await c.unchanged()
+    }
     static func ownership(_ c:Context)async throws{
         let owner=try await c.owner(),m=owner.model,entry=m.entries.first{!$0.isPathRepresentable && $0.kind != .directory}!
         var reply:CheckedContinuation<Data,Error>?,published=0
@@ -138,6 +250,6 @@ private extension NSWindow {
         for(a,b)in methods{if let a,let b{method_exchangeImplementations(a,b)}}
         defer{for(a,b)in methods.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
         let c=Context(),name=CommandLine.arguments[3]
-        do{try await c.prepare();switch name{case "listing":try await listing(c);case "navigation":try await navigation(c);case "actions":try await actions(c);case "ownership":try await ownership(c);default:throw Failure(description:"Unknown case")};await c.cleanup();print("PASS: Browser namespace "+name)}catch{await c.cleanup();fputs("\(error)\n",stderr);exit(1)}
+        do{try await c.prepare();switch name{case "listing":try await listing(c);case "navigation":try await navigation(c);case "actions":try await actions(c);case "ownership":try await ownership(c);case "delivery":try await delivery(c);default:throw Failure(description:"Unknown case")};await c.cleanup();print("PASS: Browser namespace "+name)}catch{await c.cleanup();fputs("\(error)\n",stderr);exit(1)}
     }
 }

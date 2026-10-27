@@ -334,7 +334,13 @@ is not UTF-8. It connects tree navigation and refresh, read-only stored-blob
 inspection, explicit path-action admission and recursive transfer preflight.
 Its [grouped checkpoint](qa/repository-browser-namespace-2026-10-25.json) passed
 33 focused Core methods and 14 native case/engine pairs after a recorded compile
-repair. Raw-byte filesystem operations, physical/signed acceptance and full
+repair. A later stored-blob delivery batch adds explicit unfiltered Save, Open,
+Open With and alternative-editor actions for raw-name files, using ASCII blob
+filenames and the existing owned panels and preview lifecycle. Its
+[grouped checkpoint](qa/repository-browser-stored-file-2026-10-27.json) records
+12 focused Core methods passing after a fixture repair and eight native
+case/engine pairs passing after a compile repair; the older checkpoint does not cover these
+new actions. Original-path raw-byte filesystem operations, physical/signed acceptance and full
 Browser parity remain open. Build 6 includes this source; the Browser-specific
 physical acceptance was not repeated as part of the Finder registration check.
 

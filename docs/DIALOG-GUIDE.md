@@ -289,8 +289,20 @@ the actual volume's lookup identity. Distinct names on a sensitive volume can
 remain distinct. A tracked name may use the filesystem's equivalent Unicode
 spelling, but an untracked alias cannot silently substitute for it. These checks
 run before working comparison, submodule access and Revert; another process can
-still change a file between validation and use. Raw filenames containing invalid
-UTF-8 bytes remain unsupported.
+still change a file between validation and use.
+
+Names containing invalid UTF-8 bytes remain visible with a byte suffix that
+distinguishes them. You can browse their folders and use **View stored blob**
+to inspect a file as text or hexadecimal (up to 8 MiB). Its contents menu also
+offers **Open stored blob (unfiltered)**, **Open stored blob with…**,
+**View stored blob with alternative editor** and **Save stored blob (unfiltered)
+to…**. These actions preserve the original Git object bytes, including a
+symlink's target text, and propose an ASCII filename containing the full blob
+hash. A plain ASCII extension is retained when possible. Open uses a private,
+read-only copy; Save lets you choose its destination and name. Checkout filters
+are not applied. The 8 MiB inspection limit does not apply to Save or Open.
+Working-tree operations, filtered delivery, folder export and history actions
+that require the original invalid text path remain unavailable.
 
 Use **Mark for comparison** to retain a historical file and its pinned revision,
 then **Compare with…** on another file. The contents menu also refreshes a working

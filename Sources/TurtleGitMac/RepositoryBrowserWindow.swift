@@ -426,7 +426,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
     var presentStoredBlob:(Data,RepositoryBrowserEntry)->Void = {_,_ in}
     var readStoredBlob:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->Data)?
-    static let rawPathReason="This Git pathname cannot be represented as a macOS text path. View the stored blob or copy its hash; filesystem and history actions are unavailable."
+    var readStoredFile:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->ComparisonFileContent)?
+    static let rawPathReason="This Git pathname cannot be represented as a macOS text path. Use the stored blob actions to view, save or open its unfiltered contents under a safe filename. Original-path filesystem and history actions are unavailable."
     func requireRepresentable(_ path:String)->Bool {
         guard (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true else {error=Self.rawPathReason;return false};return true
     }
@@ -643,6 +644,27 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     static let maximumStoredBlobBytes:Int64=8*1024*1024
+    /// Object delivery needs no native representation of the original name.
+    /// Keep its captured row/tree identity through the read, then hand off to
+    /// the same owned panels, cancellation and preview lifecycle as normal Open.
+    func openStoredBlob(_ entry:RepositoryBrowserEntry,action:FileAction = .open) {
+        guard canUseMenu,let snapshot,snapshot.objectID != nil,snapshot.entries.contains(entry),![.directory,.submodule].contains(entry.kind) else{return}
+        let identity=generation,navigation=menuGeneration,(request,cancellation)=startRequest(),read=readStoredFile
+        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
+        materializationEditorSettings = .load(from:preferences)
+        busy=true
+        Task { [self,repository,access] in
+            defer{finishRequest(request);if active,generation==identity{busy=false};withExtendedLifetime(access){}}
+            do {
+                try validateAccess()
+                let content:ComparisonFileContent
+                if let read {content=try await read(snapshot,entry,cancellation)}
+                else {content=try await repository.storedRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation)}
+                guard active,generation==identity,menuGeneration==navigation,!confirmingQuit,!cancellation.isCancelled else{return}
+                busy=false;presentFile(content,action)
+            } catch {if active,generation==identity,!cancellation.isCancelled{self.error=error.localizedDescription}}
+        }
+    }
     func inspectStoredBlob(_ entry:RepositoryBrowserEntry) {
         guard canUseMenu,let snapshot,snapshot.entries.contains(entry),![.directory,.submodule].contains(entry.kind) else{return}
         guard let size=entry.size,size<=Self.maximumStoredBlobBytes else{error="Stored blob inspection is limited to 8 MiB. This object is too large to display.";return}

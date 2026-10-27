@@ -175,7 +175,13 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             }
             if values.count==1,let entry=values.first,model.snapshot?.objectID != nil {
                 item("Open",#selector(open),.open,requiresPath:entry.kind != .directory)
-                if !entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind) {item("View stored blob",#selector(inspectStoredBlob),.open,requiresPath:false)}
+                if !entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind) {
+                    item("View stored blob",#selector(inspectStoredBlob),.open,requiresPath:false)
+                    item("Open stored blob (unfiltered)",#selector(openStoredBlob),.open,requiresPath:false)
+                    item("Open stored blob with…",#selector(openStoredBlobWith),.open,requiresPath:false)
+                    item("View stored blob with alternative editor",#selector(editStoredBlob),.editor,requiresPath:false)
+                    item("Save stored blob (unfiltered) to…",#selector(saveStoredBlob),.saveAs,requiresPath:false)
+                }
                 if entry.kind != .directory { item("Open With…",#selector(openWith),.open);item("View revision with alternative editor",#selector(alternativeEditor),.editor) }
                 menu.addItem(.separator())
                 if entry.kind != .directory && model.snapshot?.bare==false { item("Compare with working tree",#selector(compare),.compare);menu.addItem(.separator()) }
@@ -210,6 +216,10 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             guard entries.count == 1, let entry=entries.first else { return }
             switch invocation.command {
             case #selector(inspectStoredBlob): model.inspectStoredBlob(entry)
+            case #selector(openStoredBlob): model.openStoredBlob(entry)
+            case #selector(openStoredBlobWith): model.openStoredBlob(entry,action:.openWith)
+            case #selector(editStoredBlob): model.openStoredBlob(entry,action:.alternativeEditor)
+            case #selector(saveStoredBlob): model.openStoredBlob(entry,action:.save)
             case #selector(open): model.open(entry)
             case #selector(openWith): model.open(entry,action:.openWith)
             case #selector(alternativeEditor): model.open(entry,action:.alternativeEditor)
@@ -225,6 +235,10 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         }
         private func one(_ operation:(RepositoryBrowserEntry)->Void) { guard available,selected.count==1,let entry=selected.first else { return };operation(entry) }
         @objc func inspectStoredBlob() {one{model.inspectStoredBlob($0)}}
+        @objc func openStoredBlob() {one{model.openStoredBlob($0)}}
+        @objc func openStoredBlobWith() {one{model.openStoredBlob($0,action:.openWith)}}
+        @objc func editStoredBlob() {one{model.openStoredBlob($0,action:.alternativeEditor)}}
+        @objc func saveStoredBlob() {one{model.openStoredBlob($0,action:.save)}}
         @objc func open() { one { model.open($0) } }
         @objc func openWith() { one { model.open($0,action:.openWith) } }
         @objc func alternativeEditor() { one { model.open($0,action:.alternativeEditor) } }

@@ -82,6 +82,21 @@ public struct RepositoryBrowserEntry: Identifiable, Equatable, Sendable {
         switch mode { case "040000": return .directory; case "100755": return .executable; case "120000": return .symlink; case "160000": return .submodule; default: return .file }
     }
     public var fileExtension: String { kind == .directory || kind == .submodule ? "" : name.lastIndex(of: ".").map { String(name[$0...]) } ?? "" }
+    public var storedBlobFilename:String {
+        // Never decode replacement characters into a filesystem identity. Keep
+        // a useful extension only when its original bytes are plain ASCII.
+        var suffix=""
+        if let dot=rawName.lastIndex(of:46) {
+            let ext=rawName[rawName.index(after:dot)...]
+            if (1...16).contains(ext.count),ext.allSatisfy({(48...57).contains($0)||(65...90).contains($0)||(97...122).contains($0)}) {
+                suffix="."+String(decoding:ext,as:UTF8.self)
+            }
+        }
+        // Entry identity is checked by storedRepositoryBrowserBlob before this
+        // proposal is used; constrain public presentation of malformed OIDs too.
+        let oid=objectID.utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) && [40,64].contains(objectID.utf8.count) ? objectID : "invalid"
+        return "Git-blob-"+oid+suffix
+    }
     public var sizeSort: Int64 { size ?? 0 }
 }
 public struct RepositoryBrowserSnapshot: Sendable {
@@ -413,6 +428,15 @@ extension GitRepository {
         guard snapshot.root==root,snapshot.objectID != nil,snapshot.entries.contains(entry),![.directory,.submodule].contains(entry.kind),
               [40,64].contains(entry.objectID.utf8.count),entry.objectID.utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{throw RepositoryBrowserFailure.selection}
         return try run(["cat-file","blob",entry.objectID],cancellation:cancellation).stdout
+    }
+    /// Deliver the original object under an ASCII filename, independent of its
+    /// Git pathname. This deliberately does not apply checkout/smudge filters.
+    /// Callers retain the selected tree receipt for ownership; this filename is
+    /// only a proposed destination or a leaf inside a private preview directory.
+    public func storedRepositoryBrowserFile(_ snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry,cancellation:OperationCancellation?=nil)throws->ComparisonFileContent {
+        guard let object=snapshot.objectID else{throw RepositoryBrowserFailure.selection}
+        let bytes=try storedRepositoryBrowserBlob(snapshot,entry:entry,cancellation:cancellation)
+        return ComparisonFileContent(path:entry.storedBlobFilename,revision:.revision(object),bytes:bytes,mode:entry.mode)
     }
     public func materializedRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil,
                                                   backend: GitLibGit2Configuration? = nil) throws -> ComparisonFileContent {

@@ -1,0 +1,223 @@
+{
+  "date": "2026-10-27",
+  "status": "bounded-browser-family-checkpoint-passed-after-recorded-repairs",
+  "base_commit": "c3a5df824973345ede8f93fa130bfe2e38658e6a",
+  "scope": [
+    "Explicit unfiltered stored-object Save, Open, Open With and alternative-editor delivery for raw Git filenames",
+    "Full object identity, exact bytes and original mode; safe ASCII proposed leaf and private read-only preview",
+    "Captured menu/read ownership, cancellation, refresh, held choosers, forced close and Quit lifetime"
+  ],
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "file": "src/TortoiseProc/RepositoryBrowser.cpp",
+    "anchors": [
+      "FileSaveAs lines1228-1250",
+      "OpenFile lines1252-1316"
+    ],
+    "distinction": "Explicit unfiltered OID delivery is a native extension for paths that cannot be represented as macOS text. Ordinary GetOneFile/backend filtering semantics remain separate."
+  },
+  "core": {
+    "initial": {
+      "log": "build/qa/browser-stored-file-core-2026-10-27.log",
+      "methods": 12,
+      "passed": 11,
+      "failed": 1,
+      "failure": "Fixture required stored-proof filter while its clean half was absent, so preservation status failed before the stored read."
+    },
+    "focused_repair": {
+      "log": "build/qa/browser-stored-file-core-repair-2026-10-27.log",
+      "methods": 1,
+      "passed": 1,
+      "failed": 0,
+      "repair": "Fixture-only clean=cat; active smudge transformation and all preservation assertions retained."
+    }
+  },
+  "native": {
+    "status": "passed",
+    "planned_cases": [
+      "listing",
+      "actions",
+      "ownership",
+      "delivery"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "windows": "Private invisible/offscreen receiver windows, injected launch/chooser callbacks; no user-owned app termination.",
+    "log": "build/qa/browser-stored-file-native-2026-10-27.log",
+    "results": [
+      {
+        "git": "/usr/bin/git",
+        "case": "listing",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "actions",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "delivery",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "listing",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "actions",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "delivery",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "owned_receivers_reaped": [
+      94660,
+      94699,
+      94740,
+      94790,
+      94885,
+      94921,
+      94963,
+      95012
+    ],
+    "independently_absent": true
+  },
+  "limitations": [
+    "No whole Browser or whole-app parity claim",
+    "No physical Finder, signed deployment, App Store or current full hosted CI certification",
+    "Filtered original raw-path delivery, working comparison, history, folder export and Revert remain unavailable",
+    "Uncommitted spatial-effect development shares this worktree and compiled helper; Browser checks do not certify spatial numerical behavior or its pending implementation",
+    "Installed signed build19 is unchanged; no submission or publication to the App Store"
+  ],
+  "build": {
+    "initial": {
+      "log": "build/qa/browser-stored-file-debug-2026-10-27.log",
+      "exit_code": 65,
+      "failure": "New native injected-reader branch called an internal ComparisonFileContent initializer across modules."
+    },
+    "repair": {
+      "log": "build/qa/browser-stored-file-debug-repair-2026-10-27.log",
+      "exit_code": 0,
+      "change": "Use a distinct readStoredFile hook returning typed ComparisonFileContent; preserve existing internal initializer and stored inspection Data hook.",
+      "generic_exit_zero_diagnostics": 1
+    },
+    "runtime": {
+      "log": "build/qa/browser-stored-file-runtime-2026-10-27.log",
+      "exit_code": 0,
+      "scope": "Universal helper reconstruction and structure-only validation. Uncommitted spatial numerical behavior remains unverified."
+    }
+  },
+  "inputs": [
+    {
+      "path": "Sources/TurtleGitCore/RepositoryBrowser.swift",
+      "sha256": "5069fa8b729df73ba27ff7b654eaffffe3b9e246d00ac6557a305f858175372b"
+    },
+    {
+      "path": "Sources/TurtleGitMac/RepositoryBrowserWindow.swift",
+      "sha256": "57f21126f24b706811b3fb894ac16500f989c4d45e7f4488258a610531c08b00"
+    },
+    {
+      "path": "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift",
+      "sha256": "21dbce1006e28c3fc2480efed7291e455fc455ad62d21b1d64823d45cb03f3b1"
+    },
+    {
+      "path": "Tests/TurtleGitCoreTests/RepositoryBrowserStoredFileTests.swift",
+      "sha256": "e22b9e7abf12e5c085f147c36cb470ac9c46ec414d2fc000f942ec14f16f6c92"
+    },
+    {
+      "path": "docs/qa/repository-browser-namespace-native-2026-10-25.swift",
+      "sha256": "71dc5121cb75a6060a0733b781979df1830217db38064730db40f9584d6b21fd"
+    },
+    {
+      "path": "scripts/test-repository-browser-namespace.py",
+      "sha256": "1be282f5a2f15c0abe4bd9dad3641af97cc5f6e5797cf44f3f3ea80262863bce"
+    }
+  ],
+  "compiled_metafile_runtime": {
+    "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+    "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+    "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+    "NOTICE": "8a6cac872f782158611511cbdcc6167d3c0686f2644e86f378b153b8d366311b",
+    "Configuration/MetafileRuntime.json": "8046aa31cbcc2069da6784533c6695116f6df591f3de9e478c07b4daa8f1159a",
+    "Sources/TurtleGitMetafile/main.swift": "28111fe8df4d5d3dead384d5e62e466fc2c48172345c25dcea6d7a6707145373",
+    "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "31aefca625adba4b2153f7a6ae65e05e61705944938b65082e9eb637734edebb",
+    "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "6805b3164742d567bad0af843acd51d2123b42198aaf1bb8f6f044ca05b09ed3",
+    "patches/metafile-renderer.patch": "eb2c5bbf09d5b149a39b03c39fcce16a1497031f3ec042ecdb5beb7ec9578e12",
+    "scripts/build-metafile-runtime.py": "979d751d4540620e6ef7333091ac791d2268abe8d3eb2ba6e86a87d03075d3e7",
+    "scripts/validate-metafile-runtime.py": "3021ae7102a74426f9992a7600270c1adeb4d565354a55dac55d529a261465ef",
+    "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+    "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+    "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+    "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+    "Sources/TurtleGitMetafile/Resources/color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+    "Sources/TurtleGitMetafile/Resources/color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609",
+    "scripts/build-metafile-curve-data.py": "d9f35ab69a5d1a9c5bcae6604a72e92e5d6d1cbe5cc3cc5eeb17cafb4626decd",
+    "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+    "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984"
+  },
+  "logs": [
+    {
+      "path": "build/qa/browser-stored-file-core-2026-10-27.log",
+      "sha256": "e623bdeea93a92ee95943c0e0db215f3b4c5c9c91c3d43d297242e1c07fe5114"
+    },
+    {
+      "path": "build/qa/browser-stored-file-core-repair-2026-10-27.log",
+      "sha256": "c934530be3f0ed606d851035d23471f437aa92b6a8dcc996cb038dbf9fdcbe34"
+    },
+    {
+      "path": "build/qa/browser-stored-file-runtime-2026-10-27.log",
+      "sha256": "f5f2c9315efb444ff5a5688ce402a809cc7cd656537557bd99b725511fabb3b0"
+    },
+    {
+      "path": "build/qa/browser-stored-file-debug-2026-10-27.log",
+      "sha256": "ac38151ae40d86c086b185ecefe1701c5a8a2987223fe1deaad6a74b600f7ee5"
+    },
+    {
+      "path": "build/qa/browser-stored-file-debug-repair-2026-10-27.log",
+      "sha256": "c815f594422eb71cb9bbdca9307cf0fcf5159b0fd831c6be0028db2f921c13da"
+    },
+    {
+      "path": "build/qa/browser-stored-file-native-2026-10-27.log",
+      "sha256": "dc3a32588db80b2bd3838ee58bc31120562c705d0806374a3899f433730874ca"
+    }
+  ],
+  "ci_observation": {
+    "run": 40496135185,
+    "source": "6de62e88",
+    "status": "in_progress",
+    "observed_active_step": "Workspace ownership, retired Quit participants and native report lists",
+    "scope": "Earlier source full hosted suite, not this Browser batch; no current full CI success claim."
+  },
+  "generated_checks": {
+    "localizations": "38 locales / 1324 pinned keys --check passed; English fallback retained",
+    "help": "60 documents / 51 topics / 92 files --check passed",
+    "coverage": "Reconciled130resources/120partial-family-audits/10pending; no completion percentage or certified-complete dialog claim."
+  },
+  "protected_preexisting_work": "Native reference batch script and RefLog capture byte hashes unchanged; neither staged."
+}
