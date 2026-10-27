@@ -1,0 +1,46 @@
+// Twenty-four original SDK decision-boundary observations; no earlier inventory.
+#define main unusedPointwiseReferenceMain
+#include "../metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp"
+#undef main
+#include <sstream>
+struct LargeCase {
+    std::string name;int width,height;REAL radius;bool expand;
+    int pad()const{return expand?int(radius):0;}
+    int frameWidth()const{return width+2*pad();}
+    int frameHeight()const{return height+2*pad();}
+    void describe(std::ostream& out)const {
+        out<<",\"source\":"<<json(name)<<",\"family\":\"blur\",\"atlas\":"<<json(name)<<",\"emf\":"<<json(name+".emf")<<",\"sourceWidth\":"<<width<<",\"sourceHeight\":"<<height<<",\"parameters\":{\"radius\":"<<radius<<",\"expandEdge\":"<<(expand?"true":"false")<<"},\"recordSourceRect\":[0,0,"<<width<<','<<height<<"],\"recordImageMatrix\":[1,0,0,1,"<<pad()<<','<<pad()<<"],\"recordFrameWidth\":"<<frameWidth()<<",\"recordFrameHeight\":"<<frameHeight()<<",\"directROI\":null,\"sourceDefinition\":\"opaque RGB((11x+53y)%256,(43x+7y)%256,(19x+37y)%256)\"";
+    }
+};
+static std::vector<LargeCase> largeCases(){
+    std::vector<LargeCase> cases;
+    auto add=[&](int width,int height,REAL radius,bool expand){cases.push_back({"blur-asymmetric-"+std::to_string(width)+"x"+std::to_string(height)+"-r"+std::to_string(int(radius))+"-e"+(expand?"1":"0"),width,height,radius,expand});};
+    for(REAL radius:{17.f,31.f,32.f,33.f,63.f,64.f,127.f,128.f})for(bool expand:{false,true})add(32,32,radius,expand);
+    for(bool wide:{false,true})for(REAL radius:{31.f,32.f})for(bool expand:{false,true})add(wide?33:17,wide?17:33,radius,expand);
+    if(cases.size()!=24)throw std::runtime_error("decision inventory changed");return cases;
+}
+static Color boundaryColor(UINT x,UINT y){return Color(255,BYTE(11*x+53*y),BYTE(43*x+7*y),BYTE(19*x+37*y));}
+static std::unique_ptr<Bitmap> boundaryAtlas(const LargeCase& c){auto image=std::make_unique<Bitmap>(c.width,c.height,PixelFormat32bppARGB);check(image->GetLastStatus(),"source allocation");check(image->SetResolution(96,96),"source DPI");for(UINT y=0;y<UINT(c.height);++y)for(UINT x=0;x<UINT(c.width);++x)check(image->SetPixel(x,y,boundaryColor(x,y)),"source pixel");return image;}
+static void verticalPixels(Bitmap& image, const fs::path& dir, const std::string& name, std::ostream& report) {
+    UINT width = image.GetWidth(), height = image.GetHeight();
+    check(image.GetLastStatus(), "image dimensions");
+    if (!width || !height || width > 512 || height > 512) throw std::runtime_error("unexpected image dimensions");
+    check(image.Save((dir / (name + ".png")).c_str(), &pngEncoder, nullptr), "save PNG");
+    auto out = file(dir / (name + ".rgba"), true);
+    for (UINT y = 0; y < height; ++y) for (UINT x = 0; x < width; ++x) {
+        Color color; check(image.GetPixel(x,y,&color), "read pixel");
+        const BYTE sample[] = {color.GetR(),color.GetG(),color.GetB(),color.GetA()};
+        out.write(reinterpret_cast<const char*>(sample), 4);
+    }
+    report << ",\"width\":" << width << ",\"height\":" << height
+           << ",\"rgba\":" << json(name + ".rgba") << ",\"png\":" << json(name + ".png");
+}
+template<class Body>static void boundaryEffect(const LargeCase& c,Body&& body){BlurParams p{c.radius,c.expand?TRUE:FALSE};Blur e;body(e,e.SetParameters(&p));}
+static void boundaryAux(Effect& effect,const fs::path& dir,const std::string& stem,std::ostream& out){UINT size=effect.GetAuxDataSize();out<<",\"auxBytes\":"<<size;if(size>1024*1024)throw std::runtime_error("auxiliary bound");if(size&&effect.GetAuxData()){auto data=file(dir/(stem+".aux"),true);data.write(static_cast<const char*>(effect.GetAuxData()),size);out<<",\"aux\":"<<json(stem+".aux");}}
+static void boundaryRecord(const LargeCase& c,Effect& e,const fs::path& dir,std::ostream& out){ScreenDC screen;Metafile image((dir/(c.name+".emf")).c_str(),screen.value,RectF(0,0,REAL(c.frameWidth()),REAL(c.frameHeight())),MetafileFrameUnitPixel,EmfTypeEmfPlusOnly,L"Original SDK large Blur decision boundary");Status s=image.GetLastStatus();out<<",\"recordCreateStatus\":"<<s;if(s!=Ok)return;Graphics g(&image);check(g.GetLastStatus(),"record graphics");check(g.SetPageUnit(UnitPixel),"record units");check(g.SetCompositingMode(CompositingModeSourceCopy),"record compositing");check(g.Clear(Color(0,0,0,0)),"record clear");auto input=boundaryAtlas(c);RectF source(0,0,REAL(c.width),REAL(c.height));Matrix transform(1,0,0,1,REAL(c.pad()),REAL(c.pad()));check(transform.GetLastStatus(),"record matrix");s=g.DrawImage(input.get(),&source,&transform,&e,nullptr,UnitPixel);out<<",\"recordStatus\":"<<s;}
+static void boundaryDirect(const LargeCase& c,Effect& effect,const fs::path& dir,const std::string& stem,bool create,std::ostream& out){auto input=boundaryAtlas(c);effect.UseAuxData(TRUE);if(!create){Status s=input->ApplyEffect(&effect,nullptr);out<<",\"applyStatus\":"<<s;boundaryAux(effect,dir,stem,out);if(s==Ok)verticalPixels(*input,dir,stem,out);}else{Bitmap* source=input.get();Bitmap* raw=nullptr;RECT bounds{};Status s=Bitmap::ApplyEffect(&source,1,&effect,nullptr,&bounds,&raw);std::unique_ptr<Bitmap> result(raw);out<<",\"applyStatus\":"<<s<<",\"outputRect\":["<<bounds.left<<','<<bounds.top<<','<<bounds.right<<','<<bounds.bottom<<']';boundaryAux(effect,dir,stem,out);if(s==Ok){if(!result)throw std::runtime_error("null successful output");verticalPixels(*result,dir,stem,out);}}}
+static void boundaryReplay(const LargeCase& c,const fs::path& dir,const std::string& prefix,std::ostream& out){Bitmap image((dir/(c.name+".emf")).c_str(),FALSE);Status s=image.GetLastStatus();out<<",\"bitmapLoadStatus\":"<<s;if(s!=Ok)return;UINT w=image.GetWidth(),h=image.GetHeight();check(image.GetLastStatus(),"intrinsic dimensions");if(!w||!h||w>512||h>512)throw std::runtime_error("replay dimension bound");out<<",\"intrinsicWidth\":"<<w<<",\"intrinsicHeight\":"<<h<<",\"expectedSize\":"<<(w==UINT(c.frameWidth())&&h==UINT(c.frameHeight())?"true":"false")<<",\"intrinsic\":{\"name\":"<<json(prefix+c.name+"-intrinsic");verticalPixels(image,dir,prefix+c.name+"-intrinsic",out);out<<'}';Bitmap target(w,h,PixelFormat32bppARGB);check(target.GetLastStatus(),"replay allocation");check(target.SetResolution(96,96),"replay DPI");{Graphics g(&target);check(g.Clear(Color(0,0,0,0)),"replay clear");check(g.SetCompositingMode(CompositingModeSourceCopy),"replay compositing");check(g.SetInterpolationMode(InterpolationModeDefault),"Picture interpolation");check(g.SetPixelOffsetMode(PixelOffsetModeHalf),"Picture pixel offset");ImageAttributes attributes;check(attributes.SetWrapMode(WrapModeTileFlipXY),"Picture wrap");s=g.DrawImage(&image,Rect(0,0,INT(w),INT(h)),0,0,INT(w),INT(h),UnitPixel,&attributes);}out<<",\"drawStatus\":"<<s;if(s==Ok)verticalPixels(target,dir,prefix+c.name,out);}
+int main(int argc,char** argv){if(argc!=3)return 2;try{const std::string mode=argv[1];if(mode!="generate"&&mode!="direct-v1"&&mode!="replay"&&mode!="replay-v1")return 2;bool v1=mode=="direct-v1"||mode=="replay-v1";Startup startup(v1?1:2);findPNGEncoder();fs::path dir=fs::absolute(argv[2]);fs::create_directories(dir);auto inventory=largeCases();auto out=file(dir/(mode+".json"));wchar_t module[32768]{};DWORD length=GetModuleFileNameW(GetModuleHandleW(L"gdiplus.dll"),module,32768);if(!length||length>=32768)throw std::runtime_error("cannot identify GDI+");out<<"{\"platform\":\"native Windows GDI+\",\"startupVersion\":"<<(v1?1:2)<<",\"gdiplusModule\":"<<json(fs::path(module).u8string())<<",\"mode\":"<<json(mode)<<",\"caseCount\":24,\"format\":\"straight RGBA row-major top-left\",\"atlases\":[";bool first=true;
+for(const auto& c:inventory){if(!first)out<<',';first=false;out<<"{\"name\":"<<json(c.name);if(mode=="generate"){auto image=boundaryAtlas(c);verticalPixels(*image,dir,"atlas-"+c.name,out);auto data=file(dir/("atlas-"+c.name+"-requested.rgba"),true);for(UINT y=0;y<UINT(c.height);++y)for(UINT x=0;x<UINT(c.width);++x){Color sample=boundaryColor(x,y);BYTE p[]={sample.GetR(),sample.GetG(),sample.GetB(),sample.GetA()};data.write(reinterpret_cast<const char*>(p),4);}}out<<'}';}out<<"],\"cases\":[";first=true;bool failed=false;
+for(const auto& c:inventory){if(!first)out<<',';first=false;std::string prefix=mode=="generate"?"":mode+"-";out<<"{\"name\":"<<json(prefix+c.name);c.describe(out);std::ostringstream detail;try{if(mode=="generate"||mode=="direct-v1"){if(mode=="generate")boundaryEffect(c,[&](auto& e,Status s){detail<<",\"recordSetParametersStatus\":"<<s;if(s==Ok)boundaryRecord(c,e,dir,detail);});detail<<",\"direct\":{\"name\":"<<json(prefix+c.name);boundaryEffect(c,[&](auto& e,Status s){detail<<",\"setParametersStatus\":"<<s;if(s==Ok)boundaryDirect(c,e,dir,prefix+c.name,false,detail);});detail<<"},\"created\":{\"name\":"<<json(prefix+"created-"+c.name);boundaryEffect(c,[&](auto& e,Status s){detail<<",\"setParametersStatus\":"<<s;if(s==Ok)boundaryDirect(c,e,dir,prefix+"created-"+c.name,true,detail);});detail<<'}';}else boundaryReplay(c,dir,prefix,detail);}catch(const std::exception& error){detail.str("");detail.clear();detail<<",\"error\":"<<json(error.what());failed=true;}out<<detail.str()<<'}';out.flush();}out<<"]}\n";out.close();return failed?1:0;
+}catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}}
