@@ -37,10 +37,11 @@ private struct ChangelistDocument: Codable {
             Row(path: $0.rawValue, name: lists.exactAssignments[$0]!.rawValue)
         }
     }
-    func lists() throws -> GitChangelists {
+    func lists(cancellation:OperationCancellation?=nil) throws -> GitChangelists {
         guard version == 2 else { throw GitFailure(arguments: ["changelist"], code: 1, message: "Unsupported changelist file version.") }
         var result: [GitReferenceName: GitReferenceName] = [:]
         for row in assignments {
+            try cancellation?.check()
             guard result.updateValue(GitReferenceName(row.name), forKey: GitReferenceName(row.path)) == nil else {
                 throw GitFailure(arguments: ["changelist"], code: 1, message: "The changelist file contains a duplicate path.")
             }
@@ -53,6 +54,14 @@ extension GitRepository {
     public func changelists(cancellation: OperationCancellation? = nil) throws -> GitChangelists {
         try cancellation?.check()
         return try readChangelists(at: changelistLocation("turtlegit-changelists.json", cancellation: cancellation), cancellation: cancellation)
+    }
+    /// Scoped display projection preserves the full menu name catalog, while
+    /// unrelated historical assignments are not filesystem mutation authority.
+    func changelistDisplay(paths:[String],pathRead:StatusListPathRead,cancellation:OperationCancellation?)throws->(changelists:GitChangelists,changelistNames:[GitReferenceName]) {
+        let selected=GitPathSet(paths)
+        let all=try readChangelists(at:changelistLocation("turtlegit-changelists.json",cancellation:cancellation),cancellation:cancellation,displayPaths:selected,pathRead:pathRead)
+        let assignments=all.exactAssignments.filter{selected.contains($0.key.rawValue)}
+        return (GitChangelists(exactAssignments:assignments),all.nameIdentities)
     }
     /// Mutations reload under a worktree-local lock, preserving other processes'
     /// assignments. JSON retains Unicode and literal newline filenames.
@@ -106,12 +115,13 @@ extension GitRepository {
             return try Data(contentsOf: url)
         } catch let error as NSError where error.domain == NSCocoaErrorDomain && (error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError) { return nil }
     }
-    private func readChangelists(at url: URL, cancellation: OperationCancellation? = nil) throws -> GitChangelists {
+    private func readChangelists(at url: URL, cancellation: OperationCancellation? = nil, displayPaths:GitPathSet?=nil, pathRead:StatusListPathRead?=nil) throws -> GitChangelists {
+        try cancellation?.check()
         let lists: GitChangelists
         if let data = try regularChangelistData(url) {
             struct Header: Decodable { let version: Int }
             let version = try JSONDecoder().decode(Header.self, from: data).version
-            if version == 2 { lists = try JSONDecoder().decode(ChangelistDocument.self, from: data).lists() }
+            if version == 2 { lists = try JSONDecoder().decode(ChangelistDocument.self, from: data).lists(cancellation:cancellation) }
             else if version == 1 {
                 // Keep legacy NSString keys while enumerating. Do not bridge this
                 // object to [String: Any], which merges canonical path spellings.
@@ -121,6 +131,7 @@ extension GitRepository {
                 }
                 var exact: [GitReferenceName: GitReferenceName] = [:]
                 for (path, name) in mapping {
+                    try cancellation?.check()
                     guard let path = path as? String, let name = name as? String else {
                         throw GitFailure(arguments: ["changelist"], code: 1, message: "Invalid legacy changelist assignment.")
                     }
@@ -136,6 +147,7 @@ extension GitRepository {
             guard let text else { throw GitFailure(arguments: ["changelist"], code: 1, message: "Could not decode the TortoiseGit changelist file as UTF-8 or BOM-marked UTF-16.") }
             var mapping: [GitReferenceName: GitReferenceName] = [:], name = GitChangelists.ignored
             for raw in (text.hasPrefix("\u{feff}") ? String(text.dropFirst()) : text).components(separatedBy: .newlines) {
+                try cancellation?.check()
                 let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
                 if line.isEmpty { continue }
                 if line.hasPrefix("<"), line.hasSuffix(">") { name = String(line.dropFirst().dropLast()) }
@@ -145,10 +157,13 @@ extension GitRepository {
         } else { lists = GitChangelists() }
         for (path, name) in lists.exactAssignments {
             try cancellation?.check()
-            _ = try restoreLocation(path.rawValue)
             guard !name.rawValue.isEmpty, !name.rawValue.contains("\0") else { throw GitFailure(arguments: ["changelist"], code: 1, message: "The changelist file contains an invalid name.") }
+            if let displayPaths,let pathRead {
+                _ = try StatusListPathRead.lexicalLocation(root:root,path:path.rawValue)
+                if displayPaths.contains(path.rawValue) {_ = try pathRead.location(path.rawValue,cancellation:cancellation)}
+            } else {_ = try restoreLocation(path.rawValue)}
         }
-        return lists
+        try cancellation?.check();return lists
     }
     private func mutateChangelists(cancellation: OperationCancellation? = nil, _ update: (inout GitChangelists) throws -> Void) throws -> GitChangelists {
         try cancellation?.check()

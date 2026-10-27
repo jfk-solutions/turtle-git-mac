@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-27",
+  "status": "signed-local-consolidation-installed-static-audit-passed",
+  "version": "0.1.0 (19)",
+  "source_commit": "6de62e8848529871d5c0c92cf320c8b68d1eace9",
+  "scope": [
+    "Finder warm maintenance and headless registration fixes through04061de0.",
+    "EMF+ serialized ColorMatrix/ColorLookupTable/BrightnessContrast support through6de62e88, with current universal native helper.",
+    "91 tracked Help files plus generated Apple Help index."
+  ],
+  "build": {
+    "session": 59344,
+    "exit": 0,
+    "source_input_sha256": "be280c766d4f060dfaeedcf1dcb71477d524a6824d822d46082c877464adcba2",
+    "application_sha256": "3a388cab9542041afca81370d5c15e2015456ec99d6217b3ce4b1869cd90835c",
+    "inventory_members": 6367,
+    "strict_signature": "pass",
+    "universal_owned_components": 8,
+    "static_session": 42214
+  },
+  "installation": {
+    "session": 25554,
+    "path": "/Applications/TurtleGit for Mac.app",
+    "previous_build_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed19-displaced-installed-2026-10-27",
+    "source_staged_installed_inventory_equal": true,
+    "registration": [
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-m",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "exit": 0,
+        "stdout": "+    org.turtlegit.macos.finder(0.1.0)\n",
+        "stderr": ""
+      }
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "manual_activation": false,
+    "app_store_submission": false,
+    "main_app_running_after_install": false,
+    "failed_native_receiver_72466_absent": true
+  },
+  "limits": [
+    "Current supplementary Commit implementation was made in parallel in the primary checkout; it is not part of installed build19.",
+    "Physical Finder acceptance was performed on build18; no renewed full physical acceptance claimed here.",
+    "Host CI, external distribution, Intel runtime and minimum macOS execution are not established by static universal build audit."
+  ]
+}

@@ -22,6 +22,12 @@ import Darwin
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), engine = URL(fileURLWithPath: CommandLine.arguments[2])
+        // Recheck this related family without repeating the older status/hook
+        // scenarios after a supplementary-only fixture or implementation repair.
+        if ProcessInfo.processInfo.environment["TURTLEGIT_COMMIT_SUPPLEMENTARY_ONLY"] == "1" {
+            try await verifySupplementaryLoading(root:root,engine:engine,preferences:prefs)
+            return
+        }
         let repo = GitRepository(root: root, executable: engine)
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Commit Tests"])
@@ -151,6 +157,7 @@ import Darwin
         try require(afterHead == beforeHead && afterIndex == beforeIndex && afterFile == beforeFile)
         try await verifyMissingRecoveryDuringCancel(root:root,engine:engine,preferences:prefs)
         try await verifyCapturedShippingRead(root:root,engine:engine,preferences:prefs)
+        try await verifySupplementaryLoading(root:root,engine:engine,preferences:prefs)
         print("PASS: Commit initial refresh ignores late values/errors after controller close; Cancel confirms before stopping a live status child; No preserves the running read, Yes reaps and closes once; immediate publication, completed-refresh/pending-answer gates and stale-answer/duplicate-cancel guards; declined cancel permits reload; approval reaps own metadata child ahead of queued refresh; late confirmation cannot close twice; HEAD/index/working bytes preserved. " + engine.path)
     }
     /// A real missing stage-zero entry reaches recovery while Cancel's answer
@@ -346,6 +353,131 @@ import Darwin
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
         let finalIndex=try Data(contentsOf:folder.appendingPathComponent(".git/index")),finalFile=try Data(contentsOf:folder.appendingPathComponent("file"))
         try require(finalHead==originalHead && finalIndex==originalIndex && finalFile==Data("working\n".utf8))
+    }
+
+    /// Shipping captured status is retained: only the supplementary/column read
+    /// is wrapped, and each wrapper obtains real Core results before holding.
+    @MainActor static func verifySupplementaryLoading(root:URL,engine:URL,preferences:UserDefaults)async throws {
+        let folder=root.appendingPathComponent(".git/commit-supplementary-fixture")
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let repo=GitRepository(root:folder,executable:engine,libgit2Configuration:.init(enabled:false))
+        _=try await repo.run(["init","--template=","-b","main"])
+        for (key,value) in [("user.name","Supplementary QA"),("user.email","supplementary@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_=try await repo.run(["config",key,value])}
+        for path in ["a.txt","b.txt","unchanged.txt"] {try Data("base\n".utf8).write(to:folder.appendingPathComponent(path))}
+        try await repo.stage(["a.txt","b.txt","unchanged.txt"]);_=try await repo.commit(message:"base")
+        try Data("aa\n".utf8).write(to:folder.appendingPathComponent("a.txt"))
+        try Data("bbbbbbbbbb\n".utf8).write(to:folder.appendingPathComponent("b.txt"))
+        _=try await repo.assignChangelist(paths:["a.txt"],name:"visible-list")
+        _=try await repo.assignChangelist(paths:["unchanged.txt"],name:"catalog-only-list")
+        let originalHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        let originalIndex=try Data(contentsOf:folder.appendingPathComponent(".git/index"))
+        preferences.set(true,forKey:"HintStagingMode");preferences.set(1,forKey:"CommitMergeHint");preferences.set(7,forKey:"NothingToCommitShowUnversioned");preferences.set(false,forKey:"Autocompletion");preferences.set(false,forKey:"UseLibgit2")
+        var release:(()->Void)?
+        func withOwner(_ body:(CommitWindowController) async throws -> Void)async throws {
+            StatusListColumnSettings().save(to:preferences)
+            let controller=CommitWindowController(repository:repo,access:nil,defaults:preferences)
+            controller.window?.alphaValue=0;controller.window?.setFrameOrigin(.init(x:-24000,y:-24000))
+            func drain()async throws {
+                let done=release;release=nil;done?()
+                controller.windowWillClose(Notification(name:NSWindow.willCloseNotification,object:controller.window));controller.window?.close()
+                try await wait {CommitWindowModel.activeReloads==0 && CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activePreferenceOperations==0}
+            }
+            do {try await body(controller);try await drain()}
+            catch {let original=error;do {try await drain()}catch {fputs("Supplementary cleanup failed: \(error)\n",stderr)};throw original}
+        }
+        try await withOwner {controller in
+            let model=controller.model
+            var supplementaryColumns=[Set<StatusListColumn>](),metadataColumns=[Set<StatusListColumn>]()
+            model.queryFileListSupplementary={paths,columns,token in
+                supplementaryColumns.append(columns)
+                return try await repo.commitFileListSupplementary(paths:paths,columns:columns,cancellation:token)
+            }
+            model.queryFileMetadata={paths,columns,token in
+                metadataColumns.append(columns)
+                return try await repo.statusListMetadata(paths:paths,columns:columns,cancellation:token)
+            }
+            model.message="Supplementary draft";model.reload(paths:["."]);try await wait{!model.busy && model.changelistsLoaded}
+            // Match the shipping initial scope, which initializes checked rows;
+            // reload() alone is a later refresh and intentionally retains checks.
+            if model.error != nil || !model.canCommit || supplementaryColumns != [[.fileExtension]] || !metadataColumns.isEmpty {
+                fputs("Supplementary initial state: error=\(model.error ?? "nil"), canCommit=\(model.canCommit), checked=\(model.checked.count), rows=\(model.entries.count), staging=\(model.stagingEnabled), message=\(String(reflecting:model.message)), required=\(model.requiredFileMetadataColumns), supplementary=\(supplementaryColumns), metadata=\(metadataColumns)\n",stderr)
+            }
+            try require(model.error==nil)
+            try require(model.canCommit)
+            try require(supplementaryColumns==[[.fileExtension]])
+            try require(metadataColumns.isEmpty)
+            try require(model.fileMetadata["a.txt"]?.modificationDate==nil && model.fileMetadata["a.txt"]?.size==nil && model.fileMetadata["a.txt"]?.isDirectory==false)
+            try require(model.changelists.name(for:"a.txt")=="visible-list" && model.changelists.name(for:"unchanged.txt")==nil)
+            try require(Set(model.changelistNameIdentities.map(\.rawValue))==["visible-list","catalog-only-list"])
+            let checked=model.checked,message=model.message
+            model.setFileColumn(.lastModified,visible:true)
+            try await wait{!model.loadingFileMetadata && model.fileMetadata["a.txt"]?.modificationDate != nil}
+            try require(model.canCommit && model.checked==checked && model.message==message && supplementaryColumns.count==1 && metadataColumns==[[.fileExtension,.lastModified]])
+            model.setFileColumn(.fileSize,visible:true)
+            try await wait{!model.loadingFileMetadata && model.fileMetadata["b.txt"]?.size==11}
+            try require(metadataColumns.count==2 && metadataColumns.last==[.fileExtension,.lastModified,.fileSize])
+            model.setFileColumn(.lastModified,visible:false);model.setFileColumn(.fileSize,visible:false);model.setFileColumn(.fileExtension,visible:false)
+            try require(model.requiredFileMetadataColumns==[.fileExtension] && metadataColumns.count==2 && model.canCommit)
+            try require(StatusListClipboard.text(model.entries.filter{$0.path=="a.txt"},root:folder,statistics:model.statistics,copy:.column(.fileExtension),metadata:model.fileMetadata)==".txt\n")
+            try require(model.resetFileColumns() && model.visibleFileColumns.contains(.fileExtension) && !model.visibleFileColumns.contains(.fileSize))
+            model.reload();try await wait{!model.busy && supplementaryColumns.count==2}
+            try require(model.fileMetadata["a.txt"]?.size==nil && model.fileMetadata["a.txt"]?.modificationDate==nil)
+            model.setFileSortOrder([CommitFileSort(column:.fileSize,order:.reverse)])
+            try await wait{!model.loadingFileMetadata && model.fileMetadata["b.txt"]?.size==11}
+            try require(!model.visibleFileColumns.contains(.fileSize) && model.sortedFiles(model.visibleEntries,statistics:model.statistics).map(\.path)==["b.txt","a.txt"])
+            try require(supplementaryColumns.count==2 && model.message==message && model.canCommit)
+            model.setFileSortOrder([CommitFileSort(column:.path)])
+        }
+        // Hiding/resetting a requested column or closing its native owner
+        // cancels that read. Late metadata cannot overwrite accepted rows.
+        for action in ["hide","reset","close"] {
+            try await withOwner {controller in
+                let model=controller.model;model.message="Column ownership draft";model.reload(paths:["."]);try await wait{!model.busy && model.canCommit}
+                var token:OperationCancellation?,held=false
+                model.queryFileMetadata={paths,columns,request in
+                    token=request
+                    let value=try await repo.statusListMetadata(paths:paths,columns:columns)
+                    await withCheckedContinuation{(reply:CheckedContinuation<Void,Never>) in release={reply.resume()};held=true}
+                    return value
+                }
+                let entries=model.entries,checked=model.checked
+                model.setFileColumn(.lastModified,visible:true);try await wait{held}
+                try require(model.loadingFileMetadata && model.canCommit && token?.isCancelled==false)
+                if action=="hide" {model.setFileColumn(.lastModified,visible:false)}
+                else if action=="reset" {try require(model.resetFileColumns())}
+                else {controller.windowWillClose(Notification(name:NSWindow.willCloseNotification,object:controller.window))}
+                try require(token?.isCancelled==true && !model.loadingFileMetadata)
+                let done=release;release=nil;done?();try await wait{CommitWindowModel.activeMetadataOperations==0}
+                try require(model.entries==entries && model.checked==checked && model.message=="Column ownership draft" && model.fileMetadata["a.txt"]?.modificationDate==nil && model.error==nil)
+                try require(action=="close" ? !model.canCommit:model.canCommit)
+            }
+        }
+        // Hold the actual supplementary stage of a shipping captured reload,
+        // after its real scoped filesystem/changelist result was obtained.
+        for action in ["no","yes","close"] {
+            try await withOwner {controller in
+                let model=controller.model;var token:OperationCancellation?,held=false,completed:Bool?
+                model.queryFileListSupplementary={paths,columns,request in
+                    token=request
+                    let value=try await repo.commitFileListSupplementary(paths:paths,columns:columns)
+                    await withCheckedContinuation{(reply:CheckedContinuation<Void,Never>) in release={reply.resume()};held=true}
+                    return value
+                }
+                model.message="Held supplementary draft";model.reload(paths:["."]);try await wait{held}
+                try require(model.busy && model.entries.isEmpty && token?.isCancelled==false)
+                if action=="close" {controller.windowWillClose(Notification(name:NSWindow.willCloseNotification,object:controller.window))}
+                else {model.confirmCancel={$0(action=="yes")};model.cancel(completion:{completed=$0})}
+                try require(token?.isCancelled==(action != "no"))
+                let done=release;release=nil;done?();try await wait{CommitWindowModel.activeReloads==0 && !model.busy && (action=="close" || completed != nil)}
+                if action=="no" {try require(completed==false && model.canCommit && model.entries.count==2 && model.error==nil)}
+                else {try require(model.entries.isEmpty && !model.canCommit && model.error==nil)}
+                try require(model.message=="Held supplementary draft")
+            }
+        }
+        let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout,finalIndex=try Data(contentsOf:folder.appendingPathComponent(".git/index"))
+        let finalA=try Data(contentsOf:folder.appendingPathComponent("a.txt")),finalB=try Data(contentsOf:folder.appendingPathComponent("b.txt"))
+        try require(finalHead==originalHead && finalIndex==originalIndex && finalA==Data("aa\n".utf8) && finalB==Data("bbbbbbbbbb\n".utf8))
+        print("PASS: Commit scoped supplementary catalog, directory/extension facts, lazy visible/sorted date-size columns, reset/hide/close late-result fences and held supplementary Cancel No/Yes/close; default captured status and repository bytes retained.")
     }
 
 }

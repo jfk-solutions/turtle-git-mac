@@ -959,10 +959,29 @@ import TurtleGitCore
     private var lfsOwnerCancellation: OperationCancellation?
     var queryLFSOwners: (OperationCancellation) async throws -> [LFSLock]
     var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
-    @Published var fileColumns = StatusListColumnSettings()
+    @Published var fileColumns = StatusListColumnSettings() {didSet {if fileColumns != oldValue {refreshRequiredFileMetadata()}}}
+    private var fileMetadataColumns=Set<StatusListColumn>()
+    private var fileMetadataReadID=UUID()
+    private var requestedFileMetadataColumns=Set<StatusListColumn>()
+    private var fileMetadataCancellation:OperationCancellation?
+    private var fileMetadataTask:Task<Void,Never>?
+    @Published private(set) var loadingFileMetadata=false
+    var queryFileListSupplementary:(([String],Set<StatusListColumn>,OperationCancellation) async throws -> CommitFileListSupplementary)?
+    var queryFileMetadata:(([String],Set<StatusListColumn>,OperationCancellation) async throws -> GitPathMap<StatusListMetadata>)?
+    private var changelistNameCatalog=[GitReferenceName]()
+    var changelistNameIdentities:[GitReferenceName] {
+        Set(changelistNameCatalog).union(changelists.nameIdentities).sorted {$0.rawValue.utf16.lexicographicallyPrecedes($1.rawValue.utf16)}
+    }
+    var requiredFileMetadataColumns:Set<StatusListColumn> {
+        // Directory facts also govern context menus and copying an extension,
+        // even when the extension column itself is hidden.
+        var columns:Set<StatusListColumn>=[.fileExtension]
+        for column in [.lastModified,.fileSize] as [StatusListColumn] where fileColumns.visible.contains(column) || fileSortOrder.first?.column==column {columns.insert(column)}
+        return columns
+    }
     var availableFileColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases).subtracting(hasLFS ? [] : [.lfsOwner]) }
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
-    @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID() } } }
+    @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID();refreshRequiredFileMetadata() } } }
     @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
     @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID() } } }
     @Published var changelistsLoaded = false
@@ -1043,7 +1062,7 @@ import TurtleGitCore
     private var completionSources: [MessageCodeScanner.Source] = []
     private var completionOptions: MessageCodeScanner.Options?
     private var completionEnabled: Bool?
-    deinit { reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); issueStyleCancellation?.cancel(); historyIssueTask?.cancel(); historyIssueCancellation?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
+    deinit { fileMetadataCancellation?.cancel();fileMetadataTask?.cancel();reloadCancellation?.cancel(); reloadTask?.cancel(); completionTask?.cancel(); issueStyleTask?.cancel(); issueStyleCancellation?.cancel(); historyIssueTask?.cancel(); historyIssueCancellation?.cancel(); authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel() }
     func prepareMessageCompletions(force: Bool = false) {
         var options = MessageCodeScanner.Options()
         let defaults = dialogDefaults
@@ -1269,7 +1288,7 @@ import TurtleGitCore
     private var authorCancellation: OperationCancellation?
     private var dateCancellation: OperationCancellation?
     private var amendCancellation: OperationCancellation?
-    /// Includes cancelled author/date/amend readers after their native owner closes.
+    /// Includes cancelled author/date/amend and column readers after their native owner closes.
     static private(set) var activeMetadataOperations = 0
     var nativeAuthorInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthor && !loadingAuthorIdentity }
     var nativeNewBranchInputAvailable:Bool {createBranch && canChangeFormOption(.newBranch)}
@@ -1290,14 +1309,18 @@ import TurtleGitCore
         didSet {if showWholeProject != oldValue{retireFormReceipts()};updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
     }
     @Published var scopePaths: [String] = [] { didSet { updateScopeTitle() } }
-    @Published var busy = false {didSet{if busy != oldValue{retireFormReceipts()}}}
+    @Published var busy = false {didSet{
+        if busy != oldValue {retireFormReceipts()}
+        if busy {cancelFileMetadataRead()} else {refreshRequiredFileMetadata()}
+    }}
     @Published var confirmingQuit = false {didSet{
         guard confirmingQuit != oldValue else{return}
         retireFormReceipts();metadataEpoch=UUID(); guiPatch?.confirmingQuit = confirmingQuit
         if confirmingQuit {
+            cancelFileMetadataRead()
             if loadingAmendMessage {amendMessageReadFailed=true}
             authorCancellation?.cancel();dateCancellation?.cancel();amendCancellation?.cancel();importedMessageCancellation?.cancel()
-        }
+        } else {refreshRequiredFileMetadata()}
     }}
     @Published var error: String?
     private var diffSession: FileListComparisonSession?
@@ -1415,6 +1438,42 @@ import TurtleGitCore
         guard let comparator = fileSortOrder.first else { return files }
         return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true, metadata: fileMetadata[$0.path], lfsOwner: lfsOwners[$0.path] ?? "") }
             .sorted(using: comparator).compactMap(\.entry)
+    }
+    private func cancelFileMetadataRead() {
+        fileMetadataCancellation?.cancel();fileMetadataTask?.cancel()
+        fileMetadataCancellation=nil;fileMetadataTask=nil;requestedFileMetadataColumns=[];loadingFileMetadata=false
+    }
+    /// Optional visible/sorted values can load without rerunning status, hooks,
+    /// issue providers or message seeding. They never become mutation authority.
+    private func refreshRequiredFileMetadata() {
+        guard messageFocusAvailable,!confirmingQuit,!busy,!pendingReloadCancel,hasLoaded else{return}
+        let required=requiredFileMetadataColumns
+        if required.isSubset(of:fileMetadataColumns) {cancelFileMetadataRead();return}
+        if fileMetadataCancellation != nil,requestedFileMetadataColumns.isSuperset(of:required) {return}
+        cancelFileMetadataRead()
+        let columns=fileMetadataColumns.union(required),paths=entries.filter {$0.state != .ignored}.map(\.path)
+        let token=OperationCancellation(),readID=fileMetadataReadID,epoch=metadataEpoch
+        let repository=self.repository,query=queryFileMetadata
+        fileMetadataCancellation=token;requestedFileMetadataColumns=columns;loadingFileMetadata=true;Self.activeMetadataOperations += 1
+        fileMetadataTask=Task { [self,access] in
+            defer {
+                Self.activeMetadataOperations -= 1;withExtendedLifetime(access){}
+                if fileMetadataCancellation === token {fileMetadataCancellation=nil;fileMetadataTask=nil;requestedFileMetadataColumns=[];loadingFileMetadata=false}
+            }
+            do {
+                try token.check()
+                let values:GitPathMap<StatusListMetadata>
+                if let query {values=try await query(paths,columns,token)}
+                else {values=try await repository.statusListMetadata(paths:paths,columns:columns,cancellation:token)}
+                guard messageFocusAvailable,!confirmingQuit,!busy,!pendingReloadCancel,!token.isCancelled,!Task.isCancelled,
+                      fileMetadataCancellation === token,fileMetadataReadID==readID,metadataEpoch==epoch,
+                      columns.isSuperset(of:requiredFileMetadataColumns) else{return}
+                fileMetadata=values;fileMetadataColumns=columns
+            } catch {
+                if messageFocusAvailable,!confirmingQuit,fileMetadataCancellation === token,!token.isCancelled,!Task.isCancelled,
+                   fileMetadataReadID==readID,metadataEpoch==epoch {self.error=error.localizedDescription}
+            }
+        }
     }
     @discardableResult func saveFileColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
         guard messageFocusAvailable, !inputsBlocked else { return false }
@@ -1812,7 +1871,7 @@ import TurtleGitCore
         let staging = stagingEnabled
         runFileOperation("Moving to changelist…", operation: { [self] token, _ in
             let saved = try await repository.assignChangelist(paths: paths, name: name, cancellation: token)
-            guard isFileOperationLive(token) else { return }; changelists = saved
+            guard isFileOperationLive(token) else { return }; changelists = saved;changelistNameCatalog=saved.nameIdentities
             if name == GitChangelists.ignored {
                 checked.subtract(paths)
                 if staging {
@@ -1971,23 +2030,34 @@ import TurtleGitCore
                     nextEntries=try await readReload(token) {try await queryCommitStatus(compareParent,token)}
                     nextSubmodules=try await readReload(token) {try await repository.submodulePathNames(cancellation:token).map(\.rawValue)}
                 }
-                let nextBranch = try await readReload(token) { try await repository.branch(cancellation:token) }
+                let nextBranch:String
+                if let captured {nextBranch=captured.branch}
+                else {nextBranch=try await readReload(token) {try await repository.branch(cancellation:token)}}
                 let nextReportInEnglish=try await readReload(token) {try await repository.commitFileListReportInEnglish(cancellation:token)}
                 // Commit never displays ignored paths. Avoid resolving/statting
                 // generated build trees just to discard them in visibleEntries.
                 let displayedCandidates = nextEntries.filter { $0.state != .ignored }
-                let nextMetadata = try await readReload(token) { await repository.statusListMetadata(paths:displayedCandidates.map(\.path)) }
-                let nextHasLFS = try await readReload(token) { try await repository.hasLFS(cancellation:token) }
+                let nextMetadataColumns=requiredFileMetadataColumns
+                let supplementary=try await readReload(token) {
+                    if let queryFileListSupplementary {return try await queryFileListSupplementary(displayedCandidates.map(\.path),nextMetadataColumns,token)}
+                    return try await repository.commitFileListSupplementary(paths:displayedCandidates.map(\.path),columns:nextMetadataColumns,cancellation:token)
+                }
+                let nextMetadata=supplementary.metadata
+                let nextHasLFS:Bool
+                if let captured {nextHasLFS=captured.hasLFS}
+                else {nextHasLFS=try await readReload(token) {try await repository.hasLFS(cancellation:token)}}
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
                 let nextSnippets = try await readReload(token) { await snippetLoader.load(userURL:snippetURL) }
-                let nextChangelists = try await readReload(token) { try await repository.changelists(cancellation:token) }
+                let nextChangelists=supplementary.changelists
                 // The Working Tree dialog needs every tracked file; Commit only
                 // needs index flags for its current change rows. Keep this read
                 // inside the same cancellable, atomically published reload.
                 let nextIndexFlags:[WorkingTreeFile]
                 if let captured {nextIndexFlags=captured.indexFlags}
                 else {nextIndexFlags=try await readReload(token) {try await repository.workingTreeIndexFlags(entries:displayedCandidates,cancellation:token)}}
-                let nextConflictRebase = try await readReload(token) { try await repository.conflictIsRebase(cancellation:token) }
+                let nextConflictRebase:Bool
+                if let captured {nextConflictRebase=captured.conflictIsRebase}
+                else {nextConflictRebase=try await readReload(token) {try await repository.conflictIsRebase(cancellation:token)}}
                 let working:[CommitFile],staged:[CommitFile],unstaged:[CommitFile]
                 if let captured {working=captured.working;staged=captured.staged;unstaged=captured.unstaged}
                 else {
@@ -2060,9 +2130,10 @@ import TurtleGitCore
                 amend=nextAmend;amendDiffToLastCommit=nextAmendDiff
                 hasHead=nextHasHead;hasParent=nextHasParent;comparisonBase=nextBase
                 scopePaths=requestedScope;showWholeProject=requestedWholeProject
+                fileMetadataReadID=UUID();fileMetadataColumns=nextMetadataColumns
                 entries=nextEntries;submodules=GitPathSet(nextSubmodules);branch=nextBranch;fileMetadata=nextMetadata
                 fileListReportInEnglish=nextReportInEnglish
-                hasLFS=nextHasLFS;messageSnippets=nextSnippets;changelists=nextChangelists;changelistsLoaded=true
+                hasLFS=nextHasLFS;messageSnippets=nextSnippets;changelists=nextChangelists;changelistNameCatalog=supplementary.changelistNames;changelistsLoaded=true
                 indexFlagFiles=nextIndexFlags;conflictRebase=nextConflictRebase
                 statistics=nextStatistics;stagedStatistics=nextStaged;unstagedStatistics=nextUnstaged
                 stagingStates=nil;stagingStateNeedsRefresh=false
@@ -2392,7 +2463,7 @@ import TurtleGitCore
         messageFocusRequest += 1
     }
     func invalidateMessageFocus() {
-        cancelHistoryIssueUpdate()
+        cancelHistoryIssueUpdate();cancelFileMetadataRead()
         retireFormReceipts();metadataEpoch=UUID()
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
@@ -3523,7 +3594,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             Button("<new changelist>") { model.withFileMenu(menuSnapshot) { model.newChangelist(selected) } }
                             Divider()
                             Button(GitChangelists.ignored) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) } }
-                            let names = model.changelists.nameIdentities.filter { $0.rawValue != GitChangelists.ignored }
+                            let names = model.changelistNameIdentities.filter { $0.rawValue != GitChangelists.ignored }
                             if !names.isEmpty {
                                 Divider()
                                 ForEach(names, id: \.self) { name in Button(name.rawValue) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: name.rawValue) } }.help(changelistNameHelp(name, names: names)).accessibilityLabel(changelistNameHelp(name, names: names)) }

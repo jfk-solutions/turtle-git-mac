@@ -147,14 +147,6 @@ extension GitRepository {
     /// The shared location gate rejects escaping parents; attributes describe
     /// the final symlink itself rather than opening its target.
     public func statusListMetadata(paths: [String]) -> GitPathMap<StatusListMetadata> {
-        var result: GitPathMap<StatusListMetadata> = [:]
-        for path in paths {
-            let location = try? restoreLocation(path)
-            let attributes = location.flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path) }
-            result[path] = StatusListMetadata(modificationDate: attributes?[.modificationDate] as? Date,
-                size: (attributes?[.size] as? NSNumber)?.int64Value,
-                isDirectory: attributes?[.type] as? FileAttributeType == .typeDirectory)
-        }
-        return result
+        (try? StatusListPathRead(root:root).metadata(paths:paths,columns:[.lastModified,.fileSize],cancellation:nil)) ?? [:]
     }
 }

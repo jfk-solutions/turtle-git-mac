@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "6de62e8848529871d5c0c92cf320c8b68d1eace9",
+  "status": "grouped-focused-checkpoint-passed-after-recorded-fixture-and-build-rechecks",
+  "scope": [
+    "Cancellable supplementary Commit metadata and scoped changelist display read, sharing operation-local parent validation.",
+    "Read file attributes only for relevant metadata columns/sorting; retain persistent changelist name catalog.",
+    "Consolidate per-reload repository layout for operation/rebase/LFS checks without newline-ambiguous multi-path protocols.",
+    "Native column changes, cancellation and owner checks preserve atomic publication."
+  ],
+  "source_reference": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "file": "src/Git/GitStatusListCtrl.cpp",
+    "lines": "1063-1078",
+    "behavior": "Last modification date and size collected only when relevant."
+  },
+  "planned_validation": {
+    "core": "CommitDialogReadTests|CommitDialogSupplementaryReadTests|CommitFileListSupplementaryTests|ChangelistTests|StatusListGroupTests|StatusListSortingTests|StatusListClipboardTests|CommitReadCancellationTests; new read tests on actual Git 2.39.5.",
+    "native": "Existing grouped Commit refresh receiver against actual Git 2.39.5 and bundled 2.55.0; hidden/revealed/sorted/reset columns, catalog retention, held cancellation/close (Quit ownership reviewed in source) and existing shared-read checks."
+  },
+  "limits": [
+    "No full startup timing or full port completion claim.",
+    "Signed build19 consolidates earlier committed Finder/image fixes and predates this Commit batch.",
+    "Complete hosted CI, physical Finder and signed Commit acceptance remain separate."
+  ],
+  "implementation_review": [
+    "Peer review of lexical path gates, exact identity, scoped/full changelist semantics, final-symlink lstat and cancellation found no concrete blocker.",
+    "Directory facts remain per candidate for extension copy/ignore even when its column is hidden. Date/size formatting values are request-scoped; no zero-filesystem default Commit claim.",
+    "Two individually framed directory reads preserve literal LF/trailing spaces and linked-worktree isolation; no multi-result newline splitting.",
+    "Native ownership peer review caught catch-variable shadowing before validation; token/read ID/epoch, accepted coverage and active-operation drain review otherwise found no concrete blocker."
+  ],
+  "validation": {
+    "core_initial": {
+      "session": 34915,
+      "exit": 1,
+      "tests": 51,
+      "failures": 1,
+      "seconds": 20.333,
+      "log": "build/qa/commit-supplementary-core-2026-10-27.log",
+      "failure": "New test added 4 rev-parse +1 branch +1 status +3diff +1 ls-files incorrectly as11. Actual10; all other50methods pass."
+    },
+    "core_affected_recheck": {
+      "session": 42961,
+      "exit": 0,
+      "tests": 1,
+      "failures": 0,
+      "log": "build/qa/commit-supplementary-core-count-recheck-2026-10-27.log",
+      "repair": "Correct total10; preserve layout+branch assertions and add explicit status1/diff3/ls-files1 assertions. Production unchanged; only affected method repeated."
+    },
+    "resource_generation": {
+      "session": 43622,
+      "exit": 0,
+      "log": "build/qa/commit-supplementary-resources-2026-10-27.log"
+    },
+    "docs_resources": {
+      "session": 4399,
+      "exit": 0,
+      "log": "build/qa/commit-supplementary-docs-2026-10-27.log"
+    },
+    "app_initial": {
+      "session": 51752,
+      "exit": 0,
+      "accepted": false,
+      "log": "build/qa/commit-supplementary-app-2026-10-27.log",
+      "failure": "35 contradictory Swift compiler messages: command failed with exit code0. Build not accepted despite process success; native not started.",
+      "contradictory_count": 35
+    },
+    "app_incremental_recheck": {
+      "session": 67183,
+      "status": "passed",
+      "log": "build/qa/commit-supplementary-app-incremental-recheck-2026-10-27.log",
+      "reason": "Recheck only actual affected native build; no Core rerun or source change.",
+      "exit": 0,
+      "contradictory_count": 0
+    },
+    "native": {
+      "session": 33925,
+      "status": "failed-new-supplementary-assertion",
+      "log": "build/qa/commit-supplementary-native-2026-10-27.log",
+      "exit": 1,
+      "receiver": 72466,
+      "receiver_reaped": true,
+      "failure": "New native compound assertion line394 after accepted reload. Diagnosis in progress; existing recovery/shared-read cases completed before it.",
+      "diagnosis": "New fixture owner called reload() rather than shipping initial reload(paths:[\".\"]). Initial autoselection resets only for explicit scope; existing behavior correctly left checked empty/canCommit false. Repair fixture initial-owner calls only, retain ordinary refresh calls and all canCommit assertions. No production change."
+    },
+    "native_affected_and_bundled": {
+      "session": 37949,
+      "status": "failed-fixture-extension-expectation",
+      "logs": [
+        "build/qa/commit-supplementary-native-affected-239-2026-10-27.log",
+        "build/qa/commit-supplementary-native-bundled-2026-10-27.log"
+      ],
+      "scope": "Repeat only failed supplementary family on2.39.5; run grouped receiver once on bundled2.55.0, previously unattempted after initialfailure. Existing older2.39.5 cases already passed. No Core/app changes or rechecks.",
+      "exit": 1,
+      "receiver": 73666,
+      "receiver_reaped": true,
+      "diagnosis": "Affected2.39.5 passed initialscope/column backfill assertions then expected txt instead of .txt in clipboard. Existing source fileExtension and passingCoreStatusListClipboardTests require leadingdot. Corrected fixture expectedvalue only, preserved assertion. Bundled engine not yet attempted."
+    },
+    "native_final": {
+      "session": 23276,
+      "status": "passed",
+      "logs": [
+        "build/qa/commit-supplementary-native-affected-239-fixed-extension-2026-10-27.log",
+        "build/qa/commit-supplementary-native-bundled-2026-10-27.log"
+      ],
+      "exit": 0,
+      "engines": [
+        "Git2.39.5 affected supplementary family",
+        "bundledGit2.55.0 complete grouped Commit receiver"
+      ]
+    },
+    "receiver_cleanup": [
+      {
+        "pid": 72466,
+        "log": "build/qa/commit-supplementary-native-2026-10-27.log",
+        "absent": true
+      },
+      {
+        "pid": 73666,
+        "log": "build/qa/commit-supplementary-native-affected-239-2026-10-27.log",
+        "absent": true
+      },
+      {
+        "pid": 73755,
+        "log": "build/qa/commit-supplementary-native-affected-239-fixed-extension-2026-10-27.log",
+        "absent": true
+      },
+      {
+        "pid": 74013,
+        "log": "build/qa/commit-supplementary-native-bundled-2026-10-27.log",
+        "absent": true
+      }
+    ],
+    "core_distinct_methods_passed": 51,
+    "signed_consolidation": "signed-consolidation-build19-2026-10-27.json covers earlier source6de62e88 only; no installed acceptance claimed for this Commit source batch."
+  },
+  "production": [
+    "Sources/TurtleGitCore/Changelists.swift",
+    "Sources/TurtleGitCore/CommitDialogRead.swift",
+    "Sources/TurtleGitCore/CommitFileListSupplementary.swift",
+    "Sources/TurtleGitCore/StatusListGroups.swift",
+    "Sources/TurtleGitMac/CommitWindow.swift"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Changelists.swift": "d97ccdfa27ac35493bb27396e304178c851d7be6e31cd2ea669e4ccd87a0a113",
+    "Sources/TurtleGitCore/CommitDialogRead.swift": "a36e2dc649ccab65575fc2908e9622c731f018a729ae515a46d6ea2675708486",
+    "Sources/TurtleGitCore/CommitFileListSupplementary.swift": "23e43bed91592c020e093df4ee0eb192d93150488e866e36bf31b80b2a976902",
+    "Sources/TurtleGitCore/StatusListGroups.swift": "94070db9c5cf574915c50388e66ab0e3eb95f48eb4a26b3cb49cbc08aaccc22d",
+    "Sources/TurtleGitMac/CommitWindow.swift": "df0984e7687ccd84fdb3e659d42f94062dc9f19e1b8a326bab70679714a976fb",
+    "Tests/TurtleGitCoreTests/CommitDialogSupplementaryReadTests.swift": "1da26f41fad3f5412f9600e8e1491cf0b09f65c6513187c55748339ea1319b08",
+    "Tests/TurtleGitCoreTests/CommitFileListSupplementaryTests.swift": "d8dd45f8fd6345e0d89ae9f21088abbbd127f1a3bf6383d6f84463e0af2455d4",
+    "docs/qa/commit-refresh-native-2026-10-10.swift": "90441c97746d16602ed63337a5f520bd4cf4dc2a2be7387dff89af8133fac3a6"
+  }
+}

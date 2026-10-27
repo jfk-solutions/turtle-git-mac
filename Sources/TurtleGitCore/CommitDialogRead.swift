@@ -4,6 +4,8 @@ import Darwin
 /// One display-read lifetime, never a commit/preflight authority or cross-call cache.
 public struct CommitDialogRead: Sendable {
     public let operation:CommitOperation?
+    public let branch:String
+    public let hasLFS:Bool,conflictIsRebase:Bool
     public let hasHead:Bool,hasParent:Bool
     public let comparisonBase:String?
     public let entries:[StatusEntry]
@@ -13,12 +15,36 @@ public struct CommitDialogRead: Sendable {
 }
 
 public enum CommitDialogReadFailure:LocalizedError {
-    case malformedDiff,malformedIndex
+    case malformedDiff,malformedIndex,malformedRepositoryLayout
     public var errorDescription:String? {
         switch self {
         case .malformedDiff:return "Git returned an invalid Commit difference record. Refresh the file list."
         case .malformedIndex:return "Git returned an invalid Commit index record. Refresh the file list."
+        case .malformedRepositoryLayout:return "Git returned an invalid Commit repository directory. Refresh the file list."
         }
+    }
+}
+
+/// Read-only, operation-local layout. Git resolves separate/linked worktrees and
+/// environment overrides; no .git-file parsing or cross-refresh path cache is
+/// involved. Marker names below are per-worktree even when Git shares objects.
+private struct CommitDisplayRepositoryLayout {
+    let directory:URL,common:URL
+    func operation(cancellation:OperationCancellation?)throws->CommitOperation? {
+        for (name,value) in [("MERGE_HEAD",CommitOperation.merge),("CHERRY_PICK_HEAD",.cherryPick),("REVERT_HEAD",.revert)] {
+            try cancellation?.check()
+            if FileManager.default.fileExists(atPath:directory.appendingPathComponent(name).path) {try cancellation?.check();return value}
+        }
+        try cancellation?.check();return nil
+    }
+    func hasDirectory(_ name:String,under root:URL,cancellation:OperationCancellation?)throws->Bool {
+        try cancellation?.check()
+        var directory:ObjCBool=false
+        let exists=FileManager.default.fileExists(atPath:root.appendingPathComponent(name).path,isDirectory:&directory)
+        try cancellation?.check();return exists && directory.boolValue
+    }
+    func isRebase(cancellation:OperationCancellation?)throws->Bool {
+        try hasDirectory("rebase-merge",under:directory,cancellation:cancellation) || hasDirectory("rebase-apply",under:directory,cancellation:cancellation)
     }
 }
 
@@ -98,7 +124,18 @@ private struct CommitDisplayIndex {
 extension GitRepository {
     public func commitDialogRead(amend:Bool,amendDiffToLastCommit:Bool,cancellation:OperationCancellation? = nil)throws->CommitDialogRead {
         try cancellation?.check()
-        let operation=try commitOperation(cancellation:cancellation)
+        func directory(_ argument:String)throws->URL {
+            var bytes=try run(["rev-parse",argument],cancellation:cancellation).stdout
+            try cancellation?.check()
+            // Remove exactly Git's output LF, not whitespace belonging to the
+            // directory. Separate results avoid ambiguous embedded-LF framing.
+            if bytes.last==10 {bytes.removeLast()}
+            guard !bytes.isEmpty,!bytes.contains(0) else {throw CommitDialogReadFailure.malformedRepositoryLayout}
+            let path=String(decoding:bytes,as:UTF8.self)
+            return path.hasPrefix("/") ? URL(fileURLWithPath:path,isDirectory:true):root.appendingPathComponent(path,isDirectory:true)
+        }
+        let layout=try CommitDisplayRepositoryLayout(directory:directory("--absolute-git-dir"),common:directory("--git-common-dir"))
+        let operation=try layout.operation(cancellation:cancellation)
         func revision(_ value:String)throws->String? {
             let result=try run(["rev-parse","--verify","--quiet",value],successfulExitCodes:0...1,cancellation:cancellation)
             try cancellation?.check()
@@ -126,7 +163,10 @@ extension GitRepository {
         let entries=try commitDialogEntries(current:current,amendToParent:compareParent,indexed:staged,working:working,cancellation:cancellation)
         let inventory=try CommitDisplayIndex(run(["-c","core.precomposeunicode=false","ls-files","--stage","-v","-z"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout,cancellation:cancellation)
         let flags=entries.filter{$0.state != .ignored}.map{WorkingTreeFile(entry:$0,assumeUnchanged:inventory.flags[$0.path]?.0 ?? false,skipWorktree:inventory.flags[$0.path]?.1 ?? false,modificationDate:nil)}
+        let branch=try branch(cancellation:cancellation)
+        let hasLFS=try layout.hasDirectory("lfs",under:layout.common,cancellation:cancellation)
+        let conflictIsRebase=try layout.isRebase(cancellation:cancellation)
         try cancellation?.check()
-        return .init(operation:operation,hasHead:head != nil,hasParent:parent != nil,comparisonBase:base,entries:entries,working:working,staged:staged,unstaged:unstaged,submodules:inventory.submodules,indexFlags:flags)
+        return .init(operation:operation,branch:branch,hasLFS:hasLFS,conflictIsRebase:conflictIsRebase,hasHead:head != nil,hasParent:parent != nil,comparisonBase:base,entries:entries,working:working,staged:staged,unstaged:unstaged,submodules:inventory.submodules,indexFlags:flags)
     }
 }

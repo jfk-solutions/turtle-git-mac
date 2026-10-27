@@ -90,3 +90,38 @@ not establish complete installed Commit startup timing. Signed Finder activity,
 first-launch grants, external hooks/providers and minimum-version/Intel
 acceptance remain separate from this change. No dialog layout or source option
 is removed.
+
+
+## Supplementary file-list read — October 27, 2026
+
+The shared comparison reader did not remove all supplementary work. Commit still
+requested file attributes for every candidate, including when the date and size
+columns were hidden, and revalidated every persisted changelist assignment.
+This read family limits filesystem metadata to the columns used by the list
+and its active sort. Commit still reads per-row directory facts for extension
+copy and ignore actions even when the Extension column is hidden; this does not
+eliminate every per-candidate filesystem call. Revealing a metadata column
+loads its values through an owned supplementary request, without repeating
+status, hooks, provider calls or message seeding. Layout changes reuse an adequate
+in-flight request; hiding an unneeded column, refreshing, closing or quitting
+cancels obsolete requests, and owner/epoch checks reject late results. Hidden
+data is not reused as a mutation witness.
+
+Metadata and changelist display collection share parent containment checks only
+within one synchronous repository read. Every later read and every mutation starts
+with fresh validation. Persisted assignments outside the candidate list retain
+lexical validation and contribute to the changelist menu's full name catalog;
+filesystem containment is checked for displayed assignments. The complete
+changelist read and mutation APIs retain their full validation. Exact Unicode
+spellings remain distinct, and invalid persisted names or paths remain errors.
+
+Repository operation markers, rebase state and LFS presence are captured with
+worktree and common Git directories in the same display lifetime. Each directory
+is read separately so a literal newline in a repository path cannot split a
+multi-path response. Mutation preflight continues to inspect current state.
+
+The [supplementary-read checkpoint](qa/commit-supplementary-read-2026-10-27.json)
+records 51 distinct affected Core methods passing cumulatively and native
+checks on Git 2.39.5 and bundled 2.55.0. It retains the initial fixture failures
+and the contradictory Debug-build diagnostic recheck. This reduces unused work;
+it does not establish a fixed startup time or completion of the whole port.
