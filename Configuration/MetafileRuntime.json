@@ -127,12 +127,30 @@
   },
   "image_effects": {
     "implementation": "Original TurtleGit native pointwise image-effects adaptation",
-    "scope": "EMF+ ColorMatrix, ColorLookupTable and BrightnessContrast serialized bitmap effects before existing image placement/clip/compositing",
+    "scope": "EMF+ ColorMatrix, ColorLookupTable, BrightnessContrast, ColorBalance, HueSaturationLightness, Levels, ColorCurve and Tint serialized bitmap effects before existing image placement/clip/compositing",
     "semantics": [
       "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/bbd49011-1527-46be-8fe6-ccceecfd005f",
-      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9bad3867-71b0-46fb-9b90-f7d8fb37ff76"
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9bad3867-71b0-46fb-9b90-f7d8fb37ff76",
+      "https://learn.microsoft.com/en-us/windows/win32/api/gdipluseffects/ns-gdipluseffects-colorbalanceparams",
+      "https://learn.microsoft.com/en-us/windows/win32/api/gdipluseffects/ns-gdipluseffects-huesaturationlightnessparams",
+      "https://learn.microsoft.com/en-us/windows/win32/api/gdipluseffects/ns-gdipluseffects-levelsparams",
+      "https://learn.microsoft.com/en-us/windows/win32/api/gdipluseffects/ns-gdipluseffects-tintparams"
     ],
     "documentation": "docs/METAFILE-IMAGE-EFFECTS-PARITY.md",
-    "precision": "Brightness/contrast Float32 model differs by at most one channel value in the recorded 81-parameter-pair native Windows grid; not a universal exact-pixel claim."
+    "precision": "Brightness/contrast Float32 model differs by at most one channel value in the recorded 81-parameter-pair native Windows grid; not a universal exact-pixel claim. Tint uses a temporary general procedural model: maximum three associated-channel levels across 35 captured profiles, unchanged alpha; straight low-alpha errors reach85. Exact Tint parity and a universal bound remain unproven.",
+    "curve_lookup": {
+      "source": "Sources/TurtleGitMetafile/Resources/color-curves.bin",
+      "runtime_file": "color-curves.bin",
+      "format": "TGCCLUT1",
+      "table_count": 2336,
+      "table_bytes": 256,
+      "bytes": 598032,
+      "sha256": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+      "native_windows_run": 40503400303,
+      "native_windows_artifact": 12732924607,
+      "archive_sha256": "91c58870b6ad905b5b110863a5582783daa800bc86beb9527eff47d9650bcd12",
+      "domain": "Every integer setting in all eight active curve domains and every 8-bit input, with all four channel masks verified; no sampled-parameter interpolation.",
+      "endpoint_profile": "White saturation0 and black saturation255 bypass effects, matching actual native file replay."
+    }
   }
 }

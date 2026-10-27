@@ -1,0 +1,3554 @@
+{
+  "scope": "Windows captured pointwise ColorBalance and Levels analysis; no renderer tests",
+  "models": {
+    "balance": "per-channel clamp((input*(100+parameter)+50)//100), alpha unchanged",
+    "levels": "gamma=10^(-midtone/100); low=255*shadow/100, high=255*highlight/100. Forward when high>=low: clamp((input-low)/max(1,high-low))^gamma. Inverted when high<low: 1-clamp((input-high)/(low-high))^gamma. Scale255 and half-up round. Both bounds0 => all255.",
+    "draw": "GDI+ input and output normalization: associated=floor((channel*alpha+127)/255), reciprocal=floor((255*65536)/alpha), straight=floor(associated*reciprocal/65536); alpha0 RGB0. Bitmap intrinsic includes input+output association, DrawImage capture includes a second output association."
+  },
+  "cases": [
+    {
+      "name": "balance--75--75--75",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": -75,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 1,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "98735a7e9de379f1323e632e284150bf081b4e0e70f6ebe3c85697404ba75905"
+    },
+    {
+      "name": "balance--75--75-0",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": -75,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 2,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "bb612d8fb2ba95aed1e5c69cb4d08caa7f36ac0a01719f0d6eace3d911cf5f17"
+    },
+    {
+      "name": "balance--75--75-60",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": -75,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "6c4ab464ec95fd3743f8926c278fed74e0a2a4108f41630f41835032dfdd285c"
+    },
+    {
+      "name": "balance--75-0--75",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": 0,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 2,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "227ead3f7bfa2c0f67c40479b83fdb9c8c9ef2f5f989ab5ec3ddf81889d8a268"
+    },
+    {
+      "name": "balance--75-0-0",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": 0,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "69f789e0ede79671e30532e69ab560750a5ad89fb8cb96fb6407cf3dc5011c3b"
+    },
+    {
+      "name": "balance--75-0-60",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": 0,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 5,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "2f331ccc70b6b4a61d0667e95cf94183d893791f02b1198bf8fa0b60fd34c385"
+    },
+    {
+      "name": "balance--75-60--75",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": 60,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "449d0f1e6a51ffd30b829649c7df01675cc394eefe5a88e73be68b797418e52d"
+    },
+    {
+      "name": "balance--75-60-0",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": 60,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "f5deeed9fdabae492a9257b8d3aa7b02d84ffcc17e851e01335bc9685cb43233"
+    },
+    {
+      "name": "balance--75-60-60",
+      "parameters": {
+        "cyanRed": -75,
+        "magentaGreen": 60,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 6,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "75d4b529cec9a36089d043eabd6f977ca173dea7ddbbec37c1087720a3709188"
+    },
+    {
+      "name": "balance-0--75--75",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": -75,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 2,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "c9900782e2cec76c26a768d3d79d790ccf60d305ab0ab789edb7f614864752f0"
+    },
+    {
+      "name": "balance-0--75-0",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": -75,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "b9b3973c4b7776f46f5f151487b2c6d34d4004fa7a8a9d4210fedd14896e9d3f"
+    },
+    {
+      "name": "balance-0--75-60",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": -75,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 5,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "e49d90c568500e93730c0e2628bda67e2573726f9997586536740db582be4750"
+    },
+    {
+      "name": "balance-0-0--75",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 0,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "8603f183a1980d609410391afc88c2456807ea30028a4cd2558680ecc82c5718"
+    },
+    {
+      "name": "balance-0-0-0",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 0,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "f75ac09063764b31f268d0ceba9edd950b814443b9355730032af305888adbc6"
+    },
+    {
+      "name": "balance-0-0-60",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 0,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 6,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "215b9b6d28cf6399c4920833c6ed983fed6c5b04cfedd09471ff83b0d1067720"
+    },
+    {
+      "name": "balance-0-60--75",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 60,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "69ce68b60c6294452c5161327c18a8c1a0b6c1e34240b1e9909479aed7e76a35"
+    },
+    {
+      "name": "balance-0-60-0",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 60,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 5,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "22f672f6ac3d38eb3ab220845b12c4cb43a8671d42d3e5693863ac0e50d838dc"
+    },
+    {
+      "name": "balance-0-60-60",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 60,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 7,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "e36208cbb1b8f31a7a5e4ab07d8c9eb4dd5a4cfbe67c6c4c99b690d14ab5a4fd"
+    },
+    {
+      "name": "balance-60--75--75",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": -75,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "308c8b0f1a014956a87fdc978d45a74f53f0b9cd406a89335edd87cf63095d03"
+    },
+    {
+      "name": "balance-60--75-0",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": -75,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "2651e0f8287f64c0e986cc2ec3a4ed5e8a24b38426bc97309c2e0b34d1cd0e4d"
+    },
+    {
+      "name": "balance-60--75-60",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": -75,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 6,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "23360237a06b5be3701d5217e35098396a240f39e64b34581bbfe1f117e9b14e"
+    },
+    {
+      "name": "balance-60-0--75",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": 0,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "d8d515841d379c99d9e5fb665490f2320167109e964e909ae574b83640b29c0b"
+    },
+    {
+      "name": "balance-60-0-0",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": 0,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 5,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "6ab4af9f50e8859b9fbdc84d0c0b22a29cdf17373dc84119a555408b174b312b"
+    },
+    {
+      "name": "balance-60-0-60",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": 0,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 7,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "9d5cca954b6d761f3dc699eace8a6b6fa1b06278b71b5930e16a137b79206ce0"
+    },
+    {
+      "name": "balance-60-60--75",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": 60,
+        "yellowBlue": -75
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 5,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "79dd9c8966c5cdd4874e484177c3ff5330c127b42070893049ff28578fbf7d0f"
+    },
+    {
+      "name": "balance-60-60-0",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": 60,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 6,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "1adb9aad3b9c79b111da53124070ecab3b9b2b545f8d31ef2b255d6fb747b89e"
+    },
+    {
+      "name": "balance-60-60-60",
+      "parameters": {
+        "cyanRed": 60,
+        "magentaGreen": 60,
+        "yellowBlue": 60
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 8,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "0ada31ab708364892eb339aaebc860022b078639ea1bc294b5a7d50493ea1fd8"
+    },
+    {
+      "name": "balance--100-0-0",
+      "parameters": {
+        "cyanRed": -100,
+        "magentaGreen": 0,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "275f793f7b072fe1f820343215c6db40cbe39f1dd4c70f66d808bea8e44fdbab"
+    },
+    {
+      "name": "balance-100-0-0",
+      "parameters": {
+        "cyanRed": 100,
+        "magentaGreen": 0,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 6,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "04de9f44db144b2f729e5847f28512d30083a8edb38492ea0b0778e90b0dab66"
+    },
+    {
+      "name": "balance-0--100-0",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": -100,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 2,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "e252a6ccd342aecd274041ab88ff9a33c31f4227d7c3eaf7dddcb85d3b248d35"
+    },
+    {
+      "name": "balance-0-100-0",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 100,
+        "yellowBlue": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 6,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "1a10898cd430b343c837c52a39f98c7c571ab7aebd5d9457d37e9ec7ba1f0f8c"
+    },
+    {
+      "name": "balance-0-0--100",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 0,
+        "yellowBlue": -100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "3b63474e561468ed706d3275252073912bce5b8abe11d6631f0b0c57a9544c4b"
+    },
+    {
+      "name": "balance-0-0-100",
+      "parameters": {
+        "cyanRed": 0,
+        "magentaGreen": 0,
+        "yellowBlue": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 7,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "e9d9f2808d92fdf484b1568e201620bd9879b24bde77712c4567a0c66df5def1"
+    },
+    {
+      "name": "levels-0--100-0",
+      "parameters": {
+        "highlight": 0,
+        "midtone": -100,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 18,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "12280b01f34e5699dbe942519ea9a60f0ac4d28d6ea9117225678d2be9b722a4"
+    },
+    {
+      "name": "levels-0--100-50",
+      "parameters": {
+        "highlight": 0,
+        "midtone": -100,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 7,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "b10e6731a8b5bdc72637f77451798e2940cf5003b3e43a28307eec01997d225f"
+    },
+    {
+      "name": "levels-0--100-100",
+      "parameters": {
+        "highlight": 0,
+        "midtone": -100,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 12,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "bed8514d790080cb640977f35cba6f38bcfcc534e2041703a8f0a8fa8054fd47"
+    },
+    {
+      "name": "levels-0-0-0",
+      "parameters": {
+        "highlight": 0,
+        "midtone": 0,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 18,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "17f26c0004aa9715036b0d8b16d4db5f06e366550d3b458f101dcbc96e602d4c"
+    },
+    {
+      "name": "levels-0-0-50",
+      "parameters": {
+        "highlight": 0,
+        "midtone": 0,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "28101dab7a18e6d45c0a2c6ec27bcc47bd4193d2406407f355339f4a891e9bcd"
+    },
+    {
+      "name": "levels-0-0-100",
+      "parameters": {
+        "highlight": 0,
+        "midtone": 0,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 7,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "55c33533b3b6bfcc51289e6e5eb2b9af522944c0d3cc93dd4771dfaad1b40ba9"
+    },
+    {
+      "name": "levels-0-100-0",
+      "parameters": {
+        "highlight": 0,
+        "midtone": 100,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 18,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "1ce103e998cb7a6bb94496fd11bbab3322e91f0540c0c00309505414e9799e55"
+    },
+    {
+      "name": "levels-0-100-50",
+      "parameters": {
+        "highlight": 0,
+        "midtone": 100,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "f2e3e804dea56fef2bae8d957abb8389ed8f90a512c9a510333f652f5936b1f0"
+    },
+    {
+      "name": "levels-0-100-100",
+      "parameters": {
+        "highlight": 0,
+        "midtone": 100,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "4db685cab0a06d2535f9415b87fdc4928f250a5da268e76e8d6f0f6cab22c1c1"
+    },
+    {
+      "name": "levels-50--100-0",
+      "parameters": {
+        "highlight": 50,
+        "midtone": -100,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 10,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "bb61e47e82fd3ccc0599d4f6e427ff0e5186fe2f361a13b65f9b029e85c4453c"
+    },
+    {
+      "name": "levels-50--100-50",
+      "parameters": {
+        "highlight": 50,
+        "midtone": -100,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 8,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "e30a8a3102ac8653e2adfb374907b75485cecddd43c565d43f1e34bf1fdd4418"
+    },
+    {
+      "name": "levels-50--100-100",
+      "parameters": {
+        "highlight": 50,
+        "midtone": -100,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 15,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "c80ebf36a6791b5fb1776bd828407e302e9e20d2e6f5a94095a44dab33e009c2"
+    },
+    {
+      "name": "levels-50-0-0",
+      "parameters": {
+        "highlight": 50,
+        "midtone": 0,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 11,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "1db6f92dfd5ed4353104efc92b0a9da93835d229ef046db06d07fea00422b091"
+    },
+    {
+      "name": "levels-50-0-50",
+      "parameters": {
+        "highlight": 50,
+        "midtone": 0,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 8,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "ee913bb3b308286ff06be467a50f5adc5024579d33b3de7c210f654b3683d502"
+    },
+    {
+      "name": "levels-50-0-100",
+      "parameters": {
+        "highlight": 50,
+        "midtone": 0,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 10,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "b9c5a68e10fd4fc4adb4a527bf851d0b3ce19ceaad377fa479b0b1e58899b0be"
+    },
+    {
+      "name": "levels-50-100-0",
+      "parameters": {
+        "highlight": 50,
+        "midtone": 100,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 13,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "3596d8e729bbd1d820e783c335340eae09795fb1cc197d89f9f8463d3fa34b48"
+    },
+    {
+      "name": "levels-50-100-50",
+      "parameters": {
+        "highlight": 50,
+        "midtone": 100,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 8,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "5062166bb55d08fa252c40b57195a03bcbe6018ec46cc6c5548f1c6a68dbb4c1"
+    },
+    {
+      "name": "levels-50-100-100",
+      "parameters": {
+        "highlight": 50,
+        "midtone": 100,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 10,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "692858ee696baf038eb0ebf0f4a3dc5c5608c9a6eef4f1e116ed70316ba6aeb5"
+    },
+    {
+      "name": "levels-100--100-0",
+      "parameters": {
+        "highlight": 100,
+        "midtone": -100,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "be80deefbfc0642c6e5b6977ea031bdeb2c1c6a4aa2cba4a1428ac0a9f668d2e"
+    },
+    {
+      "name": "levels-100--100-50",
+      "parameters": {
+        "highlight": 100,
+        "midtone": -100,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 3,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "b0f1c77bd33f1560c0b962f8450802b62a2e0cd46af2b7764a8325945bd6bb18"
+    },
+    {
+      "name": "levels-100--100-100",
+      "parameters": {
+        "highlight": 100,
+        "midtone": -100,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "502d061bc20135b3b7f601ce7797eb56656401075d54b0a72e412f1242171141"
+    },
+    {
+      "name": "levels-100-0-0",
+      "parameters": {
+        "highlight": 100,
+        "midtone": 0,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "303c3f4eed72f8d76b7fedeb5b534e35a4dae4c2601ffa86376725503862984e"
+    },
+    {
+      "name": "levels-100-0-50",
+      "parameters": {
+        "highlight": 100,
+        "midtone": 0,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 4,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "b62ed0834a9a4c01ebef8298448efcb486f07baabb8bd610192df3926e9fa830"
+    },
+    {
+      "name": "levels-100-0-100",
+      "parameters": {
+        "highlight": 100,
+        "midtone": 0,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "e73940dc8aff4a42d219b2e7c1e6321688e2845e3559517dfab844b802c48a95"
+    },
+    {
+      "name": "levels-100-100-0",
+      "parameters": {
+        "highlight": 100,
+        "midtone": 100,
+        "shadow": 0
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 12,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "aadd1a991bff3921b194c6ad99beeecc945ce054e24888dd806beb5971f38546"
+    },
+    {
+      "name": "levels-100-100-50",
+      "parameters": {
+        "highlight": 100,
+        "midtone": 100,
+        "shadow": 50
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 1,
+        "differentBytes": 7,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "f17e8405de43a55cc14ad13643914131e0080049f49ec161bd9df0cf2ba43f07"
+    },
+    {
+      "name": "levels-100-100-100",
+      "parameters": {
+        "highlight": 100,
+        "midtone": 100,
+        "shadow": 100
+      },
+      "direct": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "directV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "auxBGRA": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "auxBGRAV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 1024
+      },
+      "drawOpaque": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 3940
+      },
+      "drawAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawAfterSecondAssociation": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicAll": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "intrinsicV1": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "drawV1MatchesV2": {
+        "maxError": 0,
+        "differentBytes": 0,
+        "bytes": 4096
+      },
+      "inputSHA256": "4600312cf7bc73977bf68850dd43eb6e6c4b51f681e3f2d4d1338ce98a18cf24"
+    }
+  ],
+  "limits": [
+    "Models established on captured parameter grid; not proof of all SDK integer combinations.",
+    "Native GDI+ versions and exact numeric intermediates are not inferred from equal outputs."
+  ]
+}

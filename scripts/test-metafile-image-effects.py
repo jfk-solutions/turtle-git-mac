@@ -52,7 +52,11 @@ def retire_owned_helpers(context, approved):
     return cleanup_needed
 
 
-CASES = {'image-effects': ('metafile-image-effects-native-2026-10-27.swift', 'MetafileImageEffectsVerification')}
+CASES = {
+    'image-effects': ('metafile-image-effects-native-2026-10-27.swift', 'MetafileImageEffectsVerification'),
+    'pointwise-effects': ('metafile-pointwise-effects-native-2026-10-27.swift', 'MetafilePointwiseEffectsVerification'),
+}
+CORPORA = {'image-effects': 'ImageEffects', 'pointwise-effects': 'PointwiseEffects'}
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
@@ -71,7 +75,7 @@ for filename in dict.fromkeys(filename for filename, _ in CASES.values()):
     if not path.is_file() or path.read_text() != contents:
         path.write_text(contents)
     fixtures.append(path)
-dispatch = 'case "image-effects": try await MetafileImageEffectsVerification.verify()'
+dispatch = '\n'.join('case ' + json.dumps(case) + ': try await ' + owner + '.verify()' for case, (_, owner) in CASES.items())
 main = generated/'MetafileWorkflowMain.swift'
 main_contents = '''import AppKit
 import ObjectiveC
@@ -115,7 +119,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             private_home=directory/'home';private_home.mkdir(mode=0o700)
             environment.update(HOME=str(private_home), CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile/ImageEffects'))
+            command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'/CORPORA[case]))
             environment.pop('TURTLEGIT_DRAWING_STATE_CAPTURES', None)
             if args.capture_dir and case == 'drawing-state' and index == 0:
                 args.capture_dir.resolve().mkdir(parents=True, exist_ok=True)
@@ -127,13 +131,13 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
                                       timeout_sample=directory/'timeout.sample.txt')
                 print(result.stdout, end=''); print(result.stderr, end='')
                 completed=result.returncode==0 and 'PASS: metafile workflow completed' in result.stdout
-                if case=='image-effects':
+                if case in CASES:
                     results.append(dict(case=case,git=str(git.absolute()),returncode=result.returncode,passed=completed))
                     (root/'build/qa/metafile-image-effects-native-results.json').write_text(json.dumps(results,indent=2)+'\n')
                 result.check_returncode()
                 if not completed:raise SystemExit('Metafile receiver exited before completion: '+case)
             finally:
-                if case=='image-effects':
+                if case in CASES:
                     sample=directory/'timeout.sample.txt'
                     if sample.is_file():shutil.copyfile(sample,root/('build/qa/metafile-image-effects-'+str(index)+'.sample.txt'))
                     approved={str(git.resolve())}

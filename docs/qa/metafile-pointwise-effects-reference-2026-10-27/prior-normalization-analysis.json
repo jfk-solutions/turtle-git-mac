@@ -1,0 +1,33 @@
+{
+  "scope": "Analytic source model against original native captured state-seed first matrix and LUT bands; no app/renderer execution. Includes measured half-up matrix formula; source normalization and both output associations are explicit.",
+  "results": [
+    {
+      "effect": "matrix",
+      "sourceNormalization": "integerExact",
+      "maxError": 3,
+      "differentBytes": 47,
+      "pixels": 1024
+    },
+    {
+      "effect": "matrix",
+      "sourceNormalization": "fixed16.16",
+      "maxError": 0,
+      "differentBytes": 0,
+      "pixels": 1024
+    },
+    {
+      "effect": "lut",
+      "sourceNormalization": "integerExact",
+      "maxError": 3,
+      "differentBytes": 17,
+      "pixels": 1024
+    },
+    {
+      "effect": "lut",
+      "sourceNormalization": "fixed16.16",
+      "maxError": 0,
+      "differentBytes": 0,
+      "pixels": 1024
+    }
+  ]
+}

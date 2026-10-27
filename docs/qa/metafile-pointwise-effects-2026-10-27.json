@@ -1,0 +1,250 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "18fa1c1a8664036cc38613963dc114e7f13fd2ac",
+  "status": "implemented-and-focused-checkpoint-passed-with-explicit-Tint-precision-gap",
+  "scope": [
+    "ColorBalance, HueSaturationLightness, Levels, all8ColorCurve modes/all4channels, Tint.",
+    "Strictserializedpacketvalidation and existing pending-effect lifetime/owner/workbudgets.",
+    "Typednativepointwiseadapter, originalsourceimmutability, existingmatrix/LUT/brightnessregressionpreservation.",
+    "IndependentWindowsdirectandactualBitmap(file,FALSE)record/replayobservations before numericmodel acceptance.",
+    "Full32x32RGBACoreoracles for288originals, reservedflagspositives, malformedwholeconversionrefusals; connectedIDiff/comparison/conflictworkflowafterimplementation."
+  ],
+  "reference": {
+    "source_commit": "f321b4aa31b291e35d155d8b12183eb9f3a20353",
+    "run": 40500526988,
+    "job": 122176767634,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40500526988",
+    "status": "completed",
+    "compile": "passed",
+    "record_direct_replay_step": "passed",
+    "meaning": "NativeWindowsobservationonly; notmacOSapplicationvalidation.",
+    "conclusion": "success",
+    "artifact": 12732476915,
+    "artifact_sha256": "8619d457355e96f3c51f52f49750673442be5b2a8a5d94e7e2e68e8ea686423b",
+    "members": 4143,
+    "successful_sdk_profiles": 280,
+    "sdk_refused_profiles": 8,
+    "correction": "Initial no-error-field inspection did not establish success: eight SDK SetParameters2 profiles had no source EMF, so their BitmapLoad2 only proved missing files. Correctly identified derived wires were measured separately."
+  },
+  "implementation_sources": [
+    "patches/metafile-renderer.patch",
+    "Sources/TurtleGitMetafile/main.swift"
+  ],
+  "planned_validation": {
+    "checkpoint": "Only after fiveeffectnumericmodels and nativeworkflowfixtures complete; build universalhelper once, focusedCorefamily+affectedpreviousimageeffectclasses, Debugapp+groupedoffscreenworkflowreceiver.",
+    "no_timing_tests": true,
+    "core": "New MetafilePointwiseEffectsTests + affected prior MetafileImageEffectsTests and MetafileImageTests; no fullCore rerun.",
+    "native": "One groupedexistingrendererreceiver: image-effects andpointwise-effects withAppleGit2.54/bundled2.55; deliberatephysicalacceptance/signingremainseparate.",
+    "repair_scope": "Shared ordinary bitmap preparation newly affects compressed/raw/high-depth paths: affected focused recheck17originalmethods +6MetafileHighDepthBitmapTests +2ordinaryraw/compressedplacement=25; not fullCore."
+  },
+  "limits": [
+    "No acceptedunimplemented effect class will be shipped.",
+    "Modeltolerance must follow actualobservations; parameterdocumentation alone is not byteparity.",
+    "Separate spatial effects, embeddedmetafile-image effects, completeprofile coverage and physical/signedacceptance remain outside this pointwisefamily.",
+    "Installedbuild19 predates thisbatch."
+  ],
+  "reference_followups": [
+    {
+      "run": 40501451708,
+      "source_commit": "eaf3e963cd8ceba869604c73c3b03b5b031812fe",
+      "status": "failure",
+      "reason": "Derived helper initially matched documented Curve GUID rather than actual native-recorded LUT GUID. Root committed before inspecting local preview failure; repaired generator and previewed successfully before next push. No application validation was attempted."
+    },
+    {
+      "run": 40502115968,
+      "source_commit": "0a287149cc0262589680376ba91e16e7d97f4a0b",
+      "status": "success",
+      "artifact": 12732384302,
+      "artifact_sha256": "88d5f5f5813cc2bb215c783520801a2e3803cc6172026a453b93858c0f82a7cf",
+      "members": 4375,
+      "scope": "Reuse initial native capture; preserve152 native bad-GUID wires, derive160 normative Curve wires including8SDK-refused endpoints; all160 v1/v2 load/draw0. Endpoints paintplain."
+    },
+    {
+      "run": 40503400303,
+      "source_commit": "c13112c1e82a12901f724bd9187154bf527b29b5",
+      "status": "success",
+      "artifact": 12732924607,
+      "artifact_sha256": "91c58870b6ad905b5b110863a5582783daa800bc86beb9527eff47d9650bcd12",
+      "members": 4413,
+      "scope": "Reuse normative wire capture; exhaustive2336curveintensities\u00d74masks\u00d7256inputvalues understartup1/2, everyauxrouting/actualpixelstatus zero;3pendingstatewitnesses native v1/v2."
+    }
+  ],
+  "curve_resource": {
+    "path": "Sources/TurtleGitMetafile/Resources/color-curves.bin",
+    "bytes": 598032,
+    "sha256": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+    "format": "TGCCLUT1",
+    "tables": 2336,
+    "bytes_per_table": 256,
+    "startup_versions_byte_identical": true
+  },
+  "implementation_review": [
+    "Retain separate SDKdirecteffect versus actualBitmapfileplayback facts; originalCurve serialization is a measuredignored compatibilityprofile, notan activealias.",
+    "OnlyoneEMF+bodycomment is replaced in derivedfixtures; originalheader/EOFcomments andallnativeouterGDI fallbackrecords/order retained. Localpreview exposed overlystrictEMF+onlyouterguard before domainreferencecommit.",
+    "Resourcebuildercache/correspondingsource/validator/loaderpeerreview matchedheaders/hash/size; top-levelresourcehashes now alsojoincorrespondingsource hashes.",
+    "Knownfixed16.16 reciprocal unassociation replaces previousintegerapproximation, with priorrecordedmatrix/LUTalpha bands analytically exact.",
+    "Allnumericapplicationchecks remain deferreduntilTint+completeadapter+nativefixturefreeze.",
+    "First focused app checks expose ordinary fallback normalization rather than active-effect arithmetic. Independent native ordinary y0/rectangle y8 bands fit two N operations, ignored serialized fallback with E fits three; Eclear consumes marker and uses ordinary two. Repair retains pending fallback state without applying Curve and uses distinct per-conversion caches."
+  ],
+  "numeric_analysis": {
+    "balance-levels-analysis.json": {
+      "path": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/balance-levels-analysis.json",
+      "sha256": "31c90baccc0423c54cf23143a0f5e22d280f648a71ac38095d7e259b887a6fe3"
+    },
+    "prior-normalization-analysis.json": {
+      "path": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/prior-normalization-analysis.json",
+      "sha256": "717b25e4bcea922650f9d2b1ba5f32a80afe4b82bb3c946bcf094bbb1d706f0d"
+    },
+    "hsl": {
+      "script": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/analyze-hsl.py",
+      "report": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/hsl-model-2026-10-27.json",
+      "scope": "All33sampledparameters directstartup1/2, allauxbytes, intrinsicfileandfinaldraw fullRGBA; exactzerochannelerrors withgeneralintegerHSLmodel andmeasuredfixedassociation.",
+      "sha256": "623bc027b5f159cc7c6d7a405b202f2461ff73377f574cf99613ebec36c22ce3"
+    },
+    "tint": {
+      "script": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/analyze-tint-model.py",
+      "report": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/tint-model-2026-10-27.json",
+      "sha256": "ea7f3bcf7445ef5cd039364f7d87678abe6fc566c7dd6c5de16bb7326e7f8e27",
+      "scope": "Temporary general luma_max procedural approximation, no fitted coefficient set or per-parameter lookup. All35 captured profiles: associated maximum3, straight low-alpha maximum85, alpha unchanged. Exact Tint parity remains open; no universal parameter bound claimed."
+    }
+  },
+  "fixtures": {
+    "folder": "Tests/TurtleGitCoreTests/Fixtures/Metafile/PointwiseEffects",
+    "normative": 288,
+    "native_recorded_ignored_curve": 152,
+    "states": 3,
+    "reserved_flags_positive": 5,
+    "refusals": 62,
+    "positive_full_rgba": 443,
+    "reference_sha256": "5d09c0f043d2addfccda8c22a473e8d7cd09403f80058b60c2ac566126cf2e73",
+    "tolerance": "Every1024pixel/RGBA asserted: Tint-only associated <=3 following independent native model analysis before any app check; allotherfamilies <=1. Original Windows buffers unchanged.",
+    "generator_sha256": "12922a59dd98128d0c138290c7bf69fce6c2b76fe93b3368c0f94767da31b300"
+  },
+  "validation_attempts": [
+    {
+      "check": "Debug app build",
+      "session": 61723,
+      "exit": 65,
+      "log": "build/qa/metafile-pointwise-app-build-2026-10-27.log",
+      "failure": "Root started dependent app build before helper build6856 finished; embedding correctly refused old provenance.pin versus new configuration. Wait for helper completion before affected app rebuild; no application tests attempted."
+    },
+    {
+      "check": "Universal arm64/x86_64 helper build and structure validation",
+      "session": 6856,
+      "exit": 0,
+      "log": "build/qa/metafile-pointwise-runtime-build-2026-10-27.log",
+      "cache_key": "febfe37c60d908c1928645fe39654c3fde9d3e8582843739d2310811e39fa196",
+      "binary_sha256": "4a48d34b03ebaa9a274dd635bbbfd66b45611c72d2fcdf06bd7b40287953e166",
+      "renderer_sha256": "8a61a1a991bd35c8e92e4beb5116827a9a6da3fa3b1ff0ffe6cac5450b0a142b",
+      "resource_sha256": {
+        "color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+        "color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609"
+      }
+    },
+    {
+      "check": "Focused Core17methods",
+      "session": 67436,
+      "exit": 1,
+      "log": "build/qa/metafile-pointwise-core-2026-10-27.log",
+      "passed_methods": 14,
+      "failed_methods": 3,
+      "assertions": 162,
+      "failure": "Only ordinary Curve endpoint/ignored-record/state playback differs at alpha254 (up to3 associated values); active effects including allproperinteriorCurve/Tint and old8checks pass. Repair ordinary playback fixed-point alpha normalization; preserve original oracle/tolerances."
+    },
+    {
+      "check": "Debug app build after helper completion",
+      "session": 21520,
+      "exit": 0,
+      "compiler_failure_diagnostics": 0,
+      "log": "build/qa/metafile-pointwise-app-build-recheck-2026-10-27.log",
+      "meaning": "App compiles/embeds initial frozenhelper. Core exposed ordinary alpha boundary repair; final helper embedding still required.",
+      "nonfatal_environment_warning": "CoreSimulator out-of-date warning; macOS destination build/embedding exits0. No compiler failure/failedexit0 diagnostics."
+    },
+    {
+      "check": "Affected universal helper rebuild after ordinary/fallback normalization repair",
+      "session": 79674,
+      "exit": 0,
+      "log": "build/qa/metafile-pointwise-runtime-repair-2026-10-27.log",
+      "cache_key": "000ca917380b234ee6a9983f23e26b3699d4218e605801c19b787df4fc29562b",
+      "binary_sha256": "d7925576955eb086cc73d2dbe03a93bd8c56420d24537bfda0aa532d5b4b6652",
+      "renderer_sha256": "7b06a78d40fb14114c956e6a82f9794692e52acf74536b8a8ce06e77b54f8d2d"
+    },
+    {
+      "check": "Affected focusedCore after measured ordinary/fallback preparation repair",
+      "session": 29116,
+      "exit": 0,
+      "log": "build/qa/metafile-pointwise-core-repair-2026-10-27.log",
+      "methods": 25,
+      "failures": 0,
+      "seconds": 48.251,
+      "scope": "9newpointwise +4earlierimageeffect +6highdepth +6ordinaryplacement/refusal methods; full WindowsRGBA asserted for all443positivecaptures plusreservedderived; originalwire/rawpixeloracles preserved. Sharedordinarypreparation change justified affected existinghighdepth/compressedchecks."
+    },
+    {
+      "check": "FinalDebugapp build with repairedhelper and regeneratedHelp",
+      "session": 80393,
+      "exit": 0,
+      "compiler_failure_diagnostics": 0,
+      "log": "build/qa/metafile-pointwise-app-final-2026-10-27.log",
+      "runtime_embedding": "Verified corresponding sources/resourceSHA/universalslices/systemlinkage; finalruntime receipt recorded.",
+      "help_documents": 60,
+      "help_topics": 51,
+      "help_files": 92
+    },
+    {
+      "check": "Grouped offscreen native image-effects and pointwise-effects workflows",
+      "session": 48569,
+      "exit": 0,
+      "log": "build/qa/metafile-pointwise-native-2026-10-27.log",
+      "log_sha256": "016f2e8a425a8d7aaef30dc291d78e4622046a4c2cf5147c6a74324b757db63c",
+      "engines": [
+        "git2.54.0 AppleGit157",
+        "bundledGit2.55.0"
+      ],
+      "results": [
+        {
+          "case": "image-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "image-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pointwise-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pointwise-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "receivers_reaped_and_independently_absent": [
+        88111,
+        88265,
+        88411,
+        88572
+      ],
+      "scope": "Earlier3effect family and new5effects through explicit/automaticIDiff,8ordinarycurveendpoints,ignoredrecordedcurve,3nativependingstates,5late-invalidrefusals,heldhelperclose/Quitfence,actual3paneGitbinaryconflictpreviewandoriginalEMFbyte-resolution withHEAD/mergemetadatapreserved. NativeRGB budgetTint3/others1, alpha1.",
+      "physical_or_signed_acceptance": false
+    }
+  ],
+  "resource_checks": {
+    "localizations": "38languages/1324keys checkpassed; noappcaptionchanges",
+    "help": "60documents/51topics/92files regeneratedbeforefinalappbuild andcheckpassed",
+    "dialog_coverage": "130resources,120partialfamilyaudits/10pending/85pendingcontrols/0certified; notcompletionpercentage",
+    "protected_user_work": "scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift hashes unchanged and excludedfromcommit"
+  },
+  "remaining_behavior": [
+    "ExactTint numericalparity: temporary generalproceduralmodel observedmax3associatedRGB across35profiles, unchangedalpha; straightlowalphaerrorsupto85; notuniversalbound.",
+    "Other spatial bitmap effects, embeddedmetafile-image effects, independentrectangleinterposition, completecolorprofile coverage.",
+    "FullhostedCI, signedconsolidation/physicalacceptance ofthisbatch and completeapplication/dialogparity remainunproven. Installedbuild19 predates thisbatch and18faCommitperformancebatch."
+  ]
+}

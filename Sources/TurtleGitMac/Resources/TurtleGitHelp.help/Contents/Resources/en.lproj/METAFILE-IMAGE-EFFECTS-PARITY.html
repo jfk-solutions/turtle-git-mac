@@ -61,9 +61,13 @@ retains its existing opaque-white initial canvas outside command coverage. The
 Windows reference uses transparent initialization, so fixture expectations adapt
 only unpainted pixels; every painted pixel retains the native alpha assertion,
 including fully transparent lookup-table output.</p>
+<p>The <a href="METAFILE-POINTWISE-EFFECTS-PARITY.html">supplementary pointwise family</a> adds
+ColorBalance, HueSaturationLightness, Levels, ColorCurve and Tint, including
+measured ordinary-image compatibility for native Curve serialization.</p>
 <p>Independent rectangle-record interposition, effects on embedded metafile image
-objects, other serialized effect classes, every color profile/decoder layout,
+objects, spatial serialized effect classes, every color profile/decoder layout,
 physical image-window acceptance and signed distribution remain separate. The
-installed build18 predates this source batch. A green Windows reference run proves
+installed build19 includes this earlier three-effect source batch; it predates
+the supplementary five-effect source batch. A green Windows reference run proves
 the reference assay, not that the new macOS decoder or whole port has passed.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

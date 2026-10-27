@@ -1,0 +1,87 @@
+{
+  "format": "TGCCLUT1: eight ASCII bytes, little-endian UInt32 table count and byte width, then native channel tables",
+  "table_count": 2336,
+  "table_bytes": 256,
+  "bytes": 598032,
+  "sha256": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+  "domains": [
+    {
+      "adjustment": 0,
+      "minimum": -255,
+      "maximum": 255
+    },
+    {
+      "adjustment": 1,
+      "minimum": -255,
+      "maximum": 255
+    },
+    {
+      "adjustment": 2,
+      "minimum": -100,
+      "maximum": 100
+    },
+    {
+      "adjustment": 3,
+      "minimum": -100,
+      "maximum": 100
+    },
+    {
+      "adjustment": 4,
+      "minimum": -100,
+      "maximum": 100
+    },
+    {
+      "adjustment": 5,
+      "minimum": -100,
+      "maximum": 100
+    },
+    {
+      "adjustment": 6,
+      "minimum": 1,
+      "maximum": 255
+    },
+    {
+      "adjustment": 7,
+      "minimum": 0,
+      "maximum": 254
+    }
+  ],
+  "native_windows_run": 40503400303,
+  "native_windows_artifact": 12732924607,
+  "archive_sha256": "91c58870b6ad905b5b110863a5582783daa800bc86beb9527eff47d9650bcd12",
+  "native_startup_versions_identical": [
+    1,
+    2
+  ],
+  "raw_native_bytes_sha256": "6a1a7eba86247204a0f29961b6ac40136149878cc9299372d665e17fd9fccbf0",
+  "native_capture_source_commit": "c13112c1e82a12901f724bd9187154bf527b29b5",
+  "native_capture_sources": [
+    {
+      "file": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp",
+      "git_lf_sha256": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+      "native_checkout_sha256": "db1b3e80ebb18e9a44fa82ea6d553b9c687c8a7dc71d66333cf74779376cef94",
+      "native_checkout_line_endings": "CRLF"
+    },
+    {
+      "file": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp",
+      "git_lf_sha256": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984",
+      "native_checkout_sha256": "5403a9dde05ceb7de37b80afa7984cde18f091ee9231183ba79f56ab020e8089",
+      "native_checkout_line_endings": "CRLF"
+    },
+    {
+      "file": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/make-endpoint-variants.py",
+      "git_lf_sha256": "91a5265b2343aa004b3564cabb644746d69298da710df33ae2f8c6b5959237fe",
+      "native_checkout_sha256": "c19d9b9419108586f1ff532762594e08944522698120e921f7a83bf927d28843",
+      "native_checkout_line_endings": "CRLF"
+    },
+    {
+      "file": ".github/workflows/metafile-pointwise-effects-curve-domain-reference.yml",
+      "git_lf_sha256": "75c69cdafc276ed1ff9e776f4e46a3987a7e8f4020d9445e20869b37b5eacf91",
+      "native_checkout_sha256": "cd8af1e3869965b04cf27e5ae789566f7c6ea75f3655c2581a7fed847af49922",
+      "native_checkout_line_endings": "CRLF"
+    }
+  ],
+  "proof": "Every integer intensity in all eight valid domains; every input byte; all four channel masks, auxiliary routing and actual native pixels checked. No interpolation or captured-parameter subset.",
+  "excluded_wire_endpoints": "White saturation 0 and black saturation 255 are SDK-refused but paint the ordinary image through Bitmap(file,FALSE), measured separately.",
+  "source": "Original TurtleGit Windows SDK observation; no third-party implementation code copied."
+}

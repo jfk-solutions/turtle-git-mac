@@ -1,0 +1,3399 @@
+{
+  "inputSHA256": {
+    "atlas.rgba": "120fec8747b185dd60209395c0f22ebe10e3a2f462e318964ff8a98b0aa834ee",
+    "direct-v1-hsl--120--75--75.lut": "af72e137566126eb66a87d4a9a176ae890c8cc6f413b1f5b294ed9ff75f239a5",
+    "direct-v1-hsl--120--75--75.rgba": "f8239fe59504591cc6133010b1659210e64f233f161f1b536ffcca7860f7c8cc",
+    "direct-v1-hsl--120--75-0.lut": "5e24665219e8c81bdee03bc1a07a2750b49e8e20ce1914702ada8b8e005586a8",
+    "direct-v1-hsl--120--75-0.rgba": "eb9666c0eaab4eec763edbeeb38538ac14dfb370b583323ef9d22b083d8d8321",
+    "direct-v1-hsl--120--75-60.lut": "e8315dd80d665d96d1132fa8476c0af4a26389efe774edaf9d2befff9a482880",
+    "direct-v1-hsl--120--75-60.rgba": "3862d7860bd38af5d63782a059cdfa92fcf273a325864a0e042070c030527cea",
+    "direct-v1-hsl--120-0--75.lut": "137c7f668cabb03697aff7ab46e240dbe93ee50f4dcefda2d003153e7a28f88e",
+    "direct-v1-hsl--120-0--75.rgba": "01e955b69b6f28744eb944ff3a20be4bae059f5c162f36174aaf33e47edd00b7",
+    "direct-v1-hsl--120-0-0.lut": "c65d8c3f18fdb4da2a2b0b4e06186c4463edf6677e76d72f8750a865bb31110c",
+    "direct-v1-hsl--120-0-0.rgba": "ce1a353136adcce8c5f648d03a2990e52548fcf82763122f8e780ef643a642b2",
+    "direct-v1-hsl--120-0-60.lut": "e3ba512d56df861849b8183111f0fd8d57a3a5d17a24d679c94bb5c03ef21a3f",
+    "direct-v1-hsl--120-0-60.rgba": "c9460d35661bb2ed13d9fe9dcb2c093d2087b6dd4440afc0c489e6047100ed1d",
+    "direct-v1-hsl--120-60--75.lut": "1c257bfc75fbb800584f107773b8c1ccfeefcbbb6fa7556775f35ea25e273d66",
+    "direct-v1-hsl--120-60--75.rgba": "c636526f14d1e1ca3a5993c2f71f62b3b74a839f3d459d108f9de77804492e34",
+    "direct-v1-hsl--120-60-0.lut": "6d6008e25d5b70fa838fda9108ebf41b0fa17507957d3c1e9a58761291211239",
+    "direct-v1-hsl--120-60-0.rgba": "e74254b8647c34d73fef12b348883288003f9032f01a61c3c48e4ae1dad22de8",
+    "direct-v1-hsl--120-60-60.lut": "273bccca1adcdfa0aa63be919a959287e934e8c686066afff0b0aee3eaaa49df",
+    "direct-v1-hsl--120-60-60.rgba": "1aa15b2a4fbf006988a7df82bf6f704e5e522fdfbbb985a57e1250519f1e0b47",
+    "direct-v1-hsl--180-0-0.lut": "15a2c4a7bcf064e311e14a408d6dd834f3b1fb97e247f5343f9c229c825d9c02",
+    "direct-v1-hsl--180-0-0.rgba": "593d36180e35d1624cc02f467e2805f3fd48da9238632412ef1759756ad8fa75",
+    "direct-v1-hsl-0--100-0.lut": "54f12ad454033148baca523962955b83130ea42639705b8a18abf92b30009c2a",
+    "direct-v1-hsl-0--100-0.rgba": "acb76040786ad6c12949424b753d7d3b9b5c73c67bbae9911c8f771f38362926",
+    "direct-v1-hsl-0--75--75.lut": "a87ecd5147f24ae402df636fdfe9b74bce0c07ac48ef4ee06ad0ea501a5661a3",
+    "direct-v1-hsl-0--75--75.rgba": "a56b12f885dc850ca76a2607e4dc0a0838e98708a7591865754457887eac7679",
+    "direct-v1-hsl-0--75-0.lut": "313f0aa18dda6061ff68c1c730d9363875eb0ffc2f6ac8a0c408acaa4f051308",
+    "direct-v1-hsl-0--75-0.rgba": "8cb1b5adedbf9487f06107825c72b566b0130c3b2073e136b8990f46438865a3",
+    "direct-v1-hsl-0--75-60.lut": "4b215f14acf4ec7b00e67c7d853783c2ad19ef8e0f810dc791ad9a3af5b9f9cc",
+    "direct-v1-hsl-0--75-60.rgba": "68578e38e5a720a59692ea7cd4acbddb1e0189fd0e0d59075b0a2a3a57235b45",
+    "direct-v1-hsl-0-0--100.lut": "aafab96b7706c0ba0bcbab9e437cc87b4ef8ee2b83e2b4cf7f1a3c4a8942d9ff",
+    "direct-v1-hsl-0-0--100.rgba": "ae344d269e534a579f0b5c559a7dfa44892525bd95172e2b4b1d794296bae3d5",
+    "direct-v1-hsl-0-0--75.lut": "a7b1606a188075cb2f97de0d0aac5bf2fe1c7e2ad9650661c01ae8297656d035",
+    "direct-v1-hsl-0-0--75.rgba": "5eaea698ca598e951fb70e9e876ddd20ec96261a4ce3cc73864a195683df6a64",
+    "direct-v1-hsl-0-0-0.lut": "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9",
+    "direct-v1-hsl-0-0-0.rgba": "54c2f1eab7a876699d85411d8170a02d6f6b20c4285982a166a697b44b541f0a",
+    "direct-v1-hsl-0-0-100.lut": "bde8eb55aaa4e1bfff804a4f33a1c7a78a1864d98e432430895957ce048b2605",
+    "direct-v1-hsl-0-0-100.rgba": "c08531c144a19bdb1b49ee43693e96fc728bab9b26b31ab61194fd21e072fd3c",
+    "direct-v1-hsl-0-0-60.lut": "64c583a67492d53975c35371c430a998481247d175d9a8dd42eaf6ea683322e0",
+    "direct-v1-hsl-0-0-60.rgba": "27cfa2744d7a3bb554fb24161c835fb5be2838ebb9ec5a6369f814c198b052b2",
+    "direct-v1-hsl-0-100-0.lut": "646616627d129c171ee3193ee11a95d7f69e7ceff8249a01769f58bcf493b3f8",
+    "direct-v1-hsl-0-100-0.rgba": "4fbbe3d63758c46fb89921ea5a7e26b8e5a01d8f4d4cf84b2412bcd579c55089",
+    "direct-v1-hsl-0-60--75.lut": "4daaf5718b1e8210f15e3153713b4bc752c1aac18d16051c684c69026a795eb4",
+    "direct-v1-hsl-0-60--75.rgba": "408be4c679b4c26d6acb78859c00309862c0c3c02895bc15c74963bc59027d1f",
+    "direct-v1-hsl-0-60-0.lut": "fc98ff8329e662fba8e56e2ed506c86c657291e1ea6125e04ca871caf630e228",
+    "direct-v1-hsl-0-60-0.rgba": "c9edc384dada2d4bf70983e6574e1c5c60d1985430b7eaa8d949a9aea5e36ad5",
+    "direct-v1-hsl-0-60-60.lut": "366c1d6cab9b6eb9b0fe3819c27be087bf5ffefef450f6f3a9e67d593b53b010",
+    "direct-v1-hsl-0-60-60.rgba": "5c72a13b11d87ceeb5aa96c2336136282894cd272a041ebdf959d221f0e01ebd",
+    "direct-v1-hsl-120--75--75.lut": "6d5681fa36745cace3f5a77323f83fc99dcdf5e915320adafb9f3f7c9d18ca00",
+    "direct-v1-hsl-120--75--75.rgba": "1e23ce4f4d2f2373ab43eb89baac88d35e76ad5e12bb44a5974c3fece445cf26",
+    "direct-v1-hsl-120--75-0.lut": "0146bba7125822f1ecee2f7e015a6b43344342bd5ce2df028143aba0b24317b4",
+    "direct-v1-hsl-120--75-0.rgba": "3a571eb9bc04cca8970da11514d8050c40a753b8196b8d4ea36bafcf940295ac",
+    "direct-v1-hsl-120--75-60.lut": "2511ac9afc9715544c0539756df0d3f183f9f06e7651186a7fe6afce016514f6",
+    "direct-v1-hsl-120--75-60.rgba": "15ac1dbed225aab5466b039fc548cbf6f4ac0c1b2a519ecbafbcc2ab008bd470",
+    "direct-v1-hsl-120-0--75.lut": "7550a560f163b769375b85f7bb054babe0575b582901e26833df482021e57772",
+    "direct-v1-hsl-120-0--75.rgba": "36722be84414ba2093a991feafe5b1aa9c23a6bb533bbf69b1ca10215aa987f9",
+    "direct-v1-hsl-120-0-0.lut": "617aff3b148c1f3444882a711590a941dde045b2eef4364f011217ed8c454744",
+    "direct-v1-hsl-120-0-0.rgba": "8d0c9adf62d8a62704a7e2cfadf517dc6f96e679042fb06a6cbfd078eb4acd3e",
+    "direct-v1-hsl-120-0-60.lut": "57a39cd1846ce0eeeadc0f95710465c7eaf814c9a3c7da9fa4ca118c2ca7b84a",
+    "direct-v1-hsl-120-0-60.rgba": "5525b0948b55f5926cf7d37a5425d91716ebe07b68e1f247ecac9e9db7a0d9fa",
+    "direct-v1-hsl-120-60--75.lut": "d68abde7be411d37f4f0c92d85c21cf3303a798622b02bbf0fe8a635e38eee69",
+    "direct-v1-hsl-120-60--75.rgba": "98efb1c1652f35f71dc15dcf1ac2f1b130976de54e851b97dcecfe869b675331",
+    "direct-v1-hsl-120-60-0.lut": "a7e5d8f647ca2ba9387360fd30fbb5336c8de23814b7239afabc10a118415965",
+    "direct-v1-hsl-120-60-0.rgba": "c11a4f17198e425e767549a484a532d2217e9fcd640b565cfb510e203336dd86",
+    "direct-v1-hsl-120-60-60.lut": "341e62768201c5008a0badfa2459f1a99720406a116c91d108d38f7cc8f4cf02",
+    "direct-v1-hsl-120-60-60.rgba": "7e9c1c1d613401422e29c8893600c4757566534ce488b58ecd6eed9c26b3ddbc",
+    "direct-v1-hsl-180-0-0.lut": "15a2c4a7bcf064e311e14a408d6dd834f3b1fb97e247f5343f9c229c825d9c02",
+    "direct-v1-hsl-180-0-0.rgba": "593d36180e35d1624cc02f467e2805f3fd48da9238632412ef1759756ad8fa75",
+    "direct-v1.json": "8302755bb278967939a9d2e492705c894637054aaccd27d5727db673b20c7acf",
+    "generate.json": "0fc4c18266bde2f964fb2951784f7f71973de7b44ec3087fa4cc8e3e6e782a8f",
+    "hsl--120--75--75.lut": "af72e137566126eb66a87d4a9a176ae890c8cc6f413b1f5b294ed9ff75f239a5",
+    "hsl--120--75--75.rgba": "f8239fe59504591cc6133010b1659210e64f233f161f1b536ffcca7860f7c8cc",
+    "hsl--120--75-0.lut": "5e24665219e8c81bdee03bc1a07a2750b49e8e20ce1914702ada8b8e005586a8",
+    "hsl--120--75-0.rgba": "eb9666c0eaab4eec763edbeeb38538ac14dfb370b583323ef9d22b083d8d8321",
+    "hsl--120--75-60.lut": "e8315dd80d665d96d1132fa8476c0af4a26389efe774edaf9d2befff9a482880",
+    "hsl--120--75-60.rgba": "3862d7860bd38af5d63782a059cdfa92fcf273a325864a0e042070c030527cea",
+    "hsl--120-0--75.lut": "137c7f668cabb03697aff7ab46e240dbe93ee50f4dcefda2d003153e7a28f88e",
+    "hsl--120-0--75.rgba": "01e955b69b6f28744eb944ff3a20be4bae059f5c162f36174aaf33e47edd00b7",
+    "hsl--120-0-0.lut": "c65d8c3f18fdb4da2a2b0b4e06186c4463edf6677e76d72f8750a865bb31110c",
+    "hsl--120-0-0.rgba": "ce1a353136adcce8c5f648d03a2990e52548fcf82763122f8e780ef643a642b2",
+    "hsl--120-0-60.lut": "e3ba512d56df861849b8183111f0fd8d57a3a5d17a24d679c94bb5c03ef21a3f",
+    "hsl--120-0-60.rgba": "c9460d35661bb2ed13d9fe9dcb2c093d2087b6dd4440afc0c489e6047100ed1d",
+    "hsl--120-60--75.lut": "1c257bfc75fbb800584f107773b8c1ccfeefcbbb6fa7556775f35ea25e273d66",
+    "hsl--120-60--75.rgba": "c636526f14d1e1ca3a5993c2f71f62b3b74a839f3d459d108f9de77804492e34",
+    "hsl--120-60-0.lut": "6d6008e25d5b70fa838fda9108ebf41b0fa17507957d3c1e9a58761291211239",
+    "hsl--120-60-0.rgba": "e74254b8647c34d73fef12b348883288003f9032f01a61c3c48e4ae1dad22de8",
+    "hsl--120-60-60.lut": "273bccca1adcdfa0aa63be919a959287e934e8c686066afff0b0aee3eaaa49df",
+    "hsl--120-60-60.rgba": "1aa15b2a4fbf006988a7df82bf6f704e5e522fdfbbb985a57e1250519f1e0b47",
+    "hsl--180-0-0.lut": "15a2c4a7bcf064e311e14a408d6dd834f3b1fb97e247f5343f9c229c825d9c02",
+    "hsl--180-0-0.rgba": "593d36180e35d1624cc02f467e2805f3fd48da9238632412ef1759756ad8fa75",
+    "hsl-0--100-0.lut": "54f12ad454033148baca523962955b83130ea42639705b8a18abf92b30009c2a",
+    "hsl-0--100-0.rgba": "acb76040786ad6c12949424b753d7d3b9b5c73c67bbae9911c8f771f38362926",
+    "hsl-0--75--75.lut": "a87ecd5147f24ae402df636fdfe9b74bce0c07ac48ef4ee06ad0ea501a5661a3",
+    "hsl-0--75--75.rgba": "a56b12f885dc850ca76a2607e4dc0a0838e98708a7591865754457887eac7679",
+    "hsl-0--75-0.lut": "313f0aa18dda6061ff68c1c730d9363875eb0ffc2f6ac8a0c408acaa4f051308",
+    "hsl-0--75-0.rgba": "8cb1b5adedbf9487f06107825c72b566b0130c3b2073e136b8990f46438865a3",
+    "hsl-0--75-60.lut": "4b215f14acf4ec7b00e67c7d853783c2ad19ef8e0f810dc791ad9a3af5b9f9cc",
+    "hsl-0--75-60.rgba": "68578e38e5a720a59692ea7cd4acbddb1e0189fd0e0d59075b0a2a3a57235b45",
+    "hsl-0-0--100.lut": "aafab96b7706c0ba0bcbab9e437cc87b4ef8ee2b83e2b4cf7f1a3c4a8942d9ff",
+    "hsl-0-0--100.rgba": "ae344d269e534a579f0b5c559a7dfa44892525bd95172e2b4b1d794296bae3d5",
+    "hsl-0-0--75.lut": "a7b1606a188075cb2f97de0d0aac5bf2fe1c7e2ad9650661c01ae8297656d035",
+    "hsl-0-0--75.rgba": "5eaea698ca598e951fb70e9e876ddd20ec96261a4ce3cc73864a195683df6a64",
+    "hsl-0-0-0.lut": "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9",
+    "hsl-0-0-0.rgba": "54c2f1eab7a876699d85411d8170a02d6f6b20c4285982a166a697b44b541f0a",
+    "hsl-0-0-100.lut": "bde8eb55aaa4e1bfff804a4f33a1c7a78a1864d98e432430895957ce048b2605",
+    "hsl-0-0-100.rgba": "c08531c144a19bdb1b49ee43693e96fc728bab9b26b31ab61194fd21e072fd3c",
+    "hsl-0-0-60.lut": "64c583a67492d53975c35371c430a998481247d175d9a8dd42eaf6ea683322e0",
+    "hsl-0-0-60.rgba": "27cfa2744d7a3bb554fb24161c835fb5be2838ebb9ec5a6369f814c198b052b2",
+    "hsl-0-100-0.lut": "646616627d129c171ee3193ee11a95d7f69e7ceff8249a01769f58bcf493b3f8",
+    "hsl-0-100-0.rgba": "4fbbe3d63758c46fb89921ea5a7e26b8e5a01d8f4d4cf84b2412bcd579c55089",
+    "hsl-0-60--75.lut": "4daaf5718b1e8210f15e3153713b4bc752c1aac18d16051c684c69026a795eb4",
+    "hsl-0-60--75.rgba": "408be4c679b4c26d6acb78859c00309862c0c3c02895bc15c74963bc59027d1f",
+    "hsl-0-60-0.lut": "fc98ff8329e662fba8e56e2ed506c86c657291e1ea6125e04ca871caf630e228",
+    "hsl-0-60-0.rgba": "c9edc384dada2d4bf70983e6574e1c5c60d1985430b7eaa8d949a9aea5e36ad5",
+    "hsl-0-60-60.lut": "366c1d6cab9b6eb9b0fe3819c27be087bf5ffefef450f6f3a9e67d593b53b010",
+    "hsl-0-60-60.rgba": "5c72a13b11d87ceeb5aa96c2336136282894cd272a041ebdf959d221f0e01ebd",
+    "hsl-120--75--75.lut": "6d5681fa36745cace3f5a77323f83fc99dcdf5e915320adafb9f3f7c9d18ca00",
+    "hsl-120--75--75.rgba": "1e23ce4f4d2f2373ab43eb89baac88d35e76ad5e12bb44a5974c3fece445cf26",
+    "hsl-120--75-0.lut": "0146bba7125822f1ecee2f7e015a6b43344342bd5ce2df028143aba0b24317b4",
+    "hsl-120--75-0.rgba": "3a571eb9bc04cca8970da11514d8050c40a753b8196b8d4ea36bafcf940295ac",
+    "hsl-120--75-60.lut": "2511ac9afc9715544c0539756df0d3f183f9f06e7651186a7fe6afce016514f6",
+    "hsl-120--75-60.rgba": "15ac1dbed225aab5466b039fc548cbf6f4ac0c1b2a519ecbafbcc2ab008bd470",
+    "hsl-120-0--75.lut": "7550a560f163b769375b85f7bb054babe0575b582901e26833df482021e57772",
+    "hsl-120-0--75.rgba": "36722be84414ba2093a991feafe5b1aa9c23a6bb533bbf69b1ca10215aa987f9",
+    "hsl-120-0-0.lut": "617aff3b148c1f3444882a711590a941dde045b2eef4364f011217ed8c454744",
+    "hsl-120-0-0.rgba": "8d0c9adf62d8a62704a7e2cfadf517dc6f96e679042fb06a6cbfd078eb4acd3e",
+    "hsl-120-0-60.lut": "57a39cd1846ce0eeeadc0f95710465c7eaf814c9a3c7da9fa4ca118c2ca7b84a",
+    "hsl-120-0-60.rgba": "5525b0948b55f5926cf7d37a5425d91716ebe07b68e1f247ecac9e9db7a0d9fa",
+    "hsl-120-60--75.lut": "d68abde7be411d37f4f0c92d85c21cf3303a798622b02bbf0fe8a635e38eee69",
+    "hsl-120-60--75.rgba": "98efb1c1652f35f71dc15dcf1ac2f1b130976de54e851b97dcecfe869b675331",
+    "hsl-120-60-0.lut": "a7e5d8f647ca2ba9387360fd30fbb5336c8de23814b7239afabc10a118415965",
+    "hsl-120-60-0.rgba": "c11a4f17198e425e767549a484a532d2217e9fcd640b565cfb510e203336dd86",
+    "hsl-120-60-60.lut": "341e62768201c5008a0badfa2459f1a99720406a116c91d108d38f7cc8f4cf02",
+    "hsl-120-60-60.rgba": "7e9c1c1d613401422e29c8893600c4757566534ce488b58ecd6eed9c26b3ddbc",
+    "hsl-180-0-0.lut": "15a2c4a7bcf064e311e14a408d6dd834f3b1fb97e247f5343f9c229c825d9c02",
+    "hsl-180-0-0.rgba": "593d36180e35d1624cc02f467e2805f3fd48da9238632412ef1759756ad8fa75",
+    "replay-hsl--120--75--75-intrinsic.rgba": "f8239fe59504591cc6133010b1659210e64f233f161f1b536ffcca7860f7c8cc",
+    "replay-hsl--120--75--75.rgba": "f8239fe59504591cc6133010b1659210e64f233f161f1b536ffcca7860f7c8cc",
+    "replay-hsl--120--75-0-intrinsic.rgba": "274c70ae678792c2e106eb26c02592c004ba48301caf90980d1838ee8e04d371",
+    "replay-hsl--120--75-0.rgba": "e27d3973159ff376bba4388141eeb9f2c308d6f785e764ad5209e3e25dacdc93",
+    "replay-hsl--120--75-60-intrinsic.rgba": "d28958414a7de63de6a02c3d860bf215510f89bd43e03cbc21f266e615201aea",
+    "replay-hsl--120--75-60.rgba": "a0c62da22d2b9e72a08def97ef228b13bd3082ed6cec8b199f4c6413b6f7f3a3",
+    "replay-hsl--120-0--75-intrinsic.rgba": "01e955b69b6f28744eb944ff3a20be4bae059f5c162f36174aaf33e47edd00b7",
+    "replay-hsl--120-0--75.rgba": "01e955b69b6f28744eb944ff3a20be4bae059f5c162f36174aaf33e47edd00b7",
+    "replay-hsl--120-0-0-intrinsic.rgba": "164a6e68a15b82ed9ad478274c38d1d4d09e84d18ec2a69e65c4b35bc59a10dc",
+    "replay-hsl--120-0-0.rgba": "5beffa9fb215dcec39e7f13e4512817c982b778996cd98f4348801b69f420801",
+    "replay-hsl--120-0-60-intrinsic.rgba": "2b0aad8290a2fe5c1c5ed770add1854d9b454e7d60d8bea6f547cc827a68365b",
+    "replay-hsl--120-0-60.rgba": "07817b5b29daf53729471ec45ae6dfdfc092eb4b543c5d23b982b00218c13021",
+    "replay-hsl--120-60--75-intrinsic.rgba": "c636526f14d1e1ca3a5993c2f71f62b3b74a839f3d459d108f9de77804492e34",
+    "replay-hsl--120-60--75.rgba": "c636526f14d1e1ca3a5993c2f71f62b3b74a839f3d459d108f9de77804492e34",
+    "replay-hsl--120-60-0-intrinsic.rgba": "6a43c60070c2717f0e7e7ac1d7d9c3480fc6c811e85246449bcae61e3d53d41e",
+    "replay-hsl--120-60-0.rgba": "485f78bde0124f7e85e3c365339640367d7095bf07d486c1c0ea22c901875812",
+    "replay-hsl--120-60-60-intrinsic.rgba": "93fb700ed02a823f96622ff8d842887c8c53da4747d36b7ea3cc9be9d4c15238",
+    "replay-hsl--120-60-60.rgba": "f254b82ca2a45ea7169d716c005ced58985d69ab6799c8736bcaa2588ed943f7",
+    "replay-hsl--180-0-0-intrinsic.rgba": "58e6d2a82de1eb3367d813a618e1b10670b406bf55b45bd0a704238c6d8dc345",
+    "replay-hsl--180-0-0.rgba": "2c76d338ce686bd2e3d7c774327686a93d310eda56c6c1e58146a932694d3470",
+    "replay-hsl-0--100-0-intrinsic.rgba": "e3f30e880e33f7e5404fe10cccc52fe0c4960c9c580c02f892fa1f55f5ff7c68",
+    "replay-hsl-0--100-0.rgba": "3dc0be08734a3478c8f5b46bcf54ed78f1d7fd9b57516abaf986635a311a523c",
+    "replay-hsl-0--75--75-intrinsic.rgba": "a56b12f885dc850ca76a2607e4dc0a0838e98708a7591865754457887eac7679",
+    "replay-hsl-0--75--75.rgba": "a56b12f885dc850ca76a2607e4dc0a0838e98708a7591865754457887eac7679",
+    "replay-hsl-0--75-0-intrinsic.rgba": "6b0eef4c06775649ae289d364abf856afaa36474ee8ff168ac6c57a75cbb1893",
+    "replay-hsl-0--75-0.rgba": "9c844b6b261e322b9e4eed30c863ff09bc35658758830590f36cf7a88d4778c7",
+    "replay-hsl-0--75-60-intrinsic.rgba": "67444c96c594c90addf25f9972b9c6cc13b0d749dcf7b3d4384b0158ce4f3289",
+    "replay-hsl-0--75-60.rgba": "6533109d33305ef7a0aeb426d3c88f9bbbcbb50373b5ea11a2088f8c92446669",
+    "replay-hsl-0-0--100-intrinsic.rgba": "ae344d269e534a579f0b5c559a7dfa44892525bd95172e2b4b1d794296bae3d5",
+    "replay-hsl-0-0--100.rgba": "ae344d269e534a579f0b5c559a7dfa44892525bd95172e2b4b1d794296bae3d5",
+    "replay-hsl-0-0--75-intrinsic.rgba": "5eaea698ca598e951fb70e9e876ddd20ec96261a4ce3cc73864a195683df6a64",
+    "replay-hsl-0-0--75.rgba": "5eaea698ca598e951fb70e9e876ddd20ec96261a4ce3cc73864a195683df6a64",
+    "replay-hsl-0-0-0-intrinsic.rgba": "c7182a67a3ba82f8115b850159d0ba9d88a72b1d9575adf8483d76d7c7969072",
+    "replay-hsl-0-0-0.rgba": "b3766efc2f5714e5b8f6de63c8cfa27ed57c1fb87afa71e1c81e147c1e9aa070",
+    "replay-hsl-0-0-100-intrinsic.rgba": "bf06f329e6dc0aa1c7beb389acd6397c09c22bf994b9e77b5080b02340219e93",
+    "replay-hsl-0-0-100.rgba": "f9ea98a3892c9bf881c2577bf1b242512c6283d4b5d706791575613b211af7bc",
+    "replay-hsl-0-0-60-intrinsic.rgba": "539e997c1e7f206a802bf68d164c008d53b32d7530fb7267607b18cd0ef2787e",
+    "replay-hsl-0-0-60.rgba": "2f2a08f146b9c4e77ecebddc8649b4c26891e32b6bbdad19ca93a287e546fcae",
+    "replay-hsl-0-100-0-intrinsic.rgba": "1612df0e683100a9d6725a897ca29073f7b65314c371464de2cd6a7eac3e0475",
+    "replay-hsl-0-100-0.rgba": "001d9abbe933023b6bb971efdeb814a8bc22545797dec9f5dc00c9c51cb89531",
+    "replay-hsl-0-60--75-intrinsic.rgba": "408be4c679b4c26d6acb78859c00309862c0c3c02895bc15c74963bc59027d1f",
+    "replay-hsl-0-60--75.rgba": "408be4c679b4c26d6acb78859c00309862c0c3c02895bc15c74963bc59027d1f",
+    "replay-hsl-0-60-0-intrinsic.rgba": "b9967c72477e9961f3c433baf759a85f68a13fbd22341ce91988342cc5a40f3e",
+    "replay-hsl-0-60-0.rgba": "bf980ba6bc3002be412c60191057cdb761ac556a73ea6b99af808075e340c6a5",
+    "replay-hsl-0-60-60-intrinsic.rgba": "8bbdc43fa2e381815b8fa67cce17f8b8a9a27e8687e76311fe85fcf781209237",
+    "replay-hsl-0-60-60.rgba": "c066b03b621b87a50883fafd3647d894b6c5a1c4f80890dece50caec03fe54dc",
+    "replay-hsl-120--75--75-intrinsic.rgba": "1e23ce4f4d2f2373ab43eb89baac88d35e76ad5e12bb44a5974c3fece445cf26",
+    "replay-hsl-120--75--75.rgba": "1e23ce4f4d2f2373ab43eb89baac88d35e76ad5e12bb44a5974c3fece445cf26",
+    "replay-hsl-120--75-0-intrinsic.rgba": "09cca767876666bdff07d1fd1e797aff8cb533c3f2fd1d9ae2e92fbee249c015",
+    "replay-hsl-120--75-0.rgba": "8e289632cd78e0f5e17dcfdd19659d0749ec08280402b5522b2fb3cf1fe28c18",
+    "replay-hsl-120--75-60-intrinsic.rgba": "fad33b5d240ee695b755f29113e1fa6d6b259a640e7cb49cf9d91ae1eafc21b5",
+    "replay-hsl-120--75-60.rgba": "ecfb65ba6cb9c3a2dbadf9cb729f5a3e9b610a2cb917ee96d184b8dea27d93f6",
+    "replay-hsl-120-0--75-intrinsic.rgba": "36722be84414ba2093a991feafe5b1aa9c23a6bb533bbf69b1ca10215aa987f9",
+    "replay-hsl-120-0--75.rgba": "36722be84414ba2093a991feafe5b1aa9c23a6bb533bbf69b1ca10215aa987f9",
+    "replay-hsl-120-0-0-intrinsic.rgba": "8fa2fa0dc786a79881c51dec3f18daa333d82e4782c9c1db04e0911f7061b866",
+    "replay-hsl-120-0-0.rgba": "19f88670881128f00536a06398464ea76b5f01d85a7803beb3a695a1fcb72397",
+    "replay-hsl-120-0-60-intrinsic.rgba": "b1a5922f4a8aafd1cfe1947faa2e4bacf3f0e75b8ef63bfecad86477afad1156",
+    "replay-hsl-120-0-60.rgba": "889763caa8a761043d1ede06d5782ffabc484be5f95d900c9f7cb11372ab7e0b",
+    "replay-hsl-120-60--75-intrinsic.rgba": "98efb1c1652f35f71dc15dcf1ac2f1b130976de54e851b97dcecfe869b675331",
+    "replay-hsl-120-60--75.rgba": "98efb1c1652f35f71dc15dcf1ac2f1b130976de54e851b97dcecfe869b675331",
+    "replay-hsl-120-60-0-intrinsic.rgba": "fb9a56f65e9c931e766f1b756d94804ab2e9f1029c2b41b8459cfc8e81cb3d8c",
+    "replay-hsl-120-60-0.rgba": "08a18d0c756e60708c512021e4519867f883aed11519a2109bdb82818f0d7eb8",
+    "replay-hsl-120-60-60-intrinsic.rgba": "2848ac5bf55235468013f97034d465245b2148b5aa371c29af19c53e8222fcea",
+    "replay-hsl-120-60-60.rgba": "3854c8ce555555590908978d25519f1c657a17379d50f94f7f5007acb1213216",
+    "replay-hsl-180-0-0-intrinsic.rgba": "58e6d2a82de1eb3367d813a618e1b10670b406bf55b45bd0a704238c6d8dc345",
+    "replay-hsl-180-0-0.rgba": "2c76d338ce686bd2e3d7c774327686a93d310eda56c6c1e58146a932694d3470",
+    "replay-v1-hsl--120--75--75-intrinsic.rgba": "f8239fe59504591cc6133010b1659210e64f233f161f1b536ffcca7860f7c8cc",
+    "replay-v1-hsl--120--75--75.rgba": "f8239fe59504591cc6133010b1659210e64f233f161f1b536ffcca7860f7c8cc",
+    "replay-v1-hsl--120--75-0-intrinsic.rgba": "274c70ae678792c2e106eb26c02592c004ba48301caf90980d1838ee8e04d371",
+    "replay-v1-hsl--120--75-0.rgba": "e27d3973159ff376bba4388141eeb9f2c308d6f785e764ad5209e3e25dacdc93",
+    "replay-v1-hsl--120--75-60-intrinsic.rgba": "d28958414a7de63de6a02c3d860bf215510f89bd43e03cbc21f266e615201aea",
+    "replay-v1-hsl--120--75-60.rgba": "a0c62da22d2b9e72a08def97ef228b13bd3082ed6cec8b199f4c6413b6f7f3a3",
+    "replay-v1-hsl--120-0--75-intrinsic.rgba": "01e955b69b6f28744eb944ff3a20be4bae059f5c162f36174aaf33e47edd00b7",
+    "replay-v1-hsl--120-0--75.rgba": "01e955b69b6f28744eb944ff3a20be4bae059f5c162f36174aaf33e47edd00b7",
+    "replay-v1-hsl--120-0-0-intrinsic.rgba": "164a6e68a15b82ed9ad478274c38d1d4d09e84d18ec2a69e65c4b35bc59a10dc",
+    "replay-v1-hsl--120-0-0.rgba": "5beffa9fb215dcec39e7f13e4512817c982b778996cd98f4348801b69f420801",
+    "replay-v1-hsl--120-0-60-intrinsic.rgba": "2b0aad8290a2fe5c1c5ed770add1854d9b454e7d60d8bea6f547cc827a68365b",
+    "replay-v1-hsl--120-0-60.rgba": "07817b5b29daf53729471ec45ae6dfdfc092eb4b543c5d23b982b00218c13021",
+    "replay-v1-hsl--120-60--75-intrinsic.rgba": "c636526f14d1e1ca3a5993c2f71f62b3b74a839f3d459d108f9de77804492e34",
+    "replay-v1-hsl--120-60--75.rgba": "c636526f14d1e1ca3a5993c2f71f62b3b74a839f3d459d108f9de77804492e34",
+    "replay-v1-hsl--120-60-0-intrinsic.rgba": "6a43c60070c2717f0e7e7ac1d7d9c3480fc6c811e85246449bcae61e3d53d41e",
+    "replay-v1-hsl--120-60-0.rgba": "485f78bde0124f7e85e3c365339640367d7095bf07d486c1c0ea22c901875812",
+    "replay-v1-hsl--120-60-60-intrinsic.rgba": "93fb700ed02a823f96622ff8d842887c8c53da4747d36b7ea3cc9be9d4c15238",
+    "replay-v1-hsl--120-60-60.rgba": "f254b82ca2a45ea7169d716c005ced58985d69ab6799c8736bcaa2588ed943f7",
+    "replay-v1-hsl--180-0-0-intrinsic.rgba": "58e6d2a82de1eb3367d813a618e1b10670b406bf55b45bd0a704238c6d8dc345",
+    "replay-v1-hsl--180-0-0.rgba": "2c76d338ce686bd2e3d7c774327686a93d310eda56c6c1e58146a932694d3470",
+    "replay-v1-hsl-0--100-0-intrinsic.rgba": "e3f30e880e33f7e5404fe10cccc52fe0c4960c9c580c02f892fa1f55f5ff7c68",
+    "replay-v1-hsl-0--100-0.rgba": "3dc0be08734a3478c8f5b46bcf54ed78f1d7fd9b57516abaf986635a311a523c",
+    "replay-v1-hsl-0--75--75-intrinsic.rgba": "a56b12f885dc850ca76a2607e4dc0a0838e98708a7591865754457887eac7679",
+    "replay-v1-hsl-0--75--75.rgba": "a56b12f885dc850ca76a2607e4dc0a0838e98708a7591865754457887eac7679",
+    "replay-v1-hsl-0--75-0-intrinsic.rgba": "6b0eef4c06775649ae289d364abf856afaa36474ee8ff168ac6c57a75cbb1893",
+    "replay-v1-hsl-0--75-0.rgba": "9c844b6b261e322b9e4eed30c863ff09bc35658758830590f36cf7a88d4778c7",
+    "replay-v1-hsl-0--75-60-intrinsic.rgba": "67444c96c594c90addf25f9972b9c6cc13b0d749dcf7b3d4384b0158ce4f3289",
+    "replay-v1-hsl-0--75-60.rgba": "6533109d33305ef7a0aeb426d3c88f9bbbcbb50373b5ea11a2088f8c92446669",
+    "replay-v1-hsl-0-0--100-intrinsic.rgba": "ae344d269e534a579f0b5c559a7dfa44892525bd95172e2b4b1d794296bae3d5",
+    "replay-v1-hsl-0-0--100.rgba": "ae344d269e534a579f0b5c559a7dfa44892525bd95172e2b4b1d794296bae3d5",
+    "replay-v1-hsl-0-0--75-intrinsic.rgba": "5eaea698ca598e951fb70e9e876ddd20ec96261a4ce3cc73864a195683df6a64",
+    "replay-v1-hsl-0-0--75.rgba": "5eaea698ca598e951fb70e9e876ddd20ec96261a4ce3cc73864a195683df6a64",
+    "replay-v1-hsl-0-0-0-intrinsic.rgba": "c7182a67a3ba82f8115b850159d0ba9d88a72b1d9575adf8483d76d7c7969072",
+    "replay-v1-hsl-0-0-0.rgba": "b3766efc2f5714e5b8f6de63c8cfa27ed57c1fb87afa71e1c81e147c1e9aa070",
+    "replay-v1-hsl-0-0-100-intrinsic.rgba": "bf06f329e6dc0aa1c7beb389acd6397c09c22bf994b9e77b5080b02340219e93",
+    "replay-v1-hsl-0-0-100.rgba": "f9ea98a3892c9bf881c2577bf1b242512c6283d4b5d706791575613b211af7bc",
+    "replay-v1-hsl-0-0-60-intrinsic.rgba": "539e997c1e7f206a802bf68d164c008d53b32d7530fb7267607b18cd0ef2787e",
+    "replay-v1-hsl-0-0-60.rgba": "2f2a08f146b9c4e77ecebddc8649b4c26891e32b6bbdad19ca93a287e546fcae",
+    "replay-v1-hsl-0-100-0-intrinsic.rgba": "1612df0e683100a9d6725a897ca29073f7b65314c371464de2cd6a7eac3e0475",
+    "replay-v1-hsl-0-100-0.rgba": "001d9abbe933023b6bb971efdeb814a8bc22545797dec9f5dc00c9c51cb89531",
+    "replay-v1-hsl-0-60--75-intrinsic.rgba": "408be4c679b4c26d6acb78859c00309862c0c3c02895bc15c74963bc59027d1f",
+    "replay-v1-hsl-0-60--75.rgba": "408be4c679b4c26d6acb78859c00309862c0c3c02895bc15c74963bc59027d1f",
+    "replay-v1-hsl-0-60-0-intrinsic.rgba": "b9967c72477e9961f3c433baf759a85f68a13fbd22341ce91988342cc5a40f3e",
+    "replay-v1-hsl-0-60-0.rgba": "bf980ba6bc3002be412c60191057cdb761ac556a73ea6b99af808075e340c6a5",
+    "replay-v1-hsl-0-60-60-intrinsic.rgba": "8bbdc43fa2e381815b8fa67cce17f8b8a9a27e8687e76311fe85fcf781209237",
+    "replay-v1-hsl-0-60-60.rgba": "c066b03b621b87a50883fafd3647d894b6c5a1c4f80890dece50caec03fe54dc",
+    "replay-v1-hsl-120--75--75-intrinsic.rgba": "1e23ce4f4d2f2373ab43eb89baac88d35e76ad5e12bb44a5974c3fece445cf26",
+    "replay-v1-hsl-120--75--75.rgba": "1e23ce4f4d2f2373ab43eb89baac88d35e76ad5e12bb44a5974c3fece445cf26",
+    "replay-v1-hsl-120--75-0-intrinsic.rgba": "09cca767876666bdff07d1fd1e797aff8cb533c3f2fd1d9ae2e92fbee249c015",
+    "replay-v1-hsl-120--75-0.rgba": "8e289632cd78e0f5e17dcfdd19659d0749ec08280402b5522b2fb3cf1fe28c18",
+    "replay-v1-hsl-120--75-60-intrinsic.rgba": "fad33b5d240ee695b755f29113e1fa6d6b259a640e7cb49cf9d91ae1eafc21b5",
+    "replay-v1-hsl-120--75-60.rgba": "ecfb65ba6cb9c3a2dbadf9cb729f5a3e9b610a2cb917ee96d184b8dea27d93f6",
+    "replay-v1-hsl-120-0--75-intrinsic.rgba": "36722be84414ba2093a991feafe5b1aa9c23a6bb533bbf69b1ca10215aa987f9",
+    "replay-v1-hsl-120-0--75.rgba": "36722be84414ba2093a991feafe5b1aa9c23a6bb533bbf69b1ca10215aa987f9",
+    "replay-v1-hsl-120-0-0-intrinsic.rgba": "8fa2fa0dc786a79881c51dec3f18daa333d82e4782c9c1db04e0911f7061b866",
+    "replay-v1-hsl-120-0-0.rgba": "19f88670881128f00536a06398464ea76b5f01d85a7803beb3a695a1fcb72397",
+    "replay-v1-hsl-120-0-60-intrinsic.rgba": "b1a5922f4a8aafd1cfe1947faa2e4bacf3f0e75b8ef63bfecad86477afad1156",
+    "replay-v1-hsl-120-0-60.rgba": "889763caa8a761043d1ede06d5782ffabc484be5f95d900c9f7cb11372ab7e0b",
+    "replay-v1-hsl-120-60--75-intrinsic.rgba": "98efb1c1652f35f71dc15dcf1ac2f1b130976de54e851b97dcecfe869b675331",
+    "replay-v1-hsl-120-60--75.rgba": "98efb1c1652f35f71dc15dcf1ac2f1b130976de54e851b97dcecfe869b675331",
+    "replay-v1-hsl-120-60-0-intrinsic.rgba": "fb9a56f65e9c931e766f1b756d94804ab2e9f1029c2b41b8459cfc8e81cb3d8c",
+    "replay-v1-hsl-120-60-0.rgba": "08a18d0c756e60708c512021e4519867f883aed11519a2109bdb82818f0d7eb8",
+    "replay-v1-hsl-120-60-60-intrinsic.rgba": "2848ac5bf55235468013f97034d465245b2148b5aa371c29af19c53e8222fcea",
+    "replay-v1-hsl-120-60-60.rgba": "3854c8ce555555590908978d25519f1c657a17379d50f94f7f5007acb1213216",
+    "replay-v1-hsl-180-0-0-intrinsic.rgba": "58e6d2a82de1eb3367d813a618e1b10670b406bf55b45bd0a704238c6d8dc345",
+    "replay-v1-hsl-180-0-0.rgba": "2c76d338ce686bd2e3d7c774327686a93d310eda56c6c1e58146a932694d3470",
+    "replay-v1.json": "a50ceb7e96aa81883d6823151145037d31383e281d036f7f4d7e0fa75f450319",
+    "replay.json": "b997edcd09004414bc4eb75730c431911834dd1d47ad046d0627e61371465b51"
+  },
+  "model": "original integer HSL quantization with rational parameter tables",
+  "modes": {
+    "direct-v1": {
+      "cases": [
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl--180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0--100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-0--100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -100,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "direct-v1-hsl-0-0-100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 100,
+            "saturationLevel": 0
+          }
+        }
+      ],
+      "summary": {
+        "all_rgba": {
+          "channels": 135168,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "aux_lut": {
+          "channels": 33792,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "opaque_rgb": {
+          "channels": 97515,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        }
+      }
+    },
+    "generate": {
+      "cases": [
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl--180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0--100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-0--100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -100,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "aux_lut": {
+            "channels": 1024,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "hsl-0-0-100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 100,
+            "saturationLevel": 0
+          }
+        }
+      ],
+      "summary": {
+        "all_rgba": {
+          "channels": 135168,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "aux_lut": {
+          "channels": 33792,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "opaque_rgb": {
+          "channels": 97515,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        }
+      }
+    },
+    "replay": {
+      "cases": [
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl--180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0--100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-0--100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -100,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-hsl-0-0-100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 100,
+            "saturationLevel": 0
+          }
+        }
+      ],
+      "summary": {
+        "all_rgba": {
+          "channels": 135168,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "intrinsic_rgba": {
+          "channels": 135168,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "opaque_rgb": {
+          "channels": 97515,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        }
+      }
+    },
+    "replay-v1": {
+      "cases": [
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120--75--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120--75-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120--75-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": -75
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120-0--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120-0-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120-60--75",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": -75,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120-60-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 0,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-120-60-60",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 120,
+            "lightnessLevel": 60,
+            "saturationLevel": 60
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl--180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": -180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-180-0-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 180,
+            "lightnessLevel": 0,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0--100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": -100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-100-0",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 0,
+            "saturationLevel": 100
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-0--100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": -100,
+            "saturationLevel": 0
+          }
+        },
+        {
+          "all_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "intrinsic_rgba": {
+            "channels": 4096,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "name": "replay-v1-hsl-0-0-100",
+          "opaque_rgb": {
+            "channels": 2955,
+            "max_abs_delta": 0,
+            "mismatches": 0
+          },
+          "parameters": {
+            "hueLevel": 0,
+            "lightnessLevel": 100,
+            "saturationLevel": 0
+          }
+        }
+      ],
+      "summary": {
+        "all_rgba": {
+          "channels": 135168,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "intrinsic_rgba": {
+          "channels": 135168,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        },
+        "opaque_rgb": {
+          "channels": 97515,
+          "max_abs_delta": 0,
+          "mismatches": 0
+        }
+      }
+    }
+  },
+  "normalization": "N(c,a)=(((c*a+127)//255)*((255<<16)//a))>>16; N(rgb,0)=0",
+  "qualification": "Exact reported comparisons cover 33 captured parameter triples, not every valid parameter triple.",
+  "reference": "native Windows SDK artifact; no production renderer involved"
+}

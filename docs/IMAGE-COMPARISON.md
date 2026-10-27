@@ -93,10 +93,12 @@ clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the [pen scope](METAFILE-PEN-PARITY.md).
 
-Embedded bitmap color-matrix, color-lookup-table and brightness/contrast effects
+Embedded bitmap color-matrix, color-lookup-table, brightness/contrast, color
+balance, hue/saturation/lightness, levels, curve and tint effects
 render in the same image panes, including cropped and clipped drawings. These
 effects change the preview; the original metafile stays unchanged. See the
-[image-effects compatibility details](METAFILE-IMAGE-EFFECTS-PARITY.md).
+[image-effects compatibility details](METAFILE-IMAGE-EFFECTS-PARITY.md) and
+[supplementary pointwise effects](METAFILE-POINTWISE-EFFECTS-PARITY.md).
 
 The path-gradient renderer covers line polygons and canonical ellipses,
 off-center origins, separate surrounding colors and measured

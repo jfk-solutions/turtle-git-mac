@@ -73,8 +73,13 @@ Windows reference uses transparent initialization, so fixture expectations adapt
 only unpainted pixels; every painted pixel retains the native alpha assertion,
 including fully transparent lookup-table output.
 
+The [supplementary pointwise family](METAFILE-POINTWISE-EFFECTS-PARITY.md) adds
+ColorBalance, HueSaturationLightness, Levels, ColorCurve and Tint, including
+measured ordinary-image compatibility for native Curve serialization.
+
 Independent rectangle-record interposition, effects on embedded metafile image
-objects, other serialized effect classes, every color profile/decoder layout,
+objects, spatial serialized effect classes, every color profile/decoder layout,
 physical image-window acceptance and signed distribution remain separate. The
-installed build18 predates this source batch. A green Windows reference run proves
+installed build19 includes this earlier three-effect source batch; it predates
+the supplementary five-effect source batch. A green Windows reference run proves
 the reference assay, not that the new macOS decoder or whole port has passed.

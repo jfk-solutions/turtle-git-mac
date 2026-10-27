@@ -89,12 +89,13 @@ record lengths and referenced images. DrawImage supports floating-point and
 signed 16-bit destination rectangles. DrawImagePoints supports floating-point,
 signed 16-bit and relative signed 7/15-bit point encodings before applying the
 current graphics transform and source crop. The relative flag is `0x0800`;
-`0x2000` denotes an image-effect route and is refused. Relative image placement
+`0x2000` denotes the image-effect route supported by the later serialized families. Relative image placement
 does not imply support for the separate relative path encoding. Source-copy composition is implemented by the separate
 [SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md). The later
 [serialized image-effects family](METAFILE-IMAGE-EFFECTS-PARITY.md) adds three
-pointwise effects and measured missing-block fallback; other effect classes remain
-outside that bounded profile.
+pointwise effects and measured missing-block fallback. The
+[supplementary family](METAFILE-POINTWISE-EFFECTS-PARITY.md) adds color balance,
+hue/saturation/lightness, levels, curves and tint; spatial effects remain separate.
 Generic embedded metafile images, textures and applicable attributes now follow
 the [embedded-image family](METAFILE-EMBEDDED-IMAGE-PARITY.md). Up to three wire-alignment bytes are ignored, without
 treating additional bytes as an extended attributes structure.

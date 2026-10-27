@@ -7,6 +7,7 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 import AppKit
+import CryptoKit
 
 private let inputLimit = 64 * 1024 * 1024
 private let outputLimit = 128 * 1024 * 1024
@@ -115,6 +116,25 @@ private func classicOpaqueCompressedImage(_ image:CGImage)throws->CGImage {
 private final class NativeImageEffects {
     private var calls = 0
     private var pixelsProcessed = 0
+    private var curveData:Data?
+    /// Parameters are copied out of JavaScript before pixel work starts. No
+    /// transform retains mutable script objects or changes an image-object cache.
+    private enum Effect {
+        case matrix([Double])
+        case lookup([[UInt8]])
+        case brightnessContrast(Int,Int)
+        case colorBalance(Int,Int,Int)
+        case hueSaturationLightness(Int,Int,Int)
+        case levels(Int,Int,Int)
+        case colorCurve(adjustment:Int,channel:Int,value:Int)
+        case tint(hue:Int,amount:Int)
+    }
+    private enum PreparedEffect {
+        case ordinary
+        case matrix([Double])
+        case lookup([[UInt8]])
+        case rgb((UInt8,UInt8,UInt8)->(UInt8,UInt8,UInt8))
+    }
     private func invalid(_ message:String)->ConversionError { .invalid("Metafile image effect: "+message) }
     private func numbers(_ object:JSValue,_ key:String,count:Int)throws->[Double] {
         guard let values=object.forProperty(key),values.isArray,
@@ -137,6 +157,148 @@ private final class NativeImageEffects {
         let number=value.toDouble()
         guard number.isFinite,number.rounded()==number,number>=Double(range.lowerBound),number<=Double(range.upperBound) else {throw invalid("invalid "+key)}
         return Int(number)
+    }
+    private func parse(_ object:JSValue)throws->Effect {
+        guard object.isObject,!object.isArray,let kind=object.forProperty("kind"),kind.isString else {throw invalid("invalid effect object")}
+        switch kind.toString() {
+        case "colorMatrix":return .matrix(try numbers(object,"matrix",count:25))
+        case "colorLookupTable":return .lookup(try [table(object,"red"),table(object,"green"),table(object,"blue"),table(object,"alpha")])
+        case "brightnessContrast":return .brightnessContrast(try integer(object,"brightness",range:-255...255),try integer(object,"contrast",range:-100...100))
+        case "colorBalance":return .colorBalance(try integer(object,"cyanRed",range:-100...100),try integer(object,"magentaGreen",range:-100...100),try integer(object,"yellowBlue",range:-100...100))
+        case "hueSaturationLightness":return .hueSaturationLightness(try integer(object,"hueLevel",range:-180...180),try integer(object,"saturationLevel",range:-100...100),try integer(object,"lightnessLevel",range:-100...100))
+        case "levels":return .levels(try integer(object,"highlight",range:0...100),try integer(object,"midtone",range:-100...100),try integer(object,"shadow",range:0...100))
+        case "colorCurve":
+            let adjustment=try integer(object,"adjustment",range:0...7)
+            let range:ClosedRange<Int>=adjustment<2 ? -255...255:adjustment<6 ? -100...100:0...255
+            return .colorCurve(adjustment:adjustment,channel:try integer(object,"channel",range:0...3),value:try integer(object,"adjustValue",range:range))
+        case "tint":return .tint(hue:try integer(object,"hue",range:-180...180),amount:try integer(object,"amount",range:-100...100))
+        default:throw invalid("unsupported effect kind")
+        }
+    }
+    private func prepare(_ effect:Effect)throws->PreparedEffect {
+        switch effect {
+        case .matrix(let values):return .matrix(values)
+        case .lookup(let values):return .lookup(values)
+        case .brightnessContrast(let brightness,let contrast):
+            let values=brightnessTable(brightness,contrast)
+            return .lookup([values,values,values,(0..<256).map{UInt8($0)}])
+        case .colorBalance(let red,let green,let blue):
+            return .lookup([balanceTable(red),balanceTable(green),balanceTable(blue),(0..<256).map{UInt8($0)}])
+        case .levels(let highlight,let midtone,let shadow):
+            let values=levelsTable(highlight,midtone,shadow)
+            return .lookup([values,values,values,(0..<256).map{UInt8($0)}])
+        case .hueSaturationLightness(let hue,let saturation,let lightness):
+            return .rgb(hslTransform(hue,saturation,lightness))
+        case .colorCurve(let adjustment,let channel,let value):
+            let values=try curveTable(adjustment,value)
+            let identity=(0..<256).map{UInt8($0)}
+            return .lookup((1...3).map {channel==0 || channel==$0 ? values:identity}+[identity])
+        case .tint(let hue,let amount):return .rgb(tintTransform(hue,amount))
+        }
+    }
+    /// The complete finite integer Curve domain was captured from native
+    /// Windows GDI+ v1/v2. Verify the immutable bundled table before using any
+    /// row: a missing, replaced, truncated or unknown-profile resource fails
+    /// this conversion rather than silently dropping the requested effect.
+    private func curveTable(_ adjustment:Int,_ value:Int)throws->[UInt8] {
+        if adjustment==6 && value==0 || adjustment==7 && value==255 {
+            // Correct-GUID wire endpoint profiles play as ordinary images.
+            // JS bypasses the bridge for these; retain identity defensively.
+            return (0..<256).map{UInt8($0)}
+        }
+        let starts=[0,511,1022,1223,1424,1625,1826,2081]
+        let minimums=[-255,-255,-100,-100,-100,-100,1,0]
+        let counts=[511,511,201,201,201,201,255,255]
+        guard adjustment>=0,adjustment<starts.count,
+              value>=minimums[adjustment],value<minimums[adjustment]+counts[adjustment] else {throw invalid("invalid curve table index")}
+        if curveData==nil {
+            let expectedSize=598_032
+            guard let location=rendererURL()?.deletingLastPathComponent().appendingPathComponent("color-curves.bin"),
+                  let attributes=try? FileManager.default.attributesOfItem(atPath:location.path),
+                  attributes[.type] as? FileAttributeType == .typeRegular,
+                  (attributes[.size] as? NSNumber)?.intValue==expectedSize,
+                  let handle=try? FileHandle(forReadingFrom:location) else {throw invalid("curve resource unavailable")}
+            defer {try? handle.close()}
+            var bytes=Data()
+            while bytes.count<=expectedSize {
+                let fragment:Data
+                do {fragment=try handle.read(upToCount:min(16_384,expectedSize+1-bytes.count)) ?? Data()}
+                catch {throw invalid("cannot read curve resource")}
+                if fragment.isEmpty {break}
+                bytes.append(fragment)
+            }
+            guard bytes.count==expectedSize,bytes.prefix(8)==Data("TGCCLUT1".utf8) else {throw invalid("invalid curve resource size or header")}
+            func word(_ offset:Int)->Int {
+                Int(bytes[offset]) | Int(bytes[offset+1])<<8 | Int(bytes[offset+2])<<16 | Int(bytes[offset+3])<<24
+            }
+            let digest=SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()
+            guard word(8)==2336,word(12)==256,
+                  digest=="440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628" else {throw invalid("unverified curve resource")}
+            curveData=bytes
+        }
+        let offset=16+(starts[adjustment]+value-minimums[adjustment])*256
+        return Array(curveData![offset..<offset+256])
+    }
+    /// All captured Windows balance tables match this rational, half-up
+    /// channel multiplier, including both parameter endpoints. Alpha is inert.
+    private func balanceTable(_ amount:Int)->[UInt8] {
+        (0..<256).map {UInt8(min(255,($0*(100+amount)+50)/100))}
+    }
+    /// Captured Levels auxiliary tables and full direct RGBA outputs agree
+    /// exactly on the independently recorded endpoint/midpoint parameter grid.
+    /// Inverted thresholds reverse the curve after gamma, rather than applying
+    /// gamma to an already inverted input. Equal interior thresholds retain a
+    /// one-byte ramp; the all-zero thresholds produce the measured white table.
+    private func levelsTable(_ highlight:Int,_ midtone:Int,_ shadow:Int)->[UInt8] {
+        if highlight==0 && shadow==0 {return [UInt8](repeating:255,count:256)}
+        let high=Double(highlight)*255/100,low=Double(shadow)*255/100
+        let gamma=pow(10,-Double(midtone)/100)
+        return (0..<256).map {input in
+            let value:Double
+            if high<low {
+                let normalized=max(0,min(1,(Double(input)-high)/(low-high)))
+                value=1-pow(normalized,gamma)
+            } else {
+                let normalized=max(0,min(1,(Double(input)-low)/max(1,high-low)))
+                value=pow(normalized,gamma)
+            }
+            return UInt8(max(0,min(255,(value*255).rounded())))
+        }
+    }
+    /// Windows uses this integer HSL conversion, not a floating-point HSL
+    /// filter. In particular red's negative hue wraps by 253, blue wins the
+    /// blue/green maximum tie, and inverse hue intervals have asymmetric ends.
+    /// These details reproduce the full independently captured color cube.
+    private func hslTransform(_ hue:Int,_ saturation:Int,_ lightness:Int)->(UInt8,UInt8,UInt8)->(UInt8,UInt8,UInt8) {
+        let saturationTable=(0..<256).map {min(255,($0*(100+saturation)+50)/100)}
+        let lightnessTable=(0..<256).map {min(255,max(0,$0*100+255*lightness+50)/100)}
+        let hueShift=((hue<0 ? hue+360:hue)*255+180)/360
+        return {red,green,blue in
+            let r=Int(red),g=Int(green),b=Int(blue)
+            let high=max(r,max(g,b)),low=min(r,min(g,b)),delta=high-low,sum=high+low
+            var h=0,s=0
+            if delta != 0 {
+                s=delta*255/(sum<=255 ? sum:510-sum)
+                if high==r {h=(g-b)*43/delta;if h<0 {h+=253}}
+                else if high==b {h=(170*delta+(r-g)*43)/delta}
+                else {h=(86*delta+(b-r)*43)/delta}
+            }
+            let l=lightnessTable[sum/2]
+            s=saturationTable[s];h+=hueShift;if h>255 {h-=255}
+            if s==0 {return (UInt8(l),UInt8(l),UInt8(l))}
+            let q=l<128 ? l*(255+s)/255:l+s-l*s/255
+            let p=2*l-q
+            func channel(_ input:Int)->UInt8 {
+                var t=input;if t<0 {t+=255};if t>255 {t-=255}
+                let value:Int
+                if t<43 {value=p+(q-p)*t/43}
+                else if t<=128 {value=q}
+                else if t<170 {value=p+(q-p)*(170-t)/43}
+                else {value=p}
+                return UInt8(value)
+            }
+            return (channel(h+85),channel(h),channel(h-85))
+        }
     }
     /// Native Windows' RGB lookup tables agree with this normalized Float32
     /// model within one byte in the recorded parameter grid. Preserve the
@@ -161,9 +323,48 @@ private final class NativeImageEffects {
             return UInt8(max(0,min(255,pixel.rounded(.toNearestOrEven))))
         }
     }
+    /// Functional Tint profile with an explicitly measured precision limit.
+    /// This general luma-preserving hue blend differs from native Windows by
+    /// at most three associated-channel levels in the 35 captured profiles;
+    /// it is not a claim to reproduce Windows' undocumented Tint quantization.
+    /// Alpha remains independent. No fitted coefficients or sampled-case LUTs
+    /// participate in this approximation; exact Tint precision remains open.
+    private func tintTransform(_ hue:Int,_ amount:Int)->(UInt8,UInt8,UInt8)->(UInt8,UInt8,UInt8) {
+        let signedPosition=hue>=0 ? (hue*255+180)/360:(hue*255)/360
+        let position=signedPosition<0 ? signedPosition+256:signedPosition
+        let scale=Double(amount)/100
+        return {red,green,blue in
+            let r=Int(red),g=Int(green),b=Int(blue)
+            let upper=max(0,2*(max(r,max(g,b))/2)-1)
+            func component(_ input:Int)->Int {
+                var t=input;if t<0 {t+=255};if t>255 {t-=255}
+                if t<43 {return upper*t/43}
+                if t<=128 {return upper}
+                if t<170 {return upper*(170-t)/43}
+                return 0
+            }
+            let targetR=component(position+85),targetG=component(position),targetB=component(position-85)
+            let sourceY=Double(54*r+183*g+19*b)/256
+            let targetY=Double(54*targetR+183*targetG+19*targetB)/256
+            func channel(_ original:Int,_ colored:Int)->UInt8 {
+                let value=Double(original)+scale*(Double(colored-original)+sourceY-targetY)
+                return UInt8(max(0,min(255,floor(value+0.5))))
+            }
+            return (channel(r,targetR),channel(g,targetG),channel(b,targetB))
+        }
+    }
+    private func windowsUnassociate(_ associated:Int,_ alpha:Int)->UInt8 {
+        UInt8(alpha==0 ? 0:min(255,(associated*((255<<16)/alpha))>>16))
+    }
+    private func windowsAssociation(_ channel:UInt8,_ alpha:Int)->UInt8 {
+        windowsUnassociate((Int(channel)*alpha+127)/255,alpha)
+    }
     /// Metafile DrawImage effects receive GDI+'s premultiplied source conversion,
     /// unlike Bitmap.ApplyEffect on its original straight-channel storage. Make
     /// that round-trip explicit before a lookup can amplify low-alpha rounding.
+    /// The native reciprocal conversion is fixed-point: truncating 255/alpha
+    /// before multiplication matters for nonlinear effects at low alpha. This
+    /// also exactly reproduces the earlier matrix/LUT captured draw bands.
     /// Other ImageIO layouts use bounded native RGBA conversion without scaling.
     private func straightPixels(_ image:CGImage)throws->(bytes:Data,space:CGColorSpace) {
         let width=image.width,height=image.height
@@ -189,7 +390,7 @@ private final class NativeImageEffects {
                 for channel in 0..<3 {
                     let value=sample((first && hasSlot ? 1:0)+(channels==1 ? 0:channel))
                     let associated=premultiplied ? value:(value*a+127)/255
-                    result[output+channel]=UInt8(a==0 ? 0:min(255,associated*255/a))
+                    result[output+channel]=windowsUnassociate(associated,a)
                 }
                 result[output+3]=UInt8(a)
             }}
@@ -205,14 +406,22 @@ private final class NativeImageEffects {
         guard prepared else {throw invalid("cannot decode source pixels")}
         for offset in stride(from:0,to:result.count,by:4) {
             let a=Int(result[offset+3])
-            for channel in 0..<3 {result[offset+channel]=UInt8(a==0 ? 0:min(255,Int(result[offset+channel])*255/a))}
+            for channel in 0..<3 {result[offset+channel]=windowsUnassociate(Int(result[offset+channel]),a)}
         }
         return (result,outputSpace)
     }
     func apply(_ href:String,effect:JSValue)throws->String {
+        try transform(href,prepared:prepare(parse(effect)),outputAssociations:2)
+    }
+    /// Internal bitmap-loading operation, never a serialized effect kind. A
+    /// plain draw has two measured association boundaries in total. An ignored
+    /// serialized block selected by E additionally enters source preparation.
+    func prepareOrdinary(_ href:String,effectPipeline:Bool)throws->String {
+        try transform(href,prepared:.ordinary,outputAssociations:effectPipeline ? 2:1)
+    }
+    private func transform(_ href:String,prepared:PreparedEffect,outputAssociations:Int)throws->String {
         let prefix="data:image/png;base64,"
-        guard effect.isObject,!effect.isArray,let kind=effect.forProperty("kind"),kind.isString,
-              href.hasPrefix(prefix),href.utf8.count<=outputLimit,
+        guard href.hasPrefix(prefix),href.utf8.count<=outputLimit,
               let encoded=Data(base64Encoded:String(href.dropFirst(prefix.count))),encoded.count<=inputLimit,
               encoded.starts(with:[137,80,78,71,13,10,26,10]),
               let source=CGImageSourceCreateWithData(encoded as CFData,nil),CGImageSourceGetCount(source)==1,
@@ -222,17 +431,6 @@ private final class NativeImageEffects {
         let pixels=width*height
         guard calls<4096,pixels<=67_108_864-pixelsProcessed else {throw invalid("aggregate pixel work budget exceeded")}
         calls+=1;pixelsProcessed+=pixels
-        let matrix:[Double]?,tables:[[UInt8]]?
-        switch kind.toString() {
-        case "colorMatrix": matrix=try numbers(effect,"matrix",count:25);tables=nil
-        case "colorLookupTable": matrix=nil;tables=try [table(effect,"red"),table(effect,"green"),table(effect,"blue"),table(effect,"alpha")]
-        case "brightnessContrast":
-            let brightness=try integer(effect,"brightness",range:-255...255)
-            let contrast=try integer(effect,"contrast",range:-100...100)
-            let values=brightnessTable(brightness,contrast)
-            matrix=nil;tables=[values,values,values,(0..<256).map{UInt8($0)}]
-        default:throw invalid("unsupported effect kind")
-        }
         // Use the same lazy source-image policy as classic compressed images.
         // Effect source normalization is explicit in straightPixels and does
         // not rely on ImageIO selecting a particular alpha-storage layout.
@@ -243,7 +441,9 @@ private final class NativeImageEffects {
         try output.withUnsafeMutableBytes { storage in
             let bytes=storage.bindMemory(to:UInt8.self)
             for offset in stride(from:0,to:bytes.count,by:4) {
-                if let matrix {
+                switch prepared {
+                case .ordinary:break
+                case .matrix(let matrix):
                     let r=Double(bytes[offset])/255,g=Double(bytes[offset+1])/255,
                         b=Double(bytes[offset+2])/255,a=Double(bytes[offset+3])/255
                     for channel in 0..<4 {
@@ -253,8 +453,23 @@ private final class NativeImageEffects {
                         guard value.isFinite else {throw invalid("matrix result overflow")}
                         bytes[offset+channel]=UInt8(max(0,min(255,(value*255).rounded())))
                     }
-                } else if let tables {
+                case .lookup(let tables):
                     for channel in 0..<4 {bytes[offset+channel]=tables[channel][Int(bytes[offset+channel])]}
+                case .rgb(let transform):
+                    let (r,g,b)=transform(bytes[offset],bytes[offset+1],bytes[offset+2])
+                    bytes[offset]=r;bytes[offset+1]=g;bytes[offset+2]=b
+                }
+                // Active/selected-fallback blocks require both the intrinsic
+                // Bitmap raster and final Picture draw associations. Ordinary
+                // playback uses its source association plus one final boundary.
+                // Apple SVG/PNG associations cannot supply GDI+'s truncating
+                // fixed-point reciprocal, so model those boundaries explicitly.
+                // Use the effect's resulting alpha (matrix/LUT may change it).
+                let alpha=Int(bytes[offset+3])
+                for channel in 0..<3 {
+                    var value=bytes[offset+channel]
+                    for _ in 0..<outputAssociations {value=windowsAssociation(value,alpha)}
+                    bytes[offset+channel]=value
                 }
             }
         }
@@ -2280,6 +2495,12 @@ private func run() throws {
         catch {nativeError("Cannot apply metafile image effect");return ""}
     }
     context.setObject(applyImageEffect,forKeyedSubscript:"turtleGitApplyImageEffect" as NSString)
+    let prepareOrdinaryImage:@convention(block)(String,Bool)->String = {href,effectPipeline in
+        do {return try imageEffects.prepareOrdinary(href,effectPipeline:effectPipeline)}
+        catch ConversionError.invalid(let message) {nativeError(message);return ""}
+        catch {nativeError("Cannot prepare metafile bitmap playback");return ""}
+    }
+    context.setObject(prepareOrdinaryImage,forKeyedSubscript:"turtleGitPrepareImage" as NSString)
     let compressed:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:false)}
     let compressedClassic:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:true)}
     context.setObject(compressed, forKeyedSubscript: "__turtleCompressedImage" as NSString)

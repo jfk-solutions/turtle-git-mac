@@ -34,6 +34,16 @@ def main():
     binary = runtime / 'metafile-convert'
     assert digest(binary) == manifest['binary_sha256']
     assert digest(runtime / 'renderer.js') == manifest['renderer_sha256']
+    curve_data = (runtime / 'color-curves.bin').read_bytes()
+    assert len(curve_data) == 598032 and curve_data[:16] == b'TGCCLUT1' + struct.pack('<II', 2336, 256)
+    assert hashlib.sha256(curve_data).hexdigest() == pin['image_effects']['curve_lookup']['sha256']
+    assert set(manifest['resource_sha256']) == {'color-curves.bin', 'color-curves.json'}
+    for relative, expected in manifest['resource_sha256'].items():
+        assert digest(runtime / relative) == expected, relative
+        assert manifest['source_sha256']['Sources/TurtleGitMetafile/Resources/' + relative] == expected, relative
+    curve_metadata = json.loads((runtime / 'color-curves.json').read_text())
+    assert curve_metadata['sha256'] == hashlib.sha256(curve_data).hexdigest()
+    assert curve_metadata['table_count'] == 2336 and curve_metadata['table_bytes'] == 256
     for relative, expected in manifest['source_sha256'].items():
         assert digest(ROOT / relative) == expected, relative
         assert digest(runtime / 'Sources/build' / relative) == expected, relative
