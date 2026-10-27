@@ -1,0 +1,62 @@
+name: Metafile final spatial boundary Windows reference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docs/qa/metafile-spatial-effects-reference-2026-10-27/TinyNativeSpatialBoundaryReference.cpp'
+      - '.github/workflows/metafile-spatial-boundary-reference.yml'
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent Windows SDK observation tool
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-spatial-effects-reference-2026-10-27\TinyNativeSpatialBoundaryReference.cpp
+          /Fe:TinyNativeSpatialBoundaryReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Record direct results and original native EMF, replay actual Bitmap consumer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          ./TinyNativeSpatialBoundaryReference.exe generate reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./TinyNativeSpatialBoundaryReference.exe direct-v1 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./TinyNativeSpatialBoundaryReference.exe replay reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./TinyNativeSpatialBoundaryReference.exe replay-v1 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record source, toolchain, platform and byte provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          git rev-parse HEAD | Set-Content reference-output/source-revision.txt
+          cl 2>&1 | Out-File reference-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
+          if (Test-Path reference-output/generate.json) {
+            $manifest = Get-Content -Raw reference-output/generate.json | ConvertFrom-Json
+            Get-Item -LiteralPath $manifest.gdiplusModule | Select-Object -ExpandProperty VersionInfo | Select-Object FileName,FileVersion,ProductVersion | ConvertTo-Json | Set-Content reference-output/gdiplus-version.json
+          }
+          $inputs = @('docs/qa/metafile-spatial-effects-reference-2026-10-27/TinyNativeSpatialBoundaryReference.cpp', '.github/workflows/metafile-spatial-boundary-reference.yml', 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp', 'TinyNativeSpatialBoundaryReference.exe')
+          $inputs | Where-Object { Test-Path $_ } | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_
+            [PSCustomObject]@{file = $_; sha256 = $hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/input-hashes.json
+          Get-ChildItem reference-output -File | Where-Object Name -ne 'hashes.json' | Sort-Object Name | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_.FullName
+            [PSCustomObject]@{file = $_.Name; bytes = $_.Length; sha256 = $hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/hashes.json
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-spatial-boundary-native-windows
+          path: reference-output/
+          if-no-files-found: error
