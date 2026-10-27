@@ -31,7 +31,7 @@ wraps modulo256. Top-left row-major source coordinates are x,y=0…31.
 - `asymmetric`: opaque RGB(11x+53y,43x+7y,19x+37y), modulo256.
 - `alpha`: RGB(17x+3y,5x+29y,251−7x+11y), modulo256; alpha cycles through
   0,1,2,3,7,15,31,63,127,128,191,254,255 at index (floor(x/3)+floor(y/7)) mod13.
-- `strip-impulse`: opaque black513×17; red255 at(256,8), green255 at(2,8), blue255 at(510,8).
+- `strip-impulse`: opaque black513×17 with vertical bars across all17rows: red255 at x256, green255 at x2, blue255 at x510. The vertical-constant signal preserves measurable horizontal response at large radius; the32×32 atlas retains independent2D point impulses.
 - `strip-constant`:513×17 opaque RGB71,139,213. These expose full large-radius horizontal support independently of32-pixel source clipping.
 - `redeye`: i=x+32(y mod16); RGB indices i mod13, floor(i/13) mod13,
   floor(i/169) mod13 into 0,15,31,63,95,127,128,159,191,223,239,254,255.
@@ -104,3 +104,12 @@ Primary contracts read for this assay:
 [bitmap-returning ApplyEffect](https://learn.microsoft.com/en-us/windows/win32/api/gdiplusheaders/nf-gdiplusheaders-bitmap-applyeffect%28bitmap_int_effect_rect_rect_bitmap%29).
 Microsoft specifies parameter ranges and ROI/expansion behavior, but these pages
 do not supply complete numeric algorithms. The native results must establish them.
+
+## Initial compile failure and scoped repair
+
+Windows run40511117352 (source1cf1a17a, job122212980515) failed before native
+observations: the Windows `min` macro expanded the qualified `std::min` call.
+The repair parenthesizes that function name. The same affected-source revision
+changes the long-strip impulses to vertical bars, retaining the410-case count.
+No pixel results are inferred from the failed run. The next native artifact must
+identify this repaired source revision and its exact input hashes.

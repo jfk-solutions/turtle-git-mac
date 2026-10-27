@@ -28,7 +28,7 @@ static UINT sourceWidth(const std::string& name){return name=="strip-impulse"||n
 static UINT sourceHeight(const std::string& name){return name=="strip-impulse"||name=="strip-constant"?17:32;}
 static Color spatialColor(const std::string& name,UINT x,UINT y) {
     if(name=="strip-constant")return Color(255,71,139,213);
-    if(name=="strip-impulse")return Color(255,x==256&&y==8?255:0,x==2&&y==8?255:0,x==510&&y==8?255:0);
+    if(name=="strip-impulse")return Color(255,x==256?255:0,x==2?255:0,x==510?255:0);
     if(name=="impulse")return Color(255,x==15&&y==16?255:0,x==2&&y==3?255:0,x==31&&y==0?255:0);
     if(name=="step")return Color(255,x<16?0:255,y<11?31:223,(x+y)<23?240:17);
     if(name=="constant")return Color(255,71,139,213);
@@ -43,7 +43,7 @@ static Color spatialColor(const std::string& name,UINT x,UINT y) {
         BYTE r=180,g=145,b=120,a=255;
         if(y<16&&x<16){r=g=b=96;if(x>=4&&x<12&&y>=4&&y<12){r=240;g=20;b=10;}}
         else if(y<16){int dx=int(x)-24,dy=int(y)-8;if(dx*dx+dy*dy<=25){r=240;g=10;b=20;}}
-        else {int cell=int(x)/8,dx=int(x)%8-4,dy=int(y)%8-4;int radius=cell;bool red=cell==0?(dx==0&&dy==0):(dx*dx+dy*dy<=radius*radius);if(red){r=255;g=15;b=7;static constexpr BYTE alphas[]={0,1,127,254,255};a=alphas[std::min(UINT(4),(y-16)/3)];}}
+        else {int cell=int(x)/8,dx=int(x)%8-4,dy=int(y)%8-4;int radius=cell;bool red=cell==0?(dx==0&&dy==0):(dx*dx+dy*dy<=radius*radius);if(red){r=255;g=15;b=7;static constexpr BYTE alphas[]={0,1,127,254,255};a=alphas[(std::min)(UINT(4),(y-16)/3)];}}
         return Color(a,r,g,b);
     }
     if(name=="redeye-swapped"){Color c=spatialColor("redeye",x,y);return Color(c.GetA(),c.GetR(),c.GetB(),c.GetG());}
