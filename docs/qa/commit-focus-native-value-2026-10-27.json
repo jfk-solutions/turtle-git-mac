@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-27",
+  "status": "focused-native-commit-checkpoint-passed-after-metadata-transition-repair",
+  "source_parent": "7dcef538d483cc99f97d94f296d17e86c2bcb3aa",
+  "scope": [
+    "Commit branch/author/date/time focus deferred until native layout, matching text value/editability",
+    "Original editing-control ownership despite a reused AppKit field editor",
+    "Stale native author values, superseding branch requests, shared editor handoff, existing responder/form/Quit/retirement checks",
+    "Synchronous author/date/amend/comparison option transitions with single observer consumption; readiness cannot precede metadata admission"
+  ],
+  "hosted_failure": {
+    "run": 40496135185,
+    "job": 122164174342,
+    "source": "6de62e88",
+    "step": 99,
+    "step_name": "Commit options, Log columns and Settings appearance",
+    "diagnostic": "Native author focus command did not select actual field",
+    "status": "terminal-failure-confirmed-from-jobs-and-log"
+  },
+  "validation": {
+    "initial_debug_compile": {
+      "log": "build/qa/commit-focus-native-value-debug-2026-10-27.log",
+      "exit_code": 0,
+      "scope": "Deferred layout/value guard before shared-editor review addition"
+    },
+    "final_debug_compile": {
+      "log": "build/qa/commit-focus-native-value-repair-debug-2026-10-27.log",
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 4
+    },
+    "native": {
+      "log": "build/qa/commit-focus-native-value-repair-native-2026-10-27.log",
+      "exit_code": 0,
+      "passed_case_engine_pairs": 2,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receivers_reaped": [
+        420,
+        733
+      ],
+      "all_attempted_receivers_independently_absent": [
+        98159,
+        98454,
+        420,
+        733
+      ],
+      "presentation": "Private preferences/repositories, invisible/offscreen windows, no physical acceptance screenshots."
+    },
+    "core": "No Core production changed; no Core suite rerun",
+    "spatial": "Shared helper compiled from uncommitted spatial work; no spatial numerical/application parity acceptance.",
+    "first_native_attempt": {
+      "system_git": {
+        "log": "build/qa/commit-focus-native-value-native-2026-10-27.log",
+        "exit_code": 0,
+        "receiver": 98159
+      },
+      "bundled_git": {
+        "log": "build/qa/commit-focus-native-value-native-bundled-2026-10-27.log",
+        "exit_code": 1,
+        "receiver": 98454,
+        "diagnostic": "Author date focus command lost actual date responder"
+      },
+      "scope": "Deferred native value and shared-editor ownership before synchronous metadata transition repair. Both receivers reaped."
+    },
+    "shared_runtime": {
+      "log": "build/qa/commit-focus-native-value-repair-runtime-2026-10-27.log",
+      "exit_code": 0,
+      "source_hashes": {
+        "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+        "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+        "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+        "NOTICE": "8a6cac872f782158611511cbdcc6167d3c0686f2644e86f378b153b8d366311b",
+        "Configuration/MetafileRuntime.json": "8046aa31cbcc2069da6784533c6695116f6df591f3de9e478c07b4daa8f1159a",
+        "Sources/TurtleGitMetafile/main.swift": "5f242f99d37f7fa547545ad5767f496b351797fa73cba3f4e3275ffea26a34c8",
+        "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "1158cd2cfa9c6c227be9ede48ac1b6486f8503690ada41adee66f7559afa25bd",
+        "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "6805b3164742d567bad0af843acd51d2123b42198aaf1bb8f6f044ca05b09ed3",
+        "patches/metafile-renderer.patch": "eb2c5bbf09d5b149a39b03c39fcce16a1497031f3ec042ecdb5beb7ec9578e12",
+        "scripts/build-metafile-runtime.py": "979d751d4540620e6ef7333091ac791d2268abe8d3eb2ba6e86a87d03075d3e7",
+        "scripts/validate-metafile-runtime.py": "3021ae7102a74426f9992a7600270c1adeb4d565354a55dac55d529a261465ef",
+        "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+        "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+        "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+        "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+        "Sources/TurtleGitMetafile/Resources/color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+        "Sources/TurtleGitMetafile/Resources/color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609",
+        "scripts/build-metafile-curve-data.py": "d9f35ab69a5d1a9c5bcae6604a72e92e5d6d1cbe5cc3cc5eeb17cafb4626decd",
+        "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+        "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984"
+      },
+      "scope": "Structural universal reconstruction for this build, not spatial numerical effect acceptance."
+    }
+  },
+  "production_and_fixture_inputs": [
+    {
+      "path": "Sources/TurtleGitMac/CommitWindow.swift",
+      "sha256": "1f38face91212716e0e54e17174cc1010456b657a4214d334227d4312f8628f6"
+    },
+    {
+      "path": "docs/qa/primary-commit-options-native-2026-10-21.swift",
+      "sha256": "2738603aea3bd2881c7aaf08a5a058bc64b4d7b67977e3993dd3b799edeb63fc"
+    },
+    {
+      "path": "scripts/test-primary-parity-family.py",
+      "sha256": "6eed41282cdfff2f9922b8e4d446ff7b67af091b86bd8cce75006a4e9a274296"
+    }
+  ],
+  "limits": [
+    "No hosted older-SDK success yet",
+    "No physical keyboard/VoiceOver or signed-deployment acceptance",
+    "Whole port and spatial family remain incomplete",
+    "Source review: overlapping queued automatic message focus versus later explicit form/issue/file-list focus remains a separate provider-priority gap."
+  ],
+  "logs": [
+    {
+      "path": "build/qa/commit-focus-native-value-debug-2026-10-27.log",
+      "sha256": "cdf02b9427323ec4bda02f90c3ebfac7be329b01c12030b8b46255eeee2fd55c"
+    },
+    {
+      "path": "build/qa/commit-focus-native-value-final-debug-2026-10-27.log",
+      "sha256": "e61c70b5f8ade689588ff9e422fa92f51fff4747d4db93f99fb5b565f58de30c"
+    },
+    {
+      "path": "build/qa/commit-focus-native-value-native-2026-10-27.log",
+      "sha256": "6e8d510daff9292871d40548c52ee2e816cd7ccee065feef5c13ee3d64479a5d"
+    },
+    {
+      "path": "build/qa/commit-focus-native-value-native-bundled-2026-10-27.log",
+      "sha256": "aac1ab043e093c8c63c13a502e95cc6ec33b235edcac165d33d929688f953398"
+    },
+    {
+      "path": "build/qa/commit-focus-native-value-repair-runtime-2026-10-27.log",
+      "sha256": "f5f2c9315efb444ff5a5688ce402a809cc7cd656537557bd99b725511fabb3b0"
+    },
+    {
+      "path": "build/qa/commit-focus-native-value-repair-debug-2026-10-27.log",
+      "sha256": "ad969504932011891a9ad4299f995de1f1d5d6428ac70f51baaeec66926e5a9b"
+    },
+    {
+      "path": "build/qa/commit-focus-native-value-repair-native-2026-10-27.log",
+      "sha256": "63f38734bb42a27fd31b4c732e7b1175c388d91c0d3cc30ee887701461638d81"
+    }
+  ]
+}

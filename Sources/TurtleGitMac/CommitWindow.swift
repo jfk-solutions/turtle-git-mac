@@ -74,21 +74,32 @@ import TurtleGitCore
     private var formFocusID=UUID()
     var formFocusPending:Bool {formFocusTask != nil}
     private func cancelFormFocus() {formFocusID=UUID();formFocusTask?.cancel();formFocusTask=nil}
+    private func formEditingControl(in view:NSView,editor:NSResponder?)->NSControl? {
+        guard let editor else{return nil}
+        if let control=view as? NSControl,control.currentEditor() === editor{return control}
+        return view.subviews.compactMap{formEditingControl(in:$0,editor:editor)}.first
+    }
     /// Accept the command against its form, then wait for SwiftUI's native
     /// attachment/editability update without carrying authority to a later form.
     @discardableResult func focusFormField(_ identifier:String)->Bool {
         cancelFormFocus()
         guard commandsAvailable,NSApp.modalWindow==nil,let window,window.isVisible,!window.isMiniaturized else{return false}
         let receipt=model.formReceipt,id=formFocusID,initialResponder=window.firstResponder
+        let initialEditingControl=window.contentView.flatMap{formEditingControl(in:$0,editor:initialResponder)}
+        let startedInFieldEditor=(initialResponder as? NSTextView)?.isFieldEditor==true
+        guard !startedInFieldEditor || initialEditingControl != nil else{return false}
         guard formFocusAllowed(identifier),model.acceptsFormReceipt(receipt) else{return false}
-        guard let completed=attemptFormFocus(identifier,receipt:receipt,window:window,initialResponder:initialResponder) else{return false}
-        if completed {return true}
-        formFocusTask=Task { @MainActor [weak self,weak window,weak initialResponder] in
+        formFocusTask=Task { @MainActor [weak self,weak window,weak initialResponder,weak initialEditingControl] in
             defer {if let self,self.formFocusID==id {self.formFocusTask=nil}}
+            // A model-ready command can arrive before SwiftUI has delivered its
+            // new value/editability to AppKit. Selecting synchronously can be
+            // undone by that still-pending native update on the hosted SDK.
+            await Task.yield()
             for _ in 0..<300 {
                 do {
                     guard let self,let window,!Task.isCancelled,self.formFocusID==id else{return}
-                    guard let completed=self.attemptFormFocus(identifier,receipt:receipt,window:window,initialResponder:initialResponder) else{return}
+                    window.contentView?.layoutSubtreeIfNeeded()
+                    guard let completed=self.attemptFormFocus(identifier,receipt:receipt,window:window,initialResponder:initialResponder,initialEditingControl:initialEditingControl,startedInFieldEditor:startedInFieldEditor) else{return}
                     if completed {return}
                 }
                 try? await Task.sleep(nanoseconds:10_000_000)
@@ -105,7 +116,7 @@ import TurtleGitCore
         }
     }
     /// nil revokes the request; false means the accepted native view is pending.
-    private func attemptFormFocus(_ identifier:String,receipt:CommitWindowModel.FormReceipt,window:NSWindow,initialResponder:NSResponder?)->Bool? {
+    private func attemptFormFocus(_ identifier:String,receipt:CommitWindowModel.FormReceipt,window:NSWindow,initialResponder:NSResponder?,initialEditingControl:NSControl?,startedInFieldEditor:Bool)->Bool? {
         guard self.window===window,window.isVisible,!window.isMiniaturized,NSApp.modalWindow==nil,commandsAvailable,model.acceptsFormReceipt(receipt),formFocusAllowed(identifier) else{return nil}
         func find(_ view:NSView)->NSView? {
             if view.identifier?.rawValue==identifier{return view}
@@ -117,13 +128,20 @@ import TurtleGitCore
         if let text=field as? NSTextField {ownsResponder=responder===text || responder===text.currentEditor()}
         else if let field,let responder=responder as? NSView {ownsResponder=responder===field || responder.isDescendant(of:field)}
         else {ownsResponder=false}
-        guard responder===initialResponder || responder===window || ownsResponder else{return nil}
+        // AppKit reuses one field editor across multiple text controls. Its
+        // unchanged responder identity cannot authorize stealing focus back
+        // after the user has started editing a different control.
+        let originalEditorStillOwned=initialEditingControl.map{$0.window===window && $0.currentEditor() === responder} ?? false
+        let sameOrigin=responder===initialResponder && (!startedInFieldEditor || originalEditorStillOwned)
+        guard sameOrigin || responder===window || ownsResponder else{return nil}
         guard let field,field.window===window,!field.isHiddenOrHasHiddenAncestor,
               (field as? NSControl)?.isEnabled != false else{return false}
         if let text=field as? CommitOwnedTextField {
             guard text.hasOriginalOwner else{return nil}
             let expectsEditing=identifier=="Commit new branch" || model.setAuthor
             guard text.isEditable==expectsEditing,text.isSelectable else{return false}
+            let expectedValue=identifier=="Commit new branch" ? model.newBranch:model.author
+            guard text.stringValue.utf8.elementsEqual(expectedValue.utf8) else{return false}
             guard window.makeFirstResponder(text) else{return false}
             text.selectText(nil)
             guard let editor=text.currentEditor() else{return false}
@@ -877,7 +895,29 @@ import TurtleGitCore
     }
     private var loadedPreferences = false
     struct FormReceipt:Equatable {fileprivate let revision:UUID}
-    enum FormOption {case newBranch,amend,amendComparison,author,authorDate,resetDate,wholeProject,messageOnly,noAutoSubmodules,staging,unversioned}
+    enum FormOption:Hashable {case newBranch,amend,amendComparison,author,authorDate,resetDate,wholeProject,messageOnly,noAutoSubmodules,staging,unversioned}
+    private var deliveredFormTransitions:[FormOption:Bool]=[:]
+    /// Menu and checkbox actions own their metadata transition synchronously.
+    /// SwiftUI may deliver its observer on a later turn; it must not start that
+    /// same read again or retire focus admitted against the resulting form.
+    func formOptionViewChanged(_ option:FormOption) {
+        let value:Bool
+        switch option {
+        case .amend:value=amend
+        case .amendComparison:value=amendDiffToLastCommit
+        case .author:value=setAuthor
+        case .authorDate:value=setAuthorDate
+        default:return
+        }
+        if let delivered=deliveredFormTransitions.removeValue(forKey:option),delivered==value{return}
+        switch option {
+        case .amend:amendChanged()
+        case .amendComparison:comparisonChanged()
+        case .author:authorChanged()
+        case .authorDate:dateChanged()
+        default:break
+        }
+    }
     private var formRevision=UUID(),metadataEpoch=UUID()
     var formReceipt:FormReceipt {FormReceipt(revision:formRevision)}
     private func retireFormReceipts(){formRevision=UUID()}
@@ -897,10 +937,14 @@ import TurtleGitCore
         guard acceptsFormReceipt(receipt),canChangeFormOption(option) else{return}
         switch option {
         case .newBranch:createBranch=value
-        case .amend:amend=value
-        case .amendComparison:amendDiffToLastCommit=value
-        case .author:setAuthor=value
-        case .authorDate:setAuthorDate=value
+        case .amend:
+            guard amend != value else{return};amend=value;amendChanged();deliveredFormTransitions[option]=value
+        case .amendComparison:
+            guard amendDiffToLastCommit != value else{return};amendDiffToLastCommit=value;comparisonChanged();deliveredFormTransitions[option]=value
+        case .author:
+            guard setAuthor != value else{return};setAuthor=value;authorChanged();deliveredFormTransitions[option]=value
+        case .authorDate:
+            guard setAuthorDate != value else{return};setAuthorDate=value;dateChanged();deliveredFormTransitions[option]=value
         case .resetDate:resetAuthorDate=value
         case .wholeProject:setShowWholeProject(value)
         case .messageOnly:messageOnly=value
@@ -2469,7 +2513,7 @@ import TurtleGitCore
     }
     func invalidateForClose() {
         guiPatch?.retire(); guiPatch = nil
-        pendingRecommitSession=false;resetMetadataTransitions=[:]
+        pendingRecommitSession=false;resetMetadataTransitions=[:];deliveredFormTransitions=[:]
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
@@ -3275,9 +3319,9 @@ struct CommitDialog: View {
             }
         }
         .onChange(of:model.issueFocusRequest){_ in if model.messageFocusAvailable,!model.inputsBlocked,model.issueProperties.showsIssueField{issueFieldFocused=true}}
-        .onChange(of: model.amendDiffToLastCommit) { _ in model.comparisonChanged() }
-        .onChange(of: model.setAuthor) { _ in model.authorChanged() }
-        .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }
+        .onChange(of: model.amendDiffToLastCommit) { _ in model.formOptionViewChanged(.amendComparison) }
+        .onChange(of: model.setAuthor) { _ in model.formOptionViewChanged(.author) }
+        .onChange(of: model.setAuthorDate) { _ in model.formOptionViewChanged(.authorDate) }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
         .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0,model.messageFocusAvailable,!model.confirmingQuit { model.error = nil } })) {
             Button("OK") {if model.messageFocusAvailable,!model.confirmingQuit{model.error = nil}}
@@ -3305,7 +3349,7 @@ struct CommitDialog: View {
                     }
                     HStack {
                         Toggle("Amend Last Commit", isOn: formBinding(.amend, \.amend)).toggleStyle(.checkbox)
-                            .disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.amendChanged() }
+                            .disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.formOptionViewChanged(.amend) }
                         Spacer(); CommitMessagePositionIndicator(model: model)
                     }
                 }.frame(minWidth: 450)
@@ -3352,7 +3396,7 @@ struct CommitDialog: View {
                     // IDD_COMMITDLG keeps the conditional comparison control
                     // anchored to the right edge of the Amend option band.
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.amendChanged() }
+                        Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.formOptionViewChanged(.amend) }
                         Spacer(minLength: 12)
                         if model.amend { Toggle("Show diff to last commit", isOn:formBinding(.amendComparison,\.amendDiffToLastCommit)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amendComparison)) }
                     }

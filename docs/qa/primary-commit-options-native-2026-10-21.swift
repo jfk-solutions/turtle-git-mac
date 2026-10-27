@@ -85,13 +85,54 @@ enum PrimaryCommitOptionsVerification {
         model.confirmingQuit=true;model.confirmingQuit=false
         model.setFormOption(.messageOnly,value:true,receipt:before)
         try require(!model.messageOnly,"Retained form binding revived after cancelled Quit")
-        try await command(context,owner,"author")
+        let authorOption=try await readyItem(context,owner,"author")
+        try press(authorOption)
+        let authorOptionReceipt=model.formReceipt
+        try require(model.loadingAuthorIdentity,"Author action returned before starting its metadata transition")
         try await wait(owner.window,"Author option read did not settle"){model.setAuthor && !model.loadingAuthorIdentity}
+        try require(model.formReceipt==authorOptionReceipt,"Delayed author view callback retired the accepted option form")
         try await command(context,owner,"focusAuthor")
         guard let nativeAuthor=field(owner,"Commit author") else{throw Failure(description:"Actual author field missing")}
         try await wait(owner.window,"Native author focus command did not select actual field") {
             nativeAuthor.currentEditor()?.selectedRange==NSRange(location:0,length:nativeAuthor.stringValue.utf16.count)
         }
+        // Model identity is ready while the installed native field still has
+        // an older value. Selecting that value would be undone by its update.
+        owner.window?.makeFirstResponder(nil)
+        nativeAuthor.stringValue="Pending native identity update"
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Stale native value was focused synchronously")
+        try await Task.sleep(nanoseconds:30_000_000)
+        try require(owner.formFocusPending && nativeAuthor.currentEditor()==nil,"Focus selected the stale native author value")
+        nativeAuthor.stringValue=model.author
+        try await wait(owner.window,"Current native author value did not fulfill accepted focus") {
+            !owner.formFocusPending && nativeAuthor.currentEditor()?.selectedRange==NSRange(location:0,length:model.author.utf16.count)
+        }
+        owner.window?.makeFirstResponder(nil)
+        nativeAuthor.stringValue="Superseded native identity update"
+        try require(owner.focusFormField("Commit author"),"Superseded author focus was not accepted")
+        try require(owner.focusFormField("Commit new branch"),"New branch focus did not supersede pending author focus")
+        try await wait(owner.window,"Superseding branch focus did not settle") {
+            !owner.formFocusPending && nativeBranch.currentEditor()?.selectedRange==NSRange(location:0,length:model.newBranch.utf16.count)
+        }
+        nativeAuthor.stringValue=model.author
+        try await Task.sleep(nanoseconds:30_000_000)
+        try require(nativeAuthor.currentEditor()==nil && nativeBranch.currentEditor() != nil,"Superseded author focus stole later branch editing")
+        // The same shared NSTextView can move to another control without a
+        // responder identity change. That still revokes the earlier request.
+        guard let sharedEditor=nativeBranch.currentEditor() else{throw Failure(description:"Branch field editor missing")}
+        let foreignField=NSTextField(string:"Other editable control")
+        foreignField.frame=NSRect(x:10,y:10,width:180,height:22)
+        owner.window?.contentView?.addSubview(foreignField)
+        defer{foreignField.removeFromSuperview()}
+        nativeAuthor.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,"Shared-editor revocation request was not retained")
+        try require(owner.window?.makeFirstResponder(foreignField)==true,"Other control could not receive field editor")
+        foreignField.selectText(nil)
+        try require(foreignField.currentEditor() === sharedEditor,"Fixture did not exercise shared field-editor reuse")
+        try await wait(owner.window,"Changing the shared editor's control did not revoke pending focus"){!owner.formFocusPending}
+        nativeAuthor.isEditable=true
+        try require(foreignField.currentEditor() === sharedEditor && owner.window?.firstResponder === sharedEditor,"Pending author focus stole another control's shared editor")
+        owner.window?.makeFirstResponder(nil);foreignField.removeFromSuperview()
         // Reproduce model-ready/native-not-yet-editable delivery with the real
         // installed field. Accepted focus must complete when that view is ready.
         owner.window?.makeFirstResponder(nil);nativeAuthor.isEditable=false
@@ -122,8 +163,12 @@ enum PrimaryCommitOptionsVerification {
         try await wait(owner.window,"Amend metadata did not settle"){model.amend && !model.loadingAmendMessage && !model.loadingAuthorIdentity && !model.busy}
         let comparison=try await readyItem(context,owner,"amendComparison")
         try require(comparison.isEnabled,"Real parent revision did not expose amend comparison")
-        try await command(context,owner,"authorDate")
+        let dateOption=try await readyItem(context,owner,"authorDate")
+        try press(dateOption)
+        let dateOptionReceipt=model.formReceipt
+        try require(model.loadingAuthorDate,"Date action returned before starting its metadata transition")
         try await wait(owner.window,"Amend author date did not settle"){model.setAuthorDate && !model.loadingAuthorDate}
+        try require(model.formReceipt==dateOptionReceipt,"Delayed date view callback retired the accepted option form")
         try await command(context,owner,"focusDate")
         try await wait(owner.window,"Author date focus command lost actual date responder") {
             guard let picker=views(owner.window?.contentView).first(where:{$0.identifier?.rawValue=="Commit author date"}),let responder=owner.window?.firstResponder as? NSView else{return false}
