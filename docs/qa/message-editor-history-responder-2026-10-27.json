@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-27",
+  "baseline": "ca40de260093c2b4dad8a8975ef63bf40b74d3f9",
+  "status": "grouped-native-cumulative-pass-signed-followup-required",
+  "scope": [
+    "Standard native Undo/Redo selector delivery and validation for all shared message editors",
+    "Physical shortcut forwarding and icon-bearing context history with captured document ownership",
+    "Preserve native typing/line-edit history, busy/IME/modal/sheet/source/retirement guards and session replacement"
+  ],
+  "trigger": "docs/qa/signed-consolidation-build15-2026-10-27.json",
+  "finding": "Installed Commit Duplicate worked; Edit Undo disabled and physical CmdZ/CmdY left draft unchanged. Earlier grouped native checks directly called the manager and did not prove responder delivery.",
+  "production": [
+    "Sources/TurtleGitMac/MessageEditorLineCommands.swift",
+    "Sources/TurtleGitMac/ProjectDialogSettings.swift"
+  ],
+  "fixture": "docs/qa/message-editor-commands-native-2026-10-27.swift",
+  "core_scope": "No Core changes. Earlier relevant Core35 checkpoint retained; no new Core rerun planned.",
+  "remaining": [
+    "Installed signed main-menu/physical keyboard acceptance of repaired source",
+    "Physical VoiceOver/IME and other layouts",
+    "Complete paused-Rebase identity combinations",
+    "Full hosted integration and complete dialog/source parity"
+  ],
+  "app": {
+    "session": 21415,
+    "exit": 0,
+    "log": "build/qa/message-history-app-2026-10-27.log",
+    "contradictory_exit_zero_diagnostics": 0,
+    "warnings": "Existing actor-isolation/deprecation and package relocation/signature replacement warnings retained; not warning-free."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/MessageEditorLineCommands.swift": "18f485dc6ef44a811641c64a98fd40f83cfc6a3f3b51f0ac47349cbbb269f605",
+    "Sources/TurtleGitMac/ProjectDialogSettings.swift": "aee0eea11a73ce05b235a2afe546dcd2bc5ebc240498235e8dbf467c75262a98",
+    "docs/qa/message-editor-commands-native-2026-10-27.swift": "7256c05e2596afd393f38d57f0ab7fa0689d797dd6bc8c6468a5dc6a874c5a85"
+  },
+  "native_attempts": [
+    {
+      "session": 4422,
+      "exit": 1,
+      "log": "build/qa/message-history-native-2026-10-27.log",
+      "report": "build/qa/message-history-native-2026-10-27.json",
+      "receiver": 66654,
+      "receiver_absent": true,
+      "scope": "Commit previous exact Unicode/selection/wrapping UndoRoundTrip assertions pass through actual selectors; new historyFences setup fails before other adapters/engine run.",
+      "failure": "Two intended separate Duplicate actions share Cocoa automatic event grouping, so one Undo correctly consumes both; fixture expected bothUndoRedo entries. Wait for actual native groupingLevel0 between setup actions; retain assertions and production unchanged.",
+      "evidence": "build/qa/message-editor-commands-failed-0-3zevt4z9",
+      "cleanup": "Owned windows closed, workers drained, private board/preferences removed; receiver reaped."
+    },
+    {
+      "session": 16368,
+      "exit": 1,
+      "log": "build/qa/message-history-native-event-repair-2026-10-27.log",
+      "report": "build/qa/message-history-native-event-repair-2026-10-27.json",
+      "receiver": 66914,
+      "receiver_absent": true,
+      "failure": "A queued async continuation/sleep does not drive the hidden async-main AppKit event boundary; native groupingLevel never reached0. Reuse existing Unified Diff private applicationDefined-event pattern before waiting; no manager policy changes or assertion removal.",
+      "evidence": "build/qa/message-editor-commands-failed-0-qhfyw967",
+      "cleanup": "Owned windows closed, workers drained, private board/preferences removed; receiver reaped."
+    },
+    {
+      "session": 2660,
+      "exit": 1,
+      "log": "build/qa/message-history-native-boundary-repair-2026-10-27.log",
+      "report": "build/qa/message-history-native-boundary-repair-2026-10-27.json",
+      "receiver": 67165,
+      "receiver_absent": true,
+      "passed_scope": [
+        "System Git Commit, Merge, Rebase shared Project editor, Notes and branch-description adapter command/zoom/history/ownership groups",
+        "Integration clipboard, multirange, wrapping, context Undo/Redo, keyboard and menu-context checks preceding replacement setup"
+      ],
+      "failure": "Integration fixture expected Duplicate on first line after Input.configure reset, but native replacement leaves caret at EOF. Explicitly set the intended first-line caret before the new document Duplicate; keep exact text/history/stale-menu assertions. No production change.",
+      "evidence": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/message-editor-commands-failed-0-6a3b8aa2",
+      "cleanup": "Owned windows closed, workers drained, private board/preferences removed; receiver reaped."
+    },
+    {
+      "session": 13653,
+      "exit": 0,
+      "log": "build/qa/message-history-native-integration-repair-2026-10-27.log",
+      "report": "build/qa/message-history-native-integration-repair-2026-10-27.json",
+      "receiver": 67421,
+      "scope": "System Git integration only, following explicit replacement caret repair",
+      "cleanup": "Complete PASS marker; owned windows/workers, private board/preferences, repository invariants and reaping."
+    },
+    {
+      "session": 5518,
+      "exit": 0,
+      "log": "build/qa/message-history-native-bundled-2026-10-27.log",
+      "report": "build/qa/message-history-native-bundled-2026-10-27.json",
+      "receiver": 68534,
+      "scope": "Bundled Git full six-case group; unchanged fixture receiver reused",
+      "cleanup": "Complete PASS marker; owned windows/workers, private board/preferences, repository invariants and reaping."
+    }
+  ],
+  "owned_receivers": {
+    "pids": [
+      66654,
+      66914,
+      67165,
+      67421,
+      68534
+    ],
+    "all_independently_absent": true
+  },
+  "passed_scope": [
+    "Cumulatively all six case groups with system and bundled Git; no Core or app-build repetition after fixture-only repairs",
+    "Actual native undo:/redo: responder delivery and standard menu/generic UI validation across five adapters",
+    "Context Undo/Redo icons and dispatch; CmdZ, CmdShiftZ and source-style CmdY; native event grouping",
+    "Unchanged Unicode, mixed line endings, exact selection/affinity, ordinary typing, clipboard and source wrapping assertions",
+    "Busy, Quit, IME, modal/sheet, background/unfocused, source-unavailable, replaced document and retired-owner gates; stale context menus cannot change fresh history",
+    "Private repository HEAD/index/config/worktree/note unchanged; private preferences and board removed; workers drained and owned receivers reaped"
+  ],
+  "validation_limits": "Hidden receivers inject their private key-window owner. Real native responder delivery is exercised, but installed main-menu/physical keyboard acceptance of repaired source still requires the next signed preview. Rebase uses shared representable with synthetic source-session/context IDs, not a complete paused replay round trip.",
+  "required_resource_checks": {
+    "localizations_write": {
+      "languages": 38,
+      "keys": 1324,
+      "log": "build/qa/message-history-localizations-write-2026-10-27.log"
+    },
+    "localizations_check": "passed",
+    "dialog_coverage": "130dialogs,120partialfamilies,10pending,0certified,1659controls,1574mapped,85pending; not feature completion percentages",
+    "help": "No guide listed by docs/help-topics.json changed in this follow-up; no Help regeneration required."
+  }
+}

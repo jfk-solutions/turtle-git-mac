@@ -1,0 +1,188 @@
+{
+  "date": "2026-10-27",
+  "status": "installed-gui-acceptance-found-undo-routing-gap",
+  "source_commit": "ca40de260093c2b4dad8a8975ef63bf40b74d3f9",
+  "build": "15",
+  "scope": [
+    "Package shared Commit, Merge, Rebase, Notes and branch-description line editing and temporary zoom in the signed universal local preview",
+    "Perform bounded installed Commit editing, menu and close acceptance after the package audit"
+  ],
+  "app_store_submission": "Deferred until owner testing. No upload, Connect changes, notarization or submission authorized/performed.",
+  "preceding_validation": "docs/qa/message-editor-commands-family-2026-10-27.json; relevant Core and grouped native checks already passed, not repeated for packaging.",
+  "scope_selection": {
+    "method": "Three parallel bounded read-only source/current implementation reviews; no complete feature-parity claim.",
+    "findings": [
+      "Live Log, Refs and Synchronization command families inspected already have native routes.",
+      "Portable Advanced Settings consumers inspected already connected; remaining audited keys select Windows infrastructure or lack live upstream consumers.",
+      "Pending dialog control ledger includes dead/commented upstream controls and Windows support infrastructure; it does not establish another missing ordinary dialog family.",
+      "Direct CrashServer submission/additional-dump/solution lookup remains unported; local Apple crash discovery, consent, review and export exist. Fork-owned service contract is needed for equivalent network submission."
+    ],
+    "decision": "Deliver the completed editor family to the installed local preview instead of inventing a missing ordinary Git command."
+  },
+  "hosted_observation": {
+    "current_macOS": {
+      "run": 40428318167,
+      "status": "pending",
+      "sha": "ca40de260093c2b4dad8a8975ef63bf40b74d3f9"
+    },
+    "current_pages": {
+      "run": 40428318032,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "preceding_macOS": {
+      "run": 40423812162,
+      "job": 121926395455,
+      "status": "in_progress",
+      "active_step": "Git integration tests",
+      "sha": "7ab0327155c1a9c23113ddb1011b6f47653f29f1",
+      "note": "Predates ca40 watchdog test cleanup repair. No runs restarted or cancelled."
+    }
+  },
+  "remaining": [
+    "Complete source/dialog/physical/VoiceOver acceptance",
+    "Current full hosted integration pass",
+    "Actual Intel/minimum-supported-macOS execution",
+    "Broader signed Finder, external authentication and volume/grant acceptance",
+    "GPL/App Store distribution rights and owner-approved release preparation"
+  ],
+  "candidate_worktree": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac",
+  "source_input_sha256": "149d803fce658a639a71f12f7303122e189efd28e7639b231eda3f2e7b392ae7",
+  "source_input_count": 1534,
+  "build_session": 88868,
+  "build_log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed15-build-2026-10-27.log",
+  "validation_scope": "Existing Core/native checkpoint retained; new universal signed package and bounded installed GUI acceptance only.",
+  "preexisting_installed": {
+    "build": "14",
+    "main_app_process": "absent",
+    "finder_extension_pid": 53177,
+    "policy": "Do not terminate user-owned processes or restart Finder."
+  },
+  "build_attempts": [
+    {
+      "log": "build/qa/signed15-build-initial-failed-2026-10-27.log",
+      "status": "failed",
+      "session": 88868,
+      "exit_code": 65,
+      "reason": "Metafile runtime source provenance NOTICE hash predates ca40"
+    },
+    {
+      "status": "succeeded",
+      "log": "build/qa/signed15-build-2026-10-27.log",
+      "scope": "Affected packaging rebuild using cached successful universal compilation",
+      "session": 58610,
+      "exit_code": 0
+    }
+  ],
+  "runtime_repair": "Only the candidate Metafile payload had an old NOTICE hash. Validated matching primary payload replaced it; initial failed package preserved. LibGit2 matched and was untouched. No source change or editor test rerun.",
+  "build_result": {
+    "session": 58610,
+    "exit": 0,
+    "marker": "BUILD SUCCEEDED"
+  },
+  "static_validation": {
+    "source_inputs_unchanged": true,
+    "source_input_sha256": "149d803fce658a639a71f12f7303122e189efd28e7639b231eda3f2e7b392ae7",
+    "application_sha256": "f592307da6bae62cf4786721add11b2e119409df32db648e4b8229a29270aca4",
+    "codesign_deep_strict_exit": 0,
+    "bundle_file_count": 6366,
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 90,
+    "generated_apple_help_index": {
+      "kind": "file",
+      "size": 363380,
+      "mode": "0o644",
+      "sha256": "cc76e70173dfd02326c59c69d834918f1efac421a0d67cbc9af11cfc010fbf8f"
+    },
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "status": "installed_verified",
+    "source_commit": "ca40de260093c2b4dad8a8975ef63bf40b74d3f9",
+    "source": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed15-displaced-installed-2026-10-27",
+    "old_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "14",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "14"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "14"
+        }
+      }
+    },
+    "new_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "15",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "15"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "15"
+        }
+      }
+    },
+    "source_input_sha256": "149d803fce658a639a71f12f7303122e189efd28e7639b231eda3f2e7b392ae7",
+    "application_sha256": "f592307da6bae62cf4786721add11b2e119409df32db648e4b8229a29270aca4",
+    "inventory_members": 6366,
+    "strict_signature": "pass",
+    "source_staged_installed_inventories": "equal",
+    "finder_restarted": false,
+    "global_cache_reset": false,
+    "registration_pending": true
+  },
+  "registration": "+    org.turtlegit.macos.finder(0.1.0)\n",
+  "installed_gui": {
+    "passed": [
+      "Actual installed Commit opens private repository after explicit native folder grant",
+      "Duplicate by actual main-menu action and physical Cmd+Option+D preserves intended line",
+      "Context zoom enables Actual Size; reset accepted",
+      "Native Cancel confirmation and close work; private saved repository permission removed",
+      "Original ladybird and web-component-designer entries remain; no user repository operation"
+    ],
+    "failed": [
+      "Standard Edit Undo remains disabled after Duplicate, and physical Cmd+Z and Cmd+Y both leave the duplicated draft unchanged. Hidden previous fixtures invoked the UndoManager directly; responder-chain integration is unproven and now being repaired."
+    ],
+    "attempts": [
+      {
+        "pid": 63784,
+        "session": 64164,
+        "exit": 143,
+        "cleanup": "Commit window closed during ambiguous Escape/menu keyboard attempt; terminated owned remaining main process and reaped. Initial folder-name click/Authorize timed out; explicit double-click into repository and Open resolved grant."
+      },
+      {
+        "pid": 64268,
+        "session": 54258,
+        "exit": 0,
+        "cleanup": "Cancelled draft, forgot only private saved permission, native Quit; owned session reaped."
+      }
+    ],
+    "repository_unchanged": true,
+    "before": "build/qa/signed15-ui-2026-10-27/before.json",
+    "after": "build/qa/signed15-ui-2026-10-27/after.json",
+    "main_app_absent": true,
+    "finder_policy": "Existing system-owned Finder extension left running. No Finder/Dock restart or global cache reset. Registration does not prove physical badges/menus.",
+    "preferences": "Actual installed user preferences for deliberate physical acceptance; no configured font/mode changes. Paste restores system clipboard. Disposable repository-specific recent draft may remain; its saved access was removed."
+  },
+  "performance_observation": {
+    "sample": "build/qa/signed15-ui-2026-10-27/loading-main.sample.txt",
+    "scope": "Actual signed private Commit initially remained busy while other watched repositories restored; AX observation duration is not a controlled full-startup benchmark.",
+    "finding": "All180 active-worker samples were FinderSnapshotStore.publish -> validate -> FileTransferPaths.lexicalPath; main thread idle. Startup configureActionRouting creates FinderWatchManager.restore for every saved root. Publication revalidates contributions and serializes them under a global file lock.",
+    "limit": "No direct Commit.reload await on Finder publication or global Git serialization found. The sample establishes expensive competing Finder work, not the cause or resolution of complete Commit delay. LibGit2 runtime selection uses executable-file checks, without repeated signature/hash verification.",
+    "next_family": "Isolate action-dialog watched-root startup and reduce duplicate path/contribution validation while retaining security, leases, corruption handling and cancellation; measure Commit phases separately at that family checkpoint."
+  }
+}

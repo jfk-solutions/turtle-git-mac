@@ -728,18 +728,24 @@ class ProjectMessageTextView: NSTextView {
         }
     }
     override func keyDown(with event: NSEvent) {
+        if handleMessageHistoryKey(event) { return }
         if handleSpellingKey(event) { return }
         if handleMessageZoomKey(event) { return }
         if handleMessageLineCommandKey(event) { return }
         super.keyDown(with: event)
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if handleMessageZoomKey(event) || handleMessageLineCommandKey(event) { return true }
+        if handleMessageHistoryKey(event) || handleMessageZoomKey(event) || handleMessageLineCommandKey(event) { return true }
         return super.performKeyEquivalent(with: event)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if let valid = validateMessageHistoryItem(menuItem) { return valid }
         if let valid = validateMessageLineCommandItem(menuItem) { return valid }
         return super.validateMenuItem(menuItem)
+    }
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        if let valid = validateMessageHistoryItem(item) { return valid }
+        return super.validateUserInterfaceItem(item)
     }
     @objc func showSpellingSuggestions() {
         dismissSpellingSuggestions()
@@ -789,7 +795,7 @@ class ProjectMessageTextView: NSTextView {
             let point = convert(event.locationInWindow,from:nil)
             sourceLinks.prepareMenu(menu,at:characterIndexForInsertion(at:point))
         }
-        if let menu { appendMessageZoomMenu(to: menu) }
+        if let menu { prepareMessageHistoryMenu(menu); appendMessageZoomMenu(to: menu) }
         if isEditable, let menu {
             appendMessageLineCommands(to: menu)
             menu.addItem(.separator())

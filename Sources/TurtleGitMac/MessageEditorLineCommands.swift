@@ -261,3 +261,115 @@ enum MessageEditorLineCommand: String, CaseIterable, Identifiable, Hashable {
         _ = performMessageLineCommand(receipt.command)
     }
 }
+
+/// Standard AppKit responder selectors must resolve the focused editor's own
+/// manager. In particular Commit owns a private manager, so allowing NSWindow
+/// to handle undo: instead consults a different history and disables Edit/Undo.
+enum MessageEditorHistoryAction: CaseIterable {
+    case undo, redo
+    var selector: Selector { NSSelectorFromString(self == .undo ? "undo:" : "redo:") }
+    var title: String { self == .undo ? "Undo" : "Redo" }
+    var icon: MenuIcon { self == .undo ? .mergeUndo : .mergeRedo }
+    static func action(for selector: Selector?) -> Self? {
+        allCases.first { $0.selector == selector }
+    }
+    static func action(for event: NSEvent) -> Self? {
+        let flags = event.modifierFlags.intersection([.command, .control, .shift, .option])
+        let key = event.charactersIgnoringModifiers?.lowercased()
+        if flags == .command, key == "z" { return .undo }
+        if flags == [.command, .shift], key == "z" { return .redo }
+        if flags == .command, key == "y" { return .redo }
+        return nil
+    }
+}
+@MainActor private final class MessageHistoryMenuReceipt: NSObject {
+    let owner: MessageLineOwner?
+    let action: MessageEditorHistoryAction
+    init(owner: MessageLineOwner?, action: MessageEditorHistoryAction) { self.owner = owner; self.action = action }
+}
+
+@MainActor extension ProjectMessageTextView {
+    private var messageHistoryOwner: MessageLineOwner? {
+        // History is independent of current line contents/selection boundaries:
+        // Undo must also recover an empty draft or a normal native typing edit.
+        guard messageLayoutAvailable, !hasMarkedText(), let window,
+              messageCommandKeyWindow() === window, window.firstResponder === self,
+              window.attachedSheet == nil, NSApp.modalWindow == nil, sourceLinkAvailable() else { return nil }
+        return .init(session: messagePresentationSessionID, window: ObjectIdentifier(window))
+    }
+    private func messageHistoryOwnerCurrent(_ owner: MessageLineOwner) -> Bool {
+        guard let current = messageHistoryOwner else { return false }
+        return current.session == owner.session && current.window == owner.window
+    }
+    func canPerformMessageHistory(_ action: MessageEditorHistoryAction) -> Bool {
+        guard messageHistoryOwner != nil, let manager = undoManager, !manager.isUndoing, !manager.isRedoing else { return false }
+        return action == .undo ? manager.canUndo : manager.canRedo
+    }
+    @discardableResult func performMessageHistory(_ action: MessageEditorHistoryAction) -> Bool {
+        guard canPerformMessageHistory(action), let owner = messageHistoryOwner, let manager = undoManager else { return false }
+        messagePresentationWillChange()
+        guard messageHistoryOwnerCurrent(owner) else { return false }
+        breakUndoCoalescing()
+        if action == .undo { manager.undo() } else { manager.redo() }
+        breakUndoCoalescing()
+        return true
+    }
+    @objc(undo:) func undoMessage(_ sender: Any?) { dispatchMessageHistory(.undo, sender: sender) }
+    @objc(redo:) func redoMessage(_ sender: Any?) { dispatchMessageHistory(.redo, sender: sender) }
+    private func dispatchMessageHistory(_ action: MessageEditorHistoryAction, sender: Any?) {
+        if let item = sender as? NSMenuItem, let receipt = item.representedObject as? MessageHistoryMenuReceipt {
+            guard receipt.action == action, let owner = receipt.owner, messageHistoryOwnerCurrent(owner) else { return }
+        }
+        _ = performMessageHistory(action)
+    }
+    /// Called before Cocoa falls back to the window's history manager. Both the
+    /// native macOS Redo chord and the source-style Command-Y route to this view.
+    @discardableResult func handleMessageHistoryKey(_ event: NSEvent) -> Bool {
+        guard let window, event.window === window, messageCommandKeyWindow() === window,
+              window.firstResponder === self, let action = MessageEditorHistoryAction.action(for: event) else { return false }
+        _ = performMessageHistory(action)
+        // Recognized but blocked history cannot fall through to another owner.
+        return true
+    }
+    func validateMessageHistoryItem(_ item: NSValidatedUserInterfaceItem) -> Bool? {
+        guard let action = MessageEditorHistoryAction.action(for: item.action) else { return nil }
+        if let menu = item as? NSMenuItem, let receipt = menu.representedObject as? MessageHistoryMenuReceipt {
+            guard receipt.action == action, let owner = receipt.owner, messageHistoryOwnerCurrent(owner) else { return false }
+        }
+        if let menu = item as? NSMenuItem, messageHistoryOwner != nil, let manager = undoManager {
+            menu.title = action == .undo ? manager.undoMenuItemTitle : manager.redoMenuItemTitle
+        }
+        return canPerformMessageHistory(action)
+    }
+    /// Retarget native context entries rather than adding a second Undo system.
+    /// A retained context item carries this message session/window receipt;
+    /// ordinary main-menu target=nil items continue resolving the live responder.
+    func prepareMessageHistoryMenu(_ menu: NSMenu) {
+        var found = Set<String>()
+        func configure(_ item: NSMenuItem, _ action: MessageEditorHistoryAction) {
+            item.target = self; item.action = action.selector
+            if let manager = undoManager { item.title = action == .undo ? manager.undoMenuItemTitle : manager.redoMenuItemTitle }
+            item.image = action.icon.contextImage(defaults: spellingPreferences)
+            item.isEnabled = canPerformMessageHistory(action)
+            let captured = window.map { MessageLineOwner(session: messagePresentationSessionID, window: ObjectIdentifier($0)) }
+            item.representedObject = MessageHistoryMenuReceipt(owner: captured, action: action)
+            found.insert(NSStringFromSelector(action.selector))
+        }
+        func visit(_ current: NSMenu) {
+            for item in current.items {
+                if let child = item.submenu { visit(child) }
+                if let action = MessageEditorHistoryAction.action(for: item.action) { configure(item, action) }
+            }
+        }
+        visit(menu)
+        guard isEditable else { return }
+        var added = 0
+        for action in MessageEditorHistoryAction.allCases where !found.contains(NSStringFromSelector(action.selector)) {
+            let item = NSMenuItem(title: NSLocalizedString(action.title, comment: "Shared message editor history"), action: action.selector,
+                                  keyEquivalent: "z")
+            item.keyEquivalentModifierMask = action == .undo ? .command : [.command, .shift]
+            configure(item, action); menu.insertItem(item, at: added); added += 1
+        }
+        if added > 0 { menu.insertItem(.separator(), at: added) }
+    }
+}

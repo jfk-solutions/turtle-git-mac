@@ -112,6 +112,67 @@ private extension NSWindow {
         print("Message Undo \(host.name) \(phase): grouping=\(manager?.groupingLevel ?? -1) canUndo=\(manager?.canUndo ?? false) canRedo=\(manager?.canRedo ?? false) undoing=\(manager?.isUndoing ?? false) redoing=\(manager?.isRedoing ?? false) registration=\(manager?.isUndoRegistrationEnabled ?? false)")
         fflush(stdout)
     }
+    static func historyMenuItem(_ selector:String)->NSMenuItem {
+        NSMenuItem(title:selector == "undo:" ? "Undo":"Redo",action:NSSelectorFromString(selector),keyEquivalent:"")
+    }
+    static func contextHistoryItem(_ host:Host,_ selector:String)throws->NSMenuItem {
+        guard let item=try items(menu(host)).first(where:{$0.action==NSSelectorFromString(selector)}) else {throw Failure(description:host.name+": missing native context history "+selector)}
+        try require(item.target === host.editor && item.image != nil,host.name+": context history missing owned target/icon "+selector)
+        return item
+    }
+    static func historyDispatch(_ host:Host,_ selector:String)throws {
+        let item=historyMenuItem(selector)
+        try require(host.window.firstResponder === host.editor,"History first responder is not the owned editor")
+        try require(host.editor.validateMenuItem(item) && host.editor.validateUserInterfaceItem(item),host.name+": standard Edit "+selector+" disabled despite available history")
+        let context=try contextHistoryItem(host,selector)
+        try require(context.isEnabled && host.editor.validateMenuItem(context),host.name+": current context history disabled "+selector)
+        try require(host.window.firstResponder?.tryToPerform(NSSelectorFromString(selector),with:nil)==true,host.name+": native responder did not handle "+selector)
+    }
+    static func historyBlocked(_ host:Host,_ reason:String)throws {
+        let before=host.editor.string,ranges=host.editor.selectedRanges,affinity=host.editor.selectionAffinity
+        let manager=host.editor.undoManager,canUndo=manager?.canUndo,canRedo=manager?.canRedo
+        for selector in ["undo:","redo:"] {
+            let item=historyMenuItem(selector)
+            try require(!host.editor.validateMenuItem(item) && !host.editor.validateUserInterfaceItem(item),host.name+": "+reason+" enabled standard Edit "+selector)
+            _=host.editor.tryToPerform(NSSelectorFromString(selector),with:nil)
+        }
+        try require(host.editor.string.utf16.elementsEqual(before.utf16) && host.editor.selectedRanges==ranges && host.editor.selectionAffinity==affinity && manager?.canUndo==canUndo && manager?.canRedo==canRedo,host.name+": "+reason+" responder changed text/selection/history")
+    }
+    static func historyEventBoundary(_ host:Host)async throws {
+        // A queued continuation alone can remain inside Cocoa's current event
+        // group. A harmless event in this private application lets AppKit close
+        // its own group; no desktop event or manager policy is changed.
+        host.editor.breakUndoCoalescing()
+        guard let event=NSEvent.otherEvent(with:.applicationDefined,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:host.window.windowNumber,context:nil,subtype:0,data1:0x4d534748,data2:0) else {throw Failure(description:"Private message history event boundary allocation failed")}
+        NSApp.postEvent(event,atStart:false)
+        try await wait{host.editor.undoManager?.groupingLevel==0}
+    }
+    static func historyFences(_ host:Host)async throws {
+        phase(host.name+": standard Edit Undo/Redo responder ownership")
+        try await prepare(host,"history\nsecond\n")
+        host.editor.setSelectedRange(NSRange(location:1,length:0),affinity:.upstream,stillSelecting:false)
+        try dispatch(host,"Duplicate Selection or Line")
+        try await wait{host.current().utf16.elementsEqual(host.editor.string.utf16)};try await historyEventBoundary(host)
+        try dispatch(host,"Duplicate Selection or Line")
+        try await wait{host.current().utf16.elementsEqual(host.editor.string.utf16)};try await historyEventBoundary(host)
+        try historyDispatch(host,"undo:")
+        try require(host.editor.undoManager?.canUndo==true && host.editor.undoManager?.canRedo==true,"History fence requires both Undo and Redo entries")
+        if let busy=host.busy {busy(true);await turn();try historyBlocked(host,"busy");busy(false);try await wait{host.editor.messageLayoutAvailable}}
+        if let quitting=host.quitting {quitting(true);await turn();try historyBlocked(host,"Quit question");quitting(false);try await wait{host.editor.messageLayoutAvailable}}
+        host.editor.setMarkedText("仮",selectedRange:NSRange(location:1,length:0),replacementRange:host.editor.selectedRange())
+        try require(host.editor.hasMarkedText(),"History IME composition not installed")
+        try historyBlocked(host,"marked IME text");host.editor.unmarkText()
+        let sheet=NSWindow(contentRect:NSRect(x:0,y:0,width:140,height:80),styleMask:[.titled],backing:.buffered,defer:false)
+        sheet.isReleasedWhenClosed=false;sheet.alphaValue=0
+        host.window.beginSheet(sheet,completionHandler:nil);await turn()
+        defer{if sheet.sheetParent != nil {host.window.endSheet(sheet)};sheet.close()}
+        try historyBlocked(host,"attached sheet")
+        host.window.endSheet(sheet);try await wait{sheet.sheetParent==nil};sheet.close()
+        focusedWindow=nil;try historyBlocked(host,"background owner");focus(host.window,host.editor)
+        host.window.makeFirstResponder(nil);try historyBlocked(host,"unfocused editor");focus(host.window,host.editor)
+        let available=host.editor.sourceLinkAvailable
+        host.editor.sourceLinkAvailable={false};try historyBlocked(host,"unavailable source");host.editor.sourceLinkAvailable=available
+    }
     static func undoRoundTrip(_ host:Host,before:String,after:String,selection:NSRange,affinity:NSSelectionAffinity)async throws {
         undoDiagnostic(host,"before post-command wait")
         do {try await wait {host.current().utf16.elementsEqual(after.utf16) && host.editor.string.utf16.elementsEqual(after.utf16)}}
@@ -122,15 +183,16 @@ private extension NSWindow {
         host.editor.breakUndoCoalescing()
         undoDiagnostic(host,"after breakUndoCoalescing")
         try require(host.editor.undoManager?.canUndo==true,"Command failed to register native Undo")
+        try require(!host.editor.validateMenuItem(historyMenuItem("redo:")),"Standard Edit Redo enabled before Undo")
         undoDiagnostic(host,"before native undo")
-        host.editor.undoManager?.undo()
+        try historyDispatch(host,"undo:")
         undoDiagnostic(host,"after native undo; before original-text wait")
         try await wait {host.editor.string.utf16.elementsEqual(before.utf16) && host.current().utf16.elementsEqual(before.utf16)}
         undoDiagnostic(host,"after original-text wait")
         try require(host.editor.selectedRange()==selection && host.editor.selectionAffinity==affinity,"Undo lost source selection direction: actual=\(NSStringFromRange(host.editor.selectedRange())) affinity=\(host.editor.selectionAffinity.rawValue), expected=\(NSStringFromRange(selection)) affinity=\(affinity.rawValue)")
         try require(host.editor.undoManager?.canRedo==true && host.editor.undoManager?.canUndo==false,"One Undo did not restore single command")
         undoDiagnostic(host,"before native redo")
-        host.editor.undoManager?.redo()
+        try historyDispatch(host,"redo:")
         undoDiagnostic(host,"after native redo; before result wait")
         try await wait {host.current().utf16.elementsEqual(after.utf16)}
         undoDiagnostic(host,"after result wait; completed")
@@ -229,14 +291,31 @@ private extension NSWindow {
     }
     static func extendedNative(_ host:Host,_ c:Context)async throws {
         phase("multiple native ranges, inherited Cocoa bindings and zoom bounds")
+        phase("native history context items and Command-Z/Shift-Z/Y delivery")
+        try await prepare(host,"keys\ntext\n")
+        host.editor.setSelectedRange(NSRange(location:1,length:0),affinity:.upstream,stillSelecting:false)
+        try dispatch(host,"Duplicate Selection or Line");try await wait{host.current()=="keys\nkeys\ntext\n"};try await historyEventBoundary(host)
+        host.editor.keyDown(with:key(host,"z",6,[.command]));try await wait{host.current()=="keys\ntext\n"}
+        try require(host.editor.undoManager?.canRedo==true,"Command-Z did not reach editor history")
+        host.editor.keyDown(with:key(host,"z",6,[.command,.shift]));try await wait{host.current()=="keys\nkeys\ntext\n"}
+        let contextUndo=try contextHistoryItem(host,"undo:")
+        try require(NSApp.sendAction(contextUndo.action!,to:contextUndo.target,from:contextUndo),"Native context Undo dispatch failed")
+        try await wait{host.current()=="keys\ntext\n"}
+        host.editor.keyDown(with:key(host,"y",16,[.command]));try await wait{host.current()=="keys\nkeys\ntext\n"}
+        let anotherUndo=try contextHistoryItem(host,"undo:")
+        try require(NSApp.sendAction(anotherUndo.action!,to:anotherUndo.target,from:anotherUndo),"Native context Undo dispatch failed")
+        try await wait{host.current()=="keys\ntext\n"}
+        let contextRedo=try contextHistoryItem(host,"redo:")
+        try require(NSApp.sendAction(contextRedo.action!,to:contextRedo.target,from:contextRedo),"Native context Redo dispatch failed")
+        try await wait{host.current()=="keys\nkeys\ntext\n"}
         try await prepare(host,"ab\ncd")
         let ranges=[NSValue(range:NSRange(location:0,length:1)),NSValue(range:NSRange(location:3,length:1))]
         host.editor.setSelectedRanges(ranges,affinity:.upstream,stillSelecting:false)
         try dispatch(host,"Duplicate Selection or Line")
         try await wait{host.current()=="aab\nccd"}
-        host.editor.undoManager?.undo();try await wait{host.current()=="ab\ncd"}
+        try historyDispatch(host,"undo:");try await wait{host.current()=="ab\ncd"}
         try require(host.editor.selectedRanges==ranges && host.editor.selectionAffinity == .upstream,"Multi-range Undo lost native selections/direction")
-        host.editor.undoManager?.redo();try await wait{host.current()=="aab\nccd"}
+        try historyDispatch(host,"redo:");try await wait{host.current()=="aab\nccd"}
         try await prepare(host,"abcd")
         host.editor.setSelectedRange(NSRange(location:2,length:0),affinity:.downstream,stillSelecting:false)
         host.editor.keyDown(with:key(host,"t",17,[.control]))
@@ -336,7 +415,7 @@ private extension NSWindow {
             let dh=Host(name:"Branch description Input",editor:de,window:description.window!,install:{description.configure(text:$0,minimumLength:0,settings:ProjectDialogSettings())},current:{description.editor.string},busy:{description.setInputState(ready:!$0)},quitting:nil)
             let hosts=[("commit",ch),("merge",mh),("project",ph),("notes",nh),("description",dh)]
             let requested=Set((ProcessInfo.processInfo.environment["TURTLEGIT_MESSAGE_COMMAND_CASES"] ?? "commit,merge,project,notes,description,integration").split(separator:",").map(String.init))
-            for (name,host) in hosts {injectFocus(host.editor);host.editor.messageLinePasteboard={c.board};if requested.contains(name){try await commands(host,c);try await zoom(host,c);try await fences(host)}}
+            for (name,host) in hosts {injectFocus(host.editor);host.editor.messageLinePasteboard={c.board};if requested.contains(name){try await commands(host,c);try await zoom(host,c);try await fences(host);try await historyFences(host)}}
             if requested.contains("integration") {
             try await clipboard(ch,c)
             try await extendedNative(ch,c)
@@ -394,11 +473,26 @@ private extension NSWindow {
             phase("Input configure replaces identical-message session")
             try await prepare(dh,"identical\ntext\n")
             dh.editor.setSelectedRange(NSRange(location:1,length:0),affinity:.downstream,stillSelecting:false)
+            try dispatch(dh,"Duplicate Selection or Line");try await wait{dh.editor.string=="identical\nidentical\ntext\n"};try await historyEventBoundary(dh)
+            try historyDispatch(dh,"undo:");try await wait{dh.editor.string=="identical\ntext\n"}
+            try require(dh.editor.undoManager?.canRedo==true,"Input replacement requires existing Redo history")
             let oldInput=try item(dh,"Delete Line"),oldInputZoom=try item(dh,"Zoom In"),oldSession=dh.editor.messagePresentationSessionID
+            let oldUndo=try contextHistoryItem(dh,"undo:"),oldRedo=try contextHistoryItem(dh,"redo:")
             description.configure(text:"identical\ntext\n",minimumLength:0,settings:ProjectDialogSettings())
             if let action=oldInput.action{_ = NSApp.sendAction(action,to:oldInput.target,from:oldInput)}
             if let action=oldInputZoom.action{_ = NSApp.sendAction(action,to:oldInputZoom.target,from:oldInputZoom)}
             try require(dh.editor.messagePresentationSessionID != oldSession && dh.editor.string=="identical\ntext\n" && dh.editor.messageZoomOffset==0,"Input configure retained stale action/zoom session")
+            try historyBlocked(dh,"replaced Input session")
+            dh.editor.setSelectedRange(NSRange(location:1,length:0),affinity:.downstream,stillSelecting:false)
+            try dispatch(dh,"Duplicate Selection or Line");try await wait{dh.editor.string=="identical\nidentical\ntext\n"};try await historyEventBoundary(dh)
+            let newDocument=dh.editor.string
+            try require(dh.editor.undoManager?.canUndo==true,"Replacement document lacks fresh native Undo")
+            if let action=oldUndo.action {_=NSApp.sendAction(action,to:oldUndo.target,from:oldUndo)}
+            try require(dh.editor.string==newDocument && !dh.editor.validateMenuItem(oldUndo),"Old context Undo acted on fresh document history")
+            try historyDispatch(dh,"undo:");try await wait{dh.editor.string=="identical\ntext\n"}
+            try require(dh.editor.undoManager?.canRedo==true,"Replacement document lacks fresh native Redo")
+            if let action=oldRedo.action {_=NSApp.sendAction(action,to:oldRedo.target,from:oldRedo)}
+            try require(dh.editor.string=="identical\ntext\n" && !dh.editor.validateMenuItem(oldRedo),"Old context Redo acted on fresh document history")
             phase("Rebase command-context refresh preserves current document Undo and zoom")
             try await prepare(ph,"context\ntext\n")
             ph.editor.setSelectedRange(NSRange(location:1,length:0),affinity:.downstream,stillSelecting:false)
@@ -416,7 +510,7 @@ private extension NSWindow {
             if let action=contextLine.action{_ = NSApp.sendAction(action,to:contextLine.target,from:contextLine)}
             if let action=contextZoom.action{_ = NSApp.sendAction(action,to:contextZoom.target,from:contextZoom)}
             try require(box.commandContext != previousContext && ph.editor.messagePresentationSessionID==documentID && ph.editor.string==currentText && ph.editor.messageZoomOffset==currentZoom && ph.editor.undoManager?.canUndo==true,"Command-context refresh accepted stale menu or erased current document presentation/history")
-            ph.editor.undoManager?.undo()
+            try historyDispatch(ph,"undo:")
             try await wait{ph.editor.string=="context\ntext\n" && box.text=="context\ntext\n"}
             try require(ph.editor.messageZoomOffset==currentZoom,"Current-document Undo reset transient zoom after command-context refresh")
             phase("identical Rebase ProjectMessageEditor source-session replacement")
@@ -432,6 +526,7 @@ private extension NSWindow {
             if let action=oldProject.action{_ = NSApp.sendAction(action,to:oldProject.target,from:oldProject)}
             if let action=oldProjectZoom.action{_ = NSApp.sendAction(action,to:oldProjectZoom.target,from:oldProjectZoom)}
             try require(ph.editor.string=="same\ntext\n" && ph.editor.messageZoomOffset==0 && ph.editor.undoManager?.canUndo==false,"Rebase identical-message replacement retained old actions/zoom/history")
+            try historyBlocked(ph,"replaced Rebase session")
             phase("captured menu session/focus/retirement")
             try await prepare(ph,"same\ntext\n");ph.editor.setSelectedRange(NSRange(location:1,length:0),affinity:.downstream,stillSelecting:false)
             let stale=try item(ph,"Delete Line")
@@ -449,7 +544,12 @@ private extension NSWindow {
             focus(rw,ph.editor);box.available=false
             if let action=fresh.action{_ = NSApp.sendAction(action,to:fresh.target,from:fresh)}
             try require(ph.editor.string=="same\ntext\n","Captured unavailable source command mutated")
-            box.available=true;ph.editor.retireSourceStyling()
+            box.available=true
+            try dispatch(ph,"Duplicate Selection or Line");try await wait{ph.editor.string=="same\nsame\ntext\n"};try await historyEventBoundary(ph)
+            try historyDispatch(ph,"undo:");try await wait{ph.editor.string=="same\ntext\n"}
+            try require(ph.editor.undoManager?.canRedo==true,"Retirement requires existing native Redo history")
+            ph.editor.retireSourceStyling()
+            try historyBlocked(ph,"retired editor")
             if let action=fresh.action{_ = NSApp.sendAction(action,to:fresh.target,from:fresh)}
             try require(ph.editor.string=="same\ntext\n","Retired editor accepted captured command")
             }

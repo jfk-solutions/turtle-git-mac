@@ -50,4 +50,21 @@ close their owned windows/processes. This family does not certify the entire
 SciEdit keyboard map, arbitrary rectangle editing in message controls, every
 platform IME/keyboard layout, physical VoiceOver, full dialog geometry, signed
 external grants, Intel/minimum macOS execution or complete hosted integration.
-The currently installed build14 predates this implementation batch.
+The [signed build15 acceptance](qa/signed-consolidation-build15-2026-10-27.json)
+packages this implementation. Actual installed Commit accepted Duplicate through
+both the main menu and physical shortcut, and temporary zoom/reset worked. It
+also exposed a gap that the earlier receiver did not cover: standard Undo was
+disabled and its keyboard action did not reach Commit's private UndoManager.
+The receiver had invoked that manager directly. Build15 therefore does not pass
+the complete editor acceptance gate; the native responder repair now passes its grouped checks. Installed acceptance
+of that repaired source remains required before the next preview is accepted.
+
+The [responder follow-up](qa/message-editor-history-responder-2026-10-27.json)
+routes standard `undo:` and `redo:` selectors to the focused editor's manager,
+matching the existing native Compare editor's responder pattern. Main-menu
+validation and physical message shortcuts use that same guarded route. Context
+history entries carry the captured document/window identity and source icons;
+an old menu cannot undo a replacement draft. Busy, composition, sheets and
+retirement disable history without discarding it. Metadata-only refreshes retain
+the current document's history. The follow-up receipt distinguishes this repair's
+checks from the earlier direct-manager evidence and installed build15 failure.
