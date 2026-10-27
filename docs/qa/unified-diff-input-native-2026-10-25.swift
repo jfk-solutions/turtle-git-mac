@@ -66,11 +66,14 @@ private extension NSWindow {
         }
         func clean()async {
             for s in sessions{s.cancel()};for h in held{h.release()}
+            PatchDocumentSession.cancelAllStartupInputs()
             await UnifiedDiffInputSession.cancelAllAndWait()
+            await PatchDocumentSession.waitForStartupInputs()
             for owner in owners {
                 if let window=owner.window,let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.abort);sheet.close()}
                 owner.close()
             }
+            for owner in owners{await owner.documentSession.waitForRetirement()}
             for p in pipes{p.clean()}
             preferences.removePersistentDomain(forName:suite)
         }
@@ -246,6 +249,193 @@ private extension NSWindow {
         try require(busyReplies==[true] && UnifiedDiffInputSession.activeOperations==0 && busy.model.exportDocument.bytes.isEmpty,"Actual startup drained then entered Merge-only completion or published cancelled bytes")
         busy.close();busyWorkspace.stopMonitoringForTermination()
     }
+    static func inputDeliveryTurn()async {
+        await withCheckedContinuation{reply in DispatchQueue.main.async{reply.resume()}}
+    }
+    static func dedicated(_ c:Context)async throws {
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        workspace.reviewPatchPreferences=c.preferences
+        workspace.patchDocumentPresentation={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);c.owners.append(owner)}
+        workspace.configurePatchDocument={$0.documentSession.requiresFileScope=false}
+        defer{workspace.stopMonitoringForTermination()}
+        @MainActor func latest()throws->PatchWindowController {
+            guard let owner=workspace.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated command omitted its owner")};return owner
+        }
+        try require(TurtleGitLaunchMode.resolve(arguments:["--unified-diff-tool"],currentDirectory:c.root.path) == .unifiedDiff,"Dedicated marker chose a workspace scene")
+        let bytes=Data("--- a/雪\r\n+++ b/雪\r\n@@ -1 +1 @@\r\n-old\r\n+🐢\r\n".utf8)
+        let pipe=try c.stream();var pipeStatus:[Int32]=[]
+        try require(workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool"],currentDirectory:c.root.path,descriptor:pipe.input,completion:{pipeStatus.append($0)}),"Dedicated default pipe refused")
+        let piped=try latest()
+        try require(piped.startupInput?.isReading==true && piped.model.comparisonTitle=="diff from pipe" && workspace.root==nil,"Dedicated no-argument input/title did not select pipe")
+        try pipe.send(bytes);pipe.eof();try await wait{piped.startupInput?.isReading==false}
+        try require(piped.model.exportDocument.bytes==bytes && pipeStatus.isEmpty,"Dedicated pipe lost bytes or completed before close")
+        piped.model.error="Later Apply diagnostic"
+        piped.close();try await wait{pipeStatus==[0]}
+        piped.windowWillClose(Notification(name:NSWindow.willCloseNotification,object:piped.window))
+        try require(pipeStatus==[0],"Duplicate close delivered completion twice")
+        await inputDeliveryTurn()
+        try require(piped.model.retired && piped.window?.isVisible==false && piped.window?.attachedSheet==nil,"Queued diagnostic reopened its retired input owner")
+
+        var failedStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool"],currentDirectory:c.root.path,descriptor:-1,completion:{failedStatus.append($0)})
+        let failed=try latest()
+        try require(failed.model.error != nil && failedStatus.isEmpty && failed.window?.isVisible==true,"Input failure exited before its visible owner closed")
+        failed.model.error=nil // Dismissing a diagnostic must not reset its input result.
+        failed.close();try await wait{failedStatus==[1]}
+
+        let file=c.root.appendingPathComponent("dedicated e\u{301} 雪.patch");try bytes.write(to:file)
+        var fileStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{fileStatus.append($0)})
+        let loaded=try latest();try await wait{PatchDocumentSession.activeOperations==0 && !loaded.model.busy}
+        try require(loaded.model.error==nil && loaded.model.exportDocument.bytes==bytes && loaded.model.comparisonTitle==file.path,"Dedicated file raw bytes/full-path caption changed")
+        loaded.close();try await wait{fileStatus==[0]}
+
+        var immediateStatus:[Int32]=[],immediateReads=0
+        workspace.configurePatchDocument={owner in
+            owner.documentSession.requiresFileScope=false
+            owner.documentSession.readFile={_,_ in immediateReads += 1;return bytes}
+        }
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{immediateStatus.append($0)})
+        let immediate=try latest();immediate.close()
+        try await wait{immediateStatus==[1] && PatchDocumentSession.activeOperations==0}
+        try require(immediateReads==0 && immediate.model.exportDocument.bytes.isEmpty,"Immediate close admitted a queued file read or stranded its outcome")
+        workspace.configurePatchDocument={$0.documentSession.requiresFileScope=false}
+
+        var missingStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",c.root.appendingPathComponent("missing.patch").path],currentDirectory:c.root.path,completion:{missingStatus.append($0)})
+        let missing=try latest();try await wait{PatchDocumentSession.activeOperations==0 && missing.model.error != nil}
+        try require(missingStatus.isEmpty,"File failure exited while its error remained visible")
+        missing.close();try await wait{missingStatus==[1]}
+
+        let cancelledPipe=try c.stream();var cancelledStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool"],currentDirectory:c.root.path,descriptor:cancelledPipe.input,completion:{cancelledStatus.append($0)})
+        let cancelled=try latest();cancelled.startupInput?.cancel();try await wait{cancelled.startupInput?.isReading==false}
+        try require(cancelledStatus.isEmpty && cancelled.model.error==nil && cancelled.window?.isVisible==true,"Loading Cancel destroyed the dedicated owner or completed early")
+        cancelled.close();try await wait{cancelledStatus==[1]}
+
+        let closeHeld=Held();c.held.append(closeHeld)
+        workspace.configurePatchDocument={owner in
+            owner.documentSession.requiresFileScope=false
+            owner.documentSession.readFile={_,token in try await Task.detached{try closeHeld.read(-1,token)}.value}
+        }
+        var closeStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{closeStatus.append($0)})
+        let closing=try latest();try await wait{closeHeld.started && closing.documentSession.startupFileReading}
+        closing.window?.performClose(nil)
+        try require(closeStatus.isEmpty && closing.window?.isVisible==true && closing.documentSession.startupFileReading,"File close destroyed its owner before accepted read drained")
+        closeHeld.release();try await wait{closeStatus==[1] && !closing.documentSession.startupFileReading}
+        try require(closing.model.exportDocument.bytes.isEmpty && closing.window?.isVisible==false,"Cancelled file close published late bytes or failed to close exact owner")
+
+        let held=Held();c.held.append(held)
+        workspace.configurePatchDocument={owner in
+            owner.documentSession.requiresFileScope=false
+            owner.documentSession.readFile={_,token in try await Task.detached{try held.read(-1,token)}.value}
+        }
+        var lateStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{lateStatus.append($0)})
+        let old=try latest();try await wait{held.started && old.documentSession.startupFileReading}
+        old.close() // Force retirement while a deliberately uncooperative read is held.
+        try require(lateStatus.isEmpty && PatchDocumentSession.activeStartupInputs==1,"Forced close completed before the accepted file worker drained")
+        workspace.configurePatchDocument={$0.documentSession.requiresFileScope=false}
+        var replacementStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{replacementStatus.append($0)})
+        let replacement=try latest();try await wait{!replacement.model.busy && PatchDocumentSession.activeOperations==1}
+        replacement.close();try await wait{replacementStatus==[0]}
+        held.release();try await wait{lateStatus==[1] && PatchDocumentSession.activeStartupInputs==0 && PatchDocumentSession.activeOperations==0}
+        try require(old.model.exportDocument.bytes.isEmpty && replacementStatus==[0],"Late retired input published bytes or completed another owner")
+
+        // Successful initial input keeps status0, but a later accepted ordinary
+        // Open remains owned through forced close and cannot publish afterwards.
+        var postloadStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{postloadStatus.append($0)})
+        let postload=try latest();try await wait{PatchDocumentSession.activeOperations==0 && postload.model.exportDocument.bytes==bytes}
+        let postloadHeld=Held();c.held.append(postloadHeld)
+        postload.documentSession.readFile={_,token in try await Task.detached{try postloadHeld.read(-1,token)}.value}
+        postload.documentSession.openFile(file)
+        try await wait{postloadHeld.started && PatchDocumentSession.activeOperations==1}
+        postload.close();await inputDeliveryTurn()
+        try require(postloadStatus.isEmpty && PatchDocumentSession.activeOperations==1,"Successful tool exited before its later ordinary Open drained")
+        postloadHeld.release();try await wait{postloadStatus==[0] && PatchDocumentSession.activeOperations==0}
+        try require(postload.model.exportDocument.bytes==bytes,"Retired post-load Open replaced the original document")
+
+        // Apply outlives the outer document launch Task. Hold its real target
+        // choice, then force retirement and prove the retained release scope is
+        // awaited without starting Git or relying on unrelated global owners.
+        var applyStatus:[Int32]=[]
+        _=workspace.handleUnifiedDiffCommandLine(arguments:["--unified-diff-tool","--patchfile",file.path],currentDirectory:c.root.path,completion:{applyStatus.append($0)})
+        let applying=try latest();try await wait{PatchDocumentSession.activeOperations==0 && applying.model.exportDocument.bytes==bytes}
+        let applyHeld=Held();c.held.append(applyHeld)
+        applying.documentSession.configureReview={workflow in
+            workflow.chooseTarget={_ = try? await Task.detached{try applyHeld.read(-1,OperationCancellation())}.value;return nil}
+        }
+        applying.documentSession.presentReview={workflow in workflow.window?.alphaValue=0;workflow.window?.setFrameOrigin(.init(x:-24000,y:-24000));workflow.showWindow(nil)}
+        applying.documentSession.applyPatch()
+        try await wait{applyHeld.started && PatchDocumentSession.activeOperations==0 && applying.documentSession.reviewWorkflow?.hasPendingWork==true}
+        applying.close();await inputDeliveryTurn()
+        try require(applyStatus.isEmpty && ReviewPatchWorkflow.activeReleases>0,"Dedicated close exited before its retiring Apply child drained")
+        applyHeld.release();try await wait{applyStatus==[0] && ReviewPatchWorkflow.activeReleases==0 && ReviewPatchWorkflow.activeLoads==0}
+        try require(applying.model.exportDocument.bytes==bytes,"Late Apply retirement changed original document")
+
+        // Exercise the actual AppDelegate startup and normal dirty Quit pipeline.
+        @MainActor func bootstrap(_ path:String,configure:((PatchWindowController)->Void)?=nil,exit:@escaping(Int32)->Void)->(TurtleGitApplicationDelegate,RepositoryModel) {
+            let model=RepositoryModel(startMonitoring:false,initializePreferences:false);model.reviewPatchPreferences=c.preferences
+            model.configurePatchDocument={owner in owner.documentSession.requiresFileScope=false;configure?(owner)}
+            model.patchDocumentPresentation={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);c.owners.append(owner)}
+            let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=["--unified-diff-tool","--patchfile",path];delegate.startupDirectory=c.root.path
+            delegate.makeStandaloneWorkspace={model};delegate.configureStandaloneServices={_,_ in};delegate.activateStandaloneApplication={};delegate.startupMergeToolExit=exit
+            delegate.startupDidFinishLaunching();return(delegate,model)
+        }
+        let quitHeld=Held();c.held.append(quitHeld);var busyExits:[Int32]=[],busyQuitReplies:[Bool]=[]
+        let(busyDelegate,busyModel)=bootstrap(file.path,configure:{owner in
+            owner.documentSession.readFile={_,token in try await Task.detached{try quitHeld.read(-1,token)}.value}
+        },exit:{busyExits.append($0)})
+        guard let busyOwner=busyModel.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated file Quit omitted input owner")}
+        busyDelegate.replyToTermination={_,allowed in busyQuitReplies.append(allowed)}
+        try await wait{quitHeld.started && PatchDocumentSession.activeStartupInputs==1}
+        try require(busyDelegate.applicationShouldTerminate(NSApp) == .terminateLater,"Dedicated file Quit failed to own accepted read drain")
+        try require(busyExits.isEmpty && busyOwner.documentSession.startupFileReading,"Dedicated Quit exited before held file input drained")
+        quitHeld.release()
+        do {try await wait{busyExits==[1] && PatchDocumentSession.activeStartupInputs==0 && PatchDocumentSession.activeOperations==0}}
+        catch {
+            print("Dedicated Quit diagnostic exits=\(busyExits) replies=\(busyQuitReplies) startupFiles=\(PatchDocumentSession.activeStartupInputs) documentOperations=\(PatchDocumentSession.activeOperations) stdinOperations=\(UnifiedDiffInputSession.activeOperations) reviewLoads=\(ReviewPatchWorkflow.activeLoads) reviewReleases=\(ReviewPatchWorkflow.activeReleases) ownerBusy=\(busyOwner.model.busy) ownerRetired=\(busyOwner.model.retired) modelRetired=\(busyModel.isRetired) startupDelivered=\(busyDelegate.startupDelivered)")
+            for window in NSApp.windows {
+                if let owner=window.delegate as? PatchWindowController {
+                    print("Patch owner title=\(window.title) visible=\(window.isVisible) retired=\(owner.model.retired) busy=\(owner.model.busy) confirmingQuit=\(owner.model.confirmingQuit) dirty=\(owner.model.documentDirty) reading=\(owner.documentSession.startupFileReading) sheet=\(window.attachedSheet != nil) error=\(owner.model.error ?? "none")")
+                }
+            }
+            fflush(stdout);throw error
+        }
+        try require(busyOwner.model.exportDocument.bytes.isEmpty,"Cancelled dedicated Quit published held late file bytes")
+        busyOwner.close();try require(busyExits==[1],"Dedicated file Quit and later close duplicated exit")
+
+        var failureExits:[Int32]=[]
+        let(failureDelegate,failureModel)=bootstrap(c.root.appendingPathComponent("absent-startup.patch").path,exit:{failureExits.append($0)})
+        guard let failureOwner=failureModel.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated delegate omitted input owner")}
+        try await wait{PatchDocumentSession.activeOperations==0 && failureOwner.model.error != nil && failureOwner.window?.attachedSheet != nil}
+        try require(failureExits.isEmpty && failureDelegate.applicationShouldTerminate(NSApp) == .terminateCancel,"Live input diagnostic did not retain its owned Quit fence")
+        guard let diagnostic=failureOwner.window?.attachedSheet,
+              let acknowledge=diagnostic.defaultButtonCell?.controlView as? NSButton else{throw Failure(description:"Input error omitted its native acknowledgement button")}
+        acknowledge.performClick(nil)
+        try await wait{failureOwner.model.error==nil && failureOwner.window?.attachedSheet==nil}
+        try require(failureExits.isEmpty && failureDelegate.applicationShouldTerminate(NSApp) == .terminateLater,"Dedicated failed-input Quit skipped owned completion after acknowledgement")
+        try await wait{failureExits==[1]};failureOwner.close()
+
+        var exits:[Int32]=[],quitReplies:[Bool]=[]
+        let(delegate,model)=bootstrap(file.path,exit:{exits.append($0)})
+        guard let owner=model.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated startup missing actual editor")}
+        try await wait{PatchDocumentSession.activeOperations==0 && owner.model.exportDocument.bytes==bytes}
+        owner.model.editDocument(owner.model.document.text+"draft\n")
+        var questions=0
+        owner.documentSession.askChanges={_,reply in questions += 1;reply(.cancel)}
+        delegate.replyToTermination={_,allowed in quitReplies.append(allowed)}
+        try require(delegate.applicationShouldTerminate(NSApp) == .terminateLater,"Dedicated dirty Quit omitted normal prompt")
+        try await wait{quitReplies==[false]}
+        try require(exits.isEmpty && questions==1 && owner.model.documentDirty,"Cancelled Quit completed dedicated process or lost draft")
+        owner.documentSession.askChanges={_,reply in questions += 1;reply(.discard)}
+        try require(delegate.applicationShouldTerminate(NSApp) == .terminateLater,"Approved dedicated Quit lost input status route")
+        try await wait{exits==[0]};owner.close()
+        try require(exits==[0] && questions==2,"Granted Quit/close completed more than once")
+    }
     static func main()async {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let methods=[(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.diffInputFrame(_:to:)))),(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.diffInputOrder(_:relativeTo:))))]
@@ -253,9 +443,9 @@ private extension NSWindow {
         defer{for(a,b)in methods.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
         let c=Context();DialogGeometry.install(preferences:c.preferences)
         do {
-            switch CommandLine.arguments[3] {case "stream":try await stream(c);case "lifetime":try await lifetime(c);case "failure":try await failure(c);case "command":try await command(c);case "startup":try await startup(c);default:throw Failure(description:"Unknown input case")}
+            switch CommandLine.arguments[3] {case "stream":try await stream(c);case "lifetime":try await lifetime(c);case "failure":try await failure(c);case "command":try await command(c);case "startup":try await startup(c);case "dedicated":try await dedicated(c);default:throw Failure(description:"Unknown input case")}
             await c.clean();DialogGeometry.install(preferences:.standard)
-            try require(UnifiedDiffInputSession.activeOperations==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Input workers/windows remained after cleanup")
+            try require(UnifiedDiffInputSession.activeOperations==0 && PatchDocumentSession.activeStartupInputs==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Input workers/windows remained after cleanup")
             print("PASS: unified diff input "+CommandLine.arguments[3]);fflush(stdout)
         } catch {await c.clean();DialogGeometry.install(preferences:.standard);fputs("Unified input failed: \(error)\n",stderr);exit(1)}
     }

@@ -356,6 +356,12 @@ The viewer has Find and a window-local Light/Dark choice. Saving writes the patc
 document; applying it to a working tree is a separate action that requires a
 repository and folder access.
 
+For command-line use, install the [Unified Diff launcher](../scripts/turtlegit-udiff)
+in your `PATH`. Run `turtlegit-udiff changes.patch` for a file, or pipe
+`git diff | turtlegit-udiff` to open the captured diff. The command waits until
+its viewer closes and reports whether the initial input loaded successfully.
+File arguments may require an owned macOS permission picker.
+
 The numbered gutter selects whole lines. Use **Option-drag** to select a column,
 or **Command-Option-Shift-Arrows** to extend it from the keyboard. **Edit → Lines**
 offers copying, cutting, duplication, transposition and indentation. Undo restores

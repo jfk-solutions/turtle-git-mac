@@ -477,7 +477,9 @@ jobs:
       - name: Unified Diff editable document workflows
         run: python3 scripts/test-unified-document-family.py --only document --only handoffs --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Standalone Unified Diff input, document admission and local appearance
-        run: python3 scripts/test-unified-diff-input.py
+        run: |
+          python3 scripts/test-udiff-tool-wrapper.py
+          python3 scripts/test-unified-diff-input.py
       - name: Unified Diff native line-number and selection gutter
         run: python3 scripts/test-unified-gutter.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff whole-line native editing and exact byte provenance

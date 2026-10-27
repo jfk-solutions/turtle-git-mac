@@ -1,0 +1,220 @@
+{
+  "date": "2026-10-27",
+  "family": "Dedicated Unified Diff tool grammar, process streams, initial input ownership and completion",
+  "status": "implemented_with_focused_local_checkpoint",
+  "source_parent": "3993175af3bc03175efe4f64a4be185f00fa5f11",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseUDiff/TortoiseUDiff.cpp:85-145 title, stdin/file loading and process result",
+    "src/TortoiseUDiff/TortoiseUDiff.rc:147 IDS_PIPETITLE"
+  ],
+  "implementation_scope": [
+    "Dedicated --unified-diff-tool marker and waiting scripts/turtlegit-udiff launcher",
+    "Default stdin, literal positional file, title and source aliases; strict conflicts",
+    "Combined app --unified-diff empty document and ordinary filename routing preserved",
+    "Document-owned initial success/failure/cancellation status, independent of later editing or Apply errors",
+    "Exact owner close and actual worker drain before once-only completion; normal Quit decisions and external handoffs retained",
+    "Focused Core, private exec/stream wrapper and grouped native coverage; guide/help/localization updates"
+  ],
+  "native_adaptations": [
+    "Input errors remain visible on their document owner until Close, with status1 then delivered, instead of upstream synchronous failure exiting before showing editor",
+    "Command-line file requests retain native sandbox permission selection",
+    "Tool parser refuses ambiguous inputs and uses literal argument boundaries rather than reconstructing a quoted command string"
+  ],
+  "planned_validation": {
+    "core": "UnifiedDiffInputTests only; no full Core suite",
+    "wrapper": "scripts/test-udiff-tool-wrapper.py private fake executables, never user app",
+    "application": "One relevant unsigned Debug build after full family freeze and regenerated resources",
+    "native": "scripts/test-unified-diff-input.py existing five cases plus dedicated case, private preferences/repositories and offscreen windows; no Git-engine matrix",
+    "resources": "localization write/check, bundled Help write/check, dialog coverage reconciliation before commit"
+  },
+  "validation": {
+    "executed": true,
+    "core": {
+      "command": "swift test --filter UnifiedDiffInputTests",
+      "log": "build/qa/udiff-tool-core-2026-10-27.log",
+      "exit": 0,
+      "methods": 22,
+      "failures": 0
+    },
+    "wrapper": {
+      "command": "python3 scripts/test-udiff-tool-wrapper.py",
+      "exit": 0,
+      "log": "build/qa/udiff-tool-wrapper-repaired-2026-10-27.log",
+      "initial_failure": "The working-directory assertion compared /var and /private/var spellings rather than directory identity. Repaired to samefile; retained failure evidence in build/qa/udiff-wrapper-failed-2795d7017fa14993a4829e28757b6283. The owned helper was killed and reaped by finally."
+    },
+    "help_check": {
+      "exit": 0,
+      "documents": 60,
+      "topics": 51,
+      "files": 92,
+      "bytes": 8707339
+    },
+    "native": {
+      "first_run": {
+        "command": "python3 scripts/test-unified-diff-input.py",
+        "session": 76008,
+        "exit": 1,
+        "log": "build/qa/udiff-tool-native-2026-10-27.log",
+        "passed": [
+          "stream",
+          "lifetime",
+          "failure",
+          "command",
+          "startup"
+        ],
+        "failure": "Dedicated case timeout at line394 waiting held initial-file Quit result1; investigation pending. All receiver processes reaped, independently absent.",
+        "reaped_pids": [
+          13072,
+          13077,
+          13078,
+          13079,
+          13081,
+          13082
+        ],
+        "diagnosis": "Quit deferred token cancellation to a scheduled MainActor Task. The accepted held producer could finish first and capture success. Cancellation now marks every accepted stream/file token synchronously in the requesting MainActor turn, then awaits actual drainage. Assertions unchanged."
+      },
+      "second_run": {
+        "command": "python3 scripts/test-unified-diff-input.py --only lifetime --only startup --only dedicated",
+        "exit": 1,
+        "log": "build/qa/udiff-tool-native-repaired-2026-10-27.log",
+        "passed": [
+          "lifetime",
+          "startup"
+        ],
+        "failure": "Dedicated timeout again at line394. Cancellation timing fix alone did not resolve Quit. Need direct window-state evidence before further repair.",
+        "reaped_pids": [
+          13284,
+          13285,
+          13286
+        ],
+        "independently_absent": true
+      },
+      "diagnostic_run": {
+        "command": "python3 scripts/test-unified-diff-input.py --only dedicated",
+        "exit": 1,
+        "log": "build/qa/udiff-tool-native-diagnostic-2026-10-27.log",
+        "reaped_pids": [
+          13377
+        ],
+        "evidence": "Quit replied false with exits empty although all input/document/Review counters were zero. Retained retired Apply owner had busy=true; first retired owner had been reopened by a delayed error sheet. Live-window admission must exclude retired owners, and error alert presentation must respect model retirement.",
+        "scope": "Fixture-only diagnostics; reused unchanged compiled app cache."
+      },
+      "third_run": {
+        "command": "python3 scripts/test-unified-diff-input.py --only lifetime --only failure --only startup --only dedicated",
+        "exit": 1,
+        "log": "build/qa/udiff-tool-native-owner-repaired-2026-10-27.log",
+        "passed": [
+          "lifetime",
+          "failure",
+          "startup"
+        ],
+        "failure": "Dedicated advanced past held Quit, then its failed-input Quit assertion ignored the live diagnostic sheet. The production sheet fence correctly refused Quit.",
+        "reaped_pids": [
+          13528,
+          13529,
+          13530,
+          13531
+        ],
+        "independently_absent": true
+      },
+      "final_recheck": {
+        "command": "python3 scripts/test-unified-diff-input.py --only dedicated",
+        "exit": 0,
+        "log": "build/qa/udiff-tool-native-alert-acknowledged-2026-10-27.log",
+        "passed": [
+          "dedicated"
+        ],
+        "reaped_pids": [
+          13614
+        ],
+        "fixture_repair": "Wait for actual error sheet, require Quit cancellation while it is live, click native default acknowledgement button, wait for sheet/binding dismissal, then require owned exit1. No status assertion removed.",
+        "independently_absent": true
+      },
+      "result": "All six distinct cases passed cumulatively. Lifetime/failure/startup rerun after final production repair; stream/command unchanged and retained initial passes. Dedicated final fixture-only run reuses same final app build. No full Core, unrelated native families or Git matrix.",
+      "production_repairs": [
+        "Mark accepted input tokens cancelled synchronously before scheduling Quit drain",
+        "Exclude retired Patch controllers from live busy/sheet admission while retaining all true operation counters",
+        "Fence error alert presentation by model retirement so delayed alerts cannot resurrect a closed owner"
+      ]
+    },
+    "application": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit": 0,
+      "log": "build/qa/udiff-tool-debug-2026-10-27.log",
+      "generic_exit_zero_diagnostics": 5,
+      "notes": "Unsigned Debug build completed exit0. Retained generic exit-zero tool diagnostics, existing Swift warnings and unavailable iOS simulator service message; no signed distribution acceptance."
+    },
+    "localization_check": {
+      "exit": 0,
+      "languages": 38,
+      "keys": 1325
+    },
+    "application_repair": {
+      "exit": 0,
+      "log": "build/qa/udiff-tool-debug-repaired-2026-10-27.log",
+      "scope": "Incremental after synchronous input cancellation change"
+    },
+    "final_application": {
+      "exit": 0,
+      "log": "build/qa/udiff-tool-debug-owner-repaired-2026-10-27.log",
+      "scope": "Incremental after confirmed retired-window admission and late-alert repairs"
+    },
+    "coverage_reconciled": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certified": 0,
+      "qualification": "Not a feature completion percentage"
+    }
+  },
+  "limitations": [
+    "No new signed install or App Store upload/submission",
+    "No physical Terminal/signed sandbox/Finder acceptance inferred from injected native boundaries",
+    "Spatial image effects in same worktree remain unfinished and are not validated by this document-tool checkpoint"
+  ],
+  "build_dependency": {
+    "command": "python3 scripts/build-metafile-runtime.py",
+    "session": 86227,
+    "log": "build/qa/udiff-tool-metafile-dependency-2026-10-27.log",
+    "exit": 0,
+    "scope": "Frozen renderer WIP compiled universal arm64/x86_64 and passed structural provenance validation only. Needed by app source freshness gate. No spatial Core/native/pixel checks and no image effect acceptance."
+  },
+  "resource_generation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1325,
+      "mode": "write"
+    },
+    "help": {
+      "documents": 60,
+      "topics": 51,
+      "files": 92,
+      "bytes": 8707339,
+      "mode": "write"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "pendingControls": 85,
+      "certifiedComplete": 0,
+      "qualification": "Not a feature completion percentage"
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/UnifiedDiffInvocation.swift": "e58e7ade96f5f2ebdd2241a10a21de9434ef3d0f54026988eb0f788ce603957f",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "a109c8c51f8ffce795115ecf02569c14b3fe1242acf29104f0c3b7c715639933",
+    "Sources/TurtleGitMac/PatchDocumentSession.swift": "dad1a0af94fef9dd3792ef540e2cd350bf116d3eb66ad70c65a74e5617694d5c",
+    "Sources/TurtleGitMac/PatchWindow.swift": "e2ba57d086ff5184345f3803478eae7b397c7df8a994105ea55c644353581e32",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "af621b9904b5af5a6fe391dbce993a30e4ee6d4412bcdfb885891593d2646124",
+    "Sources/TurtleGitMac/ReviewPatchWorkflow.swift": "0cf37e0a4ff67ded8a827290deb93d6709cf766792f5417027a720e54ffc1cbc",
+    "Sources/TurtleGitMac/UnifiedDiffInputSession.swift": "a2ed4465aba3b75689fd7d72a7ef6e186c772b6100bb545d1271287424cf6e07",
+    "Tests/TurtleGitCoreTests/UnifiedDiffInputTests.swift": "9d5c15ca17f5e9df72b3a6272913766517f4ecdeac3856fe707b24b5ec490c73",
+    "docs/qa/unified-diff-input-native-2026-10-25.swift": "c541d2ef000b7dc457e21057058560ee9667f1b73bb8f3bfad0096890cc4d367",
+    "scripts/test-unified-diff-input.py": "9f50344fa9ed3e8aeb82209ad731b4b8075a9869ec533fa72767994d19c6958b",
+    "scripts/test-udiff-tool-wrapper.py": "562d93856d2887f658a949b904087704d843667d850faee2ad0a23b9a9b0bc91",
+    "scripts/turtlegit-udiff": "03bf4d171d41e19f73b4249ba276102c44afb6ac8660ec28f1c6417974b3cfbd"
+  }
+}

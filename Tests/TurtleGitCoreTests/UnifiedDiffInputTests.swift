@@ -53,6 +53,91 @@ final class UnifiedDiffInputTests: XCTestCase {
         }
         XCTAssertEqual(try UnifiedDiffInvocation.parse(arguments: ["--unified-diff", "--title="], currentDirectory: "/tmp")?.title, "")
     }
+    func testDedicatedToolDefaultsToCapturedStandardInputWithoutChangingViewerDefaults() throws {
+        let tool = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool"], currentDirectory: "/tmp"))
+        XCTAssertTrue(tool.isStandaloneTool)
+        XCTAssertEqual(tool.input, .standardInput)
+        XCTAssertNil(tool.title)
+        let old = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff"], currentDirectory: "/tmp"))
+        XCTAssertFalse(old.isStandaloneTool)
+        XCTAssertEqual(old.input, .empty)
+        XCTAssertFalse(UnifiedDiffInvocation(input: .empty).isStandaloneTool)
+        XCTAssertNil(try UnifiedDiffInvocation.parse(arguments: [], currentDirectory: "/tmp"))
+        XCTAssertNil(try UnifiedDiffInvocation.parse(arguments: ["ordinary.patch"], currentDirectory: "/tmp"))
+        for args in [["--unified-diff-tool", "--stdin"], ["--unified-diff-tool", "/p"], ["--unified-diff-tool", "/P", "/title:pipe"]] {
+            let value = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: args, currentDirectory: "/tmp"))
+            XCTAssertTrue(value.isStandaloneTool); XCTAssertEqual(value.input, .standardInput)
+        }
+    }
+
+    func testDedicatedFileAndTitleFormsPreserveLiteralArgumentsWithoutReconstruction() throws {
+        let names = ["Caf\u{00e9}\t雪.patch", "Cafe\u{301}\n'quoted' \"file\".patch", " leading $() [*]? trailing "]
+        let title = "  custom\n\t雪 \"quoted\" --command=log "
+        for name in names {
+            for args in [["--unified-diff-tool", name, "--title", title],
+                         ["--unified-diff-tool", "--patchfile", name, "--title=" + title],
+                         ["--unified-diff-tool", "--patchfile=" + name, "/title:" + title],
+                         ["--unified-diff-tool", "/patchfile:" + name, "/TITLE:" + title]] {
+                let value = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: args, currentDirectory: "/tmp"))
+                guard case .file(let url) = value.input else { return XCTFail("Missing dedicated file") }
+                XCTAssertTrue(value.isStandaloneTool)
+                XCTAssertEqual(Data(url.lastPathComponent.utf8), Data(name.utf8))
+                XCTAssertEqual(Data(try XCTUnwrap(value.title).utf8), Data(title.utf8))
+            }
+        }
+        let value = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool", "--", "/p"], currentDirectory: "/tmp"))
+        XCTAssertEqual(value.input, .file(URL(fileURLWithPath: "/p")))
+        let titled = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool", "--title="], currentDirectory: "/tmp"))
+        XCTAssertEqual(titled.title, ""); XCTAssertEqual(titled.input, .standardInput)
+    }
+
+    func testDedicatedRecognitionOwnsMalformedAndAmbiguousRequestsButSkipsValuesAndEscape() throws {
+        for args in [["--command", "log", "--unified-diff-tool"],
+                     ["/command:log", "--unified-diff-tool"],
+                     ["--unified-diff-tool", "--COMMAND=log"],
+                     ["--command", "--unified-diff-tool"],
+                     ["--unified-diff-tool=oops"], ["--unified-diff-tool-extra"],
+                     ["--UNIFIED-DIFF-TOOL"]] {
+            XCTAssertTrue(UnifiedDiffInvocation.recognizes(arguments: args), "\(args)")
+            XCTAssertThrowsError(try UnifiedDiffInvocation.parse(arguments: args, currentDirectory: "/tmp")) { XCTAssertTrue($0 is UnifiedDiffInvocationFailure) }
+        }
+        for args in [["--", "--unified-diff-tool"], ["--title", "--unified-diff-tool"],
+                     ["--title", "--unified-diff-tool", "--command=log"],
+                     ["--patchfile", "--unified-diff-tool"]] {
+            XCTAssertFalse(UnifiedDiffInvocation.recognizes(arguments: args), "\(args)")
+            XCTAssertNil(try UnifiedDiffInvocation.parse(arguments: args, currentDirectory: "/tmp"))
+        }
+        for caption in ["--command=log", "--unified-diff-tool", "/command:log"] {
+            let value = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool", "--title", caption], currentDirectory: "/tmp"))
+            XCTAssertEqual(value.title, caption); XCTAssertTrue(value.isStandaloneTool)
+        }
+        let escaped = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool", "--", "--command=log"], currentDirectory: "/tmp"))
+        XCTAssertEqual(escaped.input, .file(URL(fileURLWithPath: "/tmp/--command=log")))
+    }
+
+    func testDedicatedDuplicateInputsTitlesMarkersAndUnknownFlagsAreRefused() throws {
+        for suffix in [["--unified-diff-tool"], ["--unified-diff"], ["--merge-tool"],
+                       ["--stdin", "/p"], ["--stdin", "file.patch"], ["a", "b"],
+                       ["--patchfile=a", "/patchfile:b"], ["--title=a", "/title:b"],
+                       ["--title"], ["--patchfile"], ["--patchfile="], ["--unknown"],
+                       ["/unknown"], ["--stdin=oops"], ["a\0b"], ["--title=\0"]] {
+            XCTAssertThrowsError(try UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool"] + suffix, currentDirectory: "/tmp"), "\(suffix)") { XCTAssertTrue($0 is UnifiedDiffInvocationFailure) }
+        }
+        XCTAssertThrowsError(try UnifiedDiffInvocation.parse(arguments: ["--unified-diff", "--unified-diff-tool"], currentDirectory: "/tmp"))
+        XCTAssertThrowsError(try UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool"], currentDirectory: "relative"))
+    }
+
+    func testDedicatedDefaultInputUsesOriginalCapturedDescriptorBytes() throws {
+        let invocation = try XCTUnwrap(UnifiedDiffInvocation.parse(arguments: ["--unified-diff-tool", "--title", "pipe \"雪\""], currentDirectory: "/tmp"))
+        XCTAssertTrue(invocation.isStandaloneTool)
+        guard case .standardInput = invocation.input else { return XCTFail("Dedicated input must remain a stream request") }
+        let (input, output) = try pipePair(); defer { close(input) }
+        let bytes = Data([0xff, 0, 0xfe, 13, 10, 0x80, 0x22, 0x27])
+        do { try writeAll(bytes, descriptor: output); close(output) } catch { close(output); throw error }
+        XCTAssertEqual(try UnifiedDiffInputReader.read(descriptor: input), bytes)
+        XCTAssertGreaterThanOrEqual(fcntl(input, F_GETFD), 0)
+    }
+
     private func pipePair() throws -> (Int32, Int32) {
         var fds: [Int32] = [-1,-1]
         guard pipe(&fds) == 0 else { throw POSIXError(.EMFILE) }

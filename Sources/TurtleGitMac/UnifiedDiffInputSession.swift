@@ -3,6 +3,22 @@ import AppKit
 import Darwin
 import TurtleGitCore
 
+/// One launch-input outcome, separate from later document/Apply diagnostics.
+enum UnifiedDiffStartupInputOutcome:Equatable {case success, failure, cancelled}
+
+@MainActor final class UnifiedDiffToolCompletion {
+    private var outcome:UnifiedDiffStartupInputOutcome?
+    private var closed=false
+    private var completion:((Int32)->Void)?
+    init(_ completion:@escaping(Int32)->Void){self.completion=completion}
+    func finish(_ outcome:UnifiedDiffStartupInputOutcome){guard self.outcome==nil else{return};self.outcome=outcome;deliver()}
+    func ownerClosed(){closed=true;deliver()}
+    private func deliver(){
+        guard closed,let outcome,let completion else{return}
+        self.completion=nil;completion(outcome == .success ? 0:1)
+    }
+}
+
 /// Owns one standalone stdin read. The reader duplicates the descriptor; this
 /// session never closes or changes the parent's stdin.
 @MainActor final class UnifiedDiffInputSession {
@@ -18,6 +34,7 @@ import TurtleGitCore
     private weak var window: NSWindow?
     private var cancellation: OperationCancellation?
     private var task: Task<Void, Never>?
+    private var reportResult:((UnifiedDiffStartupInputOutcome)->Void)?
     private let read: Reader
 
     init(read: @escaping Reader = { descriptor, cancellation in
@@ -35,6 +52,7 @@ import TurtleGitCore
               window.attachedSheet == nil,
               controller.startupInput == nil || controller.startupInput === self else { return false }
         started = true; self.controller = controller; self.window = window
+        reportResult=controller.startupInputReporter
         controller.startupInput = self
         controller.presentDocument(Data(), title: title + " – Unified Diff – TurtleGit", comparison: title, information: "")
         // Capture the stream synchronously. Passing only the descriptor number
@@ -42,11 +60,12 @@ import TurtleGitCore
         let owned = fcntl(descriptor, F_DUPFD_CLOEXEC, 0)
         guard owned >= 0 else {
             controller.model.error = UnifiedDiffInputFailure.descriptor(errno).localizedDescription
+            reportResult?(.failure);reportResult=nil
             return true
         }
         let token = OperationCancellation(), request = generation, read = self.read
         guard controller.model.beginStartupInput(cancel: { [weak self] in self?.cancel() }) else {
-            close(owned); return false
+            close(owned);reportResult?(.cancelled);reportResult=nil; return false
         }
         cancellation = token; isReading = true; Self.activeOperations += 1
         Self.active[ObjectIdentifier(self)] = self
@@ -86,6 +105,7 @@ import TurtleGitCore
 
     /// Quit drains every accepted stream, including a forcibly closed owner.
     /// Cancel the entire captured group before awaiting any individual worker.
+    static func cancelAll(){for session in Array(active.values){session.cancel()}}
     static func cancelAllAndWait() async {
         let sessions = Array(active.values)
         for session in sessions { session.cancel() }
@@ -100,6 +120,10 @@ import TurtleGitCore
         isReading = false; cancelling = false; cancellation = nil; task = nil
         Self.activeOperations -= 1
         Self.active.removeValue(forKey: ObjectIdentifier(self))
+        let outcome:UnifiedDiffStartupInputOutcome
+        if token.isCancelled {outcome = .cancelled}
+        else {switch result {case .success:outcome = .success;case .failure:outcome = .failure}}
+        reportResult?(outcome);reportResult=nil
         guard let controller, controller.startupInput === self else { return }
         controller.model.finishStartupInput()
         guard !controller.model.retired, let window,

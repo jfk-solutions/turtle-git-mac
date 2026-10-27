@@ -137,14 +137,13 @@ those audit counts do not measure feature completion. The site built 452
 documents with zero unresolved links before this final record update; final
 regeneration belongs to the parent checkpoint.
 
-Remaining entry differences are explicit: the dedicated upstream executable
-with no arguments attempts stdin (`TortoiseUDiff.cpp:107–129`), whereas native
-`--unified-diff` without input deliberately opens an empty document. Native
-stdin requires `--stdin` or `/p`. Upstream also accepts an unmarked filename in
-its dedicated executable; the combined native app requires the explicit
-`--unified-diff` marker for that entry. Upstream failed loading returns exit 1;
-native input errors stay visible on their owner instead of automatically
-exiting. This checkpoint does not claim complete upstream UDiff parity.
+The October 25 checkpoint had three explicit entry differences: no-input
+`--unified-diff` opened empty instead of attempting stdin, an unmarked filename
+needed the combined app's explicit marker, and input failure stayed visible
+without a distinct failure result. The dedicated tool continuation below addresses
+those entry paths without changing the combined application's empty-document
+command. This historical checkpoint does not establish the later implementation
+or complete upstream UDiff parity.
 
 Full menu/keyboard/VoiceOver/visual source
 acceptance, signed sandbox grants, all exceptional stream/filesystem conditions,
@@ -174,3 +173,40 @@ margin to the existing standalone document and shared read-only previews. Number
 whole-line selection and dragging use the actual displayed UTF-16 text without
 changing byte-backed editing, file/stream loading, Save, Apply or Quit ownership.
 The family checkpoint records its own actual validation and remaining limits.
+
+## Dedicated tool entry continuation — October 27, 2026
+
+The `scripts/turtlegit-udiff` launcher invokes the combined executable with the
+separate `--unified-diff-tool` marker. Its default input is stdin, including a
+valid empty EOF; a positional filename selects a file. The original
+`--unified-diff` entry retains its empty-document default. Literal Unicode paths,
+option-looking filenames after `--`, explicit input/title options and the source
+aliases share the typed parser. The dedicated marker owns malformed tool
+requests so they cannot fall through into a repository workspace.
+
+The launcher uses `exec`, preserving the caller's exact argument boundaries,
+stdin and exit result. It follows the existing Merge wrapper's explicit app or
+executable override and reports a missing executable as `127`. No filename is
+reassembled into shell text. The default pipe title comes from upstream
+`IDS_PIPETITLE` (`diff from pipe`); an explicit caption remains user text.
+
+Dedicated initial loading captures a result owned by that document: success
+returns `0`, failed/cancelled input returns `1`, and malformed arguments return
+`2`. Input errors remain visible until the owner closes. Later editor/Apply
+errors cannot overwrite the initial loading result. File permission choices,
+held stdin cancellation, Close, Quit and accepted external handoffs retain their
+existing owner and drain requirements. The combined empty-document entry keeps
+its previous behavior.
+
+The [dedicated tool checkpoint](qa/unified-diff-tool-2026-10-27.json) records this
+continuation separately: 22 focused Core methods, the private executable wrapper
+check, the unsigned Debug build and all six distinct native input cases passed.
+The first grouped run exposed Quit/retirement defects; affected cases were
+rechecked after repairing synchronous cancellation, retired-window admission
+and delayed error alerts. A fixture then acknowledged the actual native error
+sheet before retrying Quit, preserving its failure status assertion. Logs retain
+all failures and repairs. Every owned receiver was reaped and independently
+confirmed absent. These focused checks do not establish signed grants, physical
+Terminal acceptance, full hosted CI or complete source visual parity.
+The image-effect implementation in the same worktree remains a separate
+unfinished batch and is not certified by a Unified Diff checkpoint.

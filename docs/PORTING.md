@@ -367,6 +367,15 @@ passes, five native cases and a real executable pipe launch/close. The Unicode
 path repair and fixture compile failure remain recorded; complete viewer visual
 parity, signed grants and App Store deployment remain open.
 
+The October 27 dedicated continuation adds the waiting `turtlegit-udiff`
+launcher, default stdin, literal filenames and distinct initial-input process
+results. Completion waits for the exact owner's accepted Open/Save/Apply work;
+retired owners cannot block Quit or reopen delayed diagnostics. Its
+[checkpoint](qa/unified-diff-tool-2026-10-27.json) records 22 focused Core methods,
+the wrapper check, Debug and six cumulative native cases passing after recorded
+production and fixture repairs. No new signed installation or complete hosted
+acceptance is implied.
+
 The [native list interaction family](NATIVE-LIST-INTERACTIONS-PARITY.md) preserves
 full-row/label selection, native checks, colors and drag while deferring unsafe
 row-construction work and fencing delegate/client/reuse/retirement handoffs.
@@ -1597,7 +1606,7 @@ top of this document retain failed attempts and the exact scope of later passes.
 | TortoiseMerge | Encoding-aware comparison and three-pane conflict editors with block operations, menus, guarded saves and standalone tool entry. [Text Merge](TEXT-MERGE-PARITY.md), [Merge entry](MERGE-TOOL-ENTRY-PARITY.md), [literal tool configuration](LITERAL-TOOL-CONFIGURATION-PARITY.md) | Every source editor/format/protocol combination and physical/signed acceptance remain open; not an UTF-8-only initial editor |
 | TortoiseGitBlame | Historical annotation, Lexilla syntax, source/settings/properties panes, Find/line navigation, embedded Log and captured menus. [Blame dated continuations](BLAME-PARITY.md), [embedded history](BLAME-HISTORY-PRESENTATION-PARITY.md) | Every lexer/encoding/menu/focus state and physical/signed acceptance remain open; syntax and embedded history are implemented |
 | TortoiseIDiff | Native comparison/conflict panes, overlay/XOR, sizing/zoom/transparency/playback, input inspection and Windows-container/metafile readers. [Image comparison](IMAGE-COMPARISON-PARITY.md), [metafile scope](IMAGE-METAFILE-PARITY.md) | Remaining graphics-format behavior and exhaustive Windows-rendering identity need their explicit records; no blanket format parity |
-| TortoiseUDiff | Editable byte-preserving document viewer, Find/appearance/printing/settings and standalone file/stdin input. [Viewer](UNIFIED-DIFF-VIEWER-PARITY.md), [standalone entry](UNIFIED-DIFF-STANDALONE-PARITY.md) | Native entry/error differences are explicit; five native cases and a bounded physical pipe check do not certify every menu/encoding/signed grant |
+| TortoiseUDiff | Editable byte-preserving document viewer, Find/appearance/printing/settings and standalone file/stdin input, including a dedicated waiting launcher with default stdin and per-owner result. [Viewer](UNIFIED-DIFF-VIEWER-PARITY.md), [standalone entry](UNIFIED-DIFF-STANDALONE-PARITY.md) | Native failure presentation differs explicitly; dated focused checks and an earlier physical pipe check do not certify every menu/encoding/signed grant |
 | Revision Graph | Universal OGDF layout plus native canvas, filters/search, node commands, navigation and vector/raster/PDF/EMF export. [Graph dated continuations](REVISION-GRAPH-PARITY.md) | All layout/export/gesture/permission combinations and physical/signed acceptance remain bounded |
 | SshAskPass / TortoisePlink | OpenSSH, private agent, askpass/Keychain/key grants and connected transport loading. [SSH transport](SSH-TRANSPORT-PARITY.md), [agent](SSH-AGENT-PARITY.md) | Native OpenSSH replaces Windows Plink dialogs; actual external authentication, every consumer and signed grants remain separate |
 | GitWCRev / COM | Native CLI, byte/UTF-16 templates, source keywords/switches and JSON automation; packaged universal execution is recorded in [WCRev](WORKING-COPY-REVISION.md) | Exact pathspec/locale/automation cases remain scoped; Windows COM is replaced rather than reproduced |
@@ -1641,9 +1650,13 @@ Confirmed implementation differences remain in the linked families; the table
 above is not an exhaustive missing-control inventory. Examples that must not be
 hidden behind acceptance language include raw-byte filesystem/history delivery
 beyond Browser's implemented identity-preserving inspection, provider-specific integrations outside the embedded adapters, recorded graphics/
-encoding compatibility limits, and UDiff's explicit native entry behavior
-(no-input marker opens empty; stdin needs a switch; unmarked filenames are not a
-standalone mode in the combined app). The dated records distinguish deliberate
+encoding compatibility limits, and UDiff's explicit native entry behavior.
+The dedicated `turtlegit-udiff` launcher now defaults to stdin and accepts a
+literal filename; the combined app preserves its existing empty-document marker
+and filename routing. Input failure remains visible until its owner closes,
+instead of immediately exiting like upstream. The [dedicated tool checkpoint](qa/unified-diff-tool-2026-10-27.json)
+records its validation state separately from earlier viewer acceptance.
+The dated records distinguish deliberate
 native adaptation from unsupported behavior; none amounts to complete parity.
 
 Acceptance is a separate workload: every source dialog/control and exceptional

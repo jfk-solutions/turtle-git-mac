@@ -536,10 +536,16 @@ import TurtleGitCore
             if !service.prepareContextChange() {return .terminateCancel}
         }
         if drainingUnifiedDiffQuit { return .terminateLater }
-        if UnifiedDiffInputSession.activeOperations > 0 {
+        if UnifiedDiffInputSession.activeOperations > 0 || PatchDocumentSession.activeStartupInputs > 0 {
             drainingUnifiedDiffQuit = true
+            // Accept cancellation in this actor turn, before returning Later.
+            // A ready producer must not publish success while the drain Task is
+            // merely queued behind its continuation on the main executor.
+            PatchDocumentSession.cancelAllStartupInputs()
+            UnifiedDiffInputSession.cancelAll()
             Task { [self] in
                 await UnifiedDiffInputSession.cancelAllAndWait()
+                await PatchDocumentSession.waitForStartupInputs()
                 drainingUnifiedDiffQuit = false
                 let reply = applicationShouldTerminate(sender)
                 if reply != .terminateLater { replyToTermination(sender, reply == .terminateNow) }
@@ -714,7 +720,7 @@ import TurtleGitCore
         if sender.windows.compactMap({ $0.delegate as? StashRestoreWindowController }).contains(where: { $0.model.busy || $0.model.prompt != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if PatchDocumentSession.activeOperations != 0 { return .terminateCancel }
         if PatchWindowModel.activeOperations != 0 { return .terminateCancel }
-        if sender.windows.compactMap({ $0.delegate as? PatchWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? PatchWindowController }).contains(where: { !$0.model.retired && ($0.model.busy || $0.window?.attachedSheet != nil) }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? LogWindowController }).contains(where: { $0.model.busy || $0.model.orderingBlocked || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? StatusWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         // A forced owner close can remove the window before its Git child has
@@ -956,11 +962,21 @@ import TurtleGitCore
             for controller in resetProgress { controller.model.confirmingQuit = false }
             for controller in bisects { controller.model.confirmingQuit = false }
             confirmingQuit = false
+            if allowQuit,finishDedicatedUnifiedDiffAfterApprovedQuit(){return}
             replyToTermination(sender, allowQuit)
         }
         return .terminateLater
     }
+    private func finishDedicatedUnifiedDiffAfterApprovedQuit()->Bool {
+        guard startupLaunchMode == .unifiedDiff,
+              (try? UnifiedDiffInvocation.parse(arguments:startupArguments,currentDirectory:startupDirectory))?.isStandaloneTool == true else{return false}
+        repositoryModel?.completeStandaloneUnifiedDiffForTermination()
+        // Completion now also awaits this owner's post-load document/Apply
+        // work. Its callback will enter the existing handoff/exit drain later.
+        return true
+    }
     private func finishBackgroundWatches(_ sender:NSApplication) -> NSApplication.TerminateReply {
+        if finishDedicatedUnifiedDiffAfterApprovedQuit(){return .terminateLater}
         if startupMergeToolActive {
             confirmingQuit = true; repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return .terminateLater
         }

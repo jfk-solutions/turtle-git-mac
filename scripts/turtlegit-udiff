@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run the native Unified Diff tool as a waiting stdin/file viewer process.
+set -eu
+if [ -n "${TURTLEGIT_UDIFF_EXECUTABLE:-}" ]; then
+    task_udiff_binary=$TURTLEGIT_UDIFF_EXECUTABLE
+else
+    task_udiff_app=${TURTLEGIT_APP:-/Applications/TurtleGit for Mac.app}
+    task_udiff_binary=$task_udiff_app/Contents/MacOS/TurtleGitMac
+fi
+if [ ! -x "$task_udiff_binary" ]; then
+    printf '%s\n' "TurtleGit Unified Diff executable not found: $task_udiff_binary" >&2
+    exit 127
+fi
+exec "$task_udiff_binary" --unified-diff-tool "$@"

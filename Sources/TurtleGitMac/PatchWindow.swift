@@ -45,6 +45,34 @@ import UniformTypeIdentifiers
     let model: PatchWindowModel
     private(set) var documentSession: PatchDocumentSession!
     var startupInput: UnifiedDiffInputSession?
+    private var standaloneCompletion:UnifiedDiffToolCompletion?
+    private var standaloneCloseTask:Task<Void,Never>?
+    private var standaloneCompletionRequested=false
+    private var closed=false
+    var startupInputReporter:((UnifiedDiffStartupInputOutcome)->Void)? {
+        guard let receipt=standaloneCompletion else{return nil}
+        return {receipt.finish($0)}
+    }
+    func configureStandaloneInputCompletion(_ completion:@escaping(Int32)->Void){
+        guard standaloneCompletion==nil,!closed else{return}
+        standaloneCompletion=UnifiedDiffToolCompletion(completion)
+    }
+    /// Called only after the application grants its ordinary dirty-document
+    /// termination and drains accepted input. It does not close another owner.
+    func completeStandaloneInputForTermination(){completeStandaloneAfterOwnedDrain()}
+    private func completeStandaloneAfterOwnedDrain(){
+        guard let receipt=standaloneCompletion,!standaloneCompletionRequested else{return}
+        standaloneCompletionRequested=true
+        let session=documentSession!,input=startupInput
+        session.retire()
+        standaloneCloseTask=Task{[weak self,receipt,session,input] in
+            await input?.cancelAndWait()
+            await session.waitForRetirement()
+            receipt.ownerClosed()
+            self?.standaloneCloseTask=nil
+        }
+    }
+
     var onClosed: () -> Void = {}
     var onMoved: () -> Void = {}
     private let preferences: UserDefaults
@@ -116,14 +144,17 @@ import UniformTypeIdentifiers
         model.darkMode = dark
     }
     func windowWillClose(_ notification: Notification) {
+        guard let closing=notification.object as? NSWindow,closing === window,!closed else{return}
+        closed=true
         startupInput?.cancel()
         flashGeneration += 1; window?.contentView?.layer?.borderWidth = 0
         documentSession.retire(); model.retire()
         if let window { preferences.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
         onClosed()
+        completeStandaloneAfterOwnedDrain()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if startupInput?.requestClose() == true { return false }
+        if startupInput?.requestClose() == true || documentSession.requestStartupInputClose() { return false }
         guard !model.busy, !model.confirmingQuit, sender.attachedSheet == nil else { return false }
         if documentSession.dirty { documentSession.requestClose(); return false }
         return true
@@ -456,7 +487,7 @@ struct PatchDialog: View {
         .onAppear {model.observedAppearance(dark:colorScheme == .dark)}
         .onChange(of:colorScheme) {model.observedAppearance(dark:$0 == .dark)}
         .sheet(isPresented: $model.showPageSetup, onDismiss: { model.busy = false }) { PatchPageSetup(model: model) }
-        .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+        .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { !model.retired && model.error != nil }, set: { if !$0 && !model.retired { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
     }

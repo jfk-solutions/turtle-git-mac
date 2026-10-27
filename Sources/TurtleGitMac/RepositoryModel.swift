@@ -4983,9 +4983,11 @@ private enum TransportBatchPresentationContext {
         patchDocumentOpeningPaths[controller.id] = key
         controller.owner.documentSession.openFile(file)
     }
-    private func makePatchDocument(directory: URL, title: String, completion: (() -> Void)? = nil) -> (id: UUID, owner: PatchWindowController) {
+    private func makePatchDocument(directory: URL, title: String, completion: (() -> Void)? = nil,
+                                   standaloneCompletion:((Int32)->Void)? = nil) -> (id: UUID, owner: PatchWindowController) {
         let id = UUID(), controller = PatchWindowController(documentDirectory: directory, preferences: reviewPatchPreferences)
         controller.presentDocument(Data(), title: title + " – Unified Diff – TurtleGit", comparison: title, information: "")
+        if let standaloneCompletion{controller.configureStandaloneInputCompletion(standaloneCompletion)}
         configurePatchDocument(controller)
         controller.onClosed = { [weak self, weak controller] in
             guard let self, let controller, self.patchDocumentWindows[id] === controller else { return }
@@ -5004,14 +5006,20 @@ private enum TransportBatchPresentationContext {
             let directory: URL
             if case .file(let url) = invocation.input { directory = url.deletingLastPathComponent() }
             else { directory = URL(fileURLWithPath: currentDirectory, isDirectory: true) }
-            let title = invocation.title ?? { if case .file(let url) = invocation.input { return url.lastPathComponent }; return "Unnamed" }()
-            let entry = makePatchDocument(directory: directory, title: title) { completion?(0) }
+            let title = invocation.title ?? {
+                if case .file(let url) = invocation.input {return invocation.isStandaloneTool ? url.path:url.lastPathComponent}
+                return invocation.isStandaloneTool ? String(localized:"diff from pipe"):"Unnamed"
+            }()
+            let entry: (id:UUID,owner:PatchWindowController)
+            if invocation.isStandaloneTool {
+                entry=makePatchDocument(directory:directory,title:title,standaloneCompletion:{completion?($0)})
+            } else {entry=makePatchDocument(directory:directory,title:title,completion:{completion?(0)})}
             switch invocation.input {
-            case .empty: break
-            case .file(let url): entry.owner.documentSession.openFile(url, title: invocation.title, authorizeIfNeeded: true)
+            case .empty:entry.owner.startupInputReporter?(.success)
+            case .file(let url):entry.owner.documentSession.openFile(url,title:invocation.isStandaloneTool ? title:invocation.title,authorizeIfNeeded:true,startupResult:entry.owner.startupInputReporter)
             case .standardInput:
                 let input = UnifiedDiffInputSession()
-                input.start(controller: entry.owner, descriptor: descriptor, title: title)
+                if !input.start(controller:entry.owner,descriptor:descriptor,title:title){entry.owner.startupInputReporter?(.cancelled)}
             }
             return true
         } catch {
@@ -5019,6 +5027,9 @@ private enum TransportBatchPresentationContext {
             if completion != nil { fputs("TurtleGitUDiff: " + error.localizedDescription + "\n", stderr) }
             completion?(2); return true
         }
+    }
+    func completeStandaloneUnifiedDiffForTermination(){
+        for owner in Array(patchDocumentWindows.values){owner.completeStandaloneInputForTermination()}
     }
     // Injected pickers are test-owned. Production keeps the same explicit
     // repository/file authorization as Finder and never trusts argv as a grant.

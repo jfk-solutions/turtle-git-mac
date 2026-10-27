@@ -1092,6 +1092,26 @@ file paths or grant filesystem access.
 
 ## Standalone Unified Diff
 
+The waiting [Unified Diff launcher](../scripts/turtlegit-udiff) accepts a filename
+directly and reads stdin when no input is specified, matching the dedicated
+TortoiseUDiff executable. Copy it to a directory on your `PATH`, such as
+`~/bin/turtlegit-udiff`, and make it executable. It uses the application installed
+at `/Applications/TurtleGit for Mac.app`; set `TURTLEGIT_APP` for another app
+location, or `TURTLEGIT_UDIFF_EXECUTABLE` for a development executable.
+
+```sh
+turtlegit-udiff changes.patch
+git diff --binary | turtlegit-udiff --title "Working tree"
+```
+
+The launcher executes the app's `--unified-diff-tool` entry and preserves literal
+arguments, stdin and the process result. It waits for its document and accepted
+external handoffs to finish. A completed initial input returns status `0` when
+the document closes; failed or cancelled initial input returns `1`. Errors stay
+on the document owner for review. Editing or Apply errors after successful
+loading do not change the captured input result. Invalid invocation grammar
+returns `2`; a missing executable returns `127`.
+
 Launch the app executable with `--unified-diff` to create an editable Unnamed
 document, or provide one file or an explicit stdin stream. This mode opens only
 the native Unified Diff window, without a repository workspace or first-start
@@ -1110,7 +1130,8 @@ looks like an option. Choose a single input; conflicting inputs, duplicate title
 and malformed options are rejected. `/command:` and `--command` retain their
 repository-command meaning.
 
-Stdin is consumed only with `--stdin` or `/p`. EOF publishes the captured bytes as
+In the combined app's `--unified-diff` mode, stdin is consumed only with
+`--stdin` or `/p`; the dedicated launcher defaults to stdin. EOF publishes the captured bytes as
 one document, including empty EOF; partial input is not editable. The input limit
 is less than 250 MiB. Closing the window cancels and drains its reader. Quit
 cancels all active readers, waits for them, then performs the normal unsaved

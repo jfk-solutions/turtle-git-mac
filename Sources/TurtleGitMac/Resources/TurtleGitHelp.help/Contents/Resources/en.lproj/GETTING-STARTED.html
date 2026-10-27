@@ -293,6 +293,11 @@ bytes and an optional window title; see <a href="https://jfk-solutions.github.io
 The viewer has Find and a window-local Light/Dark choice. Saving writes the patch
 document; applying it to a working tree is a separate action that requires a
 repository and folder access.</p>
+<p>For command-line use, install the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/scripts/turtlegit-udiff">Unified Diff launcher</a>
+in your <code>PATH</code>. Run <code>turtlegit-udiff changes.patch</code> for a file, or pipe
+<code>git diff | turtlegit-udiff</code> to open the captured diff. The command waits until
+its viewer closes and reports whether the initial input loaded successfully.
+File arguments may require an owned macOS permission picker.</p>
 <p>The numbered gutter selects whole lines. Use <strong>Option-drag</strong> to select a column,
 or <strong>Command-Option-Shift-Arrows</strong> to extend it from the keyboard. <strong>Edit → Lines</strong>
 offers copying, cutting, duplication, transposition and indentation. Undo restores

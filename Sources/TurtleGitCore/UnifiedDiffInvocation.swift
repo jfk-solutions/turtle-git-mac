@@ -8,20 +8,30 @@ public struct UnifiedDiffInvocation: Sendable, Equatable {
     }
     public let input: Input
     public let title: String?
+    /// Dedicated waiting tool entry, distinct from a viewer in the combined app.
+    public let isStandaloneTool: Bool
+
+    public init(input: Input, title: String? = nil, isStandaloneTool: Bool = false) {
+        self.input = input; self.title = title; self.isStandaloneTool = isStandaloneTool
+    }
 
     /// Recognition is separate so malformed explicit viewer requests still
     /// report their error in the viewer rather than opening the workspace.
     public static func recognizes(arguments: [String]) -> Bool {
-        var explicit = false, index = 0
+        var explicit = false, dedicated = false, command = false, index = 0
         while index < arguments.count {
             let value = arguments[index], lower = value.lowercased()
             if value == "--" { break }
-            if lower == "--command" || lower.hasPrefix("--command=") || lower == "/command" || lower.hasPrefix("/command:") { return false }
+            // A dedicated request owns its errors even when another command
+            // precedes it. Do not accidentally promote a caption/file value
+            // containing a marker into an executable tool request.
+            if lower.hasPrefix("--unified-diff-tool") { dedicated = true }
+            if lower == "--command" || lower.hasPrefix("--command=") || lower == "/command" || lower.hasPrefix("/command:") { command = true }
             if value.hasPrefix("--unified-diff") || lower == "/p" || lower.hasPrefix("/patchfile:") || lower.hasPrefix("/title:") { explicit = true }
             if value == "--title" || value == "--patchfile" { index += 1 }
             index += 1
         }
-        return explicit
+        return dedicated || explicit && !command
     }
 
     public static func parse(arguments: [String], currentDirectory: String) throws -> Self? {
@@ -29,7 +39,7 @@ public struct UnifiedDiffInvocation: Sendable, Equatable {
         guard recognizes(arguments: arguments) else { return nil }
         guard (currentDirectory as NSString).isAbsolutePath,
               !currentDirectory.utf8.contains(0), !arguments.contains(where: { $0.utf8.contains(0) }) else { throw UnifiedDiffInvocationFailure.input }
-        var input: Input?, title: String?, hasTitle = false, hasMarker = false, positional = false, index = 0
+        var input: Input?, title: String?, hasTitle = false, hasMarker = false, standalone = false, positional = false, index = 0
         func file(_ path: String) throws -> Input {
             guard !path.isEmpty else { throw UnifiedDiffInvocationFailure.input }
             // Foundation's filesystem standardization can decompose a literal
@@ -46,8 +56,9 @@ public struct UnifiedDiffInvocation: Sendable, Equatable {
             let value = arguments[index], lower = value.lowercased()
             if positional { try assign(file(value)) }
             else if value == "--" { positional = true }
-            else if value == "--unified-diff" {
-                guard !hasMarker else { throw UnifiedDiffInvocationFailure.input }; hasMarker = true
+            else if value == "--unified-diff" || value == "--unified-diff-tool" {
+                guard !hasMarker else { throw UnifiedDiffInvocationFailure.input }
+                hasMarker = true; standalone = value == "--unified-diff-tool"
             } else if value == "--stdin" || lower == "/p" { try assign(.standardInput) }
             else if value == "--patchfile" || value == "--title" {
                 index += 1
@@ -64,7 +75,7 @@ public struct UnifiedDiffInvocation: Sendable, Equatable {
             } else { try assign(file(value)) }
             index += 1
         }
-        return Self(input: input ?? .empty, title: title)
+        return Self(input: input ?? (standalone ? .standardInput : .empty), title: title, isStandaloneTool: standalone)
     }
 }
 

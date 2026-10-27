@@ -19,11 +19,30 @@ import UniformTypeIdentifiers
         }
     }
     static private(set) var activeOperations = 0
+    private static var startupFiles:[ObjectIdentifier:PatchDocumentSession]=[:]
+    static var activeStartupInputs:Int {startupFiles.count}
+    private(set) var startupFileReading=false
+    private var startupClosePending=false
+    private var startupWaiters:[CheckedContinuation<Void,Never>]=[]
+    private var pendingStartupOutcome:(()->Void)?
+    static func cancelAllStartupInputs(){for session in startupFiles.values{session.cancellation?.cancel()}}
+    static func waitForStartupInputs()async {
+        let sessions=Array(startupFiles.values)
+        for session in sessions {if startupFiles[ObjectIdentifier(session)] === session {await withCheckedContinuation{session.startupWaiters.append($0)}}}
+    }
+    func requestStartupInputClose()->Bool {
+        guard startupFileReading else{return false}
+        startupClosePending=true;cancellation?.cancel();return true
+    }
     private weak var owner: PatchWindowController?
     private(set) var fileURL: URL?
     private var fileAccess: RepositoryAccessLease?
     private var diskBytes: Data?
     private var working = false, retired = false
+    private var operationTask:Task<Void,Never>?
+    private var retiringReview:ReviewPatchWorkflow?
+    private var acceptedSaves=0
+    private var saveWaiters:[CheckedContinuation<Void,Never>]=[]
     private var generation = 0
     private(set) var documentIdentity = UUID()
     private var cancellation: OperationCancellation?
@@ -78,13 +97,23 @@ import UniformTypeIdentifiers
     }
     var enabled: Bool { !retired && owner?.model.allowsDocumentEditing == true && owner?.model.readOnly == true }
     var dirty: Bool { enabled && owner?.model.documentDirty == true }
-    private func launch(_ operation: @escaping (PatchDocumentSession) async -> Void) {
+    private func launch(onRetired:(()->Void)? = nil,_ operation: @escaping (PatchDocumentSession) async -> Void) {
         guard enabled, !working, let owner, !owner.model.busy, !owner.model.confirmingQuit, owner.model.error == nil, owner.window?.attachedSheet == nil else { return }
         working = true; Self.activeOperations += 1
-        Task {
-            defer { working = false; Self.activeOperations -= 1; pumpReplacement() }
+        operationTask=Task {
+            var entered=false
+            defer {working=false;Self.activeOperations -= 1;operationTask=nil;if !entered{onRetired?()};finishStartupOperation();pumpReplacement()}
+            guard !retired else{return};entered=true
             await operation(self)
         }
+    }
+    private func finishStartupOperation(){
+        if startupFileReading {startupFileReading=false;Self.startupFiles.removeValue(forKey:ObjectIdentifier(self))}
+        let completed=pendingStartupOutcome;pendingStartupOutcome=nil;completed?()
+        let waiters=startupWaiters;startupWaiters.removeAll();for waiter in waiters{waiter.resume()}
+        guard startupClosePending else{return};startupClosePending=false
+        guard !retired,let owner,!owner.model.retired,let window=owner.window,window.delegate === owner else{return}
+        window.performClose(nil)
     }
     func openDocument() {
         launch { session in
@@ -99,11 +128,20 @@ import UniformTypeIdentifiers
     }
     /// Finder/Launch Services already supplies the chosen file; retain the same
     /// scoped read, save point and cancellation ownership as the Open panel.
-    func openFile(_ url: URL, title: String? = nil, authorizeIfNeeded: Bool = false) {
-        launch { session in
+    func openFile(_ url: URL, title: String? = nil, authorizeIfNeeded: Bool = false,
+                  startupResult:((UnifiedDiffStartupInputOutcome)->Void)? = nil) {
+        guard enabled,!working,let owner,!owner.model.busy,!owner.model.confirmingQuit,
+              owner.model.error==nil,owner.window?.attachedSheet==nil else{startupResult?(.cancelled);return}
+        launch(onRetired:{startupResult?(.cancelled)}) { session in
             session.pendingReplacement = nil
-            guard await session.resolveChanges(), !session.retired else { return }
-            await session.load(url, title: title, authorizeIfNeeded: authorizeIfNeeded)
+            guard await session.resolveChanges(), !session.retired else {
+                if let startupResult{session.pendingStartupOutcome={startupResult(.cancelled)}}
+                return
+            }
+            let report:((UnifiedDiffStartupInputOutcome)->Void)?
+            if let startupResult{report={outcome in session.pendingStartupOutcome={startupResult(outcome)}}}
+            else {report=nil}
+            await session.load(url, title: title, authorizeIfNeeded: authorizeIfNeeded,startupResult:report)
         }
     }
     func saveDocument(as newFile: Bool = false) { launch { _ = await $0.save(as: newFile) } }
@@ -183,7 +221,10 @@ import UniformTypeIdentifiers
         guard !retired else { return false }
         switch decision { case .cancel: return false; case .discard: return true; case .save: return await save() }
     }
-    private func load(_ url: URL, title: String? = nil, authorizeIfNeeded: Bool = false) async {
+    private func load(_ url: URL, title: String? = nil, authorizeIfNeeded: Bool = false,
+                      startupResult:((UnifiedDiffStartupInputOutcome)->Void)? = nil) async {
+        var outcome=UnifiedDiffStartupInputOutcome.cancelled
+        defer{startupResult?(outcome)}
         guard !retired, let owner else { return }
         var access = acquireAccess(url)
         if requiresFileScope && !access.hasSecurityScope && authorizeIfNeeded {
@@ -193,14 +234,15 @@ import UniformTypeIdentifiers
             owner.model.busy = false
             guard !retired, let chosen else { return }
             guard Data(FileTransferPaths.lexicalPath(chosen.path).utf8) == Data(FileTransferPaths.lexicalPath(url.path).utf8) else {
-                owner.model.error = "Choose the requested Unified Diff input file."; return
+                owner.model.error = "Choose the requested Unified Diff input file.";outcome = .failure; return
             }
             access = acquireAccess(chosen)
         }
         let token = OperationCancellation(), request = generation,legacy=ComparisonTextEncoding.legacyEncoding(from:owner.model.appearancePreferences)
-        if requiresFileScope && !access.hasSecurityScope { owner.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+        if requiresFileScope && !access.hasSecurityScope { owner.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription;outcome = .failure; return }
         owner.model.busy = true; cancellation = token
-        defer { withExtendedLifetime(access) {}; owner.model.busy = false; cancellation = nil }
+        if startupResult != nil {startupFileReading=true;Self.startupFiles[ObjectIdentifier(self)]=self}
+        defer {withExtendedLifetime(access) {};owner.model.busy=false;cancellation=nil}
         do {
             let bytes = try await readFile(url, token)
             guard !retired, generation == request, !token.isCancelled else { return }
@@ -211,7 +253,8 @@ import UniformTypeIdentifiers
             owner.model.comparisonTitle = title ?? url.lastPathComponent
             owner.model.readOnlyInformation = "Patch document. Edits are saved to the selected patch file."
             owner.window?.title = (title ?? url.lastPathComponent) + " – Unified Diff – TurtleGit"
-        } catch { if !retired && !token.isCancelled { owner.model.error = error.localizedDescription } }
+            outcome = .success
+        } catch { if !retired && !token.isCancelled { owner.model.error = error.localizedDescription;outcome = .failure } }
     }
     func encodedBytes() throws -> Data {
         guard let model = owner?.model else { return Data() }
@@ -221,8 +264,11 @@ import UniformTypeIdentifiers
     }
     func save(as newFile: Bool = false) async -> Bool {
         guard !retired, let owner, !owner.model.busy, let window = owner.window, window.attachedSheet == nil else { return false }
-        Self.activeOperations += 1
-        defer { Self.activeOperations -= 1 }
+        Self.activeOperations += 1;acceptedSaves += 1
+        defer {
+            Self.activeOperations -= 1;acceptedSaves -= 1
+            if acceptedSaves==0{let waiters=saveWaiters;saveWaiters.removeAll();for waiter in waiters{waiter.resume()}}
+        }
         let request = generation, snapshot: UnifiedDiffDocument
         do { snapshot = try owner.model.documentSnapshot() }
         catch FileComparisonEditFailure.encoding {owner.model.error=Failure.encoding.localizedDescription;return false}
@@ -260,7 +306,21 @@ import UniformTypeIdentifiers
         settings?.retire()
         if let window = owner?.window, let sheet = window.attachedSheet, sheet !== settingsWindow { window.endSheet(sheet, returnCode: .cancel); sheet.close() }
         pendingReplacement = nil; updates = nil
+        retiringReview=reviewWorkflow
         reviewWorkflow?.cancel(); reviewWorkflow = nil
         fileAccess = nil
+    }
+    /// Retain exactly this document's accepted operation and Apply child until
+    /// they release their worker/sheet scopes. No unrelated window counters.
+    func waitForRetirement()async {
+        let pending=operationTask
+        await pending?.value
+        if acceptedSaves>0{await withCheckedContinuation{saveWaiters.append($0)}}
+        var children:[ReviewPatchWorkflow]=[]
+        for child in [retiringReview,reviewWorkflow].compactMap({$0}) {
+            if !children.contains(where:{$0 === child}){children.append(child)}
+        }
+        for child in children{await child.cancelAndWaitForRetirement()}
+        if retired{retiringReview=nil;reviewWorkflow=nil}
     }
 }

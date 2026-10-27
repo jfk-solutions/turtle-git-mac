@@ -235,6 +235,13 @@ import TurtleGitCore
         cancelPicker()
         close()
     }
+    /// A waiting tool owner must retain accepted preparation/Git work until the
+    /// existing retirement task releases its sheets and invokes onFinished.
+    func cancelAndWaitForRetirement() async {
+        cancel()
+        let pending = releaseTask
+        await pending?.value
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if picker != nil { cancel(); return false }; return true }
     override func close(){super.close();if !retired,window?.isVisible != true{retireOwner()}}
     func windowWillClose(_ notification: Notification) {

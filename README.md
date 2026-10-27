@@ -16,7 +16,7 @@ store listing or purchase available yet.
 - Commit, staging, branches, tags, remotes and synchronization.
 - Searchable history, blame and revision graphs.
 - Text comparison, three-way conflict resolution and partial staging.
-- Standalone editable patch documents and piped diffs; see [command-line usage](docs/COMMAND-LINE.md#standalone-unified-diff).
+- Standalone editable patch documents and piped diffs, including the waiting `turtlegit-udiff` launcher; see [command-line usage](docs/COMMAND-LINE.md#standalone-unified-diff).
 - Native light and dark appearances and bundled offline help.
 - Included Git and OpenSSH in the sandboxed distribution build.
 
