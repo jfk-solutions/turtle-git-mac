@@ -165,6 +165,7 @@
         "docs/qa/blame-source-editor-2026-10-13.json",
         "docs/qa/blame-source-menu-2026-10-16.json",
         "docs/qa/blame-wrap-2026-10-13.json",
+        "docs/qa/raw-history-family-2026-10-27.json",
         "docs/qa/settings-color-choices-2026-10-16.json"
       ]
     },
@@ -805,6 +806,7 @@
         "docs/qa/primary-command-bands-2026-10-17.json",
         "docs/qa/primary-conditional-2026-10-20.json",
         "docs/qa/primary-live-presentation-2026-10-16.json",
+        "docs/qa/raw-history-family-2026-10-27.json",
         "docs/qa/repository-presentation-2026-10-15.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/source-message-links-2026-10-15.json",
@@ -1063,6 +1065,7 @@
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
+        "docs/qa/raw-history-family-2026-10-27.json",
         "docs/qa/repository-browser-2026-10-05.json",
         "docs/qa/repository-browser-actions-2026-10-13.json",
         "docs/qa/repository-browser-export-2026-10-05.json",
@@ -1966,6 +1969,7 @@
         "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/primary-live-presentation-2026-10-16.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/raw-history-family-2026-10-27.json",
         "docs/qa/repository-presentation-2026-10-15.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
