@@ -68,3 +68,9 @@ an old menu cannot undo a replacement draft. Busy, composition, sheets and
 retirement disable history without discarding it. Metadata-only refreshes retain
 the current document's history. The follow-up receipt distinguishes this repair's
 checks from the earlier direct-manager evidence and installed build15 failure.
+
+[Installed build16](qa/signed-consolidation-build16-2026-10-27.json) passes the
+bounded Commit follow-up: standard main-menu Undo/Redo and physical shortcuts
+restore the expected draft states on the current keyboard layout. The context
+menu exposes its named Undo action. Other adapters, layouts, IME and VoiceOver
+retain the limits of the grouped native and physical evidence above.

@@ -40,6 +40,13 @@ import TurtleGitCore
         }
     }
     func retire() { retired = true; queued = false;policyRefreshQueued=false;epoch = UUID() }
+    /// Complete grant replacement is deferred while an unrelated saved root is
+    /// unavailable. Local registration remains valid and existing helper grants
+    /// remain untouched until all retained authority can be checked again.
+    func deferAuthorization(_ errors:[Error]) {
+        guard !retired,!errors.isEmpty else{return}
+        queued=true;failure=errors.map(\.localizedDescription).joined(separator:"\n");message="Background service request failed."
+    }
     func statusPolicyChanged(_ manager:FinderWatchManager) {
         guard !retired else{return}
         epoch=UUID();report=nil;reportRevision=nil;lastChecked=nil
@@ -61,7 +68,9 @@ import TurtleGitCore
     func requestSync(_ manager: FinderWatchManager, force: Bool = false) {
         if force { sentRevision = nil }
         guard enabled, !retired else { return }; queued = true
-        guard !busy, manager.pendingOperations == 0, !manager.busy, manager.active else { return }
+        // An action-only router can hold only one live watch. Never replace a
+        // helper's complete grant set with that partial local session set.
+        guard !busy, manager.canSynchronizeBackground else { return }
         busy = true
         Task { [self, weak manager] in
             defer { finishOperation(manager) }

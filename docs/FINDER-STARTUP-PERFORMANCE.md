@@ -1,0 +1,68 @@
+# Finder startup and publication cost
+
+This batch keeps the Finder workflow while removing work unrelated to opening
+an individual action window. It follows the saved repository authority, cache
+mode, live publication and cancellation contracts documented in
+[FINDER-REGISTRATION-PARITY.md](FINDER-REGISTRATION-PARITY.md),
+[FINDER-CACHE-PERSISTENCE.md](FINDER-CACHE-PERSISTENCE.md) and
+[FINDER-STATUS-POLICY-PARITY.md](FINDER-STATUS-POLICY-PARITY.md).
+
+## Action windows and monitoring
+
+An action router loads its saved repository authority without starting fresh
+status collections for every saved root. A completed Git mutation requests a
+refresh of its matching watched repository. This route cannot turn an unknown
+Finder path into a grant. Exact path matching retains Unicode identities; a
+moved repository can be found through its retained bookmark, preserving its
+watch identity and replacing the previous owned cache subtree.
+
+Opening the workspace or the watched-repository settings restores the complete
+local watch set using the same manager. Background authority transfer remains a
+complete replacement: a partial action manager cannot send a subset of grants.
+When Add to TurtleGit or a completed Clone needs the enabled background helper,
+every saved grant is checked through the existing Git root discovery and scope
+containment path. Preparing that authority does not collect unrelated status or
+submodules. An unavailable unrelated saved folder keeps the valid target registered
+locally and defers helper synchronization with a visible service error; a partial
+grant set is never sent. Other available grants are still prepared so recovery of
+the unavailable folder can finish the complete transfer. Cancellation must drain
+preparation before the existing accepted
+publication and paired recent-repository record can finish.
+
+## Publication validation
+
+Within one writer operation or atomic read attempt, canonical path spelling is
+checked once per exact UTF-8 path. Root membership is checked independently for
+each contribution. Immutable contribution objects are retained for that operation
+so an unchanged payload need not be walked again before writing. Changed or
+freshly decoded contributions still require validation. No trust cache survives
+an operation or replaces validation of another process's files.
+
+Every original field remains covered: roots, states, repository metadata,
+overlay entries, index flags and overlay policies. Namespace, counter, cardinality,
+lease, ticket, policy and hostile-file checks remain in force. Long walks check
+cancellation, including before live publication writes. Public APIs and persisted
+wire formats are unchanged.
+
+## Evidence and limits
+
+The [build15 acceptance record](qa/signed-consolidation-build15-2026-10-27.json)
+contains the original private-repository startup observation and sample. Its
+active worker was validating Finder snapshot paths while the main thread was
+idle. This proves expensive concurrent publication work; it does not prove that
+Finder publication caused the complete Commit delay.
+
+The [grouped checkpoint](qa/finder-startup-publication-2026-10-27.json) records focused Core checks, the existing native
+registration family and a bounded private publication comparison using frozen
+old and current Debug Core frameworks. A console publication measurement does
+not measure full Commit startup, physical Finder refresh latency or signed helper
+behavior. Installed build16 predates these performance changes. Complete hosted,
+physical Finder, Intel/minimum-macOS and source acceptance remain separate.
+
+The single 20,000-entry Debug sample produced identical semantic hashes and
+verified lease cleanup with each framework. Publication measured 21.62 seconds
+before and 21.10 seconds after; fresh reads measured 4.94 and 5.09 seconds. This
+does **not** establish a substantial publication speedup. Projection and
+serialization cost remains open. The native action-routing assertions establish
+that unrelated status scans are avoided, but the complete Commit loading delay
+still needs an installed measurement.

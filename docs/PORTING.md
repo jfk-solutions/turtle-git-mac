@@ -2,22 +2,36 @@
 
 ## Current installed checkpoint
 
-[Build 13](qa/signed-consolidation-build13-2026-10-26.json) is installed from
-`a3a38c07`, including Blame toolbar customization/placement and the newer WMF/EMF
-text/bitmap work. Its 1,516 measured inputs, strict signatures, eight universal
-components and equal 6,362-member candidate/staged/installed inventories pass.
-Build12 is preserved. The selected signed runtime checkpoint includes 17 image
-cases and actual history/Notes helpers; its original cache-build and process
-observation failures and focused repairs remain recorded.
+[Build16](qa/signed-consolidation-build16-2026-10-27.json) is installed from
+`b010b30e`. Its 1,534 measured inputs, strict signatures, eight universal components
+and equal 6,366-member candidate/staged/installed inventories pass. Build15 is
+preserved for recovery. The package includes the Unified Diff editing work and
+shared message commands, with the native Undo/Redo responder repair found during
+build15 acceptance.
 
-The installed workspace and native repository chooser were observed, but UI
-automation timed out after private folder authorization. The sampled main thread
-was idle; no successful post-authorization rendering or app-hang claim follows.
-Owned processes were closed, original grants retained, and private Git/file data
-preserved. The temporary grant/cache subtree was removed. No main process was
-present before acceptance, and none was restored. Finder registration is enabled;
-physical badge/menu acceptance and fresh workflow screenshots remain open.
-This installed checkpoint predates the Unified Diff gutter and line-editing continuations below.
+Actual installed Commit main-menu Undo/Redo and physical shortcuts restore the
+expected private draft states on the current keyboard layout. The repository's
+HEAD, index, configuration and working file stayed unchanged. The private grant
+was forgotten and the owned app quit. Initial folder authorization required a
+second explicit repository-open step after a cache-lock warning; this is not a
+complete first-launch or Finder acceptance claim. Other adapters, IME/VoiceOver,
+physical Finder, Intel/minimum-macOS and full hosted acceptance remain open.
+
+[Build14](qa/signed-consolidation-build14-2026-10-27.json) records the preceding
+bounded signed patch-editing check and eight current native documentation
+captures. [Build13](qa/signed-consolidation-build13-2026-10-26.json) retains its
+separate toolbar, metafile and packaged-runtime evidence. Those older checks are
+not a repeated certification of every current workflow.
+
+## Finder action startup and publication
+
+The [startup/publication family](FINDER-STARTUP-PERFORMANCE.md) separates action
+routing from unrelated watched-root scans, retains complete background authority,
+and reduces repeated exact-path and immutable-payload validation within one
+publication operation. Its grouped validation and bounded performance evidence
+are recorded separately; installed build16 predates this work. The single
+20,000-entry comparison did not establish a substantial publication speedup
+(21.62 to 21.10 seconds); projection/serialization remains a performance gap.
 
 ## Unified Diff line-number and selection gutter
 
@@ -45,9 +59,10 @@ It preserves upstream's primary-only ordinary typing policy. Its
 [dated checkpoint](qa/unified-column-edit-family-2026-10-27.json) records 35
 focused Core methods, the repaired Debug build, a complete bundled-Git native
 group and cumulative system-Git phases passing. All owned receivers are absent;
-the original build and fixture failures remain recorded. The installed build
-above does not include this continuation. Physical input, current signed
-execution, minimum-version/Intel and full hosted acceptance remain open.
+the original build and fixture failures remain recorded. Build14 packaged this
+continuation and records bounded physical patch editing; build16 inherits it.
+Complete physical input, current signed execution of every path, minimum-version/Intel
+and full hosted acceptance remain open.
 
 The preceding [build 11](qa/signed-consolidation-build11-2026-10-26.json) was
 installed as a universal app from `77f0f4f9`. Its measured 1,510 source inputs,

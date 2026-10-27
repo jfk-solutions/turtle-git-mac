@@ -23,8 +23,9 @@ struct FinderWatchRow:Identifiable {
     let status:String
 }
 @MainActor final class FinderWatchManager:ObservableObject {
+    enum Startup:Equatable { case deferred, allSavedRepositories }
     @Published private(set) var rows:[FinderWatchRow]=[]
-    @Published private(set) var busy=false { didSet { if !busy { sessions.values.forEach { $0.scheduler?.kick() };backgroundService?.requestSync(self) } } }
+    @Published private(set) var busy=false { didSet { if !busy { restoreRequestedRepositories();drainTargetRefreshes();sessions.values.forEach { $0.scheduler?.kick() };backgroundService?.requestSync(self) } } }
     @Published private(set) var pendingOperations=0 { didSet { if pendingOperations==0 { backgroundService?.requestSync(self) } } }
     @Published var error:String?
     private(set) var serviceRevision=0
@@ -54,6 +55,8 @@ struct FinderWatchRow:Identifiable {
     private var sessions:[UUID:Session]=[:]
     private var statuses:[UUID:String]=[:]
     private var mutation:OperationCancellation?
+    private var pendingTargetRefreshes:GitPathMap<URL> = [:]
+    private(set) var startup:Startup = .deferred
     @MainActor private final class Session {
         let id:UUID
         let lease:RepositoryAccessLease
@@ -61,6 +64,7 @@ struct FinderWatchRow:Identifiable {
         var repository:GitRepository
         var active=true
         var permissionReady=false
+        var collectionStarted=false
         var request:OperationCancellation?
         var monitor:RepositoryFileEventMonitor?
         var scheduler:RepositoryEventRefresh?
@@ -82,19 +86,58 @@ struct FinderWatchRow:Identifiable {
         }
     }
     deinit {for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)}}
-    static func production() throws -> FinderWatchManager {
+    static func production(startup:Startup = .deferred) throws -> FinderWatchManager {
         let url=RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("watched-repositories.json")
         let manager=try FinderWatchManager(permissions:RepositoryAccessStore(storageURL:url),cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) },statusPolicyProvider:{try FinderStatusPolicy.read()})
-        manager.backgroundService=FinderBackgroundService();return manager
+        manager.backgroundService=FinderBackgroundService()
+        if startup == .allSavedRepositories {manager.restore()}
+        return manager
     }
     private func render() {
         rows=permissions.repositories.map { FinderWatchRow(id:$0.id,name:$0.name,path:$0.lastKnownPath,status:statuses[$0.id] ?? "Waiting") }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
-    func restore() { guard active,!busy else { return };for value in permissions.repositories where sessions[value.id]==nil { attach(value.id) } }
-    private func attach(_ id:UUID,scheduleInitial:Bool = true) {
+    /// Workspace/Settings startup owns the complete local watcher set. Action
+    /// routers instead retain the saved authority without crawling every root.
+    func restore() {guard active else{return};startup = .allSavedRepositories;restoreRequestedRepositories()}
+    private func restoreRequestedRepositories() {
+        guard active,!busy,startup == .allSavedRepositories else{return}
+        for value in permissions.repositories {
+            if let session=sessions[value.id] {if !session.collectionStarted {session.scheduler?.invalidate()}}
+            else {attach(value.id)}
+        }
+    }
+    /// A completed action wakes only its already-authorized watched repository.
+    /// An arbitrary Finder path never creates a new grant through this route.
+    func refresh(repository root:URL) {
+        guard active else{return}
+        let path=root.standardizedFileURL.path
+        guard !busy else {pendingTargetRefreshes[path]=root;return}
+        if let session=sessions.values.first(where:{$0.active && GitReferenceName.equal($0.repository.root.standardizedFileURL.path,path)}) {
+            session.scheduler?.invalidate();return
+        }
+        let saved=permissions.repositories
+        var checked=Set<UUID>()
+        func attachIfMatching(_ id:UUID)->Bool {
+            _=checked.insert(id)
+            // Resolve retained authority without updating recency/bookmarks or
+            // normalizing unrelated stored path strings through the filesystem.
+            // A moved bookmark must match before its Git reader is attached.
+            guard let lease=try? permissions.acquire(id,requireSecurityScope:requireScope,updatingRecord:false,recordingOpen:false),
+                  GitReferenceName.equal(lease.url.standardizedFileURL.path,path) else {return false}
+            attach(id,acceptedLease:lease);return true
+        }
+        for value in saved where GitReferenceName.equal(value.lastKnownPath,path) {if attachIfMatching(value.id) {return}}
+        for value in saved where !checked.contains(value.id) {if attachIfMatching(value.id) {return}}
+    }
+    private func drainTargetRefreshes() {
+        guard active,!busy else{return}
+        let pending=pendingTargetRefreshes.values;pendingTargetRefreshes.removeAll()
+        for root in pending {refresh(repository:root)}
+    }
+    private func attach(_ id:UUID,scheduleInitial:Bool = true,acceptedLease:RepositoryAccessLease? = nil) {
         guard active else { return };sessions.removeValue(forKey:id)?.retire()
         do {
-            let lease=try permissions.acquire(id,requireSecurityScope:requireScope,updatingRecord:false),session=Session(id:id,lease:lease,repository:try repositoryFactory(lease.url))
+            let lease=try acceptedLease ?? permissions.acquire(id,requireSecurityScope:requireScope,updatingRecord:false),session=Session(id:id,lease:lease,repository:try repositoryFactory(lease.url))
             session.additionalLeases=try permissions.acquireAdditionalPermissions(id,requireSecurityScope:requireScope)
             sessions[id]=session
             session.scheduler=RepositoryEventRefresh(available:{ [weak self,weak session] in
@@ -114,28 +157,70 @@ struct FinderWatchRow:Identifiable {
             };session.watched=directories
         } catch { statuses[session.id]="Monitoring unavailable: "+error.localizedDescription;render() }
     }
+    private func prepareRepositoryAuthority(_ session:Session,cancellation token:OperationCancellation) async throws -> URL {
+        let root=try await session.repository.discoverRoot(cancellation:token)
+        guard active,session.active,sessions[session.id] === session,!token.isCancelled else {throw OperationCancellationFailure.cancelled}
+        guard session.lease.contains(root) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path)}
+        session.repository=try repositoryFactory(root)
+        if !session.permissionReady {
+            if let old=permissions.repositories.first(where:{$0.id==session.id}),old.lastKnownPath != root.path,let cache {
+                try await removePublication(URL(fileURLWithPath:old.lastKnownPath,isDirectory:true),cache:cache,cancellation:token)
+                guard active,session.active,sessions[session.id] === session,!token.isCancelled else {throw OperationCancellationFailure.cancelled}
+                notify()
+            }
+            guard active,session.active,sessions[session.id] === session,!token.isCancelled else {throw OperationCancellationFailure.cancelled}
+            _=try permissions.replace(session.id,with:session.lease.url)
+            session.permissionReady=true;serviceRevision += 1;render()
+        }
+        return root
+    }
+    /// A helper grant message replaces its entire authority set. Add/Clone must
+    /// therefore validate every saved grant before sending it, without running
+    /// unrelated status/submodule collections in an action-only application.
+    private func prepareBackgroundAuthorization(requiredRepository:UUID,cancellation:OperationCancellation) async throws {
+        guard backgroundService?.enabled == true else{return}
+        var failures=[Error]()
+        for value in permissions.repositories {
+            try cancellation.check();guard active else {throw FinderWatchFailure.unavailable}
+            do {
+                if sessions[value.id]==nil {attach(value.id,scheduleInitial:false)}
+                guard let session=sessions[value.id] else {throw FinderWatchFailure.initialPublication(statuses[value.id] ?? "Repository access is unavailable.")}
+                while session.request != nil {
+                    try cancellation.check();guard active,session.active,sessions[session.id] === session else {throw OperationCancellationFailure.cancelled}
+                    try await Task.sleep(nanoseconds:10_000_000)
+                }
+                if !session.permissionReady {try await prepareServiceAuthority(session,cancellation:cancellation)}
+            } catch {
+                try cancellation.check()
+                guard active else {throw OperationCancellationFailure.cancelled}
+                if value.id==requiredRepository || error is OperationCancellationFailure || error is GitCommandCancellationFailure || error is CancellationError {throw error}
+                // A disconnected unrelated watch prevents complete helper
+                // transfer, not a valid target's local Add/Clone publication.
+                // Keep the old helper grants and a visible, queued retry.
+                failures.append(error)
+            }
+        }
+        if !failures.isEmpty {backgroundService?.deferAuthorization(failures)}
+    }
+    private func prepareServiceAuthority(_ session:Session,cancellation:OperationCancellation) async throws {
+        session.request=cancellation;pendingOperations += 1
+        defer {session.request=nil;pendingOperations -= 1;withExtendedLifetime(session.lease) {}}
+        _=try await prepareRepositoryAuthority(session,cancellation:cancellation)
+    }
+    var canSynchronizeBackground:Bool {
+        active && !busy && pendingOperations==0 && rows.count==sessions.count && sessions.values.allSatisfy {$0.active && $0.permissionReady}
+    }
     private func collect(_ session:Session,cancellation:OperationCancellation? = nil,requirePublication:Bool = false) async throws {
         guard active,session.active,sessions[session.id] === session,session.request==nil else { throw OperationCancellationFailure.cancelled }
-        let token=cancellation ?? OperationCancellation();session.request=token;pendingOperations += 1;statuses[session.id]="Refreshing…";render()
+        let token=cancellation ?? OperationCancellation();session.request=token;session.collectionStarted=true;pendingOperations += 1;statuses[session.id]="Refreshing…";render()
         defer { session.request=nil;pendingOperations -= 1;withExtendedLifetime(session.lease) {} }
         do {
             let policy=try statusPolicyProvider?()
             if let policy,policy.blockStatus,(policy.cacheMode == .shell || policy.cacheMode == .shellExtended),FinderStatusOperationLease.isBlocked() {
                 statuses[session.id]="Waiting for Git command completion";render();if requirePublication {throw FinderWatchFailure.initialPublication("Waiting for Git command completion. Retry Add to TurtleGit when the command finishes.")};return
             }
-            let root=try await session.repository.discoverRoot(cancellation:token)
-            guard session.lease.contains(root) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) }
-            session.repository=try repositoryFactory(root)
+            let root=try await prepareRepositoryAuthority(session,cancellation:token)
             let cache=self.cache
-            if !session.permissionReady {
-                if let old=permissions.repositories.first(where:{ $0.id==session.id }),old.lastKnownPath != root.path,let cache {
-                    let previous=URL(fileURLWithPath:old.lastKnownPath,isDirectory:true)
-                    try await removePublication(previous,cache:cache,cancellation:token)
-                    guard active,session.active,!token.isCancelled else { throw OperationCancellationFailure.cancelled };notify()
-                }
-                guard active,session.active,!token.isCancelled else { throw OperationCancellationFailure.cancelled }
-                _ = try permissions.replace(session.id,with:session.lease.url);session.permissionReady=true;serviceRevision += 1;render()
-            }
             var ticket:FinderPublicationTicket?
             if let cache {
                 let session=try publicationSession(cache,cancellation:token)
@@ -236,6 +321,10 @@ struct FinderWatchRow:Identifiable {
             self.error=error.localizedDescription;throw error
         }
         serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id,scheduleInitial:!awaitInitialPublication);render()
+        // Finish any cancellable transfer preparation before the acknowledged
+        // initial publication. Once that publication succeeds, registration's
+        // paired recent-repository record must still complete on its caller.
+        try await prepareBackgroundAuthorization(requiredRepository:saved.id,cancellation:cancellation)
         if awaitInitialPublication {
             guard let session=sessions[saved.id] else {throw FinderWatchFailure.initialPublication(statuses[saved.id] ?? "Repository access is unavailable.")}
             try await collect(session,cancellation:cancellation,requirePublication:true)
@@ -276,7 +365,7 @@ struct FinderWatchRow:Identifiable {
     }
     func serviceLeases() -> [RepositoryAccessLease] { sessions.values.flatMap { [$0.lease]+$0.additionalLeases } }
     func serviceAuthorization(provider:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks()) throws -> FinderServiceAuthorization {
-        guard active,!busy,pendingOperations==0,rows.count==sessions.count else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        guard canSynchronizeBackground else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let values=try sessions.values.map { session -> (UUID,URL,RepositoryAccessLease,[RepositoryAccessLease]) in
             guard session.active,session.permissionReady else { throw RepositoryAccessFailure.securityScopeUnavailable }
             return (session.id,session.repository.root,session.lease,session.additionalLeases)
@@ -285,6 +374,7 @@ struct FinderWatchRow:Identifiable {
     }
     func retire() {
         guard active else { return }
+        pendingTargetRefreshes.removeAll()
         active=false
         for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)};statusPolicyObservers=[]
         backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:]

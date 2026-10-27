@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-27",
+  "status": "installed-scoped-commit-undo-acceptance-passed",
+  "source_commit": "b010b30eca0ad2bee7b320e5c79afcc9adb35616",
+  "version": "0.1.0",
+  "build": "16",
+  "scope": "Package native message Undo/Redo responder repair and verify actual installed Commit main-menu and physical keyboard behavior.",
+  "candidate_worktree": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac",
+  "source_input_sha256": "f8bc60c5f1bccabd10c94bf13ab4105269460673a80b60805b02799281d59ffc",
+  "source_input_count": 1534,
+  "build_attempts": [
+    {
+      "log": "build/qa/signed16-build-2026-10-27.log",
+      "status": "succeeded",
+      "session": 46553,
+      "exit_code": 0
+    }
+  ],
+  "build_exit": 0,
+  "build_session": 46553,
+  "build_observation": "Build handle was agent-local; root observed live xcodebuild PID69017 and both active Swift compiler processes after root could not poll that handle. Agent resumed exact handle and reported terminal success; no restart.",
+  "static_audit_session": 15773,
+  "static_validation": {
+    "source_inputs_unchanged": true,
+    "source_input_sha256": "f8bc60c5f1bccabd10c94bf13ab4105269460673a80b60805b02799281d59ffc",
+    "application_sha256": "e4204d01f1c5a18e671bb56c3309e5ee4a67a073c2424f9f0b631630c84ab187",
+    "codesign_deep_strict_exit": 0,
+    "bundle_file_count": 6366,
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 90,
+    "generated_apple_help_index": {
+      "kind": "file",
+      "size": 363559,
+      "mode": "0o644",
+      "sha256": "a96d568989ab49cd8b0c175027009bd8f59f1f03205e2b7176740a027c6ac370"
+    },
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "status": "installed_verified",
+    "source_commit": "b010b30eca0ad2bee7b320e5c79afcc9adb35616",
+    "source": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed16-displaced-installed-2026-10-27",
+    "old_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "15",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "15"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "15"
+        }
+      }
+    },
+    "new_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "16",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "16"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "16"
+        }
+      }
+    },
+    "source_input_sha256": "f8bc60c5f1bccabd10c94bf13ab4105269460673a80b60805b02799281d59ffc",
+    "application_sha256": "e4204d01f1c5a18e671bb56c3309e5ee4a67a073c2424f9f0b631630c84ab187",
+    "inventory_members": 6366,
+    "strict_signature": "pass",
+    "source_staged_installed_inventories": "equal",
+    "finder_restarted": false,
+    "global_cache_reset": false,
+    "registration_pending": true
+  },
+  "registration": "+    org.turtlegit.macos.finder(0.1.0)\n",
+  "preceding_validation": "docs/qa/message-editor-history-responder-2026-10-27.json; preceding native/Core checks not repeated for packaging. No Core change in b010.",
+  "physical_acceptance": {
+    "passed": [
+      "Actual installed Commit accepts private repository folder grant and loads its one changed row",
+      "Physical Duplicate shortcut modifies intended line",
+      "Standard main Edit Undo enabled; action restores exact two-line draft",
+      "Standard main Edit Redo enabled; action restores duplicated three-line draft",
+      "Physical Undo and Shift-Redo restore exact draft states on current German keyboard layout (CUA physical super+y/super+shift+y deliver native Command-Z/Command-Shift-Z)",
+      "Context menu exposes enabled named Duplicate Undo; native receiver separately proves context images/actions",
+      "Cancel confirmation closes Commit; Close Repository clears workspace; only private saved grant forgotten; original two user repository entries retained; native Quit"
+    ],
+    "limitations": [
+      "Initial command authorization click timed out in CUA and then empty workspace displayed with Finder cache writer lock warning. Explicit Open Repository grant completed pending Commit. Possible CUA reopen/activation interference and cache startup interaction; not a complete first-launch acceptance pass.",
+      "Transient stale accessibility element on initial main Undo click resolved by refreshed menu; native action then passed. Context Undo click also had stale element; context action not claimed passed physically.",
+      "Actual configured user preferences used for deliberate signed acceptance; no configured font/mode changes. Paste restores user clipboard. Cancel may retain disposable repository-specific recent draft.",
+      "One Commit adapter physically checked; hidden grouped receiver covers other adapters. No full IME/VoiceOver/keyboard/layout certification."
+    ],
+    "session": 51477,
+    "exit": 0,
+    "cleanup": "Native Cancel/Close Repository, forget only private permission, native Quit; session reaped and main executable independently absent. System-owned Finder extension left running; no Finder/Dock restart/global cache reset.",
+    "repository_unchanged": true,
+    "repository_after": "build/qa/signed16-ui-2026-10-27/after.json"
+  },
+  "app_store_submission": "None; owner tests locally before any distribution submission.",
+  "remaining": [
+    "Current full hosted integration pass",
+    "Broader signed Finder, external grants/authentication and volume scenarios",
+    "Complete source/dialog/physical/VoiceOver acceptance",
+    "Intel/minimum-supported-macOS execution",
+    "App Store distribution rights/signing/export and eventual owner-approved submission"
+  ],
+  "not_included": "The subsequent Finder startup/cache performance changes in the primary checkout are not part of this b010 build."
+}

@@ -1,0 +1,202 @@
+{
+  "date": "2026-10-27",
+  "baseline": "b010b30eca0ad2bee7b320e5c79afcc9adb35616",
+  "status": "grouped-checkpoint-passed-publication-cost-still-open",
+  "scope": [
+    "Deferred action routing, targeted mutation refresh and same-manager complete workspace restore",
+    "Moved watched-bookmark authority and queued refresh during owned registration/permission mutations",
+    "Complete background-helper grant preparation without unrelated status/submodule scans",
+    "Operation-scoped exact-path and immutable-contribution validation reuse with hostile-file/lease/ticket/policy/cancellation checks retained"
+  ],
+  "production": [
+    "Sources/TurtleGitCore/FinderCache.swift",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift",
+    "Sources/TurtleGitMac/RepositoryModel.swift",
+    "Sources/TurtleGitMac/FinderBackgroundService.swift"
+  ],
+  "core_tests": "Tests/TurtleGitCoreTests/FinderPublicationTests.swift",
+  "native_fixture": "docs/qa/finder-registration-native-2026-10-25.swift",
+  "implementation_review_repairs": [
+    "Cache validated immutable objects strongly to prevent allocator identity reuse; do not cache trust across calls",
+    "Retain exact UTF8 identity for path memos and root memberships",
+    "Prepare complete helper authority before acknowledged initial target publication, preserving paired recent-record completion after accepted publication",
+    "Resolve moved bookmark authority on targeted refresh misses without normalizing all unrelated filesystem paths or creating grants",
+    "Queue byte-exact target refreshes while the manager owns a mutation; drain afterward and discard on retirement",
+    "Final fidelity review found unavailable unrelated authority would block a valid Add/Clone; preserve local publication and report queued helper failure without partial grant replacement",
+    "Continue preparing remaining available saved grants after unrelated failures, so recovering only the unavailable folder can complete the full transfer"
+  ],
+  "baseline_evidence": "docs/qa/signed-consolidation-build15-2026-10-27.json",
+  "performance_plan": "One bounded synthetic private public-API sample with each old/current Debug Core framework using same console binary; compare semantic hashes and lease cleanup; no full Commit timing or signed deployment claim.",
+  "installed_preview": "Build16 is sourceb010 and predates this batch; see docs/qa/signed-consolidation-build16-2026-10-27.json.",
+  "remaining": [
+    "Expensive publication/projection/serialization; no substantial benchmark gain established",
+    "Current signed/physical Finder and first-launch acceptance",
+    "Full hosted integration, Intel/minimum macOS and complete upstream parity"
+  ],
+  "validation": {
+    "core": {
+      "session": 52551,
+      "exit": 0,
+      "tests": 61,
+      "failures": 0,
+      "log": "build/qa/finder-startup-core-2026-10-27.log",
+      "repeated": false
+    },
+    "app_initial": {
+      "session": 59031,
+      "exit": 0,
+      "log": "build/qa/finder-startup-app-2026-10-27.log"
+    },
+    "native_initial": {
+      "session": 50261,
+      "exit": 0,
+      "pairs": 14,
+      "log": "build/qa/finder-startup-native-2026-10-27.log",
+      "scope": "All seven cases with each Git engine, before subsequent native-only disconnected-folder handling repair."
+    },
+    "app_authority_repair": {
+      "session": 7219,
+      "exit": 0,
+      "log": "build/qa/finder-startup-app-authority-repair-2026-10-27.log",
+      "scope": "Native-only disconnected saved-folder fidelity repair; Core unchanged."
+    },
+    "native_authority_repair": {
+      "session": 99042,
+      "exit": 0,
+      "pairs": 6,
+      "cases": [
+        "registration",
+        "clone",
+        "services"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "log": "build/qa/finder-startup-native-authority-repair-2026-10-27.log",
+      "scope": "Only affected families repeated; includes offline unrelated root before available third root, local target publication and full-grant recovery."
+    },
+    "cleanup": {
+      "owned_receivers": [
+        72656,
+        72774,
+        73120,
+        73232,
+        73342,
+        73463,
+        73542,
+        73816,
+        73928,
+        74275,
+        74384,
+        74483,
+        74624,
+        74716,
+        75588,
+        76000,
+        76117,
+        76198,
+        76600,
+        76715
+      ],
+      "independently_absent": true,
+      "failed_pre_main_benchmark_pid_absent": 75064,
+      "user_processes_terminated": false
+    },
+    "warnings": [
+      "Synthetic private bookmark fixtures emitted sandbox_extension_consume failed:1; assertions passed. These checks do not certify signed physical Finder grants."
+    ],
+    "resources": {
+      "localizations_check": {
+        "session": 16710,
+        "exit": 0,
+        "languages": 38,
+        "keys": 1324
+      },
+      "help_check": {
+        "session": 73551,
+        "exit": 0,
+        "documents": 58,
+        "topics": 51,
+        "files": 90,
+        "bytes": 8690831
+      }
+    },
+    "coverage": {
+      "session": 23991,
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_controls": 85
+    },
+    "site": {
+      "session": 8412,
+      "exit": 0,
+      "documents": 487,
+      "unresolved_fragments": []
+    }
+  },
+  "benchmark_load_failure": {
+    "session": 91068,
+    "pid": 75064,
+    "exit": -6,
+    "error": "Missing unchanged SMTP framework dependency; failed before main, no timing sample; dependency copied with recorded hash, executable unchanged."
+  },
+  "performance": {
+    "samples": {
+      "old": {
+        "exact_projection_equal": true,
+        "fresh_read_seconds": 4.93572975,
+        "label": "old",
+        "lease_cleanup_verified": true,
+        "loaded_core_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/finder-performance-baseline-2026-10-27/TurtleGitCore.framework",
+        "logical_entries": 20000,
+        "overlapping_dictionaries": 5,
+        "publish_seconds": 21.619758834,
+        "retained_read_seconds": 0.000225208,
+        "sample_count": 1,
+        "scope": "synthetic private public-API publication/read; not Commit startup or signed deployment",
+        "semantic_sha256": "3f8b275d188c0ddef5ad867d55057c241cdf485781dc032a906a49e4070c50d1",
+        "sibling_roots": 2,
+        "snapshot_bytes": 17795086,
+        "pid": 77138,
+        "exit": 0,
+        "private_storage_removed": true,
+        "framework_binary_sha256": "482daf44158c2c926908bf514558365abf41a8b44755398cf67880eefec9118a"
+      },
+      "new": {
+        "exact_projection_equal": true,
+        "fresh_read_seconds": 5.091325125,
+        "label": "new",
+        "lease_cleanup_verified": true,
+        "loaded_core_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug/TurtleGitCore.framework",
+        "logical_entries": 20000,
+        "overlapping_dictionaries": 5,
+        "publish_seconds": 21.1011245,
+        "retained_read_seconds": 0.000250584,
+        "sample_count": 1,
+        "scope": "synthetic private public-API publication/read; not Commit startup or signed deployment",
+        "semantic_sha256": "3f8b275d188c0ddef5ad867d55057c241cdf485781dc032a906a49e4070c50d1",
+        "sibling_roots": 2,
+        "snapshot_bytes": 17795086,
+        "pid": 77207,
+        "exit": 0,
+        "private_storage_removed": true,
+        "framework_binary_sha256": "aef4f74467b26b99a23a960cb20173f139c105f2b9a69f196af81ff7d22370aa"
+      }
+    },
+    "binary_sha256": "55120e33d859acf7c9546c9e31f85913ec01280884e0866d87796e3205691c71",
+    "fixture_sha256": "ef986b1f5ece33bf8256abaf23dd4add850f97182f812e3df0052b9074703f37",
+    "scope": "One Debug synthetic public API sample per framework; not complete Commit startup or signed Finder integration.",
+    "interpretation": "No material publication improvement established by this one sample: 21.62s to 21.10s, fresh read 4.94s to 5.09s. Avoiding unrelated watched-root scans is independently asserted natively; complete Commit startup has not been timed. Cache projection/serialization remains a performance gap."
+  },
+  "hosted_observation": {
+    "run": 40462664745,
+    "source": "b010b30eca0ad2bee7b320e5c79afcc9adb35616",
+    "status": "in_progress",
+    "scope": "Does not include current Finder changes; previous ca40 run failed actual Git2.39 structural replay. No full hosted pass claimed."
+  }
+}

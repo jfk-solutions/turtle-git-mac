@@ -5,8 +5,9 @@ import TurtleGitCore
 
 final class RegistrationBookmarks:RepositoryBookmarkProvider {
     var created=[String]()
+    var relocated=[String:URL]()
     func create(for url:URL)throws->Data {created.append(url.path);return Data(("PRIVATE:"+url.path).utf8)}
-    func resolve(_ data:Data)throws->ResolvedBookmark {let text=String(decoding:data,as:UTF8.self);guard text.hasPrefix("PRIVATE:") else {throw RepositoryAccessFailure.unknownRepository};return .init(url:URL(fileURLWithPath:String(text.dropFirst(8))),stale:false)}
+    func resolve(_ data:Data)throws->ResolvedBookmark {let text=String(decoding:data,as:UTF8.self);guard text.hasPrefix("PRIVATE:") else {throw RepositoryAccessFailure.unknownRepository};let path=String(text.dropFirst(8));return .init(url:relocated[path] ?? URL(fileURLWithPath:path),stale:false)}
     func startAccessing(_ url:URL)->Bool {true}
     func stopAccessing(_ url:URL) {}
 }
@@ -38,6 +39,8 @@ private extension NSWindow {
         let cache:FinderSnapshotStore
         let parent:NSWindow
         var clones=[CloneWindowController](),panels=0
+        var additionalManagers=[FinderWatchManager](),additionalModels=[RepositoryModel](),additionalWindows=[NSWindowController]()
+        var commandLog:URL {root.appendingPathComponent("git-commands.tsv")}
         var other:GitRepository!,source:GitRepository!,third:GitRepository!
         var selected:URL?,permissionReply:((NSApplication.ModalResponse)->Void)?
         var hold:URL {root.appendingPathComponent("hold")};var release:URL {root.appendingPathComponent("release")};var started:URL {root.appendingPathComponent("started")}
@@ -67,9 +70,16 @@ private extension NSWindow {
             let shell="""
             #!/bin/sh
             inspect() {
+              target="$PWD"
               while [ "$#" -gt 0 ]; do
-                case "$1" in -C|-c|--git-dir|--work-tree) shift; shift;; --*) shift;; *) break;; esac
+                case "$1" in -C) target="$2"; shift; shift;; -c|--git-dir|--work-tree) shift; shift;; --*) shift;; *) break;; esac
               done
+              printf '%s\t%s\n' "$target" "${1-}" >> \(quote(commandLog.path))
+              if [ "${1-}" = rev-parse ] && [ -f \(quote(root.appendingPathComponent("hold-root").path)) ] && [ "$target" = "$(cat \(quote(root.appendingPathComponent("hold-root").path)))" ]; then
+                exec 9>\(quote(root.appendingPathComponent("owned-resource").path))
+                : >\(quote(started.path))
+                while [ ! -f \(quote(release.path)) ]; do /bin/sleep 0.02; done
+              fi
               if [ "${1-}" = status ] && [ -f \(quote(root.appendingPathComponent("fail-status").path)) ]; then
                 echo 'controlled first publication failure' >&2
                 exit 73
@@ -103,7 +113,10 @@ private extension NSWindow {
         func unblock() {try? Data().write(to:release);try? FileManager.default.removeItem(at:hold)}
         func cleanup()async throws {
             fputs("Finder registration cleanup: begin\n",stderr)
-            unblock();answer(.cancel);workspace.stopMonitoringForTermination()
+            unblock();try? FileManager.default.removeItem(at:root.appendingPathComponent("hold-root"));answer(.cancel);workspace.stopMonitoringForTermination()
+            for model in additionalModels {model.stopMonitoringForTermination();await model.shutdownFinderPublication()}
+            for window in additionalWindows {window.close()}
+            for manager in additionalManagers {await manager.shutdown()}
             for clone in clones {clone.progressController?.model.invalidate();clone.progressController?.close();clone.model.invalidate();clone.close()}
             await manager.shutdown();fputs("Finder registration cleanup: manager drained\n",stderr);parent.close()
             try await FinderRegistrationVerification.wait {!workspace.hasPendingFinderServiceWork && !workspace.busy && manager.pendingOperations==0 && CloneWindowModel.activeOperations==0 && CloneProgressWindowModel.activeOperations==0 && CloneWindowController.activeChildReleases==0}
@@ -134,6 +147,163 @@ private extension NSWindow {
         let linkedWatch=c.watched.repositories.first {$0.lastKnownPath==linked.path},linkedRecent=c.recent.repositories.first {$0.lastKnownPath==linked.path}
         try require(linkedWatch?.additionalPermissions?.contains {$0.path==c.source.root.path} == true && linkedRecent?.additionalPermissions?.contains {$0.path==c.source.root.path} == true,"Linked repository metadata grants were not persisted in both independent stores; requested=\(linked.path); source=\(c.source.root.path); choices=\(metadataChoices.map(\.path)); watches=\(c.watched.repositories.map {($0.lastKnownPath,($0.additionalPermissions ?? []).map(\.path))}); recents=\(c.recent.repositories.map {($0.lastKnownPath,($0.additionalPermissions ?? []).map(\.path))})")
         try require(c.watched.repositories.count==3 && c.manager.backgroundService==nil,"Linked registration affected unrelated watches/service")
+        try await deferredStartup(c)
+    }
+    static func deferredStartup(_ c:Context)async throws {
+        var a=try await c.repo("deferred/selected")
+        let b=try await c.repo("deferred/unrelated"),target=try await c.repo("deferred/registered")
+        let archive=c.root.appendingPathComponent("deferred/watches.json"),recents=c.root.appendingPathComponent("deferred/recents.json")
+        let watched=try RepositoryAccessStore(storageURL:archive,provider:c.provider),recent=try RepositoryAccessStore(storageURL:recents,provider:c.provider)
+        _=try watched.remember(a.root);_=try watched.remember(b.root);_=try recent.remember(a.root)
+        let saved=watched.repositories,cache=FinderSnapshotStore(url:c.root.appendingPathComponent("deferred/status.json")),wrapper=c.root.appendingPathComponent("held-helper")
+        let factory:(URL)throws->GitRepository={GitRepository(root:$0,executable:wrapper,libgit2Configuration:.init(enabled:false))}
+        let manager=FinderWatchManager(permissions:watched,cache:cache,requireScope:true,scopeProvider:c.provider,repositoryFactory:factory,notify:{})
+        c.additionalManagers.append(manager)
+        let action=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:factory,finderWatches:manager,savedAccessStore:recent)
+        c.additionalModels.append(action);action.requiresRepositoryScope=true;action.repositoryBookmarkProvider=c.provider;action.fileComparisonPreferences=c.prefs
+        try Data().write(to:c.commandLog)
+        action.configureActionRouting()
+        func commands()->[(String,String)] {
+            ((try? String(contentsOf:c.commandLog,encoding:.utf8)) ?? "").split(separator:"\n").compactMap {line in
+                let fields=line.split(separator:"\t",maxSplits:1,omittingEmptySubsequences:false);return fields.count==2 ? (String(fields[0]),String(fields[1])):nil
+            }
+        }
+        func clearCommands()throws {try Data().write(to:c.commandLog)}
+        try require(action.finderWatches === manager && manager.startup == .deferred && manager.pendingOperations==0 && commands().isEmpty,"Action configuration restored/crawled saved repositories")
+        var commit:CommitWindowController?
+        action.commitWindowFactory={repository,access in
+            let controller=CommitWindowController(repository:repository,access:access,defaults:c.prefs)
+            controller.window?.alphaValue=0;controller.window?.isReleasedWhenClosed=false
+            commit=controller;c.additionalWindows.append(controller);return controller
+        }
+        try require(action.handleFinderService(.init(action:.commit,paths:[a.root])),"Private deferred Commit launch was refused")
+        try await wait{commit != nil && !action.hasPendingFinderServiceWork && !action.busy && CommitWindowModel.activeReloads==0 && commit?.model.busy==false}
+        try require(action.error==nil && manager.startup == .deferred && manager.pendingOperations==0 && !commands().contains{$0.0==b.root.path},"Opening selected Commit scanned an unrelated saved root")
+        commit?.close();try await wait{CommitWindowModel.activeReloads==0}
+        try clearCommands()
+        let unknown=c.root.appendingPathComponent("deferred/not-authorized")
+        manager.refresh(repository:unknown)
+        try require(commands().isEmpty && watched.repositories.count==saved.count,"Targeted refresh invented a grant or read unknown root")
+        try Data("target changed\n".utf8).write(to:a.root.appendingPathComponent("file"))
+        manager.refresh(repository:a.root)
+        try await wait{manager.pendingOperations==0 && FinderSnapshot.readLive(from:cache.url)?.states[a.root.path+"/file"] == .modified}
+        try require(commands().contains{$0.0==a.root.path && $0.1=="status"} && !commands().contains{$0.0==b.root.path},"Targeted mutation refresh did not isolate selected root")
+        let originalA=a.root,moved=c.root.appendingPathComponent("deferred/moved selected")
+        guard let movedRecord=watched.repositories.first(where:{$0.lastKnownPath==originalA.path}),let unrelated=watched.repositories.first(where:{$0.lastKnownPath==b.root.path}) else {throw Failure(description:"Missing private saved roots")}
+        let movedID=movedRecord.id
+        try FileManager.default.moveItem(at:originalA,to:moved)
+        c.provider.relocated[originalA.path]=moved
+        a=GitRepository(root:moved,executable:c.git,libgit2Configuration:.init(enabled:false))
+        try clearCommands();manager.refresh(repository:moved)
+        try await wait{manager.pendingOperations==0 && FinderSnapshot.readLive(from:cache.url)?.states[moved.path+"/file"] == .modified}
+        try require(watched.repositories.contains{$0.id==movedID && $0.lastKnownPath==moved.path} && watched.repositories.contains{$0.id==unrelated.id && $0.bookmark==unrelated.bookmark},"Moved bookmark refresh lost watch identity or changed unrelated authority")
+        try require(FinderSnapshot.readLive(from:cache.url)?.roots.contains(originalA.path) != true && !commands().contains{$0.0==b.root.path},"Moved targeted refresh retained stale publication or scanned unrelated root")
+        let service=FinderBackgroundService();service.registrationStatus={.enabled};service.updateStatus()
+        var transferred=[FinderServiceAuthorization]()
+        service.exchange={request in
+            switch request {
+            case .grants(let bytes):transferred.append(try JSONDecoder().decode(FinderServiceAuthorization.self,from:bytes));return nil
+            case .status:return try JSONEncoder().encode(FinderCacheServiceReport(running:true,roots:manager.rows.map{.init(id:$0.id)}))
+            case .refresh:return nil
+            }
+        }
+        manager.backgroundService=service
+        service.requestSync(manager)
+        try require(transferred.isEmpty && !service.busy && !manager.canSynchronizeBackground,"Incomplete local watches sent a partial helper grant set")
+        try clearCommands()
+        _=try await manager.register(root:target.root,access:RepositoryAccessLease(url:target.root,provider:c.provider),cancellation:OperationCancellation(),awaitInitialPublication:true)
+        try await wait{manager.pendingOperations==0 && !service.busy && !transferred.isEmpty}
+        let expected=Set(watched.repositories.map(\.id))
+        try require(transferred.allSatisfy{Set($0.grants.map(\.id))==expected},"Add replaced helper authority with a partial grant set")
+        let transferredPaths=try transferred.last!.grants.map {try SystemRepositoryTransferBookmarks().resolveTransfer($0.bookmark).url.standardizedFileURL.resolvingSymlinksInPath().path}
+        try require(Set(transferredPaths)==Set([a.root.path,b.root.path,target.root.path]),"Complete helper transfer lost exact authorized root bookmarks")
+        try require(commands().contains{$0.0==b.root.path && $0.1=="rev-parse"} && !commands().contains{$0.0==b.root.path && $0.1=="status"},"Background authorization crawled unrelated status or skipped root discovery")
+        try require(FinderSnapshot.readLive(from:cache.url)?.roots.contains(target.root.path)==true && watched.repositories.contains{$0.id==unrelated.id && $0.bookmark==unrelated.bookmark},"Add failed target publication or changed unrelated stored authority")
+        manager.restore()
+        try await wait{manager.pendingOperations==0 && FinderSnapshot.readLive(from:cache.url)?.roots.contains(b.root.path)==true}
+        try require(action.finderWatches === manager && manager.startup == .allSavedRepositories && commands().contains{$0.0==b.root.path && $0.1=="status"},"Workspace promotion did not restore all roots on the same publisher")
+        // The explicit workspace/Settings restore is exercised directly here:
+        // creating the production workspace would publish real App Group prefs.
+        await manager.shutdown();action.stopMonitoringForTermination()
+        let disconnected=try await c.repo("deferred/disconnected"),offline=c.root.appendingPathComponent("deferred/offline-volume")
+        let unavailableStore=try RepositoryAccessStore(storageURL:c.root.appendingPathComponent("deferred/unavailable-watches.json"),provider:c.provider)
+        let afterDisconnected=try await c.repo("deferred/after-disconnected")
+        let laterSaved=try unavailableStore.remember(afterDisconnected.root)
+        let oldUnavailable=try unavailableStore.remember(disconnected.root)
+        try FileManager.default.moveItem(at:disconnected.root,to:offline)
+        let unavailableCache=FinderSnapshotStore(url:c.root.appendingPathComponent("deferred/unavailable-status.json"))
+        let unavailable=FinderWatchManager(permissions:unavailableStore,cache:unavailableCache,requireScope:true,scopeProvider:c.provider,repositoryFactory:factory,notify:{})
+        c.additionalManagers.append(unavailable)
+        let unavailableService=FinderBackgroundService();unavailableService.registrationStatus={.enabled};unavailableService.updateStatus();unavailable.backgroundService=unavailableService
+        var helperIDs=Set([oldUnavailable.id,laterSaved.id]),unavailableTransfers=0
+        unavailableService.exchange={request in
+            switch request {
+            case .grants(let bytes):
+                let authorization=try JSONDecoder().decode(FinderServiceAuthorization.self,from:bytes)
+                helperIDs=Set(authorization.grants.map(\.id));unavailableTransfers += 1;return nil
+            case .status:return try JSONEncoder().encode(FinderCacheServiceReport(running:true,roots:unavailable.rows.map{.init(id:$0.id)}))
+            case .refresh:return nil
+            }
+        }
+        try clearCommands()
+        let registered=try await unavailable.register(root:target.root,access:RepositoryAccessLease(url:target.root,provider:c.provider),cancellation:OperationCancellation(),awaitInitialPublication:true)
+        try require(unavailableStore.repositories.contains{$0.id==registered && $0.lastKnownPath==target.root.path} && FinderSnapshot.readLive(from:unavailableCache.url)?.states[target.root.path+"/file"] == .normal,"Disconnected unrelated watch prevented valid local registration/publication")
+        try require(unavailableTransfers==0 && helperIDs==Set([oldUnavailable.id,laterSaved.id]) && unavailableService.failure != nil && !unavailableService.busy && !unavailable.canSynchronizeBackground,"Unavailable unrelated authority replaced helper grants or hid deferred failure")
+        try require(commands().contains{$0.0==afterDisconnected.root.path && $0.1=="rev-parse"} && !commands().contains{$0.0==afterDisconnected.root.path && $0.1=="status"},"Unavailable saved root prevented later valid authority preparation or triggered its status scan")
+        try FileManager.default.moveItem(at:offline,to:disconnected.root)
+        unavailable.refresh(repository:disconnected.root)
+        try await wait{unavailable.pendingOperations==0 && !unavailableService.busy && unavailableTransfers>0 && unavailableService.failure==nil}
+        try require(helperIDs==Set(unavailableStore.repositories.map(\.id)) && helperIDs.contains(registered),"Restored unrelated authority did not retry a complete helper grant replacement")
+        await unavailable.shutdown()
+        let queuedStore=try RepositoryAccessStore(storageURL:c.root.appendingPathComponent("deferred/queued-watches.json"),provider:c.provider)
+        _=try queuedStore.remember(b.root)
+        let queuedCache=FinderSnapshotStore(url:c.root.appendingPathComponent("deferred/queued-status.json"))
+        let queued=FinderWatchManager(permissions:queuedStore,cache:queuedCache,requireScope:true,scopeProvider:c.provider,repositoryFactory:factory,notify:{})
+        c.additionalManagers.append(queued)
+        let queuedService=FinderBackgroundService();queuedService.registrationStatus={.enabled};queuedService.updateStatus();queued.backgroundService=queuedService
+        var queuedTransfers=[FinderServiceAuthorization]()
+        queuedService.exchange={request in
+            switch request {
+            case .grants(let bytes):queuedTransfers.append(try JSONDecoder().decode(FinderServiceAuthorization.self,from:bytes));return nil
+            case .status:return try JSONEncoder().encode(FinderCacheServiceReport(running:true,roots:queued.rows.map{.init(id:$0.id)}))
+            case .refresh:return nil
+            }
+        }
+        try Data("queued mutation\n".utf8).write(to:b.root.appendingPathComponent("file"))
+        try? FileManager.default.removeItem(at:c.release);try? FileManager.default.removeItem(at:c.started)
+        let queuedHold=c.root.appendingPathComponent("hold-root");try Data(b.root.path.utf8).write(to:queuedHold)
+        defer{c.unblock();try? FileManager.default.removeItem(at:queuedHold)}
+        let queuedRegistration=Task {try await queued.register(root:target.root,access:RepositoryAccessLease(url:target.root,provider:c.provider),cancellation:OperationCancellation(),awaitInitialPublication:true)}
+        try await wait{FileManager.default.fileExists(atPath:c.started.path) && queued.busy}
+        queued.refresh(repository:b.root);queued.refresh(repository:b.root)
+        try require(queuedTransfers.isEmpty && FinderSnapshot.readLive(from:queuedCache.url)?.roots.contains(b.root.path) != true,"Busy target refresh replaced authority or published during registration")
+        c.unblock();try? FileManager.default.removeItem(at:queuedHold)
+        _=try await queuedRegistration.value
+        try await wait{queued.pendingOperations==0 && !queuedService.busy && !queuedTransfers.isEmpty && FinderSnapshot.readLive(from:queuedCache.url)?.states[b.root.path+"/file"] == .modified}
+        let queuedIDs=Set(queuedStore.repositories.map(\.id))
+        try require(queuedTransfers.allSatisfy{Set($0.grants.map(\.id))==queuedIDs} && FinderSnapshot.readLive(from:queuedCache.url)?.roots.contains(target.root.path)==true,"Queued target refresh revoked registration or incomplete helper authority")
+        await queued.shutdown()
+        let cancelledStore=try RepositoryAccessStore(storageURL:c.root.appendingPathComponent("deferred/cancel-watches.json"),provider:c.provider)
+        _=try cancelledStore.remember(b.root)
+        let cancelledCache=FinderSnapshotStore(url:c.root.appendingPathComponent("deferred/cancel-status.json"))
+        let cancelled=FinderWatchManager(permissions:cancelledStore,cache:cancelledCache,requireScope:true,scopeProvider:c.provider,repositoryFactory:factory,notify:{})
+        c.additionalManagers.append(cancelled)
+        let cancelledService=FinderBackgroundService();cancelledService.registrationStatus={.enabled};cancelledService.updateStatus();cancelled.backgroundService=cancelledService
+        var cancelledGrants=0
+        cancelledService.exchange={request in if case .grants=request {cancelledGrants += 1};return nil}
+        try? FileManager.default.removeItem(at:c.release);try? FileManager.default.removeItem(at:c.started)
+        let holdRoot=c.root.appendingPathComponent("hold-root");try Data(b.root.path.utf8).write(to:holdRoot)
+        defer{c.unblock();try? FileManager.default.removeItem(at:holdRoot)}
+        let token=OperationCancellation()
+        let registration=Task {try await cancelled.register(root:target.root,access:RepositoryAccessLease(url:target.root,provider:c.provider),cancellation:token,awaitInitialPublication:true)}
+        try await wait{FileManager.default.fileExists(atPath:c.started.path) && cancelled.pendingOperations>0}
+        token.cancel()
+        do {_=try await registration.value;throw Failure(description:"Cancelled complete-authority preparation unexpectedly completed")}
+        catch is OperationCancellationFailure {} catch is GitCommandCancellationFailure {} catch is CancellationError {}
+        c.unblock();try? FileManager.default.removeItem(at:holdRoot)
+        await cancelled.shutdown()
+        try require(cancelledGrants==0 && cancelled.pendingOperations==0 && !cancelledService.busy,"Cancelled authority preparation transferred partial grants or retained owned work")
+        try require(FinderSnapshot.readLive(from:cancelledCache.url)?.roots.contains(target.root.path) != true,"Cancelled authority preparation published target after retirement")
     }
     static func clone(_ c:Context)async throws {
         try c.block();let mutating=Task {await c.manager.add(c.other.root)}

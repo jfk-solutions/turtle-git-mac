@@ -1051,7 +1051,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             modifiedSeconds:info.st_mtimespec.tv_sec,modifiedNanoseconds:info.st_mtimespec.tv_nsec,
             changedSeconds:info.st_ctimespec.tv_sec,changedNanoseconds:info.st_ctimespec.tv_nsec)
     }
-    private struct Contribution: Codable {
+    private final class Contribution: Codable {
         let root: String, session: UUID, sequence: UInt64
         /// Publication precedence stays fixed when an owned nested tree is
         /// removed. Its separate revision still invalidates readers' projections.
@@ -1125,27 +1125,84 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let bytes=try encoder.encode(value);guard bytes.count<=268435456 else {throw FinderPublicationFailure.corruptStore}
         try bytes.write(to:location,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)
     }
-    private func locked<T>(_ cancellation: OperationCancellation?, _ operation: () throws -> T) throws -> T {
-        try cancellation?.check();try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+    /// Trust is scoped to this one locked operation (or atomic read attempt).
+    /// Immutable contribution identities are retained strongly so allocator
+    /// reuse cannot accidentally authenticate a different contribution.
+    private final class ValidationContext {
+        let cancellation: OperationCancellation?
+        var canonicalPaths: GitPathMap<Bool> = [:]
+        var contributions: [ObjectIdentifier: Contribution] = [:]
+        private var visited = 0
+        init(cancellation: OperationCancellation?) {self.cancellation=cancellation}
+        func check() throws {try cancellation?.check()}
+        func checkpoint() throws {
+            visited += 1
+            if visited & 255 == 0 {try check()}
+        }
+        func canonical(_ value:String) throws -> Bool {
+            try checkpoint()
+            if let known=canonicalPaths[value] {return known}
+            let valid=value.hasPrefix("/") && !value.utf8.contains(0) && GitReferenceName.equal(FileTransferPaths.lexicalPath(value),value)
+            canonicalPaths[value]=valid
+            return valid
+        }
+    }
+    private func locked<T>(_ cancellation: OperationCancellation?, validation supplied: ValidationContext? = nil, _ operation: (ValidationContext) throws -> T) throws -> T {
+        let validation=supplied ?? ValidationContext(cancellation:cancellation)
+        try validation.check();try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         let descriptor=Darwin.open(url.path + ".lock",O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC,mode_t(0o600))
         guard descriptor>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)};defer {Darwin.close(descriptor)}
         let deadline=DispatchTime.now().uptimeNanoseconds+5_000_000_000
-        while flock(descriptor,LOCK_EX | LOCK_NB) != 0 {let failure=errno;try cancellation?.check();guard failure==EWOULDBLOCK || failure==EINTR else {throw POSIXError(POSIXErrorCode(rawValue:failure) ?? .EIO)};guard DispatchTime.now().uptimeNanoseconds<deadline else {throw FinderPublicationFailure.lockTimeout};usleep(10_000)}
-        defer {flock(descriptor,LOCK_UN)};try cancellation?.check();return try operation()
+        while flock(descriptor,LOCK_EX | LOCK_NB) != 0 {let failure=errno;try validation.check();guard failure==EWOULDBLOCK || failure==EINTR else {throw POSIXError(POSIXErrorCode(rawValue:failure) ?? .EIO)};guard DispatchTime.now().uptimeNanoseconds<deadline else {throw FinderPublicationFailure.lockTimeout};usleep(10_000)}
+        defer {flock(descriptor,LOCK_UN)};try validation.check();return try operation(validation)
     }
     private func path(_ root: URL) throws -> String {guard root.isFileURL,!root.path.utf8.contains(0) else {throw FinderPublicationFailure.invalidUpdate};return FileTransferPaths.lexicalPath(root.path)}
-    private func control() throws -> Control {
+    private func control(validation: ValidationContext) throws -> Control {
         var value=try read(Control.self,controlURL) ?? Control()
         if !FileManager.default.fileExists(atPath:controlURL.path),try read(FinderSnapshot.self,url) != nil {value.legacy=true}
-        try checkControl(value);return value
+        try checkControl(value,validation:validation);return value
     }
-    private func checkControl(_ value: Control) throws {
+    private func checkControl(_ value: Control, validation: ValidationContext) throws {
+        try validation.check()
         guard value.contributions.count<=4096,value.claims.count<=16384,value.sequences.count<=65536,value.consumed.count<=65536 else {throw FinderPublicationFailure.corruptStore}
-        for item in value.contributions {try validate(root:item.root,snapshots:item.snapshots);guard item.sequence<=value.counter,item.revision<=value.counter else {throw FinderPublicationFailure.corruptStore}}
+        for item in value.contributions {
+            try validation.checkpoint()
+            let identity=ObjectIdentifier(item)
+            let alreadyChecked=validation.contributions[identity] != nil
+            if !alreadyChecked {try validate(root:item.root,snapshots:item.snapshots,validation:validation)}
+            // Counter changes remain subject to validation even for an already
+            // checked immutable payload retained within this operation.
+            guard item.sequence<=value.counter,item.revision<=value.counter else {throw FinderPublicationFailure.corruptStore}
+            if !alreadyChecked {validation.contributions[identity]=item}
+        }
+        try validation.check()
     }
-    private func validate(root: String, snapshots: [FinderSnapshot]) throws {
-        func belongs(_ value: String) -> Bool {value.hasPrefix("/") && !value.utf8.contains(0) && GitReferenceName.equal(FileTransferPaths.lexicalPath(value),value) && FinderSnapshot.contains(value,root:root)}
-        guard belongs(root),snapshots.contains(where:{$0.roots.contains(where:{GitReferenceName.equal($0,root)})}),snapshots.allSatisfy({!$0.roots.isEmpty && $0.roots.allSatisfy(belongs) && $0.states.keys.allSatisfy(belongs) && $0.repositories.keys.allSatisfy(belongs) && ($0.overlayEntries ?? [:]).keys.allSatisfy(belongs) && ($0.indexFlags ?? [:]).keys.allSatisfy(belongs) && $0.overlayPolicies.allSatisfy({ key,value in belongs(key) && value.identity.utf8.count<=512 && !value.identity.utf8.contains(0) })}) else {throw FinderPublicationFailure.invalidUpdate}
+    private func validate(root: String, snapshots: [FinderSnapshot], validation: ValidationContext) throws {
+        try validation.check()
+        // The same path normally appears in several snapshot dictionaries.
+        // Membership is root-specific; canonical spelling is not. Both caches
+        // use byte-exact Git paths rather than Swift's canonical String equality.
+        var membership: GitPathMap<Bool> = [:]
+        func belongs(_ value: String) throws -> Bool {
+            try validation.checkpoint()
+            if let known=membership[value] {return known}
+            let valid=try validation.canonical(value) && FinderSnapshot.contains(value,root:root)
+            membership[value]=valid
+            return valid
+        }
+        guard try belongs(root),snapshots.contains(where:{$0.roots.contains(where:{GitReferenceName.equal($0,root)})}) else {throw FinderPublicationFailure.invalidUpdate}
+        for snapshot in snapshots {
+            guard !snapshot.roots.isEmpty else {throw FinderPublicationFailure.invalidUpdate}
+            for name in snapshot.roots {guard try belongs(name) else {throw FinderPublicationFailure.invalidUpdate}}
+            for name in snapshot.states.keys {guard try belongs(name) else {throw FinderPublicationFailure.invalidUpdate}}
+            for name in snapshot.repositories.keys {guard try belongs(name) else {throw FinderPublicationFailure.invalidUpdate}}
+            for name in (snapshot.overlayEntries ?? [:]).keys {guard try belongs(name) else {throw FinderPublicationFailure.invalidUpdate}}
+            for name in (snapshot.indexFlags ?? [:]).keys {guard try belongs(name) else {throw FinderPublicationFailure.invalidUpdate}}
+            for (name,policy) in snapshot.overlayPolicies {
+                guard try belongs(name),policy.identity.utf8.count<=512,!policy.identity.utf8.contains(0) else {throw FinderPublicationFailure.invalidUpdate}
+            }
+        }
+        try validation.check()
     }
     private func alive(_ id: UUID) throws -> Bool {
         let location=leaseURL(id);var attributes=stat()
@@ -1179,13 +1236,14 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         result.updated=contributions.flatMap(\.snapshots).map(\.updated).max() ?? Date(timeIntervalSince1970:0)
         result.liveRevision=id.uuidString+"/"+(statusPolicyIdentity ?? "legacy")+"/"+revisions.joined(separator:"/");return result
     }
-    private func writeLive(_ state: inout Control) throws -> FinderSnapshot {
+    private func writeLive(_ state: inout Control, validation: ValidationContext) throws -> FinderSnapshot {
         // Read the legacy projection for corruption/type checks, but never use
         // its roots as live authority. Only lease-backed contributions count.
         _ = try read(FinderSnapshot.self,url)
         state.contributions=try live(state)
-        try checkControl(state)
+        try checkControl(state,validation:validation)
         let result=projection(state.contributions,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
+        try validation.check()
         try save(result,url);state.legacy=false;try save(state,controlURL);return result
     }
     private func warmWarning(_ operation: () throws -> Void) -> String? {do {try operation();return nil} catch {return error.localizedDescription}}
@@ -1210,8 +1268,8 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     }
     public func startSession(cancellation: OperationCancellation? = nil) throws -> FinderPublicationSession {
         sessionLock.lock();defer {sessionLock.unlock()}
-        return try locked(cancellation) {
-            var state=try control();_ = try read(FinderSnapshot.self,url)
+        return try locked(cancellation) { validation in
+            var state=try control(validation:validation);_ = try read(FinderSnapshot.self,url)
             let warning=warmWarning {try migrateWarm(state)}
             try FileManager.default.createDirectory(at:leasesURL,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
             var attributes=stat();guard lstat(leasesURL.path,&attributes)==0,attributes.st_mode & S_IFMT == S_IFDIR else {throw FinderPublicationFailure.corruptStore}
@@ -1219,17 +1277,17 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             guard descriptor>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
             guard flock(descriptor,LOCK_EX | LOCK_NB)==0 else {let code=errno;Darwin.close(descriptor);throw POSIXError(POSIXErrorCode(rawValue:code) ?? .EIO)}
             let session=FinderPublicationSession(id:id,store:state.id,instance:instance,descriptor:descriptor,leaseURL:location,warning:warning)
-            do {_ = try writeLive(&state);owned[id]=session;return session} catch {session.closeLease();throw error}
+            do {_ = try writeLive(&state,validation:validation);owned[id]=session;return session} catch {session.closeLease();throw error}
         }
     }
     private func defaultSession(cancellation: OperationCancellation?) throws -> FinderPublicationSession {
         sessionLock.lock();defer {sessionLock.unlock()};if let implicit,implicit.active{return implicit}
         let session=try startSession(cancellation:cancellation);implicit=session;return session
     }
-    public func persistence(cancellation: OperationCancellation? = nil) throws -> FinderCachePersistencePreferences {try locked(cancellation) {try control().policy}}
+    public func persistence(cancellation: OperationCancellation? = nil) throws -> FinderCachePersistencePreferences {try locked(cancellation) { validation in try control(validation:validation).policy}}
     public func setPersistence(_ preferences: FinderCachePersistencePreferences, cancellation: OperationCancellation? = nil) throws {
-        try locked(cancellation) {
-            var state=try control();_ = try read(FinderSnapshot.self,url)
+        try locked(cancellation) { validation in
+            var state=try control(validation:validation);_ = try read(FinderSnapshot.self,url)
             func clearWarm() throws {
                 var attributes=stat()
                 if lstat(warmURL.path,&attributes)==0 {guard attributes.st_mode & S_IFMT == S_IFREG else {throw FinderPublicationFailure.corruptStore};try FileManager.default.removeItem(at:warmURL)}
@@ -1247,7 +1305,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 try migrateWarm(state)
                 let contributions=try live(state).sorted {a,b in a.root.utf8.count==b.root.utf8.count ? a.sequence<b.sequence : a.root.utf8.count<b.root.utf8.count}
                 for item in contributions {try mergeWarm(root:item.root,snapshots:item.snapshots,enabled:true)}
-                state.policy=preferences;state.legacy=false;try checkControl(state);try save(state,controlURL)
+                state.policy=preferences;state.legacy=false;try checkControl(state,validation:validation);try save(state,controlURL)
                 if recovered.discarded {throw FinderPublicationFailure.corruptWarmCacheReset}
             }
         }
@@ -1269,7 +1327,8 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                     }
                     return cached.snapshot
                 }
-                let state=try control(),raw=try read(FinderSnapshot.self,url)
+                let validation=ValidationContext(cancellation:cancellation)
+                let state=try control(validation:validation),raw=try read(FinderSnapshot.self,url)
                 guard controlIdentity == (try identity(controlURL)),rawIdentity == (try identity(url)) else {continue}
                 let active: [Contribution]
                 if !state.legacy,raw?.liveRevision != nil {active=try live(state)} else {active=[]}
@@ -1288,31 +1347,31 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     /// under one cross-process writer lock. A second app cannot interleave its
     /// other-record merge or roll back a later successful writer's setting.
     public func configureStatusPolicy(policy:() throws -> FinderStatusPolicy,publish:() throws -> Void,rollback:() throws -> Void,cancellation:OperationCancellation? = nil) throws {
-        try locked(cancellation) {
-            var value=try control();let previous=value.statusPolicyIdentity,next=try policy()
-            value.statusPolicyIdentity=next.identity;_ = try writeLive(&value)
+        try locked(cancellation) { validation in
+            var value=try control(validation:validation);let previous=value.statusPolicyIdentity,next=try policy()
+            value.statusPolicyIdentity=next.identity;_ = try writeLive(&value,validation:validation)
             do {try publish()}
             catch {
                 let failure=error
-                do {try rollback();value.statusPolicyIdentity=previous;_ = try writeLive(&value)}
+                do {try rollback();value.statusPolicyIdentity=previous;_ = try writeLive(&value,validation:validation)}
                 catch {throw NSError(domain:"TurtleGit.FinderStatusPolicy",code:1,userInfo:[NSLocalizedDescriptionKey:failure.localizedDescription+"\nSettings rollback: "+error.localizedDescription])}
                 throw failure
             }
         }
     }
     public func setStatusPolicy(_ policy: FinderStatusPolicy, cancellation: OperationCancellation? = nil) throws {
-        try locked(cancellation) {var value=try control();value.statusPolicyIdentity=policy.identity;_ = try writeLive(&value)}
+        try locked(cancellation) { validation in var value=try control(validation:validation);value.statusPolicyIdentity=policy.identity;_ = try writeLive(&value,validation:validation)}
     }
     public func fence(root: URL, cancellation: OperationCancellation? = nil) throws {
         let name=try path(root)
-        try locked(cancellation) {var value=try control();guard value.counter<UInt64.max else{throw FinderPublicationFailure.corruptStore};value.counter+=1;value.sequences[name]=value.counter;_ = try writeLive(&value)}
+        try locked(cancellation) { validation in var value=try control(validation:validation);guard value.counter<UInt64.max else{throw FinderPublicationFailure.corruptStore};value.counter+=1;value.sequences[name]=value.counter;_ = try writeLive(&value,validation:validation)}
     }
     public func begin(root: URL, session supplied: FinderPublicationSession? = nil, cancellation: OperationCancellation? = nil, policy: FinderStatusPolicy? = nil) throws -> FinderPublicationTicket {
         let root=try path(root)
         let session: FinderPublicationSession
         if let supplied {session=supplied} else {session=try defaultSession(cancellation:cancellation)}
-        return try locked(cancellation) {
-            var state=try control();try owner(session,state:state);_ = try read(FinderSnapshot.self,url)
+        return try locked(cancellation) { validation in
+            var state=try control(validation:validation);try owner(session,state:state);_ = try read(FinderSnapshot.self,url)
             if let policy {guard state.statusPolicyIdentity == nil || state.statusPolicyIdentity == policy.identity else {throw FinderPublicationFailure.policyChanged};state.statusPolicyIdentity=policy.identity}
             guard state.counter<UInt64.max else {throw FinderPublicationFailure.corruptStore}
             state.counter += 1;state.sequences[root]=state.counter;state.claims[root]=session.id
@@ -1330,22 +1389,25 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                             // never turn an invalid archive into a failed claim.
                             // Keep the archive/sibling roots until a fresh
                             // publication replaces exactly this subtree.
-                            do {try validate(root:root,snapshots:[selected])}
+                            do {try validate(root:root,snapshots:[selected],validation:validation)}
                             catch {throw FinderPublicationFailure.invalidWarmCache}
                             state.contributions.append(.init(root:root,session:session.id,sequence:state.counter,snapshots:[selected],restored:true))
                         }
                     }
                 }
             }
-            _ = try writeLive(&state)
+            _ = try writeLive(&state,validation:validation)
             return .init(root:root,persistenceFailure:warning,store:state.id,instance:instance,session:session.id,sequence:state.counter,policyIdentity:policy?.identity)
         }
     }
     public func publish(_ ticket: FinderPublicationTicket, snapshots: [FinderSnapshot], cancellation: OperationCancellation? = nil) throws -> FinderPublicationResult {
-        try validate(root:ticket.root,snapshots:snapshots)
+        let validation=ValidationContext(cancellation:cancellation)
+        let submitted=Contribution(root:ticket.root,session:ticket.session,sequence:ticket.sequence,snapshots:snapshots,restored:false)
+        try validate(root:submitted.root,snapshots:submitted.snapshots,validation:validation)
+        validation.contributions[ObjectIdentifier(submitted)]=submitted
         sessionLock.lock();let session=owned[ticket.session];sessionLock.unlock()
-        return try locked(cancellation) {
-            var state=try control();_ = try read(FinderSnapshot.self,url)
+        return try locked(cancellation,validation:validation) { validation in
+            var state=try control(validation:validation);_ = try read(FinderSnapshot.self,url)
             let latest=projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
             func nested(_ a:String,_ b:String)->Bool {FinderSnapshot.contains(a,root:b)}
             let newer=state.sequences.contains {root,sequence in sequence>ticket.sequence && (nested(root,ticket.root) || nested(ticket.root,root))}
@@ -1353,8 +1415,8 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             if let identity=ticket.policyIdentity {guard snapshots.allSatisfy({snapshot in snapshot.roots.allSatisfy {snapshot.overlayPolicies[$0]?.identity==identity}}) else {throw FinderPublicationFailure.invalidUpdate}}
             state.consumed[ticket.root]=ticket.sequence
             state.contributions.removeAll {$0.session==ticket.session && GitReferenceName.equal($0.root,ticket.root)}
-            state.contributions.append(.init(root:ticket.root,session:ticket.session,sequence:ticket.sequence,snapshots:snapshots,restored:false))
-            let published=try writeLive(&state)
+            state.contributions.append(submitted)
+            let published=try writeLive(&state,validation:validation)
             var rebuilt=false
             let warning=warmWarning {
                 do {try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave,rebuildFrom:published)}
@@ -1370,8 +1432,8 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     /// API remains an intentional global Forget operation for older callers.
     public func remove(root: URL, session: FinderPublicationSession? = nil, cancellation: OperationCancellation? = nil) throws -> FinderSnapshot {
         let root=try path(root)
-        return try locked(cancellation) {
-            var state=try control();if let session {try owner(session,state:state)}
+        return try locked(cancellation) { validation in
+            var state=try control(validation:validation);if let session {try owner(session,state:state)}
             guard state.counter<UInt64.max else {throw FinderPublicationFailure.corruptStore};state.counter += 1
             state.contributions=state.contributions.compactMap { item in
                 guard session==nil || item.session==session!.id else {return item}
@@ -1395,7 +1457,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             }.keys
             for claim in revoked {state.sequences[claim]=state.counter;state.consumed[claim]=state.counter;state.claims.removeValue(forKey:claim)}
             if session==nil {state.sequences[root]=state.counter;state.consumed[root]=state.counter}
-            var result=try writeLive(&state)
+            var result=try writeLive(&state,validation:validation)
             result.persistenceFailure=warmWarning {
                 guard state.policy.cacheSave else {return}
                 let selected=result.subtree(root:FileTransferPaths.fileURL(root))
@@ -1407,13 +1469,13 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     public func endSession(_ session: FinderPublicationSession, cancellation: OperationCancellation? = nil) throws -> FinderSnapshot {
         guard session.instance==instance else {throw FinderPublicationFailure.retiredSession}
         defer {session.closeLease();sessionLock.lock();owned.removeValue(forKey:session.id);if implicit?.id==session.id {implicit=nil};sessionLock.unlock()}
-        return try locked(cancellation) {
-            var state=try control();guard session.instance==instance,session.store==state.id else {throw FinderPublicationFailure.retiredSession}
+        return try locked(cancellation) { validation in
+            var state=try control(validation:validation);guard session.instance==instance,session.store==state.id else {throw FinderPublicationFailure.retiredSession}
             let current=projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
             let departing=state.contributions.filter {$0.session==session.id}
             let warning=warmWarning {for item in departing {let saved=current.subtree(root:FileTransferPaths.fileURL(item.root));if !saved.roots.isEmpty {try mergeWarm(root:item.root,snapshots:[saved],enabled:state.policy.cacheSave)}}}
             state.contributions.removeAll {$0.session==session.id};state.claims=state.claims.filter {$0.value != session.id}
-            var result=try writeLive(&state);result.persistenceFailure=warning;return result
+            var result=try writeLive(&state,validation:validation);result.persistenceFailure=warning;return result
         }
     }
 }

@@ -802,7 +802,7 @@ private enum TransportBatchPresentationContext {
             try publishCachePersistence(FinderCachePersistencePreferences.from(defaults:cachePersistenceDefaults))
             cachePersistenceDefaults.removeObject(forKey:AdvancedSettingsModel.cachePersistencePendingKey)
         } catch { finderStatus="Finder cache persistence preferences unavailable: "+error.localizedDescription }
-        do { if self.finderWatches==nil { self.finderWatches=try FinderWatchManager.production() };self.finderWatches?.restore() }
+        do { if self.finderWatches==nil { self.finderWatches=try FinderWatchManager.production(startup:.allSavedRepositories) } else {self.finderWatches?.restore()} }
         catch { finderStatus="Watched repositories unavailable: "+error.localizedDescription }
         do { _ = try FinderMenuSettings.from().write() }
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
@@ -895,7 +895,10 @@ private enum TransportBatchPresentationContext {
         if finderWatches == nil {
             finderWatches=workspace?.finderWatches
             if finderWatches == nil,loadSavedAccess,actionRoutingAccessEnabled {
-                do {let manager=try FinderWatchManager.production();finderWatches=manager;manager.restore()}
+                // Loading saved authority for one action dialog must not crawl
+                // every watched repository. A later workspace promotion keeps
+                // this same manager and explicitly restores the complete set.
+                do {finderWatches=try FinderWatchManager.production(startup:.deferred)}
                 catch {self.error="Watched repositories unavailable: "+error.localizedDescription}
             }
         }
@@ -1563,7 +1566,7 @@ private enum TransportBatchPresentationContext {
     private func saveFinderRegistration(_ repository:GitRepository,access:RepositoryAccessLease,additionalFolders:[URL],cancellation:OperationCancellation) async throws {
         try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
         configureActionRouting()
-        if finderWatches == nil && actionRoutingAccessEnabled {let manager=try FinderWatchManager.production();finderWatches=manager;manager.restore()}
+        if finderWatches == nil && actionRoutingAccessEnabled {finderWatches=try FinderWatchManager.production(startup:.deferred)}
         guard let store=accessStore,let watches=finderWatches else {throw RepositoryAccessFailure.securityScopeUnavailable}
         _=try await watches.register(root:repository.root,access:access,additionalFolders:additionalFolders,cancellation:cancellation,awaitInitialPublication:true)
         // A completed watch publication remains completed if Cancel arrives as
@@ -3334,6 +3337,7 @@ private enum TransportBatchPresentationContext {
         return controller
     }
     private func refreshStatusWindows(_ root: URL) {
+        finderWatches?.refresh(repository:root)
         for controller in statusWindows.values where controller.model.repository.root == root { controller.model.requestReload() }
     }
     private func renameStatusPaths(_ root: URL, from source: String, to destination: String) {

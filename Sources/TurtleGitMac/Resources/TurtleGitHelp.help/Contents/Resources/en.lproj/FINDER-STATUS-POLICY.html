@@ -21,6 +21,13 @@ Tree window continues to show full Git status in every mode.</p>
 not run Git. To refresh watched repositories after closing the main app, enable
 the background service and authorize the repository folders in Finder Integration.
 Changing cache mode does not grant access or enable a disabled service.</p>
+<p>Opening an individual action window does not start a fresh scan of every saved
+repository. Completed Git actions refresh the selected watched repository.
+Opening the workspace resumes monitoring all saved repositories; Add to TurtleGit
+and completed clones still prepare the saved permissions needed by an enabled
+background service. An unavailable older saved folder leaves valid local
+registration working; the background service retains its current permissions and
+reports the access problem until it can synchronize the complete set.</p>
 <p>Three related rows are available under <strong>Settings → Advanced</strong>:</p>
 <table>
 <thead>
