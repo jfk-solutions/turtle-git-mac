@@ -253,3 +253,34 @@ before rendering, and the mail flow was deferred; neither gains a new physical
 pass. Test-owned windows/processes were closed and affected private test state was
 restored. The earlier sandbox helper probes and Finder acceptance retain their own
 source revisions and scope.
+
+
+## October 27 build 14 consolidation
+
+The [build 14 receipt](qa/signed-consolidation-build14-2026-10-27.json) records
+clean `b9465092` inputs and the universal Apple Development app installed at
+`/Applications/TurtleGit for Mac.app`, with build13 preserved for recovery.
+Strict seals, the three peer teams/sandbox groups, eight universal components and
+all 6,366 candidate/staged/installed inventory members agree. The refreshed Help
+matches all 90 frozen source resources; Apple's separately generated search index
+is present. Eight current Log, classic/staging Commit and Unified Diff images
+also illustrate the homepage, Getting Started and dialog guide.
+
+One grouped signed-parent check passes App Group writer/reader/denied isolation,
+packaged Git/history/Notes and the packaged Core's byte-preserving line/rectangle
+editing and save/reload. The unchanged metafile corpus was not repeated. These
+probe processes use private fixtures, drain owned helpers and do not execute the
+shipping native editor. The installed app separately passes native Open-panel
+file authorization, its line-number gutter, Duplicate, menu and German-layout
+Undo/Redo, two-row column deletion and exact mixed-ending Save. The initial CUA
+Z-key attempt sent the other physical key on the German layout; the focused
+correct-position retry passes without a code change. Native screenshot retrieval
+was unavailable, so the receipt distinguishes accessibility/byte evidence from
+the separately captured documentation images.
+
+All owned application instances were closed. The existing Finder process was
+left running and the enabled installed extension re-registered without restarting
+Finder or resetting global caches. This does not refresh physical Finder badge,
+context-menu or background execution acceptance. Full hosted integration,
+VoiceOver, Intel/minimum-version execution and distribution signing/export remain
+open. The owner will test locally before any App Store submission.

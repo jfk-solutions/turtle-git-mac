@@ -5004,3 +5004,18 @@ with replacement/close. [The dated checkpoint](qa/blame-toolbar-placement-2026-1
 records actual validation and remaining physical/signed/full-port acceptance.
 The owner's next delivery remains a local test build, with App Store
 distribution deferred until after testing the finished app.
+
+
+## Illustrated manual and installed preview — October 27, 2026
+
+The [build14 consolidation](qa/signed-consolidation-build14-2026-10-27.json)
+packages the Unified Diff gutter, whole-line and column-editing families into a
+current universal Apple Development preview. Eight actual native light/dark Log,
+classic/staging Commit and standalone patch images now illustrate the README,
+homepage, Getting Started, dialog guide and offline Help. Source captures,
+browser review, measured signed inputs, grouped sandbox checks and actual
+installed native acceptance have separate evidence and scope in that receipt.
+The previous installed build is recoverable. All acceptance-owned apps are closed;
+Finder was not restarted. Remaining inherited shared message-editor line/zoom
+usability, full dialog/layout/VoiceOver, physical Finder, full hosted integration,
+Intel/minimum macOS and distribution acceptance are not marked complete.
