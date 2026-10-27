@@ -59,6 +59,60 @@ for case in cases:
  if target.exists()and target.read_bytes()not in(original,wire):raise ValueError('Refusing to overwrite a different wire '+name)
  target.write_bytes(wire)
  rows.append(dict(file=name,source='original-'+parent+'.emf',sourceSHA256=sha(original),sourceParameters=dict(adjustment=mode,channel=channel,adjustValue=originalValue),parameters=params,sha256=sha(wire),changedGUID=True,changedIntensity=value!=originalValue,observedGUID=str(uuid.UUID(bytes_le=observed)),derivedGUID=str(uuid.UUID(bytes_le=normative)),derivation='Only serialized GUID and (for8SDK-refused endpoints) signed AdjustmentIntensity DWORD replaced; original native wire and SDK refusal reports retained'))
-manifest=dict(preservedOriginals=backups,cases=rows,originalCount=len(backups),derivedCount=len(rows))
+# Additional pending-state witnesses carry observations only; their behavior is
+# deliberately not inferred from the solo ignored-Curve playback result.
+def plusRecords(data):
+ result=[];o=0
+ while o<len(data):
+  kind,n=struct.unpack_from('<II',data,o)
+  if n<8 or n%4 or o+n>len(data):raise ValueError('state outer framing')
+  if kind==70 and data[o+12:o+16]==b'EMF+':
+   p=o+16;end=o+12+struct.unpack_from('<I',data,o+8)[0]
+   while p<end:
+    size=struct.unpack_from('<I',data,p+4)[0]
+    if size<12 or size%4 or p+size>end:raise ValueError('state plus framing')
+    result.append(data[p:p+size]);p+=size
+  o+=n
+ return result
+def rebuild(data,records):
+ output=[];o=0;bodyIndices=[];header=None;eof=None
+ while o<len(data):
+  kind,n=struct.unpack_from('<II',data,o);record=data[o:o+n];o+=n
+  if n<8 or n%4 or o>len(data):raise ValueError('state outer framing')
+  if kind==70 and record[12:16]==b'EMF+':
+   items=plusRecords(record)
+   if len(items)==1 and struct.unpack_from('<H',items[0])[0]==0x4001:
+    if header is not None:raise ValueError('ambiguous state header comment')
+    header=items[0]
+   elif len(items)==1 and struct.unpack_from('<H',items[0])[0]==0x4002:
+    if eof is not None:raise ValueError('ambiguous state EOF comment')
+    eof=items[0]
+   else:bodyIndices.append(len(output))
+  output.append(record)
+ if len(bodyIndices)!=1 or header is None or eof is None:raise ValueError('state derivation requires one body and separate header/EOF comments')
+ if len(records)<2 or records[0]!=header or records[-1]!=eof:raise ValueError('state derivation altered header/EOF')
+ bodyRecords=records[1:-1]
+ if any(struct.unpack_from('<H',r)[0]in(0x4001,0x4002)for r in bodyRecords):raise ValueError('state duplicate header/EOF')
+ body=b'EMF+'+b''.join(bodyRecords);output[bodyIndices[0]]=struct.pack('<III',70,len(body)+12,len(body))+body
+ h=bytearray(output[0]);struct.pack_into('<II',h,48,sum(map(len,output)),len(output));output[0]=bytes(h)
+ return b''.join(output)
+
+metadata=json.loads((source/'generate.json').read_text())['cases']
+balanceCase=next(c for c in metadata if c['family']=='colorBalance' and c.get('recordStatus')==0 and any(c['parameters'].values()))
+balance=(source/(balanceCase['name']+'.emf')).read_bytes();balanceRecords=plusRecords(balance)
+balanceIndex=next(i for i,r in enumerate(balanceRecords)if struct.unpack_from('<H',r)[0]==0x4038)
+curveName='curve-0-0-64';curve=originals[curveName];curveRecords=plusRecords(curve)
+curveIndex=next(i for i,r in enumerate(curveRecords)if struct.unpack_from('<H',r)[0]==0x4038)
+ignored=curveRecords[curveIndex];valid=balanceRecords[balanceIndex]
+states=[]
+for name,sequence in [('state-balance-pending-ignoredCurve-E',[valid,ignored]),('state-ignoredCurve-balance-pending-E',[ignored,valid])]:
+ records=balanceRecords[:balanceIndex]+sequence+balanceRecords[balanceIndex+1:]
+ wire=rebuild(balance,records);(out/(name+'.emf')).write_bytes(wire)
+ states.append(dict(file=name+'.emf',sha256=sha(wire),balanceSource=balanceCase['name']+'.emf',balanceSourceSHA256=sha(balance),ignoredCurveSource='original-'+curveName+'.emf',ignoredCurveSourceSHA256=sha(curve),meaning='Unmeasured pending-effect interposition; no expected effect lifetime asserted'))
+drawIndex=next(i for i,r in enumerate(curveRecords)if struct.unpack_from('<H',r)[0]==0x401b)
+plain=bytearray(curveRecords[drawIndex]);flags=struct.unpack_from('<H',plain,2)[0];struct.pack_into('<H',plain,2,flags&~0x2000)
+records=curveRecords[:drawIndex]+[bytes(plain)]+curveRecords[drawIndex:];wire=rebuild(curve,records);name='state-ignoredCurve-Eclear-Eset.emf';(out/name).write_bytes(wire)
+states.append(dict(file=name,sha256=sha(wire),ignoredCurveSource='original-'+curveName+'.emf',ignoredCurveSourceSHA256=sha(curve),meaning='Original full-frame Eclear draw then Eset draw; solo ignored compatibility, no previous valid pending block'))
+manifest=dict(preservedOriginals=backups,cases=rows,stateWitnesses=states,originalCount=len(backups),derivedCount=len(rows))
 (out/'endpoint-derived-wire-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 print('Preserved152 original native wires; derived160 normative-GUID curve wires; original reports untouched.')

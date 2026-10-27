@@ -91,3 +91,13 @@ Primary references: [effect parameters and classes](https://learn.microsoft.com/
 [serialized effect identifiers](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/18f3cb09-8793-42e1-9337-b24794d4223c).
 The specs do not supply most numeric formulas; this assay obtains the native
 observations needed to implement those formulas within a measured byte bound.
+
+## Complete finite Curve lookup and pending-state follow-up
+
+`CurveLookupReference.cpp` includes the earlier original SDK assay only to reuse its native startup, pixel writer and Bitmap(file,FALSE) replay helpers. It does not invoke that assay's 288-case main. Compile this source with the same MSVC/GDI+ flags.
+
+Run `lookup-v1 OUTPUT` and `lookup-v2 OUTPUT` to capture every valid integer intensity for all eight modes: 511 values each for exposure/density,201 each for contrast/highlight/shadow/midtone,255 each for white saturation(1–255) and black saturation(0–254). Each of all2336 parameter pairs yields a256-byte channel table; the binary is598016 bytes. For every pair, all four channel enums are independently exercised using a256-pixel opaque ramp whose R/G/B channels separately cover every input. The assay verifies all1024 B/G/R/A table entries against the captured selected-channel table or identity and compares every actual GetPixel channel exactly. Any unexpected parameter refusal, missing LUT, routing error, pixel error or incomplete domain makes the process fail. No interpolation or guessed numerical formula is included.
+
+The two excluded endpoint intensities are distinct from unknown support: SDK SetParameters returns InvalidParameter, while derived normative-GUID EMFs load/draw successfully as plain images for all four channels (run40502115968). Their entire RGBA buffers match the original identity baseline, under startup versions1 and2. They must use the measured ordinary-image fallback rather than rejection or division by zero.
+
+Reuse the already-downloaded normative-wire artifact, then run the current `make-endpoint-variants.py` once to add the three authored `state-*.emf` witnesses without re-recording any direct examples. `states-v1 OUTPUT` and `states-v2 OUTPUT` discover exactly those three files and record native Bitmap pixels/statuses for validBalance→ignoredCurve→E, ignoredCurve→validBalance→E and ignoredCurve→plainPoints→E. These are observations; prior solo ignored-Curve evidence does not establish interposition behavior. Original source wires/manifests remain preserved by the generator.

@@ -6,9 +6,6 @@ on:
         description: Existing observation run to reuse for endpoint wire replay (empty records fresh atlas)
         required: false
         default: '40500526988'
-  push:
-    paths:
-      - 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/make-endpoint-variants.py'
 permissions:
   contents: read
 jobs:

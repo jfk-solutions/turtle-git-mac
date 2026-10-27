@@ -1,0 +1,68 @@
+name: Metafile complete curve domain and pending-state Windows reference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp'
+      - 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/make-endpoint-variants.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent complete-domain observation tool
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-pointwise-effects-reference-2026-10-27\CurveLookupReference.cpp
+          /Fe:CurveLookupReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - uses: actions/download-artifact@v4
+        with:
+          name: metafile-pointwise-effects-native-windows
+          path: reference-output
+          run-id: 40502115968
+          github-token: ${{ github.token }}
+      - name: Add authored pending-effect state witnesses
+        shell: pwsh
+        run: |
+          python docs/qa/metafile-pointwise-effects-reference-2026-10-27/make-endpoint-variants.py reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Capture entire curve parameter domain and actual state replay
+        shell: pwsh
+        run: |
+          ./CurveLookupReference.exe lookup-v1 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./CurveLookupReference.exe lookup-v2 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./CurveLookupReference.exe states-v1 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./CurveLookupReference.exe states-v2 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record independent source and byte provenance
+        if: always()
+        shell: pwsh
+        run: |
+          git rev-parse HEAD | Set-Content reference-output/curve-domain-source-revision.txt
+          cl 2>&1 | Out-File reference-output/curve-domain-compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/curve-domain-windows.json
+          $inputs = @('docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp', 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp', 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/make-endpoint-variants.py', '.github/workflows/metafile-pointwise-effects-curve-domain-reference.yml', 'CurveLookupReference.exe')
+          $inputs | Where-Object { Test-Path $_ } | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_
+            [PSCustomObject]@{file = $_; sha256 = $hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/curve-domain-input-hashes.json
+          Get-ChildItem reference-output -File | Where-Object Name -ne 'curve-domain-hashes.json' | Sort-Object Name | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_.FullName
+            [PSCustomObject]@{file = $_.Name; bytes = $_.Length; sha256 = $hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/curve-domain-hashes.json
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-pointwise-effects-curve-domain-native-windows
+          path: reference-output/
+          if-no-files-found: error
