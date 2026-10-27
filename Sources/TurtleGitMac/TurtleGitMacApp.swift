@@ -69,13 +69,14 @@ struct TurtleGitMacApp: App {
     @StateObject private var blameMenuContext = BlameMenuContext()
     @StateObject private var patchMenuContext = PatchMenuContext()
     @StateObject private var statisticsMenuContext = StatisticsMenuContext()
+    @StateObject private var messageMenuContext = MessageEditorMenuContext()
     var body: some Scene {
         // AppKit delivers the actual launch intent after scene construction.
         // No repository window exists until the delegate requests the host.
         Settings { EmptyView() }
         .commands {
             AppUtilityCommands()
-            EditorFileCommands(blame: blameMenuContext, patch: patchMenuContext, statistics: statisticsMenuContext)
+            EditorFileCommands(blame: blameMenuContext, patch: patchMenuContext, statistics: statisticsMenuContext, message: messageMenuContext)
             RepositoryCommands(model: workspaceScene.commandModel, hookProcesses: hookProcesses,
                                openRepository: { applicationDelegate.requestWorkspace(openRepository: true) },
                                openRecent: { saved in
@@ -104,7 +105,7 @@ struct TurtleGitMacApp: App {
 
 // Keep command domains below the ten-child limit of older SwiftUI SDKs.
 // The Scene builder has five Debug/four Release children; these providers have
-// four and three. Actions, placements, shortcut bindings and order stay local.
+// four and four. Actions, placements, shortcut bindings and order stay local.
 @MainActor private struct AppUtilityCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
@@ -176,10 +177,12 @@ struct TurtleGitMacApp: App {
     let blame: BlameMenuContext
     let patch: PatchMenuContext
     let statistics: StatisticsMenuContext
+    let message: MessageEditorMenuContext
     var body: some Commands {
         BlameCommands(context: blame)
         PatchFileCommands(context: patch)
         StatisticsFileCommands(context: statistics)
+        MessageEditorCommands(context: message)
     }
 }
 

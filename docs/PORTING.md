@@ -5019,3 +5019,18 @@ The previous installed build is recoverable. All acceptance-owned apps are close
 Finder was not restarted. Remaining inherited shared message-editor line/zoom
 usability, full dialog/layout/VoiceOver, physical Finder, full hosted integration,
 Intel/minimum macOS and distribution acceptance are not marked complete.
+
+
+## Shared message line editing and temporary zoom — October 27, 2026
+
+The [message-editor workflow family](MESSAGE-EDITOR-COMMANDS-PARITY.md) connects
+inherited SciEdit line Copy/Cut/Delete/Duplicate/Transpose and transient zoom
+across Commit, Merge, Rebase, Notes and branch-description controls. Focused
+native menus use source icons, ownership-bound actions and one-step Undo that
+includes configured hard wrapping. Font styling resolves temporary zoom against
+the configured base, including delayed parsing. Input and replay-message document replacement retire prior menu/Undo sessions
+even with identical text; cosmetic Rebase form-context refreshes invalidate
+retained actions while preserving draft Undo and zoom.
+The [dated checkpoint](qa/message-editor-commands-family-2026-10-27.json) records
+actual validation, failures and remaining physical/signed/full-source acceptance.
+The installed build14 remains the separately measured earlier source snapshot.

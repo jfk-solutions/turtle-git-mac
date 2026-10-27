@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-27",
+  "scope": "Owned structural rebase regression-test watchdog cancellation and completion; no production changes.",
+  "evidence": {
+    "repository": "jfk-solutions/turtle-git-mac",
+    "run_id": 40404859332,
+    "job_id": 121879373781,
+    "tested_commit": "02ae49b4ca9bd74dff63bc85aee14cf9b6198d28",
+    "failed_test": "RebaseStructuralNoCommitTests.testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes",
+    "failed_source_line": 514,
+    "error": "CancellationError()",
+    "test_duration_seconds": 24.311,
+    "watchdog_duration_seconds": 30,
+    "full_log": "build/qa/hosted-40404859332-job-121879373781-full.log",
+    "diagnosis": "build/qa/hosted-40404859332-diagnosis.json",
+    "source_findings": [
+      "Failure attributed to watchdog Task.sleep declaration, before 30-second watchdog duration.",
+      "Current test/Rebase/GitRepository/OperationCancellation sources matched tested revision before this repair.",
+      "Production rebase/token error paths do not construct Swift CancellationError."
+    ],
+    "limit": "Exact XCTest unobserved-task propagation not independently reproduced; log does not prove a production recursion failure."
+  },
+  "repair": [
+    "Watchdog explicitly typed Task<Void,Never>.",
+    "Expected CancellationError from canceled sleep returns normally; unexpected sleep error records XCTFail.",
+    "Normal sleep completion still cancels operation token at 30 seconds.",
+    "Continuation success cancels and awaits watchdog before token and transport assertions.",
+    "Continuation error cancels and awaits watchdog before rethrowing original error."
+  ],
+  "retained_assertions": [
+    "Uncanceled operation token",
+    "Transport exit73",
+    "Active structural result checkpoint and recovery restrictions",
+    "Single initial transport attempt",
+    "Private wrapper PID reaped",
+    "Tail not yet applied",
+    "Exactly one rewrite mapping",
+    "Persisted checkpoint reopen and stopped entry identity",
+    "Explicit retry completes with exactly second transport attempt",
+    "Final parent topology and subject",
+    "All three notes retained exactly once"
+  ],
+  "source": {
+    "path": "Tests/TurtleGitCoreTests/RebaseStructuralNoCommitTests.swift",
+    "sha256": "f27a00d5408bae3d1c319d980d9211eb02994aff6f4dccbb7ca9a683dbbdb35a"
+  },
+  "validation": {
+    "status": "focused-local-pass",
+    "session": 28049,
+    "system": {
+      "git": "/usr/bin/git",
+      "tests": 1,
+      "exit": 0,
+      "log": "build/qa/rebase-watchdog-system-2026-10-27.log",
+      "seconds": 8.563
+    },
+    "bundled": {
+      "git": "build/git-runtime/Git/bin/git",
+      "tests": 1,
+      "exit": 0,
+      "log": "build/qa/rebase-watchdog-bundled-2026-10-27.log",
+      "seconds": 6.055,
+      "skip_build": true
+    },
+    "same_selected_test_both_engines": true,
+    "hosted_rerun": "Not performed; full hosted pass remains required",
+    "test_owned_watchdog": "Explicit cancel and await on continuation success and failure; expected sleep cancellation caught; all substantive assertions unchanged"
+  },
+  "claims": {
+    "hosted_full_pass": false,
+    "production_recovery_bug_reproduced": false
+  }
+}

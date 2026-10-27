@@ -111,6 +111,22 @@ The same window in dark appearance:
 
 ![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-classic-dark-2026-10-27.png)
 
+## Edit commit and other messages
+
+Commit, Merge, Rebase, Notes and branch-description editors offer **Message
+Lines** in the Edit menu and matching commands in the text context menu. Use
+**Copy Lines**, **Cut Lines**, **Delete Line**, **Duplicate Selection or Line**
+and **Transpose Lines** to edit complete lines; Duplicate repeats selected text
+when a selection is present. The shortcuts are ⌘⌥C, ⌘⌥X, ⌘⌥K, ⌘⌥D and ⌘⌥T.
+Changes, including configured automatic line wrapping, can be undone together.
+Tab continues to move between dialog controls.
+
+**Message Text Size** offers **Zoom In**, **Zoom Out** and **Actual Size**
+(⌘+, ⌘− and ⌘0). Zoom affects the current message editor only; it does not
+change the saved font setting or the message. A new message session starts at
+the configured size. See [message-editor behavior](MESSAGE-EDITOR-COMMANDS-PARITY.md)
+for the source comparison and remaining acceptance work.
+
 ## Choose a commit window
 
 The **Commit window** selector offers **Classic** and **Git Gui-style staging**.

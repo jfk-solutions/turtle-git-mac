@@ -350,6 +350,8 @@ jobs:
         run: python3 scripts/test-inline-source.py
       - name: Shared message styles and spelling
         run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --only links --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Shared message line editing and temporary zoom
+        run: python3 scripts/test-message-editor-commands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit and Rebase message wrapping and selected reflow
         run: python3 scripts/test-message-wrap.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Log rich message links and owned styling

@@ -87,6 +87,7 @@ final class InputMessageTextView: ProjectMessageTextView {
     }
     func configure(text: String, minimumLength: Int, settings: ProjectDialogSettings, issueProperties: IssueTrackerProperties = IssueTrackerProperties()) {
         guard !closed, !busy else { return }
+        (editor as? ProjectMessageTextView)?.resetMessagePresentationSession()
         self.minimumLength = max(0, minimumLength); self.issueProperties = issueProperties; editor.string = text
         editor.undoManager?.removeAllActions()
         (editor as? InputMessageTextView)?.applyProjectSettings(settings)

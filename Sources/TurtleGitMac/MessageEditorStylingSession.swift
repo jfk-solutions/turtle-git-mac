@@ -50,7 +50,7 @@ import TurtleGitCore
     func refresh() {
         guard !retired, let editor, let baseFont else { return }
         generation += 1; token?.cancel(); task?.cancel()
-        let request = generation, text = editor.string, properties = properties, formatting = formatting, query = query
+        let request = generation, session = editor.messagePresentationSessionID, text = editor.string, properties = properties, formatting = formatting, query = query
         self.text = text
         // Remove stale positions immediately. Attribute changes preserve bytes,
         // caret, marked text and Undo and never make this a rich-text document.
@@ -61,12 +61,12 @@ import TurtleGitCore
         task = Task { [weak self, weak editor] in
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)
-                guard self?.generation == request, self?.retired == false, editor?.hasMarkedText() == false else { return }
+                guard self?.generation == request, self?.retired == false, editor?.messagePresentationSessionID == session, editor?.hasMarkedText() == false else { return }
                 Self.beginOperation()
                 defer { Self.endOperation() }
                 let styles = try await query(properties, text, formatting, cancellation)
                 guard !Task.isCancelled, !cancellation.isCancelled, self?.generation == request, self?.retired == false,
-                      let editor, !editor.hasMarkedText(), editor.string.utf8.elementsEqual(text.utf8) else { return }
+                      let editor, editor.messagePresentationSessionID == session, !editor.hasMarkedText(), editor.string.utf8.elementsEqual(text.utf8) else { return }
                 editor.applyIssueStyles(styles, base: baseFont)
             } catch { /* Invalid configuration never rewrites or blocks an editable draft. */ }
         }

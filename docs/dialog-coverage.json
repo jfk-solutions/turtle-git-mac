@@ -861,6 +861,7 @@
         "docs/COMMIT-PARITY.md",
         "docs/COMMIT-SCOPE-REPORT-PARITY.md",
         "docs/INTERFACE-OPTIONS.md",
+        "docs/MESSAGE-EDITOR-COMMANDS-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/PRIMARY-COMMAND-BANDS.md",
         "docs/PRIMARY-CONDITIONAL-UI-PARITY.md",
@@ -920,6 +921,7 @@
         "docs/qa/installed-current-family-2026-10-24.json",
         "docs/qa/legacy-partial-staging-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
+        "docs/qa/message-editor-commands-family-2026-10-27.json",
         "docs/qa/message-spelling-2026-10-13.json",
         "docs/qa/metadata-port-2026-10-18.json",
         "docs/qa/parallel-port-families-2026-10-18.json",
@@ -1348,6 +1350,7 @@
       "parity_documents": [
         "docs/EDIT-NOTES-PARITY.md",
         "docs/INPUT-DIALOG-PARITY.md",
+        "docs/MESSAGE-EDITOR-COMMANDS-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md"
       ],
       "qa_records": [
@@ -1355,6 +1358,7 @@
         "docs/qa/input-dialogs-2026-10-13.json",
         "docs/qa/input-hosts-2026-10-13.json",
         "docs/qa/log-notes-edit-2026-10-06.json",
+        "docs/qa/message-editor-commands-family-2026-10-27.json",
         "docs/qa/source-message-links-2026-10-15.json"
       ]
     },
@@ -2859,6 +2863,7 @@
       "parity_documents": [
         "docs/MERGE-OPERATION-PARITY.md",
         "docs/MERGE-PARITY.md",
+        "docs/MESSAGE-EDITOR-COMMANDS-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
@@ -2882,6 +2887,7 @@
         "docs/qa/merge-progress-2026-10-08.json",
         "docs/qa/merge-progress-family-2026-10-19.json",
         "docs/qa/merge-stream-2026-10-08.json",
+        "docs/qa/message-editor-commands-family-2026-10-27.json",
         "docs/qa/message-font-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
@@ -3084,6 +3090,7 @@
         "docs/CLIENT-HOOKS-PARITY.md",
         "docs/HELP-PARITY.md",
         "docs/HISTORY-REFERENCE-WORKFLOWS.md",
+        "docs/MESSAGE-EDITOR-COMMANDS-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/REBASE-ACTION-CONTROLS.md",
         "docs/REBASE-AMEND-RECOVERY-PARITY.md",
@@ -3115,6 +3122,7 @@
         "docs/qa/hook-scripts-family-2026-10-19.json",
         "docs/qa/log-canonical-integration-2026-10-16.json",
         "docs/qa/merge-stream-2026-10-08.json",
+        "docs/qa/message-editor-commands-family-2026-10-27.json",
         "docs/qa/pull-leading-squash-2026-10-26.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/rebase-action-controls-2026-10-16.json",

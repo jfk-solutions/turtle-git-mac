@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2734E98178C6CC2C8CCDA405 /* MessageEditorMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6878D99C477ABE72FC4186FD /* MessageEditorMenuCommands.swift */; };
+		40C61C0DD6C13F4D60838D7E /* MessageEditorLineCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891BD38E7977B858EF98C181 /* MessageEditorLineCommands.swift */; };
 		001B1EBF54B372A9FFDE31DB /* GitSingleCommitDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44383F950F24C4B2CFFBD82 /* GitSingleCommitDetails.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
 		00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */; };
@@ -620,6 +622,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		6878D99C477ABE72FC4186FD /* MessageEditorMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorMenuCommands.swift; sourceTree = "<group>"; };
+		891BD38E7977B858EF98C181 /* MessageEditorLineCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorLineCommands.swift; sourceTree = "<group>"; };
 		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
@@ -1311,6 +1315,8 @@
 				87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */,
 				6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */,
 				96E940ECCB7183AF9D421680 /* MessageEditorStylingSession.swift */,
+				6878D99C477ABE72FC4186FD /* MessageEditorMenuCommands.swift */,
+				891BD38E7977B858EF98C181 /* MessageEditorLineCommands.swift */,
 				5223DFD2A4DD4A2D03A544FA /* MissingStagedFileRecovery.swift */,
 				73FBA2748CF498A05D89BA95 /* NativeFileTransfer.swift */,
 				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
@@ -2534,6 +2540,8 @@
 				B9C46EA0242416CA6D538C73 /* MessageEditorFont.swift in Sources */,
 				12945D97CBBE46999F74661D /* MessageEditorLineLayout.swift in Sources */,
 				786E39DA3EFAA4527CBD79D4 /* MessageEditorStylingSession.swift in Sources */,
+				2734E98178C6CC2C8CCDA405 /* MessageEditorMenuCommands.swift in Sources */,
+				40C61C0DD6C13F4D60838D7E /* MessageEditorLineCommands.swift in Sources */,
 				0F5692E27DE7CC5C20F31062 /* MissingStagedFileRecovery.swift in Sources */,
 				F89EA6A7879ABB0D54D9B258 /* NativeFileTransfer.swift in Sources */,
 				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,

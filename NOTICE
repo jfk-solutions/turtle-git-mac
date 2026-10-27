@@ -1594,3 +1594,9 @@ Working Tree list background rendering also adapts ChangedDlg.cpp,
 Copyright (C) 2008-2026 TortoiseGit and 2003-2008 TortoiseSVN, under GPL
 version 2 or later. CFMBackground.ico is retained unchanged from the pinned
 source under the existing GPL resource license choice; provenance records its hash.
+
+Sources/TurtleGitMac/MessageEditorLineCommands.swift and the shared message-editor
+zoom/menu integration adapt the inherited Scintilla KeyMap.cxx line/zoom commands
+and TortoiseGit CSciEdit message-control behavior at the pinned upstream revision.
+They reuse the source-derived PatchLineEditing planner and transient zoom bounds
+under the same GPL-2.0-or-later terms; upstream notices remain preserved above.

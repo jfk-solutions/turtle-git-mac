@@ -49,15 +49,8 @@ struct MergeMessageEditor: NSViewRepresentable {
 }
 
 final class MergeMessageTextView: ProjectMessageTextView {
-    weak var model: MergeWindowModel?
-    func applyFont(_ value: NSFont) {
-        guard font != value else { return }
-        let ranges = selectedRanges
-        let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
-        if undoEnabled { undoManager?.disableUndoRegistration() }
-        font = value; typingAttributes[.font] = value; selectedRanges = ranges
-        if undoEnabled { undoManager?.enableUndoRegistration() }
-    }
+    weak var model: MergeWindowModel? { didSet { if oldValue !== model { resetMessagePresentationSession() } } }
+    func applyFont(_ value: NSFont) { applyMessageBaseFont(value) }
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         appendHistoryItems(to: menu)

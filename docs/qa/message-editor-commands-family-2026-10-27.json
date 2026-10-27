@@ -1,0 +1,316 @@
+{
+  "date": "2026-10-27",
+  "status": "grouped-local-pass-after-recorded-repairs",
+  "baseline": "7ab03271",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared message-editor whole-line Copy/Cut/Delete, selection-or-line Duplicate and Transpose",
+    "Temporary per-editor zoom with synchronous and delayed style/font handling",
+    "Focused main/context menus with source icons; session/IME/owner/busy/sheet guards",
+    "Native one-step Undo including source configured changed/visible-line hard wrapping; scalar-safe minimal mutations",
+    "Captured Rebase form token and Input/Commit/Merge session replacement"
+  ],
+  "production": [
+    "Sources/TurtleGitMac/MessageEditorLineCommands.swift",
+    "Sources/TurtleGitMac/MessageEditorMenuCommands.swift",
+    "Sources/TurtleGitMac/ProjectDialogSettings.swift",
+    "Sources/TurtleGitMac/MessageEditorStylingSession.swift",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift",
+    "Sources/TurtleGitMac/MergeMessageEditor.swift",
+    "Sources/TurtleGitMac/InputWindow.swift",
+    "Sources/TurtleGitMac/RebaseWindow.swift",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift"
+  ],
+  "implementation_review_repairs": [
+    "Initial full-document snapshot replacement would mark unrelated offscreen lines for hard wrapping; replaced with scalar-safe minimal affected text before build/tests",
+    "Explicit native Undo grouping added before checkpoint",
+    "Actual key-window ownership guards added before checkpoint; background windows retain their first responder",
+    "Shared session reset clears ordinary native Undo in addition to epoch-fencing retained commands",
+    "Review during first checkpoint found hardwrap range mapping did not explicitly preserve selection affinity; preserve it before native checkpoint, then rebuild affected native app only",
+    "Separate Rebase document identity from refreshed command context: busy/metadata/selection changes reject stale menus while retaining current draft Undo/zoom; actual document replacement resets both",
+    "Actual native check exposed Cocoa menu construction selecting clicked word and retargeting Duplicate. Save/restore complete ranges+affinity around menu construction to match SciEdit anchor restoration before building source-owned actions.",
+    "Native Undo range exception confirmed in targeted OS log; disable Cocoa registration before shouldChangeText as well as mutation, leaving only exact reciprocal snapshot action",
+    "Equal repeated text makes a minimal diff notification ambiguous; derive touched wrapping scope from source plan segments rather than treating an indistinguishable EOF insertion as the edit location"
+  ],
+  "validation": {
+    "core": {
+      "session": 18153,
+      "exit": 0,
+      "tests": 35,
+      "failures": 0,
+      "classes": [
+        "PatchLineEditingTests",
+        "PatchMultipleLineEditingTests",
+        "GitBlamePresentationInteractionTests"
+      ],
+      "log": "build/qa/message-editor-commands-core-2026-10-27.log",
+      "repeated": false
+    },
+    "app_attempts": [
+      {
+        "session": 71813,
+        "exit": 65,
+        "log": "build/qa/message-editor-commands-app-2026-10-27.log",
+        "diagnostics": "Three generic failed-with-exit-code0 compiler diagnostics; no source type error, cause not established."
+      },
+      {
+        "session": 87862,
+        "exit": 65,
+        "log": "build/qa/message-editor-commands-app-repair-2026-10-27.log",
+        "failure": "Runtime embedding refused stale Metafile source/license provenance after NOTICE attribution changed. Native compilation finished; no source type error."
+      },
+      {
+        "session": 58497,
+        "exit": 65,
+        "log": "build/qa/message-editor-commands-app-package-repair-2026-10-27.log",
+        "failure": "Embedding advanced past refreshed Metafile, then refused LibGit2 NOTICE provenance. Source-hash scan confirmed only LibGit2 remained stale."
+      },
+      {
+        "session": 2390,
+        "status": "passed",
+        "log": "build/qa/message-editor-commands-app-final-2026-10-27.log",
+        "exit": 0
+      },
+      {
+        "session": 45140,
+        "exit": 0,
+        "log": "build/qa/message-editor-commands-app-context-repair-2026-10-27.log",
+        "scope": "Affected native recompilation after document/context identity repair; no Core rerun"
+      },
+      {
+        "session": 85287,
+        "exit": 0,
+        "log": "build/qa/message-editor-commands-app-focus-seam-2026-10-27.log",
+        "scope": "Default shipping focus provider unchanged; private native checks can inject current owner without activating desktop"
+      },
+      {
+        "session": 94064,
+        "exit": 0,
+        "log": "build/qa/message-editor-commands-app-menu-selection-2026-10-27.log",
+        "scope": "Affected native recompilation after source-faithful context menu caret/selection restoration"
+      },
+      {
+        "session": 52919,
+        "exit": 0,
+        "log": "build/qa/message-editor-commands-app-undo-repair-2026-10-27.log",
+        "scope": "Disable native replacement registration before shouldChangeText, not just storage mutation; avoid competing Cocoa and explicit snapshot Undo entries"
+      },
+      {
+        "session": 74854,
+        "exit": 0,
+        "log": "build/qa/message-editor-commands-app-wrap-scope-2026-10-27.log",
+        "scope": "Semantic source-segment mutation footprint for wrapping; minimal string diff remains storage validation/edit range"
+      }
+    ],
+    "resources": {
+      "generation_session": 11915,
+      "exit": 0,
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 90,
+        "bytes": 8690285
+      },
+      "checks_session": 52128,
+      "checks_exit": 0,
+      "site_session": 21706,
+      "site_exit": 0,
+      "final_site": {
+        "session": 22690,
+        "exit": 0,
+        "tests": 2,
+        "build_log": "build/qa/message-editor-commands-final-site-build-2026-10-27.log",
+        "test_log": "build/qa/message-editor-commands-final-site-tests-2026-10-27.log",
+        "reason": "Affected site content changed while recording actual outcomes/new watchdog evidence; final site rebuilt and relevant doc checks repeated only."
+      },
+      "final_coverage": {
+        "exit": 0,
+        "log": "build/qa/message-editor-commands-final-coverage-2026-10-27.log",
+        "certified_complete": 0,
+        "note": "Partial dialog ledger unchanged counts; not a feature-completion percentage."
+      }
+    },
+    "runtime_refresh": {
+      "session": 28413,
+      "status": "passed",
+      "log": "build/qa/message-editor-commands-runtime-refresh-2026-10-27.log",
+      "scope": "Reconstruct current pinned runtime with updated NOTICE metadata; renderer/helper source unchanged. Do not bypass provenance assertion.",
+      "exit": 0
+    },
+    "libgit2_refresh": {
+      "session": 30770,
+      "exit": 0,
+      "log": "build/qa/message-editor-commands-libgit2-refresh-2026-10-27.log",
+      "native_static_slices": "Both exact pinned arm64/x86_64 static slices reused",
+      "scope": "Update current attribution provenance; no library source change or full behavior suite"
+    },
+    "native_attempts": [
+      {
+        "session": 70927,
+        "exit": 1,
+        "log": "build/qa/message-editor-commands-native-2026-10-27.log",
+        "scope": "Receiver compile only; no native receiver launched",
+        "failure": "Nested fixture Context missed MainActor; SDK selected async beginSheet overload. Fixture annotations and explicit synchronous overload repaired, assertions retained."
+      },
+      {
+        "session": 98239,
+        "status": "failed",
+        "log": "build/qa/message-editor-commands-native-repair-2026-10-27.log",
+        "report": "build/qa/message-editor-commands-native-repair-2026-10-27.json",
+        "exit": 1,
+        "pid": 57496,
+        "failure": "Receiver initial Commit key-window readiness timed out before behavioral command; prohibited activation policy did not establish expected NSApp key owner.",
+        "evidence": "build/qa/message-editor-commands-failed-0-dfmj70s6",
+        "cleanup": "Owned windows closed; styling workers drained; private board/preferences removed; receiver reaped."
+      },
+      {
+        "session": 46109,
+        "exit": 1,
+        "pid": 57759,
+        "log": "build/qa/message-editor-commands-native-key-repair-2026-10-27.log",
+        "failure": "Accessory/makeKey without global activation still yields NSApp key=nil. No behavior command executed; failure diagnostics and strict cleanup retained.",
+        "evidence": "build/qa/message-editor-commands-failed-0-_gzixuf3"
+      },
+      {
+        "session": 82406,
+        "exit": 1,
+        "pid": 58159,
+        "log": "build/qa/message-editor-commands-native-focus-2026-10-27.log",
+        "failure": "With injected private focus owner, first native context Duplicate changed clicked word instead of expected original caret line.",
+        "evidence": "build/qa/message-editor-commands-failed-0-8ccee_c_"
+      },
+      {
+        "session": 64172,
+        "exit": 1,
+        "pid": 59438,
+        "log": "build/qa/message-editor-commands-native-commit-diagnostic-2026-10-27.log",
+        "scope": "Only first failed Commit case; diagnostic fixture change, no repeated passed cases",
+        "failure": "Exact diagnostic proves firstfirst replacement at clicked word while original caret was second line; model and editor agree. Source SciEdit context code restores original selection, unlike inherited Cocoa menu builder.",
+        "evidence": "build/qa/message-editor-commands-failed-0-cvk9ohpx"
+      },
+      {
+        "session": 65501,
+        "status": "timeout",
+        "log": "build/qa/message-editor-commands-native-menu-repair-2026-10-27.log",
+        "report": "build/qa/message-editor-commands-native-menu-repair-2026-10-27.json",
+        "pid": 59742,
+        "seconds": 180,
+        "evidence": "build/qa/message-editor-commands-failed-0-r7brgqc9",
+        "observation": "First native Duplicate now correct; subsequently hung entering Undo. Owned stack sample idle AppKit, no shipping hang claim; receiver terminated/reaped at deadline."
+      },
+      {
+        "session": 86966,
+        "status": "timeout",
+        "pid": 60027,
+        "seconds": 45,
+        "log": "build/qa/message-editor-commands-native-undo-diagnostic-2026-10-27.log",
+        "evidence": "build/qa/message-editor-commands-failed-0-ak49927s",
+        "scope": "Only first failed Commit case with flushed native Undo phase diagnostics",
+        "observation": "Reached native Undo, did not return; targeted macOS log confirms NSRangeException in NSTextStorage/NSUndoReplaceCharacters from duplicate Cocoa registration. Log build/qa/message-editor-commands-undo-exception-2026-10-27.log"
+      },
+      {
+        "session": 89712,
+        "exit": 1,
+        "pid": 60396,
+        "log": "build/qa/message-editor-commands-native-undo-repair-2026-10-27.log",
+        "evidence": "build/qa/message-editor-commands-failed-0-iyk791ij",
+        "scope": "After actual native Undo repair: Commit Duplicate and exact native Undo/Redo pass; Delete mutation/restoration pass, then fixture hardcoded default affinity mismatch",
+        "repair": "Explicit downstream fixture affinity where downstream expected; intentional upstream checks retained. Independent viewport review replaced unsupported suffix70 premise with exact distant suffix40; retained exact all-content/hardwrap/Undo assertions."
+      },
+      {
+        "session": 2770,
+        "status": "passed",
+        "log": "build/qa/message-editor-commands-native-affinity-repair-2026-10-27.log",
+        "report": "build/qa/message-editor-commands-native-affinity-repair-2026-10-27.json",
+        "exit": 0,
+        "pids": [
+          60696,
+          60865
+        ],
+        "cases_per_engine": [
+          "commit",
+          "merge",
+          "project",
+          "notes",
+          "description",
+          "integration"
+        ],
+        "engines": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ]
+      }
+    ],
+    "native_summary": {
+      "both_engine_groups_pass": true,
+      "editor_adapters": 5,
+      "receivers_attempted": 9,
+      "all_receivers_reaped_and_independently_absent": [
+        57496,
+        57759,
+        58159,
+        59438,
+        59742,
+        60027,
+        60396,
+        60696,
+        60865
+      ],
+      "private_state": "Private repositories/preferences/pasteboard; HEAD/index/config/worktree/note unchanged; owned windows closed and workers drained on completed runs; timeout-owned receiver groups terminated and reaped",
+      "behavior": [
+        "Actual native context targets with source icons and keyboard dispatch",
+        "Exact Unicode/mixed line endings/current-line/selected-text/multiple-range edits",
+        "One native Undo/Redo transaction with complete range/affinity snapshots",
+        "Configured hard wrapping and repeated-text semantic mutation scope leave distant records intact",
+        "Temporary source-bound zoom, bounded offsets, unchanged text/preferences/Undo, delayed styling replies",
+        "Busy/Quit/IME/sheet/background/unfocused/retired fences",
+        "Focused main-menu dispatch with injected current owner",
+        "Same-document Rebase command refresh retains draft Undo/zoom, invalidates retained menus; new document resets both"
+      ]
+    },
+    "last_app_build": {
+      "session": 74854,
+      "exit": 0,
+      "log": "build/qa/message-editor-commands-app-wrap-scope-2026-10-27.log",
+      "contradictory_exit_zero_diagnostics": 0,
+      "warning_scope": "Existing actor/deprecation/Simulator diagnostics are retained; not warning-free."
+    },
+    "watchdog_repair": "docs/qa/rebase-watchdog-cleanup-2026-10-27.json",
+    "native_report_sha256": "6759e4de683a87b16e9a238084f1520fa3f61eef92ee0be2a1dcc6a67c496a6b"
+  },
+  "limits": [
+    "Complete SciEdit keyboard/selection map and arbitrary rectangle creation in message controls",
+    "Physical keyboard layouts/IME, VoiceOver and complete source dialog layout",
+    "Signed external grants, Intel/minimum-version execution and complete hosted CI",
+    "Installed build14 predates this source; no additional signed consolidation or store submission this batch",
+    "Rebase shared representable uses real model project settings with synthetic document/context identities for deterministic replacement; this batch does not repeat a full actual paused replay roundtrip or prove every computed replay-message identity."
+  ],
+  "hosted_observation": {
+    "run": 40404859332,
+    "job": 121879373781,
+    "source": "02ae49b4",
+    "conclusion": "failure",
+    "tests": 3049,
+    "skipped": 2,
+    "unexpected_failures": 1,
+    "test": "RebaseStructuralNoCommitTests.testConsumedStructuralResultTransportFailureReturnsOnceAndExplicitRetryFinishes",
+    "location": "RebaseStructuralNoCommitTests.swift:514",
+    "error": "CancellationError()",
+    "scope": "Older hosted full run, independent of this local message-editor group; exact diagnosis pending. Not restarted or cancelled.",
+    "diagnosis": "build/qa/hosted-40404859332-diagnosis.json"
+  },
+  "native_focus_scope": "Private injected focus owner, real native windows/responders/menus/model/Undo/clipboard. Shipping default uses AppKit key window; no actual desktop key-window activation or physical keyboard acceptance claim.",
+  "sources_sha256": {
+    "Sources/TurtleGitMac/MessageEditorLineCommands.swift": "c754b805cb372d7f70828b1ee2a724edfec9fda93a5a9797e296db0b96f24d85",
+    "Sources/TurtleGitMac/MessageEditorMenuCommands.swift": "dd9913daecc541a7a23f384dcf49fbf9da47067acd8d2f33c3c66927cb9f7420",
+    "Sources/TurtleGitMac/ProjectDialogSettings.swift": "f2c037fef87af443622ecb2360a2022c8af72d552c7681773c815c7f163cbc31",
+    "Sources/TurtleGitMac/MessageEditorStylingSession.swift": "c3e425ee9a6ac7ff3f0713332b488754c9a4eaca1c3fd653d39acae04e2a3407",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "9816f0d57ebc3627a59f03444974b5b0acaa3bb44b0c4f92351aba6aba2c7657",
+    "Sources/TurtleGitMac/MergeMessageEditor.swift": "7b996e58a4621379684bb1c9b8a9498fcad6efd0d363db434f372f375fd45a32",
+    "Sources/TurtleGitMac/InputWindow.swift": "9c3e7659f66f39d1a7392078272978b949e0dc73135dca1bd5123d747d20b564",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "178725b4e545063abbe5d4676260bd959c04e78dc7c7d5174066004fa3464d8d",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "feee8c94d716692846723e4fb29e36912a70503048d43b747c7e9d2270733e85",
+    "docs/qa/message-editor-commands-native-2026-10-27.swift": "424507f3f91fbaee4c9e6a699363dbc69f6e5d10ec5ce302264061b49d88c512",
+    "scripts/test-message-editor-commands.py": "eaf794aeacf4c7dda3651f434d0daefd0c6f02ccb3753f64fa4e8ba92994de26"
+  }
+}

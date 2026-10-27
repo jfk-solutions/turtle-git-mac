@@ -139,6 +139,7 @@ final class CommitMessageTextView: ProjectMessageTextView {
     override var undoManager:UndoManager? {messageUndoManager}
     func resetMessageSession() {
         guard model?.messageFocusAvailable==true else{return}
+        resetMessagePresentationSession()
         breakUndoCoalescing();messageUndoManager.removeAllActions()
         completionPopup.close();dismissSpellingSuggestions()
         setSelectedRange(NSRange(location:0,length:0))
@@ -161,7 +162,9 @@ final class CommitMessageTextView: ProjectMessageTextView {
     private var completionRange: NSRange?
     private var processingTypedKey = false
     private var insertedTypedText = false
+    override func messagePresentationWillChange() { completionPopup.close(); super.messagePresentationWillChange() }
     override func keyDown(with event: NSEvent) {
+        if handleMessageZoomKey(event) { return }
         if handleSpellingKey(event) { completionPopup.close(); return }
         if completionPopup.isShown {
             if event.keyCode == 53 { completionPopup.close(); return }

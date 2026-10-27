@@ -812,11 +812,22 @@ struct RebaseReferenceRequest {
         messageSelectionCancellation?.cancel()
         cancellingPreparation = true; referenceRefreshCancellation?.cancel(); actionEditCancellation?.cancel(); insertionCancellation?.cancel();pendingSessionRefresh=false;sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); return true
     }
-    struct FormContext: Equatable {
+    struct FormContext: Hashable {
         let owner: ObjectIdentifier; let controls: UUID; let generation: Int
         let active: Bool; let finished: Bool; let step: Int; let head: String
     }
     var formContext: FormContext { .init(owner:ObjectIdentifier(self),controls:controlMenuGeneration,generation:planGeneration,active:active,finished:finished,step:state?.currentStep ?? 0,head:conflictHead) }
+    struct MessageEditorSession: Hashable {
+        let owner: ObjectIdentifier; let session: UUID; let generation: Int; let step: Int; let head: String
+        let squash: Bool; let edit: Bool; let split: Bool; let conflict: Bool
+    }
+    /// Metadata, selection and busy/menu refreshes invalidate retained actions,
+    /// but do not replace the draft or erase its text zoom and Undo history.
+    var messageEditorSession: MessageEditorSession {
+        .init(owner: ObjectIdentifier(self), session: sessionGeneration, generation: planGeneration,
+              step: state?.currentStep ?? 0, head: conflictHead, squash: state?.squashMessage != nil,
+              edit: state?.isEditPause == true, split: state?.split != nil, conflict: state?.conflictMessage != nil)
+    }
     private func matches(_ context: FormContext) -> Bool { !retired && context == formContext }
     private var referenceIntent: [GitReferenceName] { [options.branch,options.upstream,options.onto,String(ontoEnabled),String(options.force),String(options.preserveMerges),String(options.isCherryPick),String(options.addCherryPickedFrom),String(options.squashDate.rawValue)].map { GitReferenceName($0) } }
     func referenceBinding(branch: Bool, context: FormContext) -> Binding<String> {
@@ -2984,7 +2995,7 @@ struct RebaseDialog: View {
                         if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
-                                ProjectMessageEditor(text: model.messageBinding(context), settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties, sourceAvailable: { [weak model] in model?.canEditMessage == true && model?.formContext == context })
+                                ProjectMessageEditor(text: model.messageBinding(context), settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties, sourceAvailable: { [weak model] in model?.canEditMessage == true && model?.formContext == context }, sourceSession: AnyHashable(model.messageEditorSession), sourceCommandContext: AnyHashable(context))
                                     .id(model.replayMessageEditorID).disabled(!model.canEditMessage)
                                 if let author = model.replayMessageCommit,model.state?.squashMessage?.isNewCommit != true {
                                     Text("Author: " + author.author + " <" + author.email + "> • Author date: " + dates.format(author.date, absolute: true)).font(.caption).textSelection(.enabled)

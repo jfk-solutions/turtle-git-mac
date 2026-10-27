@@ -447,7 +447,114 @@ private struct ProjectDialogWindowProbe: NSViewRepresentable {
 }
 
 /// SciEdit's project language and margin are shared by Commit, Merge and Rebase.
+enum MessageEditorZoomAction: String, CaseIterable, Hashable {
+    case zoomIn, zoomOut, actualSize
+    var title: String {
+        switch self { case .zoomIn: return "Zoom In"; case .zoomOut: return "Zoom Out"; case .actualSize: return "Actual Size" }
+    }
+    var icon: MenuIcon {
+        switch self { case .zoomIn: return .imageZoomIn; case .zoomOut: return .imageZoomOut; case .actualSize: return .imageOriginal }
+    }
+    var keyEquivalent: String {
+        switch self { case .zoomIn: return "+"; case .zoomOut: return "-"; case .actualSize: return "0" }
+    }
+    static func action(for event: NSEvent) -> Self? {
+        let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        guard flags == .command || flags == [.command, .shift] else { return nil }
+        switch event.charactersIgnoringModifiers {
+        case "+", "=": return .zoomIn
+        case "-" where flags == .command: return .zoomOut
+        case "0" where flags == .command: return .actualSize
+        default: return nil
+        }
+    }
+}
+@MainActor private final class MessageEditorZoomReceipt: NSObject {
+    let session: UUID, editor: ObjectIdentifier, window: ObjectIdentifier
+    let context: AnyHashable?
+    let action: MessageEditorZoomAction
+    init(editor: ProjectMessageTextView, window: NSWindow, action: MessageEditorZoomAction) {
+        session = editor.messagePresentationSessionID; self.editor = ObjectIdentifier(editor)
+        self.window = ObjectIdentifier(window); self.action = action
+        context = editor.messageCommandContext
+    }
+}
 class ProjectMessageTextView: NSTextView {
+    private(set) var messagePresentationSessionID = UUID()
+    var messageCommandContext: AnyHashable?
+    /// Native receivers inject their private focus owner without activating the
+    /// desktop. Shipping editors always use the actual AppKit key window.
+    var messageCommandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    private var messageZoom = GitBlameZoom()
+    private var configuredMessageFont: NSFont?
+    private var cachedMessageStyles: [IssueMessageStyle] = []
+    var messageZoomOffset: Int { messageZoom.offset }
+    /// Source Scintilla zoom is transient (-10...60 points); configured font
+    /// preferences remain the unzoomed base, including delayed style replies.
+    func resetMessagePresentationSession() {
+        messagePresentationSessionID = UUID(); messageZoom = GitBlameZoom()
+        breakUndoCoalescing(); undoManager?.removeAllActions()
+        messagePresentationWillChange()
+        if let base = configuredMessageFont { applyIssueStyles(currentMessageStyles, base: base) }
+        sourceStyling?.refresh()
+    }
+    func messagePresentationWillChange() { dismissSpellingSuggestions() }
+    var messageZoomCommandsAvailable: Bool { messageLayoutAvailable && messageCommandKeyWindow() === window && window?.firstResponder === self && !hasMarkedText() }
+    func canPerformMessageZoom(_ action: MessageEditorZoomAction) -> Bool {
+        guard messageZoomCommandsAvailable else { return false }
+        switch action {
+        case .zoomIn: return messageZoom.canIncrease
+        case .zoomOut: return messageZoom.canDecrease
+        case .actualSize: return messageZoom.offset != 0
+        }
+    }
+    @discardableResult func performMessageZoom(_ action: MessageEditorZoomAction) -> Bool {
+        guard canPerformMessageZoom(action) else { return false }
+        messagePresentationWillChange(); sourceLinks.invalidate()
+        switch action {
+        case .zoomIn: messageZoom = messageZoom.stepping(1)
+        case .zoomOut: messageZoom = messageZoom.stepping(-1)
+        case .actualSize: messageZoom = GitBlameZoom()
+        }
+        let base = configuredMessageFont ?? font ?? MessageEditorFont.resolve(name: MessageEditorFont.defaultName, size: MessageEditorFont.defaultSize)
+        applyIssueStyles(currentMessageStyles, base: base)
+        needsDisplay = true
+        return true
+    }
+    @discardableResult func handleMessageZoomKey(_ event: NSEvent) -> Bool {
+        guard messageCommandKeyWindow() === window, window?.firstResponder === self, event.window === window,
+              let action = MessageEditorZoomAction.action(for: event) else { return false }
+        _ = performMessageZoom(action)
+        // Own the recognized shortcut even at a limit or while blocked; falling
+        // through must not invoke a different font-size command on this editor.
+        return true
+    }
+    @objc private func dispatchMessageZoom(_ sender: NSMenuItem) {
+        guard let receipt = sender.representedObject as? MessageEditorZoomReceipt,
+              receipt.session == messagePresentationSessionID, receipt.editor == ObjectIdentifier(self),
+              receipt.context == messageCommandContext,
+              let window, receipt.window == ObjectIdentifier(window) else { return }
+        _ = performMessageZoom(receipt.action)
+    }
+    private func appendMessageZoomMenu(to menu: NSMenu) {
+        guard let window else { return }
+        let item = NSMenuItem(title: String(localized: "Message Text Size"), action: nil, keyEquivalent: "")
+        item.image = MenuIcon.imageZoomIn.contextImage(defaults: spellingPreferences)
+        let zoom = NSMenu(title: item.title); zoom.autoenablesItems = false
+        for action in MessageEditorZoomAction.allCases {
+            let entry = NSMenuItem(title: NSLocalizedString(action.title, comment: "Message editor zoom"), action: #selector(dispatchMessageZoom(_:)), keyEquivalent: action.keyEquivalent)
+            entry.keyEquivalentModifierMask = .command; entry.target = self
+            entry.image = action.icon.contextImage(defaults: spellingPreferences)
+            entry.representedObject = MessageEditorZoomReceipt(editor: self, window: window, action: action)
+            entry.isEnabled = canPerformMessageZoom(action); zoom.addItem(entry)
+        }
+        item.submenu = zoom; menu.addItem(.separator()); menu.addItem(item)
+    }
+    private var currentMessageStyles: [IssueMessageStyle] { string.utf8.elementsEqual(styledText.utf8) ? cachedMessageStyles : [] }
+    func applyMessageBaseFont(_ base: NSFont) { applyIssueStyles(currentMessageStyles, base: base) }
+    private func effectiveMessageFont(_ base: NSFont) -> NSFont {
+        NSFontManager.shared.convert(base, toSize: max(1, base.pointSize + CGFloat(messageZoom.offset)))
+    }
     private var sourceStyling: MessageEditorStylingSession?
     var sourceLinkAvailable: () -> Bool = { true }
     lazy var sourceLinks: SourceMessageLinkInteraction = {
@@ -469,7 +576,7 @@ class ProjectMessageTextView: NSTextView {
         if sourceStyling == nil { sourceStyling = MessageEditorStylingSession(editor: self) }
         sourceStyling?.configure(properties: properties, preferences: preferences, font: font)
     }
-    func retireSourceStyling() { messageEditingRetired = true; pendingLineEdit = nil; deferredCompositionRange = nil; sourceStyling?.retire(); sourceStyling = nil; sourceLinks.retire() }
+    func retireSourceStyling() { messagePresentationSessionID = UUID(); messageZoom = GitBlameZoom(); messageEditingRetired = true; pendingLineEdit = nil; deferredCompositionRange = nil; sourceStyling?.retire(); sourceStyling = nil; sourceLinks.retire() }
     private var pendingLineEdit: NSRange?
     private var applyingLineEdits = false
     private var messageEditingRetired = false
@@ -506,20 +613,28 @@ class ProjectMessageTextView: NSTextView {
         sourceLinks.invalidate(); super.didChangeText(); sourceStyling?.refresh()
         updateMessageWidthMode()
     }
+    func didChangeMessageLines(in range: NSRange) {
+        pendingLineEdit = range
+        didChangeText()
+    }
     override func unmarkText() {
         super.unmarkText()
         if let range = deferredCompositionRange {
             deferredCompositionRange = nil
             if splitEditedLines(range) { sourceLinks.invalidate(); super.didChangeText() }
         }
+        if let base = configuredMessageFont {
+            applyIssueStyles(string.utf8.elementsEqual(styledText.utf8) ? cachedMessageStyles : [], base: base)
+        }
         sourceStyling?.refresh()
     }
     @discardableResult private func applyLineEdits(_ edits: [MessageEditorLineLayout.Edit]) -> Bool {
         guard !edits.isEmpty, messageLayoutAvailable, !hasMarkedText() else { return false }
         let ranges = selectedRanges.map(\.rangeValue)
+        let affinity = selectionAffinity
         applyingLineEdits = true; defer { applyingLineEdits = false }
         for edit in edits.reversed() { super.insertText(edit.text, replacementRange: edit.range) }
-        selectedRanges = ranges.map { NSValue(range: MessageEditorLineLayout.mapped($0, through: edits)) }
+        setSelectedRanges(ranges.map { NSValue(range: MessageEditorLineLayout.mapped($0, through: edits)) }, affinity: affinity, stillSelecting: false)
         return true
     }
     @discardableResult private func splitEditedLines(_ edit: NSRange) -> Bool {
@@ -563,11 +678,15 @@ class ProjectMessageTextView: NSTextView {
     private var appliedStyles: [IssueMessageStyle] = []
     private var styledText = ""
     private var styledBaseFont: NSFont?
-    func applyIssueStyles(_ styles: [IssueMessageStyle], base: NSFont) {
+    func applyIssueStyles(_ styles: [IssueMessageStyle], base configuredBase: NSFont) {
+        configuredMessageFont = configuredBase
+        guard !hasMarkedText() else { return }
+        let base = effectiveMessageFont(configuredBase)
         guard styles != appliedStyles || !string.utf8.elementsEqual(styledText.utf8) || styledBaseFont != base, let storage = textStorage else { return }
         sourceLinks.invalidate()
         appliedStyles = styles; styledText = string; styledBaseFont = base
-        let selection = selectedRanges
+        cachedMessageStyles = styles
+        let selection = selectedRanges, affinity = selectionAffinity
         let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
         if undoEnabled { undoManager?.disableUndoRegistration() }
         storage.beginEditing()
@@ -587,7 +706,7 @@ class ProjectMessageTextView: NSTextView {
         }
         storage.endEditing()
         if undoEnabled { undoManager?.enableUndoRegistration() }
-        selectedRanges = selection
+        setSelectedRanges(selection, affinity: affinity, stillSelecting: false)
         typingAttributes = [.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph]
         updateMessageWidthMode()
     }
@@ -608,7 +727,20 @@ class ProjectMessageTextView: NSTextView {
         default: dismissSpellingSuggestions(); return false
         }
     }
-    override func keyDown(with event: NSEvent) { if !handleSpellingKey(event) { super.keyDown(with: event) } }
+    override func keyDown(with event: NSEvent) {
+        if handleSpellingKey(event) { return }
+        if handleMessageZoomKey(event) { return }
+        if handleMessageLineCommandKey(event) { return }
+        super.keyDown(with: event)
+    }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleMessageZoomKey(event) || handleMessageLineCommandKey(event) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+    override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if let valid = validateMessageLineCommandItem(menuItem) { return valid }
+        return super.validateMenuItem(menuItem)
+    }
     @objc func showSpellingSuggestions() {
         dismissSpellingSuggestions()
         guard isEditable, !hasMarkedText(), selectedRanges.count == 1,
@@ -646,12 +778,20 @@ class ProjectMessageTextView: NSTextView {
         if window == nil { dismissSpellingSuggestions(); retireSourceStyling() }
     }
     override func menu(for event: NSEvent) -> NSMenu? {
+        // SciEdit uses the clicked point for spelling/link inspection, then
+        // restores its original anchor/caret before dispatching edit actions.
+        // NSTextView's menu builder otherwise selects the clicked word and
+        // turns a current-line Duplicate into an unrelated word Duplicate.
+        let ranges = selectedRanges, affinity = selectionAffinity
         let menu = super.menu(for: event)
+        setSelectedRanges(ranges, affinity: affinity, stillSelecting: false)
         if let menu {
             let point = convert(event.locationInWindow,from:nil)
             sourceLinks.prepareMenu(menu,at:characterIndexForInsertion(at:point))
         }
+        if let menu { appendMessageZoomMenu(to: menu) }
         if isEditable, let menu {
+            appendMessageLineCommands(to: menu)
             menu.addItem(.separator())
             let item = NSMenuItem(title: "Spelling suggestions", action: #selector(showSpellingSuggestions), keyEquivalent: "")
             item.target = self; item.image = MenuIcon.completionSpelling.contextImage(defaults:spellingPreferences)
@@ -738,6 +878,8 @@ struct ProjectMessageEditor: NSViewRepresentable {
     var preferences: UserDefaults = .standard
     var issueProperties = IssueTrackerProperties()
     var sourceAvailable: () -> Bool = { true }
+    var sourceSession: AnyHashable? = nil
+    var sourceCommandContext: AnyHashable? = nil
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Environment(\.isEnabled) private var enabled
@@ -754,6 +896,12 @@ struct ProjectMessageEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? ProjectMessageTextView else { return }
+        editor.messageCommandContext = sourceCommandContext
+        if context.coordinator.sourceSession != sourceSession {
+            context.coordinator.sourceSession = sourceSession
+            editor.resetMessagePresentationSession()
+            editor.undoManager?.removeAllActions()
+        }
         context.coordinator.text = $text
         editor.isEditable = enabled; editor.setAccessibilityLabel(label)
         editor.sourceLinkAvailable = sourceAvailable
@@ -774,6 +922,7 @@ struct ProjectMessageEditor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator($text) }
     final class Coordinator: NSObject, NSTextViewDelegate {
         var text: Binding<String>
+        var sourceSession: AnyHashable?
         init(_ text: Binding<String>) { self.text = text }
         func textDidChange(_ notification: Notification) {
             if let editor = notification.object as? ProjectMessageTextView, editor.messageLayoutAvailable { text.wrappedValue = editor.string }

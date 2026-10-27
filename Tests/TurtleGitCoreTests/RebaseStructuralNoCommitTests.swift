@@ -511,8 +511,22 @@ final class RebaseStructuralNoCommitTests:XCTestCase {
         """
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
         let transport=GitRepository(root:f.root,executable:wrapper,libgit2Configuration:.init(enabled:false)),token=OperationCancellation()
-        let watchdog=Task {try await Task.sleep(nanoseconds:30_000_000_000);token.cancel()};defer{watchdog.cancel()}
-        let failure=try await transport.continueRebase(squashMessage:"Approved final collapsed group",cancellation:token,editorExecutable:editor)
+        let watchdog=Task<Void,Never> {
+            do {try await Task.sleep(nanoseconds:30_000_000_000)}
+            catch is CancellationError {return}
+            catch {XCTFail("Checkpoint watchdog sleep failed: \(error)");return}
+            token.cancel()
+        }
+        let failure:RebaseExecution
+        do {
+            failure=try await transport.continueRebase(squashMessage:"Approved final collapsed group",cancellation:token,editorExecutable:editor)
+        } catch {
+            watchdog.cancel()
+            await watchdog.value
+            throw error
+        }
+        watchdog.cancel()
+        await watchdog.value
         XCTAssertFalse(token.isCancelled,"Checkpoint recursion reached cancellation bound")
         XCTAssertEqual(failure.exitCode,73,failure.output);XCTAssertTrue(failure.state.hasStructuralResultCheckpoint)
         XCTAssertTrue(failure.state.active);XCTAssertFalse(failure.state.needsFileRecovery);XCTAssertFalse(failure.state.canSplit)
