@@ -16,6 +16,13 @@ import TurtleGitCore
     }
     weak var model: CommitWindowModel?
     weak var commandMenu:CommitCommandMenu?
+    override func sendEvent(_ event:NSEvent) {
+        // Real input owns focus immediately, before delayed view updates run.
+        if event.window === self, [.leftMouseDown,.rightMouseDown,.otherMouseDown,.keyDown].contains(event.type) {
+            model?.supersedeFocusIntent()
+        }
+        super.sendEvent(event)
+    }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if commandMenu?.performKeyEquivalent(event)==true {return true}
         return super.performKeyEquivalent(with: event)
@@ -53,7 +60,12 @@ import TurtleGitCore
         guard canReuse else{return}
         super.showWindow(sender)
     }
-    func windowDidResignKey(_ notification:Notification) {cancelFormFocus();commandMenu?.remove()}
+    func windowDidResignKey(_ notification:Notification) {
+        // An owned sheet is a temporary responder transfer. Its completion may
+        // return focus under the same intent; leaving for another window may not.
+        if window?.attachedSheet==nil {model.supersedeFocusIntent()}
+        cancelFormFocus();commandMenu?.remove()
+    }
     var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && model.messageFocusAvailable}
     var refreshCommandAvailable:Bool {!closingCommit && !hasMessagePicker && model.canRefresh && window?.attachedSheet==nil}
     func messageEditor(in view:NSView? = nil)->CommitMessageTextView? {
@@ -68,6 +80,7 @@ import TurtleGitCore
     }
     @discardableResult func focusFileList()->Bool {
         guard commandsAvailable,model.fileListAvailable,let window,let table=fileTable() else{return false}
+        model.supersedeFocusIntent();cancelFormFocus()
         return window.makeFirstResponder(table)
     }
     private var formFocusTask:Task<Void,Never>?
@@ -89,6 +102,7 @@ import TurtleGitCore
         let startedInFieldEditor=(initialResponder as? NSTextView)?.isFieldEditor==true
         guard !startedInFieldEditor || initialEditingControl != nil else{return false}
         guard formFocusAllowed(identifier),model.acceptsFormReceipt(receipt) else{return false}
+        let focusIntent=model.supersedeFocusIntent()
         formFocusTask=Task { @MainActor [weak self,weak window,weak initialResponder,weak initialEditingControl] in
             defer {if let self,self.formFocusID==id {self.formFocusTask=nil}}
             // A model-ready command can arrive before SwiftUI has delivered its
@@ -97,7 +111,7 @@ import TurtleGitCore
             await Task.yield()
             for _ in 0..<300 {
                 do {
-                    guard let self,let window,!Task.isCancelled,self.formFocusID==id else{return}
+                    guard let self,let window,!Task.isCancelled,self.formFocusID==id,self.model.acceptsFocusIntent(focusIntent) else{return}
                     window.contentView?.layoutSubtreeIfNeeded()
                     guard let completed=self.attemptFormFocus(identifier,receipt:receipt,window:window,initialResponder:initialResponder,initialEditingControl:initialEditingControl,startedInFieldEditor:startedInFieldEditor) else{return}
                     if completed {return}
@@ -109,6 +123,7 @@ import TurtleGitCore
     }
     private func formFocusAllowed(_ identifier:String)->Bool {
         switch identifier {
+        case "Commit issue":return model.issueProperties.showsIssueField && !model.inputsBlocked
         case "Commit new branch":return model.nativeNewBranchInputAvailable
         case "Commit author":return !model.loadingAuthorIdentity
         case "Commit author date","Commit author time":return model.nativeAuthorDateInputAvailable
@@ -138,9 +153,9 @@ import TurtleGitCore
               (field as? NSControl)?.isEnabled != false else{return false}
         if let text=field as? CommitOwnedTextField {
             guard text.hasOriginalOwner else{return nil}
-            let expectsEditing=identifier=="Commit new branch" || model.setAuthor
+            let expectsEditing=identifier != "Commit author" || model.setAuthor
             guard text.isEditable==expectsEditing,text.isSelectable else{return false}
-            let expectedValue=identifier=="Commit new branch" ? model.newBranch:model.author
+            let expectedValue=identifier=="Commit issue" ? model.issueID:identifier=="Commit new branch" ? model.newBranch:model.author
             guard text.stringValue.utf8.elementsEqual(expectedValue.utf8) else{return false}
             guard window.makeFirstResponder(text) else{return false}
             text.selectText(nil)
@@ -148,7 +163,11 @@ import TurtleGitCore
             editor.selectedRange=NSRange(location:0,length:text.stringValue.utf16.count)
             return true
         }
-        if let picker=field as? CommitOwnedDatePicker,!picker.hasOriginalOwner {return nil}
+        if let picker=field as? CommitOwnedDatePicker {
+            guard picker.hasOriginalOwner else{return nil}
+            let expected=identifier=="Commit author time" ? model.authorDate:CommitAuthorDateControl.calendar.startOfDay(for:model.authorDate)
+            guard picker.dateValue==expected else{return false}
+        }
         guard window.makeFirstResponder(field) else{return false}
         guard let responder=window.firstResponder as? NSView else{return false}
         return responder===field || responder.isDescendant(of:field)
@@ -207,6 +226,7 @@ import TurtleGitCore
         let host=NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults));host.sizingOptions=[]
         window.contentViewController=host
         super.init(window: window); model.comparisonWindow = window; model.missingStagedRecovery.ownerWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        model.onFocusForm={ [weak self] identifier in _ = self?.focusFormField(identifier) }
         model.confirmDetachedHead={ [weak self] token in await self?.askDetachedHead(token) ?? .cancel }
         model.createDetachedBranch={ [weak self] token in await self?.showDetachedBranch(token) ?? false }
         model.retireDetachedChildren={ [weak self] in self?.retireDetachedChildren() }
@@ -1035,7 +1055,8 @@ import TurtleGitCore
     private var changelistPaths: [String] = []
     private var changelistMenu: StatusFileMenuSnapshot?
     @Published var branch = ""
-    @Published var createBranch = false {didSet{if createBranch != oldValue{retireFormReceipts()}}}
+    private(set) var branchFocusIntent=UUID()
+    @Published var createBranch = false {didSet{if createBranch != oldValue{retireFormReceipts();branchFocusIntent=supersedeFocusIntent()}}}
     @Published var newBranch = ""
     @Published var message = "" { didSet { if !GitReferenceName.equal(message,oldValue) { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published var projectSettings = ProjectDialogSettings()
@@ -1053,12 +1074,13 @@ import TurtleGitCore
     var providerContext: NativeIssueProviderContext { NativeIssueProviderContext(repositoryRoot: repository.root, paths: scopePaths, message: message, issueID: issueID) }
     func selectProviderIssues() {
         guard messageFocusAvailable, !inputsBlocked, let provider = nativeIssueProvider else { return }
+        let focus=focusIntent
         let context = providerContext, generation = UUID(); issueProviderGeneration = generation; issueProviderBusy = true; issueProviderWorkPending = true; Self.activeIssueProviderOperations += 1
         Task {
             defer { Self.activeIssueProviderOperations -= 1; issueProviderWorkPending = false; withExtendedLifetime(access) {}; if issueProviderGeneration == generation { issueProviderBusy = false } }
             let result = await chooseProviderIssues(provider, context)
             guard messageFocusAvailable, issueProviderGeneration == generation, !confirmingQuit, message.utf8.elementsEqual(context.message.utf8), issueID.utf8.elementsEqual(context.issueID.utf8), scopePaths == context.paths, let result else { return }
-            message = result.message; issueID = result.issueID; requestMessageFocus()
+            message = result.message; issueID = result.issueID; requestMessageFocus(ifCurrent:focus)
         }
     }
     private func readNativeIssueProvider(_ token: OperationCancellation) async throws -> (provider:NativeIssueProviderSession?,error:String?) {
@@ -1320,6 +1342,15 @@ import TurtleGitCore
     @Published private(set) var loadingAuthorDate = false
     @Published private(set) var loadingAmendMessage = false
     @Published private(set) var amendMessageReadFailed = false
+    // Independent from form edit authority: loading may change a form receipt
+    // while a still-current automatic focus request waits for native readiness.
+    private(set) var focusIntent=UUID()
+    var onFocusForm:(String)->Void={_ in}
+    @discardableResult func supersedeFocusIntent()->UUID {
+        focusIntent=UUID();appliedMessageFocusRequest=messageFocusRequest
+        return focusIntent
+    }
+    func acceptsFocusIntent(_ receipt:UUID)->Bool {messageFocusAvailable && !confirmingQuit && focusIntent==receipt}
     @Published private(set) var messageFocusRequest = 0
     @Published private(set) var issueFocusRequest=0
     private(set) var appliedMessageFocusRequest = 0
@@ -1359,7 +1390,7 @@ import TurtleGitCore
     }}
     @Published var confirmingQuit = false {didSet{
         guard confirmingQuit != oldValue else{return}
-        retireFormReceipts();metadataEpoch=UUID(); guiPatch?.confirmingQuit = confirmingQuit
+        supersedeFocusIntent();retireFormReceipts();metadataEpoch=UUID(); guiPatch?.confirmingQuit = confirmingQuit
         if confirmingQuit {
             cancelFileMetadataRead()
             if loadingAmendMessage {amendMessageReadFailed=true}
@@ -1941,7 +1972,7 @@ import TurtleGitCore
         checked = GitPathSet(checked.map(moved)); selection = GitPathSet(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
     }
     func loadHistoryCombine(_ plan: HistoryCombinePlan, date: RebaseSquashDate) {
-        invalidateMetadataLoads(); historyCombine = plan
+        supersedeFocusIntent();invalidateMetadataLoads(); historyCombine = plan
         createBranch = false; newBranch = ""
         amend = true; amendDiffToLastCommit = plan.lastParentCount != 1
         message = plan.message; amendMessage = plan.message; originalAmendMessage = plan.message
@@ -1952,8 +1983,7 @@ import TurtleGitCore
         reload(paths: ["."])
     }
     func loadReplaySplit(_ split: RebaseSplitState, message: String) {
-        invalidateMetadataLoads()
-        appliedMessageFocusRequest = messageFocusRequest
+        supersedeFocusIntent();invalidateMetadataLoads()
         replaySplit = split; amend = split.conflictRecovery == true || split.parts == 0 && !split.isNewCommit; amendDiffToLastCommit = split.conflictRecovery == true
         self.message = split.conflictRecovery == true || split.parts == 0 ? message : ""
         if split.parts == 0, let date = split.squashDate {
@@ -2217,7 +2247,7 @@ import TurtleGitCore
                     // CommitDlg clears Undo when installing the next template.
                     // Accept the complete native template/Start-hook snapshot
                     // first; failed/obsolete reloads cannot retire the draft.
-                    if pendingRecommitSession {pendingRecommitSession=false;messageEditorSession=UUID()}
+                    if pendingRecommitSession {pendingRecommitSession=false;supersedeFocusIntent();messageEditorSession=UUID()}
                 }
                 if !warnings.isEmpty {reloadError=warnings.joined(separator:"\n\n");self.error=reloadError}
                 else if self.error == reloadError {self.error=nil;reloadError=nil}
@@ -2457,12 +2487,13 @@ import TurtleGitCore
         retireFormReceipts()
         if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
+        let focus=focusIntent
         let wasLoading = loadingAmendMessage, failedRead = amendMessageReadFailed
         amendMessageReadFailed = false
         invalidateMetadataLoads()
         if amend {
             if !failedRead {nonAmendMessage = message}
-            if !amendMessage.isEmpty { finishAmendMessage(amendMessage,repository:repository); return }
+            if !amendMessage.isEmpty { finishAmendMessage(amendMessage,repository:repository,focus:focus); return }
             loadingAmendMessage = true
             let generation = amendGeneration, draft = message, token = OperationCancellation(),epoch=metadataEpoch
             amendCancellation = token
@@ -2478,13 +2509,13 @@ import TurtleGitCore
                     guard generation == amendGeneration,epoch==metadataEpoch,messageFocusAvailable,!confirmingQuit,amend else { return }
                     guard let previous else { throw StatusFileActionFailure(message: "Could not read the last commit message.") }
                     amendDetailsBackendIdentity=identity
-                    finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous : message,repository:repository)
-                } catch { if generation == amendGeneration,epoch==metadataEpoch,!confirmingQuit,amend,messageFocusAvailable,!token.isCancelled { amendMessageReadFailed = true; self.error = error.localizedDescription; requestMessageFocus() } }
+                    finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous : message,repository:repository,focus:focus)
+                } catch { if generation == amendGeneration,epoch==metadataEpoch,!confirmingQuit,amend,messageFocusAvailable,!token.isCancelled { amendMessageReadFailed = true; self.error = error.localizedDescription; requestMessageFocus(ifCurrent:focus) } }
             }
         } else {
             if !wasLoading && !failedRead { amendMessage = message }
             message = nonAmendMessage
-            dateChanged(); authorChanged(); requestMessageFocus(); comparisonChanged()
+            dateChanged(); authorChanged(); requestMessageFocus(ifCurrent:focus); comparisonChanged()
         }
     }
     private func invalidateMetadataLoads() {
@@ -2496,18 +2527,22 @@ import TurtleGitCore
         amendMessageReadFailed = false
         replayAuthorPreset = nil; replayDatePreset = nil
     }
-    private func finishAmendMessage(_ value: String,repository:GitRepository) {
+    private func finishAmendMessage(_ value: String,repository:GitRepository,focus:UUID) {
         message = value; originalAmendMessage = value; loadingAmendMessage = false; amendMessageReadFailed = false
-        dateChanged(repository:repository); authorChanged(repository:repository); requestMessageFocus(); comparisonChanged()
+        dateChanged(repository:repository); authorChanged(repository:repository); requestMessageFocus(ifCurrent:focus); comparisonChanged()
     }
     func focusMessage() {guard !inputsBlocked else {return};requestMessageFocus()}
-    func focusIssueField(){guard messageFocusAvailable,!inputsBlocked,issueProperties.showsIssueField else{return};issueFocusRequest += 1}
-    private func requestMessageFocus() {
-        guard messageFocusAvailable else { return }
-        messageFocusRequest += 1
+    func focusIssueField(){
+        guard messageFocusAvailable,!inputsBlocked,issueProperties.showsIssueField else{return}
+        supersedeFocusIntent();issueFocusRequest += 1;onFocusForm("Commit issue")
+    }
+    func requestMessageFocus(ifCurrent receipt:UUID?=nil) {
+        guard messageFocusAvailable,!confirmingQuit else { return }
+        if let receipt, !acceptsFocusIntent(receipt) {return}
+        supersedeFocusIntent();messageFocusRequest += 1
     }
     func invalidateMessageFocus() {
-        cancelHistoryIssueUpdate();cancelFileMetadataRead()
+        supersedeFocusIntent();cancelHistoryIssueUpdate();cancelFileMetadataRead()
         retireFormReceipts();metadataEpoch=UUID()
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
@@ -2603,6 +2638,7 @@ import TurtleGitCore
     }
     var querySignOff:((OperationCancellation) async throws -> String)?
     func addSignOff() {
+        let focus=focusIntent
         runFileOperation("Reading signing identity…",operation:{ [self] token,_ in
             let trailer:String
             do {
@@ -2614,7 +2650,7 @@ import TurtleGitCore
             }
             guard isFileOperationLive(token) else {return}
             message=IssueTrackerProperties.addingSignOff(trailer,to:message)
-        },completed:{ [weak self] in self?.requestMessageFocus() })
+        },completed:{ [weak self] in self?.requestMessageFocus(ifCurrent:focus) })
     }
     func compare(paths selected: some Sequence<String>) { let selected = GitPathSet(selected);
         guard fileListAvailable else { return }
@@ -3096,6 +3132,11 @@ struct CommitFileSort: SortComparator {
 struct CommitNewBranchField: NSViewRepresentable {
     @Binding var name: String
     var acceptsChanges:()->Bool={true}
+    var focusAllowed:()->Bool={true}
+    var fieldIdentifier="Commit new branch"
+    var fieldLabel="New branch name"
+    var automaticFocus=true
+    var onSubmit:()->Void={}
     @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     func makeCoordinator() -> Coordinator { Coordinator(name: $name) }
     func makeNSView(context: Context) -> Field {
@@ -3104,9 +3145,10 @@ struct CommitNewBranchField: NSViewRepresentable {
         field.bezelStyle = .squareBezel
         field.drawsBackground = true
         field.font = .systemFont(ofSize: NSFont.systemFontSize)
-        field.placeholderString = "New branch name"
-        field.setAccessibilityLabel("New branch name")
-        field.identifier = .init("Commit new branch")
+        field.placeholderString = fieldLabel
+        field.setAccessibilityLabel(fieldLabel)
+        field.identifier = .init(fieldIdentifier)
+        field.focusPending=automaticFocus;field.focusAllowed=focusAllowed
         field.usesSingleLineMode=true;field.lineBreakMode = .byTruncatingMiddle
         field.cell?.isScrollable=true;field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
         field.setContentHuggingPriority(.defaultLow,for:.horizontal)
@@ -3118,6 +3160,8 @@ struct CommitNewBranchField: NSViewRepresentable {
         guard !field.retired else{field.isEnabled=false;return}
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.name = $name
+        context.coordinator.onSubmit=onSubmit
+        field.setAccessibilityLabel(fieldLabel)
         field.acceptsChanges=acceptsChanges
         if !field.stringValue.utf8.elementsEqual(name.utf8) { field.stringValue = name }
         field.isEnabled = context.environment.isEnabled
@@ -3132,8 +3176,10 @@ struct CommitNewBranchField: NSViewRepresentable {
     @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
         let wordCommands=GitInputWordCommands()
         var retired=false
+        var onSubmit:()->Void={}
         func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
             guard !retired,let field=control as? Field,field.hasOriginalOwner,field.acceptsChanges() else{return false}
+            if field.identifier?.rawValue=="Commit issue",commandSelector == #selector(NSResponder.insertNewline(_:)) {onSubmit();return true}
             return wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
         }
         var name: Binding<String>
@@ -3145,12 +3191,13 @@ struct CommitNewBranchField: NSViewRepresentable {
     }
     final class Field: CommitOwnedTextField {
         var focusPending = true
+        var focusAllowed:()->Bool={true}
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard let owner = window, focusPending else { return }
             DispatchQueue.main.async { [weak self, weak owner] in
                 guard let self, let owner, self.window === owner,
-                      self.focusPending,self.hasOriginalOwner,self.acceptsChanges(),self.isEditable,self.isEnabled,owner.attachedSheet == nil else { return }
+                      self.focusPending,self.focusAllowed(),self.hasOriginalOwner,self.acceptsChanges(),self.isEditable,self.isEnabled,owner.isVisible,!owner.isMiniaturized,NSApp.modalWindow==nil,owner.attachedSheet == nil else { return }
                 self.focusPending = false
                 if owner.makeFirstResponder(self), let editor = self.currentEditor() {
                     editor.selectedRange = NSRange(location: 0, length: self.stringValue.utf16.count)
@@ -3231,10 +3278,10 @@ struct CommitDialog: View {
     }
     @StateObject private var dropTargets = CommitFileDropTargets()
     @State private var dividerStart: Double?
-    @FocusState private var issueFieldFocused: Bool
+    @State private var initialFocusIntent:UUID?
     @State private var initialIssueFocusApplied = false
     var body: some View {
-        let receipt=model.formReceipt
+        let receipt=model.formReceipt,branchFocus=model.branchFocusIntent
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Spacer(minLength: 0)
@@ -3249,7 +3296,7 @@ struct CommitDialog: View {
                 CommitDestinationLayout {
                     HStack(spacing:8) {
                         Text("Commit to:").fixedSize()
-                        if model.createBranch { CommitNewBranchField(name:$model.newBranch,acceptsChanges:{model.acceptsFormReceipt(receipt) && model.nativeNewBranchInputAvailable}).frame(width:250) }
+                        if model.createBranch { CommitNewBranchField(name:$model.newBranch,acceptsChanges:{model.acceptsFormReceipt(receipt) && model.nativeNewBranchInputAvailable},focusAllowed:{model.acceptsFocusIntent(branchFocus)}).frame(width:250) }
                         else { CommitDestinationLabel(branch:model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).frame(minWidth:30,idealWidth:100,maxWidth:250) }
                         Toggle("new branch",isOn:formBinding(.newBranch,\.createBranch)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.newBranch))
                     }
@@ -3260,7 +3307,7 @@ struct CommitDialog: View {
                         }
                         if model.issueProperties.showsIssueField {
                             Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
-                            TextField("",text:Binding(get:{model.issueID},set:{if model.acceptsFormReceipt(receipt){model.issueID=$0}})).textFieldStyle(.roundedBorder).frame(width:140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused).onSubmit {issueFieldFocused=false;model.focusMessage()}
+                            CommitNewBranchField(name:Binding(get:{model.issueID},set:{if model.acceptsFormReceipt(receipt){model.issueID=$0}}),acceptsChanges:{model.acceptsFormReceipt(receipt) && !model.inputsBlocked},fieldIdentifier:"Commit issue",fieldLabel:model.issueProperties.label,automaticFocus:false,onSubmit:{model.focusMessage()}).frame(width:140)
                         }
                         if model.busy { ProgressView().controlSize(.small) }
                     }
@@ -3311,14 +3358,14 @@ struct CommitDialog: View {
                 Button("Help") { TurtleGitHelp.show(.commit) }.disabled(model.inputsBlocked)
             }
         }.padding(12)
-        .onAppear { model.formattingEnabled = styleCommitMessages }
+        .onAppear { model.formattingEnabled = styleCommitMessages;if initialFocusIntent==nil{initialFocusIntent=model.focusIntent} }
         .onChange(of: styleCommitMessages) { model.formattingEnabled = $0 }
         .onChange(of: model.busy) { loading in
             if !loading, model.issueProperties.showsIssueField, !initialIssueFocusApplied {
-                initialIssueFocusApplied = true; issueFieldFocused = true
+                initialIssueFocusApplied = true
+                if let initialFocusIntent,model.acceptsFocusIntent(initialFocusIntent){model.focusIssueField()}
             }
         }
-        .onChange(of:model.issueFocusRequest){_ in if model.messageFocusAvailable,!model.inputsBlocked,model.issueProperties.showsIssueField{issueFieldFocused=true}}
         .onChange(of: model.amendDiffToLastCommit) { _ in model.formOptionViewChanged(.amendComparison) }
         .onChange(of: model.setAuthor) { _ in model.formOptionViewChanged(.author) }
         .onChange(of: model.setAuthorDate) { _ in model.formOptionViewChanged(.authorDate) }

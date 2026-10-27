@@ -213,6 +213,105 @@ enum PrimaryCommitOptionsVerification {
         delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:currentBranch))
         try require(model.newBranch==previous,"Retired branch delegate changed closed owner")
     }
+    /// Flush already admitted main-queue focus deliveries without changing
+    /// native undo event grouping or posting desktop input.
+    @MainActor static func focusDeliveryTurn()async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {continuation.resume()}
+        }
+    }
+    @MainActor static func focusIntents(_ context:Context)async throws {
+        let owner=try await context.owner(),model=owner.model
+        defer {owner.close()}
+        model.message="Private focus intent draft 雪"
+        try await command(context,owner,"author")
+        try await wait(owner.window,"Focus-intent author metadata did not settle"){
+            model.setAuthor && !model.loadingAuthorIdentity && field(owner,"Commit author")?.isEditable==true
+        }
+        guard let window=owner.window,let author=field(owner,"Commit author"),
+              let message=owner.messageEditor(),let files=owner.fileTable() else {
+            throw Failure(description:"Actual focus-intent native controls missing")
+        }
+        // This coordinator executes the same production delivery code against
+        // the actual installed editor, allowing its queued work to be admitted
+        // before the next explicit target without timing a SwiftUI update.
+        let coordinator=CommitMessageEditor.Coordinator(model)
+        defer {coordinator.invalidate()}
+
+        window.makeFirstResponder(nil);author.isEditable=false
+        try require(owner.focusFormField("Commit author") && owner.formFocusPending,
+                    "Deferred author focus intent was not admitted")
+        let authorIntent=model.focusIntent
+        try require(model.acceptsFocusIntent(authorIntent),"New author focus receipt was not current")
+        model.focusMessage()
+        let messageIntent=model.focusIntent
+        try require(messageIntent != authorIntent && !model.acceptsFocusIntent(authorIntent),
+                    "Explicit message focus did not supersede the deferred author receipt")
+        coordinator.updateFocus(message);author.isEditable=true
+        try await wait(window,"Explicit message focus did not replace deferred author focus"){
+            !owner.formFocusPending && window.firstResponder === message
+        }
+        await focusDeliveryTurn()
+        try require(window.firstResponder === message && author.currentEditor()==nil,
+                    "Retired author intent stole explicit message focus")
+
+        window.makeFirstResponder(nil)
+        model.focusMessage();let queuedMessage=model.focusIntent
+        coordinator.updateFocus(message)
+        try require(owner.focusFormField("Commit author"),"Author target did not supersede queued message delivery")
+        try require(!model.acceptsFocusIntent(queuedMessage),"Queued message receipt remained current after explicit author focus")
+        try await wait(window,"Explicit author focus lost to an older message delivery"){
+            !owner.formFocusPending && author.currentEditor()?.selectedRange==NSRange(location:0,length:model.author.utf16.count)
+        }
+        await focusDeliveryTurn()
+        try require(author.currentEditor() != nil && window.firstResponder !== message,
+                    "Queued message callback stole the newer author target")
+
+        window.makeFirstResponder(nil)
+        model.focusMessage();let queuedBeforeFiles=model.focusIntent
+        coordinator.updateFocus(message)
+        try require(owner.focusFileList(),"Actual file-list focus target was unavailable")
+        try require(!model.acceptsFocusIntent(queuedBeforeFiles),"File-list target retained the old message receipt")
+        await focusDeliveryTurn();await focusDeliveryTurn()
+        try require(window.firstResponder === files,
+                    "Queued message delivery stole explicit native file-list focus")
+
+        // Retiring a coordinator must leave its already queued callback inert
+        // even while the same editor/window remains valid for another target.
+        window.makeFirstResponder(nil)
+        model.focusMessage();coordinator.updateFocus(message);coordinator.invalidate()
+        try require(owner.focusFormField("Commit author"),"Retired-coordinator target did not admit author focus")
+        try await wait(window,"Retired coordinator displaced the current author target"){
+            !owner.formFocusPending && author.currentEditor() != nil
+        }
+        await focusDeliveryTurn()
+        try require(window.firstResponder !== message && author.currentEditor() != nil,
+                    "Invalidated message coordinator revived queued focus")
+        // An owned sheet temporarily receives key status without representing
+        // a different focus target in the parent. An external resignation does.
+        let sheetIntent=model.supersedeFocusIntent()
+        do {
+            let sheet=NSWindow(contentRect:NSRect(x:-18000,y:-18000,width:240,height:100),
+                               styleMask:[.titled],backing:.buffered,defer:true)
+            sheet.isReleasedWhenClosed=false;sheet.alphaValue=0
+            defer {
+                if sheet.sheetParent != nil || window.attachedSheet === sheet {window.endSheet(sheet)}
+                sheet.orderOut(nil);sheet.close()
+            }
+            window.beginSheet(sheet,completionHandler:nil)
+            try require(window.attachedSheet === sheet,"Private owned sheet did not attach")
+            owner.windowDidResignKey(Notification(name:NSWindow.didResignKeyNotification,object:window))
+            try require(model.acceptsFocusIntent(sheetIntent),
+                        "Owned sheet key transfer revoked its parent's return-focus receipt")
+        }
+        try await wait(window,"Private focus sheet did not retire"){window.attachedSheet==nil}
+        owner.windowDidResignKey(Notification(name:NSWindow.didResignKeyNotification,object:window))
+        try require(!model.acceptsFocusIntent(sheetIntent),
+                    "External key resignation retained an old parent focus receipt")
+        let retiredIntent=model.focusIntent
+        owner.close()
+        try require(!model.acceptsFocusIntent(retiredIntent),"Closed Commit owner retained a usable focus receipt")
+    }
     @MainActor static func metadata(_ context:Context)async throws {
         let owner=try await context.owner(),model=owner.model,repository=context.repository
         model.author="Retained author draft"
@@ -288,10 +387,10 @@ enum PrimaryCommitOptionsVerification {
         let beforeHead=try await repository.run(["rev-parse","HEAD"]).stdout,beforeIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),beforeFile=try Data(contentsOf:file)
         let context=Context(repository:repository)
         do {
-            try await options(context);try await metadata(context);try await context.clean()
+            try await options(context);try await focusIntents(context);try await metadata(context);try await context.clean()
             let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterFile=try Data(contentsOf:file)
             try require(afterHead==beforeHead && afterIndex==beforeIndex && afterFile==beforeFile,"Read-only Commit form interactions changed Git or working bytes")
-            print("PASS: Commit source option/focus commands, native owner receipts/minimum geometry and held metadata Quit success/error/cancel/retry")
+            print("PASS: Commit source option/focus commands, superseding native focus intents, native owner receipts/minimum geometry and held metadata Quit success/error/cancel/retry")
         }catch{try? await context.clean();throw error}
     }
 }

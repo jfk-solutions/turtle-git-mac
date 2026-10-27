@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "a0337ec5edd7f412f7ab3a42e28826d287f3daa6",
+  "status": "grouped-native-commit-focus-intents-passed-after-source-review-repairs",
+  "scope": [
+    "Shared focus intent across explicit message/issue/form/files targets and branch insertion",
+    "Actual input, unrelated window resignation, Quit, replay/combine seed, ReCommit session and close supersede prior queued authority",
+    "Message coordinator captures exact model, editor session, request, window and original field-editor control",
+    "Native issue input and current date/time picker readiness",
+    "Async Amend, sign-off, issue provider, message/hash pickers and history publish authorized data without overriding newer focus",
+    "Owned sheets retain their return-focus intent; unrelated resignation cancels it"
+  ],
+  "validation": {
+    "initial_debug": {
+      "exit_code": 0,
+      "log": "build/qa/commit-focus-intents-debug-2026-10-27.log",
+      "generic_exit_zero_diagnostics": 4
+    },
+    "initial_native": {
+      "exit_code": 0,
+      "primary_case_engine_pairs": 2,
+      "amend_case_engine_pairs": 2,
+      "receivers_reaped_and_independently_absent": [
+        2342,
+        2663,
+        2970,
+        3209
+      ],
+      "logs": [
+        "build/qa/commit-focus-intents-primary-2026-10-27.log",
+        "build/qa/commit-focus-intents-amend-2026-10-27.log"
+      ]
+    },
+    "review_repair": "Owned-sheet resignation and picker/history callbacks were found by source review after initial checks; the initial pass does not certify those subsequent repairs.",
+    "core": "No Core production changed; no Core suite rerun.",
+    "spatial": "Shared Debug helper includes separate uncommitted spatial work; no spatial numerical/application acceptance.",
+    "final_debug": {
+      "exit_code": 0,
+      "log": "build/qa/commit-focus-intents-repair-debug-2026-10-27.log",
+      "generic_exit_zero_diagnostics": 4
+    },
+    "fixture_compile_repair": {
+      "log": "build/qa/commit-focus-intents-repair-primary-2026-10-27.log",
+      "exit_code": 1,
+      "diagnostic": "beginSheet(sheet) selected async overload in async fixture; use explicit completionHandler:nil. No receiver launched for failed compilation; no app source changed or rebuild needed."
+    },
+    "final_native": {
+      "exit_code": 0,
+      "passed_case_engine_pairs": 6,
+      "cases": [
+        "primary Commit options/focus/metadata/owned-sheet intent",
+        "Amend/signoff and picker/history focus supersession/editor retirement",
+        "Recent Messages owned workflow and issue extraction"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "logs": [
+        "build/qa/commit-focus-intents-final-primary-2026-10-27.log",
+        "build/qa/commit-focus-intents-final-amend-2026-10-27.log",
+        "build/qa/commit-focus-intents-final-history-2026-10-27.log"
+      ],
+      "receivers_reaped_and_independently_absent": [
+        3855,
+        4150,
+        4449,
+        4722,
+        5004,
+        5062
+      ],
+      "presentation": "Private fixtures/preferences; alpha0/offscreen or hidden windows, .prohibited activation, no physical acceptance screenshots."
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1324,
+      "mode": "check",
+      "log": "build/qa/commit-focus-intents-final-localizations-check-2026-10-27.log"
+    },
+    "help": "No guide included by docs/help-topics.json changed; no help-book rebuild required.",
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574,
+      "statuses": {
+        "pending-review": 10,
+        "partial-native-replacement": 89,
+        "partial": 24,
+        "native-partial": 1,
+        "partial-workflow-replacement": 3,
+        "partial-native": 3
+      }
+    }
+  },
+  "inputs": [
+    {
+      "path": "Sources/TurtleGitMac/CommitWindow.swift",
+      "sha256": "85dc44b3e5102d0e4f0ed462c976a0c79e6b3eb3654faa51e4d4bc36ab20ce89"
+    },
+    {
+      "path": "Sources/TurtleGitMac/CommitMessageEditor.swift",
+      "sha256": "d5844bf98a7419328b8b89c565ffda461314154e32e8af2fad04c4e302e4bf6c"
+    },
+    {
+      "path": "docs/qa/primary-commit-options-native-2026-10-21.swift",
+      "sha256": "bc0f8938a718329f97974d8d5ed877e9f1c4b347040053611fed5979d31e42ed"
+    },
+    {
+      "path": "docs/qa/commit-amend-focus-native-2026-10-09.swift",
+      "sha256": "efedd8d4bc8bd3db26b447f9c24b4045d5e5cc81d0709fe65e801124ae781915"
+    }
+  ],
+  "hosted_snapshot": {
+    "macos": {
+      "run": 40526923112,
+      "source": "a0337ec5",
+      "status": "pending"
+    },
+    "pages": {
+      "run": 40526923124,
+      "source": "a0337ec5",
+      "conclusion": "success"
+    }
+  },
+  "limits": [
+    "Full port remains incomplete",
+    "No physical keyboard/VoiceOver or signed deployment acceptance",
+    "No hosted SDK success for this follow-up",
+    "No App Store upload/submission"
+  ],
+  "logs": [
+    {
+      "path": "build/qa/commit-focus-intents-amend-2026-10-27.log",
+      "sha256": "76b9c329807b04825415dbf8a603bd610c1af84cd2ecaf1e67b026b7476c7707"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-coverage-2026-10-27.log",
+      "sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-debug-2026-10-27.log",
+      "sha256": "679f495a6a72027d99847a8328ceda2a7207b5a19dc550686e4a737dc732b734"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-final-amend-2026-10-27.log",
+      "sha256": "f928cf358702cabaca657c1dbbab36de5b8ae8bb29dbf8b31f0d7f5f74ce28a4"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-final-history-2026-10-27.log",
+      "sha256": "9b3424b72b83332a027b372fde4824abc1e98b7702b7159f5a71503a6044fda8"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-final-localizations-check-2026-10-27.log",
+      "sha256": "cfdb317fa49fc6462160f31ffaeae65d33f1ab53a197ef37afb8120bcc97e5a0"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-final-primary-2026-10-27.log",
+      "sha256": "07d9aabda398bb44e048375ab37ceadc9b46211cf5ae472f6a76c2afce2eb7a0"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-localizations-2026-10-27.log",
+      "sha256": "660b7604d374300a81c5b9233c72fe6400613ccda8c8c828810c5cac9889a2a2"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-localizations-check-2026-10-27.log",
+      "sha256": "cfdb317fa49fc6462160f31ffaeae65d33f1ab53a197ef37afb8120bcc97e5a0"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-primary-2026-10-27.log",
+      "sha256": "49adcaab3cce022c6e0fc597f25ef9bce66fcfbce299aacc3d4e8ded6ff58224"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-repair-coverage-2026-10-27.log",
+      "sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-repair-debug-2026-10-27.log",
+      "sha256": "f1243baf7f287fc90fe68462143fb4d92b8e9096504e23cd9a3502a1e66a8bd6"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-repair-localizations-2026-10-27.log",
+      "sha256": "660b7604d374300a81c5b9233c72fe6400613ccda8c8c828810c5cac9889a2a2"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-repair-primary-2026-10-27.log",
+      "sha256": "92a2cbc05bcc612aed52ef1133f44c9e8c1c89f5b1021cdaaeb814625cc9fe3e"
+    },
+    {
+      "path": "build/qa/commit-focus-intents-final-coverage-2026-10-27.log",
+      "sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    }
+  ]
+}

@@ -60,7 +60,49 @@ all owned receivers reaped. It retains the earlier bundled failure. No Core
 production changed, so the full Core suite was not rerun. The older checkpoint
 above does not certify this change or resolve hosted acceptance.
 
-Source review also identifies a separate focus-provider boundary: an older
-queued automatic message-focus request can compete with a later explicit form
-command. Message/issue/field/file-list intent priority remains to be unified;
-this checkpoint does not certify that overlapping-provider behavior.
+At that checkpoint, source review identified a separate focus-provider boundary:
+an older queued automatic message-focus request could compete with a later
+explicit form command. Message/issue/field/file-list intent priority was still
+separate; that checkpoint does not certify the follow-up below.
+
+
+## Shared focus ownership — October 27 follow-up
+
+Message, issue, branch insertion, form commands and file-list commands now share
+one model-owned focus intent, separate from metadata/form edit authority. An
+explicit target or actual mouse/key event supersedes older queued focus. Leaving
+the owner for an unrelated window, Quit, close, replay/combine seeding and ReCommit
+editor-session replacement also revoke
+old intent. Native focus never activates another window.
+
+The message coordinator captures its admitted model, editor session, request,
+window and intent before queuing. It also retains the original editing-control
+identity when AppKit reuses a field editor. A stale callback cannot act using a
+newer model/request. A sheet/readiness retry retains the same current intent. Transferring key status
+to an attached owned sheet preserves that receipt; leaving for an unrelated
+window revokes it.
+Message/hash pickers and recent-message callbacks also retain their original
+model, window, editor session and focus intent. They may insert accepted content
+into that presentation without stealing a newer focus target; retired or replaced
+editors refuse the callback.
+Amend, issue-provider and sign-off operations capture intent before their async
+read; successful data delivery still occurs under the existing operation guards,
+but returning focus requires that no newer user intent has intervened.
+
+The issue box is an owned native single-line field with the project's caption,
+Git word navigation and Enter-to-message behavior. It uses the same bounded
+controller readiness path as branch/author fields instead of a separate SwiftUI
+FocusState queue. Initial issue focus is conditional on unchanged initial intent.
+Branch insertion captures its creation intent, so delayed attachment cannot
+supersede a subsequent command. Date/time focus additionally waits for the actual
+picker value to match the current model, using the same day/time conversion as
+the picker update.
+
+The [shared-intent checkpoint](qa/commit-focus-intents-2026-10-27.json) records
+the Debug build and all six final case/engine pairs passing: Commit options and
+metadata, Amend/sign-off/picker focus, and the retained Recent Messages workflow
+with system and bundled Git. All ten receivers attempted across the initial and
+final groups were reaped and independently confirmed absent. The record retains
+the intervening fixture compile failure and source-review repairs. Earlier
+successful checkpoints above do not certify these changes. Physical keyboard,
+VoiceOver, hosted SDK and signed-deployment acceptance remain separate work.

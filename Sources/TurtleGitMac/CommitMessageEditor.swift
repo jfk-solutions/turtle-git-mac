@@ -90,26 +90,46 @@ struct CommitMessageEditor: NSViewRepresentable {
                 }
             }
             guard !focusQueued else { return }; focusQueued = true
-            // Focus only after the representable update and asynchronous Git
-            // defaults/refresh finish. Use the latest request, once per toggle.
-            DispatchQueue.main.async { [weak self, weak editor] in
+            let admittedModel=model,request=model.messageFocusRequest,intent=model.focusIntent,session=model.messageEditorSession
+            let initialResponder=owner.firstResponder
+            func editingControl(_ view:NSView)->NSControl? {
+                if let control=view as? NSControl,control.currentEditor() === initialResponder{return control}
+                return view.subviews.compactMap{editingControl($0)}.first
+            }
+            let initialControl=owner.contentView.flatMap{editingControl($0)}
+            let startedInFieldEditor=(initialResponder as? NSTextView)?.isFieldEditor==true
+            // A queued update belongs to one request, model, editor session and
+            // window. A later explicit target must never inherit its authority.
+            DispatchQueue.main.async { [weak self, weak editor, weak owner, weak initialResponder, weak initialControl] in
                 guard let self else { return }; self.focusQueued = false
-                guard let editor, !self.invalidated, self.model.messageFocusAvailable,
-                      self.model.messageFocusRequest > 0,
-                      self.model.messageFocusRequest != self.model.appliedMessageFocusRequest,
-                      (editor as? CommitMessageTextView)?.model === self.model,
-                      let owner = editor.window, owner.attachedSheet == nil,
-                      editor.isEditable, !self.model.busy, !self.model.confirmingQuit,
-                      self.model.error == nil,
-                      !self.model.loadingAuthorIdentity, !self.model.loadingAuthorDate,
-                      !self.model.loadingAmendMessage else { return }
-                let request = self.model.messageFocusRequest
+                guard let editor,!self.invalidated else{return}
+                guard self.model === admittedModel,(editor as? CommitMessageTextView)?.model === admittedModel,
+                      admittedModel.messageEditorSession==session else {
+                    if (editor as? CommitMessageTextView)?.model === self.model {self.updateFocus(editor)}
+                    return
+                }
+                guard admittedModel.acceptsFocusIntent(intent),admittedModel.messageFocusRequest==request else {
+                    self.updateFocus(editor);return
+                }
+                guard request != admittedModel.appliedMessageFocusRequest,
+                      let owner,editor.window === owner,owner.isVisible,!owner.isMiniaturized,
+                      NSApp.modalWindow==nil,owner.attachedSheet == nil,
+                      editor.isEditable,!admittedModel.busy,!admittedModel.confirmingQuit,
+                      admittedModel.error == nil,
+                      !admittedModel.loadingAuthorIdentity,!admittedModel.loadingAuthorDate,
+                      !admittedModel.loadingAmendMessage else { return }
+                let responder=owner.firstResponder
+                let sameOrigin=responder === initialResponder && (!startedInFieldEditor || (initialControl?.window === owner && initialControl?.currentEditor() === responder))
+                guard sameOrigin || responder === owner || responder === editor else {
+                    admittedModel.acknowledgeMessageFocus(request);self.stopObservingSheet();return
+                }
                 if owner.makeFirstResponder(editor) {
-                    self.model.acknowledgeMessageFocus(request)
+                    admittedModel.acknowledgeMessageFocus(request)
                     self.stopObservingSheet()
                 }
             }
         }
+
         func textDidChange(_ notification: Notification) {
             if let editor = notification.object as? CommitMessageTextView, editor.messageLayoutAvailable { model.message = editor.string; updatePosition(editor) }
         }
@@ -230,15 +250,18 @@ final class CommitMessageTextView: ProjectMessageTextView {
         return menu
     }
     private func pick(_ message: Bool) {
-        model?.pickRevision(message) { [weak self] text in
-            guard let self else { return }
+        guard let model,let owner=window,model.messageFocusAvailable,!model.inputsBlocked else{return}
+        let intent=model.supersedeFocusIntent(),session=model.messageEditorSession
+        model.pickRevision(message) { [weak self,weak model,weak owner] text in
+            guard let self,let model,let owner,self.model === model,self.window === owner,
+                  model.messageFocusAvailable,!model.confirmingQuit,model.messageEditorSession==session else { return }
             self.insertText(text, replacementRange: self.selectedRange())
-            self.window?.makeFirstResponder(self)
+            model.requestMessageFocus(ifCurrent:intent)
         }
     }
     func performCommitMenuCommand(_ command:CommitCommandMenu.Command) {
         guard let model,model.messageFocusAvailable,!model.inputsBlocked,window?.attachedSheet==nil else {return}
-        window?.makeFirstResponder(self)
+        model.supersedeFocusIntent();window?.makeFirstResponder(self)
         switch command {
         case .history:recentMessages()
         case .hash:pick(false)
@@ -254,15 +277,18 @@ final class CommitMessageTextView: ProjectMessageTextView {
         if let text = model?.messageHistory?.entries.first { insertText(text, replacementRange: selectedRange()) }
     }
     @objc private func recentMessages() {
-        model?.showMessageHistory { [weak self] message in
-            guard let self, let model = self.model else { return }
+        guard let model,let owner=window,model.messageFocusAvailable,!model.inputsBlocked else{return}
+        let intent=model.supersedeFocusIntent(),session=model.messageEditorSession
+        model.showMessageHistory { [weak self,weak model,weak owner] message in
+            guard let self,let model,let owner,self.model === model,self.window === owner,
+                  model.messageFocusAvailable,!model.confirmingQuit,model.messageEditorSession==session else { return }
             if !self.string.utf16.starts(with: message.utf16) {
                 if GitReferenceName.equal(self.string,model.messageTemplate) {
                     self.insertText(message, replacementRange: NSRange(location: 0, length: (self.string as NSString).length))
                 } else { self.insertText(message + (self.string.isEmpty ? "" : "\n"), replacementRange: self.selectedRange()) }
                 model.updateIssueFromHistory(message, insertedInto: self.string)
             }
-            self.window?.makeFirstResponder(self)
+            model.requestMessageFocus(ifCurrent:intent)
         }
     }
 }
