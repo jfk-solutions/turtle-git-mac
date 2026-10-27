@@ -109,6 +109,167 @@ private func classicOpaqueCompressedImage(_ image:CGImage)throws->CGImage {
         else {throw ConversionError.invalid("Cannot preserve classic compressed RGB")}
     return result
 }
+/// Pointwise EMF+ effects operate on straight color samples before image
+/// placement, clipping and compositing. The source PNG and image-table object
+/// remain immutable; each conversion owns its aggregate work budget.
+private final class NativeImageEffects {
+    private var calls = 0
+    private var pixelsProcessed = 0
+    private func invalid(_ message:String)->ConversionError { .invalid("Metafile image effect: "+message) }
+    private func numbers(_ object:JSValue,_ key:String,count:Int)throws->[Double] {
+        guard let values=object.forProperty(key),values.isArray,
+              values.forProperty("length")?.toDouble()==Double(count) else {throw invalid("invalid "+key+" length")}
+        return try (0..<count).map { index in
+            guard let value=values.atIndex(index),value.isNumber else {throw invalid("invalid "+key+" value")}
+            let number=value.toDouble()
+            guard number.isFinite else {throw invalid("nonfinite "+key+" value")}
+            return number
+        }
+    }
+    private func table(_ object:JSValue,_ key:String)throws->[UInt8] {
+        try numbers(object,key,count:256).map { value in
+            guard value>=0,value<=255,value.rounded()==value else {throw invalid("invalid "+key+" byte")}
+            return UInt8(value)
+        }
+    }
+    private func integer(_ object:JSValue,_ key:String,range:ClosedRange<Int>)throws->Int {
+        guard let value=object.forProperty(key),value.isNumber else {throw invalid("missing "+key)}
+        let number=value.toDouble()
+        guard number.isFinite,number.rounded()==number,number>=Double(range.lowerBound),number<=Double(range.upperBound) else {throw invalid("invalid "+key)}
+        return Int(number)
+    }
+    /// Native Windows' RGB lookup tables agree with this normalized Float32
+    /// model within one byte in the recorded parameter grid. Preserve the
+    /// operation order and nearest-even rounding; alpha is independent.
+    private func brightnessTable(_ brightness:Int,_ contrast:Int)->[UInt8] {
+        if brightness == -255 {return [UInt8](repeating:0,count:256)}
+        if brightness == 255 {return [UInt8](repeating:255,count:256)}
+        if contrast == 100 {
+            return (0..<256).map { input in
+                let threshold=2*input+brightness
+                return threshold<255 ? 0:threshold>255 ? 255:128
+            }
+        }
+        let slope:Float=contrast>0 ? 100/Float(100-contrast):Float(100+contrast)/100
+        let normalizedBrightness=Float(brightness)/255
+        let midpoint=(1-slope)/2,brightnessScale=(slope+1)/2
+        let offset=midpoint+normalizedBrightness*brightnessScale
+        return (0..<256).map { input in
+            let scaled=(Float(input)/255)*slope
+            let shifted=scaled+offset
+            let pixel=shifted*255
+            return UInt8(max(0,min(255,pixel.rounded(.toNearestOrEven))))
+        }
+    }
+    /// Metafile DrawImage effects receive GDI+'s premultiplied source conversion,
+    /// unlike Bitmap.ApplyEffect on its original straight-channel storage. Make
+    /// that round-trip explicit before a lookup can amplify low-alpha rounding.
+    /// Other ImageIO layouts use bounded native RGBA conversion without scaling.
+    private func straightPixels(_ image:CGImage)throws->(bytes:Data,space:CGColorSpace) {
+        let width=image.width,height=image.height
+        var result=Data(count:width*height*4)
+        let alpha=image.alphaInfo
+        let model=image.colorSpace?.model
+        let channels=model == .rgb ? 3:0
+        let hasAlpha=[CGImageAlphaInfo.first,.last,.premultipliedFirst,.premultipliedLast].contains(alpha)
+        let hasSlot=hasAlpha || alpha == .noneSkipFirst || alpha == .noneSkipLast
+        let step=channels+(hasSlot ? 1:0)
+        if channels>0,image.bitsPerComponent==8,image.bitsPerPixel==step*8,
+           image.bytesPerRow>=width*step,image.bytesPerRow<=inputLimit/height,
+           let stored=image.dataProvider?.data,CFDataGetLength(stored)>=image.bytesPerRow*height {
+            let bytes=CFDataGetBytePtr(stored)!
+            let first=[CGImageAlphaInfo.first,.premultipliedFirst,.noneSkipFirst].contains(alpha)
+            let premultiplied=alpha == .premultipliedFirst || alpha == .premultipliedLast
+            let order=image.bitmapInfo.intersection(.byteOrderMask)
+            let reversed=step==4 && order == .byteOrder32Little || step==2 && order == .byteOrder16Little
+            for y in 0..<height {for x in 0..<width {
+                let input=y*image.bytesPerRow+x*step,output=(y*width+x)*4
+                func sample(_ channel:Int)->Int {Int(bytes[input+(reversed ? step-1-channel:channel)])}
+                let a=hasAlpha ? sample(first ? 0:step-1):255
+                for channel in 0..<3 {
+                    let value=sample((first && hasSlot ? 1:0)+(channels==1 ? 0:channel))
+                    let associated=premultiplied ? value:(value*a+127)/255
+                    result[output+channel]=UInt8(a==0 ? 0:min(255,associated*255/a))
+                }
+                result[output+3]=UInt8(a)
+            }}
+            return (result,image.colorSpace!)
+        }
+        guard let outputSpace=CGColorSpace(name:CGColorSpace.sRGB) else {throw invalid("cannot prepare output color space")}
+        let prepared=result.withUnsafeMutableBytes { bytes->Bool in
+            guard let canvas=CGContext(data:bytes.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,
+                    space:outputSpace,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else {return false}
+            canvas.setBlendMode(.copy);canvas.interpolationQuality = .none
+            canvas.draw(image,in:CGRect(x:0,y:0,width:width,height:height));return true
+        }
+        guard prepared else {throw invalid("cannot decode source pixels")}
+        for offset in stride(from:0,to:result.count,by:4) {
+            let a=Int(result[offset+3])
+            for channel in 0..<3 {result[offset+channel]=UInt8(a==0 ? 0:min(255,Int(result[offset+channel])*255/a))}
+        }
+        return (result,outputSpace)
+    }
+    func apply(_ href:String,effect:JSValue)throws->String {
+        let prefix="data:image/png;base64,"
+        guard effect.isObject,!effect.isArray,let kind=effect.forProperty("kind"),kind.isString,
+              href.hasPrefix(prefix),href.utf8.count<=outputLimit,
+              let encoded=Data(base64Encoded:String(href.dropFirst(prefix.count))),encoded.count<=inputLimit,
+              encoded.starts(with:[137,80,78,71,13,10,26,10]),
+              let source=CGImageSourceCreateWithData(encoded as CFData,nil),CGImageSourceGetCount(source)==1,
+              let properties=CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],
+              let width=properties[kCGImagePropertyPixelWidth] as? Int,let height=properties[kCGImagePropertyPixelHeight] as? Int,
+              width>0,height>0,width<=32768,height<=32768,width<=16_777_216/height else {throw invalid("invalid source or effect")}
+        let pixels=width*height
+        guard calls<4096,pixels<=67_108_864-pixelsProcessed else {throw invalid("aggregate pixel work budget exceeded")}
+        calls+=1;pixelsProcessed+=pixels
+        let matrix:[Double]?,tables:[[UInt8]]?
+        switch kind.toString() {
+        case "colorMatrix": matrix=try numbers(effect,"matrix",count:25);tables=nil
+        case "colorLookupTable": matrix=nil;tables=try [table(effect,"red"),table(effect,"green"),table(effect,"blue"),table(effect,"alpha")]
+        case "brightnessContrast":
+            let brightness=try integer(effect,"brightness",range:-255...255)
+            let contrast=try integer(effect,"contrast",range:-100...100)
+            let values=brightnessTable(brightness,contrast)
+            matrix=nil;tables=[values,values,values,(0..<256).map{UInt8($0)}]
+        default:throw invalid("unsupported effect kind")
+        }
+        // Use the same lazy source-image policy as classic compressed images.
+        // Effect source normalization is explicit in straightPixels and does
+        // not rely on ImageIO selecting a particular alpha-storage layout.
+        guard let image=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:false] as CFDictionary),
+              CGImageSourceGetStatusAtIndex(source,0) == .statusComplete,image.width==width,image.height==height else {throw invalid("incomplete source PNG")}
+        let decoded=try straightPixels(image)
+        var output=decoded.bytes
+        try output.withUnsafeMutableBytes { storage in
+            let bytes=storage.bindMemory(to:UInt8.self)
+            for offset in stride(from:0,to:bytes.count,by:4) {
+                if let matrix {
+                    let r=Double(bytes[offset])/255,g=Double(bytes[offset+1])/255,
+                        b=Double(bytes[offset+2])/255,a=Double(bytes[offset+3])/255
+                    for channel in 0..<4 {
+                        var value=r*matrix[channel]
+                        value+=g*matrix[5+channel];value+=b*matrix[10+channel]
+                        value+=a*matrix[15+channel];value+=matrix[20+channel]
+                        guard value.isFinite else {throw invalid("matrix result overflow")}
+                        bytes[offset+channel]=UInt8(max(0,min(255,(value*255).rounded())))
+                    }
+                } else if let tables {
+                    for channel in 0..<4 {bytes[offset+channel]=tables[channel][Int(bytes[offset+channel])]}
+                }
+            }
+        }
+        guard let provider=CGDataProvider(data:output as CFData),
+              let result=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,
+                space:decoded.space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.last.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else {throw invalid("cannot prepare result PNG")}
+        let bytes=NSMutableData()
+        guard let destination=CGImageDestinationCreateWithData(bytes,UTType.png.identifier as CFString,1,nil) else {throw invalid("cannot encode result PNG")}
+        CGImageDestinationAddImage(destination,result,nil)
+        // The JS shared budget counts the final base64 href, not PNG bytes.
+        let maximumPNG=(inputLimit-prefix.utf8.count)/4*3
+        guard CGImageDestinationFinalize(destination),bytes.length<=maximumPNG else {throw invalid("result PNG output exceeds limit")}
+        return prefix+(bytes as Data).base64EncodedString()
+    }
+}
 private func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8)); exit(1)
 }
@@ -2112,6 +2273,13 @@ private func run() throws {
         }
         return ["href": "data:image/png;base64," + (output as Data).base64EncodedString(), "width": width, "height": height]
     }
+    let imageEffects=NativeImageEffects()
+    let applyImageEffect:@convention(block)(String,JSValue)->String = {href,effect in
+        do {return try imageEffects.apply(href,effect:effect)}
+        catch ConversionError.invalid(let message) {nativeError(message);return ""}
+        catch {nativeError("Cannot apply metafile image effect");return ""}
+    }
+    context.setObject(applyImageEffect,forKeyedSubscript:"turtleGitApplyImageEffect" as NSString)
     let compressed:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:false)}
     let compressedClassic:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:true)}
     context.setObject(compressed, forKeyedSubscript: "__turtleCompressedImage" as NSString)

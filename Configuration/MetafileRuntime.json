@@ -124,5 +124,15 @@
     ],
     "scope": "Four original file-consumer controls plus four independent fractional-frame probes; not an exhaustive survey of malformed headers or printer devices",
     "third_party_code_copied": false
+  },
+  "image_effects": {
+    "implementation": "Original TurtleGit native pointwise image-effects adaptation",
+    "scope": "EMF+ ColorMatrix, ColorLookupTable and BrightnessContrast serialized bitmap effects before existing image placement/clip/compositing",
+    "semantics": [
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/bbd49011-1527-46be-8fe6-ccceecfd005f",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9bad3867-71b0-46fb-9b90-f7d8fb37ff76"
+    ],
+    "documentation": "docs/METAFILE-IMAGE-EFFECTS-PARITY.md",
+    "precision": "Brightness/contrast Float32 model differs by at most one channel value in the recorded 81-parameter-pair native Windows grid; not a universal exact-pixel claim."
   }
 }

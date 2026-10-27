@@ -113,11 +113,9 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
          const cw = this.canvas.width || 800;
          const ch = this.canvas.height || 600;
 diff --git a/src/turtleGit.js b/src/turtleGit.js
-new file mode 100644
-index 0000000..466f760
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,542 @@
+@@ -0,0 +1,543 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -129,7 +127,7 @@ index 0000000..466f760
 +  function i32(b,o) { return u32(b,o)|0; }
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
 +  let conversion=null;
-+  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
++  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','EffectPixels','EffectBytes','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
 +  function shareBudgets(ctx) {
 +    const counters=conversion.counters;
 +    for(const suffix of sharedCounters){const key='_turtle'+suffix;Object.defineProperty(ctx,key,{get(){return counters[key]||0;},set(value){if(!Number.isFinite(value)||value<0)fail('invalid shared rendering budget');counters[key]=value;}});}
@@ -348,7 +346,8 @@ index 0000000..466f760
 +        if(s.clip){const m=currentMatrix(this),x=f32(data,0),y=f32(data,4);s.clip=mask(this,'<g transform="translate('+(m[0]*x+m[2]*y)+' '+(m[1]*x+m[3]*y)+')">'+masked(s.clip,fullRect(this,'white'))+'</g>');}return;
 +      }
 +      case 0x4013: if(data.length!==4)fail('invalid region fill record');break;
-+      case 0x4037:case 0x4038:case 0x4039:case 0x403A: fail('unsupported EMF+ painting/region record 0x'+type.toString(16));
++      case 0x4038: images.parseEffect.call(this,flags,data);return;
++      case 0x4037:case 0x4039:case 0x403A: fail('unsupported EMF+ painting/region record 0x'+type.toString(16));
 +      case 0x4005:case 0x4006:case 0x4007: fail('unsupported EMF+ alternate-format records');
 +      case 0x4023: if(data.length!==0||(flags&255)>1)fail('invalid EMF+ compositing mode');s.compositing=flags&255;return;
 +      case 0x401F: if(data.length!==0||(flags&255)>5)fail('invalid EMF+ text rendering hint');s.textHint=flags&255;return;
@@ -941,11 +940,59 @@ diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
 diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 --- /dev/null
 +++ b/src/turtleGitImages.js
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,168 @@
 +// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.2.1.5, 2.2.2.21/22/37,
 +// 2.3.4.8/9. No document-derived resource or executable access.
 +module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded}) {
 +  const ep=EmfPlusDrawer.prototype, oldImage=ep._drawImageObj;
++  // Serialized effects belong to this playback owner, not an image table slot.
++  // A child metafile has a distinct drawer; neither source object replacement
++  // nor graphics-state copies can share mutable effect parameters.
++  const effects=new WeakMap();
++  function parseEffect(flags,data) {
++    // MS-EMFPLUS 2.3.5.2: Flags are ignored; GUID fields use packet little-endian
++    // order. All three accepted fixed-size buffers are already DWORD-aligned.
++    if(data.length<20)fail('truncated serialized image effect');
++    const count=u32(data,16);
++    if(count!==data.length-20)fail('invalid serialized image effect buffer length');
++    const guid=Array.from(data.subarray(0,16),byte=>byte.toString(16).padStart(2,'0')).join('');
++    let effect;
++    if(guid==='15268f713379e340a5115f68fe14dd74') {
++      if(count!==100)fail('invalid color matrix effect length');
++      const view=new DataView(data.buffer,data.byteOffset+20,100),values=[];
++      for(let i=0;i<25;i++) {
++        const value=view.getFloat32(i*4,true);
++        if(!Number.isFinite(value))fail('invalid color matrix effect value');
++        values.push(value);
++      }
++      effect={kind:'colorMatrix',matrix:Object.freeze(values)};
++    } else if(guid==='a972cea77f0fd740b3ccd0c02d5c3212') {
++      if(count!==1024)fail('invalid color lookup effect length');
++      const table=offset=>Object.freeze(Array.from(data.subarray(20+offset,276+offset)));
++      effect={kind:'colorLookupTable',blue:table(0),green:table(256),red:table(512),alpha:table(768)};
++    } else if(guid==='e1dba1d3c48e174c9f4cea97ad1c343d') {
++      if(count!==8)fail('invalid brightness/contrast effect length');
++      const brightness=u32(data,20)|0,contrast=u32(data,24)|0;
++      if(brightness < -255 || brightness > 255 || contrast < -100 || contrast > 100)fail('invalid brightness/contrast effect parameters');
++      effect={kind:'brightnessContrast',brightness,contrast};
++    } else fail('unsupported serialized image effect GUID');
++    effects.set(this,Object.freeze(effect));
++  }
++  function effectedImage(drawer,image,effect) {
++    // E with no pending effect is an ordinary draw in Windows file playback.
++    if(!effect)return image;
++    if(image.type!=='imageData')fail('image effects require a bitmap image');
++    const pixels=image.width*image.height,ctx=drawer.ctx;
++    if(!Number.isInteger(image.width)||!Number.isInteger(image.height)||!Number.isSafeInteger(pixels)||image.width<1||image.height<1||image.width>32768||image.height>32768||pixels>16777216)fail('effect image dimensions exceed limit');
++    ctx._turtleEffectPixels=(ctx._turtleEffectPixels||0)+pixels;
++    if(ctx._turtleEffectPixels>67108864)fail('aggregate image effect pixel budget exceeded');
++    if(typeof globalThis.turtleGitApplyImageEffect!=='function')fail('native image effect adapter unavailable');
++    const href=globalThis.turtleGitApplyImageEffect(image.href,effect);
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')||href.length>64*1024*1024)fail('invalid native image effect result');
++    ctx._turtleEffectBytes=(ctx._turtleEffectBytes||0)+href.length;
++    if(ctx._turtleEffectBytes>64*1024*1024)fail('aggregate image effect output budget exceeded');
++    return{...image,href};
++  }
 +  const color=value=>'#'+(value&0xffffff).toString(16).padStart(6,'0');
 +  function short(data,offset) {if(offset<0||offset+2>data.length)fail('truncated image point');return(data[offset]|data[offset+1]<<8)<<16>>16;}
 +  function tail(data,used) {if(data.length<used||data.length-used>3)fail('invalid image record length');}
@@ -971,8 +1018,7 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +  };
 +  ep.processEmfPlusDrawImagePoints=function(flags,data) {
 +    // P=0x0800 is relative, E=0x2000 selects an image effects block; C is
-+    // undefined when P is set. Effects cannot silently become ordinary paint.
-+    if(flags&0x2000)fail('unsupported image effects');
++    // undefined when P is set. Ordinary draws do not invoke the effect adapter.
 +    const p=parameters(this,flags,data);if(u32(data,24)!==3)fail('invalid bitmap destination point count');
 +    let offset=28,points=[];
 +    if(flags&0x0800) {
@@ -988,7 +1034,11 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +      for(let i=0;i<3;i++){points.push({x:read(data,offset),y:read(data,offset+stride)});offset+=stride*2;}
 +    }
 +    tail(data,offset);const[a,b,c]=points;
-+    this._drawImageObj(p.image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs);
++    // Windows consumes one pending block on the next DrawImagePoints even
++    // when E is clear. No-draw Save/Restore and containers leave it pending.
++    const effect=effects.get(this);effects.delete(this);
++    const image=flags&0x2000?effectedImage(this,p.image,effect):p.image;
++    this._drawImageObj(image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs);
 +  };
 +  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src,attrs=null) {
 +    if(img.type==='imageMetafile') {
@@ -1048,7 +1098,7 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    }
 +    ctx.rawPush('<g transform="matrix('+transform+')">'+body+'</g>');
 +  };
-+  return{parseAttributes(id,data) {
++  return{parseEffect,parseAttributes(id,data) {
 +    if(id>63||data.length!==24)fail('invalid image attributes object');
 +    const version=u32(data,0);if(version!==0xdbc01001&&version!==0xdbc01002)fail('invalid image attributes graphics version');
 +    const wrap=u32(data,8),color=u32(data,12),clamp=u32(data,16);

@@ -50,9 +50,8 @@ hides the alpha controls and stops automatic blinking. Replacing images, opening
 a child sheet or closing the viewer stops its display timers; they do not resume
 silently after dismissal. Conflict panes have independent player controls; Select copies the complete
 original file, including all frames. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-FRAMES-PARITY.html">frame/page parity</a>.</p>
-<p>This portion of the port is still being completed. Broader image controls and
-format-specific behavior still need porting. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-COMPARISON-PARITY.html">image comparison parity</a> for
-the source comparison and verification scope.</p>
+<p>See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-COMPARISON-PARITY.html">image compatibility details</a> for format limits
+and the source comparison.</p>
 <p>For an image conflict, <strong>Edit conflicts</strong> opens Mine, Base and Theirs. Each pane
 has <strong>Select</strong> at the bottom right. Select copies that image to the working file,
 then asks whether to mark it resolved. <strong>No</strong> keeps the chosen image and the
@@ -83,6 +82,10 @@ clipping includes union, intersection, XOR and subtraction, path/rectangle clips
 clip offsets and metaregions; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-CLASSIC-CLIP-PARITY.html">classic clipping scope</a>.
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-PEN-PARITY.html">pen scope</a>.</p>
+<p>Embedded bitmap color-matrix, color-lookup-table and brightness/contrast effects
+render in the same image panes, including cropped and clipped drawings. These
+effects change the preview; the original metafile stays unchanged. See the
+<a href="METAFILE-IMAGE-EFFECTS-PARITY.html">image-effects compatibility details</a>.</p>
 <p>The path-gradient renderer covers line polygons and canonical ellipses,
 off-center origins, separate surrounding colors and measured
 focus, blend, preset and gamma behavior. The same brushes paint fills, pen

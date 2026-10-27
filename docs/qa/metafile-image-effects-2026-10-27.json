@@ -1,0 +1,186 @@
+{
+  "date": "2026-10-27",
+  "status": "grouped-local-checkpoint-passed",
+  "source_base": "04061de0aca94761784e9bbde374d24c6d1fd40f",
+  "scope": [
+    "Three EMF+ serialized pointwise bitmap effects",
+    "Immutable source image and measured pending-block lifetime",
+    "Native pixel conversion before existing image crop/affine/clip/SourceCopy",
+    "Core and native consumer/cancellation/conflict fixture family"
+  ],
+  "early_reference_blocker": "Actual brightness channel tables and effect lifetime required native Windows measurement before app validation; only bounded reference jobs ran during implementation.",
+  "native_windows": [
+    {
+      "run": 40491004875,
+      "job": 122144621638,
+      "artifact": 12728977362,
+      "sha256": "a7096a1bb97b248fac11ba7ffe3e0ff57b93f6b3d331435ee30feb20ea76633e",
+      "status": "success; direct API statuses verified"
+    },
+    {
+      "run": 40491928071,
+      "artifact": 12728783501,
+      "sha256": "1a3147347a5d3b7df6ff90ac93be710e3253aa894f93d4e9fd20a3a1f1c943d0",
+      "status": "success; all18v1/v2 loads/draws0; all9 complete RGBA pairs equal"
+    }
+  ],
+  "brightness_precision": {
+    "scalar_samples": 20736,
+    "different": 606,
+    "maximum_channel_error": 1,
+    "contrast100_samples": 2304,
+    "contrast100_differences": 0,
+    "limitation": "81 sampled parameter pairs, not exhaustive full range."
+  },
+  "validation": [
+    {
+      "check": "universal runtime",
+      "session": 64574,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-runtime-2026-10-27.log"
+    },
+    {
+      "check": "initial focused Core",
+      "session": 33749,
+      "exit": 1,
+      "methods": 8,
+      "assertion_failures": 1885,
+      "log": "build/qa/metafile-image-effects-core-2026-10-27.log",
+      "observations": "Four existing image regressions and new malformed profiles pass. New dimensions wrongly expected257x65 instead of256x64; unpainted transparent Windows reference canvas compared against established white renderer initialization. Fix fixture context while retaining painted alpha/SourceCopy assertions."
+    },
+    {
+      "check": "documentation/resources",
+      "session": 91087,
+      "exit": 0,
+      "logs": [
+        "build/qa/metafile-image-effects-coverage-2026-10-27.log",
+        "build/qa/metafile-image-effects-localizations-2026-10-27.log",
+        "build/qa/metafile-image-effects-site-2026-10-27.log"
+      ]
+    },
+    {
+      "check": "Debug app build",
+      "session": 84913,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-build-2026-10-27.log",
+      "contradictory_swift_diagnostics": 0
+    },
+    {
+      "check": "fixture-repaired Core",
+      "session": 70883,
+      "exit": 1,
+      "methods": 3,
+      "assertion_failures": 15,
+      "log": "build/qa/metafile-image-effects-core-repair-2026-10-27.log",
+      "observations": "Brightness and fallback16bit pass. Remaining LUT low-alpha RGB failures require preserving straight PNG channels before effects; native eager image cache changed them."
+    },
+    {
+      "check": "lazy-decode investigation",
+      "runtime_session": 72154,
+      "runtime_exit": 0,
+      "core_session": 90947,
+      "core_exit": 1,
+      "methods": 3,
+      "assertion_failures": 15,
+      "log": "build/qa/metafile-image-effects-core-final-2026-10-27.log",
+      "correction": "Eager caching was not the cause. Direct PNG provider diagnostics showed identical straight samples with cache true/false. Native metafile DrawImage effect playback quantizes its source through premultiplied form, unlike direct Bitmap.ApplyEffect. Explicit nearest premultiply/truncated unpremultiply added before effect; retain existing pixel tolerance."
+    },
+    {
+      "check": "universal source-normalized runtime",
+      "session": 14833,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-runtime-source-normalization-2026-10-27.log"
+    },
+    {
+      "check": "affected Core after source normalization",
+      "session": 90192,
+      "exit": 0,
+      "methods": 3,
+      "log": "build/qa/metafile-image-effects-core-source-normalization-2026-10-27.log"
+    },
+    {
+      "check": "affected app embedding",
+      "session": 76554,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-build-source-normalization-2026-10-27.log",
+      "contradictory_swift_diagnostics": 0
+    },
+    {
+      "check": "grouped native",
+      "session": 19489,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-native-2026-10-27.log",
+      "git_engines": [
+        "Apple Git2.54.0",
+        "bundled Git2.55.0"
+      ],
+      "cases": [
+        "ordinary and explicit IDiff routes with actual effect pixels",
+        "pending-effect/plain/Save/container and16bit fallback",
+        "malformed original bytes and failed preview preservation",
+        "held actual helper cancellation/late publication/Quit ownership",
+        "real image conflict original metafile staging"
+      ],
+      "receivers_reaped": [
+        66657,
+        66802
+      ]
+    },
+    {
+      "check": "final exact-source runtime provenance",
+      "session": 79643,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-runtime-final-provenance-2026-10-27.log",
+      "binary_identity": {
+        "previous_cache": "6e6f8119d68a43c1d52ecf98a9938ca5c72c319f42029339e94a32a475d60899",
+        "final_cache": "848e3735907c40a31fd8902dd44ee39d1f8d47a85944ff7cc22c9d0d532f600f",
+        "previous_binary": "fac5a936ee813e9a63eb2b8fb1b5dedf76ce94e2061e0d65346bc6b2b8f88ee6",
+        "final_binary": "fac5a936ee813e9a63eb2b8fb1b5dedf76ce94e2061e0d65346bc6b2b8f88ee6",
+        "byte_identical": true
+      }
+    },
+    {
+      "check": "final documentation/Help/coverage",
+      "session": 48944,
+      "exit": 0,
+      "help_documents": 59,
+      "help_topics": 51,
+      "help_files": 91,
+      "logs": [
+        "build/qa/metafile-image-effects-help-check-2026-10-27.log",
+        "build/qa/metafile-image-effects-coverage-final-2026-10-27.log",
+        "build/qa/metafile-image-effects-site-final-2026-10-27.log"
+      ]
+    },
+    {
+      "check": "final Help/helper app consolidation",
+      "session": 45932,
+      "exit": 0,
+      "log": "build/qa/metafile-image-effects-build-help-final-2026-10-27.log",
+      "packaged_help_source_equal_files": 91,
+      "contradictory_swift_diagnostics": 0
+    }
+  ],
+  "remaining": [
+    "Independent rectangle interposition and embedded-metafile effect sources",
+    "Other image-effect classes and broader format/color-profile fidelity",
+    "Installed build18 predates this source",
+    "Full source/physical/signed/hosted/Intel/minimum OS/distribution acceptance"
+  ],
+  "cumulative_distinct_core_methods": 8,
+  "fixture_files": {
+    "positive": 17,
+    "malformed_refusals": 10
+  },
+  "cleanup": "Both native receivers reaped and independently absent. Private receiver windows intercepted offscreen; owned helper drain assertions and private-context helper ownership checks pass.",
+  "brightness_model_receipt": "docs/qa/metafile-image-effects-brightness-model-2026-10-27.json",
+  "comment_only_followup": "Clarified misleading caching hypothesis comment after behavioral checks; final runtime provenance rebuilt for exact current source, without repeating behavioral suites.",
+  "source_sha256": {
+    "Sources/TurtleGitMetafile/main.swift": "1249a58d015675e5cc205b9101b529d48b0570dea91b1ae2d8dd080dfd0d2583",
+    "patches/metafile-renderer.patch": "bb448c57190bdcc5fce33cda43288f5d10fd65dcbd4630bbcf00c64666e0f6ae",
+    "Configuration/MetafileRuntime.json": "5c4f28a29aa4d836c7a9d4e55c27a7deb1f05ee77baaae8debc032ac9b9f068c",
+    "Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift": "349b4029041a6fa5881e0cbff84da408f58b1102b34a5c043b5577ebf94880a7",
+    "docs/qa/metafile-image-effects-native-2026-10-27.swift": "854e34f46ef619792bfb9666db40e8dfcd5b23c83ea4a17ce4626394670d4122",
+    "scripts/test-metafile-image-effects.py": "d746de860db78e0be5ae2323bb0d515212ddfd046c6ea613277c58240087d5a0"
+  }
+}

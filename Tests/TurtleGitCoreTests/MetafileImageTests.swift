@@ -613,7 +613,7 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
-        for name in ["unsupported-region.emf", "unsupported-image-effect.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-canonical-precision.emf"] {
+        for name in ["unsupported-region.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-canonical-precision.emf"] {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)),name)
             XCTAssertNil(ComparisonImage(bytes: try data(name)),name)
         }
@@ -622,6 +622,14 @@ final class MetafileImageTests: XCTestCase {
         var malformed = try data("classic-vector.emf");malformed.replaceSubrange(92..<96,with:[0xff,0xff,0xff,0x7f])
         XCTAssertThrowsError(try MetafileImageDecoder.convert(malformed),"invalid classic-vector.emf record extent")
         XCTAssertNil(try MetafileImageDecoder.convert(Data("ordinary text".utf8)),"unrecognized ordinary text")
+    }
+    func testImageEffectFlagWithoutSerializedEffectUsesNativeOrdinaryImageFallback() throws {
+        // Historical filename retained byte-for-byte. Actual Windows playback
+        // accepts E without a pending serialized effect and draws the source.
+        let bytes=try data("unsupported-image-effect.emf")
+        let value=try XCTUnwrap(ComparisonImage(bytes:bytes))
+        try primary(value,0,16,16);try primary(value,1,32,16);try primary(value,2,16,32)
+        XCTAssertEqual(try data("unsupported-image-effect.emf"),bytes)
     }
     func testLargeOffsetDistortedGradientUsesGeneralBoundaryAndTranslatedControl()throws {
         let names=["plus-gradient-large-offset-distorted.emf","plus-gradient-translated-distorted.emf","plus-gradient-translated-unshifted.emf"]

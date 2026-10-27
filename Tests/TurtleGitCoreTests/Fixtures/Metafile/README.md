@@ -58,9 +58,12 @@ The optional image-attributes sentinel in old and new fixtures is `0xffffffff`.
 An ID0 reference would incorrectly point at our image object rather than optional
 attributes. This corpus corrects that previously permissive synthetic encoding.
 
-Additional intentional refusal cases cover E=0x2000 (image effects, not relative
-points), invalid Clamp values, invalid wrap5, wrong-type attributes, and malformed preset
-stop order. They must not be rendered as successful approximate/blank images.
+Additional intentional refusal cases cover invalid Clamp values, invalid wrap5,
+wrong-type attributes and malformed preset stop order. They must not render as
+successful approximate/blank images. The historical `unsupported-image-effect.emf`
+bytes now assert the measured Windows ordinary-image fallback for E=0x2000 without
+a pending serialized effect; E remains an effect flag, not relative point encoding.
+The ImageEffects subdirectory covers actual serialized effects and malformed blocks.
 The wire flag definitions and integer encoding come from independent Microsoft
 [DrawImagePoints](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9bad3867-71b0-46fb-9b90-f7d8fb37ff76),
 [PointR](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/c861a0d4-39f0-4f6c-bad9-e3f7bf63205e),

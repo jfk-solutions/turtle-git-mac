@@ -135,3 +135,9 @@ validation. Local log: `build/qa/metafile-runtime-2026-10-18.log`. This focused
 checkpoint does not establish the full EMF/EMF+ fixture matrix, native comparison
 integration, physical visual parity, Developer ID notarization or inherited
 sandbox invocation; those require their own recorded grouped evidence.
+
+The [serialized image-effects family](METAFILE-IMAGE-EFFECTS-PARITY.md) connects
+ColorMatrix, ColorLookupTable and Brightness/Contrast to native pixels before
+existing image placement and compositing. Its Windows reference, precision bounds
+and grouped macOS checkpoint remain explicit; other effect classes stay outside
+this profile.

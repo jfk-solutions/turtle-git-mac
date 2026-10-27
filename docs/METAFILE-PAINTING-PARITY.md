@@ -91,7 +91,10 @@ signed 16-bit and relative signed 7/15-bit point encodings before applying the
 current graphics transform and source crop. The relative flag is `0x0800`;
 `0x2000` denotes an image-effect route and is refused. Relative image placement
 does not imply support for the separate relative path encoding. Source-copy composition is implemented by the separate
-[SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md); image effects remain refused.
+[SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md). The later
+[serialized image-effects family](METAFILE-IMAGE-EFFECTS-PARITY.md) adds three
+pointwise effects and measured missing-block fallback; other effect classes remain
+outside that bounded profile.
 Generic embedded metafile images, textures and applicable attributes now follow
 the [embedded-image family](METAFILE-EMBEDDED-IMAGE-PARITY.md). Up to three wire-alignment bytes are ignored, without
 treating additional bytes as an extended attributes structure.
@@ -195,7 +198,7 @@ are the final focused verification scope:
 | `plus-image-relative.emf` | Relative `0x0800` points use mixed signed 7/15-bit cumulative deltas, even when the compressed bit is also set. |
 | `plus-image-int16.emf` | Signed absolute 16-bit destinations preserve negative coordinates. |
 | `plus-alpha-pen.emf` | A real opaque red pen and half-alpha inline red brush retain separate SVG color/opacity and the expected pixel contrast. |
-| `unsupported-image-effect.emf`, `unsupported-image-wrap.emf`, `unsupported-image-attribute-type.emf` | Image effects, invalid wrap value and wrong object type fail explicitly. Clamp BOOL=1 is now accepted as ignored metadata. |
+| `unsupported-image-effect.emf`, `unsupported-image-wrap.emf`, `unsupported-image-attribute-type.emf` | The first retains its historical bytes/name and now verifies native ordinary-image fallback when E has no pending effect. Invalid wrap and wrong object type remain refusals; Clamp BOOL=1 is accepted as ignored metadata. See the later serialized-effects family for actual supported blocks. |
 | `unsupported-gradient-stops.emf` | Invalid preset data cannot become a successful plausible gradient. |
 | `unsupported-image-tile-budget.emf` | A count-valid repeated bitmap must fail its projected serialized-byte budget before constructing excessive SVG. |
 | `unsupported-gradient-precision.emf` | Historical ellipse-only refusal, superseded by the general-path continuation and the October 26 correction below; these original bytes are a supported noncanonical cubic boundary. |

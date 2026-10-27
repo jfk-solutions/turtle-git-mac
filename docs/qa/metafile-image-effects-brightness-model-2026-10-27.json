@@ -1,0 +1,496 @@
+{
+  "scope": "Original Float32 mathematical model, not complete macOS decoder pixel acceptance",
+  "pairs": 81,
+  "scalar_samples": 20736,
+  "different": 606,
+  "maximum": 1,
+  "contrast100_different": 0,
+  "cases": [
+    {
+      "brightness": -1,
+      "contrast": -1,
+      "different": 2,
+      "maximum": 1
+    },
+    {
+      "brightness": -1,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -1,
+      "contrast": -25,
+      "different": 34,
+      "maximum": 1
+    },
+    {
+      "brightness": -1,
+      "contrast": -75,
+      "different": 32,
+      "maximum": 1
+    },
+    {
+      "brightness": -1,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -1,
+      "contrast": 1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -1,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -1,
+      "contrast": 25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -1,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": 1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -128,
+      "contrast": 25,
+      "different": 37,
+      "maximum": 1
+    },
+    {
+      "brightness": -128,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": 1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": 25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -255,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": 1,
+      "different": 1,
+      "maximum": 1
+    },
+    {
+      "brightness": -30,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": -30,
+      "contrast": 25,
+      "different": 54,
+      "maximum": 1
+    },
+    {
+      "brightness": -30,
+      "contrast": 75,
+      "different": 14,
+      "maximum": 1
+    },
+    {
+      "brightness": 0,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 0,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 0,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 0,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 0,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 0,
+      "contrast": 1,
+      "different": 2,
+      "maximum": 1
+    },
+    {
+      "brightness": 0,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 0,
+      "contrast": 25,
+      "different": 11,
+      "maximum": 1
+    },
+    {
+      "brightness": 0,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 1,
+      "contrast": -1,
+      "different": 1,
+      "maximum": 1
+    },
+    {
+      "brightness": 1,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 1,
+      "contrast": -25,
+      "different": 40,
+      "maximum": 1
+    },
+    {
+      "brightness": 1,
+      "contrast": -75,
+      "different": 32,
+      "maximum": 1
+    },
+    {
+      "brightness": 1,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 1,
+      "contrast": 1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 1,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 1,
+      "contrast": 25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 1,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": -100,
+      "different": 256,
+      "maximum": 1
+    },
+    {
+      "brightness": 128,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": 1,
+      "different": 2,
+      "maximum": 1
+    },
+    {
+      "brightness": 128,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": 25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 128,
+      "contrast": 75,
+      "different": 64,
+      "maximum": 1
+    },
+    {
+      "brightness": 255,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": 1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": 25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 255,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": -1,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": -100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": -25,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": -75,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": 0,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": 1,
+      "different": 1,
+      "maximum": 1
+    },
+    {
+      "brightness": 30,
+      "contrast": 100,
+      "different": 0,
+      "maximum": 0
+    },
+    {
+      "brightness": 30,
+      "contrast": 25,
+      "different": 23,
+      "maximum": 1
+    },
+    {
+      "brightness": 30,
+      "contrast": 75,
+      "different": 0,
+      "maximum": 0
+    }
+  ]
+}

@@ -54,9 +54,8 @@ a child sheet or closing the viewer stops its display timers; they do not resume
 silently after dismissal. Conflict panes have independent player controls; Select copies the complete
 original file, including all frames. See [frame/page parity](IMAGE-FRAMES-PARITY.md).
 
-This portion of the port is still being completed. Broader image controls and
-format-specific behavior still need porting. See [image comparison parity](IMAGE-COMPARISON-PARITY.md) for
-the source comparison and verification scope.
+See [image compatibility details](IMAGE-COMPARISON-PARITY.md) for format limits
+and the source comparison.
 
 For an image conflict, **Edit conflicts** opens Mine, Base and Theirs. Each pane
 has **Select** at the bottom right. Select copies that image to the working file,
@@ -93,6 +92,11 @@ clipping includes union, intersection, XOR and subtraction, path/rectangle clips
 clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-CLIP-PARITY.md).
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the [pen scope](METAFILE-PEN-PARITY.md).
+
+Embedded bitmap color-matrix, color-lookup-table and brightness/contrast effects
+render in the same image panes, including cropped and clipped drawings. These
+effects change the preview; the original metafile stays unchanged. See the
+[image-effects compatibility details](METAFILE-IMAGE-EFFECTS-PARITY.md).
 
 The path-gradient renderer covers line polygons and canonical ellipses,
 off-center origins, separate surrounding colors and measured
