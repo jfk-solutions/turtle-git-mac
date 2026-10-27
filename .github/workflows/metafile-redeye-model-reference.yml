@@ -1,0 +1,89 @@
+name: Metafile RedEye matched-model Windows reference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyeModelReference.cpp'
+      - '.github/workflows/metafile-redeye-model-reference.yml'
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent Windows SDK observation tool
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-spatial-effects-reference-2026-10-27\RedEyeModelReference.cpp
+          /Fe:RedEyeModelReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Record direct results and original native EMF, replay actual Bitmap consumer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          ./RedEyeModelReference.exe generate reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./RedEyeModelReference.exe direct-v1 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./RedEyeModelReference.exe replay reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./RedEyeModelReference.exe replay-v1 reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify complete bounded observation inventory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $modes = @('generate', 'direct-v1', 'replay', 'replay-v1')
+          foreach ($mode in $modes) {
+            $manifest = Get-Content -Raw "reference-output/$mode.json" | ConvertFrom-Json
+            if ($manifest.caseCount -ne 29 -or $manifest.plannedCaseCount -ne 27 -or $manifest.controlCount -ne 2 -or $manifest.cases.Count -ne 29 -or $manifest.atlases.Count -ne 29) { throw "Unexpected inventory in $mode" }
+            foreach ($case in $manifest.cases) {
+              if ($case.error) { throw "$mode/$($case.name): $($case.error)" }
+              if ($mode -eq 'generate') {
+                foreach ($field in @('recordSetParametersStatus','recordCreateStatus','recordStatus')) { if ($null -eq $case.$field -or $case.$field -ne 0) { throw "$mode/$($case.name)/$field failed" } }
+              }
+              if ($mode -eq 'generate' -or $mode -eq 'direct-v1') {
+                foreach ($stage in @('direct','created')) {
+                  foreach ($field in @('setParametersStatus','applyStatus')) { if ($null -eq $case.$stage.$field -or $case.$stage.$field -ne 0) { throw "$mode/$($case.name)/$stage/$field failed" } }
+                  if ($case.$stage.width -ne 32 -or $case.$stage.height -ne 32) { throw "Unexpected SDK output dimensions" }
+                }
+              } else {
+                foreach ($field in @('bitmapLoadStatus','drawStatus')) { if ($null -eq $case.$field -or $case.$field -ne 0) { throw "$mode/$($case.name)/$field failed" } }
+                if (-not $case.expectedSize -or $case.intrinsicWidth -ne 32 -or $case.intrinsicHeight -ne 32 -or $case.width -ne 32 -or $case.height -ne 32) { throw "Unexpected file consumer dimensions" }
+              }
+            }
+            if ($mode -eq 'generate' -or $mode -eq 'direct-v1') {
+              foreach ($atlas in $manifest.atlases) { if (-not $atlas.requestedMatchesObserved -or $atlas.width -ne 32 -or $atlas.height -ne 32) { throw "Requested/observed source mismatch" } }
+            }
+          }
+      - name: Record source, toolchain, platform and byte provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          git rev-parse HEAD | Set-Content reference-output/source-revision.txt
+          cl 2>&1 | Out-File reference-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
+          if (Test-Path reference-output/generate.json) {
+            $manifest = Get-Content -Raw reference-output/generate.json | ConvertFrom-Json
+            Get-Item -LiteralPath $manifest.gdiplusModule | Select-Object -ExpandProperty VersionInfo | Select-Object FileName,FileVersion,ProductVersion | ConvertTo-Json | Set-Content reference-output/gdiplus-version.json
+          }
+          $inputs = @('docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyeModelReference.cpp', '.github/workflows/metafile-redeye-model-reference.yml', 'docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp', 'RedEyeModelReference.exe')
+          $inputs | Where-Object { Test-Path $_ } | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_
+            [PSCustomObject]@{file = $_; sha256 = $hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/input-hashes.json
+          Get-ChildItem reference-output -File | Where-Object Name -ne 'hashes.json' | Sort-Object Name | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_.FullName
+            [PSCustomObject]@{file = $_.Name; bytes = $_.Length; sha256 = $hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/hashes.json
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-redeye-model-native-windows
+          path: reference-output/
+          if-no-files-found: error
