@@ -1,0 +1,46 @@
+name: Metafile image effects native Windows reference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/metafile-image-effects-reference.yml'
+      - 'docs/qa/metafile-image-effects-reference-2026-10-27/**'
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build independent Windows GDI+ assay
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-image-effects-reference-2026-10-27\ImageEffectsReference.cpp
+          /Fe:ImageEffectsReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Record direct effects and original native EMF
+        shell: pwsh
+        run: |
+          ./ImageEffectsReference.exe generate reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build bounded effect-state wire variants
+        shell: pwsh
+        run: |
+          python docs/qa/metafile-image-effects-reference-2026-10-27/make-state-variants.py reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Replay through Bitmap file constructor used by upstream Picture
+        shell: pwsh
+        run: |
+          ./ImageEffectsReference.exe replay reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
+          Get-Item $env:WINDIR/System32/gdiplus.dll -ErrorAction SilentlyContinue | Select-Object -ExpandProperty VersionInfo | Select-Object FileVersion,ProductVersion | ConvertTo-Json | Set-Content reference-output/gdiplus-version.json
+          Get-ChildItem reference-output -File | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json | Set-Content reference-output/hashes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-image-effects-native-windows
+          path: reference-output/
+          if-no-files-found: error
