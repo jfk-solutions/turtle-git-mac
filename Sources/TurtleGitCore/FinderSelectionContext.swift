@@ -1,19 +1,67 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+/// Immutable exact-component nearest-root index. One node per path component
+/// avoids both repeated ancestor reconstruction and per-byte trie amplification.
+/// No filesystem aliasing/case/Unicode normalization participates here.
+struct FinderExactRootIndex {
+    private struct Node {var children:[GitReferenceName:Int]=[:];var root:String?}
+    private let nodes:[Node]
+    private let names:GitPathSet
+    private let hasNoncanonicalRoots:Bool
+    init(_ roots:[String]) {
+        var nodes=[Node()]
+        names=GitPathSet(roots)
+        hasNoncanonicalRoots=roots.contains { $0 != "/" && ($0.hasSuffix("/") || $0.contains("//")) }
+        for root in roots where root.hasPrefix("/") {
+            var position=0
+            for component in root.utf8.split(separator:47) {
+                let key=GitReferenceName(String(decoding:component,as:UTF8.self))
+                if let next=nodes[position].children[key] {position=next}
+                else {let next=nodes.count;nodes.append(Node());nodes[position].children[key]=next;position=next}
+            }
+            nodes[position].root=root
+        }
+        self.nodes=nodes
+    }
+    func root(for path:String)->String? {
+        guard path.hasPrefix("/") else{return nil}
+        // Public snapshots may contain noncanonical input. Preserve the old
+        // ancestor algorithm there, rather than broadening its root matches.
+        if hasNoncanonicalRoots || path.contains("//") {return legacyRoot(for:path)}
+        var position=0,best=nodes[0].root
+        for component in path.utf8.split(separator:47) {
+            let key=GitReferenceName(String(decoding:component,as:UTF8.self))
+            guard let next=nodes[position].children[key] else{return best}
+            position=next
+            if let terminal=nodes[position].root {best=terminal}
+        }
+        return best
+    }
+    private func legacyRoot(for path:String)->String? {
+        var candidate=path
+        while candidate.utf8.count>1,candidate.hasSuffix("/") {candidate.removeLast()}
+        while true {
+            if names.contains(candidate) {return candidate}
+            if candidate=="/" {return nil}
+            candidate=FinderSnapshot.parentPath(candidate)
+        }
+    }
+}
+
 /// Snapshot values share lazy immutable query data until one of their path or
 /// owner fields changes. The lock covers construction/publication only; returned
 /// Swift values use copy-on-write storage and are never mutated by a reader.
 final class FinderSnapshotQueries: @unchecked Sendable {
     typealias Descendants=[GitReferenceName:[GitReferenceName:Set<FileState>]]
     private let lock=NSLock()
-    private var rootNames:GitPathSet?
+    private var exactRootIndex:FinderExactRootIndex?
     private var pathNames:FileTransferIndex?
     private var descendantStates:Descendants?
-    func roots(_ create:()->GitPathSet) -> GitPathSet {
-        lock.lock();defer {lock.unlock()}
-        if let rootNames {return rootNames}
-        let value=create();rootNames=value;return value
+    func rootIndex(_ create:()->FinderExactRootIndex)->FinderExactRootIndex {
+        lock.lock();defer{lock.unlock()}
+        if let exactRootIndex{return exactRootIndex}
+        let value=create();exactRootIndex=value;return value
     }
     func paths(_ create:()->FileTransferIndex) -> FileTransferIndex {
         lock.lock();defer {lock.unlock()}
@@ -52,18 +100,7 @@ extension FinderSnapshot {
     /// Badge aggregation uses the recorded namespace directly, without asking
     /// the filesystem to alias a root or scanning every watched root per file.
     func exactRepositoryRoot(for path:String) -> String? {
-        let names=queries.roots {GitPathSet(roots)}
-        return Self.exactRepositoryRoot(for:path,names:names)
-    }
-    private static func exactRepositoryRoot(for path:String,names:GitPathSet) -> String? {
-        guard path.hasPrefix("/") else {return nil}
-        var candidate=path
-        while candidate.utf8.count > 1,candidate.hasSuffix("/") {candidate.removeLast()}
-        while true {
-            if names.contains(candidate) {return candidate}
-            if candidate == "/" {return nil}
-            candidate=parentPath(candidate)
-        }
+        queries.rootIndex {FinderExactRootIndex(roots)}.root(for:path)
     }
     func isRepositoryRoot(_ url:URL, root:String) -> Bool {
         cachedPath(for:url).map { GitReferenceName.equal($0,root) } == true
@@ -112,11 +149,11 @@ extension FinderSnapshot {
         // Build from exact recorded entries, never alias filesystem names during
         // propagation. A child checkout's contents belong to that child; its
         // parent's gitlink remains a separately owned direct entry.
-        let names=queries.roots {GitPathSet(roots)}
+        let rootIndex=queries.rootIndex {FinderExactRootIndex(roots)}
         let descendants=queries.descendants {
             var result=FinderSnapshotQueries.Descendants()
             for (entry,state) in entries {
-                guard let root=Self.exactRepositoryRoot(for:entry,names:names) else {continue}
+                guard let root=rootIndex.root(for:entry) else {continue}
                 let owner=fileOperationOwner(path:entry,root:root)
                 var parent=Self.parentPath(entry)
                 while Self.contains(parent,root:owner) {

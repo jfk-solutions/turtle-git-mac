@@ -18,7 +18,16 @@ public struct GitReferenceName: Hashable, Sendable, ExpressibleByStringLiteral {
         return String(decoding: value.utf8.dropLast(suffix.utf8.count), as: UTF8.self)
     }
     public static func == (lhs: Self, rhs: Self) -> Bool { equal(lhs.rawValue, rhs.rawValue) }
-    public func hash(into hasher: inout Hasher) { hasher.combine(Data(rawValue.utf8)) }
+    public func hash(into hasher: inout Hasher) {
+        // Identical bytes feed Hasher on either String storage path. Do not mix
+        // Data.hash(into:) with combine(bytes:), which need not share framing.
+        let contiguous=rawValue.utf8.withContiguousStorageIfAvailable { bytes -> Bool in
+            hasher.combine(bytes:UnsafeRawBufferPointer(bytes));return true
+        }
+        if contiguous == nil {
+            Data(rawValue.utf8).withUnsafeBytes {hasher.combine(bytes:$0)}
+        }
+    }
 }
 
 /// Git path-keyed metadata must retain canonically equivalent UTF-8 spellings.
@@ -83,8 +92,25 @@ extension GitPathMap: Codable where Value:Codable {
         }
     }
     public func encode(to encoder:Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(keys.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }.map { Entry(path:$0,value:self[$0]!) })
+        try orderedEncoding().encode(to:encoder)
+    }
+}
+
+/// One immutable ordering shared by a snapshot's exact records and legacy map.
+/// This is an encoding value, never an authority or cross-call data cache.
+struct GitPathMapOrderedEncoding<Value:Codable>:Encodable {
+    struct Entry:Encodable {let path:String;let value:Value}
+    let entries:[Entry]
+    func encode(to encoder:Encoder)throws {
+        var container=encoder.singleValueContainer();try container.encode(entries)
+    }
+    func legacy(uniquingKeysWith combine:(Value,Value)->Value)->[String:Value] {
+        Dictionary(entries.map {($0.path,$0.value)},uniquingKeysWith:combine)
+    }
+}
+extension GitPathMap where Value:Codable {
+    func orderedEncoding()->GitPathMapOrderedEncoding<Value> {
+        .init(entries:storage.sorted {$0.key.rawValue.utf8.lexicographicallyPrecedes($1.key.rawValue.utf8)}.map {.init(path:$0.key.rawValue,value:$0.value)})
     }
 }
 

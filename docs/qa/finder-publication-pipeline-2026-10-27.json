@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "07ebb491",
+  "status": "grouped-checkpoint-passed-measured-publication-improvement",
+  "scope": [
+    "Accepted versus rejected ticket projection",
+    "Operation-local identity-rechecked raw snapshot decode reuse",
+    "Shared deterministic exact and legacy wire serialization",
+    "Exact component root ownership index and String-storage-independent UTF8 hashing"
+  ],
+  "production": [
+    "Sources/TurtleGitCore/FinderCache.swift",
+    "Sources/TurtleGitCore/FinderSelectionContext.swift",
+    "Sources/TurtleGitCore/GitReferenceName.swift"
+  ],
+  "tests": "Tests/TurtleGitCoreTests/FinderPublicationPipelineTests.swift",
+  "implementation_review": [
+    "Reduced byte-trie draft to component trie to avoid per-byte dictionary memory amplification.",
+    "Same combine(bytes:) feed in contiguous and fallback String storage; no persisted hash identities.",
+    "Preserve untouched compatibility fields, wire priorities, external mutation checks and all authority/lease fences.",
+    "Private fixture setup closes any started session and removes its owned folder on setup failure."
+  ],
+  "draft_patch": "build/qa/finder-pipeline-draft-2026-10-27/finder-publication-pipeline.patch",
+  "baseline": "build/qa/finder-pipeline-baseline-2026-10-27/provenance.json",
+  "prior_measurement": "docs/qa/finder-startup-publication-2026-10-27.json",
+  "validation": {
+    "core": {
+      "session": 80097,
+      "log": "build/qa/finder-pipeline-core-2026-10-27.log",
+      "status": "fixture-compile-failed-before-tests",
+      "exit": 1,
+      "failure": "New wire-equivalence assertion accessed optional snapshot.indexFlags without optional chaining. Fixture-only access repaired; production compiled."
+    },
+    "core_fixture_repair": {
+      "session": 80984,
+      "exit": 1,
+      "status": "fixture-compile-failed-before-tests",
+      "log": "build/qa/finder-pipeline-core-fixture-repair-2026-10-27.log",
+      "failure": "Test used nonexistent String(referencing:) initializer; replaced with normal NSMutableString-to-String bridging. Production unchanged."
+    },
+    "core_final": {
+      "session": 78232,
+      "exit": 0,
+      "tests": 103,
+      "failures": 0,
+      "seconds": 20.712,
+      "log": "build/qa/finder-pipeline-core-bridge-repair-2026-10-27.log",
+      "scope": "Affected publication, warm cache, policy, exact roots, descendant/submodule metadata, selection/query copy and path identity families; six new pipeline regressions.",
+      "test_fixture_repairs": "Two compile-only fixture repairs precede the first executed group; no production change or assertion removal."
+    },
+    "app": {
+      "session": 6661,
+      "log": "build/qa/finder-pipeline-app-2026-10-27.log",
+      "exit": 0,
+      "contradictory_exit_zero_diagnostics": 0
+    },
+    "native": {
+      "session": 92693,
+      "exit": 0,
+      "pairs": 14,
+      "cases": [
+        "publication",
+        "registration",
+        "clone",
+        "ownership",
+        "warm",
+        "services",
+        "launch"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "log": "build/qa/finder-pipeline-native-2026-10-27.log",
+      "owned_receivers_reaped": [
+        38556,
+        38673,
+        39094,
+        39205,
+        39319,
+        39442,
+        39529,
+        39803,
+        39918,
+        40359,
+        40475,
+        40583,
+        40704,
+        40794
+      ],
+      "independently_absent": true,
+      "warnings": "Private synthetic bookmark fixtures emit sandbox_extension_consume failed:1; assertions pass. No signed physical Finder claim."
+    },
+    "source_hashes_unchanged": true,
+    "resources": {
+      "literal_ui_labels": "Unchanged; no localization regeneration required.",
+      "help_listed_guides": "Unchanged; no Help regeneration required.",
+      "coverage": "build/qa/finder-pipeline-coverage-final-2026-10-27.log",
+      "site": "build/qa/finder-pipeline-site-final-2026-10-27.log",
+      "site_unresolved_fragments": []
+    }
+  },
+  "limits": [
+    "Single Debug public API sample per framework; no complete Commit startup or signed deployment claim.",
+    "No complete hosted, physical Finder, minimum macOS/Intel or upstream parity pass.",
+    "Installed build16 predates these changes."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "023cea512ce19cefdc0a8483016eb994993c6040a1605952e7f2e68e97ec750e",
+    "Sources/TurtleGitCore/FinderSelectionContext.swift": "c435e01d29145683d2f701263bfbf5bd62ad1d063d007131e4ffd3b1f876e8a3",
+    "Sources/TurtleGitCore/GitReferenceName.swift": "3e9a5ab5fb4c80aa7594c5a64f2400189624f5719ab42756f42743614ea8c79a",
+    "Tests/TurtleGitCoreTests/FinderPublicationPipelineTests.swift": "bf7061a4a80b9e4611132c5cd102da521c4cfe0b0b3c0815f5e935e34caa474a"
+  },
+  "measurement": {
+    "samples": {
+      "old": {
+        "exact_projection_equal": true,
+        "fresh_read_seconds": 5.120650708,
+        "label": "old",
+        "lease_cleanup_verified": true,
+        "loaded_core_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/finder-pipeline-baseline-2026-10-27/TurtleGitCore.framework",
+        "logical_entries": 20000,
+        "overlapping_dictionaries": 5,
+        "publish_seconds": 21.538530292,
+        "retained_read_seconds": 0.000251583,
+        "sample_count": 1,
+        "scope": "synthetic private public-API publication/read; not Commit startup or signed deployment",
+        "semantic_sha256": "3f8b275d188c0ddef5ad867d55057c241cdf485781dc032a906a49e4070c50d1",
+        "sibling_roots": 2,
+        "snapshot_bytes": 17795086,
+        "pid": 41091,
+        "exit": 0,
+        "private_storage_removed": true,
+        "framework_binary_sha256": "3b578abacee0a52e251ab1ee6acac008524c36721a3602370aad86982cb07dd0"
+      },
+      "new": {
+        "exact_projection_equal": true,
+        "fresh_read_seconds": 4.60145375,
+        "label": "new",
+        "lease_cleanup_verified": true,
+        "loaded_core_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug/TurtleGitCore.framework",
+        "logical_entries": 20000,
+        "overlapping_dictionaries": 5,
+        "publish_seconds": 12.85525025,
+        "retained_read_seconds": 0.000230958,
+        "sample_count": 1,
+        "scope": "synthetic private public-API publication/read; not Commit startup or signed deployment",
+        "semantic_sha256": "3f8b275d188c0ddef5ad867d55057c241cdf485781dc032a906a49e4070c50d1",
+        "sibling_roots": 2,
+        "snapshot_bytes": 17795086,
+        "pid": 41148,
+        "exit": 0,
+        "private_storage_removed": true,
+        "framework_binary_sha256": "fcb983f9006bf0d5143834089cb91122d641588665696678e536328477e5e65a"
+      }
+    },
+    "binary_sha256": "55120e33d859acf7c9546c9e31f85913ec01280884e0866d87796e3205691c71",
+    "fixture_sha256": "ef986b1f5ece33bf8256abaf23dd4add850f97182f812e3df0052b9074703f37",
+    "scope": "One same-binary Debug synthetic public API sample per frozen/current framework after grouped checks; not complete Commit startup or signed Finder deployment.",
+    "session": 8229,
+    "exit": 0,
+    "publication_reduction_percent": 40.31510007544576,
+    "interpretation": "Same-binary single Debug synthetic sample: publication21.54s to12.86s (~40% reduction), fresh independent read5.12s to4.60s. Same semantic hash,17795086-byte snapshot, lease cleanup and private storage cleanup. Not full Commit startup or signed Finder latency; remaining12.86s synthetic publication cost is still substantial.",
+    "owned_pids_independently_absent": [
+      41091,
+      41148
+    ]
+  }
+}

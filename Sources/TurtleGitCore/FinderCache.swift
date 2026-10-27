@@ -285,32 +285,23 @@ public struct FinderSnapshot: Codable, Sendable {
     public func encode(to encoder:Encoder) throws {
         var values = encoder.container(keyedBy:CodingKeys.self)
         try values.encode(roots,forKey:.roots)
-        try values.encode(states,forKey:.statesV2)
-        try values.encode(Self.legacyStates(states),forKey:.states)
+        let orderedStates=states.orderedEncoding()
+        try values.encode(orderedStates,forKey:.statesV2)
+        try values.encode(orderedStates.legacy {Self.statePriority($0)>=Self.statePriority($1) ? $0:$1},forKey:.states)
         try values.encode(updated,forKey:.updated)
         try values.encodeIfPresent(liveRevision,forKey:.liveRevision)
         try values.encode(overlayPolicies,forKey:.overlayPolicies)
-        try values.encode(repositories,forKey:.repositoriesV2)
-        // The lossless field is authoritative for current peers. Keep a stable
-        // legacy projection for older installed readers during an app update.
-        let legacyRepositories = Dictionary(repositories.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }.map { ($0.key,$0.value) },uniquingKeysWith:{ first,_ in first })
-        try values.encode(legacyRepositories,forKey:.repositories)
-        try values.encodeIfPresent(overlayEntries,forKey:.overlayEntriesV2)
-        try values.encodeIfPresent(overlayEntries.map(Self.legacyStates),forKey:.overlayEntries)
-        try values.encodeIfPresent(indexFlags,forKey:.indexFlagsV2)
-        // Older installed extensions can keep reading their original field
-        // during an app update. Current readers prefer the lossless records.
-        if let indexFlags {
-            let ordered = indexFlags.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }
-            let legacy = Dictionary(ordered.map { ($0.key,$0.value) },uniquingKeysWith:{ _,last in last })
-            try values.encode(legacy,forKey:.indexFlags)
-        }
-    }
-    // Old extensions cannot represent canonical peers. Publish a deterministic,
-    // highest-priority projection while current readers retain both raw names.
-    private static func legacyStates(_ entries: GitPathMap<FileState>) -> [String: FileState] {
-        Dictionary(entries.sorted { $0.key.utf8.lexicographicallyPrecedes($1.key.utf8) }.map { ($0.key,$0.value) },
-                   uniquingKeysWith: { statePriority($0) >= statePriority($1) ? $0 : $1 })
+        let orderedRepositories=repositories.orderedEncoding()
+        try values.encode(orderedRepositories,forKey:.repositoriesV2)
+        // Current peers use lossless records; older installed peers retain the
+        // same deterministic canonical-collision projection during updates.
+        try values.encode(orderedRepositories.legacy {first,_ in first},forKey:.repositories)
+        let orderedOverlays=overlayEntries.map {$0.orderedEncoding()}
+        try values.encodeIfPresent(orderedOverlays,forKey:.overlayEntriesV2)
+        try values.encodeIfPresent(orderedOverlays.map {$0.legacy {Self.statePriority($0)>=Self.statePriority($1) ? $0:$1}},forKey:.overlayEntries)
+        let orderedFlags=indexFlags.map {$0.orderedEncoding()}
+        try values.encodeIfPresent(orderedFlags,forKey:.indexFlagsV2)
+        try values.encodeIfPresent(orderedFlags.map {$0.legacy {_,last in last}},forKey:.indexFlags)
     }
     static func statePriority(_ state: FileState) -> Int {
         switch state {
@@ -1132,6 +1123,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let cancellation: OperationCancellation?
         var canonicalPaths: GitPathMap<Bool> = [:]
         var contributions: [ObjectIdentifier: Contribution] = [:]
+        var rawSnapshot: (identity:FileIdentity?, value:FinderSnapshot?)?
         private var visited = 0
         init(cancellation: OperationCancellation?) {self.cancellation=cancellation}
         func check() throws {try cancellation?.check()}
@@ -1157,9 +1149,25 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         defer {flock(descriptor,LOCK_UN)};try validation.check();return try operation(validation)
     }
     private func path(_ root: URL) throws -> String {guard root.isFileURL,!root.path.utf8.contains(0) else {throw FinderPublicationFailure.invalidUpdate};return FileTransferPaths.lexicalPath(root.path)}
+    /// Reuse only a successful read of the same unchanged regular file within
+    /// one transaction. Noncooperating writers and arbitrary settings callbacks
+    /// can replace files despite the advisory lock, so identity is checked on
+    /// every use; failed/changed reads are never memoized.
+    private func checkedRawSnapshot(validation:ValidationContext)throws->FinderSnapshot? {
+        for _ in 0..<3 {
+            try validation.check()
+            let before=try identity(url)
+            if let known=validation.rawSnapshot,known.identity==before {return known.value}
+            let value=try read(FinderSnapshot.self,url)
+            guard before == (try identity(url)) else {continue}
+            validation.rawSnapshot=(before,value)
+            return value
+        }
+        throw POSIXError(.EAGAIN)
+    }
     private func control(validation: ValidationContext) throws -> Control {
         var value=try read(Control.self,controlURL) ?? Control()
-        if !FileManager.default.fileExists(atPath:controlURL.path),try read(FinderSnapshot.self,url) != nil {value.legacy=true}
+        if !FileManager.default.fileExists(atPath:controlURL.path),try checkedRawSnapshot(validation:validation) != nil {value.legacy=true}
         try checkControl(value,validation:validation);return value
     }
     private func checkControl(_ value: Control, validation: ValidationContext) throws {
@@ -1239,7 +1247,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     private func writeLive(_ state: inout Control, validation: ValidationContext) throws -> FinderSnapshot {
         // Read the legacy projection for corruption/type checks, but never use
         // its roots as live authority. Only lease-backed contributions count.
-        _ = try read(FinderSnapshot.self,url)
+        _ = try checkedRawSnapshot(validation:validation)
         state.contributions=try live(state)
         try checkControl(state,validation:validation)
         let result=projection(state.contributions,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
@@ -1257,10 +1265,10 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         warm.replaceSubtree(root:FileTransferPaths.fileURL(root),snapshots:snapshots);try save(warm,warmURL)
         if recovered.discarded {throw FinderPublicationFailure.corruptWarmCacheReset}
     }
-    private func migrateWarm(_ state: Control) throws {
+    private func migrateWarm(_ state: Control, validation:ValidationContext) throws {
         guard state.policy.cacheSave else {return}
         let existing=try read(FinderSnapshot.self,warmURL)
-        guard state.legacy,existing==nil,let legacy=try read(FinderSnapshot.self,url) else {return}
+        guard state.legacy,existing==nil,let legacy=try checkedRawSnapshot(validation:validation) else {return}
         var warm=legacy;warm.liveRevision=nil;warm.persistenceFailure=nil;try save(warm,warmURL)
     }
     private func owner(_ session: FinderPublicationSession, state: Control) throws {
@@ -1269,8 +1277,8 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     public func startSession(cancellation: OperationCancellation? = nil) throws -> FinderPublicationSession {
         sessionLock.lock();defer {sessionLock.unlock()}
         return try locked(cancellation) { validation in
-            var state=try control(validation:validation);_ = try read(FinderSnapshot.self,url)
-            let warning=warmWarning {try migrateWarm(state)}
+            var state=try control(validation:validation);_ = try checkedRawSnapshot(validation:validation)
+            let warning=warmWarning {try migrateWarm(state,validation:validation)}
             try FileManager.default.createDirectory(at:leasesURL,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
             var attributes=stat();guard lstat(leasesURL.path,&attributes)==0,attributes.st_mode & S_IFMT == S_IFDIR else {throw FinderPublicationFailure.corruptStore}
             let id=UUID(),location=leaseURL(id),descriptor=Darwin.open(location.path,O_CREAT | O_EXCL | O_RDWR | O_NOFOLLOW | O_CLOEXEC,mode_t(0o600))
@@ -1287,7 +1295,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     public func persistence(cancellation: OperationCancellation? = nil) throws -> FinderCachePersistencePreferences {try locked(cancellation) { validation in try control(validation:validation).policy}}
     public func setPersistence(_ preferences: FinderCachePersistencePreferences, cancellation: OperationCancellation? = nil) throws {
         try locked(cancellation) { validation in
-            var state=try control(validation:validation);_ = try read(FinderSnapshot.self,url)
+            var state=try control(validation:validation);_ = try checkedRawSnapshot(validation:validation)
             func clearWarm() throws {
                 var attributes=stat()
                 if lstat(warmURL.path,&attributes)==0 {guard attributes.st_mode & S_IFMT == S_IFREG else {throw FinderPublicationFailure.corruptStore};try FileManager.default.removeItem(at:warmURL)}
@@ -1302,7 +1310,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 if state.warmResetRequired {try clearWarm();state.warmResetRequired=false;try save(state,controlURL)}
                 let recovered=try readWarm(rebuildCorrupt:true)
                 if recovered.discarded {try save(FinderSnapshot(roots:[],states:[:]),warmURL)}
-                try migrateWarm(state)
+                try migrateWarm(state,validation:validation)
                 let contributions=try live(state).sorted {a,b in a.root.utf8.count==b.root.utf8.count ? a.sequence<b.sequence : a.root.utf8.count<b.root.utf8.count}
                 for item in contributions {try mergeWarm(root:item.root,snapshots:item.snapshots,enabled:true)}
                 state.policy=preferences;state.legacy=false;try checkControl(state,validation:validation);try save(state,controlURL)
@@ -1328,7 +1336,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                     return cached.snapshot
                 }
                 let validation=ValidationContext(cancellation:cancellation)
-                let state=try control(validation:validation),raw=try read(FinderSnapshot.self,url)
+                let state=try control(validation:validation),raw=try checkedRawSnapshot(validation:validation)
                 guard controlIdentity == (try identity(controlURL)),rawIdentity == (try identity(url)) else {continue}
                 let active: [Contribution]
                 if !state.legacy,raw?.liveRevision != nil {active=try live(state)} else {active=[]}
@@ -1371,7 +1379,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let session: FinderPublicationSession
         if let supplied {session=supplied} else {session=try defaultSession(cancellation:cancellation)}
         return try locked(cancellation) { validation in
-            var state=try control(validation:validation);try owner(session,state:state);_ = try read(FinderSnapshot.self,url)
+            var state=try control(validation:validation);try owner(session,state:state);_ = try checkedRawSnapshot(validation:validation)
             if let policy {guard state.statusPolicyIdentity == nil || state.statusPolicyIdentity == policy.identity else {throw FinderPublicationFailure.policyChanged};state.statusPolicyIdentity=policy.identity}
             guard state.counter<UInt64.max else {throw FinderPublicationFailure.corruptStore}
             state.counter += 1;state.sequences[root]=state.counter;state.claims[root]=session.id
@@ -1407,11 +1415,10 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         validation.contributions[ObjectIdentifier(submitted)]=submitted
         sessionLock.lock();let session=owned[ticket.session];sessionLock.unlock()
         return try locked(cancellation,validation:validation) { validation in
-            var state=try control(validation:validation);_ = try read(FinderSnapshot.self,url)
-            let latest=projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
+            var state=try control(validation:validation);_ = try checkedRawSnapshot(validation:validation)
             func nested(_ a:String,_ b:String)->Bool {FinderSnapshot.contains(a,root:b)}
             let newer=state.sequences.contains {root,sequence in sequence>ticket.sequence && (nested(root,ticket.root) || nested(ticket.root,root))}
-            guard ticket.policyIdentity==state.statusPolicyIdentity,ticket.instance==instance,ticket.store==state.id,state.claims[ticket.root]==ticket.session,state.sequences[ticket.root]==ticket.sequence,!newer,(state.consumed[ticket.root] ?? 0)<ticket.sequence,let session,session.active,try alive(ticket.session) else {return .init(published:false,snapshot:latest)}
+            guard ticket.policyIdentity==state.statusPolicyIdentity,ticket.instance==instance,ticket.store==state.id,state.claims[ticket.root]==ticket.session,state.sequences[ticket.root]==ticket.sequence,!newer,(state.consumed[ticket.root] ?? 0)<ticket.sequence,let session,session.active,try alive(ticket.session) else {return .init(published:false,snapshot:projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity))}
             if let identity=ticket.policyIdentity {guard snapshots.allSatisfy({snapshot in snapshot.roots.allSatisfy {snapshot.overlayPolicies[$0]?.identity==identity}}) else {throw FinderPublicationFailure.invalidUpdate}}
             state.consumed[ticket.root]=ticket.sequence
             state.contributions.removeAll {$0.session==ticket.session && GitReferenceName.equal($0.root,ticket.root)}

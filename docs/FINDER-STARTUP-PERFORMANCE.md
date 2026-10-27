@@ -66,3 +66,36 @@ does **not** establish a substantial publication speedup. Projection and
 serialization cost remains open. The native action-routing assertions establish
 that unrelated status scans are avoided, but the complete Commit loading delay
 still needs an installed measurement.
+
+## Publication pipeline continuation
+
+The next connected batch removes work repeated by an accepted publication:
+
+- The previous complete projection is built only when a ticket is rejected. That
+  return still filters contributions through current live leases.
+- A successfully decoded raw snapshot can be reused within one operation while
+  its regular-file identity remains unchanged. Replacements, symlinks and files
+  changed by a settings callback require another check; no decode cache crosses
+  operations.
+- Exact V2 records and compatibility maps share one UTF-8 ordering. Both wire
+  formats and their existing canonical-collision priorities remain present.
+- Exact root ownership uses an immutable component index shared by a snapshot's
+  queries. It preserves the nearest nested owner, component boundaries, `/`,
+  distinct Unicode spellings and value-copy invalidation. Public noncanonical
+  inputs retain their previous ancestor behavior. Hashing exact names uses the
+  same raw-byte feed for native and bridged String storage.
+
+The [pipeline checkpoint](qa/finder-publication-pipeline-2026-10-27.json) records
+the grouped validation and a new measurement separately from the earlier sample.
+Neither a synthetic cache timing nor avoided unrelated scans proves the complete
+installed Commit loading time. Signed Finder refresh and first-launch acceptance
+remain separate.
+
+The continuation passed 103 focused Core methods and all 14 native Finder
+case/engine pairs after two fixture-only compile repairs. A fresh frozen/current
+Debug comparison with the same console binary measured publication at 21.54 and
+12.86 seconds (about 40% less), with fresh reads at 5.12 and 4.60 seconds. Exact
+semantic hashes, snapshot size, lease cleanup and private storage cleanup matched.
+This is one sample per framework, with no timing threshold. The remaining
+12.86-second synthetic publication cost is still substantial, and the result
+does not measure complete Commit loading or installed signed Finder latency.

@@ -38,9 +38,12 @@ The [startup/publication family](FINDER-STARTUP-PERFORMANCE.md) separates action
 routing from unrelated watched-root scans, retains complete background authority,
 and reduces repeated exact-path and immutable-payload validation within one
 publication operation. Its grouped validation and bounded performance evidence
-are recorded separately; installed build16 predates this work. The single
-20,000-entry comparison did not establish a substantial publication speedup
-(21.62 to 21.10 seconds); projection/serialization remains a performance gap.
+are recorded separately; installed build16 predates this work. The first
+20,000-entry comparison did not establish a substantial publication speedup.
+The [pipeline continuation](qa/finder-publication-pipeline-2026-10-27.json) removes
+repeated projection/decoding/ordering and measures 21.54 to 12.86 seconds for the
+same synthetic workload, with identical results. Complete installed Commit timing
+and remaining publication cost still need attention.
 
 ## Unified Diff line-number and selection gutter
 
