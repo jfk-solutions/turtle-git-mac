@@ -1025,7 +1025,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     private var owned: [UUID: FinderPublicationSession] = [:]
     private var implicit: FinderPublicationSession?
     private let liveReadLock=NSLock()
-    private struct FileIdentity: Equatable {
+    private struct FileIdentity: Codable, Equatable {
         let device: dev_t, inode: ino_t, size: off_t
         let modifiedSeconds: Int, modifiedNanoseconds: Int, changedSeconds: Int, changedNanoseconds: Int
     }
@@ -1062,6 +1062,14 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             snapshots=try values.decode([FinderSnapshot].self,forKey:.snapshots);restored=try values.decode(Bool.self,forKey:.restored)
         }
     }
+    /// A maintenance receipt is valid only for these immutable contributions
+    /// and this exact regular archive file. Replacing/removing the archive or
+    /// changing a contribution forces full maintenance; policy equality alone
+    /// never authenticates optional restart data.
+    private struct WarmMaintenance: Codable {
+        let authority: [String]
+        let identity: FileIdentity?
+    }
     private struct Control: Codable {
         var version = 4
         var id = UUID()
@@ -1072,9 +1080,10 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         var statusPolicyIdentity: String?
         var policy = FinderCachePersistencePreferences()
         var warmResetRequired = false
+        var warmMaintenance: WarmMaintenance?
         var legacy = false
         init() {}
-        private enum CodingKeys: String, CodingKey { case version,id,counter,sequences,consumed,claims,contributions,policy,warmResetRequired,statusPolicyIdentity }
+        private enum CodingKeys: String, CodingKey { case version,id,counter,sequences,consumed,claims,contributions,policy,warmResetRequired,statusPolicyIdentity,warmMaintenance }
         init(from decoder: Decoder) throws {
             let values=try decoder.container(keyedBy:CodingKeys.self),stored=try values.decode(Int.self,forKey:.version)
             guard (1...4).contains(stored) else {throw FinderPublicationFailure.corruptStore}
@@ -1083,10 +1092,12 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             else {sequences=GitPathMap(uniqueKeysWithValues:try values.decode([String:UInt64].self,forKey:.sequences).map {($0.key,$0.value)});consumed=GitPathMap(uniqueKeysWithValues:try values.decode([String:UInt64].self,forKey:.consumed).map {($0.key,$0.value)})}
             if stored>=3 {claims=try values.decode(GitPathMap<UUID>.self,forKey:.claims);contributions=try values.decode([Contribution].self,forKey:.contributions);policy=try values.decode(FinderCachePersistencePreferences.self,forKey:.policy);warmResetRequired=try values.decodeIfPresent(Bool.self,forKey:.warmResetRequired) ?? false}
             statusPolicyIdentity=try values.decodeIfPresent(String.self,forKey:.statusPolicyIdentity)
+            // A malformed optional optimization hint cannot damage live authority.
+            warmMaintenance=try? values.decodeIfPresent(WarmMaintenance.self,forKey:.warmMaintenance)
         }
         func encode(to encoder: Encoder) throws {
             var values=encoder.container(keyedBy:CodingKeys.self)
-            try values.encode(4,forKey:.version);try values.encodeIfPresent(statusPolicyIdentity,forKey:.statusPolicyIdentity);try values.encode(id,forKey:.id);try values.encode(counter,forKey:.counter);try values.encode(sequences,forKey:.sequences);try values.encode(consumed,forKey:.consumed);try values.encode(claims,forKey:.claims);try values.encode(contributions,forKey:.contributions);try values.encode(policy,forKey:.policy);try values.encode(warmResetRequired,forKey:.warmResetRequired)
+            try values.encode(4,forKey:.version);try values.encodeIfPresent(statusPolicyIdentity,forKey:.statusPolicyIdentity);try values.encode(id,forKey:.id);try values.encode(counter,forKey:.counter);try values.encode(sequences,forKey:.sequences);try values.encode(consumed,forKey:.consumed);try values.encode(claims,forKey:.claims);try values.encode(contributions,forKey:.contributions);try values.encode(policy,forKey:.policy);try values.encode(warmResetRequired,forKey:.warmResetRequired);try values.encodeIfPresent(warmMaintenance,forKey:.warmMaintenance)
         }
     }
     public init(url: URL) { self.url=url }
@@ -1293,6 +1304,22 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let session=try startSession(cancellation:cancellation);implicit=session;return session
     }
     public func persistence(cancellation: OperationCancellation? = nil) throws -> FinderCachePersistencePreferences {try locked(cancellation) { validation in try control(validation:validation).policy}}
+    private func warmAuthority(_ contributions: [Contribution]) -> [String] {
+        contributions.map { item in
+            let fields=[Data(item.root.utf8).base64EncodedString(),item.session.uuidString,
+                        String(item.sequence),String(item.revision),item.restored ? "1":"0"]
+            return fields.joined(separator:":")
+        }.sorted()
+    }
+    private func warmIsCurrent(_ state: Control, contributions: [Contribution]) throws -> Bool {
+        guard state.policy.cacheSave,!state.legacy,!state.warmResetRequired,
+              let receipt=state.warmMaintenance else{return false}
+        guard receipt.authority == warmAuthority(contributions) else {return false}
+        return receipt.identity == (try identity(warmURL))
+    }
+    private func warmReceipt(_ contributions: [Contribution]) throws -> WarmMaintenance {
+        WarmMaintenance(authority:warmAuthority(contributions),identity:try identity(warmURL))
+    }
     public func setPersistence(_ preferences: FinderCachePersistencePreferences, cancellation: OperationCancellation? = nil) throws {
         try locked(cancellation) { validation in
             var state=try control(validation:validation);_ = try checkedRawSnapshot(validation:validation)
@@ -1302,18 +1329,45 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 else if errno != ENOENT {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
             }
             if !preferences.cacheSave {
+                // An already disabled, fully cleaned store needs no rewrite.
+                // An unexpected archive or a durable failed-unlink fence must
+                // still be cleaned, even when the requested policy is unchanged.
+                if state.policy==preferences,!state.legacy,!state.warmResetRequired {
+                    // A nonregular/unreadable path still needs the durable
+                    // invalidation fence before cleanup reports its failure.
+                    do {if try identity(warmURL)==nil {return}} catch {}
+                }
                 // This durable fence precedes deletion, including deletion failure.
-                state.policy=preferences;state.legacy=false;state.warmResetRequired=true;try save(state,controlURL)
+                state.policy=preferences;state.legacy=false;state.warmResetRequired=true;state.warmMaintenance=nil
+                try save(state,controlURL)
                 try clearWarm();state.warmResetRequired=false;try save(state,controlURL)
             } else {
+                // Capture the actual lease cohort once. The receipt must name
+                // precisely the projection merged below, even if a process dies
+                // while optional archive I/O is in progress.
+                let liveContributions=try live(state)
+                if state.policy==preferences,try warmIsCurrent(state,contributions:liveContributions) {return}
                 // Never re-enable an archive whose earlier invalidation failed.
-                if state.warmResetRequired {try clearWarm();state.warmResetRequired=false;try save(state,controlURL)}
+                if state.warmResetRequired {try clearWarm();state.warmResetRequired=false;state.warmMaintenance=nil;try save(state,controlURL)}
                 let recovered=try readWarm(rebuildCorrupt:true)
-                if recovered.discarded {try save(FinderSnapshot(roots:[],states:[:]),warmURL)}
-                try migrateWarm(state,validation:validation)
-                let contributions=try live(state).sorted {a,b in a.root.utf8.count==b.root.utf8.count ? a.sequence<b.sequence : a.root.utf8.count<b.root.utf8.count}
-                for item in contributions {try mergeWarm(root:item.root,snapshots:item.snapshots,enabled:true)}
-                state.policy=preferences;state.legacy=false;try checkControl(state,validation:validation);try save(state,controlURL)
+                var warm=recovered.snapshot
+                if warm==nil,state.legacy {warm=try checkedRawSnapshot(validation:validation)}
+                let contributions=liveContributions.sorted {a,b in a.root.utf8.count==b.root.utf8.count ? a.sequence<b.sequence : a.root.utf8.count<b.root.utf8.count}
+                // Decode once and publish once, rather than re-reading and
+                // rewriting the entire archive once per live repository.
+                if warm != nil || !contributions.isEmpty || recovered.discarded {
+                    var merged=warm ?? FinderSnapshot(roots:[],states:[:])
+                    merged.liveRevision=nil;merged.persistenceFailure=nil
+                    for item in contributions {
+                        try validation.check()
+                        merged.replaceSubtree(root:FileTransferPaths.fileURL(item.root),snapshots:item.snapshots)
+                    }
+                    try validation.check();try save(merged,warmURL)
+                }
+                state.policy=preferences;state.legacy=false
+                try checkControl(state,validation:validation)
+                state.warmMaintenance=try warmReceipt(liveContributions)
+                try save(state,controlURL)
                 if recovered.discarded {throw FinderPublicationFailure.corruptWarmCacheReset}
             }
         }
@@ -1420,13 +1474,33 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             let newer=state.sequences.contains {root,sequence in sequence>ticket.sequence && (nested(root,ticket.root) || nested(ticket.root,root))}
             guard ticket.policyIdentity==state.statusPolicyIdentity,ticket.instance==instance,ticket.store==state.id,state.claims[ticket.root]==ticket.session,state.sequences[ticket.root]==ticket.sequence,!newer,(state.consumed[ticket.root] ?? 0)<ticket.sequence,let session,session.active,try alive(ticket.session) else {return .init(published:false,snapshot:projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity))}
             if let identity=ticket.policyIdentity {guard snapshots.allSatisfy({snapshot in snapshot.roots.allSatisfy {snapshot.overlayPolicies[$0]?.identity==identity}}) else {throw FinderPublicationFailure.invalidUpdate}}
+            // Optional archive damage must never refuse an accepted live update.
+            let priorLive=try live(state)
+            let completeWarm=(try? warmIsCurrent(state,contributions:priorLive)) == true
+            let expectedLive=priorLive.filter { !($0.session==ticket.session && GitReferenceName.equal($0.root,ticket.root)) }+[submitted]
+            // A local subtree merge alone cannot prove the complete warm
+            // projection when another retained contribution overlaps it. Let
+            // the next full maintenance reconcile that precedence instead.
+            let overlapping=state.contributions.contains { item in
+                !(item.session==ticket.session && GitReferenceName.equal(item.root,ticket.root)) &&
+                    (nested(item.root,ticket.root) || nested(ticket.root,item.root))
+            }
             state.consumed[ticket.root]=ticket.sequence
             state.contributions.removeAll {$0.session==ticket.session && GitReferenceName.equal($0.root,ticket.root)}
             state.contributions.append(submitted)
+            state.warmMaintenance=nil
+            // Preserve the live authority commit before optional archive work.
+            // A crash or warm/receipt write failure cannot revoke this update.
             let published=try writeLive(&state,validation:validation)
             var rebuilt=false
             let warning=warmWarning {
-                do {try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave,rebuildFrom:published)}
+                do {
+                    try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave,rebuildFrom:published)
+                    if completeWarm,!overlapping,warmAuthority(state.contributions)==warmAuthority(expectedLive) {
+                        state.warmMaintenance=try warmReceipt(state.contributions)
+                        try save(state,controlURL)
+                    }
+                }
                 catch let failure as FinderPublicationFailure {
                     if case .corruptWarmCacheReset=failure {rebuilt=true}
                     throw failure

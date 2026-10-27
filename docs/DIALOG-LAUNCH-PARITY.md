@@ -171,3 +171,20 @@ The acceptance process was closed with Command-Q, its waiting launcher exited0
 and the application PID was independently absent. This complements the private
 receiver checks; it is not exhaustive acceptance of saved-state migration, every
 external action, physical Finder grants or all upstream layouts.
+
+## Clean installed Finder launch — 27 October 2026
+
+[Build18 acceptance](qa/signed-consolidation-build18-2026-10-27.json) separates
+Finder's cold URL request from target-app observation. GetURL arrives before the
+first permission-panel query; granting access publishes menus and badges without
+a workspace route. A subsequent deliberate application reopen opens the workspace
+and shows the persisted repository. The private grant and owned windows are then
+removed and both owned main processes are independently absent.
+
+An immediate automation query can start the app before Finder's asynchronous URL
+handoff, or reopen it after the last action window closes. Earlier observations
+with that ordering are retained but do not prove an unsolicited Finder workspace.
+The sandboxed Finder caller's OpenConfiguration arguments are ignored according
+to the installed AppKit SDK, so URL routing must also work without a sentinel
+argument. A separate earlier writer-lock timeout remains an unresolved cache
+contention observation; visible transient badges alone do not certify Add success.

@@ -290,4 +290,136 @@ final class FinderCachePersistenceTests: XCTestCase {
         XCTAssertNil(try store.publish(retry,snapshots:[snapshot("/claimed",.normal)]).persistenceFailure)
     }
 
+    private func inode(_ url: URL) throws -> ino_t {
+        var info=stat()
+        guard lstat(url.path,&info)==0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+        return info.st_ino
+    }
+    private func warm(_ store: FinderSnapshotStore) throws -> FinderSnapshot {
+        try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:store.warmURL))
+    }
+    func testUnchangedPolicyIsWriteFreeAcrossStoresAndFreshPublicationCarriesReceipt() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        let a="/wire/\u{00c5}",b="/wire/A\u{030a}"
+        _ = try publish(store,session,a,.modified);_ = try publish(store,session,b,.added)
+        try store.setPersistence(.init(cacheSave:true))
+        let control=URL(fileURLWithPath:store.url.path+".writers")
+        let warmInode=try inode(store.warmURL),controlInode=try inode(control)
+        let warmBytes=try Data(contentsOf:store.warmURL),liveRevision=try store.readLive().liveRevision
+        let reopened=FinderSnapshotStore(url:store.url)
+        for _ in 0..<3 {
+            try reopened.setPersistence(.init(cacheSave:true))
+            XCTAssertEqual(try inode(store.warmURL),warmInode,"Unchanged policy rewrote the complete archive")
+            XCTAssertEqual(try inode(control),controlInode,"Unchanged policy rewrote the control file")
+        }
+        XCTAssertEqual(try inode(store.warmURL),warmInode,"Unchanged policy rewrote the complete archive")
+        XCTAssertEqual(try inode(control),controlInode,"Unchanged policy rewrote the control file")
+        XCTAssertEqual(try Data(contentsOf:store.warmURL),warmBytes)
+        XCTAssertEqual(try store.readLive().liveRevision,liveRevision)
+        _ = try publish(store,session,a,.conflicted)
+        let publishedInode=try inode(store.warmURL),publishedControl=try inode(control)
+        try reopened.setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try inode(store.warmURL),publishedInode,"Successful publication lost its complete maintenance receipt")
+        XCTAssertEqual(try inode(control),publishedControl)
+        XCTAssertEqual(try warm(store).states[a+"/file"],.conflicted)
+        XCTAssertEqual(try warm(store).states[b+"/file"],.added)
+    }
+    func testArchiveReplacementDeletionAndCorruptionInvalidateUnchangedPolicyReceipt() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        _ = try publish(store,session,"/active",.modified)
+        try store.setPersistence(.init(cacheSave:true))
+        var replacement=snapshot("/archive-only",.added)
+        replacement.states["/active/file"] = .deleted
+        try JSONEncoder().encode(replacement).write(to:store.warmURL,options:.atomic)
+        try store.setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try warm(store).states["/active/file"],.modified)
+        XCTAssertEqual(try warm(store).states["/archive-only/file"],.added,"Valid unrelated restart data must survive maintenance")
+        try FileManager.default.removeItem(at:store.warmURL)
+        try FinderSnapshotStore(url:store.url).setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try warm(store).states["/active/file"],.modified)
+        try Data("{broken".utf8).write(to:store.warmURL)
+        XCTAssertThrowsError(try store.setPersistence(.init(cacheSave:true))) {error in
+            guard let failure=error as? FinderPublicationFailure,case .corruptWarmCacheReset=failure else {return XCTFail("Unexpected recovery warning: \(error)")}
+        }
+        XCTAssertEqual(try warm(store).states["/active/file"],.modified)
+        let repaired=try inode(store.warmURL)
+        XCTAssertNoThrow(try store.setPersistence(.init(cacheSave:true)))
+        XCTAssertEqual(try inode(store.warmURL),repaired,"A disclosed successful rebuild must become idempotent")
+    }
+    func testWarmWriteFailureDoesNotAuthenticateReceiptAndRetryRetainsLiveSiblings() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        _ = try publish(store,session,"/a",.modified);_ = try publish(store,session,"/b",.added)
+        try store.setPersistence(.init(cacheSave:true))
+        try FileManager.default.removeItem(at:store.warmURL)
+        try FileManager.default.createDirectory(at:store.warmURL,withIntermediateDirectories:false)
+        let result=try publish(store,session,"/a",.conflicted)
+        XCTAssertTrue(result.published);XCTAssertNotNil(result.persistenceFailure)
+        XCTAssertEqual(try store.readLive().states["/a/file"],.conflicted)
+        XCTAssertThrowsError(try store.setPersistence(.init(cacheSave:true)))
+        try FileManager.default.removeItem(at:store.warmURL)
+        try FinderSnapshotStore(url:store.url).setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try warm(store).states["/a/file"],.conflicted)
+        XCTAssertEqual(try warm(store).states["/b/file"],.added)
+        let repaired=try inode(store.warmURL)
+        try store.setPersistence(.init(cacheSave:true));XCTAssertEqual(try inode(store.warmURL),repaired)
+    }
+    func testMissingOldReceiptAndNestedRevisionForceSafeMaintenance() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        var value=snapshot("/parent",.modified);value.states["/parent/child/file"] = .added
+        _ = try store.publish(store.begin(root:URL(fileURLWithPath:"/parent"),session:session),snapshots:[value])
+        try store.setPersistence(.init(cacheSave:true))
+        let control=URL(fileURLWithPath:store.url.path+".writers")
+        var object=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:control)) as? [String:Any])
+        object.removeValue(forKey:"warmMaintenance")
+        try JSONSerialization.data(withJSONObject:object).write(to:control,options:.atomic)
+        try FinderSnapshotStore(url:store.url).setPersistence(.init(cacheSave:true))
+        _ = try store.remove(root:URL(fileURLWithPath:"/parent/child"),session:session)
+        try store.setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try warm(store).states["/parent/file"],.modified)
+        XCTAssertNil(try warm(store).states["/parent/child/file"])
+        let final=try inode(store.warmURL)
+        try store.setPersistence(.init(cacheSave:true));XCTAssertEqual(try inode(store.warmURL),final)
+    }
+    func testDisabledPolicyIsWriteFreeButStillDeletesUnexpectedArchiveAndRetainsResetFence() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let session=try store.startSession();defer {_ = try? store.endSession(session)}
+        _ = try publish(store,session,"/active",.modified)
+        try store.setPersistence(.init(cacheSave:true))
+        try store.setPersistence(.init(cacheSave:false))
+        let control=URL(fileURLWithPath:store.url.path+".writers"),disabled=try inode(URL(fileURLWithPath:store.url.path+".writers"))
+        try FinderSnapshotStore(url:store.url).setPersistence(.init(cacheSave:false))
+        XCTAssertEqual(try inode(control),disabled)
+        try FileManager.default.createDirectory(at:store.warmURL,withIntermediateDirectories:false)
+        XCTAssertThrowsError(try store.setPersistence(.init(cacheSave:false)))
+        XCTAssertFalse(try store.persistence().cacheSave)
+        try FileManager.default.removeItem(at:store.warmURL)
+        try JSONEncoder().encode(snapshot("/stale",.conflicted)).write(to:store.warmURL)
+        try store.setPersistence(.init(cacheSave:true))
+        XCTAssertNil(try warm(store).states["/stale/file"],"Failed-disable fence allowed stale archive resurrection")
+        XCTAssertEqual(try warm(store).states["/active/file"],.modified)
+    }
+
+    func testLeaseDeathInvalidatesReceiptAndRestoresSurvivingOverlappingOwner() throws {
+        let (directory,store)=try fixture();defer {try? FileManager.default.removeItem(at:directory)}
+        let a=try store.startSession();defer {_ = try? store.endSession(a)}
+        _ = try publish(store,a,"/shared",.modified)
+        var departed:FinderSnapshotStore?=FinderSnapshotStore(url:store.url)
+        let b=try XCTUnwrap(departed).startSession()
+        _ = try publish(try XCTUnwrap(departed),b,"/shared",.conflicted)
+        try store.setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try warm(store).states["/shared/file"],.conflicted)
+        let control=URL(fileURLWithPath:store.url.path+".writers"),before=try Data(contentsOf:URL(fileURLWithPath:store.url.path+".writers"))
+        departed=nil // Lease disappears without rewriting control, like process exit.
+        XCTAssertEqual(try Data(contentsOf:control),before)
+        try store.setPersistence(.init(cacheSave:true))
+        XCTAssertEqual(try store.readLive().states["/shared/file"],.modified)
+        XCTAssertEqual(try warm(store).states["/shared/file"],.modified,"A dead newer owner remained authenticated by an unchanged control record")
+        let maintained=try inode(store.warmURL)
+        try store.setPersistence(.init(cacheSave:true));XCTAssertEqual(try inode(store.warmURL),maintained)
+    }
+
 }

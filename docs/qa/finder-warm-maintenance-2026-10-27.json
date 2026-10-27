@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-27",
+  "status": "grouped-local-checkpoint-passed",
+  "base_commit": "ea4db15f24cf70b2e6d78ac7840a06d2dca113b6",
+  "scope": [
+    "Idempotent persistence maintenance with contribution/file identity receipt",
+    "Single archive decode/merge/write for all live roots",
+    "Preserve optional warm failure versus authoritative live publication",
+    "No-argument sandboxed URL registration native case"
+  ],
+  "trigger": "Installed build18 Add reported one writer-lock timeout; clean subsequent actual Add passed. Actual holder not identified.",
+  "physical_evidence": "docs/qa/signed-consolidation-build18-2026-10-27.json",
+  "validation": [
+    {
+      "check": "focused Core",
+      "session": 6380,
+      "exit": 1,
+      "log": "build/qa/finder-warm-maintenance-core-2026-10-27.log",
+      "failure": "Swift throwing && expression needed outer try; split into guard and explicit throwing identity comparison."
+    },
+    {
+      "check": "Debug initial build",
+      "session": 85153,
+      "exit": 65,
+      "log": "build/qa/finder-warm-maintenance-build-2026-10-27.log",
+      "failure": "Same compile expression."
+    },
+    {
+      "check": "focused Core repaired",
+      "session": 74705,
+      "exit": 0,
+      "methods": 45,
+      "log": "build/qa/finder-warm-maintenance-core-repair-2026-10-27.log"
+    },
+    {
+      "check": "site initial",
+      "exit": 1,
+      "failure": "System Python lacks markdown_it; existing build/site-venv used for recheck."
+    },
+    {
+      "check": "site existing environment",
+      "session": 79167,
+      "exit": 0,
+      "log": "build/qa/finder-warm-maintenance-site-repair-2026-10-27.log"
+    },
+    {
+      "check": "coverage/localizations",
+      "session": 32411,
+      "exit": 0,
+      "dialogs": 130,
+      "partial_audits": 120,
+      "pending_dialog_reviews": 10,
+      "pending_control_reviews": 85,
+      "locales": 38,
+      "keys": 1324
+    },
+    {
+      "check": "Debug repaired",
+      "session": 60950,
+      "exit": 0,
+      "log": "build/qa/finder-warm-maintenance-build-repair-2026-10-27.log",
+      "limitation": "Contradictory SwiftCompile failed with exit code0 diagnostic; incremental clean-diagnostic recheck required. Existing SDK simulator-version warning and Swift5 actor warnings retained."
+    },
+    {
+      "check": "Debug incremental confirmation",
+      "session": 42272,
+      "exit": 0,
+      "log": "build/qa/finder-warm-maintenance-build-final-2026-10-27.log",
+      "contradictory_swift_diagnostics": 0
+    },
+    {
+      "check": "native initial",
+      "session": 76553,
+      "exit": 1,
+      "log": "build/qa/finder-warm-maintenance-native-2026-10-27.log",
+      "receiver": 59809,
+      "receiver_reaped": true,
+      "failure": "No-argv fixture installed simulated URL delegate before awaited Git setup; actual AppKit default startup occurred during fixture preparation before supplied non-default notification. Delegate installation moved after async fixture setup, preserving all pre-start assertions."
+    },
+    {
+      "check": "native repaired grouped",
+      "session": 94984,
+      "exit": 0,
+      "log": "build/qa/finder-warm-maintenance-native-repair-2026-10-27.log",
+      "cases": [
+        "workspace url-registration",
+        "cache settings",
+        "cache lifecycle"
+      ],
+      "git": "bundled 2.55",
+      "reaped_receivers": [
+        59911,
+        59969,
+        60032
+      ],
+      "reaped_cache_worker": 60044
+    },
+    {
+      "check": "affected shared native launch helper",
+      "session": 13340,
+      "exit": 0,
+      "log": "build/qa/finder-warm-maintenance-native-affected-2026-10-27.log",
+      "cases": [
+        "action-only",
+        "action-cancel",
+        "action-error"
+      ],
+      "reaped_receivers": [
+        60132,
+        60180,
+        60206
+      ]
+    }
+  ],
+  "limits": [
+    "Installed build18 predates this correction",
+    "No full hosted/physical performance or complete port acceptance claimed"
+  ],
+  "review": [
+    "Independent review required optional warm identity failures to remain warning-only after live acceptance.",
+    "Original live/control commit point retained before optional warm/receipt writes.",
+    "Unclean overlapping-owner departure changes live precedence even if contribution records are unchanged; receipt must include live cohort."
+  ],
+  "attempted_native_receivers": [
+    59809,
+    59911,
+    59969,
+    60032,
+    60132,
+    60180,
+    60206
+  ],
+  "owned_cache_workers": [
+    60044
+  ],
+  "native_cleanup": "All seven attempted native receivers and cache worker independently absent; fixture runners own hidden windows and helper cleanup.",
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "bc19cbd955afd99fb0eaaef1e86cfcaba9210a079195ffcb7c58d996f4888e6d",
+    "Tests/TurtleGitCoreTests/FinderCachePersistenceTests.swift": "66f06ecbcfa4567696c095e6910f34e031b8168287f148b7da9538808f3e1caa",
+    "docs/qa/workspace-launch-native-2026-10-25.swift": "14098943cdc19fc16bf0fa7a23e9f184331ea4c4b4b6798d7d4aa806362f645b",
+    "scripts/test-workspace-launch.py": "98ad4325565bdd28a9019974745ee2a8fb2e5d438ab5ab4b8c6b462dad1bbe35"
+  },
+  "remaining": [
+    "Physical contention holder and installed performance not proven; build18 predates this correction.",
+    "Full current hosted run and complete source/dialog/VoiceOver/IME/Intel/minimum-OS/distribution acceptance remain separate."
+  ]
+}

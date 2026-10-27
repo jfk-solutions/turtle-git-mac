@@ -139,11 +139,10 @@ private extension NSWindow {
         try require(c.controllers.count==1 && c.workspaceServices>0,"Explicit reopen did not attach real workspace/services")
     }
     static func actionOnly(_ c:Context,mode:String)async throws {
-        let old=NSApp.delegate;NSApp.delegate=c.delegate;defer{NSApp.delegate=old}
-        c.delegate.startupArguments=["--turtlegit-action-only"]
-        try require(NSApp.delegate?.applicationOpenUntitledFile?(NSApp) != true,"Pre-start action-only untitled callback accepted")
-        _=NSApp.delegate?.applicationShouldHandleReopen?(NSApp,hasVisibleWindows:false)
-        try noWorkspace(c,"Pre-start reopen materialized workspace")
+        // NSWorkspace.OpenConfiguration.arguments is ignored for sandboxed
+        // callers. Finder's real URL launch therefore also needs this no-argv
+        // path, independently of the optional action-only compatibility marker.
+        let urlRegistration=mode=="url-registration"
         let folder=c.folder.appendingPathComponent("selected repository")
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         let repository=GitRepository(root:folder,executable:c.git,libgit2Configuration:.init(enabled:false))
@@ -157,9 +156,17 @@ private extension NSWindow {
         if mode=="action-error" {beforeHead=nil}else{beforeHead=try await repository.run(["rev-parse","HEAD"]).stdout}
         let indexURL=folder.appendingPathComponent(".git/index"),beforeIndex=try? Data(contentsOf:indexURL)
         let beforeFile=try? Data(contentsOf:folder.appendingPathComponent("tracked.txt"))
+        // Awaited fixture Git setup pumps AppKit's actual default launch. Install
+        // the simulated Finder delegate only after that setup, so this case's
+        // non-default launch metadata owns its first startup callback.
+        let old=NSApp.delegate;NSApp.delegate=c.delegate;defer{NSApp.delegate=old}
+        c.delegate.startupArguments=urlRegistration ? []:["--turtlegit-action-only"]
+        try require(NSApp.delegate?.applicationOpenUntitledFile?(NSApp) != true,"Pre-start action-only untitled callback accepted")
+        _=NSApp.delegate?.applicationShouldHandleReopen?(NSApp,hasVisibleWindows:false)
+        try noWorkspace(c,"Pre-start reopen materialized workspace")
         // Configuration is installed by the same actual launch callback as the
         // app. The action model is captured before its permission panel appears.
-        c.delegate.applicationDidFinishLaunching(Notification(name:NSApplication.didFinishLaunchingNotification,userInfo:[NSApplication.launchIsDefaultUserInfoKey:true]))
+        c.delegate.applicationDidFinishLaunching(Notification(name:NSApplication.didFinishLaunchingNotification,userInfo:[NSApplication.launchIsDefaultUserInfoKey:!urlRegistration]))
         c.delegate.finishPendingDefaultWorkspaceLaunch()
         try noWorkspace(c,"Action-only default metadata opened workspace")
         guard let model=c.delegate.actionRepositoryModel else{throw Failure(description:"Action-only routing model missing")}
@@ -184,7 +191,7 @@ private extension NSWindow {
         try await wait("registration permission/worker drain") {!model.busy && !model.hasPendingRepositoryWork && c.watchManager.pendingOperations==0}
         try require(panel?.isVisible != true && panel?.sheetParent==nil,"Permission panel did not close")
         try noWorkspace(c,"Registration completion opened workspace")
-        if mode=="action-only" {
+        if mode=="action-only" || urlRegistration {
             let snapshot=try XCTSnapshot(c.cache)
             try require(model.error==nil && c.store.repositories.contains{$0.lastKnownPath==folder.path} && c.watchManager.rows.count==1,"Registration did not persist private grant/watch: error=\(model.error ?? "nil"); expected=\(folder.path); roots=\(c.store.repositories.map(\.lastKnownPath)); rows=\(c.watchManager.rows.count); output=\(model.output)")
             try require(snapshot.roots.contains(folder.path) && snapshot.states[folder.appendingPathComponent("tracked.txt").path] == .modified,"Registration did not publish real private Git status")
@@ -262,7 +269,7 @@ private extension NSWindow {
         let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.workspaceLaunchOrder(_:relativeTo:)))!
         method_exchangeImplementations(original,hidden);defer{method_exchangeImplementations(original,hidden)}
         var context:Context?
-        do {let value=try Context();context=value;switch CommandLine.arguments[3] {case "cold":try await cold(value);case "workspace":try await workspace(value);case "late":try await late(value);case "action-only","action-cancel","action-error":try await actionOnly(value,mode:CommandLine.arguments[3]);case "late-default":try await lateDefault(value);default:throw Failure(description:"Unknown case")};try await value.cleanup();print("PASS: workspace launch \(CommandLine.arguments[3])")}
+        do {let value=try Context();context=value;switch CommandLine.arguments[3] {case "cold":try await cold(value);case "workspace":try await workspace(value);case "late":try await late(value);case "action-only","action-cancel","action-error","url-registration":try await actionOnly(value,mode:CommandLine.arguments[3]);case "late-default":try await lateDefault(value);default:throw Failure(description:"Unknown case")};try await value.cleanup();print("PASS: workspace launch \(CommandLine.arguments[3])")}
         catch {let failure=error;do {try await context?.cleanup()}catch{fputs("Cleanup: \(error)\n",stderr)};fputs("\(failure)\n",stderr);exit(1)}
     }
 }

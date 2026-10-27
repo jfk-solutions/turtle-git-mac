@@ -45,14 +45,28 @@ when already enabled, newly saved watches synchronize through authenticated IPC.
 
 ## Verification and remaining acceptance
 
-[Build17's actual first-use check](qa/signed-consolidation-build17-2026-10-27.json)
-confirms the folder grant, expanded repository menu and visible modified/untracked
-badges, followed by Commit loading and Cancel/No/Yes on a disposable 1,500-file
-repository. HEAD, index, configuration and working files remain unchanged. The
-same check exposes an unwanted empty workspace after authorization; the
-[launch ownership continuation](DIALOG-LAUNCH-PARITY.md#first-use-permission-and-launch-ownership--october-27-2026)
-tracks that defect separately from successful registration. No complete physical
-Clone, background-service or source-dialog acceptance follows from this check.
+[Build18's clean installed check](qa/signed-consolidation-build18-2026-10-27.json)
+confirms cold Finder Add, its required folder grant, expanded repository commands
+and visible modified/untracked badges without a workspace-open route. Only a
+later deliberate application reopen opens the workspace; the saved disposable
+repository is then present. Its permission is forgotten and the owned app and
+Finder window are closed, preserving the original two repository grants and
+fixture HEAD, index, configuration, files and status.
+
+Earlier build17/18 workspace observations involved target-app automation capable
+of reopening or starting the application. Build18 records that ordering explicitly:
+a premature observer produced a normal default launch before Finder's asynchronous
+URL delivery. The clean retry waits for actual GetURL delivery before observing
+the permission panel and observes only Finder after granting access. Sandboxed
+callers cannot rely on `NSWorkspace.OpenConfiguration.arguments`; the SDK says
+those arguments are ignored. URL launch metadata and live action ownership must
+work without the optional action-only argument.
+
+An earlier build18 attempt ultimately reported a writer-lock timeout despite
+transient menus and badges. That failure remains recorded; the clean success does
+not establish freedom from contention. Build17 additionally covers Commit loading
+and Cancel/No/Yes on the same disposable 1,500-file repository. No complete physical
+Clone, background-service or source-dialog acceptance follows from these checks.
 
 The [grouped checkpoint](qa/context-registration-2026-10-25.json) records 63
 distinct focused Core methods cumulatively passing, the final Debug build, actual

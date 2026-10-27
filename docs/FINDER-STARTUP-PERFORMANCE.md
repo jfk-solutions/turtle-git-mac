@@ -99,3 +99,36 @@ semantic hashes, snapshot size, lease cleanup and private storage cleanup matche
 This is one sample per framework, with no timing threshold. The remaining
 12.86-second synthetic publication cost is still substantial, and the result
 does not measure complete Commit loading or installed signed Finder latency.
+
+## Repeated persistence maintenance — October 27, 2026
+
+The installed build18 acceptance exposed one writer-lock timeout during Add. A
+clean subsequent Add passed; neither observation identifies the earlier lock
+holder. Source review found that background root collection reapplies persistence
+settings on each refresh. The existing implementation decodes and rewrites the
+whole warm archive for each live contribution even when the policy is unchanged.
+The physical archive was approximately 63 MB. Finder itself reads without the
+writer lock; this contention concerns application/cache-service writers.
+
+The connected correction retains a maintenance receipt for the exact immutable
+contribution revisions and regular archive file identity. An unchanged policy
+can skip completed maintenance only while both still match, with no pending reset
+or legacy migration. Missing/replaced/corrupt archives and failed maintenance must
+still follow repair and warning paths. Full maintenance decodes once, merges the
+ordered live roots and publishes once. Live publication remains independent of
+optional restart-cache failures. This does not increase the five-second lock
+limit or claim that every large publication now finishes within it.
+
+[The grouped checkpoint](qa/finder-warm-maintenance-2026-10-27.json) separates this
+source correction from build18's physical launch acceptance. Installed build18
+predates the maintenance correction; no physical performance or timeout-elimination
+claim follows from its successful launch check.
+
+The checkpoint passes 45 focused Core methods, the final incremental Debug build
+and six relevant native cases with bundled Git, including URL registration without
+launch arguments, cancellation/error ownership and separate-process cache crash
+recovery. All seven attempted receiver processes, including the failed fixture
+attempt, and its owned cache worker are independently absent. The initial Swift
+throwing-expression compile error, contradictory build diagnostic and fixture
+startup-order failure remain recorded. No full Core rerun or new signed bundle
+was performed after these focused checks passed.

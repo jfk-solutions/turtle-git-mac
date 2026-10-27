@@ -1,0 +1,148 @@
+{
+  "date": "2026-10-27",
+  "status": "installed-verified-clean-finder-launch-accepted",
+  "source_commit": "ea4db15f24cf70b2e6d78ac7840a06d2dca113b6",
+  "version": "0.1.0",
+  "build": "18",
+  "scope": [
+    "Consolidate headless launch/permission/preparation ownership correction",
+    "Preserve normal/default launch, explicit Open and later Dock reopen",
+    "Attach automatic onboarding/update setup to workspace; delayed wizard owner checks"
+  ],
+  "candidate_worktree": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac",
+  "source_input_sha256": "9205fb71ddc783e33a7a7e1e2ba658d1e93bf59836bb129f0836320e09fd2073",
+  "source_input_count": 1535,
+  "build_session": 20309,
+  "build_log": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed18-build-2026-10-27.log",
+  "previous_installed_build": "17",
+  "preceding_validation": [
+    "docs/qa/launch-intent-ownership-2026-10-27.json",
+    "docs/qa/signed-consolidation-build17-2026-10-27.json"
+  ],
+  "physical_acceptance": {
+    "status": "clean cold Finder Add passed; earlier failed/contaminated attempts retained",
+    "fixture": "build/qa/signed18-ui-2026-10-27/before.json",
+    "after": "build/qa/signed18-ui-2026-10-27/after.json",
+    "cold_main_pid": 57267,
+    "observed": [
+      "Finder Add clicked without querying/starting TurtleGit through automation",
+      "OS GetURL accepted at 2026-10-27 11:22:29.664050+0100 before first target-app query",
+      "Actual repository folder permission picker completed",
+      "Finder full repository command menu appeared",
+      "Visible modified Sources badge and untracked file badge",
+      "No workspace route in passive OS trace before deliberate application reopen",
+      "Deliberate reopen displayed workspace and persisted private repository alongside both original user repositories",
+      "Only private repository permission forgotten; original two recent repositories retained",
+      "Application quit through Command-Q; both owned main PIDs 56817 and 57267 independently absent",
+      "Owned Finder window closed; OS log reader 57245 terminated and reaped",
+      "Actual HEAD/index/config/all text file hashes and porcelain status unchanged"
+    ],
+    "route_trace": "build/qa/signed18-clean-launch-2026-10-27.ndjson",
+    "passive_before_reopen": "build/qa/signed18-clean-launch-before-explicit-reopen-2026-10-27.json",
+    "reader_cleanup": "build/qa/signed18-clean-launch-2026-10-27.json",
+    "earlier_attempts": [
+      {
+        "trace": "build/qa/signed18-launch-trace-2026-10-27.ndjson",
+        "limitation": "Target-app observation after last required UI closed caused later reopen; no clean headless conclusion."
+      },
+      {
+        "trace": "build/qa/signed18-passive-launch-trace-2026-10-27.ndjson",
+        "limitation": "Immediate target-app query before asynchronous Finder handoff produced default workspace launch before GetURL; not a clean Finder cold launch. Add ultimately reported writer lock timeout; transient badges were insufficient proof. Error dismissed, no private grant remained, app quit."
+      }
+    ],
+    "sdk_transport": "NSWorkspace.OpenConfiguration.arguments is ignored for sandboxed callers (AppKit NSWorkspace.h); binary-only argv is expected and not evidence that Finder lost an argument."
+  },
+  "sandbox_runtime_scope": "Build17 signed sandbox probes remain the preceding Core/runtime evidence. This correction changes native app lifecycle only; do not reclassify those probes as build18 physical proof.",
+  "app_store_submission": "not performed or authorized",
+  "remaining": [
+    "Cache lock timeout observed in preceding contaminated launch; avoidable repeated warm archive policy writes under investigation. Clean Add passed, which does not prove contention absent.",
+    "Full hosted/source/visual/VoiceOver/IME/Intel/minimum OS/distribution acceptance remains separate"
+  ],
+  "hosted_observation": {
+    "pages_run": 40484797669,
+    "pages_source": "ea4db15f",
+    "pages_conclusion": "success",
+    "macos_run": 40484797448,
+    "macos_status": "pending",
+    "meaning": "No current full hosted pass claimed."
+  },
+  "build_exit": 0,
+  "build_attempts": [
+    {
+      "log": "build/qa/signed18-build-2026-10-27.log",
+      "status": "succeeded",
+      "exit_code": 0,
+      "session": 20309
+    }
+  ],
+  "static_audit_session": 29968,
+  "static_validation": {
+    "source_inputs_unchanged": true,
+    "source_input_sha256": "9205fb71ddc783e33a7a7e1e2ba658d1e93bf59836bb129f0836320e09fd2073",
+    "application_sha256": "a482b7b1ed0daaa1c9cc45faca75850e9f2a852662e6743507028086967087ec",
+    "codesign_deep_strict_exit": 0,
+    "bundle_file_count": 6366,
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 90,
+    "generated_apple_help_index": {
+      "kind": "file",
+      "size": 364147,
+      "mode": "0o644",
+      "sha256": "6d138e8b68f59d686e5ca7422a188dadf767f416e20fef2bd40758aa9507ebc8"
+    },
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "native_fixture_diagnostics": {
+    "launch_final": "Three sandbox_extension_consume diagnostics in dialog-launch injected bookmark fixture; no table reentrancy warnings. Source/injected assertion scope distinct from actual signed17 sandbox pass."
+  },
+  "installation": {
+    "status": "installed_verified",
+    "source_commit": "ea4db15f24cf70b2e6d78ac7840a06d2dca113b6",
+    "source": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed18-displaced-installed-2026-10-27",
+    "old_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "17",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "17"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "17"
+        }
+      }
+    },
+    "new_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "18",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "18"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "18"
+        }
+      }
+    },
+    "source_input_sha256": "9205fb71ddc783e33a7a7e1e2ba658d1e93bf59836bb129f0836320e09fd2073",
+    "application_sha256": "a482b7b1ed0daaa1c9cc45faca75850e9f2a852662e6743507028086967087ec",
+    "inventory_members": 6366,
+    "strict_signature": "pass",
+    "source_staged_installed_inventories": "equal",
+    "finder_restarted": false,
+    "global_cache_reset": false,
+    "registration_pending": false
+  },
+  "registration": "+    org.turtlegit.macos.finder(0.1.0)\n"
+}

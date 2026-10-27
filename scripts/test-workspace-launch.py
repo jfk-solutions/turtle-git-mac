@@ -59,7 +59,7 @@ def retire_owned_helpers(context, approved_images):
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append')
-parser.add_argument('--only',choices=['cold','late','workspace','action-only','action-cancel','action-error','late-default'],action='append')
+parser.add_argument('--only',choices=['cold','late','workspace','action-only','action-cancel','action-error','late-default','url-registration'],action='append')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 generated=root/'build/qa/workspace-launch-native-sources'
@@ -68,7 +68,7 @@ receiver=build_receiver(root,[root/'docs/qa/workspace-launch-native-2026-10-25.s
 results=[]
 for git in args.git or [Path('/usr/bin/git'),root/'build/git-runtime/Git/bin/git']:
  git=git.absolute()
- for case in args.only or ['cold','late','workspace','action-only','action-cancel','action-error','late-default']:
+ for case in args.only or ['cold','late','workspace','action-only','action-cancel','action-error','late-default','url-registration']:
   with tempfile.TemporaryDirectory(prefix='turtlegit-workspace-launch-') as temporary:
    context=Path(temporary).resolve()
    for name in ['fixture','preferences','xdg','temporary','home']:(context/name).mkdir(mode=0o700)
