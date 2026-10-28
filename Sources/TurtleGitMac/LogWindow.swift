@@ -655,8 +655,8 @@ final class LogHistoryWindow: NSWindow {
         window?.contentViewController = nil
         completion?(nil);multiple?(nil)
         let closed=onClosed;onClosed={}
-        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || lfsOperation != nil {
-            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
+        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || lfsOperation != nil {
+            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
         }else{closed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
@@ -1418,6 +1418,94 @@ struct LogCommandRequest: Identifiable {
     func fileForeground(_ file: CommitFile, selected: Bool) -> Color {
         file.statusTextColor(selected: selected, gray: grayFile(file), preferences: labelDefaults)
     }
+    typealias HistoryProjection = (entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo])
+    struct HistoryProjectionInput: Sendable {
+        let entries: [LogEntry]
+        let walk: HistoryWalkOptions
+        let references: HistoryReferenceVisibility
+        let rollupStates: [String: HistoryRollupChoice]
+        let cancellation: OperationCancellation
+        let isFinal: Bool
+    }
+    var readHistoryProjection: @Sendable (HistoryProjectionInput) throws -> HistoryProjection = { input in
+        try CommitGraph.project(input.entries, walk: input.walk, references: input.references,
+                                rollupStates: input.rollupStates, cancellation: input.cancellation)
+    }
+    private struct HistoryProjectionJob {
+        let input: HistoryProjectionInput
+        let generation: Int
+        let historyCancellation: OperationCancellation
+        let reply: CheckedContinuation<HistoryProjection, Error>?
+    }
+    private var pendingHistoryProjection: HistoryProjectionJob?
+    private var historyProjectionTask: Task<Void, Never>?
+    private var historyProjectionCancellation: OperationCancellation?
+    private var finalProjectionGeneration: Int?
+    private var acceptedProjectionCount = 0
+    private(set) static var activeHistoryProjectionWorkers = 0
+    var historyProjectionWorkPending: Bool { historyProjectionTask != nil || pendingHistoryProjection != nil }
+    private func retireHistoryProjections() {
+        historyProjectionCancellation?.cancel()
+        pendingHistoryProjection?.input.cancellation.cancel()
+        pendingHistoryProjection?.reply?.resume(throwing: OperationCancellationFailure.cancelled)
+        pendingHistoryProjection = nil
+        finalProjectionGeneration = nil; acceptedProjectionCount = 0
+    }
+    private func enqueueHistoryProjection(_ job: HistoryProjectionJob) {
+        pendingHistoryProjection?.input.cancellation.cancel()
+        pendingHistoryProjection?.reply?.resume(throwing: OperationCancellationFailure.cancelled)
+        pendingHistoryProjection = job
+        // One worker must drain before its replacement starts. Cancellation is
+        // cooperative through graph traversal, never an unowned detached task.
+        historyProjectionCancellation?.cancel()
+        guard historyProjectionTask == nil else { return }
+        historyProjectionTask = Task { [self, access] in
+            defer { historyProjectionTask = nil; historyProjectionCancellation = nil; withExtendedLifetime(access) {} }
+            while let current = pendingHistoryProjection {
+                pendingHistoryProjection = nil
+                historyProjectionCancellation = current.input.cancellation
+                let compute = readHistoryProjection, input = current.input
+                Self.activeHistoryProjectionWorkers += 1
+                let projectionBegan = ProcessInfo.processInfo.systemUptime
+                NativeDialogStartupTrace.mark("log.projection.started", count: input.entries.count)
+                let outcome: Result<HistoryProjection, Error>
+                do { outcome = .success(try await Task.detached(priority: .userInitiated) { try compute(input) }.value) }
+                catch { outcome = .failure(error) }
+                Self.activeHistoryProjectionWorkers -= 1
+                NativeDialogStartupTrace.mark("log.projection.settled", began: projectionBegan, count: input.entries.count)
+                historyProjectionCancellation = nil
+                let live = current.generation == generation && historyCancellation === current.historyCancellation &&
+                    !isInvalidated && !current.historyCancellation.isCancelled && !input.cancellation.isCancelled
+                if !live {
+                    current.reply?.resume(throwing: OperationCancellationFailure.cancelled)
+                    continue
+                }
+                switch outcome {
+                case .success(let projection):
+                    if let reply = current.reply { reply.resume(returning: projection) }
+                    else if finalProjectionGeneration != current.generation, input.entries.count >= acceptedProjectionCount {
+                        acceptedProjectionCount = input.entries.count
+                        entries = projection.entries; graph = projection.graph; rollupInfo = projection.rollups
+                        searchHighlights = [:]; historySourceRowCount = input.entries.count
+                    }
+                case .failure(let error):
+                    if let reply = current.reply { reply.resume(throwing: error) }
+                    else if !(error is OperationCancellationFailure), !input.cancellation.isCancelled { self.error = error.localizedDescription }
+                }
+            }
+        }
+    }
+    private func finalHistoryProjection(_ rows: [LogEntry], request: Int, cancellation: OperationCancellation,
+        walk: HistoryWalkOptions, references: HistoryReferenceVisibility, states: [String: HistoryRollupChoice]) async throws -> HistoryProjection {
+        try cancellation.check()
+        guard request == generation, historyCancellation === cancellation, !isInvalidated else { throw OperationCancellationFailure.cancelled }
+        finalProjectionGeneration = request
+        return try await withCheckedThrowingContinuation { reply in
+            let input = HistoryProjectionInput(entries: rows, walk: walk, references: references, rollupStates: states,
+                                               cancellation: OperationCancellation(), isFinal: true)
+            enqueueHistoryProjection(.init(input: input, generation: request, historyCancellation: cancellation, reply: reply))
+        }
+    }
     private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
     private struct HistoryRestore {
@@ -1431,6 +1519,7 @@ struct LogCommandRequest: Identifiable {
     private var provisionalHistory: [LogEntry] = []
     private var nextHistoryPublication = 128
     private func restoreHistorySnapshot() {
+        retireHistoryProjections()
         if let snapshot = historyRestore {
             let available = Set(snapshot.entries.map(\.hash))
             let keepsCurrent = !selected.isEmpty && selected.isSubset(of: available)
@@ -1443,14 +1532,16 @@ struct LogCommandRequest: Identifiable {
         historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
     }
     private func publishHistoryBatch(_ batch: [LogEntry], request: Int, cancellation: OperationCancellation, walk: HistoryWalkOptions, references: HistoryReferenceVisibility, states: [String: HistoryRollupChoice]) {
-        guard request == generation, historyCancellation === cancellation, !isInvalidated, !cancellation.isCancelled else { return }
+        guard request == generation, historyCancellation === cancellation, !isInvalidated, !cancellation.isCancelled,
+              finalProjectionGeneration != request else { return }
         provisionalHistory += batch
         guard provisionalHistory.count == batch.count || provisionalHistory.count >= nextHistoryPublication else { return }
         // Doubling prefixes bounds cumulative graph work to a small multiple of
         // the walk length instead of rebuilding it for every arriving chunk.
         nextHistoryPublication = max(128, provisionalHistory.count * 2)
-        let projection = CommitGraph.project(provisionalHistory, walk: walk, references: references, rollupStates: states)
-        entries = projection.entries; graph = projection.graph; rollupInfo = projection.rollups; searchHighlights = [:]; historySourceRowCount = provisionalHistory.count
+        let input = HistoryProjectionInput(entries: provisionalHistory, walk: walk, references: references, rollupStates: states,
+                                           cancellation: OperationCancellation(), isFinal: false)
+        enqueueHistoryProjection(.init(input: input, generation: request, historyCancellation: cancellation, reply: nil))
     }
     @Published private(set) var loadedRevisionCount = 0
     var loadingHistory: Bool { historyCancellation != nil }
@@ -2441,11 +2532,21 @@ struct LogCommandRequest: Identifiable {
                 let submodules = working == nil ? GitPathSet() : GitPathSet(try await repository.submodulePathNames(cancellation:cancellation).map(\.rawValue))
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
-                let formatter = ISO8601DateFormatter()
-                let dates = result.compactMap { formatter.date(from: $0.committerDate.isEmpty ? $0.date : $0.committerDate) }
+                let sourceRows = result
+                let dates = try await Task.detached(priority: .userInitiated) {
+                    let formatter = ISO8601DateFormatter()
+                    var first: Date?, last: Date?
+                    for (index, entry) in sourceRows.enumerated() {
+                        if index % 64 == 0 { try cancellation.check() }
+                        guard let date = formatter.date(from: entry.committerDate.isEmpty ? entry.date : entry.committerDate) else { continue }
+                        first = first.map { min($0, date) } ?? date; last = last.map { max($0, date) } ?? date
+                    }
+                    try cancellation.check(); return (first, last)
+                }.value
+                guard request == generation, historyCancellation === cancellation, !isInvalidated, !cancellation.isCancelled else { return }
                 let selectedFrom = historyLimit.scale.rawValue >= HistoryLimitScale.selectedDate.rawValue ? historyLimit.from.flatMap { $0.timeIntervalSince1970 > 0 ? $0 : nil } : nil
-                if let first = selectedFrom ?? dates.min() { from = first }
-                if let last = historyLimit.until ?? dates.max() { to = last }
+                if let first = selectedFrom ?? dates.0 { from = first }
+                if let last = historyLimit.until ?? dates.1 { to = last }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"; self.currentBranch = currentBranch; self.fetchHeadRevision = startReferences.fetchHead; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig; hasGitSVN = metadata.hasGitSVN; workingHasLFS = metadata.hasLFS; self.svnRevisions = svnRevisions
@@ -2457,14 +2558,20 @@ struct LogCommandRequest: Identifiable {
                 }
                 let filterActive = try await Task.detached { try HistorySearchActivity.isActive(options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation) }.value
                 guard request == generation else { return }
-                let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility, rollupStates: rollupStates)
+                let projection = try await finalHistoryProjection(result, request: request, cancellation: cancellation,
+                    walk: options.walk, references: referenceVisibility, states: rollupStates)
+                guard request == generation, historyCancellation === cancellation, !cancellation.isCancelled, !isInvalidated else { return }
                 self.referenceContext = referenceContext
                 self.referenceDescriptions = referenceDescriptions
                 let highlightEntries = projection.entries
-                let labeledHashes = Set(highlightEntries.filter { !visibleReferences(for: $0).isEmpty }.map(\.hash))
                 let fullMessage = fullCommitMessageOnLogLine
                 let highlights = try await Task.detached {
                     guard filterActive else { return [String: [String: [NSRange]]]() }
+                    var labeledHashes = Set<String>()
+                    for (index, entry) in highlightEntries.enumerated() {
+                        if index % 64 == 0 { try cancellation.check() }
+                        if entry.references.contains(where: { referenceVisibility.shows($0) }) { labeledHashes.insert(entry.hash) }
+                    }
                     return try LogSearchHighlights.prepare(highlightEntries, query: options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, fields: options.searchFields, fullMessage: fullMessage, labeled: labeledHashes, executable: options.regexExecutable, cancellation: cancellation, applyLabelGates: false)
                 }.value
                 guard request == generation else { return }
@@ -2522,6 +2629,7 @@ struct LogCommandRequest: Identifiable {
         guard let revision else { return }
         let cancellation = OperationCancellation(); detailCancellation = cancellation
         Self.activeActionReads += 1
+        let detailsBegan = ProcessInfo.processInfo.systemUptime
         Task {
             defer {Self.activeActionReads -= 1;withExtendedLifetime(access){}}
             do {
@@ -2556,6 +2664,7 @@ struct LogCommandRequest: Identifiable {
                     describedRevision = description
                 }
                 detailCancellation = nil; refreshPatchPreview()
+                NativeDialogStartupTrace.mark("log.selection.details.ready", began: detailsBegan, count: files.count)
             } catch { if request == detailGeneration { detailCancellation = nil; detailHistoryGeneration = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
         }
     }
@@ -4804,7 +4913,10 @@ struct RevisionTable: NSViewRepresentable {
             let available = Set(model.entries.map(\.hash))
             let hashes = Set(table.selectedRowIndexes.compactMap { renderedEntries.indices.contains($0) ? renderedEntries[$0].hash : nil }).intersection(available)
             let mark = table.selectedRowIndexes.last(where: { renderedEntries.indices.contains($0) && hashes.contains(renderedEntries[$0].hash) && !model.selected.contains(renderedEntries[$0].hash) }).map { renderedEntries[$0].hash }
-            if hashes != model.selected { model.select(hashes,mark:mark) }
+            if hashes != model.selected {
+                model.select(hashes,mark:mark)
+                NativeDialogStartupTrace.mark("log.selection.accepted", count: hashes.count)
+            }
         }
         private func applySearchHighlights(_ text: NSMutableAttributedString, hash: String, column: String) {
             for range in searchHighlights[hash]?[column] ?? [] where range.length > 0 && range.location >= 0 && NSMaxRange(range) <= text.length {

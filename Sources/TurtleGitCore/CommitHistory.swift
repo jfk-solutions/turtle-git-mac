@@ -794,15 +794,26 @@ public struct CommitGraphRow: Equatable, Sendable {
 
 public enum CommitGraph {
     private struct Lane { var hash: String; var color: Int }
+    public typealias Projection = (entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo])
     /// Compression changes only graph copies, never action/detail parent metadata.
-    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all, rollupStates: [String: HistoryRollupChoice] = [:]) -> (entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo]) {
+    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all, rollupStates: [String: HistoryRollupChoice] = [:]) -> Projection {
+        project(entries, walk: walk, references: references, rollupStates: rollupStates, checkingCancellation: {})
+    }
+    /// Identical source graph projection with cooperative cancellation. No partial
+    /// projection escapes: a retired native owner must await this work's drain.
+    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all, rollupStates: [String: HistoryRollupChoice] = [:], cancellation: OperationCancellation) throws -> Projection {
+        try project(entries, walk: walk, references: references, rollupStates: rollupStates, checkingCancellation: { try cancellation.check() })
+    }
+    static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all, rollupStates: [String: HistoryRollupChoice] = [:], checkingCancellation check: () throws -> Void) rethrows -> Projection {
+        try check()
         var children: [String: Set<String>] = [:]
         var rollups: [String: HistoryRollupInfo] = [:]
         var expanded = Set<String>(), collapsed = Set<String>()
-        let visible = entries.filter { entry in
+        let visible = try entries.filter { entry in
+            try check()
             if entry.hash.isEmpty { return true }
-            for parent in entry.graphParents ?? entry.parents { children[parent, default: []].insert(entry.hash) }
-            let labeled = entry.isHead || entry.references.contains { references.keepsCommit($0) }
+            for parent in entry.graphParents ?? entry.parents { try check(); children[parent, default: []].insert(entry.hash) }
+            let labeled = try entry.isHead || entry.references.contains { try check(); return references.keepsCommit($0) }
             let descendants = children[entry.hash, default: []]
             let fork = descendants.count > 1
             let special = labeled || entry.parents.count > 1 || fork
@@ -822,24 +833,33 @@ public enum CommitGraph {
             rollups[entry.hash] = HistoryRollupInfo(collapsed: rolled, forced: rolled != defaultCollapse)
             return show && entry.matchesHistoryFilter
         }
-        let visibleHashes = Set(visible.map(\.hash))
-        let records = Dictionary(uniqueKeysWithValues: entries.map { ($0.hash, $0) })
+        var visibleHashes = Set<String>()
+        for entry in visible { try check(); visibleHashes.insert(entry.hash) }
+        var records: [String: LogEntry] = [:]
+        for entry in entries {
+            try check()
+            precondition(records.updateValue(entry, forKey: entry.hash) == nil, "Duplicate history hash")
+        }
         func graphParents(_ entry: LogEntry) -> [String] {
             let parents = entry.graphParents ?? entry.parents
             return walk.firstParent ? Array(parents.prefix(1)) : parents
         }
-        func nearestVisible(_ origin: String) -> [String] {
+        func nearestVisible(_ origin: String, checkingCancellation check: () throws -> Void) rethrows -> [String] {
             var pending = [origin], seen = Set<String>(), result: [String] = []
             while let hash = pending.popLast() {
+                try check()
                 guard seen.insert(hash).inserted else { continue }
                 if visibleHashes.contains(hash) || records[hash] == nil { result.append(hash) }
-                else if let entry = records[hash] { pending += graphParents(entry).reversed() }
+                else if let entry = records[hash] {
+                    for parent in graphParents(entry).reversed() { try check(); pending.append(parent) }
+                }
             }
             return result
         }
-        let graphEntries = visible.map { entry -> LogEntry in
+        let graphEntries = try visible.map { entry -> LogEntry in
+            try check()
             var copy = entry, seen = Set<String>()
-            copy.parents = graphParents(entry).flatMap(nearestVisible).filter { seen.insert($0).inserted }
+            copy.parents = try graphParents(entry).flatMap { try check(); return try nearestVisible($0, checkingCancellation: check) }.filter { try check(); return seen.insert($0).inserted }
             copy.graphParents = nil
             return copy
         }
@@ -848,53 +868,73 @@ public enum CommitGraph {
         var machine = HistoryLanes()
         var sourceRows: [String: (lanes: [HistoryLane], column: Int)] = [:]
         for entry in entries {
-            let lanes = machine.consume(hash: entry.hash, parents: entry.graphParents ?? entry.parents, mergeCommit: entry.parents.count > 1, boundary: entry.isBoundary, firstParent: walk.firstParent)
+            try check()
+            let lanes = try machine.consume(hash: entry.hash, parents: entry.graphParents ?? entry.parents, mergeCommit: entry.parents.count > 1, boundary: entry.isBoundary, firstParent: walk.firstParent, checkingCancellation: check)
             sourceRows[entry.hash] = (lanes,machine.activeLane)
         }
-        let graph = zip(visible, layout(graphEntries, mergeCommits: visible.map { $0.parents.count > 1 }, firstParent: walk.firstParent)).map { entry, row in
+        let mergeCommits = try visible.map { try check(); return $0.parents.count > 1 }
+        let rows = try layout(graphEntries, mergeCommits: mergeCommits, firstParent: walk.firstParent, checkingCancellation: check)
+        let graph = try zip(visible, rows).map { entry, row in
+            try check()
             let snapshot = sourceRows[entry.hash]!
             return CommitGraphRow(column: snapshot.column, color: snapshot.column, lanes: snapshot.lanes,
                 junction: entry.parents.count > 1 || children[entry.hash, default: []].count > 1,
                 collapsed: rollups[entry.hash]?.collapsed ?? false, edges: row.edges, width: snapshot.lanes.count)
         }
+        try check()
         return (visible, graph, rollups)
     }
-    public static func layout(_ entries: [LogEntry]) -> [CommitGraphRow] { layout(entries, mergeCommits: entries.map { $0.parents.count > 1 }, firstParent: false) }
-    private static func layout(_ entries: [LogEntry], mergeCommits: [Bool], firstParent: Bool) -> [CommitGraphRow] {
+    public static func layout(_ entries: [LogEntry]) -> [CommitGraphRow] {
+        layout(entries, checkingCancellation: {})
+    }
+    public static func layout(_ entries: [LogEntry], cancellation: OperationCancellation) throws -> [CommitGraphRow] {
+        try layout(entries, checkingCancellation: { try cancellation.check() })
+    }
+    static func layout(_ entries: [LogEntry], checkingCancellation check: () throws -> Void) rethrows -> [CommitGraphRow] {
+        let merges = try entries.map { try check(); return $0.parents.count > 1 }
+        return try layout(entries, mergeCommits: merges, firstParent: false, checkingCancellation: check)
+    }
+    private static func layout(_ entries: [LogEntry], mergeCommits: [Bool], firstParent: Bool, checkingCancellation check: () throws -> Void) rethrows -> [CommitGraphRow] {
+        try check()
         var source = HistoryLanes()
         var rowIndex = 0
         var lanes: [Lane] = []
         var nextColor = 0
         var childCounts: [String: Int] = [:]
-        for entry in entries { for parent in entry.graphParents ?? entry.parents { childCounts[parent, default: 0] += 1 } }
-        return entries.map { entry in
+        for entry in entries { try check(); for parent in entry.graphParents ?? entry.parents { try check(); childCounts[parent, default: 0] += 1 } }
+        let rows = try entries.map { entry in
+            try check()
             let parents = entry.graphParents ?? entry.parents
-            let sourceLanes = source.consume(hash: entry.hash, parents: parents, mergeCommit: mergeCommits[rowIndex], boundary: entry.isBoundary, firstParent: firstParent)
+            let sourceLanes = try source.consume(hash: entry.hash, parents: parents, mergeCommit: mergeCommits[rowIndex], boundary: entry.isBoundary, firstParent: firstParent, checkingCancellation: check)
             let sourceColumn = source.activeLane
             rowIndex += 1
-            let hasIncoming = lanes.contains(where: { $0.hash == entry.hash })
+            let hasIncoming = try lanes.contains(where: { try check(); return $0.hash == entry.hash })
             if !hasIncoming {
                 lanes.append(Lane(hash: entry.hash, color: nextColor)); nextColor += 1
             }
             let before = lanes
-            let column = lanes.firstIndex { $0.hash == entry.hash }!
+            let column = try lanes.firstIndex { try check(); return $0.hash == entry.hash }!
             let color = lanes[column].color
             lanes.remove(at: column)
-            for (index, parent) in parents.enumerated() where !lanes.contains(where: { $0.hash == parent }) {
+            for (index, parent) in parents.enumerated() {
+                try check()
+                if try lanes.contains(where: { try check(); return $0.hash == parent }) { continue }
                 let lane = Lane(hash: parent, color: index == 0 ? color : nextColor)
                 if index == 0 { lanes.insert(lane, at: min(column, lanes.count)) }
                 else { lanes.append(lane); nextColor += 1 }
             }
             var edges: [CommitGraphRow.Edge] = []
             for (index, lane) in before.enumerated() {
+                try check()
                 if lane.hash == entry.hash {
                     if hasIncoming { edges.append(.init(from: index, to: column, color: lane.color, startsAtNode: false, endsAtNode: true)) }
-                } else if let destination = lanes.firstIndex(where: { $0.hash == lane.hash }) {
+                } else if let destination = try lanes.firstIndex(where: { try check(); return $0.hash == lane.hash }) {
                     edges.append(.init(from: index, to: destination, color: lane.color, startsAtNode: false, endsAtNode: false))
                 }
             }
             for parent in parents {
-                if let destination = lanes.firstIndex(where: { $0.hash == parent }) {
+                try check()
+                if let destination = try lanes.firstIndex(where: { try check(); return $0.hash == parent }) {
                     edges.append(.init(from: column, to: destination, color: lanes[destination].color, startsAtNode: true, endsAtNode: false))
                 }
             }
@@ -902,6 +942,8 @@ public enum CommitGraph {
                 junction: entry.parents.count > 1 || childCounts[entry.hash, default: 0] > 1,
                 collapsed: false, edges: edges, width: sourceLanes.count)
         }
+        try check()
+        return rows
     }
 }
 

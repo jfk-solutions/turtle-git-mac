@@ -2920,3 +2920,43 @@ diff. This physical sample does not establish every command, repository or a Log
 latency benchmark. Earlier fixtures that directly
 seeded `model.select` did not establish that actual table selection notifications
 reached the model during loading.
+
+## Large-history graph preparation — October 28, 2026
+
+The selection correction above admits loaded rows during history streaming, but
+both provisional graph construction and final projection still ran synchronously
+on the main actor. Doubling publication thresholds reduces total work; it does
+not keep a single large graph pass from delaying native input. The pinned source
+uses a background Log worker (`GitLogListBase.cpp::LogThread`, line 2802; startup
+at line 3170). The macOS adaptation must preserve the same graph and complete
+history while keeping its native input thread available.
+
+This continuation moves complete projection requests to owned background work,
+coalesces obsolete prefixes and gives final results priority. A stale request
+must not replace newer history, filter/rollup state or a final accepted graph.
+Displayed entries, original parents, graph rows, rollups, source counts and
+selection remain a coherent snapshot. Loaded-row inspection and selected-file
+comparison retain their existing independent read ownership.
+
+Cancellation must reach actual graph and lane work, including hidden-parent
+traversal and wide merge/lane scans. Retiring a form or refreshing cancels its
+queued work and retains access/worker accounting until the active computation
+really returns. The existing nonthrowing Core graph/lane interfaces retain their
+behavior; native preparation uses explicit cancellable entry points. Unlimited
+history and explicit full-range column fitting remain available.
+
+The [projection checkpoint](qa/log-projection-pipeline-2026-10-28.json) records
+nine distinct focused Core methods passing, including the independent source lane
+oracle and 24 complete projection combinations. Three new methods were rechecked
+after removing test-only checkpoint-count quotas that would have locked in an
+implementation cost; semantic and interruption assertions were retained.
+
+The native family passes with both Git engines. An actual background projection
+is deliberately held while native selection, detail reads and a main-actor
+heartbeat continue. A new real private commit/reload distinguishes the stale
+projection from the accepted final graph. Closing retains the real worker, and
+actual application termination refuses Quit while only that projection remains;
+release drains it without publishing into the retired owner. Private HEAD, index
+and working bytes are restored/preserved. The delay is a deterministic ownership
+proof, not a benchmark. The build26 physical result above does not certify this
+later source work or provide a large-history latency measurement.

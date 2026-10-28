@@ -861,6 +861,94 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertTrue(synthetic[0].lanes.isEmpty, "Source omits graph painting for the synthetic working-tree hash")
         XCTAssertEqual(synthetic[1].lanes, rows[0].lanes)
     }
+    func testCancellableGraphProjectionPreservesAllSourceModesAndDetailParents() throws {
+        var head = entry("head", ["gap"]); head.isHead = true
+        var tagged = entry("tag", ["base"]); tagged.references = [RevisionReference(name: "refs/tags/stop")]
+        var boundary = entry("base", ["outside"]); boundary.isBoundary = true
+        var filtered = entry("right", ["tag"]); filtered.matchesHistoryFilter = false
+        let input = [entry("", ["head"]), head, entry("gap", ["merge"]),
+                     entry("merge", ["left", "right", "third"]), entry("left", ["tag"]),
+                     filtered, entry("third", ["tag"]), tagged, boundary, entry("disconnected", [])]
+        let originalParents = input.map(\.parents)
+        let choices: [[String: HistoryRollupChoice]] = [[:], ["head": .expand, "gap": .collapse, "merge": .expand]]
+        for mode in [HistoryGraphMode.all, .compressed, .labeled] {
+            for firstParent in [false, true] {
+                for references in [HistoryReferenceVisibility.all, .localBranches] {
+                    for states in choices {
+                        var walk = HistoryWalkOptions(); walk.graphMode = mode; walk.firstParent = firstParent
+                        let legacy = CommitGraph.project(input, walk: walk, references: references, rollupStates: states)
+                        let value = try CommitGraph.project(input, walk: walk, references: references, rollupStates: states, cancellation: OperationCancellation())
+                        XCTAssertEqual(value.entries.map(\.hash), legacy.entries.map(\.hash))
+                        XCTAssertEqual(value.entries.map(\.parents), legacy.entries.map(\.parents))
+                        XCTAssertEqual(value.entries.map(\.graphParents), legacy.entries.map(\.graphParents))
+                        XCTAssertEqual(value.graph, legacy.graph)
+                        XCTAssertEqual(value.rollups.mapValues(\.collapsed), legacy.rollups.mapValues(\.collapsed))
+                        XCTAssertEqual(value.rollups.mapValues(\.forced), legacy.rollups.mapValues(\.forced))
+                    }
+                }
+            }
+        }
+        XCTAssertEqual(input.map(\.parents), originalParents)
+        XCTAssertEqual(try CommitGraph.layout(input, cancellation: OperationCancellation()), CommitGraph.layout(input))
+    }
+
+    func testGraphCancellationDrainsAtEveryProjectionCheckpointWithoutPartialResult() throws {
+        // Includes hidden-parent traversal, a hidden merge/fork, reference
+        // filtering, the raw-row lane pass, edge layout and final assembly.
+        var tip = entry("tip", ["hidden"]); tip.isHead = true
+        var root = entry("root", []); root.references = [RevisionReference(name: "refs/tags/root")]
+        let input = [tip, entry("hidden", ["merge"]), entry("merge", ["a", "b"]),
+                     entry("a", ["root"]), entry("b", ["root"]), root]
+        var walk = HistoryWalkOptions(); walk.graphMode = .labeled
+        var total = 0
+        let full = CommitGraph.project(input, walk: walk, checkingCancellation: { total += 1 })
+        XCTAssertEqual(full.entries.map(\.hash), ["tip", "root"])
+        for stop in 1...total {
+            let token = OperationCancellation(); var reached = 0
+            XCTAssertThrowsError(try CommitGraph.project(input, walk: walk, checkingCancellation: {
+                reached += 1
+                if reached == stop { token.cancel() }
+                try token.check()
+            })) { error in
+                guard case OperationCancellationFailure.cancelled = error else { return XCTFail("Unexpected error: \(error)") }
+            }
+            XCTAssertEqual(reached, stop, "Cancelled work continued through additional graph checkpoints")
+        }
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        XCTAssertThrowsError(try CommitGraph.project([], walk: walk, cancellation: cancelled))
+        XCTAssertThrowsError(try CommitGraph.layout([], cancellation: cancelled))
+        XCTAssertEqual(CommitGraph.project(input, walk: walk).graph, full.graph, "A cancelled job cannot poison a later projection")
+    }
+
+    func testCancellationReachesWideOctopusLaneScansAndLayoutEdges() throws {
+        let parents = (0..<96).map { "parent-\($0)" }
+        var reference = HistoryLanes(); var total = 0
+        let snapshot = reference.consume(hash: "merge", parents: parents, checkingCancellation: { total += 1 })
+        var legacy = HistoryLanes()
+        XCTAssertEqual(snapshot, legacy.consume(hash: "merge", parents: parents))
+        XCTAssertEqual(reference.activeLane, legacy.activeLane)
+        XCTAssertEqual(snapshot.count, parents.count)
+        for stop in [1, total / 2, total] {
+            var machine = HistoryLanes(); var reached = 0; let token = OperationCancellation()
+            XCTAssertThrowsError(try machine.consume(hash: "merge", parents: parents, checkingCancellation: {
+                reached += 1; if reached == stop { token.cancel() }; try token.check()
+            }))
+            XCTAssertEqual(reached, stop)
+            // The cancelled private machine is discarded, never reused.
+        }
+        let rows = [entry("merge", parents)] + parents.map { entry($0, []) }
+        var layoutChecks = 0
+        let expected = CommitGraph.layout(rows, checkingCancellation: { layoutChecks += 1 })
+        XCTAssertEqual(expected, CommitGraph.layout(rows))
+        for stop in [1, layoutChecks / 2, layoutChecks] {
+            let token = OperationCancellation(); var reached = 0
+            XCTAssertThrowsError(try CommitGraph.layout(rows, checkingCancellation: {
+                reached += 1; if reached == stop { token.cancel() }; try token.check()
+            }))
+            XCTAssertEqual(reached, stop)
+        }
+    }
+
     func testChangedPathParsingWithBinaryRenameTabsAndNewlines() {
         let files = CommitFile.parse(names: Data("R100\0old\nname\0new\tname\0M\0binary\0A\0雪\0".utf8),
             statistics: Data("0\t0\t\0old\nname\0new\tname\0-\t-\tbinary\03\t0\t雪\0".utf8))

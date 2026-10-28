@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-core-and-native-passed-signed-performance-acceptance-separate",
+  "scope": "Owned off-MainActor coalesced Log graph projection, late-result cancellation/final generation fences and native inspection responsiveness.",
+  "fixture": "docs/qa/log-native-selection-2026-10-28.swift",
+  "runner": "scripts/test-log-native-selection.py",
+  "retained_previous_checkpoint": "docs/qa/log-native-selection-2026-10-28.json",
+  "executed": true,
+  "limits": [
+    "Injected delay is a deterministic ownership/responsiveness proof using real graph computation, not a performance benchmark or Ladybird timing claim.",
+    "No physical signed Finder/Log pointer or hosted integration CI claim.",
+    "Core nine distinct methods and affected three-method recheck are scoped validation, not a complete Core or hosted integration suite."
+  ],
+  "validated_assertions": [
+    "Retain original actual Git notes-held128\u2192256\u2192final258 native selection/message/changedfile/diff and canceled-stream assertions",
+    "Natural injected compute closure performs actual Core CommitGraph.project, holding a real128-row computation on a worker; native selection/details and MainActor heartbeat remain available",
+    "Compute intentionally returns actual old projection after cancellation; controlled private new commit/reload distinguishes stale old-head prefix from new259-row final",
+    "New generation publication retains selected commit/details and consistent graph count, source-hidden flag and progress source count; no old-head prefix replaces newer reload",
+    "Closing owner while actual graph computation held retains pending/active worker ownership until actual release/drain; late output cannot change stable closed snapshot",
+    "Private temporary HEAD advance restored; index and working file bytes preserved; private preferences/pasteboard and invisible offscreen native windows",
+    "After actual history/detail workers drain while projection still held, real applicationShouldTerminate returns terminateCancel; worker lifetime retained until release."
+  ],
+  "validation": {
+    "core": {
+      "distinct_methods_passed": 9,
+      "failures": 0,
+      "log": "build/qa/log-projection-core-2026-10-28.log",
+      "exit": 0,
+      "affected_recheck": {
+        "methods": 3,
+        "failures": 0,
+        "log": "build/qa/log-projection-core-quota-recheck-2026-10-28.log",
+        "exit": 0,
+        "reason": "Removed two algorithm cancellation-check-count quotas that would lock in quadratic traversal cost; behavior assertions retained. No full-suite repeat."
+      }
+    },
+    "debug": {
+      "log": "build/qa/log-projection-debug-2026-10-28.log",
+      "exit": 0,
+      "known_exit_zero_diagnostic_entries": 16
+    },
+    "native": {
+      "status": "passed-first-run-both-git-engines",
+      "log": "build/qa/log-projection-native-2026-10-28.log",
+      "exit": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receivers_reaped": [
+        40510,
+        41095
+      ],
+      "call_site": "docs/qa/log-native-selection-2026-10-28.swift: projectionWorkers invoked after original native interaction checks",
+      "failures": 0
+    }
+  },
+  "cleanup": {
+    "receiver_pids": [
+      40510,
+      41095
+    ],
+    "reaped": true,
+    "independent_ps": "Both absent after grouped checkpoint.",
+    "scope": "Private repositories/preferences/pasteboard; native windows alpha0/offscreen. Actual held metadata/graph workers release and drain on success/failure; no unrelated app terminated."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "1a4c1b7b3dbbcfeeab3937b316517d77538232bb6f935c18dd38a8978ea0069a",
+    "Sources/TurtleGitMac/LogWindow.swift": "c1a8e5e8cd360e26e1c892bff06a604155a61ff89add4fac4d19dabcb96fad30",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "8dfa18b5b3d5b5d19e34e1672594255702fffee0cd6c40d60152c4535b618db9",
+    "docs/qa/log-native-selection-2026-10-28.swift": "5b5f819ea7e4b388b715734597b5ca71c738cdd55a02832e7b216fec42230490",
+    "scripts/test-log-native-selection.py": "89304899190526ff9133909198068484ac1991439016b928988b8cc66082197c"
+  }
+}

@@ -2,6 +2,7 @@
 import AppKit
 import ObjectiveC
 import Darwin
+import Combine
 import TurtleGitCore
 
 private extension NSWindow {
@@ -9,11 +10,89 @@ private extension NSWindow {
         alphaValue=0;setFrameOrigin(.init(x:-24000,y:-24000));logSelectionOrder(mode,relativeTo:number)
     }
 }
+/// Delays real graph computation without MainActor work or fabricated output.
+/// It deliberately returns the actual old projection even after cancellation,
+/// exercising the owner's late-result fence independently of cooperation.
+private final class LogProjectionWorkerProbe:@unchecked Sendable {
+    private let lock=NSLock(),gate=DispatchSemaphore(value:0)
+    private var armed=false,held=false,entered=false,onMain=false,canceledReturns=0
+    func arm(){lock.lock();armed=true;entered=false;lock.unlock()}
+    var state:(held:Bool,entered:Bool,onMain:Bool,canceledReturns:Int){lock.lock();defer{lock.unlock()};return(held,entered,onMain,canceledReturns)}
+    func release(){lock.lock();let needs=held;lock.unlock();if needs{gate.signal()}}
+    func compute(_ input:LogWindowModel.HistoryProjectionInput)->LogWindowModel.HistoryProjection {
+        lock.lock();onMain = onMain || Thread.isMainThread
+        let wait=armed && input.entries.count==128
+        if wait{armed=false;held=true;entered=true};lock.unlock()
+        if wait{gate.wait();lock.lock();held=false;lock.unlock()}
+        let result=CommitGraph.project(input.entries,walk:input.walk,references:input.references,rollupStates:input.rollupStates)
+        if input.cancellation.isCancelled{lock.lock();canceledReturns += 1;lock.unlock()}
+        return result
+    }
+}
 @MainActor @main enum LogNativeSelectionVerification {
     struct Failure:Error,CustomStringConvertible{let description:String}
     static func require(_ value:Bool,_ message:String)throws{if !value{throw Failure(description:message)}}
     static func wait(_ message:String,_ ready:()->Bool)async throws{for _ in 0..<2000{if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(description:"Log native selection timeout: "+message)}
     static func views(_ view:NSView)->[NSView]{[view]+view.subviews.flatMap(views)}
+    static func projectionWorkers(repository:GitRepository,preferences:UserDefaults,hashes:[String],name:String)async throws {
+        let original=try await repository.rebaseCommit("HEAD").hash,indexURL=repository.root.appendingPathComponent(".git/index"),index=try Data(contentsOf:indexURL)
+        let workingURL=repository.root.appendingPathComponent(name),working=try Data(contentsOf:workingURL)
+        let owner=LogWindowController(repository:repository,access:RepositoryAccessLease(url:repository.root),labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,loadsImmediately:false),model=owner.model
+        let probe=LogProjectionWorkerProbe();var replacement:String?,publication:AnyCancellable?,published=[(String,Int)]()
+        defer{probe.release();publication?.cancel();owner.close()}
+        do {
+            owner.showWindow(nil);model.reload()
+            try await wait("projection case actual stable baseline"){!model.loadingHistory && !model.busy && model.entries.count==258 && !model.historyProjectionWorkPending}
+            guard let window=owner.window,let content=window.contentView else{throw Failure(description:"Projection owner absent")}
+            content.layoutSubtreeIfNeeded()
+            guard let table=views(content).compactMap({$0 as? HistoryTableView}).first else{throw Failure(description:"Projection native table absent")}
+            model.readHistoryProjection={probe.compute($0)}
+            probe.arm();model.reload()
+            try await wait("real128 projection worker held"){probe.state.held && model.historyProjectionWorkPending}
+            try require(!probe.state.onMain && LogWindowModel.activeHistoryProjectionWorkers>0,"Heavy real graph worker executed inline or lost actual ownership")
+            try await wait("native stable rows during held projection"){table.numberOfRows==258 && model.entries.count==258 && (table.delegate as? RevisionTable.Coordinator)?.revisionInputAvailable==true}
+            guard let chosen=model.entries.firstIndex(where:{$0.hash==hashes[1]})else{throw Failure(description:"Stable inspected commit absent")}
+            table.selectRowIndexes(IndexSet(integer:chosen),byExtendingSelection:false)
+            try await wait("native inspection while graph worker held"){
+                model.selected==[hashes[1]] && model.files.contains{$0.path==name} && views(content).compactMap{$0 as? LogMessageTextView}.contains{$0.string.contains("Native detail body 2")}
+            }
+            var heartbeat=false;DispatchQueue.main.async{heartbeat=true}
+            try await wait("MainActor heartbeat during actual graph work"){heartbeat}
+            try require(probe.state.held && model.loadingHistory,"Inspection released or replaced actual held projection")
+            // A real new source revision makes late old-prefix publication
+            // observable without fitting expected graph internals.
+            let tree=try await repository.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines)
+            let new=try await repository.run(["commit-tree",tree,"-p",original],input:Data("New projection generation\n".utf8)).text.trimmingCharacters(in:.newlines)
+            _=try await repository.run(["update-ref","refs/heads/main",new,original]);replacement=new
+            publication=model.$entries.dropFirst().sink{published.append(($0.first?.hash ?? "",$0.count))}
+            model.reload()
+            try require(probe.state.held && model.historyProjectionWorkPending,"New reload abandoned old graph worker lifetime")
+            probe.release()
+            try await wait("new final source projection drains old generation"){!model.loadingHistory && !model.busy && !model.historyProjectionWorkPending && model.entries.count==259 && model.entries.first?.hash==new}
+            try require(probe.state.canceledReturns>0,"Fixture did not deliver an actual retired projection result")
+            try require(!published.contains{$0.0==original && ($0.1==128 || $0.1==256)},"Retired old-head prefix overwrote newer reload")
+            try require(model.selected==[hashes[1]] && model.graph.count==model.entries.count && !model.historyHasHiddenRows && model.loadedRevisionCount==259,"Final projection mixed graph/source count or lost inspection")
+            try await wait("details preserved after latest final projection"){model.files.contains{$0.path==name} && views(content).compactMap{$0 as? LogMessageTextView}.contains{$0.string.contains("Native detail body 2")}}
+            publication?.cancel();publication=nil
+            probe.arm();model.reload()
+            try await wait("actual projection held for close cancellation"){probe.state.held && model.historyProjectionWorkPending}
+            let active=LogWindowModel.activeHistoryProjectionWorkers
+            owner.close()
+            try require(LogWindowModel.activeHistoryProjectionWorkers==active && model.historyProjectionWorkPending,"Closing owner abandoned held graph worker instead of draining it")
+            try await wait("history/details drain while only graph worker remains held"){LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeActionReads==0}
+            try require(probe.state.held && LogWindowModel.activeHistoryProjectionWorkers>0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit abandoned the actual held graph worker")
+            probe.release()
+            try await wait("retired actual graph workers drained"){!model.historyProjectionWorkPending && LogWindowModel.activeHistoryProjectionWorkers==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeActionReads==0 && owner.window?.isVisible != true}
+            try require(model.entries.count==259 && model.entries.first?.hash==new && model.selected==[hashes[1]],"Late retired graph result changed closed owner's stable snapshot")
+            _=try await repository.run(["update-ref","refs/heads/main",original,new]);replacement=nil
+            try require((try Data(contentsOf:indexURL))==index && (try Data(contentsOf:workingURL))==working,"Graph pipeline changed index/working bytes")
+        }catch{
+            probe.release();owner.close();model.invalidate()
+            try? await wait("failed graph worker drain"){!model.historyProjectionWorkPending && LogWindowModel.activeHistoryProjectionWorkers==0 && LogWindowModel.activeHistoryLoads==0}
+            if let replacement{_=try? await repository.run(["update-ref","refs/heads/main",original,replacement])}
+            throw error
+        }
+    }
     static func main()async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.logSelectionOrder(_:relativeTo:)))!
@@ -145,6 +224,7 @@ private extension NSWindow {
             let count=(try? String(contentsOf:first))?.trimmingCharacters(in:.whitespacesAndNewlines) ?? "missing"
             fputs("LOG_SELECTION_STATE entries=\(model.entries.count) loading=\(model.loadingHistory) busy=\(model.busy) limit=\(model.historyLimit.scale.rawValue)/\(model.historyLimit.number) note_queries=\(count) waiting2=\(FileManager.default.fileExists(atPath:waiting.path)) waiting3=\(FileManager.default.fileExists(atPath:waitingNext.path)) error=\(model.error ?? "none")\n",stderr)
             owner.close();model.invalidate();try? await wait("failed Log receiver actual worker drain"){LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeActionReads==0 && LogMessageView.Coordinator.activeOperations==0};throw error}
+        try await projectionWorkers(repository:repo,preferences:prefs,hashes:hashes,name:name)
         print("PASS: actual native Log row selection and arrow keys update message/changed files; row hit target and selected revision double-action diff preserve ownership and repository bytes")
     }
 }
