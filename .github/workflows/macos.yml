@@ -1022,6 +1022,8 @@ jobs:
         run: python3 scripts/test-commit-selection-settings.py
       - name: Native Commit dirty-submodule workflow receiver
         run: python3 scripts/test-commit-dirty-submodule.py
+      - name: Native Log selection and inspection while history streams
+        run: python3 scripts/test-log-native-selection.py
       - name: Native Log double-click preference receiver
         run: python3 scripts/test-log-double-click.py
       - name: Native Log modeless Find and shared reference navigation

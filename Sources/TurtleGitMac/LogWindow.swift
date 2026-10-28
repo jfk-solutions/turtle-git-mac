@@ -838,13 +838,14 @@ struct LogCommandRequest: Identifiable {
     @Published var findBlocked = false { didSet { if findBlocked != oldValue { retireLogControlMenus() } } }
     @Published var orderingBlocked = false { didSet { if orderingBlocked != oldValue { retireLogControlMenus() } } }
     private(set) var historyProjectionEpoch = UUID()
-    @Published var entries: [LogEntry] = [] { didSet { historyProjectionEpoch = UUID() } }
+    private(set) var revisionTableContentEpoch = UUID(), revisionGraphEpoch = UUID()
+    @Published var entries: [LogEntry] = [] { didSet { historyProjectionEpoch = UUID(); revisionTableContentEpoch = UUID() } }
     // IsSelectionContinuous compares the displayed and raw walk counts. Search,
     // graph compression and rollups may leave adjacent visible rows with gaps.
     private var historySourceRowCount: Int? { didSet { if oldValue != historySourceRowCount { historyProjectionEpoch = UUID() } } }
     var historyHasHiddenRows: Bool { historySourceRowCount.map { $0 != entries.count } ?? false }
-    @Published var revisionActions: [String: LogRevisionActions] = [:]
-    @Published var actionFailures = Set<String>()
+    @Published var revisionActions: [String: LogRevisionActions] = [:] { didSet { revisionTableContentEpoch = UUID() } }
+    @Published var actionFailures = Set<String>() { didSet { revisionTableContentEpoch = UUID() } }
     private var actionQueue: [LogEntry] = []
     private var actionCancellation: OperationCancellation?
     private var activeActionHashes=Set<String>()
@@ -855,11 +856,11 @@ struct LogCommandRequest: Identifiable {
     @Published var mergeActive = false
     @Published var conflictRebase = false
     @Published var bisectActive = false
-    @Published private(set) var bisectGoodTerm = "good"
-    @Published private(set) var bisectBadTerm = "bad"
+    @Published private(set) var bisectGoodTerm = "good" { didSet { revisionTableContentEpoch = UUID() } }
+    @Published private(set) var bisectBadTerm = "bad" { didSet { revisionTableContentEpoch = UUID() } }
     @Published var hasStash = false
     @Published private(set) var hasGitSVN = false
-    @Published private(set) var svnRevisions: [String: String] = [:]
+    @Published private(set) var svnRevisions: [String: String] = [:] { didSet { revisionTableContentEpoch = UUID() } }
     @Published var hasSubmodules = false
     /// Install an owned snapshot for shared-list consumers without replacing
     /// their rows with an ordinary Log history walk.
@@ -1100,7 +1101,7 @@ struct LogCommandRequest: Identifiable {
     }
     var revertAvailable: Bool { revision != nil && !bare && !mergeActive && !selectedIsStash && revision?.parents.isEmpty == false }
     var canRevertRevision: Bool { revertAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil }
-    @Published var graph: [CommitGraphRow] = []
+    @Published var graph: [CommitGraphRow] = [] { didSet { revisionGraphEpoch = UUID() } }
     @Published var selected = Set<String>() { didSet { if selected != oldValue { invalidateFileSelection(); retireLogControlMenus() } } }
     @Published var files: [CommitFile] = [] { didSet { invalidateFileSelection() } }
     @Published var fileGroups: [LogFileGroup] = [] { didSet { invalidateFileSelection() } }
@@ -1139,8 +1140,8 @@ struct LogCommandRequest: Identifiable {
     func fileMenuSnapshot(_ ids: GitPathSet) -> LogFileMenuSnapshot {
         LogFileMenuSnapshot(owner: self, menuGeneration: fileMenuGeneration, selectionGeneration: fileSelectionGeneration, ids: ids, visible: visibleFiles)
     }
-    func withFileMenu(_ snapshot: LogFileMenuSnapshot, consume:Bool=true, action: () -> Void) {
-        guard snapshot.owner === self, !snapshot.consumed, !isInvalidated, !busy, !jumping, !loadingNote, !savingNote,
+    func withFileMenu(_ snapshot: LogFileMenuSnapshot, consume:Bool=true, inspection:Bool=false, action: () -> Void) {
+        guard snapshot.owner === self, !snapshot.consumed, !isInvalidated, (inspection ? canInspectHistory : !busy), !jumping, !loadingNote, !savingNote,
               !findBlocked, !orderingBlocked, !referencePickerBlocked, !copyingDetails, !unifiedViewerBusy,
               noteRequest == nil, window?.attachedSheet == nil, !resettingChangedFileColumns,
               snapshot.menuGeneration == fileMenuGeneration, snapshot.selectionGeneration == fileSelectionGeneration,
@@ -1269,7 +1270,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     @Published private(set) var historyWalk = HistoryWalkOptions()
-    @Published private(set) var rollupInfo: [String: HistoryRollupInfo] = [:]
+    @Published private(set) var rollupInfo: [String: HistoryRollupInfo] = [:] { didSet { revisionTableContentEpoch = UUID() } }
     private var rollupStates: [String: HistoryRollupChoice] = [:]
     private var historyFilterActive = false
     private let historyRegexExecutable: URL?
@@ -1423,12 +1424,22 @@ struct LogCommandRequest: Identifiable {
         let entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo]
         let highlights: [String: [String: [NSRange]]]
         let sourceRowCount: Int?
+        let selected: Set<String>, mark: String?
     }
+    private var detailHistoryGeneration: Int?
     private var historyRestore: HistoryRestore?
     private var provisionalHistory: [LogEntry] = []
     private var nextHistoryPublication = 128
     private func restoreHistorySnapshot() {
-        if let snapshot = historyRestore { entries = snapshot.entries; graph = snapshot.graph; rollupInfo = snapshot.rollups; searchHighlights = snapshot.highlights; historySourceRowCount = snapshot.sourceRowCount }
+        if let snapshot = historyRestore {
+            let available = Set(snapshot.entries.map(\.hash))
+            let keepsCurrent = !selected.isEmpty && selected.isSubset(of: available)
+            let restoredSelection = keepsCurrent ? selected : snapshot.selected.intersection(available)
+            let restoredMark = keepsCurrent ? selectionMark : snapshot.mark
+            entries = snapshot.entries; graph = snapshot.graph; rollupInfo = snapshot.rollups
+            searchHighlights = snapshot.highlights; historySourceRowCount = snapshot.sourceRowCount
+            selected = restoredSelection; selectionMark = restoredMark.flatMap { restoredSelection.contains($0) ? $0 : nil }
+        }
         historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
     }
     private func publishHistoryBatch(_ batch: [LogEntry], request: Int, cancellation: OperationCancellation, walk: HistoryWalkOptions, references: HistoryReferenceVisibility, states: [String: HistoryRollupChoice]) {
@@ -1457,11 +1468,11 @@ struct LogCommandRequest: Identifiable {
     private var pathFilterTask: Task<Void, Never>?
     private var pathFilterGeneration = 0
     var readSearchValidation: ((String, Bool, OperationCancellation) async throws -> Bool)?
-    var canEditPathFilter: Bool { !isInvalidated && !confirmingQuit && !referencePickerBlocked && !findBlocked && !orderingBlocked && window?.attachedSheet == nil }
+    var canEditPathFilter: Bool { !isInvalidated && !confirmingQuit && !referencePickerBlocked && !findBlocked && !orderingBlocked && unifiedSessions.isEmpty && followedSession == nil && window?.attachedSheet == nil }
     var canEditLogFilters: Bool { canEditPathFilter && (!busy || loadingHistory) }
     var canUseSourceCommands: Bool {
         !isInvalidated && !confirmingQuit && (!busy || loadingHistory) && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
-            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil && NSApp.modalWindow == nil
+            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && unifiedSessions.isEmpty && followedSession == nil && window?.attachedSheet == nil && NSApp.modalWindow == nil
     }
     /// Explicit Refresh clears the history filter in CLogDlg::Refresh(true).
     /// Background/selection refreshes continue to call reload() and retain it.
@@ -1908,7 +1919,7 @@ struct LogCommandRequest: Identifiable {
     private var followedPath: String? { historyWalk.followRenames && !showWholeProject && historyPaths.count == 1 ? historyPaths.first : nil }
     private func compareFollowed(from: ComparisonRevision, to: ComparisonRevision, parentOf: String? = nil) {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
-        guard canStartHistoryTransport, let path = followedPath, let onFollowedFileComparison else { return }
+        guard canInspectHistory, let path = followedPath, let onFollowedFileComparison else { return }
         if from == .workingTree || to == .workingTree {guard (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true else{error=RepositoryBrowserWindowModel.rawPathReason;return}}
         let rows = entries, selected = self.selected, request = generation, detail = detailGeneration
         let session = FileListComparisonSession(window: window, preferences: labelDefaults)
@@ -1916,7 +1927,8 @@ struct LogCommandRequest: Identifiable {
         Task {
             defer {
                 if followedSession === session {
-                    followedSession = nil; busy = false
+                    followedSession = nil
+                    if !loadingHistory, unifiedSessions.isEmpty { busy = false }
                     let shouldClose = closeAfterFollowedRead; closeAfterFollowedRead = false
                     if shouldClose && !isInvalidated { close() }
                 }
@@ -2079,6 +2091,11 @@ struct LogCommandRequest: Identifiable {
     func svnDCommitFromHistory(extended:Bool) {
         guard canStartHistoryTransport,!bare,hasGitSVN,historyPushAvailable(extended:extended) else { return }
         onHistorySVNDCommit?()
+    }
+    var canInspectHistory: Bool {
+        !isInvalidated && !confirmingQuit && (!busy || loadingHistory) && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
+            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && unifiedSessions.isEmpty && followedSession == nil &&
+            window?.attachedSheet == nil && NSApp.modalWindow == nil
     }
     private var canStartHistoryTransport: Bool {
         !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
@@ -2273,7 +2290,7 @@ struct LogCommandRequest: Identifiable {
         let identity=NativeDiffBackendIdentity(repository.libgit2Configuration)
         if actionBackendIdentity != identity {cancelActionReads();revisionActions=[:];actionFailures=[];actionBackendIdentity=identity}
         if entry.hash.isEmpty { if revisionActions[""] == nil, let snapshot = workingTreeSnapshot { revisionActions[""] = .classify(snapshot.files) }; return }
-        guard !busy, !isInvalidated, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
+        guard (!busy || loadingHistory), !isInvalidated, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
             !activeActionHashes.contains(entry.hash), !actionQueue.contains(where: { $0.hash == entry.hash }) else { return }
         actionQueue.append(entry)
         guard actionCancellation == nil else { return }
@@ -2346,11 +2363,12 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
-        guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
+        guard !isInvalidated, !referencePickerBlocked, unifiedSessions.isEmpty, followedSession == nil, !busy || loadingHistory else { return }
         cancelReferenceDescriptionRead()
         cancelSearchFilter()
         restoreHistorySnapshot()
-        historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights, sourceRowCount: historySourceRowCount)
+        historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights, sourceRowCount: historySourceRowCount, selected: selected, mark: selectionMark)
+        detailHistoryGeneration = nil
         onFindReferenceRefresh?()
         cancelPatchPreview()
         cancelRepositoryRefresh()
@@ -2395,6 +2413,14 @@ struct LogCommandRequest: Identifiable {
                 let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision ?? options.startRevisions.first, cancellation: cancellation)
                 let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.revisionRange?.to ?? options.endRevision ?? options.startRevisions.first, cancellation: cancellation)
                 let showPatch = patchPreviewPreferenceLoaded ? patchPreviewVisible : try await repository.run(["config", "--bool", "--get", "tgit.logshowpatch"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+                guard request == generation, !cancellation.isCancelled, !isInvalidated else { return }
+                self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive
+                self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"
+                self.currentBranch = currentBranch; self.fetchHeadRevision = startReferences.fetchHead
+                self.issueProperties = issueProperties; self.conflictRebase = conflictRebase
+                self.hasStash = metadata.hasStash; self.hasSubmodules = metadata.hasSubmoduleConfig
+                self.hasGitSVN = metadata.hasGitSVN; self.workingHasLFS = metadata.hasLFS
+                self.referenceContext = referenceContext; self.referenceDescriptions = referenceDescriptions
                 let progressWalk = options.walk
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties, onProgress: { [weak self] count in
                     Task { @MainActor in
@@ -2452,6 +2478,7 @@ struct LogCommandRequest: Identifiable {
                 if let working { revisionActions[""] = .classify(working.files) } else { revisionActions.removeValue(forKey: "") }
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
                 parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
+                let priorSelection = selected
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
                 historyRestore = nil; provisionalHistory = []; nextHistoryPublication = 128
@@ -2459,8 +2486,17 @@ struct LogCommandRequest: Identifiable {
                 messageSearch.query = options.search; messageSearch.fields = options.searchFields
                 messageSearch.regex = options.searchRegex; messageSearch.caseSensitive = options.searchCaseSensitive
                 appliedMessageSearch = messageSearch
-                historyCancellation = nil; busy = false; select(selected)
-            } catch { if request == generation { restoreHistorySnapshot(); historyCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; busy = false } }
+                historyCancellation = nil; busy = !unifiedSessions.isEmpty || followedSession != nil
+                if selected != priorSelection || detailHistoryGeneration != generation { select(selected) }
+            } catch {
+                if request == generation {
+                    detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
+                    restoreHistorySnapshot(); historyCancellation = nil
+                    if !cancellation.isCancelled { self.error = error.localizedDescription }
+                    busy = !unifiedSessions.isEmpty || followedSession != nil
+                    if !isInvalidated { select(selected, mark: selectionMark, recordNavigation: false) }
+                }
+            }
         }
     }
     func select(_ hashes: Set<String>,mark:String? = nil,recordNavigation:Bool = true) {
@@ -2479,6 +2515,7 @@ struct LogCommandRequest: Identifiable {
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         fileReadBackendIdentity=NativeDiffBackendIdentity(repository.libgit2Configuration)
+        detailHistoryGeneration = generation
         selected = hashes; branchRevisionNumber = nil; describedRevision = nil; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil;focusedChangedFile=nil; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
@@ -2519,7 +2556,7 @@ struct LogCommandRequest: Identifiable {
                     describedRevision = description
                 }
                 detailCancellation = nil; refreshPatchPreview()
-            } catch { if request == detailGeneration { detailCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
+            } catch { if request == detailGeneration { detailCancellation = nil; detailHistoryGeneration = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
         }
     }
     func request(_ command: LogRevisionCommand, mainline: Int? = nil) {
@@ -2680,7 +2717,7 @@ struct LogCommandRequest: Identifiable {
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false, mode:LogRevisionDiffMode = .firstParent) {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
-        guard !busy, !isInvalidated, !unifiedViewerBusy, !workingTree || !bare else { return }
+        guard canInspectHistory, !workingTree || !bare else { return }
         if includesWorkingTree { workingTreeDiff(path: path, alternate: alternate); return }
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
@@ -2690,7 +2727,7 @@ struct LogCommandRequest: Identifiable {
         let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults, alternateTool:alternate)
         unifiedSessions[id] = session; busy = true
         Task {
-            defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
+            defer { unifiedSessions.removeValue(forKey: id); if request == generation, !loadingHistory, unifiedSessions.isEmpty { busy = false }; withExtendedLifetime(access) {} }
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -3407,7 +3444,7 @@ struct LogCommandRequest: Identifiable {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         let ids = GitPathSet(ids)
         guard requireHistoricalFilePaths(ids) else { return }
-        guard !busy, !isInvalidated, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
+        guard canInspectHistory, selectedWorkingTree || revision != nil else { return }
         let working = selectedWorkingTree, revision = self.revision
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }
@@ -3416,7 +3453,7 @@ struct LogCommandRequest: Identifiable {
         let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
         unifiedSessions[id] = session; busy = true
         Task {
-            defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
+            defer { unifiedSessions.removeValue(forKey: id); if request == generation, !loadingHistory, unifiedSessions.isEmpty { busy = false }; withExtendedLifetime(access) {} }
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -3462,13 +3499,13 @@ struct LogCommandRequest: Identifiable {
     func canCompareFilesWithParent(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
         guard hasRepresentableFilePaths(ids) else { return false }
-        return !busy && !isInvalidated && !bare && !selectedWorkingTree && revision?.parents.first != nil && (onFileCompare != nil || onFileComparisons != nil) && visibleFiles.contains { ids.contains($0.id) }
+        return canInspectHistory && !bare && !selectedWorkingTree && revision?.parents.first != nil && (onFileCompare != nil || onFileComparisons != nil) && visibleFiles.contains { ids.contains($0.id) }
     }
     func compareFiles(_ ids: some Sequence<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
         let ids = GitPathSet(ids)
         guard requireHistoricalFilePaths(ids) else { return }
         if workingTree || parentWorkingTree {guard requireNativeFilePaths(ids) else{return}}
-        guard !busy, !isInvalidated, onFileCompare != nil || onFileComparisons != nil else { return }
+        guard canInspectHistory, onFileCompare != nil || onFileComparisons != nil else { return }
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }; guard !chosen.isEmpty else { return }
         var requests: [(ComparisonRevision, ComparisonRevision, [String])] = []
         if selectedWorkingTree {
@@ -3486,7 +3523,7 @@ struct LogCommandRequest: Identifiable {
         else { for (from, to, paths) in requests { onFileCompare?(from, to, paths) } }
     }
     func doubleClickRevision() {
-        guard labelDefaults.bool(forKey: "DiffByDoubleClickInLog"), !busy, !isInvalidated, !unifiedViewerBusy,
+        guard labelDefaults.bool(forKey: "DiffByDoubleClickInLog"), canInspectHistory,
               let chosen = entries.first(where: { selected.contains($0.hash) }) else { return }
         guard let parent = chosen.parents.first else {
             let message = "No previous version."
@@ -3502,7 +3539,7 @@ struct LogCommandRequest: Identifiable {
         } else { onCompare?(.revision(parent), chosen.hash.isEmpty ? .workingTree : .revision(chosen.hash)) }
     }
     func compare(workingTree: Bool = false, parent:Int? = nil) {
-        guard canStartHistoryTransport, !workingTree || !bare else { return }
+        guard canInspectHistory, !workingTree || !bare else { return }
         let from: ComparisonRevision, to: ComparisonRevision, previousOf: String?
         if includesWorkingTree, !workingTree, selected.count <= 2 || continuousHistorySelection {
             let base = revisions.last?.hash ?? workingTreeSnapshot?.entry.parents.first
@@ -3682,7 +3719,7 @@ struct LogDialog: View {
                     preferences:model.colorPreferences,visibleColumns:model.changedFileColumns.visible,availableColumns:Set(StatusListColumn.defaultColumns),columnText:{_,_ in ""},
                     savedOrder:model.changedFileColumns.order,savedWidths:model.changedFileColumns.widths,saveLayout:{model.saveChangedFileLayout(order:$0,widths:$1)},
                     setColumnVisible:model.setChangedFileColumn,resetColumns:{model.resetChangedFileColumns(choose:$0,accepted:$1)},focusedPath:$model.focusedChangedFile,
-                    enabled:!model.busy && !model.isInvalidated && !model.resettingChangedFileColumns,delete:{_,_,permanent in model.deleteWorkingFiles(model.selectedFiles,permanently:permanent,keyboard:true)},
+                    enabled:model.canInspectHistory && !model.resettingChangedFileColumns,delete:{_,_,permanent in model.deleteWorkingFiles(model.selectedFiles,permanently:permanent,keyboard:true)},
                     copy:{_,_ in},copyColumn:{_,_ in},toggleCheck:{_,_ in}))
                 .overlay { if model.hidesTooManyFiles { Text("Too many files to display.").foregroundStyle(.secondary).allowsHitTesting(false) } }
                 .onDeleteCommand { model.deleteWorkingFiles(model.selectedFiles, permanently: NSEvent.modifierFlags.contains(.shift), keyboard: true) }
@@ -3747,8 +3784,8 @@ struct LogDialog: View {
         let snapshot = model.fileMenuSnapshot(ids)
         if !model.hasRepresentableFilePaths(ids) {
             if !model.selectedWorkingTree {
-                Button { model.withFileMenu(snapshot) { model.compareFiles(ids) } } label: { CommandLabel(title:"Compare with base",icon:.compare) }.disabled(model.busy || model.revision == nil || model.onFileCompare == nil && model.onFileComparisons == nil)
-                Button { model.withFileMenu(snapshot) { model.selectedFileDiff(ids,alternate:NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff) }.disabled(model.busy || model.revision == nil)
+                Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids) } } label: { CommandLabel(title:"Compare with base",icon:.compare) }.disabled(!model.canInspectHistory || model.revision == nil || model.onFileCompare == nil && model.onFileComparisons == nil)
+                Button { model.withFileMenu(snapshot, inspection: true) { model.selectedFileDiff(ids,alternate:NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff) }.disabled(!model.canInspectHistory || model.revision == nil)
                 if model.canCompareFilePair(ids) {
                     Button { model.withFileMenu(snapshot) { model.compareFilePair(ids) } } label: { CommandLabel(title:"Compare two files",icon:.compare) }.disabled(model.busy || model.onFilePairCompare == nil)
                 }
@@ -3802,11 +3839,11 @@ struct LogDialog: View {
                 .disabled(model.busy || model.isInvalidated || model.onConflictAction == nil)
             Divider()
         }
-        Button { model.withFileMenu(snapshot) { model.compareFiles(ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
-        Button { model.withFileMenu(snapshot) { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
-        Button { model.withFileMenu(snapshot) { model.compareFiles(ids, workingTree: true) } } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
+        Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || !model.canInspectHistory)
+        Button { model.withFileMenu(snapshot, inspection: true) { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || !model.canInspectHistory || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
+        Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, workingTree: true) } } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || !model.canInspectHistory)
         if !model.bare, let title = model.fileParentComparisonTitle(ids) {
-            Button { model.withFileMenu(snapshot) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
+            Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
         }
         if model.canCompareFilePair(ids) {
             Button { model.withFileMenu(snapshot) { model.compareFilePair(ids) } } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
@@ -4431,8 +4468,8 @@ struct RevisionTable: NSViewRepresentable {
         context.coordinator.table = table
         table.onWindowChanged = { [weak coordinator = context.coordinator] in coordinator?.configureDateRefresh() }
         table.contextMenuAvailable={ [weak coordinator=context.coordinator] in
-            guard let model=coordinator?.model else { return false }
-            return !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && model.window?.attachedSheet==nil
+            guard let coordinator else { return false }
+            return coordinator.revisionInputAvailable
         }
         table.onReturn={ [weak coordinator=context.coordinator,weak table] in
             guard let model=coordinator?.model,table?.contextMenuAvailable()==true,model.colorPreferences.bool(forKey:"DiffByDoubleClickInLog"),model.entries.contains(where:{model.selected.contains($0.hash)}) else { return false }
@@ -4459,24 +4496,13 @@ struct RevisionTable: NSViewRepresentable {
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("svn"))?.isHidden = !model.hasGitSVN || !LogRevisionColumns.visible("svn", defaults: model.colorPreferences)
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs", defaults: model.colorPreferences)
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = model.historyWalk.followRenames
-        let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
-        let signature: [Data] = model.entries.map { entry in
-            var value = entry.hash
-            for reference in entry.references {
-                value += reference.name
-                value += reference.kind?.rawValue ?? ""
-                value += reference.displayName ?? ""
-            }
-            value += model.svnRevisions[entry.hash] ?? ""
-            value += String(entry.isHead)
-            value += model.bisectGoodTerm
-            value += model.bisectBadTerm
-            value += entry.issueIDs
-            value += String(model.revisionActions[entry.hash]?.rawValue ?? -1)
-            value += String(model.actionFailures.contains(entry.hash))
-            value += String(model.rollupInfo[entry.hash]?.collapsed ?? false)
-            return Data(value.utf8)
-        }
+        let projectionChanged = coordinator.sizingProjection != model.historyProjectionEpoch
+        let contentChanged = coordinator.contentEpoch != model.revisionTableContentEpoch
+        let graphChanged = coordinator.graphEpoch != model.revisionGraphEpoch
+        let previousRows = coordinator.renderedEntries
+        coordinator.contentEpoch = model.revisionTableContentEpoch; coordinator.graphEpoch = model.revisionGraphEpoch
+        coordinator.renderedEntries = model.entries
+        if graphChanged { coordinator.graph = model.graph }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility || coordinator.referenceContext != model.referenceContext
         coordinator.referenceVisibility = model.referenceVisibility
         coordinator.referenceContext = model.referenceContext
@@ -4486,19 +4512,33 @@ struct RevisionTable: NSViewRepresentable {
         coordinator.highlightedRevision = model.highlightedRevision
         let sizingChanged=coordinator.sizingProjection != model.historyProjectionEpoch || graphChanged || datesChanged || labelsChanged || fontChanged || highlightChanged || coordinator.sizingFullMessage != model.fullCommitMessageOnLogLine || coordinator.sizingTagsRight != model.drawTagsBranchesOnRightSide
         coordinator.sizingProjection=model.historyProjectionEpoch;coordinator.sizingFullMessage=model.fullCommitMessageOnLogLine;coordinator.sizingTagsRight=model.drawTagsBranchesOnRightSide
-        if sizingChanged || signature != coordinator.signature || graphChanged || datesChanged || highlightChanged || searchHighlightsChanged || labelsChanged || fontChanged || colorsChanged {
-            coordinator.signature = signature
-            table.reloadData()
-            // Lazy per-revision action icons do not trigger an all-row width
-            // scan. Only a changed text/font/reference/graph projection does.
-            if sizingChanged{coordinator.fitAutomaticColumns()}
+        if sizingChanged || contentChanged || graphChanged || datesChanged || highlightChanged || searchHighlightsChanged || labelsChanged || fontChanged || colorsChanged {
+            let appended = projectionChanged && !previousRows.isEmpty && previousRows.count < model.entries.count &&
+                zip(previousRows, model.entries).allSatisfy { $0.hash == $1.hash }
+            let sameRows = !projectionChanged || previousRows.count == model.entries.count &&
+                zip(previousRows, model.entries).allSatisfy { $0.hash == $1.hash }
+            if appended {
+                table.insertRows(at: IndexSet(integersIn: previousRows.count..<model.entries.count), withAnimation: [])
+            } else if !sameRows { table.reloadData() }
+            // Existing rows' lanes/labels can change as parents arrive. Refresh
+            // only the visible native cells; future cells use the new snapshot.
+            let visible = table.rows(in: table.visibleRect)
+            if visible.location != NSNotFound, visible.location < model.entries.count {
+                let rows = IndexSet(integersIn: visible.location..<min(NSMaxRange(visible), model.entries.count))
+                table.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
+            }
+            if sizingChanged { coordinator.fitAutomaticColumns(sampled: true) }
         }
-        let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
-        if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
+        if projectionChanged || coordinator.appliedSelection != model.selected {
+            let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
+            if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
+            coordinator.appliedSelection = model.selected
+        }
         if coordinator.scrollRequest != model.scrollRequest {
             coordinator.scrollRequest = model.scrollRequest
             if let hash = model.scrollRevision, let row = model.entries.firstIndex(where: { $0.hash == hash }) { table.scrollRowToVisible(row) }
         }
+        coordinator.renderedProjection = model.historyProjectionEpoch
         coordinator.updating = false
         // A refresh may retain the same hashes while cancelling pending reads.
         // Restart visible missing cells even when the row signature is unchanged.
@@ -4569,7 +4609,11 @@ struct RevisionTable: NSViewRepresentable {
             model.onCombineRevisions?(target.entries, target.offset, target.head)
         }
         var updating = false
-        var signature: [Data] = []
+        var renderedEntries: [LogEntry] = []
+        var renderedProjection: UUID?
+        var revisionInputAvailable: Bool { !retired && !updating && model.canInspectHistory && renderedProjection == model.historyProjectionEpoch }
+        var contentEpoch: UUID?, graphEpoch: UUID?
+        var appliedSelection = Set<String>()
         var sizingProjection:UUID?
         var sizingFullMessage=false,sizingTagsRight=false
         var logFont: NSFont?
@@ -4633,10 +4677,10 @@ struct RevisionTable: NSViewRepresentable {
                 guard let self,receipt.take() else{return};self.orderingTask=nil;self.model.onShowOrdering?()
             }
         }
-        func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
+        func numberOfRows(in tableView: NSTableView) -> Int { renderedEntries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
-            guard model.entries.indices.contains(row) else{return nil}
-            let entry = model.entries[row]
+            guard renderedEntries.indices.contains(row) else{return nil}
+            let entry = renderedEntries[row]
             if column?.identifier.rawValue == "graph" {
                 guard model.graph.indices.contains(row) else{return nil}
                 let view = GraphCell(); view.parentCount = entry.parents.count; view.workingTree = entry.hash.isEmpty; view.graph = model.graph[row]; view.preferences = model.colorPreferences
@@ -4756,9 +4800,10 @@ struct RevisionTable: NSViewRepresentable {
             return cell
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating, !model.loadingHistory, let table else { return }
-            let hashes = Set(table.selectedRowIndexes.compactMap { model.entries.indices.contains($0) ? model.entries[$0].hash : nil })
-            let mark = table.selectedRowIndexes.last(where:{model.entries.indices.contains($0) && !model.selected.contains(model.entries[$0].hash)}).map {model.entries[$0].hash}
+            guard revisionInputAvailable, let table else { return }
+            let available = Set(model.entries.map(\.hash))
+            let hashes = Set(table.selectedRowIndexes.compactMap { renderedEntries.indices.contains($0) ? renderedEntries[$0].hash : nil }).intersection(available)
+            let mark = table.selectedRowIndexes.last(where: { renderedEntries.indices.contains($0) && hashes.contains(renderedEntries[$0].hash) && !model.selected.contains(renderedEntries[$0].hash) }).map { renderedEntries[$0].hash }
             if hashes != model.selected { model.select(hashes,mark:mark) }
         }
         private func applySearchHighlights(_ text: NSMutableAttributedString, hash: String, column: String) {
@@ -4804,8 +4849,8 @@ struct RevisionTable: NSViewRepresentable {
                 item("Commit…", #selector(commitWorkingTree), icon: .commit, enabled: !model.busy)
                 if model.workingCommandAvailable(.mergeAbort) { workingItem(.mergeAbort,menu:menu) }
                 if model.workingTreeSnapshot?.entry.parents.isEmpty==false {
-                    item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: !model.busy)
-                    item("Compare with previous revision", #selector(compare), icon: .compare, enabled: !model.busy && model.onCompare != nil)
+                    item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: model.canInspectHistory)
+                    item("Compare with previous revision", #selector(compare), icon: .compare, enabled: model.canInspectHistory && model.onCompare != nil)
                 }
                 menu.addItem(.separator())
                 for action in [RepositoryAction.stash, .stashPop, .stashList] where model.workingCommandAvailable(action) {
@@ -4828,11 +4873,11 @@ struct RevisionTable: NSViewRepresentable {
             }
             let one = model.revision != nil, two = model.selected.count == 2
             if let revision=model.revision {
-                if !model.bare {item("Compare with working tree",#selector(workingDiff),icon:.compare,enabled:!model.busy && model.onCompare != nil)}
+                if !model.bare {item("Compare with working tree",#selector(workingDiff),icon:.compare,enabled:model.canInspectHistory && model.onCompare != nil)}
                 if !model.bare,revision.parents.count==1 {
-                    item("Show changes as unified diff",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)
+                    item("Show changes as unified diff",#selector(showDiff),icon:.unifiedDiff,enabled:model.canInspectHistory)
                 } else if !model.bare,revision.parents.count>1 {
-                    let unified=item("Unified diff with",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)
+                    let unified=item("Unified diff with",#selector(showDiff),icon:.unifiedDiff,enabled:model.canInspectHistory)
                     let choices=NSMenu();choices.autoenablesItems=false;unified.submenu=choices
                     let modes:[(String,LogRevisionDiffMode)]=[("All Parents",.allParents),("Only Merged Files",.combined),("Show extra changes after merge",.extraMergeChanges)] + model.parentChoices(for:revision).map{($0.title,.parent($0.number))}
                     for(title,mode) in modes {
@@ -4841,9 +4886,9 @@ struct RevisionTable: NSViewRepresentable {
                     }
                 }
                 if revision.parents.count==1 {
-                    item("Compare with previous revision",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                    item("Compare with previous revision",#selector(compare),icon:.compare,enabled:model.canInspectHistory && model.onCompare != nil)
                 } else if revision.parents.count>1 {
-                    let previous=item("Compare with previous revision",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                    let previous=item("Compare with previous revision",#selector(compare),icon:.compare,enabled:model.canInspectHistory && model.onCompare != nil)
                     let parents=NSMenu();parents.autoenablesItems=false;previous.submenu=parents
                     for choice in model.parentChoices(for:revision) {
                         let child=NSMenuItem(title:choice.title,action:#selector(compareParent(_:)),keyEquivalent:"")
@@ -4852,9 +4897,9 @@ struct RevisionTable: NSViewRepresentable {
                 }
             } else if model.selected.count>=2 {
                 if model.canCompareRevisionSelection || model.includesWorkingTree && (two || model.continuousHistorySelection) {
-                    item("Compare revisions",#selector(compare),icon:.compare,enabled:!model.busy && model.onCompare != nil)
+                    item("Compare revisions",#selector(compare),icon:.compare,enabled:model.canInspectHistory && model.onCompare != nil)
                 }
-                if two,!model.bare {item("Show changes as unified diff",#selector(showDiff),icon:.unifiedDiff,enabled:!model.busy)}
+                if two,!model.bare {item("Show changes as unified diff",#selector(showDiff),icon:.unifiedDiff,enabled:model.canInspectHistory)}
             }
             if two,!model.includesWorkingTree {
                 for range in model.selectedHistoryRanges {
@@ -5197,20 +5242,34 @@ struct RevisionTable: NSViewRepresentable {
             if automatic{adjustedColumns.remove(id)}else{adjustedColumns.insert(id)}
             columnLayoutEpoch=UUID();saveColumns()
         }
-        private func measuredWidth(_ column:NSTableColumn,includeHeader:Bool=true)->CGFloat {
+        private func measuredWidth(_ column:NSTableColumn,includeHeader:Bool=true,rows:IndexSet?=nil)->CGFloat {
             guard let table else{return column.width}
             let id=column.identifier.rawValue
             if id=="graph"{return max(65,CGFloat(model.graph.map(\.width).max() ?? 1)*floor(table.rowHeight*3/4)+24)}
             var width=includeHeader ? (column.title as NSString).size(withAttributes:[.font:NSFont.systemFont(ofSize:NSFont.systemFontSize)]).width+20 : column.minWidth
             if id=="actions"{return max(width,5*16+14)}
-            for row in model.entries.indices {
+            for row in rows ?? IndexSet(integersIn: renderedEntries.indices) {
                 guard let cell=tableView(table,viewFor:column,row:row) as? NSTableCellView,let field=cell.textField else{continue}
                 let content=id=="message" ? field.attributedStringValue.size().width : (field.stringValue as NSString).size(withAttributes:[.font:field.font ?? NSFont.systemFont(ofSize:12)]).width
                 width=max(width,content+14)
             }
             return min(column.maxWidth,max(column.minWidth,ceil(width)))
         }
-        func fitAutomaticColumns(){guard let table else{return};for column in table.tableColumns where !adjustedColumns.contains(column.identifier.rawValue){column.width=measuredWidth(column)}}
+        func fitAutomaticColumns(sampled: Bool = false) {
+            guard let table else { return }
+            var rows: IndexSet?
+            if sampled {
+                var candidates = IndexSet(integersIn: 0..<min(128, renderedEntries.count))
+                let visible = table.rows(in: table.visibleRect)
+                if visible.location != NSNotFound, visible.location < renderedEntries.count {
+                    candidates.formUnion(IndexSet(integersIn: visible.location..<min(NSMaxRange(visible), renderedEntries.count)))
+                }
+                rows = candidates
+            }
+            for column in table.tableColumns where !adjustedColumns.contains(column.identifier.rawValue) {
+                column.width = measuredWidth(column, rows: rows)
+            }
+        }
         func tableViewColumnDidResize(_ notification:Notification){
             guard !updating,let column=notification.userInfo?["NSTableColumn"] as? NSTableColumn else{return}
             adjustedColumns.insert(column.identifier.rawValue);columnLayoutEpoch=UUID();saveColumns()
@@ -5248,7 +5307,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func revert() { model.request(.revert) }
         @objc func revertParent(_ sender: NSMenuItem) { model.request(.revert, mainline: sender.tag) }
         @objc func cherryPick() { model.request(.cherryPick) }
-        @objc func doubleClickRevision() { model.doubleClickRevision() }
+        @objc func doubleClickRevision() { guard revisionInputAvailable else { return }; model.doubleClickRevision() }
         @objc func showDiff() { model.diff(alternate: NSEvent.modifierFlags.contains(.shift)) }
         @objc func compare() { model.compare() }
         @objc func workingDiff() { model.compare(workingTree: true) }
@@ -5297,8 +5356,9 @@ struct RevisionTable: NSViewRepresentable {
         hashes=entries.map(\.hash);references=entries.map(\.references)
     }
     private func invoke(_ selector:Selector,sender:NSMenuItem? = nil) {
+        let inspection = ["compare", "workingDiff", "showDiff", "compareParent:", "showParentDiff:"].contains(NSStringFromSelector(selector))
         guard !consumed,let coordinator,let model,coordinator.model === model,!model.isInvalidated,
-              !model.busy,!model.confirmingQuit,!model.findBlocked,!model.orderingBlocked,!model.referencePickerBlocked,model.contextMenuPolicy==policy,
+              (inspection ? model.canInspectHistory : !model.busy),!model.confirmingQuit,!model.findBlocked,!model.orderingBlocked,!model.referencePickerBlocked,model.contextMenuPolicy==policy,
               model.window?.attachedSheet==nil,model.contextMenuGeneration==generation,model.historyProjectionEpoch==projection,
               !selection.isEmpty,model.selected==selection else { return }
         let entries=model.entries.filter{selection.contains($0.hash)}

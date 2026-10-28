@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-streaming-native-passed-physical-signed-acceptance-pending",
+  "scope": "Inspect displayed Log commits while real history continues streaming; preserve inspection across next prefix, final publication and canceled refresh.",
+  "fixture": "docs/qa/log-native-selection-2026-10-28.swift",
+  "runner": "scripts/test-log-native-selection.py",
+  "executed": true,
+  "limits": [
+    "Native hit testing and selector/shared primary-handler assertions are not physical mouse or double-click acceptance.",
+    "No complete hosted CI, signed deployment, every Log command or full-port parity claim.",
+    "Local system/bundled Git acceptance is not a hosted CI result or proof of every history workflow."
+  ],
+  "validated_native": [
+    "Private actual258-commit Git history; hold actual second notes/metadata query after128 provisional rows",
+    "Actual native revision hit target and NSTableView selection delegate (no model.select), actual arrow keys, rendered message and changed-file details during loadingHistory",
+    "Native revision installed doubleAction correct parent/selected diff; native changed-file selection plus shared SwiftUI primary handler correct revision/path",
+    "Release actual next256-row prefix, then final258rows; retain selected revision and details",
+    "Second held actual refresh: choose displayed revision, close/cancel; restore stable rows without reverting valid user selection and drain actual helper",
+    "Private preferences/pasteboard, offscreen invisible owned windows, unchanged HEAD/index/working bytes; system and bundled Git"
+  ],
+  "validation": {
+    "debug": {
+      "status": "passed",
+      "command_receipt": "build/qa/log-native-selection-debug-command-2026-10-28.json",
+      "log": "build/qa/log-native-selection-debug-2026-10-28.log",
+      "exit": 0,
+      "known_exit_zero_diagnostic_entries": 16,
+      "note": "Current app objects linked by cached receiver with staleness checks; exit-zero diagnostic text is retained."
+    },
+    "native": {
+      "status": "passed-both-git-engines",
+      "log": "build/qa/log-native-selection-native-ready-2026-10-28.log",
+      "exit": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receivers_reaped": [
+        32853,
+        33227
+      ],
+      "actual_stream": "Real Git notes metadata reads held at128 and256 rows, then completed258; new real refresh held at128 and canceled by owner close.",
+      "actual_interaction": "NSTableView native selection delegate, native arrow keyDown and displayed Log message/changed-file state; installed revision doubleAction; native changed-file selection followed by shared SwiftUI primary handler."
+    },
+    "failed_attempts": [
+      {
+        "log": "build/qa/log-native-selection-2026-10-28.log",
+        "receiver_reaped": 31382,
+        "failure": "Fixture omitted notes reference, so actual history legitimately skipped --log-size notes reads and never entered authored hold. Product streaming interaction not reached."
+      },
+      {
+        "log": "build/qa/log-native-selection-diagnosis-2026-10-28.log",
+        "receiver_reaped": 31811,
+        "failure": "Diagnostic confirmed settled258 rows/loadingfalse/busyfalse and missing notes query. Added actual private note and final preserved-note assertion."
+      },
+      {
+        "log": "build/qa/log-native-selection-notes-recheck-2026-10-28.log",
+        "receiver_reaped": 32161,
+        "failure": "Actual128-row hold reached; fixture pointer hit assertion used incorrect coordinate space."
+      },
+      {
+        "log": "build/qa/log-native-selection-hit-diagnosis-2026-10-28.log",
+        "receiver_reaped": 32501,
+        "failure": "Diagnostic showed valid128-row table but hit NSHostingView. NSView.hitTest expects superview coordinates; fixture passed content-local coordinates across flipped views. Fixed exact parent-space conversion and awaited displayed128-row geometry; strict native target assertion retained."
+      }
+    ],
+    "core": {
+      "run": false,
+      "reason": "Native Log workflow/UI changes; no full Core or previous53/watch repeat."
+    },
+    "generators": {
+      "localizations_check": "passed",
+      "locales": 38,
+      "keys": 1325,
+      "coverage_ledger_check": "passed",
+      "dialogs": 130,
+      "completed_dialog_claims": 0
+    }
+  },
+  "cleanup": {
+    "logged_receiver_pids": [
+      31382,
+      31811,
+      32161,
+      32501,
+      32853,
+      33227
+    ],
+    "all_reaped": true,
+    "independent_ps_check": "All six absent after final pass; no unrelated user process terminated.",
+    "actual_held_helpers": "Fixture requires completed and canceled real history helper PIDs absent after owned drain.",
+    "private_preferences_pasteboard_and_repository": true,
+    "windows": "Actual native receiver windows intercepted alpha0/offscreen; dialogs/readers close and drain on success/failure."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "35d1dfbbfece4b6f98d36d4b8cf5e5f6106f0e992a856a7e8b66783627e23e3e",
+    "Sources/TurtleGitMac/LogMessageView.swift": "495f9789d5e876b7bae0714099ff6453888f32deb4212bf6d44eb35430f6d8de",
+    "docs/qa/log-native-selection-2026-10-28.swift": "402d872d2ae75dfe6c8f52e90dda3df73b565a4befcb5f47d3866c37c07808f4",
+    "scripts/test-log-native-selection.py": "89304899190526ff9133909198068484ac1991439016b928988b8cc66082197c"
+  }
+}

@@ -2881,3 +2881,37 @@ The [Log LFS checkpoint](qa/log-lfs-family-2026-10-28.json) records the actual
 validation scope, failures and affected rechecks separately from implementation. Authenticated remote providers,
 physical menus/keyboard, VoiceOver, signed sandbox/Finder grants and complete
 source/application parity remain separate acceptance work.
+
+## Selection while history is loading — October 28, 2026
+
+The installed Ladybird Log exposed revision rows while continuing a full history
+walk, but the native selection delegate explicitly ignored clicks until the walk
+finished. Subsequent table updates restored the old empty model selection. This
+made an apparently available commit impossible to inspect during a long load.
+Pinned `CLogDlg::OnLvnItemchangedLoglist` (`LogDlg.cpp`, line 1869) permits selection
+during the background walk; its thread-running guard is commented out and only
+suppressed display updates defer message filling.
+
+The related correction covers the native revision selection and keyboard route,
+commit message and changed-file detail, selected historical comparisons, stable
+selection as prefixes arrive, and cancellation/reload ownership. Repository
+metadata needed by provisional rows must be available before those rows appear.
+Mutations retain their stricter eligibility checks. The current selected-commit
+reader already captures a separate repository actor from the full history walk;
+no Core actor change is required to admit that read.
+
+Revision-table progress updates also need to avoid rebuilding every row identity
+or sizing every historical cell. Automatic widths use the first 128 and visible
+rows; an explicit user-requested column fit still examines the full range.
+The upstream unlimited-history default is retained; this repair does not hide
+older commits behind an artificial history limit.
+The [focused native checkpoint](qa/log-native-selection-2026-10-28.json) passes
+with both Git engines: actual table selection and arrow keys update the rendered
+message and changed files while a real history read is held at 128 rows. Selection
+and detail persist at 256 rows and final completion; canceling a held refresh
+retains a valid new selection and drains the helper. Native revision double-action
+and the selected-file primary handler request the correct historical pair/path.
+Hit testing and selector dispatch are bounded native evidence, not physical mouse
+acceptance. Signed acceptance remains separate. Earlier fixtures that directly
+seeded `model.select` did not establish that actual table selection notifications
+reached the model during loading.
