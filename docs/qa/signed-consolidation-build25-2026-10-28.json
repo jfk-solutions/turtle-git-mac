@@ -1,0 +1,270 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-arm64-installed-cold-finder-commit-window-and-rows-observed-one-sample",
+  "build": "25",
+  "source_commit": "65f533fc426ee13a46f95017d0c9fd292a1fa0e5",
+  "source_input_sha256": "cf80e304285c49914b889aa4d238289dc9600076f90be9a152f42dbe9b0c9383",
+  "source_inputs_unchanged": true,
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed25-static-2026-10-28.json",
+  "installation_receipt": "build/qa/signed25-installed-2026-10-28.json",
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "signing_identity": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "25",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "25"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "25"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "owned_component_count": 8,
+    "architecture_scope": "Apple Silicon local testing; universal/Intel execution and release packaging remain separate.",
+    "runtime_representatives": {
+      "Git": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "LibGit2": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "Metafile": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "runtime_execution_repeated": false,
+    "application_sha256": "07b32f9da3d3ec14e195b27a2a12b236578871fbf7bee8bcd8f46e55953871c3",
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "main_sha256": "07b32f9da3d3ec14e195b27a2a12b236578871fbf7bee8bcd8f46e55953871c3",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "preserved_build24_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed25-displaced-installed-2026-10-28",
+    "launchservices_and_plugin_registration_exits": [
+      0,
+      0,
+      0
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "main_app_launched_by_installer": false,
+    "store_submission": false
+  },
+  "implementation_scope": {
+    "family": "Dialog-first foreground preparation for self-loading native dialogs",
+    "self_loading_routes": 16,
+    "change": "Authorized standalone dialogs present and load their own data without waiting for an unnecessary full workspace/Finder collection and cache publication.",
+    "retained_behavior": "Repository and selection authority checks remain; owned deferred Finder work drains independently.",
+    "early_commit_preview_or_enrichment_rewrite": false
+  },
+  "retained_focused_evidence": "docs/qa/dialog-first-read-2026-10-28.json",
+  "focused_validation_scope": {
+    "native_routes_tested": [
+      "Commit",
+      "Status",
+      "Log"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "blocker": "Real private FinderSnapshotStore writer flock remained held until actual native windows and rows were ready.",
+    "assertions": [
+      "MainActor responsive",
+      "No blank parent workspace",
+      "Exact literal Commit file scope retained",
+      "HEAD/index/working-file bytes unchanged",
+      "Owned deferred work drained after lock release"
+    ],
+    "receiver_ownership": "Private repositories/preferences and invisible or offscreen windows; owned receivers reaped.",
+    "core_repeated": false,
+    "boundary": "The private three-route check does not prove every dialog route physically or time the signed Ladybird repository."
+  },
+  "physical_acceptance": {
+    "normal_startup": {
+      "status": "cold-main-start-observed-via-actual-finder-command",
+      "configuration": "Installed sandboxed development-signed build25 on Apple Silicon; main process absent before invocation.",
+      "main_absent_before": true,
+      "main_pid": 28644,
+      "cache_state": "Warm filesystem and existing repository/index/cache data; cold application process only."
+    },
+    "quit": {
+      "pid": 28644,
+      "status": "normal-quit-requested-and-independently-ps-confirmed-absent",
+      "normal_quit_requested": true,
+      "independent_verification": {
+        "command": "/bin/ps -p 28644 -o pid=,comm=",
+        "exit": 1,
+        "matched_rows": 0,
+        "scope": "Only the owned physical-acceptance main PID; no unrelated process termination."
+      }
+    },
+    "cold_finder_menu": {
+      "status": "passed",
+      "finder_extension_pid": 28470,
+      "observation": "Actual Finder retained the Commit command while the main application was absent."
+    },
+    "cold_finder_commit": {
+      "status": "actual-command-window-and-loaded-rows-observed",
+      "repository": "User-reported Ladybird repository",
+      "finder_extension_pid": 28470,
+      "main_pid": 28644,
+      "timestamps_local": {
+        "timezone": "Europe/Berlin",
+        "finder_callback": "2026-10-28 22:26:54.685",
+        "get_url_accepted": "2026-10-28 22:26:55.372",
+        "window_presented": "2026-10-28 22:26:55.968",
+        "read_ready": "2026-10-28 22:26:58.045"
+      },
+      "timing_seconds": {
+        "finder_callback_to_window": 1.283,
+        "finder_callback_to_read_ready": 3.36,
+        "commit_own_read": 2.103308
+      },
+      "timing_boundary": "Finder callback timestamp to native presentation/read-ready OSLog phases; one cold-main, warm-filesystem sample, not a cache-cold benchmark or quantified before/after speedup.",
+      "sample_count": 1,
+      "observation": {
+        "actual_accessibility_confirmed_loaded": true,
+        "repository_branch_observed": true,
+        "staged_files": 0,
+        "unstaged_files": 0,
+        "file_lists_and_headings_visible": true,
+        "message": "empty",
+        "stage_or_commit_action_performed": false
+      },
+      "integrity": {
+        "head_unchanged": true,
+        "index_unchanged": true,
+        "raw_user_integrity_hashes_published": false
+      },
+      "cancel_observation": {
+        "empty_workspace_observed": true,
+        "subsequent_routing_log": "2026-10-28 22:27:07.571 PID28644: Reopen route: workspace-request; mode=workspace; startupReady=true; startupDelivered=true; hasVisibleWindows=false",
+        "assessment": "An explicit AppKit reopen route was logged after Commit closed. The event source is not established; CUA activation or accessibility retargeting may have triggered it. This observation does not establish a product cancellation bug."
+      },
+      "private_measurement_receipt": "build/qa/signed25-physical-2026-10-28.json",
+      "startup_log": "build/qa/signed25-physical-startup-2026-10-28.log"
+    }
+  },
+  "follow_on": {
+    "status": "one-signed-cold-main-sample-complete-broader-acceptance-separate",
+    "scope": "The sampled Ladybird Commit window presented in 1.283 seconds and its read completed in 3.360 seconds from the Finder callback. These results do not establish all machine/cache/repository cases or the complete commit/push pipeline.",
+    "early_commit_preview_or_enrichment_changes": "Not implemented; no new speculative optimization is justified by this one sample.",
+    "prior_build24": "Actual cold Finder handoff and a loaded Commit window were observed, but no comparable full timing was established."
+  },
+  "limitations": [
+    "Build25 owned components are arm64 only; universal runtime representatives do not make this an Intel-compatible app package.",
+    "Runtime helper execution results are inherited; no runtime helper execution was repeated for this static/signing checkpoint.",
+    "Focused native blocked-writer results concern private fixture repositories and three actual routes, not physical acceptance of all sixteen routes.",
+    "The physical Ladybird result is one cold-main sample with a warm filesystem, not a cache-cold benchmark, a quantified build24 speedup or a guarantee for every repository.",
+    "The physical repository had zero changes and an empty message; no stage, commit or push action was invoked, so no complete mutation pipeline acceptance is claimed.",
+    "The empty workspace observed after Cancel coincided with a logged AppKit reopen request whose source is not established; it is not a proven cancellation defect.",
+    "No App Store submission, complete hosted CI or whole-port visual parity claim."
+  ],
+  "documentation_validation": {
+    "site_docs": {
+      "initial_attempt": "System Python could not import markdown_it.",
+      "completed_attempt": "Existing build/site-venv/bin/python scripts/test-site-docs.py",
+      "tests_passed": 2,
+      "elapsed_seconds": 2.6
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "certified_dialogs": 0,
+      "interpretation": "Resource coverage bookkeeping, not a feature-completion percentage."
+    },
+    "core_or_native_repeated": false
+  }
+}

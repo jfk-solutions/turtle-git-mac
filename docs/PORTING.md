@@ -2,21 +2,22 @@
 
 ## Current installed checkpoint
 
-[Build23](qa/signed-consolidation-build23-2026-10-28.json), version 0.1.0 (23),
-is installed from `f2796388f28b3cff7aa03b25ce62d29724cc5cb0` for Apple Silicon local testing. Measured inputs,
+[Build25](qa/signed-consolidation-build25-2026-10-28.json), version 0.1.0 (25),
+is installed from `65f533fc` for Apple Silicon local testing. Measured inputs,
 strict signatures, eight owned components containing arm64, bundled Help and
-complete installed inventory pass. Universal build22 is preserved for recovery.
+complete installed inventory pass. Build24 and universal build22 are preserved.
 
-Normal startup was observed. Registered-folder commands remained visible after
-full app exit, but the actual Finder Commit launch failed with error256 using
-an explicit first-event configuration. The following source repair restores
-ordinary Launch Services URL delivery. Neither native descriptor construction
-nor private argv tests establish sandboxed launch acceptance. See
-[the startup record](FINDER-STARTUP-PERFORMANCE.md) and its physical receipt.
+The actual signed Finder Commit command now starts the closed app and opens the
+Ladybird Commit window. In one cold-main, warm-filesystem sample, the window was
+presented 1.283 seconds after Finder's callback and its initial read completed at
+3.360 seconds. Sixteen self-loading dialog routes avoid the redundant foreground
+workspace/Finder publication. The private blocked-writer check covers Commit,
+Status and Log with both Git engines; it does not establish every route's visual
+or physical acceptance. See [the startup record](FINDER-STARTUP-PERFORMANCE.md).
 
 The unchanged Metafile runtime retains the separate focused signed-parent
 execution from [build20](qa/signed-consolidation-build20-2026-10-28.json).
-Build23 checks its bundled identity and provenance without repeating that
+Build25 checks its bundled identity and provenance without repeating that
 execution. Physical input/VoiceOver, Intel/minimum-macOS, complete hosted and
 whole-port acceptance remain separate gates.
 

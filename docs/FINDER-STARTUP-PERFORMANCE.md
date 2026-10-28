@@ -285,3 +285,24 @@ timing and row counts. They contain no paths, messages or configuration values.
 The [dialog-first checkpoint](qa/dialog-first-read-2026-10-28.json) requires real
 Commit, Log and Status windows and data while a private Finder writer lock remains
 held. That ordering proof is distinct from the next signed Ladybird timing check.
+
+### Signed build25 physical sample
+
+The installed Apple Silicon build25 was invoked from Ladybird's real Finder
+Commit menu with the main app fully exited. Finder's callback occurred at
+22:26:54.685; GetURL was accepted at 22:26:55.372; the Commit window was presented
+at 22:26:55.968, and its initial read completed at 22:26:58.045. This is **1.283
+seconds to the window and 3.360 seconds to loaded data**, including process launch;
+the Commit read itself took 2.103 seconds. Accessibility confirmed both empty file
+lists, the actual branch and an empty commit message. No mutation was invoked;
+HEAD and index remained unchanged. The test-owned main process exited after
+normal Quit, and neither Finder nor Dock was restarted.
+
+This is one cold-main, warm-filesystem sample on the user's repository, not a
+cache-cold benchmark or an Intel result. After Cancel, an empty workspace appeared. A later `LaunchRouting` record
+identifies an AppKit reopen event at 22:27:07.571; the close callback itself does
+not request a workspace. Its origin could include automation activation and was
+not established, so this observation does not prove a cancellation regression. The
+[build25 receipt](qa/signed-consolidation-build25-2026-10-28.json) records the scope
+and retains build23's failed transport attempt and build24's latency complaint as
+historical evidence.
