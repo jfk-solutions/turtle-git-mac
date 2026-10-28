@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-28",
+  "family": "Commit option-form lifecycle",
+  "status": "focused_native_checkpoint_passed_hosted_and_full_port_open",
+  "source_parent": "eabf99f902644ec8ba8cb2295a4d904a111bfc35",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_failure": {
+    "run": 40565912425,
+    "job": 122414076064,
+    "step": 99,
+    "step_name": "Commit options, Log columns and Settings appearance",
+    "message": "Delayed date view callback retired the accepted option form",
+    "excerpt": "docs/qa/ci-commit-date-form-eabf99f9-2026-10-28.txt",
+    "earlier_core_result": "3153 tests, 2 skipped, 0 failures on prior source eabf99f9; not a complete hosted job pass"
+  },
+  "source_anchors": [
+    "src/TortoiseProc/CommitDlg.cpp:2747-2784",
+    "src/TortoiseProc/CommitDlg.cpp:2986-3026",
+    "src/Resources/TortoiseProcENG.rc::IDD_COMMITDLG"
+  ],
+  "implementation": [
+    "Stable transition identities for Amend, amend comparison, author and author date",
+    "Idempotent accepted-action/view observer delivery before metadata or reload side effects",
+    "Actual off/on transitions receive fresh identities even when final Bool equals an earlier value",
+    "Explicit refresh/retry handlers remain callable; ReCommit reset acknowledgements and closed-owner retirement remain connected"
+  ],
+  "validation": {
+    "application": {
+      "initial_debug": {
+        "exit": 0,
+        "log": "build/qa/commit-form-lifecycle-debug-2026-10-28.log"
+      },
+      "final_frozen_debug": {
+        "exit": 0,
+        "log": "build/qa/commit-form-lifecycle-debug-final-2026-10-28.log",
+        "reason": "An actual final source change routed accepted actions through the same idempotent gate after initial build began."
+      }
+    },
+    "native": {
+      "status": "passed_cumulatively",
+      "log": "build/qa/commit-form-lifecycle-native-2026-10-28.log",
+      "passed": [
+        "primary Commit options/system Git",
+        "primary Commit options/bundled Git",
+        "Commit metadata/system Git",
+        "Commit metadata/bundled Git",
+        "ReCommit editor/system Git",
+        "ReCommit editor/bundled Git"
+      ],
+      "reaped_pids": [
+        55433,
+        55742,
+        56055,
+        56414,
+        56782,
+        57204,
+        57392
+      ],
+      "independently_absent_pids": [
+        55433,
+        55742,
+        56055,
+        56414,
+        56782,
+        57204,
+        57392
+      ],
+      "fixture_repair": "The successful ReCommit path lacked a native messageLayoutAvailable readiness wait, unlike the initial/failed edit paths. Added exact admission waits and granular diagnostics while retaining text/Undo/real Git assertions. Initial scheduling state was not captured, so no new production fault is inferred solely from the timeout.",
+      "fixture_compile_repair": {
+        "log": "build/qa/commit-form-lifecycle-editor-repaired-2026-10-28.log",
+        "failure": "New diagnostic local function lacked MainActor isolation. Added @MainActor; no receiver launched in failed compilation."
+      },
+      "failed_attempt": "ReCommit editor/system Git: timeout at fixture line198 on post-success new message edit",
+      "remaining_unrun_at_initial_failure": [
+        "ReCommit editor/bundled Git"
+      ],
+      "final_editor_log": "build/qa/commit-form-lifecycle-editor-final-2026-10-28.log",
+      "distinct_engine_case_pairs": 6,
+      "native_readiness_observation": "Final recheck captured model.busy=false and new message/session with editor.editable=false/admitted=false, followed by editable=true/admitted=true before exact native input. This directly verifies the readiness gap in the repaired fixture.",
+      "recheck_scope": "Only failed/unrun editor cases repeated. Four already passing primary/metadata pairs retained; no Core/full native suite rerun.",
+      "owned_receiver_attempts": 7,
+      "fixture_compilation_failures_before_launch": 1
+    },
+    "core": "Not rerun: no Core Git implementation changed; directly affected real Git effects are covered by selected native receivers. Earlier hosted Core result is explicitly separate.",
+    "localizations": {
+      "check": "passed",
+      "languages": 38,
+      "keys": 1325,
+      "write": "not needed: no literal native UI label changed"
+    },
+    "help": {
+      "check": "passed",
+      "write": "not needed: no Help-listed guide changed"
+    },
+    "coverage": {
+      "passed": true,
+      "command": "python3 scripts/reconcile-dialog-coverage.py",
+      "scope": "Pinned resource/control inventory reconciliation; not a feature completion percentage."
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "7f1f0627e970d5dab0189d0565ddef6b78af7bf3f24db8e134354265264bf226",
+    "docs/qa/primary-commit-options-native-2026-10-21.swift": "56df8f2ef1463afb2f273799b8504dd1b1d923d9532a8b4f0e46805adbfcd929",
+    "docs/qa/commit-result-lifecycle-native-2026-10-20.swift": "9ad2795d3c3b11c0d9349ed8cb7352704661fc42a8440174b4924dde9d7b18d0"
+  },
+  "remaining": [
+    "Hosted validation of this source after push",
+    "Physical keyboard/VoiceOver, SDK/OS combinations and signed sandbox acceptance",
+    "Full upstream Commit layout/state combination coverage and whole-port completion"
+  ],
+  "installed_evidence": {
+    "version": "0.1.0 (19)",
+    "main_executable_sha256": "3a388cab9542041afca81370d5c15e2015456ec99d6217b3ce4b1869cd90835c",
+    "matches_receipt": "docs/qa/signed-consolidation-build19-2026-10-27.json",
+    "scope": "Read current Info.plist version and main binary hash only; no renewed signature/inventory/physical acceptance or installation."
+  }
+}

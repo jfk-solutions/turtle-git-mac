@@ -1,0 +1,16 @@
+Official GitHub Actions excerpt
+Repository: jfk-solutions/turtle-git-mac
+Run: 40565912425
+Job: 122414076064
+Head: eabf99f902644ec8ba8cb2295a4d904a111bfc35
+Retrieved: 2026-10-28
+Scope: selected unmodified lines from official decoded job log; not a complete log.
+
+2026-10-27T21:17:20.5037700Z Test Suite 'TurtleGitMacPackageTests.xctest' passed at 2026-10-27 21:17:19.666.
+2026-10-27T21:17:20.5039940Z 	 Executed 3153 tests, with 2 tests skipped and 0 failures (0 unexpected) in 5315.287 (5315.730) seconds
+2026-10-27T21:17:20.5043100Z 	 Executed 3153 tests, with 2 tests skipped and 0 failures (0 unexpected) in 5315.287 (5315.756) seconds
+2026-10-27T21:17:40.5598790Z Test Suite 'TurtleGitMacPackageTests.xctest' passed at 2026-10-27 21:17:40.475.
+2026-10-27T21:55:07.2887500Z Checking primary parity commit with /usr/bin/git
+2026-10-27T21:55:18.6232210Z Owned receiver reaped: 69184
+2026-10-27T21:55:19.3017360Z Native QA failed: 171: Delayed date view callback retired the accepted option form
+2026-10-27T21:55:19.3898820Z ##[error]Process completed with exit code 1.

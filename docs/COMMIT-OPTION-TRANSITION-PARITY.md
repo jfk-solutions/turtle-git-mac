@@ -61,6 +61,54 @@ own view settings through these message/commit handoffs. Repository-level
 Commit → Push/Pull/Create Tag follow-ups inherit the originating preferences
 through the parent's separately owned integration.
 
+## Stable option transitions — October 28, 2026
+
+The native Commit form handles Amend, Show diff to last commit, Set author and
+Set author date through both immediate menu/checkbox actions and deferred view
+observers. The first action must start the transition before returning, so a
+following focus or Commit command sees the accepted metadata/loading state.
+Repeated observers of that same accepted option must not restart its read,
+replace a prepared author/date draft or invalidate newly admitted form focus.
+
+The previous suppression entry was a Boolean removed by the first observer.
+Another observer for the same unchanged value could therefore repeat the
+transition. Each actual option-value mutation now receives a separate identity;
+the corresponding handler acknowledges it before publishing loading/draft
+changes. The acknowledgement persists for that unchanged value, including
+coalesced off/on changes, so another view callback has no new transition to run.
+A genuine later toggle receives a fresh identity. Explicit metadata refreshes
+from Amend, identity preparation or a replay preset still run intentionally and
+acknowledge their current option. Post-Commit resets keep their existing
+no-reread markers, and invalidation clears the owner's transition identities.
+
+This preserves the source's synchronous checkbox behavior while adapting to
+SwiftUI's delayed observation. The source anchors remain
+`CommitDlg.cpp::OnBnClickedCommitAmend`,
+`OnBnClickedCommitAmenddiff`, `OnBnClickedCommitSetauthor` and
+`OnBnClickedCommitSetDateTime`. Current/HEAD defaults, read-only author behavior,
+separate date/time controls, Reset and real Git options retain their existing
+implementation. No new control or Core Commit operation is added by this repair.
+
+The [official hosted excerpt](qa/ci-commit-date-form-eabf99f9-2026-10-28.txt)
+records run `40565912425`, job `122414076064`, head
+`eabf99f902644ec8ba8cb2295a4d904a111bfc35`, failing in the first primary Commit
+receiver with “Delayed date view callback retired the accepted option form”.
+That failure remains distinct from earlier focused passes. The new
+[grouped checkpoint](qa/commit-form-lifecycle-2026-10-28.json) records the
+actual repair validation; authored assertions alone are not a pass. It does not
+certify every Commit source state, the complete hosted job or a new signed
+installation.
+
+The [October 28 checkpoint](qa/commit-form-lifecycle-2026-10-28.json) records
+six native case/engine pairs passing cumulatively: primary options, metadata
+lifetime and real ReCommit editing with system and bundled Git. The original
+ReCommit fixture omitted native readiness after successful reset; its repaired
+checks captured the new model/session while the actual editor was still disabled,
+then waited for real input admission before retaining exact text/Undo assertions.
+A diagnostic actor-isolation compilation failure is recorded too. All seven
+attempted receivers were reaped and independently absent. The unsigned Debug
+build passed; Core was unchanged and its full suite was not rerun locally.
+
 ## Grouped validation and remaining scope
 
 `docs/qa/commit-option-transition-native-2026-10-18.swift` exercises the production

@@ -2,19 +2,21 @@
 
 ## Current installed checkpoint
 
-[Build16](qa/signed-consolidation-build16-2026-10-27.json) is installed from
-`b010b30e`. Its 1,534 measured inputs, strict signatures, eight universal components
-and equal 6,366-member candidate/staged/installed inventories pass. Build15 is
-preserved for recovery. The package includes the Unified Diff editing work and
-shared message commands, with the native Undo/Redo responder repair found during
-build15 acceptance.
+[Build19](qa/signed-consolidation-build19-2026-10-27.json), version 0.1.0 (19),
+is the installed package from `6de62e8848529871d5c0c92cf320c8b68d1eace9`.
+The October 28 read confirmed its installed version and main executable SHA-256
+against that receipt. It did not repeat the receipt's complete signature,
+6,367-member inventory or universal-component checks, and performed no physical
+acceptance. The receipt records a build18 recovery backup. Later Commit, history/delivery and pending image-effect
+work in this checkout is not part of that installed package.
 
-Actual installed Commit main-menu Undo/Redo and physical shortcuts restore the
-expected private draft states on the current keyboard layout. The repository's
-HEAD, index, configuration and working file stayed unchanged. The private grant
-was forgotten and the owned app quit. Initial folder authorization required a
-second explicit repository-open step after a cache-lock warning; this is not a
-complete first-launch or Finder acceptance claim. Other adapters, IME/VoiceOver,
+The older [build16 checkpoint](qa/signed-consolidation-build16-2026-10-27.json)
+records installed Commit main-menu Undo/Redo and physical shortcuts restoring
+private draft states on the tested keyboard layout. HEAD, index, configuration
+and working inputs stayed unchanged; its private grant was forgotten and the
+owned app quit. Initial folder authorization needed a second explicit
+repository-open step after a cache-lock warning. Those dated results are not a
+renewed build19 first-launch or Finder acceptance. Other adapters, IME/VoiceOver,
 physical Finder, Intel/minimum-macOS and full hosted acceptance remain open.
 
 [Build14](qa/signed-consolidation-build14-2026-10-27.json) records the preceding
@@ -1611,14 +1613,14 @@ top of this document retain failed attempts and the exact scope of later passes.
 | SshAskPass / TortoisePlink | OpenSSH, private agent, askpass/Keychain/key grants and connected transport loading. [SSH transport](SSH-TRANSPORT-PARITY.md), [agent](SSH-AGENT-PARITY.md) | Native OpenSSH replaces Windows Plink dialogs; actual external authentication, every consumer and signed grants remain separate |
 | GitWCRev / COM | Native CLI, byte/UTF-16 templates, source keywords/switches and JSON automation; packaged universal execution is recorded in [WCRev](WORKING-COPY-REVISION.md) | Exact pathspec/locale/automation cases remain scoped; Windows COM is replaced rather than reproduced |
 | Setup / distribution | Universal app/helper packaging, Apple Development signed candidates and recoverable installed Finder registration. [Current refresh installation](STATUS-REFRESH-OWNERSHIP-PARITY.md), [release gates](RELEASE-BLOCKERS.md) | Distribution signing/notarization, current archive/export/submission and App Store approval remain open. A newer signed build is not automatically an installed acceptance |
-| Languages / ResText | Bundled source-derived Localizable.xcstrings; latest recorded check covers 38 locales/1,318 labels | Missing/fuzzy/ambiguous entries retain English fallback; resource counts do not prove complete UI translation |
+| Languages / ResText | Bundled source-derived Localizable.xcstrings; latest recorded check covers 38 locales/1,325 labels | Missing/fuzzy/ambiguous entries retain English fallback; resource counts do not prove complete UI translation |
 
 ### Connected workflows
 
 | Workflow family | Current implemented behavior and dated evidence | Remaining implementation differences or acceptance |
 | --- | --- | --- |
 | Working Tree / Add / Commit | Scoped checked lists, source options/staging/actions, message and identity controls, issue/hooks, owned results/Push continuation, file menus/drag/layout and fresh read-only status/statistics. [Status](STATUS-PARITY.md), [Add](ADD-PARITY.md), [Commit scope/report/Push](COMMIT-SCOPE-REPORT-PARITY.md), [refresh ownership](STATUS-REFRESH-OWNERSHIP-PARITY.md), [shared lists](NATIVE-LIST-INTERACTIONS-PARITY.md) | Vendor-specific issue-provider adapters and remaining file-type/source-layout combinations; full physical/accessibility/signed coverage. Generic menus/progress/cancellation/preferences are not absent foundations |
-| Log / RefLog / Notes / Browser | Front graph/ref labels, search/date/walk/working-tree views, changed-file groups and revision operations; exact named RefLog actions, editable Notes, lazy pinned historical Browser and gitlink navigation. [Log](LOG-PARITY.md), [RefLog identity](REFLOG-REFERENCE-IDENTITY-PARITY.md), [Notes](NOTES-BACKEND-PARITY.md), [historical navigation](HISTORICAL-NAVIGATION-PARITY.md) | Browser raw names retain byte identity, OID inspection and exact-byte [Log/Blame reads](RAW-HISTORY-PARITY.md); raw filesystem delivery/comparison and recorded exceptional object/encoding cases remain explicit in [namespace scope](REPOSITORY-BROWSER-NAMESPACE-PARITY.md). Full source visual/gesture/VoiceOver and signed handoffs remain open. Older “full chooser/search controls missing” text is not a current inventory |
+| Log / RefLog / Notes / Browser | Front graph/ref labels, search/date/walk/working-tree views, changed-file groups and revision operations; exact named RefLog actions, editable Notes, lazy pinned historical Browser and gitlink navigation. Raw names retain byte identity through OID inspection, Log/Blame, historical comparison/patches and single-file Open/Save with safe chosen output names. [Log](LOG-PARITY.md), [RefLog identity](REFLOG-REFERENCE-IDENTITY-PARITY.md), [Notes](NOTES-BACKEND-PARITY.md), [historical navigation](HISTORICAL-NAVIGATION-PARITY.md), [historical delivery/comparison checkpoint](RAW-HISTORY-PARITY.md#materializationcomparison-checkpoint) | Raw original-path checkout, working-tree comparison/mutation, folder transfer containing raw descendants and submodule checkout resolution remain explicit in [namespace scope](REPOSITORY-BROWSER-NAMESPACE-PARITY.md). Full source visual/gesture/VoiceOver, external receiving applications and signed handoffs remain open. Older “full chooser/search controls missing” text is not a current inventory |
 | Diff / comparison / document tools | Side-by-side text and encoding controls, syntax, external tool routing, image comparison, text conflicts, patch viewing and document-specific comparison workflows. [Text Merge](TEXT-MERGE-PARITY.md), [image](IMAGE-COMPARISON-PARITY.md), [literal tools](LITERAL-TOOL-CONFIGURATION-PARITY.md), [standalone UDiff](UNIFIED-DIFF-STANDALONE-PARITY.md) | Format/lexer/encoding compatibility has explicit remaining limits; standalone entry differences and complete visual/physical/signed behavior remain open |
 | Fetch / Pull / Push / Sync | Remote/URL options and histories, literal refspec/destination forwarding, source choosers, captured streamed progress/Retry/cancellation, SSH loading, Rebase continuation and Sync split actions/lists. [Fetch/Pull refspecs](FETCH-REFSPEC-PARITY.md), [Push destinations](PUSH-DESTINATION-PARITY.md), [Sync](SYNCHRONIZATION-PARITY.md), [literal Sync refs](SYNC-LITERAL-REFERENCE-PARITY.md), [reference refresh](REFERENCE-REFRESH-PARITY.md) | Actual public authentication/transport and every recovery/options combination, physical/VoiceOver and signed grants remain scoped; progress/settings/handoffs are implemented |
 | Rebase / cherry-pick / revert / merge | Interactive action plans, reorder/add/recovery/conflict workflows, owned reference/catalog refresh and real Git continuation/abort/results. [Rebase](REBASE-PARITY.md), [reference refresh](REFERENCE-REFRESH-PARITY.md), [cherry-pick](CHERRY-PICK-PARITY.md), [revert](REVERT-PARITY.md), [Merge](MERGE-PARITY.md) | Complete structural/conflict/post-action combinations and source visual/physical/signed acceptance remain open; interactive Rebase and conflict continuation are implemented |
@@ -1648,9 +1650,13 @@ remain separate; this does not imply it was the only remaining workflow.
 
 Confirmed implementation differences remain in the linked families; the table
 above is not an exhaustive missing-control inventory. Examples that must not be
-hidden behind acceptance language include raw-byte filesystem delivery and
-comparison beyond Browser's implemented inspection and historical reads,
-provider-specific integrations outside the embedded adapters, recorded graphics/
+hidden behind acceptance language include raw original-path checkout,
+working-tree comparison/mutation, folder export containing raw descendants and
+raw submodule checkout resolution. Historical single-file comparison and safe
+chosen-name delivery are connected in the [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json);
+CLI and selected-helper Open/Save retain their distinct upstream filter policies.
+Other differences include provider-specific integrations outside the embedded
+adapters, recorded graphics/
 encoding compatibility limits, and UDiff's explicit native entry behavior.
 The dedicated `turtlegit-udiff` launcher now defaults to stdin and accepts a
 literal filename; the combined app preserves its existing empty-document marker

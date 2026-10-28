@@ -161,12 +161,24 @@ enum PrimaryCommitOptionsVerification {
         try await wait(owner.window,"Author option did not restore native editing"){model.setAuthor && !model.loadingAuthorIdentity && nativeAuthor.isEditable}
         try await command(context,owner,"amend")
         try await wait(owner.window,"Amend metadata did not settle"){model.amend && !model.loadingAmendMessage && !model.loadingAuthorIdentity && !model.busy}
+        // Different SDKs can replay delayed observers after metadata and busy
+        // transitions have already settled. Every option's current identity
+        // stays acknowledged; another view callback must not restart it.
+        let settledAmendReceipt=model.formReceipt
+        let settledMetadata=CommitWindowModel.activeMetadataOperations
+        for option in [CommitWindowModel.FormOption.amend,.amendComparison,.author] {
+            model.formOptionViewChanged(option);model.formOptionViewChanged(option)
+        }
+        try require(model.formReceipt==settledAmendReceipt && CommitWindowModel.activeMetadataOperations==settledMetadata && !model.busy,"Duplicate settled option observers restarted metadata or retired the form")
         let comparison=try await readyItem(context,owner,"amendComparison")
         try require(comparison.isEnabled,"Real parent revision did not expose amend comparison")
         let dateOption=try await readyItem(context,owner,"authorDate")
         try press(dateOption)
         let dateOptionReceipt=model.formReceipt
         try require(model.loadingAuthorDate,"Date action returned before starting its metadata transition")
+        let acceptedDateReads=CommitWindowModel.activeMetadataOperations
+        model.formOptionViewChanged(.authorDate);model.formOptionViewChanged(.authorDate)
+        try require(model.formReceipt==dateOptionReceipt && CommitWindowModel.activeMetadataOperations==acceptedDateReads,"Duplicate pending date observers restarted accepted metadata")
         try await wait(owner.window,"Amend author date did not settle"){model.setAuthorDate && !model.loadingAuthorDate}
         try require(model.formReceipt==dateOptionReceipt,"Delayed date view callback retired the accepted option form")
         try await command(context,owner,"focusDate")
@@ -182,6 +194,17 @@ enum PrimaryCommitOptionsVerification {
         try await command(context,owner,"resetDate")
         try require(model.resetAuthorDate && !model.nativeAuthorDateInputAvailable,"Reset did not disable date/time edits")
         _=try await readyItem(context,owner,"resetDate");try await command(context,owner,"resetDate")
+        // The final bool may equal an already handled value after SwiftUI
+        // coalesces an off/on pair. Its actual transition identity is new and
+        // must be serviced once, then remain stable for duplicate observers.
+        model.setAuthorDate=false;model.setAuthorDate=true
+        model.formOptionViewChanged(.authorDate)
+        let coalescedDateReceipt=model.formReceipt,coalescedReads=CommitWindowModel.activeMetadataOperations
+        try require(model.loadingAuthorDate,"Coalesced date option changes lost the new metadata request")
+        model.formOptionViewChanged(.authorDate);model.formOptionViewChanged(.authorDate)
+        try require(model.formReceipt==coalescedDateReceipt && CommitWindowModel.activeMetadataOperations==coalescedReads,"Coalesced option observers restarted current metadata")
+        try await wait(owner.window,"Coalesced author date metadata did not settle"){!model.loadingAuthorDate}
+        try require(model.formReceipt==coalescedDateReceipt,"Delayed coalesced date callback retired the new form")
         model.author=String(repeating:"Long author identity ",count:16)+"<qa@example.invalid>"
         owner.window?.makeFirstResponder(nil)
         try await wait(owner.window,"Long form values did not settle"){field(owner,"Commit author")?.toolTip==model.author}

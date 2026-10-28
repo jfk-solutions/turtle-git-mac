@@ -61,3 +61,21 @@ acceptance, signed deployment, all Commit layouts or whole-application parity.
 
 Actual build/check outcomes and remaining acceptance limits are recorded in the
 [grouped batch evidence](qa/metadata-port-2026-10-18.json).
+
+## Option callback acknowledgement — October 28, 2026
+
+The [option-form continuation](COMMIT-OPTION-TRANSITION-PARITY.md#stable-option-transitions--october-28-2026)
+keeps an accepted Amend/author/date transition acknowledged across duplicate or
+coalesced native view observers. A later observer of an unchanged option cannot
+retire the accepted form, restart its reader or replace its prepared draft.
+Actual later value changes and explicit metadata refreshes retain their separate
+transition, generation, cancellation and worker lifetime. Existing live native
+control guards, closed-target retirement and actual pending-work accounting
+remain in force.
+
+The [hosted failure excerpt](qa/ci-commit-date-form-eabf99f9-2026-10-28.txt)
+retains the failing date-form assertion and its official run/head/job identity.
+The [new checkpoint](qa/commit-form-lifecycle-2026-10-28.json) records the scoped
+repair checks separately from the older SIGSEGV and metadata-lifetime evidence
+above. No fresh installed, physical, signed or complete hosted pass follows from
+the source repair itself.

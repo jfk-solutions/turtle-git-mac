@@ -194,8 +194,22 @@ import TurtleGitCore
         try require(progress?.success==true && !undo.canUndo && !model.amend && !model.setAuthor && !model.setAuthorDate && model.issueID=="731" && startInput=="New session template\n" && startCount==Data("x".utf8),"Amend→ReCommit retained old Undo/metadata, dropped issue ID, repeated Start hook or failed actual commit")
         try require(foreignUndo.canUndo,"ReCommit cleared unrelated form Undo")
         foreignUndo.undo();try require(foreignMarker as String=="other form Undo retained","Unrelated form Undo action was lost")
+        @MainActor func editorState(_ phase:String) {
+            print("ReCommit editor \(phase): model=\(model.message.debugDescription), editor=\(editor.string.debugDescription), editable=\(editor.isEditable), admitted=\(editor.messageLayoutAvailable), blocked=\(model.inputsBlocked), busy=\(model.busy), metadata=\(CommitWindowModel.activeMetadataOperations), preflights=\(CommitWindowModel.activeCommitPreflights), session=\(model.messageEditorSession), presentation=\(editor.messagePresentationSessionID), sameModel=\(editor.model === model), sameWindow=\(editor.window === owner.window), delegate=\(editor.delegate != nil), sheet=\(owner.window?.attachedSheet != nil)")
+        }
+        editorState("new session published")
+        // The model can publish its accepted next session before SwiftUI has
+        // enabled the installed native editor or the old Commit worker has
+        // released its admission gate. User input is valid only after that
+        // actual control admits editing; insertText is intentionally rejected
+        // while the source owner still blocks input.
+        do {
+            try await wait{editor.model === model && editor.window === owner.window && editor.delegate != nil && editor.messageLayoutAvailable && editor.string==model.message}
+        } catch {editorState("new session readiness timeout");throw error}
+        editorState("new session ready")
         editor.breakUndoCoalescing();editor.insertText(" new edit",replacementRange:NSRange(location:(editor.string as NSString).length,length:0));editor.breakUndoCoalescing()
-        try await wait{model.message=="ReCommit Start-hook draft new edit"};try require(undo.canUndo,"New ReCommit session could not register Undo")
+        do {try await wait{model.message=="ReCommit Start-hook draft new edit"}}catch{editorState("new session insertion timeout");throw error}
+        try require(undo.canUndo,"New ReCommit session could not register Undo")
         undo.undo();try await wait{model.message=="ReCommit Start-hook draft" && editor.string==model.message}
         let currentSession=model.messageEditorSession
         try require(undo.canRedo,"New-session Undo did not retain its Redo before Refresh")
@@ -203,13 +217,15 @@ import TurtleGitCore
         try require(model.messageEditorSession==currentSession && undo.canRedo,"Ordinary Refresh reset the current message Undo/Redo session")
         let hooks=repo.root.appendingPathComponent(".git/failing-hooks");try FileManager.default.createDirectory(at:hooks,withIntermediateDirectories:true)
         try executable("#!/bin/sh\nexit 17\n",at:hooks.appendingPathComponent("pre-commit"));_=try await repo.run(["config","core.hooksPath",hooks.path])
+        do {try await wait{editor.messageLayoutAvailable && editor.model === model && editor.string==model.message}}
+        catch {editorState("post-refresh readiness timeout");throw error}
         editor.breakUndoCoalescing();editor.insertText(" retained failure edit",replacementRange:NSRange(location:(editor.string as NSString).length,length:0));editor.breakUndoCoalescing()
         try await wait{model.message=="ReCommit Start-hook draft retained failure edit"}
         print("Failed ReCommit before: model=\(model.message.debugDescription), editor=\(editor.string.debugDescription), selection=\(editor.selectedRange()), issue=\(model.issueID.debugDescription), canUndo=\(undo.canUndo), canRedo=\(undo.canRedo), session=\(model.messageEditorSession)")
         progress=nil;model.commit(.recommit);try await wait{progress?.busy==false}
         progress?.choose(nil);try await ready(model,allowError:true)
         print("Failed ReCommit acknowledgement view: editable=\(editor.isEditable), selectable=\(editor.isSelectable), firstResponderIsEditor=\(owner.window?.firstResponder === editor), ownerKey=\(owner.window?.isKeyWindow == true)")
-        try await wait{editor.isEditable && editor.string==model.message && model.commitProgress==nil}
+        try await wait{editor.messageLayoutAvailable && editor.string==model.message && model.commitProgress==nil}
         print("Failed ReCommit acknowledged: editable=\(editor.isEditable), firstResponderIsEditor=\(owner.window?.firstResponder === editor), model=\(model.message.debugDescription), editor=\(editor.string.debugDescription), selection=\(editor.selectedRange()), issue=\(model.issueID.debugDescription), history=\(model.messageHistory?.entries ?? []), canUndo=\(undo.canUndo), canRedo=\(undo.canRedo), grouping=\(undo.groupingLevel), session=\(model.messageEditorSession)")
         try require(progress?.success==false && model.messageEditorSession==currentSession && undo.canUndo && model.message=="ReCommit Start-hook draft retained failure edit" && editor.string==model.message && model.issueID=="731" && model.messageHistory?.entries.first=="ReCommit Start-hook draft retained failure edit\nRefs: 731","Failed ReCommit rewrote raw editor/Undo or lost serialized attempted history")
         undo.undo();await Task.yield()

@@ -916,20 +916,24 @@ import TurtleGitCore
     private var loadedPreferences = false
     struct FormReceipt:Equatable {fileprivate let revision:UUID}
     enum FormOption:Hashable {case newBranch,amend,amendComparison,author,authorDate,resetDate,wholeProject,messageOnly,noAutoSubmodules,staging,unversioned}
-    private var deliveredFormTransitions:[FormOption:Bool]=[:]
-    /// Menu and checkbox actions own their metadata transition synchronously.
-    /// SwiftUI may deliver its observer on a later turn; it must not start that
-    /// same read again or retire focus admitted against the resulting form.
+    private var formOptionTransitions:[FormOption:UUID]=[:]
+    private var handledFormTransitions:[FormOption:UUID]=[:]
+    private func formTransition(_ option:FormOption)->UUID {
+        if let value=formOptionTransitions[option]{return value}
+        let value=UUID();formOptionTransitions[option]=value;return value
+    }
+    private func formOptionValueChanged(_ option:FormOption) {
+        formOptionTransitions[option]=UUID();retireFormReceipts()
+    }
+    private func acknowledgeFormTransition(_ option:FormOption) {
+        handledFormTransitions[option]=formTransition(option)
+    }
+    /// Native actions and programmatic metadata refreshes own the transition.
+    /// SwiftUI can deliver the same observer repeatedly or coalesce rapid bool
+    /// changes. A stable value's identity remains acknowledged until an actual
+    /// model change, rather than consuming a one-shot Boolean suppression flag.
     func formOptionViewChanged(_ option:FormOption) {
-        let value:Bool
-        switch option {
-        case .amend:value=amend
-        case .amendComparison:value=amendDiffToLastCommit
-        case .author:value=setAuthor
-        case .authorDate:value=setAuthorDate
-        default:return
-        }
-        if let delivered=deliveredFormTransitions.removeValue(forKey:option),delivered==value{return}
+        guard handledFormTransitions[option] != formTransition(option) else{return}
         switch option {
         case .amend:amendChanged()
         case .amendComparison:comparisonChanged()
@@ -958,13 +962,13 @@ import TurtleGitCore
         switch option {
         case .newBranch:createBranch=value
         case .amend:
-            guard amend != value else{return};amend=value;amendChanged();deliveredFormTransitions[option]=value
+            guard amend != value else{return};amend=value;formOptionViewChanged(.amend)
         case .amendComparison:
-            guard amendDiffToLastCommit != value else{return};amendDiffToLastCommit=value;comparisonChanged();deliveredFormTransitions[option]=value
+            guard amendDiffToLastCommit != value else{return};amendDiffToLastCommit=value;formOptionViewChanged(.amendComparison)
         case .author:
-            guard setAuthor != value else{return};setAuthor=value;authorChanged();deliveredFormTransitions[option]=value
+            guard setAuthor != value else{return};setAuthor=value;formOptionViewChanged(.author)
         case .authorDate:
-            guard setAuthorDate != value else{return};setAuthorDate=value;dateChanged();deliveredFormTransitions[option]=value
+            guard setAuthorDate != value else{return};setAuthorDate=value;formOptionViewChanged(.authorDate)
         case .resetDate:resetAuthorDate=value
         case .wholeProject:setShowWholeProject(value)
         case .messageOnly:messageOnly=value
@@ -1322,12 +1326,12 @@ import TurtleGitCore
     @Published var hasParent = false
     var replaySplit: RebaseSplitState?
     private(set) var historyCombine: HistoryCombinePlan?
-    @Published var amend = false {didSet{if amend != oldValue{retireFormReceipts()}}}
-    @Published var amendDiffToLastCommit = false {didSet{if amendDiffToLastCommit != oldValue{retireFormReceipts()}}}
+    @Published var amend = false {didSet{if amend != oldValue{formOptionValueChanged(.amend)}}}
+    @Published var amendDiffToLastCommit = false {didSet{if amendDiffToLastCommit != oldValue{formOptionValueChanged(.amendComparison)}}}
     private var nonAmendMessage = ""
     private var amendMessage = ""
     var amendToParent: Bool { amend && !amendDiffToLastCommit }
-    @Published var setAuthorDate = false {didSet{if setAuthorDate != oldValue{retireFormReceipts()}}}
+    @Published var setAuthorDate = false {didSet{if setAuthorDate != oldValue{formOptionValueChanged(.authorDate)}}}
     @Published var messageCaretPosition = MessageCaretPosition.at("", utf16Offset: 0)
     @Published var authorDate = Date()
     @Published var resetAuthorDate = false {didSet{if resetAuthorDate != oldValue{retireFormReceipts()}}}
@@ -1336,7 +1340,7 @@ import TurtleGitCore
     }
     @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{retireFormReceipts()}}}
     @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID() } } }
-    @Published var setAuthor = false {didSet{if setAuthor != oldValue{retireFormReceipts()}}}
+    @Published var setAuthor = false {didSet{if setAuthor != oldValue{formOptionValueChanged(.author)}}}
     @Published var author = ""
     @Published private(set) var loadingAuthorIdentity = false
     @Published private(set) var loadingAuthorDate = false
@@ -2482,8 +2486,9 @@ import TurtleGitCore
         return Date(timeIntervalSince1970:TimeInterval(commit.author.time))
     }
     func amendChanged() {
-        if consumesResetTransition("amend",value:amend){return}
+        if consumesResetTransition("amend",value:amend){acknowledgeFormTransition(.amend);return}
         guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        acknowledgeFormTransition(.amend)
         retireFormReceipts()
         if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
@@ -2548,7 +2553,7 @@ import TurtleGitCore
     }
     func invalidateForClose() {
         guiPatch?.retire(); guiPatch = nil
-        pendingRecommitSession=false;resetMetadataTransitions=[:];deliveredFormTransitions=[:]
+        pendingRecommitSession=false;resetMetadataTransitions=[:];formOptionTransitions=[:];handledFormTransitions=[:]
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
@@ -2573,14 +2578,16 @@ import TurtleGitCore
         appliedMessageFocusRequest = request
     }
     func comparisonChanged() {
-        if consumesResetTransition("comparison",value:amendDiffToLastCommit){return}
+        if consumesResetTransition("comparison",value:amendDiffToLastCommit){acknowledgeFormTransition(.amendComparison);return}
         guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else{return}
+        acknowledgeFormTransition(.amendComparison)
         hasLoaded = false
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
     func authorChanged(repository captured:GitRepository?=nil) {
-        if consumesResetTransition("author",value:setAuthor){return}
+        if consumesResetTransition("author",value:setAuthor){acknowledgeFormTransition(.author);return}
         guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        acknowledgeFormTransition(.author)
         retireFormReceipts()
         authorCancellation?.cancel(); authorCancellation = nil
         authorGeneration += 1
@@ -2607,8 +2614,9 @@ import TurtleGitCore
         }
     }
     func dateChanged(repository captured:GitRepository?=nil) {
-        if consumesResetTransition("date",value:setAuthorDate){return}
+        if consumesResetTransition("date",value:setAuthorDate){acknowledgeFormTransition(.authorDate);return}
         guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        acknowledgeFormTransition(.authorDate)
         retireFormReceipts()
         dateCancellation?.cancel(); dateCancellation = nil
         dateGeneration += 1
