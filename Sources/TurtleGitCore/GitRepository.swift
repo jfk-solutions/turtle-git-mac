@@ -62,6 +62,9 @@ public actor GitRepository {
         let onOutput = onOutput ?? replayCommandOutput(arguments)
         let replayObservation=["rebase","commit","reset","cherry-pick"].contains(GitCommandIdentity(arguments).command ?? "") ? replayProgressObservation:nil
         try cancellation?.check()
+        // Both CLI and optional libgit2 executors use this boundary. Saved
+        // config/include directory scopes must precede either engine's reads.
+        try GitRuntime.prepareForGitReads(cancellation: cancellation)
         // The parent retains the global Shell-status fence through process
         // cancellation and drain. It is deliberately close-on-exec and does not
         // turn a GUI window or an idle app into a permanent cache blocker.

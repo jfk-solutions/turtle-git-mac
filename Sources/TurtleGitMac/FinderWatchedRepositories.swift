@@ -34,15 +34,35 @@ struct FinderWatchRow:Identifiable {
     private let permissions:RepositoryAccessStore
     private let cache:FinderSnapshotStore?
     private var cacheSession:FinderPublicationSession?
+    private var cacheSessionStartup:Task<FinderPublicationSession,Error>?
+    private var cacheSessionStartupID: UUID?
     private var publicationRetirement:Task<Void,Never>?
+    private var restoration: Task<Void, Never>?
+    private var restorationCancellation: OperationCancellation?
     var hasPendingFinderPublication:Bool { cacheSession != nil || pendingOperations>0 }
-    private func publicationSession(_ cache:FinderSnapshotStore,cancellation:OperationCancellation) throws -> FinderPublicationSession {
+    private func publicationSession(_ cache:FinderSnapshotStore,cancellation:OperationCancellation) async throws -> FinderPublicationSession {
         guard active else { throw OperationCancellationFailure.cancelled }
         if let cacheSession { return cacheSession }
-        let session=try cache.startSession(cancellation:cancellation);cacheSession=session;return session
+        let task: Task<FinderPublicationSession, Error>
+        let identity: UUID
+        if let pending = cacheSessionStartup, let pendingID = cacheSessionStartupID { task = pending; identity = pendingID }
+        else {
+            identity = UUID()
+            task = Task.detached(priority: .utility) { try cache.startSession(cancellation: cancellation) }
+            cacheSessionStartup = task; cacheSessionStartupID = identity
+        }
+        do {
+            let session = try await task.value
+            // Retain a newly acquired session even if retirement happened during
+            // the wait: shutdown owns ending it after all readers drain.
+            cacheSession = session; if cacheSessionStartupID == identity { cacheSessionStartup = nil; cacheSessionStartupID = nil }
+            try cancellation.check()
+            guard active else { throw OperationCancellationFailure.cancelled }
+            return session
+        } catch { if cacheSessionStartupID == identity { cacheSessionStartup = nil; cacheSessionStartupID = nil }; throw error }
     }
     private func removePublication(_ root:URL,cache:FinderSnapshotStore,cancellation:OperationCancellation) async throws {
-        let session=try publicationSession(cache,cancellation:cancellation)
+        let session=try await publicationSession(cache,cancellation:cancellation)
         let updated=try await Task.detached { try cache.remove(root:root,session:session,cancellation:cancellation) }.value
         if let failure=updated.persistenceFailure { error="Finder live status updated, but saved cache could not be updated: "+failure }
     }
@@ -100,10 +120,47 @@ struct FinderWatchRow:Identifiable {
     /// routers instead retain the saved authority without crawling every root.
     func restore() {guard active else{return};startup = .allSavedRepositories;restoreRequestedRepositories()}
     private func restoreRequestedRepositories() {
-        guard active,!busy,startup == .allSavedRepositories else{return}
-        for value in permissions.repositories {
-            if let session=sessions[value.id] {if !session.collectionStarted {session.scheduler?.invalidate()}}
-            else {attach(value.id)}
+        guard active, !busy, startup == .allSavedRepositories, restoration == nil else { return }
+        let requests = permissions.repositories.compactMap { value -> RepositoryAuthorityRequest? in
+            if let session = sessions[value.id] {
+                if !session.collectionStarted { session.scheduler?.invalidate() }
+                return nil
+            }
+            return try? permissions.captureAuthority(value.id)
+        }
+        guard !requests.isEmpty else { return }
+        let cancellation = OperationCancellation(), requireScope = self.requireScope
+        restorationCancellation = cancellation
+        pendingOperations += 1
+        restoration = Task { [self] in
+            defer {
+                restoration = nil; restorationCancellation = nil
+                pendingOperations -= 1
+            }
+            // Resolve sequentially on a worker: a disconnected volume can be
+            // slow, but cannot delay the window or another foreground action.
+            for request in requests {
+                guard active, !cancellation.isCancelled else { return }
+                do {
+                    let authority = try await Task.detached(priority: .utility) {
+                        try request.resolve(requireSecurityScope: requireScope, cancellation: cancellation)
+                    }.value
+                    guard active, !cancellation.isCancelled else { return }
+                    // Add/Renew/Remove may have replaced this immutable request
+                    // while the worker was resolving it. Never revive that grant.
+                    guard permissions.repositories.first(where: { $0.id == request.record.id }) == request.record,
+                          sessions[request.record.id] == nil else { continue }
+                    guard try permissions.adoptAuthority(authority, from: request) else { continue }
+                    installAuthority(request.record.id, lease: authority.primary, additional: authority.additional)
+                } catch {
+                    guard active, !cancellation.isCancelled else { return }
+                    if permissions.repositories.first(where: { $0.id == request.record.id }) == request.record,
+                       sessions[request.record.id] == nil {
+                        statuses[request.record.id] = "Permission or repository unavailable: " + error.localizedDescription
+                        render()
+                    }
+                }
+            }
         }
     }
     /// A completed action wakes only its already-authorized watched repository.
@@ -137,14 +194,24 @@ struct FinderWatchRow:Identifiable {
     private func attach(_ id:UUID,scheduleInitial:Bool = true,acceptedLease:RepositoryAccessLease? = nil) {
         guard active else { return };sessions.removeValue(forKey:id)?.retire()
         do {
-            let lease=try acceptedLease ?? permissions.acquire(id,requireSecurityScope:requireScope,updatingRecord:false),session=Session(id:id,lease:lease,repository:try repositoryFactory(lease.url))
-            session.additionalLeases=try permissions.acquireAdditionalPermissions(id,requireSecurityScope:requireScope)
-            sessions[id]=session
-            session.scheduler=RepositoryEventRefresh(available:{ [weak self,weak session] in
-                guard let self,let session else { return false };return self.active && !self.busy && session.active && session.request==nil
-            },refresh:{ [weak self,weak session] in if let self,let session { try? await self.collect(session) } })
-            statuses[id]="Waiting";render();if scheduleInitial {session.scheduler?.invalidate()}
+            let lease = try acceptedLease ?? permissions.acquire(id, requireSecurityScope: requireScope, updatingRecord: false)
+            let additional = try permissions.acquireAdditionalPermissions(id, requireSecurityScope: requireScope)
+            installAuthority(id, lease: lease, additional: additional, scheduleInitial: scheduleInitial)
         } catch { statuses[id]="Permission or repository unavailable: "+error.localizedDescription;render() }
+    }
+    private func installAuthority(_ id: UUID, lease: RepositoryAccessLease, additional: [RepositoryAccessLease], scheduleInitial: Bool = true) {
+        guard active else { return }
+        do {
+            let session = Session(id: id, lease: lease, repository: try repositoryFactory(lease.url))
+            session.additionalLeases = additional
+            sessions[id] = session
+            session.scheduler = RepositoryEventRefresh(available: { [weak self, weak session] in
+                guard let self, let session else { return false }
+                return self.active && !self.busy && session.active && session.request == nil
+            }, refresh: { [weak self, weak session] in if let self, let session { try? await self.collect(session) } })
+            statuses[id] = "Waiting"; render()
+            if scheduleInitial { session.scheduler?.invalidate() }
+        } catch { statuses[id] = "Permission or repository unavailable: " + error.localizedDescription; render() }
     }
     private func install(_ session:Session,_ directories:[URL]) {
         guard active,session.active,sessions[session.id] === session,session.watched != directories else { return }
@@ -223,7 +290,7 @@ struct FinderWatchRow:Identifiable {
             let cache=self.cache
             var ticket:FinderPublicationTicket?
             if let cache {
-                let session=try publicationSession(cache,cancellation:token)
+                let session=try await publicationSession(cache,cancellation:token)
                 ticket=try await Task.detached { try cache.begin(root:root,session:session,cancellation:token,policy:policy) }.value
             }
             let watchReady:@Sendable ([URL]) async -> Void = { [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } }
@@ -376,6 +443,7 @@ struct FinderWatchRow:Identifiable {
         guard active else { return }
         pendingTargetRefreshes.removeAll()
         active=false
+        restorationCancellation?.cancel()
         for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)};statusPolicyObservers=[]
         backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:]
         publicationRetirement=Task { [self] in

@@ -170,13 +170,16 @@ import TurtleGitCore
         guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
         receivedExternalLaunchIntent=true
         if captured.action != .registerRepository {activateStandaloneApplication()}
-        if startupReady,startupDelivered {
+        if startupReady,startupDelivered,configurationReadsReady() {
             let target=actionRoutingModel()
             guard !target.busy,!target.hasPendingRepositoryWork,!target.confirmingQuit,workspaceServiceHandler(target,captured) else {throw TurtleGitFinderServicesProvider.Failure.busy}
         } else {pendingFinderServiceRequest=captured}
     }
     private func deliverPendingFinderService() {
         guard acceptingOpenURLs,startupReady,startupDelivered,repositoryModel != nil else{return}
+        if pendingOpenServiceSelection != nil || pendingFinderServiceRequest != nil {
+            guard configurationReadsReady() else { return }
+        }
         if pendingOpenServiceSelection != nil,isGeneralApplication,workspaceDeliveryReady(),let paths=pendingOpenServiceSelection,let currentWorkspace=repositoryModel {
             pendingOpenServiceSelection=nil
             if confirmingQuit || !workspaceOpenSelectionHandler(currentWorkspace,paths) {pendingFinderServiceError=TurtleGitFinderServicesProvider.Failure.busy.localizedDescription}
@@ -186,7 +189,7 @@ import TurtleGitCore
             let target=actionRoutingModel()
             if confirmingQuit || target.confirmingQuit || target.busy || target.hasPendingRepositoryWork || !workspaceServiceHandler(target,request) {pendingFinderServiceError="TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."}
         }
-        if let message=pendingFinderServiceError {pendingFinderServiceError=nil;actionRoutingModel().error=message}
+        if let message=pendingFinderServiceError {pendingFinderServiceError=nil;actionRoutingModel(loadSavedAccess: false).error=message}
     }
     weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService() } }
     // Installed by the identified workspace scene. A standalone Merge process
@@ -221,6 +224,35 @@ import TurtleGitCore
     private var pendingMergeToolExit: Int32?
     private var completingMergeToolExit = false
     private var mergeToolShutdownPrepared = false, mergeToolExitDelivered = false
+    var consumeFinderAction: (FinderActionDelivery) throws -> FinderRequest = { delivery in
+        guard let store = FinderActionHandoff.current else { throw FinderActionLaunchFailure.unavailable }
+        return try store.consume(delivery)
+    }
+    private var finderActionReceipts: [String: RepositoryAction] = [:]
+    private var finderActionReceiptOrder: [String] = []
+    private func acceptFinderAction(_ delivery: FinderActionDelivery) {
+        guard acceptingOpenURLs, !confirmingQuit else { return }
+        if let action = finderActionReceipts[delivery.receipt] {
+            if action != delivery.action { pendingFinderServiceError = FinderActionLaunchFailure.collision.localizedDescription }
+            return
+        }
+        // Claim transport delivery, not repository authority. Even a failed
+        // opaque-file read owns one diagnostic rather than one per argv/GetURL
+        // channel; a new Finder click publishes a fresh independently usable ID.
+        finderActionReceipts[delivery.receipt] = delivery.action
+        finderActionReceiptOrder.append(delivery.receipt)
+        if finderActionReceiptOrder.count > 1024 {
+            finderActionReceipts.removeValue(forKey: finderActionReceiptOrder.removeFirst())
+        }
+        do {
+            let request = try consumeFinderAction(delivery)
+            guard request.action == delivery.action, let url = request.url else { throw FinderActionLaunchFailure.invalid }
+            receivedExternalLaunchIntent = true
+            pendingOpenURLs.append(url)
+        } catch {
+            pendingFinderServiceError = FinderActionLaunchFailure.invalid.localizedDescription + "\n\n" + error.localizedDescription
+        }
+    }
     private var pendingOpenURLs: [URL] = []
     private var deliveringOpenURLs = false, acceptingOpenURLs = true
     var workspaceOpenHandler: (RepositoryModel, URL) -> Void = { $0.handle($1) }
@@ -235,7 +267,9 @@ import TurtleGitCore
         if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit(urls) }
         else {
             for url in urls {
-                if url.scheme=="turtlegit",url.host=="service-open" {
+                if let delivery = FinderActionDelivery(url: url) {
+                    acceptFinderAction(delivery)
+                } else if url.scheme=="turtlegit",url.host=="service-open" {
                     do {try submitOpenServiceSelection(TurtleGitFinderServicesProvider.openSelection(from:url))}
                     catch {pendingFinderServiceError=error.localizedDescription}
                 } else if url.scheme == "turtlegit", url.host == "service" {
@@ -247,21 +281,34 @@ import TurtleGitCore
         }
     }
     private func deliverPendingOpenURLs() {
-        guard acceptingOpenURLs,!deliveringOpenURLs,startupReady,startupDelivered,let repositoryModel else{return}
-        deliveringOpenURLs=true;defer{deliveringOpenURLs=false}
-        while acceptingOpenURLs,!pendingOpenURLs.isEmpty {
-            // Reentrant handlers append to the next cohort; finish this cohort
-            // first so nested requests cannot overtake already received URLs.
-            let urls=pendingOpenURLs;pendingOpenURLs.removeAll()
-            for url in urls {
-                guard acceptingOpenURLs else{return}
-                if ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains(url.absoluteString) {
-                    requestWorkspace(openRepository:url.query == "open=repository")
-                } else if FinderRequest(url:url) != nil || url.isFileURL {
-                    if FinderRequest(url:url)?.action != .registerRepository {activateStandaloneApplication()}
-                    workspaceOpenHandler(actionRoutingModel(),url)
-                } else {workspaceOpenHandler(repositoryModel,url)}
+        guard acceptingOpenURLs, !confirmingQuit, !deliveringOpenURLs, startupReady, startupDelivered,
+              let repositoryModel else { return }
+        deliveringOpenURLs = true
+        defer { deliveringOpenURLs = false }
+        while acceptingOpenURLs, !confirmingQuit, let url = pendingOpenURLs.first {
+            // A request owns asynchronous saved-authority discovery before Git
+            // starts. Leave later URLs in FIFO order until that owner is ready;
+            // an open draft dialog alone does not hold this routing queue.
+            if let action = actionRepositoryModel,
+               action.busy || action.finderActionAuthorityPending { return }
+            let workspaceRequest = ["turtlegit://workspace", "turtlegit://workspace?open=repository"].contains(url.absoluteString)
+            if !workspaceRequest { guard configurationReadsReady() else { return } }
+            if workspaceRequest {
+                pendingOpenURLs.removeFirst()
+                requestWorkspace(openRepository: url.query == "open=repository")
+            } else if FinderRequest(url: url) != nil || url.isFileURL {
+                let target = actionRoutingModel()
+                guard !target.busy, !target.finderActionAuthorityPending else { return }
+                pendingOpenURLs.removeFirst()
+                if FinderRequest(url: url)?.action != .registerRepository { activateStandaloneApplication() }
+                workspaceOpenHandler(target, url)
+            } else {
+                pendingOpenURLs.removeFirst()
+                workspaceOpenHandler(repositoryModel, url)
             }
+            // Reentrant handlers append behind the remaining original URLs.
+            // Recheck readiness after every admission instead of removing a
+            // whole cohort that the next asynchronous owner could refuse.
         }
     }
     /// Dialog requests have a retained routing owner but no repository scene.
@@ -270,10 +317,14 @@ import TurtleGitCore
     private var actionSettingsService:SettingsPresentationService?
     private var actionAppearance:AppAppearance?
     private var actionErrors:AnyCancellable?
+    private var actionReadiness: AnyCancellable?
     private(set) var actionErrorController:WorkspaceHandoffFailureController?
     private var queuedActionErrors:[String]=[]
-    private func actionRoutingModel()->RepositoryModel {
-        if let actionRepositoryModel {return actionRepositoryModel}
+    private func actionRoutingModel(loadSavedAccess: Bool = true)->RepositoryModel {
+        if let actionRepositoryModel {
+            actionRepositoryModel.configureActionRouting(from: repositoryModel === actionRepositoryModel ? nil : repositoryModel, loadSavedAccess: loadSavedAccess)
+            return actionRepositoryModel
+        }
         let model:RepositoryModel
         if (startupLaunchMode == .actionOnly || generalApplicationConfigured),let standaloneWorkspace {model=standaloneWorkspace}
         else {
@@ -282,8 +333,21 @@ import TurtleGitCore
             actionAppearance=appearance;actionSettingsService=service
             service.install(workspace:model,appearance:appearance)
         }
-        model.configureActionRouting(from:repositoryModel === model ? nil:repositoryModel)
+        model.configureActionRouting(from:repositoryModel === model ? nil:repositoryModel, loadSavedAccess: loadSavedAccess)
         actionRepositoryModel=model
+        actionReadiness = Publishers.CombineLatest(model.$busy, model.$finderActionAuthorityPending)
+            .sink { [weak self, weak model] busy, preparingAuthority in
+                guard !busy, !preparingAuthority else { return }
+                // Published values arrive before their storage mutation. Resume
+                // on the next main turn, then recheck the actual retained owner.
+                DispatchQueue.main.async { [weak self, weak model] in
+                    guard let self, let model, self.acceptingOpenURLs, !self.confirmingQuit,
+                          self.actionRepositoryModel === model, !model.isRetired,
+                          !model.busy, !model.finderActionAuthorityPending else { return }
+                    self.deliverPendingOpenURLs()
+                    if !model.busy, !model.finderActionAuthorityPending { self.deliverPendingFinderService() }
+                }
+            }
         model.onFinderRegistrationSaved={ [weak self,weak model] in
             guard let self,let model,self.actionRepositoryModel === model,!model.isRetired else{return}
             if self.repositoryModel !== model {self.repositoryModel?.refreshRegisteredRepositories()}
@@ -321,13 +385,14 @@ import TurtleGitCore
     }
     private func deliverWorkspaceRepositoryChoice() {
         guard pendingWorkspaceRepositoryChoice,isGeneralApplication,workspaceDeliveryReady(),let repositoryModel else{return}
+        guard configurationReadsReady() else { return }
         pendingWorkspaceRepositoryChoice=false
         repositoryModel.chooseRepository()
     }
     /// Keep the router's Settings callbacks alive when the shared App-menu
     /// service adopts the explicitly presented workspace context.
     func attachWorkspaceModel(_ model:RepositoryModel,appearance:AppAppearance) {
-        let action=actionRoutingModel()
+        let action=actionRoutingModel(loadSavedAccess: false)
         action.configureActionRouting(from:model,loadSavedAccess:false)
         if action === standaloneWorkspace,actionSettingsService == nil {
             let scopedAppearance=AppAppearance(preferences:action.fileComparisonPreferences)
@@ -369,6 +434,31 @@ import TurtleGitCore
             startupMergeToolExit(status)
         }
     }
+    // Native routing waits asynchronously; the Core command boundary also
+    // protects direct menu/UI reads which can arrive before this queue drains.
+    var prepareGitConfigurationReads: () async -> Void = { await GitConfigurationPermissions.restoreForGitReads() }
+    private(set) var gitConfigurationReadsReady = false
+    private var gitConfigurationPreparation: Task<Void, Never>?
+    private func configurationReadsReady() -> Bool {
+        if gitConfigurationReadsReady { return true }
+        guard startupReady, acceptingOpenURLs, !confirmingQuit else { return false }
+        if gitConfigurationPreparation == nil {
+            gitConfigurationPreparation = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.prepareGitConfigurationReads()
+                self.gitConfigurationPreparation = nil
+                guard !Task.isCancelled, self.acceptingOpenURLs else { return }
+                self.gitConfigurationReadsReady = true
+                guard !self.confirmingQuit else { return }
+                self.deliverStartupCommand()
+                self.deliverPendingOpenURLs()
+                self.deliverPendingFinderService()
+                self.deliverWorkspaceRepositoryChoice()
+                self.finishPendingDefaultWorkspaceLaunch()
+            }
+        }
+        return false
+    }
     private var startupReady = false
     private(set) var startupDelivered = false
     var startupLaunchMode: TurtleGitLaunchMode { TurtleGitLaunchMode.resolve(arguments: startupArguments, currentDirectory: startupDirectory) }
@@ -409,7 +499,9 @@ import TurtleGitCore
         if standaloneWorkspace != nil, startupLaunchMode != .workspace, !headlessRegistrationStartup, !standaloneActivationRequested {
             standaloneActivationRequested = true; activateStandaloneApplication()
         }
-        if startupLaunchMode == .actionOnly || generalApplicationConfigured {_ = actionRoutingModel()}
+        // Install command/error ownership without restoring saved repository
+        // access. Explicit actions acquire that authority on demand below.
+        if startupLaunchMode == .actionOnly || generalApplicationConfigured { _ = actionRoutingModel(loadSavedAccess: false) }
         deliverStartupCommand();deliverPendingOpenURLs();deliverPendingFinderService()
         // Defer the fallback through the initial Apple-event delivery boundary.
         // An accepted URL/Service or an explicit workspace request in that same
@@ -422,6 +514,7 @@ import TurtleGitCore
     }
     private var headlessRegistrationStartup:Bool {
         startupArguments == ["--turtlegit-action-only"] ||
+            FinderActionDelivery.parse(arguments: startupArguments)?.action == .registerRepository ||
             (try? PrimaryCommandInvocation.parse(arguments:startupArguments,currentDirectory:startupDirectory))?.request.action == .registerRepository
     }
     /// Also used by the launch fixture to drive the same queued boundary without
@@ -491,7 +584,20 @@ import TurtleGitCore
     private func deliverStartupCommand() {
         guard startupReady, !startupDelivered, let repositoryModel,
               generalApplicationConfigured || startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
+        // Empty/default workspace launch can present its native host first.
+        // Actual CLI/tool reads wait without blocking the application event loop.
+        if !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
+            guard configurationReadsReady() else { return }
+        }
         startupDelivered = true
+        if startupArguments.contains(FinderActionDelivery.argumentFlag) {
+            receivedExternalLaunchIntent = true
+            if let delivery = FinderActionDelivery.parse(arguments: startupArguments) {
+                if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit([delivery.url]) }
+                else { acceptFinderAction(delivery) }
+            } else { pendingFinderServiceError = FinderActionLaunchFailure.invalid.localizedDescription }
+            deliverPendingOpenURLs(); deliverPendingFinderService(); return
+        }
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {
           if startupArguments == ["--turtlegit-action-only"] {deliverPendingOpenURLs();deliverPendingFinderService();return}
@@ -513,7 +619,7 @@ import TurtleGitCore
     private var confirmingQuit = false
     private var drainingUnifiedDiffQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; retireInboundURLBridge(); presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { gitConfigurationPreparation?.cancel(); gitConfigurationPreparation=nil; retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; retireInboundURLBridge(); presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); finderActionReceipts.removeAll(); finderActionReceiptOrder.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionReadiness=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
@@ -964,6 +1070,19 @@ import TurtleGitCore
             confirmingQuit = false
             if allowQuit,finishDedicatedUnifiedDiffAfterApprovedQuit(){return}
             replyToTermination(sender, allowQuit)
+            if !allowQuit {
+                // Configuration/authority readiness can arrive while the owned
+                // Quit question suppresses routing. Refusing Quit restores that
+                // queue after every owner's confirmation flag has been cleared.
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.acceptingOpenURLs, !self.confirmingQuit else { return }
+                    self.deliverStartupCommand()
+                    self.deliverPendingOpenURLs()
+                    self.deliverPendingFinderService()
+                    self.deliverWorkspaceRepositoryChoice()
+                    self.finishPendingDefaultWorkspaceLaunch()
+                }
+            }
         }
         return .terminateLater
     }
@@ -1192,5 +1311,16 @@ import TurtleGitCore
         guard !result.isEmpty else { throw Failure.selection }
         guard generation == pasteboard.changeCount else { throw Failure.selectionChanged }
         return result
+    }
+}
+
+private enum FinderActionLaunchFailure: LocalizedError {
+    case unavailable, invalid, collision
+    var errorDescription: String? {
+        switch self {
+        case .unavailable: return "The Finder action handoff is unavailable. Invoke the command again from Finder."
+        case .invalid: return "The Finder action could not be read. Invoke the command again from Finder."
+        case .collision: return "The Finder action receipt does not match its command. Invoke the command again from Finder."
+        }
     }
 }

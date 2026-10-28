@@ -1,0 +1,253 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-core-and-native-passed-signed-physical-acceptance-pending",
+  "scope": "Finder receipt argv/GetURL cold routing, foreground authority selection and deferred workspace/cache/configuration startup",
+  "planned_native": {
+    "workspace_runner": "scripts/test-workspace-launch.py",
+    "new_cases": [
+      "finder-argv",
+      "finder-url-first",
+      "finder-authority-gate",
+      "finder-missing",
+      "finder-commit",
+      "finder-prioritized-authority",
+      "startup-lock",
+      "startup-config-gate"
+    ],
+    "actual_main_runner": "scripts/test-finder-cold-main.py",
+    "actual_main_boundary": "Private app process calls production TurtleGitApplication.main and real SwiftUI App.main. Existing delegate instance injection is installed through its actual willFinish callback solely for private stores, engine and grants; lifecycle callbacks are not invoked manually.",
+    "affected_watcher_fixture": "docs/qa/finder-watches-native-2026-10-13.swift"
+  },
+  "validation": {
+    "core": {
+      "log": "build/qa/finder-cold-start-core-2026-10-28.log",
+      "exit": 0,
+      "methods": 35,
+      "failures": 0,
+      "duration_seconds": 0.724,
+      "groups": {
+        "RepositoryAccessTests": 23,
+        "FinderActionHandoffTests": 7,
+        "FinderPatchHandoffTests": 5
+      },
+      "repeated": false
+    },
+    "debug_attempts": [
+      {
+        "log": "build/qa/finder-cold-start-debug-2026-10-28.log",
+        "result": "failed at compile",
+        "failure": "RepositoryModel initializer optional async-closure coalescing/ternary produced a Swift compiler failed-to-produce-diagnostic error.",
+        "repair": "Parent replaced expression with equivalent explicit if-let / standard-preferences branch assignment."
+      },
+      {
+        "log": "build/qa/finder-cold-start-debug-recheck-2026-10-28.log",
+        "result": "passed",
+        "exit": 0,
+        "known_exit_zero_compile_diagnostics": 36
+      },
+      {
+        "log": "build/qa/finder-cold-start-debug-final-2026-10-28.log",
+        "exit": 0,
+        "scope": "Final native refused-Quit resume continuation; affected watcher cases followed this build."
+      }
+    ],
+    "native": {
+      "status": "passed bounded grouped checks",
+      "workspace": {
+        "log": "build/qa/finder-cold-start-native-2026-10-28.log",
+        "exit": 0,
+        "case_engine_pairs": 32,
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "scope": "Eight retained workspace/launch cases and eight new receipt/authority/startup cases per Git engine. Actual raw Apple-event delivery plus explicitly driven lifecycle are distinguished from actual-main process below.",
+        "new_assertions": [
+          "argv-only recovery, URL-first ordering, duplicate channel once-only admission and independent repeat clicks",
+          "Owned missing-receipt error without blank workspace",
+          "Held Git-config preparation and ordered two distinct receipts through a busy routing owner",
+          "Actual selected Commit dialog and original index/HEAD byte preservation",
+          "Actual selected bookmark resolution offMain, unrelated earlier saved grant excluded, second distinct About queued while real authority preparation pending",
+          "Real private cache flock held while workspace appears, MainActor heartbeat and foreground About remain available, then actual worker drains",
+          "Watcher authority remains unacquired until held configuration preparation releases; resulting scopes balance after shutdown"
+        ]
+      },
+      "actual_main_attempts": [
+        {
+          "log": "build/qa/finder-cold-start-main-2026-10-28.log",
+          "result": "fixture compile failed before receiver launch",
+          "failure": "Unparenthesized trailing allSatisfy closure in a guard parsed ambiguously.",
+          "repair": "Parenthesized closure; unchanged behavioral checks."
+        },
+        {
+          "log": "build/qa/finder-cold-start-main-recheck-2026-10-28.log",
+          "result": "native producer passed; actual main SIGSEGV",
+          "receiver_pids": [
+            12757,
+            12763
+          ],
+          "failure": "Fixture delegate interception self-call used static Swift dispatch, producing recursive call warning and stack failure.",
+          "repair": "Test-only interception is @objc dynamic, so swapped selector reaches the original production callback."
+        },
+        {
+          "log": "build/qa/finder-cold-start-main-dynamic-recheck-2026-10-28.log",
+          "exit": 0,
+          "engines": [
+            "system",
+            "bundled"
+          ],
+          "producer_pids": [
+            13014,
+            13086
+          ],
+          "actual_main_pids": [
+            13015,
+            13087
+          ],
+          "scope": "Exact production TurtleGitApplication.main preamble and real SwiftUI App.main in a private process, original willFinish/didFinish callbacks, native published receipt argv, own raw GetURL duplicate and distinct repeat, same actual Commit owner, no workspace and unchanged private HEAD/index/working bytes."
+        }
+      ],
+      "watchers": {
+        "log": "build/qa/finder-cold-start-watches-2026-10-28.log",
+        "exit": 0,
+        "case_engine_pairs": 2,
+        "receiver_pids": [
+          13282,
+          13479
+        ],
+        "compiler_receiver_pid": 13274,
+        "scope": "Affected existing watcher family retains Add/dedup/Renew/event/moved/failed-grant/removal/late-reader/Quit/lease assertions; denied restore now awaits real asynchronous completion."
+      }
+    }
+  },
+  "limits": [
+    "Actual-main timing uses cached app-object receiver and a preceding native capability producer; it is a warm filesystem/code sample, not cold OS paging or a comparative signed-app speedup.",
+    "Private actual-main launch uses direct executable entry, not physical Finder/NSWorkspace URL delivery. Signed installed Finder cold acceptance remains required.",
+    "No complete hosted CI, physical/VoiceOver or whole-port completion claim.",
+    "The final refused-Quit continuation resumes queued work after configuration preparation; its specifically held dirty-document/refused-Quit edge was not separately exercised in this checkpoint. Existing watcher Quit coverage does not certify that new edge.",
+    "Workspace/manual-lifecycle and actual-main checks preceded the final refused-Quit-only continuation; the final Debug and affected watcher check passed afterwards. No unrelated passing group was repeated."
+  ],
+  "source_parent": "f3220cb0e790f9dcd66df85f1cb8bfa598b9b314",
+  "performance": {
+    "interpretation": "Bounded warm-code private samples and causal lock responsiveness assertions, not a comparative signed-app or cold-OS paging speedup.",
+    "actual_main_samples": [
+      {
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "samples": [
+          {
+            "changes_seconds": 1.5315272081643343,
+            "configure_seconds": 0.15626195818185806,
+            "consumptions": 2,
+            "repository_bytes_unchanged": true,
+            "scope": "production TurtleGitApplication.main plus real SwiftUI App.main in private process; receipt argv, own raw GetURL duplicate and independent repeat",
+            "window_seconds": 0.7681383749004453,
+            "workspace_windows": 0
+          }
+        ],
+        "scope": "Private production TurtleGitApplication.main and real SwiftUI process with native receipt argv and own raw events; not physical Finder/NSWorkspace or signed distribution."
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "samples": [
+          {
+            "changes_seconds": 1.5261557917110622,
+            "configure_seconds": 0.13055425020866096,
+            "consumptions": 2,
+            "repository_bytes_unchanged": true,
+            "scope": "production TurtleGitApplication.main plus real SwiftUI App.main in private process; receipt argv, own raw GetURL duplicate and independent repeat",
+            "window_seconds": 0.7223500835243613,
+            "workspace_windows": 0
+          }
+        ],
+        "scope": "Private production TurtleGitApplication.main and real SwiftUI process with native receipt argv and own raw events; not physical Finder/NSWorkspace or signed distribution."
+      }
+    ],
+    "private_cache_lock_samples": [
+      {
+        "git": "system",
+        "constructor_seconds": 0.000188,
+        "window_seconds": 0.141287
+      },
+      {
+        "git": "bundled",
+        "constructor_seconds": 0.000163,
+        "window_seconds": 0.13862
+      }
+    ],
+    "held_lock_proof": "Private persistence publisher executes offMain after the workspace is presented; real cache writer lock remains held while MainActor heartbeat and foreground About complete. The lock releases before awaiting actual startup drain."
+  },
+  "cleanup": {
+    "owned_receiver_pids": [
+      11642,
+      11662,
+      11673,
+      11691,
+      11767,
+      11797,
+      11817,
+      11829,
+      11876,
+      11885,
+      11897,
+      11907,
+      11917,
+      11994,
+      12072,
+      12086,
+      12107,
+      12122,
+      12135,
+      12147,
+      12203,
+      12243,
+      12262,
+      12271,
+      12318,
+      12327,
+      12336,
+      12345,
+      12355,
+      12429,
+      12504,
+      12515,
+      12757,
+      12763,
+      13014,
+      13015,
+      13086,
+      13087,
+      13274,
+      13282,
+      13479
+    ],
+    "count": 41,
+    "independently_absent": true,
+    "verification": "Parent independently checked all41 logged owned receiver PIDs absent; runner also reaps each process group.",
+    "scope": "Private repositories, archives, handoff stores, preferences and app bundle; prohibited activation, offscreen alpha-zero native windows including children; user-owned applications not terminated."
+  },
+  "warnings": [
+    "Debug recheck retained36 known exit-zero/no-output Swift compile diagnostics; no clean-diagnostics claim.",
+    "Affected watcher receiver compilation retained native concurrency/Sendable warnings.",
+    "Two actual-main fixture failures are retained above; successful local focused results do not imply hosted integration success."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderRequest.swift": "803c8c0a015fb57cb8ba7f12ef306309c6ada8633a712029b1207b6c9e80e675",
+    "Sources/TurtleGitCore/RepositoryAccess.swift": "b103c01e9f69e6581b5560d824945cd4b305c064c66d18ce19b31bb794f1c8ef",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "57dd5c4241ed6e627bab6de9be0f1531ca24853a49022c8e98191a1a53656229",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "692566b752e39324797c298ffa830572806740fba3ba6e13de4de497522e2589",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "1bfe8f7f7b5d18c2c46a01f71f6cdcf13f4aa3f0bd94e205c13dc40deb87d636",
+    "Sources/TurtleGitMac/GitConfigurationPermissions.swift": "79e45c442b8ed10c913403e7a212a01dea5c2d931015c9c99de0c055b70c22c5",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "8c69c3c1f6c4132ba76ed52eedd3512091d31c000d974a10ac0b3c3635e1b0a5",
+    "Sources/TurtleGitMac/MergeToolPresentation.swift": "5c0023ea9db4e9585aa377da3fe316d55887b30e0dca9e3feb7b4468abecb36e",
+    "docs/qa/finder-cold-start-native-2026-10-28.swift": "9be2e4c0d9634cf69e2da00d4e8ff134318b4ff0b74036e7f5a81cdc66788365",
+    "docs/qa/finder-actual-main-native-2026-10-28.swift": "c95f651f1834967cf397c4e4da8a4a66cca2bf2b6a42017c89a6decd483c9140",
+    "docs/qa/workspace-launch-native-2026-10-25.swift": "31e9a9b274a65025e65c922f872356371d1a006727e2729b6463a36be4f30414",
+    "docs/qa/finder-watches-native-2026-10-13.swift": "aeef92bd0116fc414f8ea2dc475b7bea00f8d35b65f1c924dae5c6fd7178dbf3",
+    "scripts/test-workspace-launch.py": "6074fb2bc0316e7be664a973d6528b078588a531baa82319114c59cd3e1ae440",
+    "scripts/test-finder-cold-main.py": "e5aaf4ce2f8867100a0fee7aa5d8f851f3d9b27d5e9a1fe25284f104da02ef45"
+  }
+}

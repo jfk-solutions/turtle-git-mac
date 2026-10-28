@@ -4,6 +4,95 @@ import TurtleGitCore
 import UniformTypeIdentifiers
 import Darwin
 
+/// A captured preference value, never a UserDefaults or UI model, crosses the
+/// worker boundary. The cache lock can wait for another process; none of these
+/// transactions belongs on the main actor or before the first window.
+private struct FinderWorkspaceBootstrap: Sendable {
+    let statusURL: URL?
+    let persistence: FinderCachePersistencePreferences
+    let menu: FinderMenuSettings
+    let tray: FinderCacheTrayPreferences
+    let overlays: FinderOverlaySettings
+    let policy: FinderStatusPolicyPreferences
+    let publishPersistence: (@Sendable (FinderCachePersistencePreferences) throws -> Void)?
+    let readPolicy: (@Sendable () throws -> FinderStatusPolicy)?
+    struct Result: Sendable {
+        var snapshot: FinderSnapshot?
+        var failures: [String] = []
+        var persistenceAccepted = false
+        var authorityAccepted = false
+    }
+    func run(cancellation: OperationCancellation) throws -> Result {
+        var result = Result()
+        try cancellation.check()
+        do {
+            if let publishPersistence { try publishPersistence(persistence) }
+            else if let statusURL { try FinderSnapshotStore(url: statusURL).setPersistence(persistence, cancellation: cancellation) }
+            try cancellation.check()
+            result.persistenceAccepted = true
+        } catch { try cancellation.check(); result.failures.append("Finder cache persistence preferences unavailable: " + error.localizedDescription) }
+        if let statusURL {
+            let directory = statusURL.deletingLastPathComponent()
+            do { try cancellation.check(); _ = try menu.write(to: directory.appendingPathComponent("menu-settings.json")) }
+            catch { try cancellation.check(); result.failures.append("Finder menu preferences unavailable: " + error.localizedDescription) }
+            do { try cancellation.check(); _ = try tray.write(to: directory.appendingPathComponent("cache-tray-settings.json")) }
+            catch { try cancellation.check(); result.failures.append("Finder cache menu preferences unavailable: " + error.localizedDescription) }
+            do {
+                let overlayURL = directory.appendingPathComponent("overlay-settings.json")
+                var overlayBootstrap: FinderOverlaySettings?
+                try transaction(ownedURL: overlayURL, cancellation: cancellation, policy: {
+                    let accepted = try FinderOverlaySettings.readChecked(from: overlayURL)
+                    var info = stat()
+                    let missing = lstat(overlayURL.path, &info) != 0 && errno == ENOENT
+                    let value = missing ? overlays : accepted
+                    if missing { overlayBootstrap = value }
+                    return FinderStatusPolicy(settings: value, preferences: try FinderStatusPolicyPreferences.read(from: statusURL))
+                }, publish: { if let overlayBootstrap { _ = try overlayBootstrap.write(to: overlayURL) } })
+                var policyBootstrap: FinderStatusPolicyPreferences?
+                try transaction(ownedURL: statusURL.appendingPathExtension("policy"), cancellation: cancellation, policy: {
+                    if !FileManager.default.fileExists(atPath: statusURL.appendingPathExtension("policy").path) {
+                        policyBootstrap = policy
+                        return FinderStatusPolicy(settings: try FinderOverlaySettings.readChecked(from: overlayURL), preferences: policy)
+                    }
+                    return try readPolicy?() ?? FinderStatusPolicy.read(from: statusURL)
+                }, publish: { if let policyBootstrap { _ = try policyBootstrap.write(to: statusURL) } })
+                try cancellation.check()
+                result.authorityAccepted = result.persistenceAccepted
+                result.snapshot = try FinderSnapshotStore(url: statusURL).readLive(cancellation: cancellation)
+            } catch { try cancellation.check(); result.failures.append("Finder status policy unavailable: " + error.localizedDescription) }
+        } else { result.authorityAccepted = result.persistenceAccepted }
+        try cancellation.check()
+        return result
+    }
+    /// Keep the same owned-file rollback and authority fence as the settings
+    /// pages, with a cancellation-aware lock and no main-actor closure capture.
+    private func transaction(ownedURL: URL, cancellation: OperationCancellation,
+                             policy: () throws -> FinderStatusPolicy, publish: () throws -> Void) throws {
+        guard let statusURL else { return }
+        var original: Data?, permissions: Any?, captured = false
+        try FinderSnapshotStore(url: statusURL).configureStatusPolicy(policy: {
+            try cancellation.check()
+            var info = stat()
+            if lstat(ownedURL.path, &info) == 0 {
+                guard info.st_mode & S_IFMT == S_IFREG, info.st_size >= 0, info.st_size <= 1024 * 1024 else { throw GitConfigurationFailure.invalidValue }
+                original = try Data(contentsOf: ownedURL)
+                permissions = try FileManager.default.attributesOfItem(atPath: ownedURL.path)[.posixPermissions]
+            } else if errno != ENOENT { throw GitConfigurationFailure.invalidValue }
+            captured = true
+            return try policy()
+        }, publish: { try cancellation.check(); try publish() }, rollback: {
+            guard captured else { return }
+            if let original {
+                try original.write(to: ownedURL, options: .atomic)
+                if let permissions { try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: ownedURL.path) }
+            } else if FileManager.default.fileExists(atPath: ownedURL.path) {
+                guard try FileManager.default.attributesOfItem(atPath: ownedURL.path)[.type] as? FileAttributeType == .typeRegular else { throw GitConfigurationFailure.invalidValue }
+                try FileManager.default.removeItem(at: ownedURL)
+            }
+        }, cancellation: cancellation)
+    }
+}
+
 /// Window ownership follows a command invocation, while repository paths remain
 /// untouched. Iteration/values deliberately include every owner for Quit, refresh
 /// and mutation guards; reuse searches see only the originating command.
@@ -687,7 +776,7 @@ private enum TransportBatchPresentationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { !finderAuthorityPreparations.isEmpty || !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -727,13 +816,29 @@ private enum TransportBatchPresentationContext {
     private let snapshotStore:FinderSnapshotStore?
     private var finderPublicationSession:FinderPublicationSession?
     private var finderPublicationReads:[UUID:OperationCancellation]=[:]
+    private var finderPublicationSessionStartup:Task<FinderPublicationSession,Error>?
+    private var finderPublicationSessionStartupID: UUID?
     private(set) var finderPublicationShutdownPending = false
     private var finderPublicationShutdownTask:Task<Void,Never>?
-    var hasPendingFinderPublication:Bool { !finderPublicationReads.isEmpty || finderPublicationSession != nil || finderPublicationShutdownPending }
-    private func publicationSession(_ store:FinderSnapshotStore,cancellation:OperationCancellation) throws -> FinderPublicationSession {
+    var hasPendingFinderPublication:Bool { workspaceServicesPending || !finderPublicationReads.isEmpty || finderPublicationSession != nil || finderPublicationShutdownPending }
+    private func publicationSession(_ store:FinderSnapshotStore,cancellation:OperationCancellation) async throws -> FinderPublicationSession {
+        guard !retired else { throw OperationCancellationFailure.cancelled }
         if let finderPublicationSession { return finderPublicationSession }
-        let session=try store.startSession(cancellation:cancellation)
-        finderPublicationSession=session;return session
+        let task: Task<FinderPublicationSession, Error>
+        let identity: UUID
+        if let pending = finderPublicationSessionStartup, let pendingID = finderPublicationSessionStartupID { task = pending; identity = pendingID }
+        else {
+            identity = UUID()
+            task = Task.detached(priority: .utility) { try store.startSession(cancellation: cancellation) }
+            finderPublicationSessionStartup = task; finderPublicationSessionStartupID = identity
+        }
+        do {
+            let session = try await task.value
+            finderPublicationSession = session; if finderPublicationSessionStartupID == identity { finderPublicationSessionStartup = nil; finderPublicationSessionStartupID = nil }
+            try cancellation.check()
+            guard !retired else { throw OperationCancellationFailure.cancelled }
+            return session
+        } catch { if finderPublicationSessionStartupID == identity { finderPublicationSessionStartup = nil; finderPublicationSessionStartupID = nil }; throw error }
     }
     /// Keep the live writer lease until every owned Git reader and publication
     /// settles. Retiring this owner must preserve other active app/helper owners.
@@ -744,6 +849,7 @@ private enum TransportBatchPresentationContext {
         await task.value
     }
     private func finishFinderPublication() async {
+        await settleWorkspaceServices()
         finderPublicationShutdownPending=true
         defer { finderPublicationShutdownPending=false }
         for token in finderPublicationReads.values { token.cancel() }
@@ -765,7 +871,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true;for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;for token in finderAuthorityPreparations.values { token.cancel() };workspaceServicesCancellation?.cancel();for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -831,8 +937,9 @@ private enum TransportBatchPresentationContext {
     }
 
     init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil,comparisonMarks:WorkingComparisonMarkStore? = nil,cachePersistenceDefaults:UserDefaults = .standard,
-         finderStatusPolicyProvider:(() throws -> FinderStatusPolicy)? = nil,
-         publishCachePersistence:(FinderCachePersistencePreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) } }) {
+         finderStatusPolicyProvider:(@Sendable () throws -> FinderStatusPolicy)? = nil,
+         publishCachePersistence:(@Sendable (FinderCachePersistencePreferences) throws -> Void)? = nil,
+         prepareGitConfigurationReads:(@MainActor () async -> Void)? = nil) {
         comparisonMarkStore=comparisonMarks ?? WorkingComparisonMarkStore(storageURL:WorkingComparisonMarkStore.defaultStorageURL)
         self.accessStore=savedAccessStore;recentRepositories=savedAccessStore?.repositories ?? []
         self.finderWatches=finderWatches
@@ -843,65 +950,73 @@ private enum TransportBatchPresentationContext {
         if self.snapshotStore != nil { finderStatus = "Finder cache ready" }
         monitoringEnabled=startMonitoring
         guard startMonitoring && initializePreferences else { return }
-        cachePersistenceDefaults.set(true,forKey:AdvancedSettingsModel.cachePersistencePendingKey)
-        do {
-            try publishCachePersistence(FinderCachePersistencePreferences.from(defaults:cachePersistenceDefaults))
-            cachePersistenceDefaults.removeObject(forKey:AdvancedSettingsModel.cachePersistencePendingKey)
-        } catch { finderStatus="Finder cache persistence preferences unavailable: "+error.localizedDescription }
-        do { if self.finderWatches==nil { self.finderWatches=try FinderWatchManager.production(startup:.allSavedRepositories) } else {self.finderWatches?.restore()} }
-        catch { finderStatus="Watched repositories unavailable: "+error.localizedDescription }
-        do { _ = try FinderMenuSettings.from().write() }
-        catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
-        do { _ = try FinderCacheTrayPreferences.from().write() }
-        catch { finderStatus = "Finder cache menu preferences unavailable: " + error.localizedDescription }
-        do {
-            if let policyURL {
-                let overlayURL=policyURL.deletingLastPathComponent().appendingPathComponent("overlay-settings.json")
-                var bootstrap:FinderOverlaySettings?
-                let configure=FinderStatusSettingsPublication.transaction(statusURL:policyURL,ownedURL:overlayURL)
-                try configure({
-                    let accepted=try FinderOverlaySettings.readChecked(from:overlayURL)
-                    var info=stat();let missing=lstat(overlayURL.path,&info) != 0 && errno==ENOENT
-                    let value=missing ? FinderOverlaySettings.from(defaults:cachePersistenceDefaults):accepted
-                    if missing {bootstrap=value}
-                    return FinderStatusPolicy(settings:value,preferences:try FinderStatusPolicyPreferences.read(from:policyURL))
-                },{if let bootstrap {_ = try bootstrap.write(to:overlayURL)}},{})
-            }
+        workspaceBootstrap = FinderWorkspaceBootstrap(statusURL: policyURL,
+            persistence: .from(defaults: cachePersistenceDefaults), menu: .from(defaults: cachePersistenceDefaults),
+            tray: .from(defaults: cachePersistenceDefaults), overlays: .from(defaults: cachePersistenceDefaults),
+            policy: .from(defaults: cachePersistenceDefaults), publishPersistence: publishCachePersistence,
+            readPolicy: finderStatusPolicyProvider)
+        workspaceDefaults = cachePersistenceDefaults
+        if let prepareGitConfigurationReads {
+            workspaceGitConfigurationPreparation = prepareGitConfigurationReads
+        } else if cachePersistenceDefaults === UserDefaults.standard {
+            workspaceGitConfigurationPreparation = { await GitConfigurationPermissions.restoreForGitReads() }
         }
-        catch { finderStatus = "Finder overlay preferences unavailable: " + error.localizedDescription }
-        do {
-            if let policyURL,let readPolicy=self.finderStatusPolicyProvider {
-                var bootstrap:FinderStatusPolicyPreferences?
-                let configure=FinderStatusSettingsPublication.transaction(statusURL:policyURL,ownedURL:policyURL.appendingPathExtension("policy"))
-                try configure({
-                    if !FileManager.default.fileExists(atPath:policyURL.appendingPathExtension("policy").path) {
-                        let preferences=FinderStatusPolicyPreferences.from(defaults:cachePersistenceDefaults);bootstrap=preferences
-                        return FinderStatusPolicy(settings:try FinderOverlaySettings.readChecked(from:policyURL.deletingLastPathComponent().appendingPathComponent("overlay-settings.json")),preferences:preferences)
-                    }
-                    return try readPolicy()
-                },{if let bootstrap {_ = try bootstrap.write(to:policyURL)}},{})
-            }
-        } catch {finderStatus="Finder status policy unavailable: "+error.localizedDescription}
-        for (name,operation) in [(FinderStatusPolicyPreferences.notification,false),(FinderStatusOperationLease.notification,true)] {
-            finderPolicyObservers.append(DistributedNotificationCenter.default().addObserver(forName:NSNotification.Name(name),object:nil,queue:.main) { [weak self] _ in
-                Task { @MainActor in self?.finderPolicyChanged(operation:operation) }
-            })
-        }
-        do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
+        // Reading the small saved-list archive does not resolve its bookmarks.
+        // Authority acquisition and watcher collection wait until presentation.
         do {
             let store = try savedAccessStore ?? RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)
             accessStore = store; recentRepositories = store.repositories
         } catch { self.error = "Saved repository permissions could not be loaded: " + error.localizedDescription }
-        Task {
-            if let snapshot = await Task.detached(operation: { FinderSnapshot.readLive() }).value, root == nil {
-                cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
-                cacheOverlayEntries = snapshot.overlayEntries
-                cacheIndexFlags = snapshot.indexFlags
-                cacheOverlayPolicies = snapshot.overlayPolicies
+    }
+    private var workspaceBootstrap: FinderWorkspaceBootstrap?
+    private var workspaceDefaults: UserDefaults?
+    private var workspaceGitConfigurationPreparation: (@MainActor () async -> Void)?
+    private var workspaceServicesTask: Task<Void, Never>?
+    private var workspaceServicesCancellation: OperationCancellation?
+    private(set) var workspaceServicesPending = false
+    /// Idempotent, presentation-owned startup. It never waits for the shared
+    /// cache lock on the main actor and never blocks a foreground action dialog.
+    func startWorkspaceServices() {
+        guard !retired, let bootstrap = workspaceBootstrap, workspaceServicesTask == nil else { return }
+        workspaceBootstrap = nil
+        let cancellation = OperationCancellation()
+        workspaceServicesCancellation = cancellation
+        workspaceServicesPending = true
+        workspaceDefaults?.set(true, forKey: AdvancedSettingsModel.cachePersistencePendingKey)
+        workspaceServicesTask = Task { [self] in
+            defer { workspaceServicesPending = false; workspaceServicesCancellation = nil }
+            do {
+                let result = try await Task.detached(priority: .utility) { try bootstrap.run(cancellation: cancellation) }.value
+                guard !retired, !cancellation.isCancelled else { return }
+                if result.persistenceAccepted {
+                    workspaceDefaults?.removeObject(forKey: AdvancedSettingsModel.cachePersistencePendingKey)
+                    DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification), object: nil)
+                }
+                if let failure = result.failures.last { finderStatus = failure }
+                if result.authorityAccepted {
+                    await workspaceGitConfigurationPreparation?()
+                    guard !retired, !cancellation.isCancelled else { return }
+                    if finderWatches == nil { finderWatches = try FinderWatchManager.production(startup: .deferred) }
+                    finderWatches?.restore()
+                }
+                guard !retired, !cancellation.isCancelled else { return }
+                for (name, operation) in [(FinderStatusPolicyPreferences.notification, false), (FinderStatusOperationLease.notification, true)] {
+                    finderPolicyObservers.append(DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(name), object: nil, queue: .main) { [weak self] _ in
+                        Task { @MainActor in self?.finderPolicyChanged(operation: operation) }
+                    })
+                }
+                do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
+                if let snapshot = result.snapshot, root == nil {
+                    cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
+                    cacheOverlayEntries = snapshot.overlayEntries; cacheIndexFlags = snapshot.indexFlags; cacheOverlayPolicies = snapshot.overlayPolicies
+                }
+            } catch {
+                if !retired, !cancellation.isCancelled { finderStatus = "Workspace services unavailable: " + error.localizedDescription }
             }
         }
-
     }
+    func settleWorkspaceServices() async { await workspaceServicesTask?.value }
+
     deinit {for observer in finderPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)}}
     func configureSettingsRemote(_ model: RemoteSettingsWindowModel) {
         let repository = model.repository, access = model.access
@@ -1282,7 +1397,7 @@ private enum TransportBatchPresentationContext {
         var ticket:FinderPublicationTicket?,publicationError:String?,persistenceWarning:String?
         if snapshotWriter==nil,let store {
             do {
-                let session=try publicationSession(store,cancellation:token)
+                let session=try await publicationSession(store,cancellation:token)
                 persistenceWarning=session.persistenceFailure
                 ticket=try await Task.detached { try store.begin(root:root,session:session,cancellation:token,policy:policy) }.value
             }
@@ -6017,6 +6132,105 @@ private enum TransportBatchPresentationContext {
             }
         }
     }
+    private var finderAuthorityPreparations: [UUID: OperationCancellation] = [:]
+    @Published private(set) var finderActionAuthorityPending = false
+    private(set) static var activeFinderAuthorityPreparations = 0
+    /// Stored paths are a cheap priority hint, never authority. A moved bookmark
+    /// still gets its original fallback attempt after likely matching records.
+    private func savedFinderAuthority(for targets: [URL], cancellation: OperationCancellation) async throws -> RepositoryAccessLease? {
+        guard let store = accessStore else { return nil }
+        let records = store.repositories
+        func hinted(_ value: SavedRepository) -> Bool {
+            let path = value.lastKnownPath
+            return targets.allSatisfy { target in
+                let requested = target.standardizedFileURL.path
+                return GitReferenceName.equal(requested, path) || requested.hasPrefix(path == "/" ? "/" : path + "/")
+            }
+        }
+        let likely = records.filter(hinted).sorted { $0.lastKnownPath.count > $1.lastKnownPath.count }
+        let fallback = records.filter { !hinted($0) }
+        for record in likely + fallback {
+            try cancellation.check()
+            guard !retired, accessStore === store else { throw OperationCancellationFailure.cancelled }
+            guard let request = try? store.captureAuthority(record.id) else { continue }
+            do {
+                let requireScope = requiresRepositoryScope
+                let resolved = try await Task.detached(priority: .userInitiated) {
+                    let authority = try request.resolve(requireSecurityScope: requireScope, skipUnavailableAdditionalPermissions: true, cancellation: cancellation)
+                    let matches = targets.allSatisfy { authority.primary.contains($0) }
+                    try cancellation.check()
+                    return (authority, matches)
+                }.value
+                try cancellation.check()
+                guard !retired, accessStore === store else { throw OperationCancellationFailure.cancelled }
+                guard resolved.1, try store.adoptAuthority(resolved.0, from: request) else { continue }
+                recentRepositories = store.repositories
+                return resolved.0.primary.retainingRelatedScopes(resolved.0.additional)
+            } catch { try cancellation.check() /* Unavailable/moved grants retain the existing chooser fallback. */ }
+        }
+        return nil
+    }
+    private func resolveFinderSavedAuthority(_ request: FinderRequest, permissionTargets: [URL], invocation: PrimaryCommandInvocation?,
+        messageAccess: RepositoryAccessLease?, outputAccess: RepositoryAccessLease?, commandCancellation: OperationCancellation?,
+        commandRootOnly: Bool, completion: ((Bool) -> Void)?) {
+        let id = UUID(), token = commandCancellation ?? OperationCancellation(), owner = workspaceWindow, generation = adoptionGeneration
+        finderAuthorityPreparations[id] = token; finderActionAuthorityPending = true; Self.activeFinderAuthorityPreparations += 1
+        let observer = owner.map { NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: $0, queue: .main) { _ in token.cancel() } }
+        Task { [self] in
+            var handedOff = false
+            defer {
+                if let observer { NotificationCenter.default.removeObserver(observer) }
+                finderAuthorityPreparations.removeValue(forKey: id); finderActionAuthorityPending = !finderAuthorityPreparations.isEmpty; Self.activeFinderAuthorityPreparations -= 1
+                if !handedOff { completion?(false) }
+            }
+            do {
+                let lease = try await savedFinderAuthority(for: permissionTargets, cancellation: token)
+                try token.check()
+                guard !retired, !confirmingQuit, !busy, generation == adoptionGeneration,
+                      finderAuthorityPreparations[id] === token, owner == nil || workspaceWindow === owner else { return }
+                if let lease {
+                    handedOff = true
+                    openSession(lease, selected: request, action: request.action, invocation: invocation, messageAccess: messageAccess,
+                        outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
+                } else {
+                    handedOff = true
+                    authorizeFinderRequest(request, permissionTargets: permissionTargets, invocation: invocation,
+                        messageAccess: messageAccess, outputAccess: outputAccess, commandCancellation: token,
+                        commandRootOnly: commandRootOnly, completion: completion)
+                }
+            } catch {
+                if !retired, !token.isCancelled, generation == adoptionGeneration,
+                   !(error is OperationCancellationFailure), owner == nil || workspaceWindow === owner { self.error = error.localizedDescription }
+            }
+        }
+    }
+    private func authorizeFinderRequest(_ request: FinderRequest, permissionTargets: [URL], invocation: PrimaryCommandInvocation?,
+        messageAccess: RepositoryAccessLease?, outputAccess: RepositoryAccessLease?, commandCancellation: OperationCancellation?,
+        commandRootOnly: Bool, completion: ((Bool) -> Void)?) {
+        var handedOff = false
+        defer { if !handedOff { completion?(false) } }
+        let action = request.action, candidate = request.paths[0]
+        if invocation != nil, let commandLineRepositoryPermission {
+            do {
+                guard let lease = try commandLineRepositoryPermission(permissionTargets), commandCancellation?.isCancelled != true else { return }
+                guard permissionTargets.allSatisfy({ lease.contains($0) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                handedOff = true
+                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
+            } catch { self.error = error.localizedDescription }
+            return
+        }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
+        panel.prompt = "Authorize repository"
+        panel.message = "Choose the repository root containing the requested selection to allow TurtleGit to work with it."
+        panel.directoryURL = permissionTargets.count > request.paths.count ? permissionTargets.last : (candidate.hasDirectoryPath ? candidate : candidate.deletingLastPathComponent())
+        guard panel.runModal() == .OK, let url = panel.url, commandCancellation?.isCancelled != true else { return }
+        let lease = RepositoryAccessLease(url: url)
+        guard permissionTargets.allSatisfy({ lease.contains($0) }) else {
+            error = "The selected folder does not contain every requested item."; return
+        }
+        handedOff = true
+        openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
+    }
     private func handleFinderRequest(_ request:FinderRequest, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandCancellation: OperationCancellation? = nil, commandRootOnly: Bool = false, completion: ((Bool) -> Void)? = nil) {
         var handedOff = false
         defer { if !handedOff { completion?(false) } }
@@ -6040,7 +6254,7 @@ private enum TransportBatchPresentationContext {
             if knownRoot == root?.path { onSettings(false); return }
             guard canChangeSettingsContext() else { return }
         } else if action.isApplicationUtility { activate(action); return }
-        guard !busy else { return }
+        guard !busy, finderAuthorityPreparations.isEmpty else { return }
         if action == .reviewPatch {
             if let receipt = request.clipboardPatch { showFinderClipboardPatch(request, receipt: receipt) }
             else { showReviewPatch(files: request.paths) }; return
@@ -6074,36 +6288,11 @@ private enum TransportBatchPresentationContext {
             openSession(activeAccess, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
             return
         }
-        if let store = accessStore {
-            for saved in store.repositories {
-                guard let lease = try? store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild),
-                      permissionTargets.allSatisfy({ lease.contains($0) }) else { continue }
-                recentRepositories = store.repositories
-                handedOff = true
-                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
-                return
-            }
-        }
-        if invocation != nil, let commandLineRepositoryPermission {
-            do {
-                guard let lease = try commandLineRepositoryPermission(permissionTargets), commandCancellation?.isCancelled != true else { return }
-                guard permissionTargets.allSatisfy({ lease.contains($0) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-                handedOff = true
-                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
-            } catch { self.error = error.localizedDescription }
-            return
-        }
-        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
-        panel.prompt = "Authorize repository"
-        panel.message = "Choose the repository root containing the requested selection to allow TurtleGit to work with it."
-        panel.directoryURL = permissionTargets.count > request.paths.count ? permissionTargets.last : (candidate.hasDirectoryPath ? candidate : candidate.deletingLastPathComponent())
-        guard panel.runModal() == .OK, let url = panel.url, commandCancellation?.isCancelled != true else { return }
-        let lease = RepositoryAccessLease(url: url)
-        guard permissionTargets.allSatisfy({ lease.contains($0) }) else {
-            error = "The selected folder does not contain every requested item."; return
-        }
         handedOff = true
-        openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
+        resolveFinderSavedAuthority(request, permissionTargets: permissionTargets, invocation: invocation,
+            messageAccess: messageAccess, outputAccess: outputAccess, commandCancellation: commandCancellation,
+            commandRootOnly: commandRootOnly, completion: completion)
+
     }
 }
 

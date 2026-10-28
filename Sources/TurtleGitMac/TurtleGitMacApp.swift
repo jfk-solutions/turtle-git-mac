@@ -8,7 +8,9 @@ import UniformTypeIdentifiers
 @main struct TurtleGitApplication {
     @MainActor static func main() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
-        GitConfigurationPermissions.restore()
+        // Capture saved authority before constructing scenes, but resolve it on
+        // the shared first-read worker after the application event loop exists.
+        GitConfigurationPermissions.installGitReadPreparation()
         ProgressActionLog.install()
         OperationSounds.enabled = true
         DialogGeometry.install()

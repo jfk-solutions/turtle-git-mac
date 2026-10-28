@@ -87,6 +87,7 @@ import TurtleGitCore
         try require(relaunched.rows.count==1 && !snapshot()!.roots.contains(moved.path) && snapshot()!.roots.contains(repositories[1].root.path),"Remove dropped other roots")
         await relaunched.shutdown()
         provider.available=false;let denied=manager();denied.restore()
+        try await wait {denied.pendingOperations==0 && denied.rows.first?.status.contains("unavailable")==true}
         try require(denied.rows.first?.status.contains("unavailable")==true && permissions.repositories.count==1,"Failed scope discarded row")
         await denied.shutdown();provider.available=true
         func quote(_ value:String) -> String { "'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'" }

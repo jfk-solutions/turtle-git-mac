@@ -54,6 +54,8 @@ public enum GitDaemon {
     public static func run(repository: GitRepository, configuration: GitDaemonConfiguration = .init(), cancellation: OperationCancellation,
                            onOutput: @escaping @Sendable (GitOutputChunk) -> Void) throws -> Int32 {
         try cancellation.check()
+        // Daemon owns a direct Git process rather than GitRepository.run.
+        try GitRuntime.prepareForGitReads(cancellation: cancellation)
         let arguments = try configuration.arguments(root: repository.root)
         let stdout = Pipe(), stderr = Pipe()
         defer {

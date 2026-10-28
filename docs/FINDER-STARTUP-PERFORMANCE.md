@@ -132,3 +132,62 @@ attempt, and its owned cache worker are independently absent. The initial Swift
 throwing-expression compile error, contradictory build diagnostic and fixture
 startup-order failure remain recorded. No full Core rerun or new signed bundle
 was performed after these focused checks passed.
+
+## Cold command delivery and foreground startup — October 28, 2026
+
+A Finder click must open its requested dialog even when the app is not running.
+The old extension supplied only `--turtlegit-action-only` as launch arguments;
+the actual command existed solely in a GetURL event during SwiftUI startup.
+Existing warm/direct-delegate checks did not establish that first event's
+delivery ordering. The current transport supplies the same single-use request
+through argv and the URL event, rather than relying on either arrival order.
+
+The extension publishes the original validated FinderRequest URL into a separate
+private `ActionHandoffs-v1` directory. A bounded envelope carries only a random
+receipt ID and action, keeping long selections off argv. Both channels use that
+envelope. Exclusive no-follow claiming permits one consumer, and the application
+remembers accepted attempt IDs so an argv/event duplicate cannot repeat a Git
+action or show a second error. Different menu clicks retain distinct IDs, even
+for the same command and path. Missing or malformed requests use the existing
+owned compact error presentation. A tool process forwards the unconsumed request
+to an independent application owner. Neither transport nor its private payload
+grants repository authority.
+
+The payload is bounded to 1 MiB and retains the existing private handoff
+primitive's expiry, file validation, exclusive claim, cleanup and directory
+limits. Clipboard patch bytes remain a separate capability. A failed extension
+launch discards its unpublished action and captured patch receipt; a failed
+request preparation still attempts an identifiable error handoff.
+
+Workspace construction previously published cache persistence and two policy
+transactions synchronously. Each writer-lock acquisition could wait up to five
+seconds before a window was presented. Workspace services now begin after
+presentation, with typed captured settings and policy/cache work off the main
+actor. Watch restoration waits for accepted cache authority, resolves captured
+bookmarks on workers and adopts renewed records only if their source record is
+still current. Cache-session creation also runs off the main actor. Closing the
+owner cancels startup and drains acquired sessions instead of publishing a late
+watcher set.
+
+An ordinary Finder action also used to resolve saved grants in archive order on
+the main actor before testing containment. Foreground lookup now prioritizes
+the selected path's likely saved record and resolves it off the main actor;
+moved-bookmark fallback remains available. This avoids resolving unrelated saved
+roots first without treating a recorded path as authority. The separate recent
+repository and watched-repository archives retain their different policies.
+
+Saved global Git configuration directory scopes remain required for reads as
+well as writes. A shared independent resolver retains those scopes before
+signalling a synchronous Core Git execution boundary. Async native dispatch
+awaits the same result; a wait does not require a main-actor callback to finish.
+Cancellation can stop a waiting Git command before it spawns. The same boundary
+covers the selected CLI/libgit2 helper and direct Git daemon. Config-write
+choosers retain their existing explicit permission checks.
+
+The [cold-start checkpoint](qa/finder-cold-start-2026-10-28.json) records actual
+Core, native and fresh SwiftUI-process results, phase timings, failures and
+cleanup. Those private observations must not be presented as a measured speedup
+for every repository. The earlier Ladybird Core read profile remains a separate
+warm measurement. Commit start hooks, optional provider/network reads and a full
+signed physical Finder cold launch have their own observable costs and acceptance
+scope; this continuation does not silently skip them.

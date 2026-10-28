@@ -13,7 +13,31 @@ public enum GitRuntimeFailure: LocalizedError {
     }
 }
 
+/// Native hosts install authority preparation without making Core depend on
+/// AppKit. The callback runs outside the registry lock and must not require the
+/// calling actor to service a continuation. Command-line/Core-only hosts omit it.
+private final class GitReadPreparationRegistry: @unchecked Sendable {
+    static let shared = GitReadPreparationRegistry()
+    private let lock = NSLock()
+    private var preparation: (@Sendable (OperationCancellation?) throws -> Void)?
+    func install(_ preparation: @escaping @Sendable (OperationCancellation?) throws -> Void) {
+        lock.lock(); self.preparation = preparation; lock.unlock()
+    }
+    func prepare(_ cancellation: OperationCancellation?) throws {
+        try cancellation?.check()
+        lock.lock(); let callback = preparation; lock.unlock()
+        try callback?(cancellation)
+        try cancellation?.check()
+    }
+}
+
 public enum GitRuntime {
+    public static func installReadPreparation(_ preparation: @escaping @Sendable (OperationCancellation?) throws -> Void) {
+        GitReadPreparationRegistry.shared.install(preparation)
+    }
+    public static func prepareForGitReads(cancellation: OperationCancellation? = nil) throws {
+        try GitReadPreparationRegistry.shared.prepare(cancellation)
+    }
     public static var isAppStoreBuild: Bool {
         #if TURTLEGIT_APP_STORE
         return true

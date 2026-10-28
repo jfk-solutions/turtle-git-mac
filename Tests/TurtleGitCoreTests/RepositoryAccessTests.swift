@@ -20,6 +20,99 @@ private final class TestBookmarks: RepositoryBookmarkProvider {
 }
 
 final class RepositoryAccessTests: XCTestCase {
+    func testCapturedAuthorityDoesNotRewriteArchiveAndSurvivesRecordReplacement() throws {
+        let (folder, archive) = try fixture()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let provider = TestBookmarks(), store = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        let original = try store.remember(folder.appendingPathComponent("old"))
+        try store.addPermission(original.id, url: folder.appendingPathComponent("metadata"))
+        let request = try store.captureAuthority(original.id)
+        let bytes = try Data(contentsOf: archive), creates = provider.creates
+        provider.stale = true
+        do {
+            let authority = try request.resolve(requireSecurityScope: true)
+            XCTAssertEqual(authority.primary.url.path, original.lastKnownPath)
+            XCTAssertEqual(authority.additional.map(\.url.path), [folder.appendingPathComponent("metadata").path])
+            XCTAssertEqual(provider.creates, creates + 2)
+            XCTAssertEqual(try Data(contentsOf: archive), bytes)
+            XCTAssertEqual(store.repositories.first, request.record)
+        }
+        XCTAssertEqual(provider.starts, provider.stops)
+        _ = try store.replace(original.id, with: folder.appendingPathComponent("new"))
+        let replacement = try store.captureAuthority(original.id)
+        XCTAssertNotEqual(request.record, replacement.record)
+        // The old snapshot never gains the replacement's authority implicitly.
+        XCTAssertEqual(try request.resolve().primary.url.path, original.lastKnownPath)
+        XCTAssertEqual(try replacement.resolve().primary.url.path, folder.appendingPathComponent("new").path)
+    }
+    func testCapturedAuthorityRenewalAdoptsOnlyExactOwnerAndRecord() throws {
+        let (folder, archive) = try fixture()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let provider = TestBookmarks(), store = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        let saved = try store.remember(folder.appendingPathComponent("repo"))
+        let extra = folder.appendingPathComponent("metadata")
+        try store.addPermission(saved.id, url: extra)
+        let request = try store.captureAuthority(saved.id), originalBytes = try Data(contentsOf: archive)
+        provider.stale = true; provider.movedURL = folder.appendingPathComponent("moved")
+        let authority = try request.resolve(requireSecurityScope: true)
+        XCTAssertEqual(try Data(contentsOf: archive), originalBytes)
+        XCTAssertEqual(authority.refreshedRecord.additionalPermissions?.first?.path, provider.movedURL?.standardizedFileURL.resolvingSymlinksInPath().path)
+        XCTAssertTrue(try store.adoptAuthority(authority, from: request))
+        XCTAssertEqual(store.repositories.first, authority.refreshedRecord)
+        XCTAssertEqual(store.repositories.first?.lastOpened, request.record.lastOpened)
+        XCTAssertFalse(try store.adoptAuthority(authority, from: request))
+        let current = try store.captureAuthority(saved.id), currentAuthority = try current.resolve()
+        let other = try RepositoryAccessStore(storageURL: folder.appendingPathComponent("other.json"), provider: provider)
+        XCTAssertFalse(try other.adoptAuthority(currentAuthority, from: current))
+        try store.forget(saved.id)
+        XCTAssertFalse(try store.adoptAuthority(currentAuthority, from: current))
+        XCTAssertTrue(store.repositories.isEmpty)
+    }
+
+    func testCapturedAuthorityAdoptionPersistenceFailureKeepsPreviousRecord() throws {
+        let (folder, archive) = try fixture()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let provider = TestBookmarks(), store = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        let saved = try store.remember(folder.appendingPathComponent("repo")), request = try store.captureAuthority(saved.id)
+        provider.stale = true; provider.movedURL = folder.appendingPathComponent("moved")
+        let authority = try request.resolve()
+        try FileManager.default.removeItem(at: archive.deletingLastPathComponent())
+        try Data("not a directory".utf8).write(to: archive.deletingLastPathComponent())
+        XCTAssertThrowsError(try store.adoptAuthority(authority, from: request))
+        XCTAssertEqual(store.repositories.first, request.record)
+    }
+
+    func testCapturedAuthorityCancellationAndFailedExtraGrantReleaseAcquiredScope() throws {
+        let (folder, archive) = try fixture()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let provider = TestBookmarks(), store = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        let saved = try store.remember(folder.appendingPathComponent("repo"))
+        let extra = folder.appendingPathComponent("extra")
+        try store.addPermission(saved.id, url: extra)
+        let request = try store.captureAuthority(saved.id), cancelled = OperationCancellation()
+        cancelled.cancel()
+        XCTAssertThrowsError(try request.resolve(cancellation: cancelled))
+        XCTAssertEqual(provider.starts, 0)
+        provider.invalidBookmarks.insert(Data(extra.path.utf8))
+        XCTAssertThrowsError(try request.resolve(requireSecurityScope: true))
+        XCTAssertEqual(provider.starts, 1)
+        XCTAssertEqual(provider.stops, 1)
+        do {
+            let partial = try request.resolve(requireSecurityScope: true, skipUnavailableAdditionalPermissions: true)
+            XCTAssertTrue(partial.additional.isEmpty)
+            XCTAssertEqual(partial.refreshedRecord.additionalPermissions, request.record.additionalPermissions)
+        }
+        XCTAssertEqual(provider.starts, provider.stops)
+        let bytes = try Data(contentsOf: archive)
+        try store.forget(saved.id)
+        XCTAssertThrowsError(try store.captureAuthority(saved.id))
+        XCTAssertNotEqual(try Data(contentsOf: archive), bytes)
+        // Resolution cannot recreate a forgotten archive entry.
+        provider.invalidBookmarks.removeAll()
+        _ = try request.resolve()
+        XCTAssertTrue(store.repositories.isEmpty)
+    }
+
     func testSettingsMarkerDiscoveryNeedsNoGitAndRespectsScopeBoundary() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("tg-settings-discovery-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)

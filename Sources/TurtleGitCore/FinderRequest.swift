@@ -341,8 +341,8 @@ public struct FinderPatchHandoff: Sendable {
         guard renameat(descriptor, temporary, descriptor, receipt + ".patch") == 0 else { throw POSIXError(.EIO) }
         return receipt
     }
-    public func consume(_ receipt: String) throws -> Data {
-        guard Self.validReceipt(receipt) else { throw POSIXError(.EINVAL) }
+    public func consume(_ receipt: String, maximumBytes: Int = Self.maximumBytes) throws -> Data {
+        guard Self.validReceipt(receipt), maximumBytes > 0, maximumBytes <= Self.maximumBytes else { throw POSIXError(.EINVAL) }
         let descriptor = try directory(create: false); defer { close(descriptor) }
         let claimed = UUID().uuidString.lowercased() + ".claimed"
         guard renameat(descriptor, receipt + ".patch", descriptor, claimed) == 0 else { throw POSIXError(.ENOENT) }
@@ -350,11 +350,87 @@ public struct FinderPatchHandoff: Sendable {
         var info = stat()
         guard fstatat(descriptor, claimed, &info, AT_SYMLINK_NOFOLLOW) == 0, info.st_mode & S_IFMT == S_IFREG,
               Date().timeIntervalSince1970 - Double(info.st_mtimespec.tv_sec) <= 600 else { throw POSIXError(.EINVAL) }
-        let bytes = try HistoryFileCache.readFile(claimed, directory: descriptor, limit: Self.maximumBytes, noFollow: true, cancellation: nil)
+        let bytes = try HistoryFileCache.readFile(claimed, directory: descriptor, limit: maximumBytes, noFollow: true, cancellation: nil)
         guard !bytes.isEmpty else { throw POSIXError(.EINVAL) }; return bytes
     }
     public func discard(_ receipt: String) {
         guard Self.validReceipt(receipt), let descriptor = try? directory(create: false) else { return }
         defer { close(descriptor) }; _ = unlinkat(descriptor, receipt + ".patch", 0)
     }
+}
+
+/// One immutable Finder invocation, carried by both cold-launch argv and the
+/// ordinary URL event. Paths stay in a private bounded file, not command-line
+/// arguments. Neither this capability nor its payload grants repository access.
+public struct FinderActionDelivery: Equatable, Sendable {
+    public static let argumentFlag = "--turtlegit-finder-request"
+    public let receipt: String
+    public let action: RepositoryAction
+    public init?(receipt: String, action: RepositoryAction) {
+        guard FinderPatchHandoff.validReceipt(receipt), !action.isMenuHeader else { return nil }
+        self.receipt = receipt; self.action = action
+    }
+    public init?(url: URL) {
+        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.scheme == "turtlegit", parts.host == "finder-request", parts.path.isEmpty,
+              parts.user == nil, parts.password == nil, parts.port == nil, parts.fragment == nil,
+              let fields = parts.queryItems, fields.count == 2,
+              fields.filter({ $0.name == "receipt" }).count == 1,
+              fields.filter({ $0.name == "command" }).count == 1,
+              let receipt = fields.first(where: { $0.name == "receipt" })?.value,
+              let name = fields.first(where: { $0.name == "command" })?.value,
+              let action = RepositoryAction(rawValue: name) else { return nil }
+        self.init(receipt: receipt, action: action)
+    }
+    public var url: URL {
+        var parts = URLComponents()
+        parts.scheme = "turtlegit"; parts.host = "finder-request"
+        parts.queryItems = [.init(name: "receipt", value: receipt), .init(name: "command", value: action.rawValue)]
+        return parts.url!
+    }
+    public var arguments: [String] { [Self.argumentFlag, url.absoluteString] }
+    public static func parse(arguments: [String]) -> Self? {
+        guard arguments.count == 2, arguments[0] == argumentFlag,
+              let url = URL(string: arguments[1]) else { return nil }
+        return Self(url: url)
+    }
+}
+
+/// Uses the existing exclusive, no-follow, single-consumer handoff primitive
+/// in its own directory. A second delivery channel cannot execute the request
+/// again, even if two processes race to receive its URL.
+public struct FinderActionHandoff: Sendable {
+    public static let maximumBytes = 1024 * 1024
+    public static var current: Self? {
+        FinderIntegration.container.map { Self(root: $0.appendingPathComponent("Library/Caches/ActionHandoffs-v1", isDirectory: true)) }
+    }
+    public let root: URL
+    public init(root: URL) { self.root = root }
+    private var files: FinderPatchHandoff { .init(root: root) }
+    public struct Failure: LocalizedError, Sendable {
+        public let message: String
+        public var errorDescription: String? { message }
+        public init(_ message: String) { self.message = message }
+    }
+    public func publish(_ request: FinderRequest) throws -> FinderActionDelivery {
+        guard let url = request.url, let checked = FinderRequest(url: url), checked.action == request.action else {
+            throw Failure("The Finder command cannot be encoded.")
+        }
+        let bytes = Data(url.absoluteString.utf8)
+        guard bytes.count <= Self.maximumBytes else { throw Failure("The Finder selection is too large to open.") }
+        let receipt = try files.publish(bytes)
+        guard let delivery = FinderActionDelivery(receipt: receipt, action: request.action) else {
+            files.discard(receipt); throw Failure("The Finder command cannot be encoded.")
+        }
+        return delivery
+    }
+    public func consume(_ delivery: FinderActionDelivery) throws -> FinderRequest {
+        let bytes = try files.consume(delivery.receipt, maximumBytes: Self.maximumBytes)
+        guard let string = String(data: bytes, encoding: .utf8), let url = URL(string: string),
+              let request = FinderRequest(url: url), request.action == delivery.action else {
+            throw Failure("The Finder command does not match its launch request.")
+        }
+        return request
+    }
+    public func discard(_ delivery: FinderActionDelivery) { files.discard(delivery.receipt) }
 }

@@ -36,20 +36,35 @@ import TurtleGitCore
         if url.isFileURL {
             return !url.path.contains("\0") && ["patch", "diff"].contains(url.pathExtension.lowercased())
         }
+        if FinderActionDelivery(url: url) != nil { return true }
         return ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains(url.absoluteString) || FinderRequest(url: url) != nil || (try? FinderServiceCommand.request(serviceURL:url)) != nil || (try? TurtleGitFinderServicesProvider.openSelection(from:url)) != nil
     }
     func submit(_ urls: [URL]) {
         guard !retired else { return }
         let accepted = urls.filter(Self.accepts)
         guard !accepted.isEmpty else { return }
+        // A tool-mode process never consumes Finder authority. Each opaque
+        // action gets its own durable argv in the independent general process.
+        if accepted.count > 1, accepted.contains(where: { FinderActionDelivery(url: $0) != nil }) {
+            var ordinary: [URL] = []
+            for url in accepted {
+                if FinderActionDelivery(url: url) != nil {
+                    if !ordinary.isEmpty { submit(ordinary); ordinary = [] }
+                    submit([url])
+                } else { ordinary.append(url) }
+            }
+            if !ordinary.isEmpty { submit(ordinary) }
+            return
+        }
         let id = UUID(), receipt = Receipt(accepted)
         receipts[id] = receipt; onStateChanged()
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         let needsWorkspace=accepted.contains { $0.host == "service-open" || ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains($0.absoluteString) }
-        configuration.arguments=needsWorkspace ? []:["--turtlegit-action-only"]
+        if accepted.count == 1, let delivery = FinderActionDelivery(url: accepted[0]) { configuration.arguments = delivery.arguments }
+        else { configuration.arguments=needsWorkspace ? []:["--turtlegit-action-only"] }
         configuration.activates=accepted.contains { url in
-            let action=FinderRequest(url:url)?.action ?? (try? FinderServiceCommand.request(serviceURL:url))?.action
+            let action=FinderActionDelivery(url: url)?.action ?? FinderRequest(url:url)?.action ?? (try? FinderServiceCommand.request(serviceURL:url))?.action
             return action != .registerRepository
         }
         launch(accepted, applicationURL(), configuration) { [weak self, weak receipt] error in

@@ -42,7 +42,7 @@ import TurtleGitCore
         guard let applicationDelegate else { return nil }
         if let storedController {
             storedController.present()
-            if let window=storedController.window {installWorkspaceServices(window)}
+            scheduleWorkspaceServices(storedController)
             return storedModel
         }
         // Switching the shared Settings context must never discard its draft.
@@ -56,8 +56,21 @@ import TurtleGitCore
         // Automatic setup/update presentation is owned by this attached host.
         // Constructing an action router (including folder permission UI) cannot
         // create unrelated setup windows or start automatic update presentation.
-        if let window=controller.window {installWorkspaceServices(window)}
+        scheduleWorkspaceServices(controller)
         return model
+    }
+    private func scheduleWorkspaceServices(_ controller: WorkspaceWindowController) {
+        // The native host is presented before bookmark/cache/watch restoration
+        // and automatic workspace services. A cold Finder action never enters
+        // this explicit workspace presentation path.
+        Task { @MainActor [weak self, weak controller] in
+            await GitConfigurationPermissions.restoreForGitReads()
+            guard !Task.isCancelled, let self, let controller, self.storedController === controller,
+                  self.storedModel === controller.model, !controller.model.isRetired,
+                  let window = controller.window, window.isVisible else { return }
+            controller.model.startWorkspaceServices()
+            self.installWorkspaceServices(window)
+        }
     }
 }
 
@@ -156,6 +169,9 @@ import TurtleGitCore
 enum TurtleGitLaunchMode: Equatable {
     case workspace, mergeTool, unifiedDiff, actionOnly
     static func resolve(arguments: [String], currentDirectory: String) -> Self {
+        // Recognize malformed private envelopes too, so they report an action
+        // error instead of accidentally becoming a default workspace launch.
+        if arguments.contains(FinderActionDelivery.argumentFlag) { return .actionOnly }
         do { if try UnifiedDiffInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) != nil { return .unifiedDiff } }
         catch { return .unifiedDiff }
         do { if try MergeToolInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) != nil { return .mergeTool } }

@@ -66,7 +66,7 @@ private extension NSWindow {
             models.append(value);return value
         }
         func cleanup()async throws {
-            delegate.retireFinderServices();delegate.retireMenuImageVisibility();delegate.workspaceOpenHandoff.retire();delegate.actionErrorController?.close()
+            delegate.retireInboundURLBridge();delegate.retireFinderServices();delegate.retireMenuImageVisibility();delegate.workspaceOpenHandoff.retire();delegate.actionErrorController?.close()
             for service in settings {service.controller?.close()}
             for model in models {model.stopMonitoringForTermination()}
             await watchManager.shutdown()
@@ -135,7 +135,7 @@ private extension NSWindow {
         try noWorkspace(c,"Untitled callback after late utility opened workspace")
         for controller in NSApp.windows.compactMap({$0.windowController as? TurtleGitAboutController}) {controller.close()}
         _=NSApp.delegate?.applicationShouldHandleReopen?(NSApp,hasVisibleWindows:false)
-        try await wait("explicit reopen after late default utility") {c.scene.storedController?.window != nil}
+        try await wait("explicit reopen after late default utility") {c.scene.storedController?.window != nil && c.workspaceServices>0}
         try require(c.controllers.count==1 && c.workspaceServices>0,"Explicit reopen did not attach real workspace/services")
     }
     static func actionOnly(_ c:Context,mode:String)async throws {
@@ -217,7 +217,7 @@ private extension NSWindow {
         for controller in NSApp.windows.compactMap({$0.windowController as? TurtleGitAboutController}) {controller.close()}
         try require(NSApp.delegate?.applicationOpenUntitledFile?(NSApp) != true,"Warm action-only automatic untitled callback accepted")
         _=NSApp.delegate?.applicationShouldHandleReopen?(NSApp,hasVisibleWindows:false)
-        try await wait("explicit action-only Dock reopen") {c.scene.storedController?.window != nil}
+        try await wait("explicit action-only Dock reopen") {c.scene.storedController?.window != nil && c.workspaceServices>0}
         try require(c.controllers.count==1 && c.workspaceServices>0,"Explicit later reopen did not create exactly one workspace")
         if let beforeHead {
             let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:indexURL),afterFile=try Data(contentsOf:folder.appendingPathComponent("tracked.txt"))
@@ -269,7 +269,7 @@ private extension NSWindow {
         let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.workspaceLaunchOrder(_:relativeTo:)))!
         method_exchangeImplementations(original,hidden);defer{method_exchangeImplementations(original,hidden)}
         var context:Context?
-        do {let value=try Context();context=value;switch CommandLine.arguments[3] {case "cold":try await cold(value);case "workspace":try await workspace(value);case "late":try await late(value);case "action-only","action-cancel","action-error","url-registration":try await actionOnly(value,mode:CommandLine.arguments[3]);case "late-default":try await lateDefault(value);default:throw Failure(description:"Unknown case")};try await value.cleanup();print("PASS: workspace launch \(CommandLine.arguments[3])")}
+        do {let value=try Context();context=value;switch CommandLine.arguments[3] {case "cold":try await cold(value);case "workspace":try await workspace(value);case "late":try await late(value);case "action-only","action-cancel","action-error","url-registration":try await actionOnly(value,mode:CommandLine.arguments[3]);case "late-default":try await lateDefault(value);case "finder-argv","finder-url-first","finder-authority-gate":try await finderDelivery(value,mode:CommandLine.arguments[3]);case "finder-missing":try await finderMissing(value);case "finder-commit":try await finderCommit(value);case "finder-prioritized-authority":try await finderCommit(value,prioritizedAuthority:true);case "startup-lock":try await startupLock(value);case "startup-config-gate":try await startupConfigurationGate(value);default:throw Failure(description:"Unknown case")};try await value.cleanup();print("PASS: workspace launch \(CommandLine.arguments[3])")}
         catch {let failure=error;do {try await context?.cleanup()}catch{fputs("Cleanup: \(error)\n",stderr)};fputs("\(failure)\n",stderr);exit(1)}
     }
 }

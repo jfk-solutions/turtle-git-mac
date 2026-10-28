@@ -120,12 +120,83 @@ public enum RepositoryAccessFailure: LocalizedError {
 }
 
 /// Call from the application's main actor. Bookmarks stay in its private container, never the Finder cache.
+/// The archive stays on its owning actor. Only immutable bookmark bytes and a
+/// serialized provider are captured for background authority acquisition.
+fileprivate final class SerializedRepositoryBookmarks: RepositoryBookmarkProvider, @unchecked Sendable {
+    private let provider: any RepositoryBookmarkProvider
+    private let serialize: Bool
+    private let lock = NSRecursiveLock()
+    init(_ provider: any RepositoryBookmarkProvider) {
+        self.provider = provider
+        // Foundation's production provider is an immutable stateless value.
+        // Do not make a main-actor grant creation wait behind an unrelated slow
+        // bookmark resolution. Stateful injected providers retain serialization.
+        serialize = !(provider is SystemRepositoryBookmarkProvider)
+    }
+    private func access<T>(_ operation: () throws -> T) rethrows -> T {
+        if serialize { lock.lock() }
+        defer { if serialize { lock.unlock() } }
+        return try operation()
+    }
+    func create(for url: URL) throws -> Data { try access { try provider.create(for: url) } }
+    func resolve(_ data: Data) throws -> ResolvedBookmark { try access { try provider.resolve(data) } }
+    func startAccessing(_ url: URL) -> Bool { access { provider.startAccessing(url) } }
+    func stopAccessing(_ url: URL) { access { provider.stopAccessing(url) } }
+}
+
+public struct RepositoryAuthorityRequest: Sendable {
+    public let record: SavedRepository
+    private let provider: SerializedRepositoryBookmarks
+    fileprivate let owner: UUID
+    fileprivate init(record: SavedRepository, provider: SerializedRepositoryBookmarks, owner: UUID) { self.record = record; self.provider = provider; self.owner = owner }
+    /// Leases have immutable ownership and may be transferred to their eventual
+    /// actor owner. Their provider serializes scope entry/exit and resolution.
+    public struct Authority: @unchecked Sendable {
+        public let primary: RepositoryAccessLease
+        public let additional: [RepositoryAccessLease]
+        public let refreshedRecord: SavedRepository
+    }
+    public func resolve(requireSecurityScope: Bool = false, skipUnavailableAdditionalPermissions: Bool = false, cancellation: OperationCancellation? = nil) throws -> Authority {
+        try cancellation?.check()
+        func lease(_ bookmark: Data) throws -> (RepositoryAccessLease, Data) {
+            try cancellation?.check()
+            let resolved = try provider.resolve(bookmark)
+            try cancellation?.check()
+            let lease = RepositoryAccessLease(url: resolved.url, provider: provider)
+            guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            let refreshed = resolved.stale ? try provider.create(for: resolved.url) : bookmark
+            try cancellation?.check()
+            return (lease, refreshed)
+        }
+        let (primary, primaryBookmark) = try lease(record.bookmark)
+        var refreshed = record, additional: [RepositoryAccessLease] = []
+        refreshed.bookmark = primaryBookmark
+        if var grants = refreshed.additionalPermissions {
+            for index in grants.indices {
+                do {
+                    let (permission, bookmark) = try lease(grants[index].bookmark)
+                    grants[index].bookmark = bookmark
+                    grants[index].path = permission.url.standardizedFileURL.resolvingSymlinksInPath().path
+                    additional.append(permission)
+                } catch {
+                    try cancellation?.check()
+                    if !skipUnavailableAdditionalPermissions { throw error }
+                }
+            }
+            refreshed.additionalPermissions = grants
+        }
+        try cancellation?.check()
+        return Authority(primary: primary, additional: additional, refreshedRecord: refreshed)
+    }
+}
+
 public final class RepositoryAccessStore {
     public private(set) var repositories: [SavedRepository]
     public let storageURL: URL
-    private let provider: any RepositoryBookmarkProvider
+    private let provider: SerializedRepositoryBookmarks
+    private let authorityOwner = UUID()
     public init(storageURL: URL, provider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) throws {
-        self.storageURL = storageURL; self.provider = provider
+        self.storageURL = storageURL; self.provider = SerializedRepositoryBookmarks(provider)
         if FileManager.default.fileExists(atPath: storageURL.path) {
             repositories = try JSONDecoder().decode([SavedRepository].self, from: Data(contentsOf: storageURL))
         } else { repositories = [] }
@@ -138,6 +209,28 @@ public final class RepositoryAccessStore {
         #endif
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("TurtleGit", isDirectory: true).appendingPathComponent("repositories.json")
+    }
+    /// Capture on the archive owner; resolving never reads or rewrites the
+    /// mutable archive or changes recency. Renewed bookmark metadata is returned
+    /// as a value and must be adopted by the archive owner before attachment.
+    public func captureAuthority(_ id: UUID) throws -> RepositoryAuthorityRequest {
+        guard let record = repositories.first(where: { $0.id == id }) else { throw RepositoryAccessFailure.unknownRepository }
+        return RepositoryAuthorityRequest(record: record, provider: provider, owner: authorityOwner)
+    }
+    /// Apply only the exact captured grant, preserving concurrent Add/Renew/
+    /// Remove and unrelated rows. Renewal failure is reported to the caller;
+    /// the worker never writes this archive or silently widens live authority.
+    @discardableResult public func adoptAuthority(_ authority: RepositoryAuthorityRequest.Authority,
+                                                  from request: RepositoryAuthorityRequest) throws -> Bool {
+        guard request.owner == authorityOwner,
+              let index = repositories.firstIndex(where: { $0.id == request.record.id }),
+              repositories[index] == request.record else { return false }
+        if authority.refreshedRecord != request.record {
+            var updated = repositories
+            updated[index] = authority.refreshedRecord
+            try persist(updated)
+        }
+        return true
     }
     private func persist(_ updated: [SavedRepository]) throws {
         try FileManager.default.createDirectory(at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true,

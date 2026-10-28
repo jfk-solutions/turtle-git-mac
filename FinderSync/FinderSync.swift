@@ -128,14 +128,40 @@ import os
               let application = FinderMenuDispatch.containingApplication(for: Bundle(for: FinderSync.self).bundleURL) else { return }
         Task { @MainActor in
             let captured = await FinderPatchReviewCapture.request(request, pasteboard: .general, store: .current)
-            guard let url = captured.url else { return }
+            let store = FinderActionHandoff.current
+            let delivery: FinderActionDelivery
+            do {
+                guard let store else { throw FinderActionHandoff.Failure("Finder command storage is unavailable.") }
+                delivery = try await Task.detached { try store.publish(captured) }.value
+            } catch {
+                Self.handoffLog.error("Finder command preparation failed: \((error as NSError).code, privacy: .public)")
+                if let receipt = captured.clipboardPatch, let patches = FinderPatchHandoff.current { patches.discard(receipt) }
+                // Still launch the application with a bounded, recognizable
+                // request. Its missing receipt becomes the existing owned
+                // action error UI instead of leaving a cold click silent.
+                guard let unavailable = FinderActionDelivery(receipt: UUID().uuidString.lowercased(), action: request.action) else { return }
+                let failureConfiguration = NSWorkspace.OpenConfiguration()
+                failureConfiguration.activates = true
+                failureConfiguration.createsNewApplicationInstance = false
+                failureConfiguration.arguments = unavailable.arguments
+                NSWorkspace.shared.open([unavailable.url], withApplicationAt: application, configuration: failureConfiguration) { _, failure in
+                    if let failure { Self.handoffLog.error("Finder failure handoff failed: \((failure as NSError).code, privacy: .public)") }
+                }
+                return
+            }
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = request.action != .registerRepository; configuration.createsNewApplicationInstance = false
-            configuration.arguments = ["--turtlegit-action-only"]
-            NSWorkspace.shared.open([url], withApplicationAt: application, configuration: configuration) { _, error in
+            configuration.arguments = delivery.arguments
+            NSWorkspace.shared.open([delivery.url], withApplicationAt: application, configuration: configuration) { launched, error in
                 if let error {
                     Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)")
-                    if let receipt = captured.clipboardPatch, let store = FinderPatchHandoff.current { store.discard(receipt) }
+                    // The launch argv may already have been accepted even if
+                    // URL delivery failed. Do not revoke a live receiver's
+                    // clipboard capability based on the duplicate channel.
+                    if launched == nil {
+                        store?.discard(delivery)
+                        if let receipt = captured.clipboardPatch, let store = FinderPatchHandoff.current { store.discard(receipt) }
+                    }
                 }
             }
         }

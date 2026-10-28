@@ -60,6 +60,11 @@ the folder again through Open Repository.
 
 ## Start from Finder
 
+Finder commands start TurtleGit when needed. You do not need to open the app or
+its workspace first. If the selected repository has no saved folder permission,
+choose its folder when macOS asks; receiving a Finder command does not itself
+grant access to your files.
+
 With the signed Finder extension enabled, select a folder and open **TurtleGit**
 in its context menu. **Clone…** opens the clone form with that destination;
 **Create repository…** opens the creation form. For a repository already on disk,

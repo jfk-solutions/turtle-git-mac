@@ -2,34 +2,108 @@
 import AppKit
 import TurtleGitCore
 
+/// An independent worker owns the security scopes before signalling a waiter.
+/// Core's synchronous execution boundary may be called from any actor: its
+/// readiness must never depend on a main-actor continuation being serviced.
+struct GitConfigurationRestoration: @unchecked Sendable {
+    var leases: [RepositoryAccessLease] = []
+    var bookmarks: [Data] = []
+}
+final class GitConfigurationReadBarrier: @unchecked Sendable {
+    private let condition = NSCondition()
+    private let bookmarks: [Data]
+    private let requireScope: Bool
+    private let resolveBookmarks: @Sendable ([Data], Bool) -> GitConfigurationRestoration
+    private var started = false
+    private var result: GitConfigurationRestoration?
+    init(bookmarks: [Data], requireScope: Bool,
+         resolve: @escaping @Sendable ([Data], Bool) -> GitConfigurationRestoration = GitConfigurationReadBarrier.resolveSystem) {
+        self.bookmarks = bookmarks; self.requireScope = requireScope; self.resolveBookmarks = resolve
+    }
+    var pending: Bool { condition.lock(); defer { condition.unlock() }; return started && result == nil }
+    func prepare(cancellation: OperationCancellation?) throws {
+        try cancellation?.check()
+        condition.lock()
+        if !started {
+            started = true
+            DispatchQueue.global(qos: .userInitiated).async { [self] in
+                let value = resolveBookmarks(bookmarks, requireScope)
+                condition.lock(); result = value; condition.broadcast(); condition.unlock()
+            }
+        }
+        defer { condition.unlock() }
+        while result == nil {
+            try cancellation?.check()
+            _ = condition.wait(until: Date(timeIntervalSinceNow: 0.05))
+        }
+        try cancellation?.check()
+    }
+    func restored() -> GitConfigurationRestoration? { condition.lock(); defer { condition.unlock() }; return result }
+    static func resolveSystem(_ bookmarks: [Data], _ requireScope: Bool) -> GitConfigurationRestoration {
+        var value = GitConfigurationRestoration()
+        for bookmark in bookmarks {
+            do {
+                let provider = SystemRepositoryBookmarkProvider()
+                let resolved = try provider.resolve(bookmark)
+                let lease = RepositoryAccessLease(url: resolved.url, provider: provider)
+                guard !requireScope || lease.hasSecurityScope else { value.bookmarks.append(bookmark); continue }
+                value.leases.append(lease)
+                value.bookmarks.append(resolved.stale ? try provider.create(for: resolved.url) : bookmark)
+            } catch { value.bookmarks.append(bookmark) }
+        }
+        return value
+    }
+}
+
 /// Git creates adjacent .lock files and renames them over config files. Persist
 /// directory grants rather than file-only bookmarks for external config writes.
 @MainActor enum GitConfigurationPermissions {
     private static let key = "TurtleGit.GitConfiguration.DirectoryBookmarks"
     private static var leases: [RepositoryAccessLease] = []
-    static func restore() {
-        guard leases.isEmpty else { return }
-        var refreshed: [Data] = []
-        for bookmark in UserDefaults.standard.array(forKey: key) as? [Data] ?? [] {
-            do {
-                let provider = SystemRepositoryBookmarkProvider()
-                let resolved = try provider.resolve(bookmark)
-                let lease = RepositoryAccessLease(url: resolved.url)
-                guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { refreshed.append(bookmark); continue }
-                leases.append(lease)
-                refreshed.append(resolved.stale ? try provider.create(for: resolved.url) : bookmark)
-            } catch { refreshed.append(bookmark) }
-        }
-        UserDefaults.standard.set(refreshed, forKey: key)
+    private static var didRestore = false
+    private static var readBarrier: GitConfigurationReadBarrier?
+    private static func barrier() -> GitConfigurationReadBarrier {
+        if let readBarrier { return readBarrier }
+        let captured = GitConfigurationReadBarrier(bookmarks: UserDefaults.standard.array(forKey: key) as? [Data] ?? [], requireScope: GitRuntime.isAppStoreBuild)
+        readBarrier = captured
+        return captured
     }
-    static func retained(for file: URL) -> [RepositoryAccessLease] { leases.filter { $0.permits(file) } }
+    /// Cheap host installation before App.main captures bytes only; it neither
+    /// resolves a bookmark nor waits for filesystem/security services.
+    static func installGitReadPreparation() {
+        let captured = barrier()
+        GitRuntime.installReadPreparation { cancellation in try captured.prepare(cancellation: cancellation) }
+    }
+    static var restorationPending: Bool { readBarrier?.pending == true }
+    private static func accept(_ result: GitConfigurationRestoration) {
+        guard !didRestore else { return }
+        didRestore = true
+        leases = result.leases
+        UserDefaults.standard.set(result.bookmarks, forKey: key)
+    }
+    static func restoreForGitReads() async {
+        let captured = barrier()
+        // The synchronous Core barrier and native async wait share one resolver;
+        // its scopes are already retained before this main-actor adoption runs.
+        _ = try? await Task.detached(priority: .userInitiated) { try captured.prepare(cancellation: nil) }.value
+        if let result = captured.restored() { accept(result) }
+    }
+    static func restore() {
+        guard !didRestore else { return }
+        let captured = barrier()
+        try? captured.prepare(cancellation: nil)
+        if let result = captured.restored() { accept(result) }
+    }
+    static func retained(for file: URL) -> [RepositoryAccessLease] { restore(); return leases.filter { $0.permits(file) } }
     static func authorized(_ file: URL) -> Bool {
+        restore()
         if !GitRuntime.isAppStoreBuild { return true }
         let home = RepositoryAccessLease(url: FileManager.default.homeDirectoryForCurrentUser)
         if home.contains(file) { return true }
         return leases.contains { $0.hasSecurityScope && $0.contains(file) }
     }
     static func remember(_ directory: URL, for file: URL) throws {
+        restore()
         let lease = RepositoryAccessLease(url: directory)
         guard lease.contains(file), !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let provider = SystemRepositoryBookmarkProvider()
