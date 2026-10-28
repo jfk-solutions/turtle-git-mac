@@ -1,5 +1,16 @@
 # Repository Browser parity audit
 
+Current native behavior includes pinned tree navigation, captured file/folder
+menus, historical materialization and working/marked comparison, parent/child
+submodule history, multi-row transfers, revision selection and owned native
+pickers. The [file-action checkpoint](qa/browser-file-actions-2026-10-17.json),
+[presentation checkpoint](qa/browser-presentation-2026-10-16.json) and
+[raw historical materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json)
+record dated validation scopes. Earlier checkpoint limitations below are not a
+current missing-command inventory; later continuations supersede them. Physical,
+full visual and signed acceptance and the explicit raw filesystem boundaries
+remain separate.
+
 This is a partial native replacement, not complete TortoiseGit parity.
 The pinned source is TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 The [Git filename continuation](REPOSITORY-BROWSER-NAMESPACE-PARITY.md) covers
@@ -234,15 +245,21 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 - Complete physical column/divider/frame acceptance, full keyboard selection,
   accessibility and large repositories. False disclosure arrows for loaded leaf
   folders and refresh ancestry are addressed by the October 13 lifecycle batch.
-- Native dark appearance, signed Finder invocation and Store security scopes.
+- Full appearance-state acceptance, signed Finder invocation and Store security
+  scopes. The [file-action checkpoint](qa/browser-file-actions-2026-10-17.json)
+  records reviewed light/dark captures for that source form; it does not certify
+  every Browser state.
 - Full signed/physical cancellation acceptance; the October 13 lifecycle batch
   adds Git token propagation, process reaping and closed-window request ownership.
 - The earlier invalid UTF-8 path/mode policy gap is superseded by the
   [namespace continuation](REPOSITORY-BROWSER-NAMESPACE-PARITY.md): byte identity,
   tree-OID navigation, stored-object inspection and explicit unrepresentable
   filesystem-action refusal are implemented. Historical single-file Open/Save
-  and comparison now have a [pending continuation](RAW-HISTORY-PARITY.md#historical-comparison-and-file-delivery-continuation).
-  Raw original-path checkout, working comparison and folder transfer remain open.
+  and comparison are implemented in the
+  [materialization/comparison checkpoint](RAW-HISTORY-PARITY.md#materializationcomparison-checkpoint),
+  including safe chosen-name single-file output. Raw original-path checkout,
+  working-tree comparison/mutation, folder transfer with raw descendants and
+  submodule checkout resolution remain explicit implementation boundaries.
 
 The source inventory keeps this dialog and command files partial. The complete
 application, all source commands and App Store distribution remain unfinished.

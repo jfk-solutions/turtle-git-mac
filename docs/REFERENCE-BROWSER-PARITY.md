@@ -1,5 +1,15 @@
 # Reference browser parity
 
+Current native behavior includes captured leaf/folder menus, single and paired
+reference history/comparison, Rename, descriptions/tracking, local/remote deletion,
+Branch/Tag creation, Fetch, Manage Remotes and remote-tag dialogs. The connected
+[source-action checkpoint](qa/history-actions-2026-10-18.json),
+[mutation checkpoint](qa/rename-reference-management-2026-10-14.json) and
+[remote-tag checkpoint](qa/remote-tags-2026-10-09.json) record their actual scopes.
+Earlier checkpoint limitations below are historical; later named continuations
+supersede missing-command statements. Full visual/control, physical and signed
+acceptance remain separate from implemented commands.
+
 The October 18 [comparison and native ownership follow-up](REFERENCE-COMPARISON-OWNERSHIP-PARITY.md) covers Shift, source default commands, sheet release, tracking handoff and refreshed action catalogs. Its grouped validation is recorded separately.
 
 ## Captured native context commands — October 16, 2026
@@ -233,8 +243,10 @@ visual/accessibility/signed behavior. The expanded transaction receiver checks
 real checkout through this owned route, captured options, all three progress-close
 policies, acknowledgement locks and a post-action. Initial metadata reads publish
 together and are cancelled/fenced on close. Forced checkout cleanup is now covered by the hidden receiver described below;
-physical sheet/window behavior remains unverified. Complete Merge parity, Fetch, creation/tree/range/deletion commands
-and the full port remain unfinished.
+physical sheet/window behavior remains unverified. Fetch, creation, folder,
+range/comparison and deletion commands are implemented in the later sections
+below; this Switch checkpoint does not establish their acceptance or complete
+Merge/application parity.
 
 ## Current Branch acceptance correction
 
@@ -336,7 +348,10 @@ See [Merge route QA](qa/reference-merge-2026-10-09.json) and
 `scripts/test-reference-merge.py`. Source CAppUtils user-data/rebase preflight,
 full Merge chooser parity and physical sheets,
 light/dark/accessibility and signed execution remain incomplete or unverified.
-Tree creation, range/deletion commands and the full port remain unfinished.
+Folder creation and range/deletion commands are covered by the later
+[folder-menu](#branch-and-tag-folder-menus), [comparison](#two-reference-comparisons)
+and [batch-deletion](#batch-branch-tag-and-remote-deletion) checkpoints; this earlier
+Merge checkpoint does not certify those workflows or the full port.
 
 Merge now uses the owned full reference browser and typed-revision Log picker.
 Its forced lifetime cleanup is checked separately in
@@ -480,8 +495,9 @@ The existing browser, deletion and actual Finder menu receivers are regressions.
 See `qa/reference-standalone-2026-10-09.json` for results and remaining limits.
 
 Two-reference Compare/Unified Diff and batch deletion are recorded below.
-Branch/tag folder commands are recorded below; remote folder dialogs remain pending. This checkpoint does not establish complete
-standalone menus, physical app/Finder activation, range Log window rendering,
+Branch/tag folder commands and [remote folder dialogs](#remote-tag-dialog-and-folder-fetch)
+are implemented in later checkpoints below. This standalone checkpoint does not
+establish complete menus, physical app/Finder activation, range Log window rendering,
 screenshots, signed sandbox or full application parity.
 
 
@@ -545,8 +561,9 @@ Final results and limits are recorded in `qa/reference-comparison-2026-10-09.jso
 
 Physical sheets, full Changed Files dialog parity, every patch/child-editor cleanup
 timing, external viewer launch, Unicode/config races and signed Finder/App Store
-acceptance are not established by hidden checks. Remote folder menus and full app parity
-remain unfinished.
+acceptance are not established by hidden checks. Remote folder menus are
+implemented in the [remote-tag/folder continuation](#remote-tag-dialog-and-folder-fetch);
+complete application parity remains open.
 
 
 ## Branch and tag folder menus
@@ -571,8 +588,10 @@ confirmation/deletion/Refresh behavior. A single-selection chooser can still run
 this folder command against all displayed tags. Empty results disable deletion
 instead of passing an empty vector to source confirmation. Pending confirmation
 blocks duplicate/F5/close/Quit; forced close rejects late Yes. Undisplayed tags
-remain intact. Remote management, remote Fetch/tag folder commands and remote tag
-dialogs are still pending; this is not complete folder or whole-app parity.
+remain intact. Remote management, remote Fetch/tag folder commands and remote-tag
+dialogs are implemented by the [next continuation](#remote-tag-dialog-and-folder-fetch).
+This branch/tag-folder checkpoint does not certify those later routes or complete
+folder/application parity.
 
 The source review also corrected copied leaf names from canonical to source-short
 spelling, and the menu title to **Copy ref names**. The existing standalone native
@@ -765,8 +784,9 @@ actual grouped outcomes; fixture existence is not a pass.
 
 This continuation does not certify every source menu/object/error variant,
 physical keyboard/mouse/VoiceOver, signed Finder/App Store grants, or whole-dialog
-parity. Working-tree comparison's Shift/alternative route, all Windows menu/default
-painting details and platform-specific shortcuts remain separate review work.
+parity. Working-tree comparison's Shift/alternative route and source default
+commands are implemented in the [comparison ownership follow-up](REFERENCE-COMPARISON-OWNERSHIP-PARITY.md).
+Full Windows/native menu painting and physical shortcut acceptance remain separate.
 
 Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).
 

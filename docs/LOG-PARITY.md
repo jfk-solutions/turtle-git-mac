@@ -2326,6 +2326,9 @@ The supplied Log preference store holds a separate versioned changed-file layout
 it does not replace revision-list column settings. Malformed values use the shared
 bounded/default rules. These five historical columns do not expose file timestamp,
 size or LFS fields absent from this source mask.
+This column restriction does not remove LFS actions from the working-tree file
+menu; the [connected LFS continuation](#working-tree-file-lfs-actions--october-28-2026)
+implements that separate source path.
 
 Path includes original colored status artwork. Parent headings span the viewport
 with the shared blue title/rule renderer, independently of Path width or horizontal
@@ -2839,3 +2842,42 @@ and copy paths use escaped labels. Hash-only revision actions remain independent
 of the explicit raw filesystem/comparison restrictions. The
 [checkpoint](qa/raw-history-family-2026-10-27.json) records actual scoped checks
 and remaining physical/signed/full-port work separately.
+
+
+## Working-tree file LFS actions — October 28, 2026
+
+Pinned `LogDlg.cpp:308` permits the shared LFS popup commands while limiting the
+changed-file columns to Path, Extension, Status, Lines added and Lines removed.
+`GitStatusListCtrl.cpp:1815,1840–1841,2776–2798` adds Lock/Unlock only for tracked
+current working-tree files without conflicts, with the local LFS marker and no
+selected directories. Since Log cannot show the owner column, the source
+offers **both** actions without querying the server for ownership. Historical revision rows do
+not gain LFS mutations or an owner column.
+
+The connected native file menu uses the original Lock/Unlock artwork and captures
+its working-tree targets and displayed order. A cancellable preflight rechecks
+the index, local LFS marker and submodules before launching the child; historical,
+bare, picker and unavailable-owner contexts, and paths without representable
+filesystem names, refuse dispatch.
+Its owned progress retains the originating Log repository, preferences and
+cancellation lifetime through result review. Closing during preparation cancels
+and drains the accepted read; forced owner retirement retains actual child work
+until drain and still refreshes peer repository views after completed effects.
+Same-key reopening excludes an invalidated cached Log while an ordinary Notes
+read drains. The replacement has its own cache identity, so the old close callback
+cannot remove the new controller or revive a retired content view.
+Completed server changes remain after cancellation; failed Unlock keeps
+explicit Force retry against the captured targets. Closing results refreshes the
+Log working-tree view. Successful complete Lock uses the existing Pull options
+follow-up rather than running Pull automatically.
+
+The source dispatch is `GitStatusListCtrl.cpp:2128–2148` (selected paths, owned
+progress and parent refresh), with Force retry and Lock→Pull in
+`ProgressCommands/LFSSetLockedProgressCommand.cpp:46–65`. Duplicate/stale commands,
+changed revision/selection and retired-owner callbacks retain the same
+snapshot/ownership guards as other Log file actions.
+
+The [Log LFS checkpoint](qa/log-lfs-family-2026-10-28.json) records the actual
+validation scope, failures and affected rechecks separately from implementation. Authenticated remote providers,
+physical menus/keyboard, VoiceOver, signed sandbox/Finder grants and complete
+source/application parity remain separate acceptance work.

@@ -3850,14 +3850,26 @@ private enum TransportBatchPresentationContext {
                 controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
                 controller.model.colorPreferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
             }
-        } else { reusable = logWindows[baseKey].map { (key: baseKey, value: $0) } }
-        let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
+        } else if let cached = logWindows[baseKey], !cached.model.isInvalidated {
+            reusable = (key: baseKey, value: cached)
+        } else { reusable = nil }
+        // A retired controller retains itself until its workers drain. Replace
+        // its cache slot so repeated opening finds the new live owner; the old
+        // identity-checked close callback cannot remove that replacement.
+        let baseIsAvailable = logWindows[baseKey]?.model.isInvalidated ?? true
+        let key = reusable?.key ?? (baseIsAvailable ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller: LogWindowController
         if let output = invocation?.outputFile, let outputAccess {
             let completion: (LogEntry?) -> Void = CommandProgressContext.capture { [weak self] revision in self?.writeCommandSelection(revision, file: output, permission: outputAccess) }
             controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: defaults, loadsImmediately: false)
         } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: invocation == nil) }
         let operationPreferences = controller.model.colorPreferences
+        controller.onPullAfterLFSLock = CommandProgressContext.capture { [weak self] in
+            self?.showFetch(repository: repository, access: access, isPull: true, preferences: operationPreferences)
+        }
+        controller.onLFSProgressLog = CommandProgressContext.capture { [weak self] path in
+            self?.showLog(repository: repository, access: access, paths: [path], preferences: operationPreferences)
+        }
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.logWindows[key] === controller else { return }; self.logWindows.removeValue(forKey: key) }
         controller.model.onPush = CommandProgressContext.capture { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = CommandProgressContext.capture { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }

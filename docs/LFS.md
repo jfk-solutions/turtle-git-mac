@@ -48,8 +48,14 @@ captured selection. Close the results to refresh the list once. A complete
 successful Lock offers the existing Pull workflow; opening its options does not
 run Pull automatically.
 
-The same owned progress flow is used by Add, Commit, Working Tree and Finder
-file commands. The initiating window stays protected until result review ends.
+The same owned progress flow is used by Add, Commit, Working Tree, Log and Finder
+file commands. In Log, select the working-tree revision and right-click its
+changed files for **LFS Lock** and **LFS Unlock**. Log offers both actions without
+querying server ownership; it keeps its five normal columns and has no LFS owner
+column. These commands apply to tracked working-tree files; historical revisions,
+folders and conflicted selections do not offer these mutations. Commands retain the selected paths and their original repository
+through progress and Force retry. Closing the result refreshes the working-tree
+file list. The initiating window stays protected until result review ends.
 Saved progress action logs retain the recorded command/file/error rows for each
 attempt. See [Saved Data](SAVED-DATA.md) and [the action log](ACTION-LOG.md).
 

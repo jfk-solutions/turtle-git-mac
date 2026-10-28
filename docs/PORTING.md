@@ -2,13 +2,26 @@
 
 ## Current installed checkpoint
 
+[Build20](qa/signed-consolidation-build20-2026-10-28.json), version 0.1.0 (20),
+is installed from `69930ed12384fadd5f2c57307332661405a10aa2`. It consolidates
+Commit option delivery, invocation-owned progress and SVN Action log, and spatial
+image effects. Measured inputs, strict signatures, universal owned components and
+complete installed inventory pass. Focused signed sandbox metafile execution also
+passes, with owned processes drained. Build19 is preserved for recovery. No
+shipping GUI, Finder or Dock was launched or restarted during this installation.
+The later Log working-tree LFS batch is not part of this frozen package. Physical
+Finder/UI/VoiceOver, Intel/minimum-macOS, full hosted and complete port acceptance
+remain separate gates.
+
+### Previous installed checkpoint
+
 [Build19](qa/signed-consolidation-build19-2026-10-27.json), version 0.1.0 (19),
-is the installed package from `6de62e8848529871d5c0c92cf320c8b68d1eace9`.
+was the previous installed package from `6de62e8848529871d5c0c92cf320c8b68d1eace9`.
 The October 28 read confirmed its installed version and main executable SHA-256
 against that receipt. It did not repeat the receipt's complete signature,
 6,367-member inventory or universal-component checks, and performed no physical
-acceptance. The receipt records a build18 recovery backup. Later Commit, history/delivery and pending image-effect
-work in this checkout is not part of that installed package.
+acceptance. The receipt records a build18 recovery backup. Later Commit, history/delivery and image-effect work was absent from build19;
+its current consolidation is identified above.
 
 The older [build16 checkpoint](qa/signed-consolidation-build16-2026-10-27.json)
 records installed Commit main-menu Undo/Redo and physical shortcuts restoring

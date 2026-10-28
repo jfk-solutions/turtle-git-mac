@@ -761,6 +761,7 @@
         "docs/qa/log-integration-preparation-2026-10-16.json",
         "docs/qa/log-jump-2026-10-06.json",
         "docs/qa/log-label-visibility-2026-10-07.json",
+        "docs/qa/log-lfs-family-2026-10-28.json",
         "docs/qa/log-list-preferences-2026-10-09.json",
         "docs/qa/log-live-walk-2026-10-15.json",
         "docs/qa/log-mark-2026-10-05.json",
@@ -1569,6 +1570,7 @@
         "docs/qa/lfs-review-refresh-2026-10-09.json",
         "docs/qa/lfs-status-actions-2026-10-08.json",
         "docs/qa/lfs-tristate-2026-10-08.json",
+        "docs/qa/log-lfs-family-2026-10-28.json",
         "docs/qa/status-colors-2026-10-09.json",
         "docs/qa/working-tree-columns-2026-10-09.json",
         "docs/qa/working-tree-lfs-owner-2026-10-08.json"
@@ -1928,6 +1930,7 @@
         "docs/qa/log-integration-preparation-2026-10-16.json",
         "docs/qa/log-jump-2026-10-06.json",
         "docs/qa/log-label-visibility-2026-10-07.json",
+        "docs/qa/log-lfs-family-2026-10-28.json",
         "docs/qa/log-list-preferences-2026-10-09.json",
         "docs/qa/log-live-walk-2026-10-15.json",
         "docs/qa/log-mark-2026-10-05.json",

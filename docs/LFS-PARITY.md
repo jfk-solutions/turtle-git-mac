@@ -561,3 +561,41 @@ It distinguishes initial destination cleanup from later recursive partial work,
 retains bare/no-checkout suppression and owns actual filter cancellation/progress.
 Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
 in that family; it does not claim persistent filter-process or complete providers.
+
+
+## Log working-tree selected files — October 28, 2026
+
+The Log changed-file list joins the existing owned LFS command family for its
+working-tree selection. This is separate from adding an owner column: pinned
+`LogDlg.cpp:308` excludes `GITSLC_COLLFSLOCK` from the shown and allowed column
+masks, while its popup mask retains Lock/Unlock. The
+tracked/current-version/nonconflict gate is
+`GitStatusListCtrl.cpp:1815,1840–1841`; its hidden-owner branch at
+`2776–2798` checks the local LFS marker and selected directories, then offers
+both Lock and Unlock without a remote locks query.
+
+Native Log actions retain original artwork, captured selected-path order and
+originating repository/preferences. The existing per-file progress model owns
+actual command drainage and result review, cancellation without rollback,
+failed-Unlock Force retry, Action log records and the successful complete
+Lock→Pull options follow-up. Result dismissal refreshes the Log working-tree
+files, including after errors/cancellation. Historical rows, directories and
+conflicted/untracked selections cannot become lock targets, and a retained menu
+cannot retarget a later working-tree/revision snapshot. Native preparation
+rechecks the index, LFS marker and submodules with a cancellable owned read.
+Bare repositories, reference pickers, raw filesystem names and unavailable
+owners refuse dispatch. Close during preparation drains its read; forced owner
+retirement drains child/progress-action work and retains peer refresh for server
+changes already made.
+
+Source selected-path dispatch and parent refresh are
+`GitStatusListCtrl.cpp:2128–2148`; Force retry and successful Lock→Pull are in
+`ProgressCommands/LFSSetLockedProgressCommand.cpp:46–65`. The Log list retains its
+five-column layout and does not infer current server ownership from historical
+metadata. See the [Log continuation](LOG-PARITY.md#working-tree-file-lfs-actions--october-28-2026).
+
+The [Log LFS record](qa/log-lfs-family-2026-10-28.json) records actual grouped
+validation and its limits. Earlier LFS receipts above
+cover their dated callers, not this new Log entry. Real authenticated providers,
+arbitrary invalid UTF-8 filesystem targets, physical/VoiceOver interaction,
+signed external grants and complete visual/application parity remain open.

@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-local-consolidation-installed",
+  "version": "0.1.0 (20)",
+  "source_commit": "69930ed12384fadd5f2c57307332661405a10aa2",
+  "scope": [
+    "Commit option observer delivery and ReCommit editor continuity fixes.",
+    "Invocation-owned command progress close policy and SVN Action log continuation.",
+    "Native WMF/EMF spatial image effects, universal helper and updated bundled Help."
+  ],
+  "build": {
+    "exit": 0,
+    "source_input_sha256": "94ec466e4074a74937bc8096c6676516b6b73e16afed7816c99784e02b15122c",
+    "application_sha256": "74c79bc25ad32d150442c3eb906d0abe8385885ba3815bff47f2400ba659bb40",
+    "source_inputs_unchanged": true,
+    "inventory_members": 6378,
+    "strict_signature": "passed",
+    "signing_channel": "Apple Development; local only",
+    "universal_owned_components": 8,
+    "main_finder_cache_sandbox_and_shared_group": "passed",
+    "inherited_runtime_representatives": [
+      "Git",
+      "LibGit2",
+      "Metafile"
+    ],
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 92,
+    "owned_component_architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    }
+  },
+  "signed_runtime": {
+    "scope": "Focused packaged metafile execution from a signed sandbox parent; location and cleanup phases included.",
+    "requested_phases": [
+      "metafile"
+    ],
+    "cases": [
+      {
+        "mode": "location",
+        "passed": true
+      },
+      {
+        "mode": "metafile",
+        "passed": true
+      },
+      {
+        "mode": "cleanup",
+        "passed": true
+      }
+    ],
+    "metafile_cases": 17,
+    "helper_processes": 16,
+    "helper_processes_and_groups_drained": true,
+    "forced_cleanup_needed": false,
+    "all_observed_pids_independently_absent": true,
+    "fixtures_unchanged": true,
+    "shipping_gui_launched": false
+  },
+  "installation": {
+    "date": "2026-10-28",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "build": "20",
+    "source_commit": "69930ed12384fadd5f2c57307332661405a10aa2",
+    "main_sha256": "74c79bc25ad32d150442c3eb906d0abe8385885ba3815bff47f2400ba659bb40",
+    "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed20-displaced-installed-2026-10-28",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "registration": [
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-m",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "exit": 0,
+        "stdout": "+    org.turtlegit.macos.finder(0.1.0)\n",
+        "stderr": ""
+      }
+    ],
+    "main_app_launched": false,
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "app_store_submission": false
+  },
+  "limits": [
+    "Log working-tree LFS implementation is a subsequent batch, not in this frozen package.",
+    "No renewed physical Finder/menu/keyboard/VoiceOver acceptance or full signed UI workflow pass is implied.",
+    "Focused sandbox evidence does not repeat all App Group/history/Unified Diff phases.",
+    "Intel and minimum-macOS execution, complete hosted CI, complete upstream parity and external distribution remain open.",
+    "No App Store, notarization or external upload performed."
+  ]
+}

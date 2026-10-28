@@ -420,6 +420,8 @@ jobs:
           python3 scripts/test-workspace-files.py --only workspace --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LFS exact paths, owner columns and captured progress
         run: python3 scripts/test-lfs-path-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Log working-tree LFS selection and owned progress
+        run: python3 scripts/test-log-working-lfs.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Bundled Mac help and contextual dispatch
         run: python3 scripts/test-help-book.py
       - name: Hierarchical settings operation ownership

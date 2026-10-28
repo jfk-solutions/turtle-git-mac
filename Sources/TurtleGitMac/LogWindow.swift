@@ -230,6 +230,14 @@ final class LogHistoryWindow: NSWindow {
     private(set) var patchPreviewWindow: PatchWindowController?
     private var previousPatchParentFrame: NSRect?
     private var positioningPatch = false
+    var onPullAfterLFSLock: () -> Void = {}
+    var onLFSProgressLog: (String) -> Void = { _ in }
+    private(set) var lfsOperation: LFSFileOperationController?
+    private var closingLog = false
+    private let commandProgressScope = CommandProgressContext.current
+    var makeLFSOperation: (GitRepository, RepositoryAccessLease?, UserDefaults) -> LFSFileOperationController = {
+        LFSFileOperationController(repository: $0, access: $1, defaults: $2)
+    }
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
@@ -260,6 +268,35 @@ final class LogHistoryWindow: NSWindow {
         model.onFindReferenceRefresh = { [weak self] in self?.find?.loadReferences() }
         model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
         model.onPatchPreviewContent = { [weak self] bytes in self?.patchPreviewWindow?.model.setReadOnlyDiff(bytes) }
+        model.onWorkingLFSOperation = CommandProgressContext.capture(commandProgressScope) { [weak self] paths, locked in
+            guard let self, !self.closingLog, !self.model.isInvalidated, let owner = self.window,
+                  owner.attachedSheet == nil, self.lfsOperation == nil else { return false }
+            let progress = self.makeLFSOperation(repository, access, labelDefaults)
+            progress.model.onProgressLog = CommandProgressContext.capture(self.commandProgressScope) { [weak self] path in
+                guard let self, !self.closingLog, !self.model.isInvalidated else { return }
+                self.onLFSProgressLog(path)
+            }
+            progress.model.onPullAfterLock = CommandProgressContext.capture(self.commandProgressScope) { [weak self] in
+                guard let self, !self.closingLog, !self.model.isInvalidated else { return }
+                self.onPullAfterLFSLock()
+            }
+            progress.onClosed = CommandProgressContext.capture(self.commandProgressScope) { [weak self, weak progress] in
+                guard let self, let progress, self.lfsOperation === progress else { return }
+                // Forced owner closure retires the child immediately, but the
+                // accepted batch still owns its permissions until Git drains.
+                if progress.model.busy || progress.model.progressActionBusy {
+                    Task { @MainActor [self, progress] in
+                        while progress.model.busy || progress.model.progressActionBusy { try? await Task.sleep(nanoseconds: 5_000_000) }
+                        self.finishWorkingLFS(progress)
+                    }
+                } else { self.finishWorkingLFS(progress) }
+            }
+            self.lfsOperation = progress
+            guard progress.present(owner: owner, paths: paths, locked: locked) else {
+                self.lfsOperation = nil; progress.close(); return false
+            }
+            return true
+        }
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
         model.confirmWorkingDelete = { count, permanently in
             let alert = NSAlert(); alert.alertStyle = .warning
@@ -579,7 +616,18 @@ final class LogHistoryWindow: NSWindow {
         finishStartReferencePicker(request); child?.abandonPresentation()
     }
     var hasBlockingReferenceChild: Bool { containingReferences.values.contains { $0.hasBlockingChild } }
+    private func finishWorkingLFS(_ progress: LFSFileOperationController) {
+        guard lfsOperation === progress else { return }
+        lfsOperation = nil
+        // Server changes may have completed before a forced owner close.
+        // Refresh repository peers even when this Log has already retired.
+        model.onRevisionChanged(progress.model.information)
+        guard !closingLog, !model.isInvalidated else { return }
+        model.busy = false
+        model.requestRepositoryRefresh()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.cancelWorkingLFSRead(closeAfter: true) { return false }
         if model.cancelFollowedComparison(closeAfter:true) { return false }
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
@@ -588,6 +636,8 @@ final class LogHistoryWindow: NSWindow {
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
+        closingLog = true
+        lfsOperation?.close()
         model.saveLogViewPreferences(); model.savePaneLayout()
         documentOpen?.retire(); filePanels.retire()
         window?.makeFirstResponder(nil)
@@ -605,8 +655,8 @@ final class LogHistoryWindow: NSWindow {
         window?.contentViewController = nil
         completion?(nil);multiple?(nil)
         let closed=onClosed;onClosed={}
-        if model.noteWorkPending || model.revisionColumnWorkPending {
-            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
+        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || lfsOperation != nil {
+            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
         }else{closed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
@@ -816,7 +866,7 @@ struct LogCommandRequest: Identifiable {
     func installEmbeddedHistoryContext(_ metadata: FinderRepositoryMetadata, currentBranch: String, referenceContext: HistoryReferenceContext, bisectTerms: HistoryBisectTerms) {
         guard !isInvalidated else { return }
         bare = metadata.bare; mergeActive = metadata.mergeActive; bisectActive = metadata.bisectActive
-        hasGitSVN = metadata.hasGitSVN; hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
+        hasGitSVN = metadata.hasGitSVN; hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig; workingHasLFS = metadata.hasLFS
         self.currentBranch = currentBranch; self.referenceContext = referenceContext
         bisectGoodTerm = bisectTerms.good; bisectBadTerm = bisectTerms.bad
     }
@@ -877,6 +927,7 @@ struct LogCommandRequest: Identifiable {
     @Published var showUnversionedFiles = true
     @Published private(set) var workingTreeSnapshot: WorkingTreeHistory?
     @Published private(set) var workingIndexFiles: [WorkingTreeFile] = []
+    @Published private(set) var workingHasLFS = false
     private var workingSubmodules = GitPathSet()
     var selectedWorkingTree: Bool { selected == [""] && workingTreeSnapshot != nil }
     var includesWorkingTree: Bool { selected.contains("") && workingTreeSnapshot != nil }
@@ -2274,6 +2325,7 @@ struct LogCommandRequest: Identifiable {
         followedSession?.cancel();closeAfterFollowedRead=false
         integrationCancellation?.cancel(); closeAfterIntegrationRead = false
         workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
+        workingLFSCancellation?.cancel();closeAfterWorkingLFSRead=false
         changedFileColumnRequest=UUID();resettingChangedFileColumns=false;focusedChangedFile=nil
         combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll()
         startReferenceCancellation?.cancel(); startReferenceCancellation = nil
@@ -2370,7 +2422,7 @@ struct LogCommandRequest: Identifiable {
                 if let last = historyLimit.until ?? dates.max() { to = last }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"; self.currentBranch = currentBranch; self.fetchHeadRevision = startReferences.fetchHead; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
-                hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig; hasGitSVN = metadata.hasGitSVN; self.svnRevisions = svnRevisions
+                hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig; hasGitSVN = metadata.hasGitSVN; workingHasLFS = metadata.hasLFS; self.svnRevisions = svnRevisions
                 canFollowRenames = followAllowed
                 self.pathScopes = pathScopes
                 if !patchPreviewPreferenceLoaded {
@@ -3178,6 +3230,77 @@ struct LogCommandRequest: Identifiable {
             showHistoricalRevertResult(message + (failures == 0 ? "" : "\n\(failures) file(s) failed."))
         }
     }
+    // Log's allowed column mask excludes LFS ownership. Match the source's
+    // hidden-owner menu: both commands, without fetching the server lock list.
+    var onWorkingLFSOperation: (([String], Bool) -> Bool)?
+    private var workingLFSCancellation: OperationCancellation?
+    private var closeAfterWorkingLFSRead = false
+    private(set) static var activeWorkingLFSReads = 0
+    var workingLFSReadPending: Bool { workingLFSCancellation != nil }
+    var readWorkingLFSSelection: (([String], OperationCancellation) async throws -> [WorkingTreeFile])?
+    private func eligibleWorkingLFSEntries(_ chosen: [CommitFile], index: [WorkingTreeFile], hasLFS: Bool, submodules: GitPathSet) -> Bool {
+        guard !chosen.isEmpty, chosen.allSatisfy({ $0.action != "?" && !$0.isSubmodule }) else { return false }
+        let entries = chosen.compactMap { file in index.first { GitReferenceName.equal($0.id, file.path) }?.entry }
+        guard entries.count == chosen.count, entries.allSatisfy({ $0.state != .untracked && $0.state != .ignored }) else { return false }
+        return LFSLockingSelection.isAvailable(entries, hasLFS: hasLFS, root: repository.root, directories: submodules)
+    }
+    func workingLFSActions(_ ids: some Sequence<String>) -> [LFSLockMenuAction] {
+        let ids = GitPathSet(ids)
+        guard selectedWorkingTree, !bare, hasRepresentableFilePaths(ids) else { return [] }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
+        guard chosen.count == ids.count, eligibleWorkingLFSEntries(chosen, index: workingIndexFiles, hasLFS: workingHasLFS, submodules: workingSubmodules) else { return [] }
+        return [.lock, .unlock]
+    }
+    func canWorkingLFS(_ ids: some Sequence<String>, locked: Bool) -> Bool {
+        canStartHistoryTransport && !confirmingQuit && !referencePickerBlocked && !resettingRevisionColumns &&
+        onWorkingLFSOperation != nil && workingLFSCancellation == nil && workingLFSActions(ids).contains(locked ? .lock : .unlock)
+    }
+    @discardableResult func cancelWorkingLFSRead(closeAfter: Bool = false) -> Bool {
+        guard let token = workingLFSCancellation else { return false }
+        closeAfterWorkingLFSRead = closeAfterWorkingLFSRead || closeAfter
+        token.cancel(); return true
+    }
+    func setWorkingLFSLocked(_ ids: some Sequence<String>, locked: Bool) {
+        let ids = GitPathSet(ids)
+        guard requireNativeFilePaths(ids), canWorkingLFS(ids, locked: locked) else { return }
+        let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
+        let paths = chosen.map(\.path)
+        let request = generation, selection = selected, fileRequest = fileSelectionGeneration
+        let token = OperationCancellation()
+        workingLFSCancellation = token; busy = true; error = nil
+        Self.activeWorkingLFSReads += 1; Self.activeActionReads += 1
+        Task {
+            defer {
+                Self.activeWorkingLFSReads -= 1; Self.activeActionReads -= 1
+                if workingLFSCancellation === token {
+                    workingLFSCancellation = nil
+                    let closing = closeAfterWorkingLFSRead; closeAfterWorkingLFSRead = false
+                    if closing, !isInvalidated { busy = false; window?.performClose(nil) }
+                }
+                withExtendedLifetime(access) {}
+            }
+            do {
+                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                let fresh: [WorkingTreeFile]
+                if let readWorkingLFSSelection { fresh = try await readWorkingLFSSelection(paths, token) }
+                else { fresh = try await repository.workingTreeStatus(refreshIndex: false, cancellation: token) }
+                let hasLFS = try await repository.hasLFS(cancellation: token)
+                let submodules = GitPathSet(try await repository.submodulePathNames(cancellation: token).map(\.rawValue))
+                try token.check()
+                guard request == generation, selection == selected, fileRequest == fileSelectionGeneration, !isInvalidated, !confirmingQuit,
+                      !closeAfterWorkingLFSRead, window?.attachedSheet == nil else { busy = false; return }
+                guard eligibleWorkingLFSEntries(chosen, index: fresh, hasLFS: hasLFS, submodules: submodules) else { throw RevisionComparisonFailure.selection }
+                // The controller accepts exact captured paths and owns busy
+                // through operation drain and result review, including retries.
+                if onWorkingLFSOperation?(paths, locked) != true { busy = false }
+            } catch {
+                if request == generation, !isInvalidated {
+                    busy = false
+                    if !token.isCancelled { self.error = error.localizedDescription }
+                }
+            }
+        }
+    }
     var confirmWorkingFlags: (IndexFlagAction) async -> Bool = { _ in false }
     func workingFlagMark(_ ids: some Sequence<String>) -> WorkingTreeFile? {
         let ids = GitPathSet(ids)
@@ -3665,6 +3788,11 @@ struct LogDialog: View {
             }
             if let mark = model.workingFlagMark(ids) {
                 IndexFlagsMenu(files: model.workingIndexFiles.filter { ids.contains($0.id) }, selectionMark: mark) { action in model.withFileMenu(snapshot) { model.setWorkingFlag(action, ids: ids) } }.disabled(model.busy || model.isInvalidated || model.bare)
+            }
+            ForEach(model.workingLFSActions(ids), id: \.self) { action in
+                Button { model.withFileMenu(snapshot) { model.setWorkingLFSLocked(ids, locked: action == .lock) } } label: {
+                    CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock)
+                }.disabled(!model.canWorkingLFS(ids, locked: action == .lock))
             }
             Divider()
         }

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "9e7557b20d26912d4a0720ac1e5f6f9617eb58dcaf37934f527b0f97f7c9bc18",
+    "Contents/Info.plist": "039d52e526f4894302d9f7e7fb2838887eef1104409e983c881ee260280f3d20",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
@@ -23,7 +23,7 @@
     "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "52b2ac537b1bb6bfb806ea2fefcce56ff0559dc1a129d66792fff0f457a2542a",
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
     "Contents/Resources/en.lproj/LANGUAGES.html": "2df185809fd22cd1411547d88439b06b50c41286e84aaa22268220532cae78bc",
-    "Contents/Resources/en.lproj/LFS.html": "1597a08612d2a11f3329788c14da97679302181be2d2c6c2a5392af81452774f",
+    "Contents/Resources/en.lproj/LFS.html": "528fc0a010725c22000a836e7925323d82bc01990d89b1f706fb67170a35a13c",
     "Contents/Resources/en.lproj/LIBGIT2-TRANSPORT.html": "f37fe6be66e929390202b0015b3097672dfa1baa37d96bf2c4eb8ebd7d25abae",
     "Contents/Resources/en.lproj/LIBREOFFICE-COMPARISON.html": "d04c8e8aa45b8671b5a9b5657be1a9a43d65e6ea57b8d6d3023aa50dbe87311c",
     "Contents/Resources/en.lproj/LIST-SELECTION.html": "7f1b4eca280abff90e65b7ed82d6cf947c270337332235dbb04d2b88ebac76ba",
@@ -114,7 +114,7 @@
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",
     "docs/IMAGE-COMPARISON.md": "e4239f128a76cf0a1f621b6ac4e679255eb8f6fb9877f66dc6be16966ace949b",
     "docs/LANGUAGES.md": "ed51f9133b61e064168e2b44843d47a7378d4fc054c86507b742b4a855257611",
-    "docs/LFS.md": "e8b3f0ed2af880058d2c59e82e32942fa8c7a3ca957626fb55c55d74afcc6ffa",
+    "docs/LFS.md": "425e3601802b5d81be3c25976e56d80c5b3ac1b434a002ba6987208b098404b8",
     "docs/LIBGIT2-TRANSPORT.md": "84fe75171fb6b8298de56e5801754a42bed5137cbb28f0405d6f57c6bd505164",
     "docs/LIBREOFFICE-COMPARISON.md": "c3860b33d7328aca64e6a930ea9289aea4e98eada3349a71279fdafa808cfea8",
     "docs/LIST-SELECTION.md": "232668a1da8fa2990ce59256f81cffd10e50c9703bae5fffabf3a3c95755d9e7",

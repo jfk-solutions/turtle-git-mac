@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-28",
+  "status": "grouped-native-checkpoint-passed",
+  "scope": "Log selected working-tree file LFS lock/unlock workflow; source hidden-owner menus and owned progress/recovery/refresh",
+  "initial_native_attempt": {
+    "log": "build/qa/log-working-lfs-native-2026-10-28.log",
+    "result": "failed on system Git before LFS execution",
+    "owned_receiver_pid": 88847,
+    "receiver_reaped_and_independently_absent": true,
+    "helper_cleanup": "verified",
+    "failure": "Missing requested actual changed-file row gone.bin",
+    "diagnosis": "Private fixtures used identical initial file blobs. With the unmerged conflict entry, real Git status --renames omitted the deleted path; status --no-renames and diff HEAD still reported it. Distinct substantial per-file inputs and an explicit real-Git deleted-row precondition repair the fixture; production unchanged."
+  },
+  "debug_build": {
+    "result": "passed",
+    "log": "build/qa/log-lfs-debug-2026-10-28.log",
+    "configuration": "Debug, CODE_SIGNING_ALLOWED=NO, two jobs"
+  },
+  "core": "Unchanged; no Core rerun for native Log routing and selection integration.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contract": {
+    "LogDlg.cpp:308": "POPALL excludes restore/changelists, and excludes owner/size/date from allowed and shown columns.",
+    "GitStatusListCtrl.cpp:1815,1840-1841,2776-2798": "Tracked current-version nonconflict files, local LFS marker, no directories; hidden owner column offers both Lock and Unlock without server ownership query.",
+    "GitStatusListCtrl.cpp:2128-2148": "Selected literal paths, owned progress, parent refresh.",
+    "ProgressCommands/LFSSetLockedProgressCommand.cpp:46-65": "Failed Unlock Force retry and successful Lock Pull-options follow-up."
+  },
+  "implementation": [
+    "Original source Lock/Unlock artwork, source eligibility and unchanged five-column layout.",
+    "Snapshot-owned selected path/order and fresh cancellable index/LFS/submodule validation; no server lock-list query.",
+    "Existing per-file progress, force retry, cancellation retaining completed effects and result review.",
+    "Read/global Quit accounting, forced owner retirement and child drainage before release; repository peer refresh on all outcomes.",
+    "Dedicated Log and Pull callbacks capture invocation progress scope, repository access and originating preferences."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "01518d29f77276df6e0315586601d889275e9be4955c0592561d5e742d98123b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2000b2ba22f86d1935fc3236f408c3f529297d0720f7a454100e3571017b4df8",
+    "docs/qa/log-working-lfs-native-2026-10-28.swift": "d8bb4324fa5ebd9f0ccea04f253fac680348f9798bf020f64f4c6d023f1f0c91",
+    "scripts/test-log-working-lfs.py": "24603df098711e718c187a4a0782993f37c1f1e99a0b9bc2003bf6b2d73ebe0a"
+  },
+  "limits": [
+    "Deterministic local LFS subprocess fixture does not establish authenticated public-provider behavior.",
+    "No physical menus/keyboard/VoiceOver, signed external file-grant or complete source/layout certification.",
+    "Installed build20 is frozen at69930ed1 and predates this Log LFS batch; no updated installation claim.",
+    "Complete hosted macOS CI and full-port acceptance remain open."
+  ],
+  "selection_adapter_recheck": {
+    "log": "build/qa/log-working-lfs-native-recheck-2026-10-28.log",
+    "result": "failed system Git while awaiting native changed-file selection binding",
+    "owned_receiver_pid": 89216,
+    "receiver_reaped": true,
+    "helper_cleanup": "verified",
+    "failure": "Context.select at line146 did not publish exact selectedFiles within the existing bound.",
+    "repair_scope": "Fixture native-table attachment/row-count readiness and explicit deselect/reselect gesture; retain exact selectedFiles and all behavior assertions. No wait extension or production change."
+  },
+  "post_result_refresh_recheck": {
+    "log": "build/qa/log-working-lfs-native-selection-recheck-2026-10-28.log",
+    "result": "failed system Git at subsequent injected preflight setup",
+    "owned_receiver_pid": 89449,
+    "receiver_reaped": true,
+    "helper_cleanup": "verified",
+    "passed_before_failure": "Successful actual Lock exact argv/order, duplicate snapshot refusal, Show Log callback, manual result/Quit ownership, failed Unlock and successful Force exact argv.",
+    "failure": "Fixture next selection began while the deferred post-result history refresh was busy, so production correctly refused new LFS work.",
+    "repair_scope": "Observe completion of automatic refresh and native readiness before issuing next selection/operation; retain busy guards and timeout bounds."
+  },
+  "modal_readiness_recheck": {
+    "log": "build/qa/log-working-lfs-native-refresh-recheck-2026-10-28.log",
+    "result": "failed system Git before held subprocess cancellation phase",
+    "owned_receiver_pid": 89734,
+    "receiver_reaped": true,
+    "helper_cleanup": "verified",
+    "passed_before_failure": "Lock/Force/result review plus automatic refresh, held preflight cancellation/drain/Quit, stale selection and fresh missing-path refusal.",
+    "failure": "Valid dispatch after intentionally presenting a fresh-selection error did not start; investigating native sheet release and complete action readiness.",
+    "repair_scope": "Fixture acknowledges the intentional error through its actual native OK button, awaits binding clear and sheet detachment, and verifies complete action readiness before valid dispatch. All test-owned windows/sheets use the established offscreen/alpha-zero ordering shim."
+  },
+  "owner_cache_repair": {
+    "problem": "An ordinary Close during an accepted asynchronous Notes read invalidated the Log but retained its base cache entry until the worker drained. Immediate same-key opening could revive the retired blank controller.",
+    "repair": "Exclude invalidated owners from reuse; replace their base cache slot with the fresh owner. The retired controller retains itself through its existing worker-drain Task and its identity-checked close callback cannot remove the fresh replacement. Repeated same-key opening reuses the live replacement before and after old drain.",
+    "build_logs": [
+      "build/qa/log-lfs-debug-owner-repair-2026-10-28.log",
+      "build/qa/log-lfs-debug-cache-replacement-2026-10-28.log"
+    ],
+    "build_results": [
+      0,
+      0
+    ],
+    "core": "unchanged",
+    "native_regression": "Held real native Notes read, ordinary performClose, fresh same-key owner and reuse before/after old worker drainage."
+  },
+  "error_sheet_visibility_recheck": {
+    "log": "build/qa/log-working-lfs-native-final-2026-10-28.log",
+    "result": "failed at expected error sheet visibility assertion",
+    "owned_receiver_pid": 90250,
+    "receiver_reaped": true,
+    "helper_cleanup": "verified",
+    "failure": "Fixture required both alpha zero and negative-screen frame; determine actual visibility and enforce invisible-or-offscreen policy with recorded diagnostics before acknowledgement.",
+    "production": "Unchanged; current final Debug cache-replacement build passed.",
+    "subsequent_evidence": "Successful final run recorded sheet alpha0 while AppKit moved its frame onto a screen. The earlier combined alpha-zero AND negative-X assertion was stricter than the invisible-or-offscreen policy. Pre-presentation sheet hiding and correct policy assertion retain desktop isolation; both engines pass."
+  },
+  "native": {
+    "command": "python3 scripts/test-log-working-lfs.py",
+    "log": "build/qa/log-working-lfs-native-hidden-sheet-recheck-2026-10-28.log",
+    "results": [
+      {
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "owned_receivers": [
+      90502,
+      90743
+    ],
+    "cleanup": "All success/failure receivers reaped and independently absent after completion; exact-executable/private-resource helper cleanup verified by runner; owned native windows/sheets closed.",
+    "scope": [
+      "Source eligibility, hidden-owner Lock/Unlock actions, unchanged five-column mask and original icon policy.",
+      "Literal selected-path and displayed-order Git-LFS stub argv, one-shot/stale menus and fresh selection refusal.",
+      "Actual per-file Lock, Unlock failure/Force retry, result review, Show Log and Pull follow-up callbacks.",
+      "Held preflight cancellation, actual Quit refusal, stale selection and missing fresh path atomic refusal.",
+      "Real subprocess cancellation retains completed effects; forced owner closure retains work until drain and peer refresh.",
+      "Automatic post-result reload observed through native model busy publication, not explicit extra reload or delays.",
+      "Ordinary Close during a held Notes read, fresh same-key Log replacement/reuse before and after retired worker drain.",
+      "Private preferences/pasteboard/repository; HEAD, index, configuration and working file contents retained."
+    ]
+  },
+  "supporting_checks": {
+    "localization": "--check passed: 38 languages,1325keys; no new user-facing literals.",
+    "help": "--check passed: 60 documents,51topics,92files,8716824bytes.",
+    "core": "No Core implementation changed; no full Core rerun.",
+    "coverage": "Both tracked ledgers reconciled; counts are resource coverage, not completion."
+  },
+  "independently_absent_receiver_pids": [
+    88847,
+    89216,
+    89449,
+    89734,
+    90250,
+    90502,
+    90743
+  ]
+}
