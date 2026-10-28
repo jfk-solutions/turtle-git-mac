@@ -253,3 +253,35 @@ Unsandboxed launch arguments remain supplementary and deduplicated against URL
 events. The native sender seam asserts the URL, activation and instance policy,
 and absence of the rejected custom event. Signed physical acceptance remains
 required; descriptor construction alone does not prove sandbox launch behavior.
+
+## Dialog-first loading instead of duplicate workspace scans — October 28, 2026
+
+Build24's physical Finder click reached the app in about half a second and
+subsequently opened Commit, but the owner still observed an excessive delay.
+Source inspection found `openSession` awaited a complete workspace/Finder reload
+before constructing the Commit controller. That work started a publisher session,
+collected tracked/status/index/submodule metadata, merged the cache and wrote live
+and warm data. Commit then performed its own independent display read. Earlier
+private Commit-read timings did not include that first full publication.
+
+The following native repair retains folder and metadata permissions, exact
+selection/root validation and a fresh bare check, then presents standalone
+self-loading dialogs directly. The explicit family covers Commit, Status, Log,
+RefLog, stash list, revision graph, reference/repository browsers, Fetch, Pull,
+Push, branch/tag creation, Switch, Reset and Merge. Workspace adoption and
+Services actions requiring source eligibility retain their full preflight;
+entry-consuming operations use the existing route.
+
+Selected-root Finder publication waits for the chosen dialog's first read to
+settle. It has its own adoption token, dialog-close cancellation and termination
+drain, without setting routing busy. Post-await state and monitor updates check
+the captured root/adoption so a previous refresh cannot overwrite a newer root.
+Commit's hooks, provider/template handling, staged state and mutation readiness
+remain in its own load. No optional read is silently skipped.
+
+Local `DialogStartup` OS log phases record preflight, repository readiness,
+window presentation and Commit identity/change/message/row readiness, using only
+timing and row counts. They contain no paths, messages or configuration values.
+The [dialog-first checkpoint](qa/dialog-first-read-2026-10-28.json) requires real
+Commit, Log and Status windows and data while a private Finder writer lock remains
+held. That ordering proof is distinct from the next signed Ladybird timing check.

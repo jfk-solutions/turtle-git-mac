@@ -1,0 +1,214 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-arm64-installed-cold-finder-commit-window-observed-performance-unresolved",
+  "build": "24",
+  "source_commit": "2e275dbe6e7a162cc9a6e36f650f5567328cb5fa",
+  "source_input_sha256": "291f26264b3699cf87556589fd09fb83e2cd4d510fc615fb06c623b9bfa3391b",
+  "source_inputs_unchanged": true,
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed24-static-2026-10-28.json",
+  "installation_receipt": "build/qa/signed24-installed-2026-10-28.json",
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "signing_identity": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "24",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "24"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "24"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "owned_component_count": 8,
+    "architecture_scope": "Apple Silicon local testing; universal/Intel execution and release packaging remain separate.",
+    "runtime_representatives": {
+      "Git": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "LibGit2": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "Metafile": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "runtime_execution_repeated": false,
+    "application_sha256": "b5294d0ad872178e4a66e782c6f539b88a84969c8242528e73070a881b124d5e",
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "main_sha256": "b5294d0ad872178e4a66e782c6f539b88a84969c8242528e73070a881b124d5e",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "preserved_build23_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed24-displaced-installed-2026-10-28",
+    "launchservices_and_plugin_registration_exits": [
+      0,
+      0,
+      0
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "main_app_launched_by_installer": false,
+    "store_submission": false,
+    "first_preflight": {
+      "status": "failed-before-staging",
+      "cause": "The ignored installer expected build metadata to be a dictionary; the public build23 receipt uses a build string.",
+      "repair": "Installer baseline comparison corrected to static_validation.application_sha256; successful installation then used the recorded build23 main hash.",
+      "application_replaced_during_failed_preflight": false
+    },
+    "post_install_plugin_refresh": {
+      "scope": "Only the owned TurtleGit Finder plugin candidate was refreshed with remove-candidate, ignore and use registration operations.",
+      "finder_or_dock_restart": false
+    }
+  },
+  "physical_acceptance": {
+    "normal_startup": {
+      "status": "not-a-separate-build24-workspace-startup-check",
+      "configuration": "Installed sandboxed development-signed build24; deliberate actual Finder command acceptance below."
+    },
+    "quit": {
+      "pid": 24965,
+      "status": "shipping-main-process-later-observed-absent",
+      "unrelated_current_process": {
+        "pid": 25066,
+        "ownership": "User-launched empty workspace; not test-owned and not force-terminated."
+      }
+    },
+    "cold_finder_menu": {
+      "status": "passed",
+      "observation": "Actual Finder folder menu retained Commit while the main application was absent."
+    },
+    "cold_finder_commit": {
+      "status": "actual-menu-handoff-and-loaded-commit-window-observed-latency-unresolved",
+      "time_local": "2026-10-28 21:53:07.312 Europe/Berlin",
+      "action": "Actual Finder Commit menu click after reconnecting CUA.",
+      "finder_extension_pid": 24593,
+      "main_process_started": true,
+      "main_pid": 24965,
+      "get_url_accepted_time_local": "2026-10-28 21:53:07.849 Europe/Berlin",
+      "observation": {
+        "window": "Commit",
+        "branch": "jogi/shadowroot-elements-from-point",
+        "staged_files": 0,
+        "unstaged_files": 0,
+        "file_lists_and_headings_visible": true,
+        "message": "empty",
+        "stage_or_commit_action_performed": false
+      },
+      "latency": "No end-to-end few-second timing established. The user reports Commit remains slower than Windows.",
+      "initial_automation_attempt": {
+        "status": "CUA-click-timeout-and-kernel-reset",
+        "finder_callback_observed": false,
+        "main_process_started": false,
+        "interpretation": "Automation was reconnected and the actual menu click retried; the initial attempt does not establish a product handoff failure."
+      }
+    }
+  },
+  "retained_focused_evidence": "docs/qa/finder-supported-url-2026-10-28.json",
+  "retained_catalog_evidence": "docs/qa/finder-registered-context-2026-10-28.json",
+  "follow_on": {
+    "status": "foreground-dialog-performance-batch-pending",
+    "scope": "Remove the source-proven full foreground workspace/Finder collection before constructing self-loading Commit and related dialogs, then measure the affected route.",
+    "early_commit_preview_or_enrichment_changes": "Pending measured need; not implemented by this checkpoint.",
+    "installed_build24_contains_follow_on_repair": false
+  },
+  "limitations": [
+    "Build24 owned components are arm64 only; universal runtime representatives do not make this an Intel-compatible app package.",
+    "No runtime helper execution was repeated for this static/signing checkpoint.",
+    "Actual sandboxed Finder delivery and a loaded Commit window were observed; this does not prove end-to-end performance or the complete commit/push pipeline.",
+    "The first timed-out CUA attempt is automation evidence, not a proven application failure.",
+    "No stage or commit action was performed during the physical acceptance observation.",
+    "No App Store submission, complete hosted CI or whole-port visual parity claim."
+  ]
+}

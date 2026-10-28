@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-native-passed-signed-user-repository-latency-pending",
+  "scope": "Standalone self-loading native dialog routes must present and load own rows without awaiting workspace Finder collection/cache publication.",
+  "authored_native_check": {
+    "runner": "scripts/test-workspace-launch.py --only dialog-first-read",
+    "fixture": "docs/qa/dialog-first-read-native-2026-10-28.swift",
+    "routes": [
+      "Finder Commit with exact literal file scope",
+      "Finder Status with actual changed file",
+      "Finder Log with actual commit history"
+    ],
+    "ordering": "Real private FinderSnapshotStore writer flock remains held until all three actual native windows and rows are ready; MainActor heartbeat, no parent busy/workspace; release then owned deferred work drains.",
+    "integrity": "Retain actual repository root/authority and exact Commit path; HEAD, index and working file bytes unchanged.",
+    "git_engines": [
+      "system",
+      "bundled"
+    ],
+    "run": true
+  },
+  "limits": [
+    "This private actual model/native-window fixture is not physical Finder/Launch Services or signed cold-process acceptance.",
+    "Observed phase times are diagnostic and cannot establish a speedup for the user Ladybird repository.",
+    "Build24 physical cold Finder launch succeeded, but user still reported delay; no claim that overall latency is fixed.",
+    "No Core behavior change or Core repeat is planned for this native route batch."
+  ],
+  "validation": {
+    "debug": {
+      "log": "build/qa/dialog-first-read-debug-2026-10-28.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/dialog-first-read-native-2026-10-28.log",
+      "exit": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receivers_reaped": [
+        26133,
+        26306
+      ],
+      "samples_seconds": [
+        {
+          "engine": "system",
+          "commit": {
+            "window": 0.296,
+            "rows": 1.12
+          },
+          "status": {
+            "window": 0.158,
+            "rows": 0.483
+          },
+          "log": {
+            "window": 0.245,
+            "rows": 1.094
+          }
+        },
+        {
+          "engine": "bundled",
+          "commit": {
+            "window": 0.278,
+            "rows": 1.007
+          },
+          "status": {
+            "window": 0.134,
+            "rows": 0.462
+          },
+          "log": {
+            "window": 0.224,
+            "rows": 1.042
+          }
+        }
+      ],
+      "sample_boundary": "Actual native model routes and private fixture repository; Finder cache writer remained held throughout window/row acceptance, then released for actual owned publication drain.",
+      "window_policy": "Shared native receiver order interceptor keeps owned windows alpha0/offscreen; every owned dialog closed and receiver reaped."
+    },
+    "core": {
+      "run": false,
+      "reason": "Native-only route batch; existing Core53 and watcher results retained without repetition."
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2262b286b050bcb4d908aad11f237023bad2036830652ad910bdeeec0d93487e",
+    "Sources/TurtleGitMac/CommitWindow.swift": "b2856ca86858a278fd5d100f18a90846dc72fa87ecc493eaa9c33a93f57aab1a",
+    "Sources/TurtleGitMac/MergeToolPresentation.swift": "41757cf1ef04942b91f039c31ad9e6c75eb606eb9ca678d429f175e0f92c4efa",
+    "docs/qa/dialog-first-read-native-2026-10-28.swift": "9b15052095dbb2981bd214ef5bad4d806975c8d0869c3a060504c1c5d228643c",
+    "docs/qa/workspace-launch-native-2026-10-25.swift": "d72f807d1173ac0cfe2bf1993ce563dbcc0761a6ebf8dfa181b742321d9b9268",
+    "scripts/test-workspace-launch.py": "c0db7d7ef130824a0393060c583384ced2b34c98df335262a022b6f3da249d08"
+  },
+  "production_instrumentation": "Local DialogStartup OSLog phases in repository preflight/readiness, native Commit window presentation and Commit loading support the next actual signed timing check; these private-fixture samples do not measure user cold launch."
+}

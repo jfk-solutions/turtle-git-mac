@@ -2184,18 +2184,22 @@ import TurtleGitCore
         if hasLoaded {for entry in visibleEntries {retainedScopeChecks[entry.path]=checked.contains(entry.id)}}
         let position = fileListRefresh.begin(preferences:dialogDefaults,reset:!hasLoaded || requestedScope != scopePaths,selectedIDs:selection)
         let token = OperationCancellation(); reloadCancellation = token; Self.activeReloads += 1
+        let loadBegan = ProcessInfo.processInfo.systemUptime
+        NativeDialogStartupTrace.mark("commit.read.started", began: loadBegan)
         setReloadPhase(.identity, token: token)
         reloadTask = Task {
             defer {
                 Self.activeReloads -= 1; fileListRefresh.finish(position); withExtendedLifetime(access) {}
                 if reloadCancellation === token {
                     reloadCancellation=nil;reloadPhase=nil;reloadTask=nil;busy=false;offerMergeHint();offerStagingHint();offerUnversionedFiles()
+                    if hasLoaded, !token.isCancelled, fileListReadError == nil { NativeDialogStartupTrace.mark("commit.read.ready", began: loadBegan, count: entries.count) }
                     if amend,amendMessageReadFailed,!loadingAmendMessage,!confirmingQuit,fileListReadError==nil,!fileListReadCancelled {amendChanged()}
                 }
             }
             do {
                 try validateRestoreAccess()
                 guard try await requireCommitIdentity(token) else {busy=false;close();return}
+                NativeDialogStartupTrace.mark("commit.identity.ready", began: loadBegan)
                 // Collect the entire next display before changing the accepted
                 // one. Every suspension checks both token and owning window.
                 setReloadPhase(.settings, token: token)
@@ -2206,6 +2210,7 @@ import TurtleGitCore
                 let captured:CommitDialogRead?
                 if usesCapturedCommitRead {captured=try await readReload(token) {try await repository.commitDialogRead(amend:amend,amendDiffToLastCommit:amendDiffToLastCommit,cancellation:token)}}
                 else {captured=nil}
+                NativeDialogStartupTrace.mark("commit.change-read.ready", began: loadBegan, count: captured?.entries.count ?? 0)
                 let nextOperation:CommitOperation?,nextHasHead:Bool,nextHasParent:Bool
                 if let captured {nextOperation=captured.operation;nextHasHead=captured.hasHead;nextHasParent=captured.hasParent}
                 else {
@@ -2284,6 +2289,7 @@ import TurtleGitCore
                     setReloadPhase(.message, token: token)
                     seed = try await readReload(token) { try await loadMessageSeed(includeOperationMessages:!pendingRecommitSession,cancellation:token) }
                 } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
+                NativeDialogStartupTrace.mark("commit.message-provider.ready", began: loadBegan)
                 var nextOwners:GitPathMap<String>=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
                 var warnings=seed?.warnings ?? []
                 if nextHasLFS && fileColumns.visible.contains(.lfsOwner) {
@@ -2373,6 +2379,7 @@ import TurtleGitCore
                 }
                 if author.isEmpty || pendingRecommitSession,let nextAuthor {author=nextAuthor}
                 hasLoaded=true
+                NativeDialogStartupTrace.mark("commit.rows.accepted", began: loadBegan, count: entries.count)
                 if let seed {
                     issueProperties=nextIssueProperties!;projectSettings=nextProjectSettings!;messageHistory=nextHistory;messageTemplate=seed.template
                     if message.utf8.elementsEqual(draftMessage.utf8),issueID.utf8.elementsEqual(draftIssueID.utf8) {message=nextMessage;issueID=nextIssueID}

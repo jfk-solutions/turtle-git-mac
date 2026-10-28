@@ -3,6 +3,18 @@ import AppKit
 import Combine
 import SwiftUI
 import TurtleGitCore
+import os
+
+/// Local phase timing for diagnosing dialog startup. Never records paths,
+/// messages, configuration values or repository contents.
+enum NativeDialogStartupTrace {
+    private static let log = Logger(subsystem: "org.turtlegit.macos", category: "DialogStartup")
+    static func mark(_ phase: String, began: TimeInterval? = nil, count: Int = 0) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let elapsed = began.map { now - $0 } ?? 0
+        log.notice("phase=\(phase, privacy: .public) uptime_s=\(now, privacy: .public) elapsed_s=\(elapsed, privacy: .public) count=\(count, privacy: .public)")
+    }
+}
 
 /// General launches start with a lightweight command/router context. Restoring
 /// repository access and creating the workspace are explicit presentation work.

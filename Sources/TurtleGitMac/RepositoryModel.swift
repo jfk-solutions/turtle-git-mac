@@ -589,6 +589,8 @@ private enum TransportBatchPresentationContext {
     var repositoryBookmarkProvider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()
     var chooseRepositoryMetadataFolder:((RepositoryMetadataAccessRequirement,OperationCancellation) async throws -> URL?)?
     private var adoptionCancellation:OperationCancellation?
+    private var deferredDialogFinderRefresh: OperationCancellation?
+    var dialogFinderRefreshPending: Bool { deferredDialogFinderRefresh != nil }
     private var repositoryPermissionPrompt:RepositoryMetadataPermissionPrompt?
     private var repository: GitRepository?
     var settingsContextOverride: (repository:GitRepository,access:RepositoryAccessLease?,localAvailable:Bool)?
@@ -1144,6 +1146,7 @@ private enum TransportBatchPresentationContext {
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }
         guard root == nil || canChangeSettingsContext() else { return }
+        deferredDialogFinderRefresh?.cancel()
         stopFileMonitoring()
         completedRepositoryHandoff = nil
         adoptionGeneration += 1; hasGitSVN = false; bare = false; mergeActive = false
@@ -1188,11 +1191,13 @@ private enum TransportBatchPresentationContext {
     private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner suppliedHandoffOwner: RepositoryWindowOwner? = nil, serviceCommand: FinderServiceCommand? = nil, servicePreferences:UserDefaults? = nil, onOpened: (() -> Void)? = nil, requestedLocation: URL? = nil) {
         let handoffOwner = suppliedHandoffOwner ?? (invocation?.request.action == .revisionGraph && invocation?.outputFile != nil ? CommandGraphOutputContext.current?.owner : nil)
         guard !busy, !confirmingQuit, !retired, handoffOwner?.cancellation.isCancelled != true else { onFinished?(false); return }
+        NativeDialogStartupTrace.mark("route.preflight.started")
         let restoreState:()->Void = CommandProgressContext.capture { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
             self.branch=branch;self.bare=bare;self.hasGitSVN=hasGitSVN;self.mergeActive=mergeActive;self.conflictRebase=conflictRebase;self.submodules=submodules;self.section=section;self.output=output
         }
         completedRepositoryHandoff = nil
+        deferredDialogFinderRefresh?.cancel()
         stopFileMonitoring()
         adoptionGeneration += 1
         let adoption = adoptionGeneration
@@ -1309,15 +1314,21 @@ private enum TransportBatchPresentationContext {
                 if root.map({ !GitReferenceName.equal($0.path, resolved.path) }) ?? true {
                     guard canChangeSettingsContext() else { throw RepositorySettingsContextRefusal() }
                 }
+                let dialogFirst = workspaceWindow == nil && serviceCommand?.requiresSourceEligibility != true &&
+                    action.map(Self.isSelfLoadingDialogAction) == true
+                let dialogBare = dialogFirst ? try await preparedRepository.isBare(cancellation: cancellation) : nil
+                try cancellation.check(); guard adoption == adoptionGeneration else { return }
+                NativeDialogStartupTrace.mark("route.repository.ready")
                 repository = preparedRepository; activeAccess = sessionAccess; root = resolved
                 restoreCloneKeyAccess(root: resolved)
                 selection = []; entries = []; branch = ""; mergeActive = false
                 section = .status
                 output = "Repository: \(resolved.path)"
-                try await reload(cancellation:cancellation)
+                if let dialogBare { bare = dialogBare }
+                else { try await reload(cancellation: cancellation) }
                 try cancellation.check();guard adoption == adoptionGeneration else { return }
                 if bare { section = .log }
-                if let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
+                if !dialogFirst, let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
                 if let serviceCommand,serviceCommand.requiresSourceEligibility,let selected {
                     // reload collected this root's actual status and operation
                     // metadata; no Finder cache or prior workspace decides an
@@ -1355,6 +1366,7 @@ private enum TransportBatchPresentationContext {
                     }
                 }
                 opened = true; onOpened?()
+                if dialogFirst, let action { scheduleDialogFinderRefresh(action: action, root: resolved, adoption: adoption) }
             } catch {
                 guard adoption == adoptionGeneration else { return }
                 restoreState()
@@ -1381,6 +1393,74 @@ private enum TransportBatchPresentationContext {
             }
         }
     }
+    private static func isSelfLoadingDialogAction(_ action: RepositoryAction) -> Bool {
+        switch action {
+        case .commit, .status, .log, .reflog, .stashList, .revisionGraph,
+             .referenceBrowser, .repositoryBrowser, .fetch, .pull, .push,
+             .branch, .tag, .switchBranch, .reset, .merge: return true
+        default: return false
+        }
+    }
+    private func dialogInitialReadiness(action: RepositoryAction, root: URL) -> (exists: Bool, busy: Bool, windows: [NSWindow]) {
+        // Use the actual presented controllers, including command-owned cache
+        // keys. No initial collector is queued on their repository actor before
+        // these self-loading models finish their first native read.
+        @MainActor func state<C: NSWindowController>(_ values: [C], rootOf: (C) -> URL, busy: (C) -> Bool) -> (Bool, Bool, [NSWindow]) {
+            let live = values.filter { rootOf($0) == root && $0.window?.isVisible == true }
+            return (!live.isEmpty, live.contains(where: busy), live.compactMap { $0.window })
+        }
+        switch action {
+        case .commit: return state(commitWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .status: return state(statusWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .log: return state(logWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .reflog, .stashList: return state(referenceLogWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .revisionGraph: return state(revisionGraphWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .referenceBrowser: return state(referenceBrowserWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .repositoryBrowser: return state(browserWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .fetch, .pull: return state(fetchWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .push: return state(pushWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .branch, .tag: return state(referenceWindows.scopedValues, rootOf: { $0.model.chooser.repository.root }, busy: { $0.model.busy || $0.model.chooser.busy })
+        case .switchBranch: return state(switchWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        case .reset: return state(resetWindows.scopedValues, rootOf: { $0.model.chooser.repository.root }, busy: { $0.model.busy || $0.model.chooser.busy })
+        case .merge: return state(mergeWindows.scopedValues, rootOf: { $0.model.repository.root }, busy: { $0.model.busy })
+        default: return (false, false, [])
+        }
+    }
+    private func scheduleDialogFinderRefresh(action: RepositoryAction, root: URL, adoption: Int) {
+        deferredDialogFinderRefresh?.cancel()
+        let token = OperationCancellation(), id = UUID()
+        deferredDialogFinderRefresh = token; finderPublicationReads[id] = token
+        Task { [self] in
+            var closeObservers: [NSObjectProtocol] = []
+            defer {
+                closeObservers.forEach { NotificationCenter.default.removeObserver($0) }
+                finderPublicationReads.removeValue(forKey: id)
+                if deferredDialogFinderRefresh === token { deferredDialogFinderRefresh = nil }
+            }
+            do {
+                // Presentation and the child's first queued reads have priority.
+                await Task.yield()
+                while true {
+                    try token.check()
+                    guard !retired, !confirmingQuit, adoptionGeneration == adoption, self.root == root else { return }
+                    let readiness = dialogInitialReadiness(action: action, root: root)
+                    guard readiness.exists else { return }
+                    if closeObservers.isEmpty {
+                        closeObservers = readiness.windows.map { window in
+                            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in token.cancel() }
+                        }
+                    }
+                    if !readiness.busy { break }
+                    try await Task.sleep(nanoseconds: 10_000_000)
+                }
+                try await reload(cancellation: token)
+            } catch {
+                if !token.isCancelled, !retired, adoptionGeneration == adoption, self.root == root {
+                    finderStatus = "Finder cache unavailable: " + error.localizedDescription
+                }
+            }
+        }
+    }
     func refresh(refreshStatus: Bool = true) async {
         guard !busy, !confirmingQuit else { return }
         busy = true; defer { busy = false }
@@ -1389,7 +1469,12 @@ private enum TransportBatchPresentationContext {
     }
     private func reload(cancellation:OperationCancellation? = nil) async throws {
         guard !retired,let repository, let root else { return }
-        let token=cancellation ?? OperationCancellation(),readID=UUID()
+        let token=cancellation ?? OperationCancellation(),readID=UUID(),generation=adoptionGeneration
+        @MainActor func checkCurrent() throws {
+            try token.check()
+            guard !retired, adoptionGeneration == generation, self.root == root else { throw OperationCancellationFailure.cancelled }
+        }
+        try checkCurrent()
         finderPublicationReads[readID]=token
         defer { finderPublicationReads.removeValue(forKey:readID) }
         let store=snapshotStore
@@ -1398,14 +1483,21 @@ private enum TransportBatchPresentationContext {
         if snapshotWriter==nil,let store {
             do {
                 let session=try await publicationSession(store,cancellation:token)
+                try checkCurrent()
                 persistenceWarning=session.persistenceFailure
                 ticket=try await Task.detached { try store.begin(root:root,session:session,cancellation:token,policy:policy) }.value
             }
             catch { publicationError=error.localizedDescription }
             persistenceWarning=ticket?.persistenceFailure ?? persistenceWarning
         }
-        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in if !token.isCancelled { await self?.monitorFiles(directories) } },policy:policy)
-        try token.check()
+        try checkCurrent()
+        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in
+            await MainActor.run {
+                guard !token.isCancelled, let self, !self.retired, self.adoptionGeneration == generation, self.root == root else { return }
+                self.monitorFiles(directories)
+            }
+        },policy:policy)
+        try checkCurrent()
         bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
         selection = (pendingWorkspaceSelection ?? selection).intersection(visibleEntries.map(\.path));pendingWorkspaceSelection=nil
         branch=collected.branch;hasGitSVN=collected.metadata.hasGitSVN;mergeActive=collected.metadata.mergeActive
@@ -1421,6 +1513,7 @@ private enum TransportBatchPresentationContext {
             if let writer=snapshotWriter { written=try await Task.detached { try writer(cached) }.value }
             else if let store,let ticket {
                 let update=try await Task.detached { try store.publish(ticket,snapshots:collected.snapshots,cancellation:token) }.value
+                try checkCurrent()
                 cached=update.snapshot
                 persistenceWarning=update.persistenceFailure
                 monitoredRoots=cached.roots;cacheStates=cached.states;cacheRepositories=cached.repositories
@@ -1428,9 +1521,10 @@ private enum TransportBatchPresentationContext {
                 guard update.published else { finderStatus="Finder cache update superseded";eventRefresh?.invalidate();return }
                 written=true
             } else { written=false }
+            try checkCurrent()
             finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
             if written { if let persistenceWarning { finderStatus += "; saved cache unavailable: "+persistenceWarning };notifyFinder() }
-        } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }
+        } catch { try checkCurrent(); finderStatus = "Finder cache unavailable: " + error.localizedDescription }
     }
     func perform(_ operation: @escaping (GitRepository) async throws -> String) {
         guard let repository, !busy, !confirmingQuit else { return }
@@ -2396,6 +2490,7 @@ private enum TransportBatchPresentationContext {
         if let invocation { controller.model.applyCommandLine(invocation, message: commandMessage) }
         controller.model.reload(paths: invocation?.wholeProject == true ? [] : paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        NativeDialogStartupTrace.mark("commit.window.presented")
     }
     private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false) {
         let id = UUID(), owner = RepositoryWindowOwner(window: workspaceWindow)

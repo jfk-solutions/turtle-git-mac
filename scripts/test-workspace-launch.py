@@ -59,12 +59,12 @@ def retire_owned_helpers(context, approved_images):
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append')
-parser.add_argument('--only',choices=['cold','late','workspace','action-only','action-cancel','action-error','late-default','url-registration','finder-argv','finder-url-first','finder-authority-gate','finder-missing','finder-commit','finder-prioritized-authority','startup-lock','startup-config-gate'],action='append')
+parser.add_argument('--only',choices=['cold','late','workspace','action-only','action-cancel','action-error','late-default','url-registration','finder-argv','finder-url-first','finder-authority-gate','finder-missing','finder-commit','finder-prioritized-authority','startup-lock','startup-config-gate','dialog-first-read'],action='append')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 generated=root/'build/qa/workspace-launch-native-sources'
 generated.mkdir(parents=True,exist_ok=True)
-receiver=build_receiver(root,[root/'docs/qa/workspace-launch-native-2026-10-25.swift',root/'docs/qa/finder-cold-start-native-2026-10-28.swift'],generated)
+receiver=build_receiver(root,[root/'docs/qa/workspace-launch-native-2026-10-25.swift',root/'docs/qa/finder-cold-start-native-2026-10-28.swift',root/'docs/qa/dialog-first-read-native-2026-10-28.swift'],generated)
 results=[]
 for git in args.git or [Path('/usr/bin/git'),root/'build/git-runtime/Git/bin/git']:
  git=git.absolute()
