@@ -58,7 +58,8 @@
       "receiver_pid": 99821,
       "failure": "Corrected pointer hit the row cell, but invisible synthetic double-click still did not invoke the primary action.",
       "retained_evidence": "build/qa/commit-gui-staging-failed-0-504ot1rl",
-      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner.",
+      "retained_evidence_limit": "This disposable repository was later reused for the separately recorded physical CUA Stage/Unstage check, so its current index is not an immutable copy of the original failed run. The original log remains the failure evidence."
     },
     {
       "log": "build/qa/commit-gui-staging-native-stable-layout-2026-10-28.log",
