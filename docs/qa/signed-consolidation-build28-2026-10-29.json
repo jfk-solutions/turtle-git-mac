@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-arm64-candidate-ready-installed-build27-retained",
+  "build": "28",
+  "source_commit": "956335f44f663559c9e3564bb14ff11bed17655f",
+  "source_input_sha256": "b1e4d0413182352d2a54a2757b99881e0514e130298ab55de27d190061ce36a1",
+  "source_inputs_unchanged": true,
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed28-static-2026-10-29.json",
+  "implementation_scope": [
+    "Displayed Log commit selection across accepted-but-unrendered history projections; blocked native highlight reconciliation",
+    "Merge/Compare missing nested output folders, ordinary new-output AutoAdd intent and saved-but-pending recovery",
+    "Owned off-MainActor saved-source/reinterpretation/result preparation"
+  ],
+  "retained_focused_evidence": [
+    "docs/qa/log-native-selection-delivery-2026-10-29.json",
+    "docs/qa/merge-output-preparation-2026-10-28.json",
+    "docs/qa/commit-loading-caption-2026-10-29.json"
+  ],
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "application_sha256": "1a6b9c3d679baf8a4c5b7ce8a9ea24777e68e8462d5bafc567d3baa00a1344bb",
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "28",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "28"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "28"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "status": "not-installed-running-app-preserved",
+    "existing_build": "27"
+  },
+  "physical_acceptance": {
+    "status": "not-repeated-for-build28",
+    "previous_build27_receipt": "docs/qa/signed-consolidation-build27-2026-10-28.json",
+    "boundary": "Focused native checks prove the recorded cases. Earlier build27 signed observations do not certify build28 pointer behavior or the complete port."
+  },
+  "limits": [
+    "Apple Silicon local testing build; Intel/minimum-macOS execution remains separate.",
+    "No complete hosted CI, full-dialog/whole-port certification, App Store submission or notarization claimed.",
+    "Synthetic invisible mouse delivery was unavailable; actual AppKit row/delegate, keys and matching message/files passed as recorded."
+  ]
+}

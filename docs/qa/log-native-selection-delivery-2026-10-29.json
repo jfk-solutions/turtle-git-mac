@@ -23,9 +23,10 @@
   "validation": {
     "debug": {
       "status": "passed",
-      "log": "build/qa/merge-output-debug-recheck2-2026-10-29.log",
+      "log": "build/qa/merge-log-debug-checkpoint-2026-10-29.log",
       "exit": 0,
-      "known_exit_zero_diagnostic_entries": 1
+      "known_exit_zero_diagnostic_entries": 1,
+      "command_receipt": "build/qa/merge-log-debug-checkpoint-2026-10-29.json"
     },
     "native": {
       "status": "passed-both-git-engines",

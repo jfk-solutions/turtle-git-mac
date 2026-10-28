@@ -7,6 +7,8 @@ This page identifies current gates; dated implementation detail is in
 
 ## Installed local checkpoint
 
+[Signed build28](qa/signed-consolidation-build28-2026-10-29.json) is ready from `956335f4` with the displayed-row Log selection repair and connected Merge output/save recovery work. Its Apple Silicon build, measured inputs, strict signatures and package inventory pass. It has not replaced the running installed build27. Both Git engines pass the focused native Log/Merge/Commit checks; current signed pointer acceptance and complete hosted integration remain separate.
+
 [Build27, version 0.1.0 (27)](qa/signed-consolidation-build27-2026-10-28.json)
 is installed from `3d0cf270` as an Apple Silicon local test package. Measured
 inputs, strict signatures, eight owned arm64 components, bundled Help and complete
