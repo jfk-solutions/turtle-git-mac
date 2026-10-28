@@ -7,26 +7,28 @@ This page identifies current gates; dated implementation detail is in
 
 ## Installed local checkpoint
 
-[Build26, version 0.1.0 (26)](qa/signed-consolidation-build26-2026-10-28.json)
-is installed from `5d34c2ef` as an Apple Silicon local test package. Measured
+[Build27, version 0.1.0 (27)](qa/signed-consolidation-build27-2026-10-28.json)
+is installed from `3d0cf270` as an Apple Silicon local test package. Measured
 inputs, strict signatures, eight owned arm64 components, bundled Help and complete
-installed inventory pass. Build25 and universal build22 are preserved. Finder and
+installed inventory pass. Build26 and universal build22 are preserved. Finder and
 Dock were not restarted; only TurtleGit's extension registration was refreshed.
 
-Actual signed Finder Show Log opens from a closed main process. On Ladybird,
-loaded-row selection updates message/files while history continues, and a file
-double-click opens its correct read-only historical diff. The held-stream native
-check passes with both Git engines; this is scoped acceptance, not every Log
-command or a latency benchmark. The retained startup fix's Commit timing is the
-separate build25 sample: 1.283 seconds to the window and 3.360 seconds to its read.
+The installed Commit check exercised actual Amend checkboxes in both Git Gui and
+Classic, restored the empty draft and original presentation, and made no commit.
+Manual menu activation remains unverified after automation targeting errors.
+The installed Finder Log check exercised loaded-row selection, full message and
+changed files while history continued. Its 1.081-second selection-to-data phase
+is one sample excluding click/AX/full-history latency. Focused checks separately
+cover graph cancellation, coalescing, stale results, close and Quit ownership.
+Both owned app processes exited, and repository HEAD/index were unchanged.
 
 ## Remaining gates
 
 | Gate | Evidence and remaining work |
 | --- | --- |
 | Source behavior and layout | [Family records](PORTING.md#current-component-and-workflow-state--october-25-2026) describe connected implementations. The [resource ledger](DIALOG-COVERAGE.md) keeps partial controls and unmapped platform/example resources explicit. Complete dialog states, command eligibility, layout, keyboard and accessibility acceptance must be established from their actual consumers, rather than counting screens. |
-| Current hosted integration | The [dated Commit failure record](qa/commit-option-observers-2026-10-28.json) records a hosted Core stage with 3,153 methods, two skips and no failures, followed by a native Commit observer failure. Its local repair passes both Git engines; that is not a full hosted pass. The later [hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40709146937) failed the Amend option observer assertion; the following [Commit option workflow repair](qa/commit-option-workflow-2026-10-28.json) aligns eleven native option routes and passes the focused menu/shared-handler family with both Git engines. Actual checkbox action is unavailable in the invisible SwiftUI receiver and remains explicit acceptance work. A complete macOS workflow on the release source remains required. Pages success does not certify the app. |
-| Installed workflow acceptance | Earlier signed physical checks cover specific private workflows, not every current source batch. Repeat the relevant installed Commit/Log/comparison/replay/Settings paths after consolidation, including error, cancellation and reopen behavior. Build26's static checks and older focused sandbox evidence do not replace those checks. |
+| Current hosted integration | The [dated Commit failure record](qa/commit-option-observers-2026-10-28.json) records a hosted Core stage with 3,153 methods, two skips and no failures, followed by a native Commit observer failure. Its local repair passes both Git engines; that is not a full hosted pass. The later [hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40709146937) failed the Amend option observer assertion; the following [Commit option workflow repair](qa/commit-option-workflow-2026-10-28.json) aligns eleven native option routes and passes the focused menu/shared-handler family with both Git engines. The invisible receiver cannot dispatch actual checkbox actions; build27 separately verifies basic physical Amend checkbox behavior in both views, with broader option/lifecycle acceptance still open. A complete macOS workflow on the release source remains required. Pages success does not certify the app. |
+| Installed workflow acceptance | Earlier signed physical checks cover specific private workflows, not every current source batch. Repeat the relevant installed Commit/Log/comparison/replay/Settings paths after consolidation, including error, cancellation and reopen behavior. Build27's static checks and older focused sandbox evidence do not replace those checks. |
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
 | Startup and large repositories | [Finder publication](qa/finder-publication-pipeline-2026-10-27.json) and [shared Commit reads](qa/commit-shared-display-read-2026-10-27.json) have measured improvements. Complete installed startup/status latency and representative large repositories remain separate measurements; synthetic command counts are not an end-user timing guarantee. |
 | Text, image and document compatibility | [Comparison](IMAGE-COMPARISON.md), [metafile compatibility](IMAGE-METAFILE-PARITY.md), [formatted text](METAFILE-TEXT-PARITY.md) and the document-tool records retain unsupported formats, encodings, font/locale differences and external application boundaries. Explicit refusals must remain visible; a passed corpus is not universal format support. |

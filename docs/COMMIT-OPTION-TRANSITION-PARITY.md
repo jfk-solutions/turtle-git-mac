@@ -168,3 +168,12 @@ native-control discovery remains recorded as unavailable, not a passed checkbox
 interaction. An explicit acceptance mode retains that actual-action requirement.
 Physical checkbox acceptance, a complete hosted run and newly installed source
 remain separate gates.
+
+The [installed build27 checkpoint](qa/signed-consolidation-build27-2026-10-28.json)
+separately verifies actual Amend checkbox action in both Git Gui and Classic:
+checking loads HEAD metadata, unchecking restores the original empty draft, and
+the original presentation is restored. No commit was submitted. This is basic
+physical acceptance, not the invisible receiver's opt-in mode or every option
+combination. A manual native-menu attempt hit stale accessibility targets and
+was not accepted as a pass; an automation-only test character was removed through
+normal editor input before closing, without accepting the history-save question.

@@ -2,26 +2,35 @@
 
 ## Current installed checkpoint
 
-[Build26](qa/signed-consolidation-build26-2026-10-28.json), version 0.1.0 (26),
-is installed from `5d34c2ef` for Apple Silicon local testing. Measured inputs,
+[Build27](qa/signed-consolidation-build27-2026-10-28.json), version 0.1.0 (27),
+is installed from `3d0cf270` for Apple Silicon local testing. Measured inputs,
 strict signatures, eight owned components containing arm64, bundled Help and
-complete installed inventory pass. Build25 and universal build22 are preserved.
+complete installed inventory pass. Build26 and universal build22 are preserved.
+
+This consolidates the Commit option routes and owned background Log projection.
+Actual Amend checkboxes in Git Gui and Classic views loaded HEAD metadata and
+restored the original empty draft when unchecked. The original presentation was
+restored. Physical menu activation was not established after automation targeting
+errors; private native menu/shared-handler checks remain separate evidence.
 
 Actual signed Finder Show Log starts the closed app. On Ladybird, selecting a
 commit while history continues loading updates its full message and changed
-files; double-clicking a changed file opens the correct read-only historical diff.
-The focused held-stream native check covers both Git engines, continued prefixes,
-final completion and cancellation. See [Log parity](LOG-PARITY.md).
+files. One phase-log sample measured 1.081 seconds from accepted native selection
+to detail-data readiness; this excludes click delivery, AX observation and the
+full-history walk. Focused Core and both Git-engine native checks cover graph
+semantics, superseded results, responsive inspection and actual worker/Quit drain.
+Both owned physical-check app processes exited; HEAD/index remained unchanged.
+See [Log parity](LOG-PARITY.md) and the build27 receipt for exact scope.
 
 The retained dialog-first startup fix avoids redundant foreground workspace/Finder
 publication on sixteen self-loading routes. Build25's measured Ladybird cold-main,
 warm-filesystem sample presented Commit in 1.283 seconds and completed its read
-at 3.360 seconds from Finder's callback. This timing was not repeated for build26;
+at 3.360 seconds from Finder's callback. This timing was not repeated for build27;
 see [the startup record](FINDER-STARTUP-PERFORMANCE.md).
 
 The unchanged Metafile runtime retains the separate focused signed-parent
 execution from [build20](qa/signed-consolidation-build20-2026-10-28.json).
-Build26 checks its bundled identity and provenance without repeating that
+Build27 checks its bundled identity and provenance without repeating that
 execution. Physical input/VoiceOver, Intel/minimum-macOS, complete hosted and
 whole-port acceptance remain separate gates.
 
@@ -32,10 +41,10 @@ aligns all eleven native menu options with shared form admission and fixes late
 Amend metadata startup. Unchanged callbacks preserve selected files and manually
 rechecked submodules; Sign-off uses the current form and modal guards. The native
 menu/shared-handler family passes with both Git engines, including real gitlink
-and held metadata cases. Actual checkbox action is unavailable in the invisible
-SwiftUI receiver and remains an explicit acceptance gap. Installed build26
-predates this source continuation; no new signed installation or full hosted pass
-is inferred from its focused native checks.
+and held metadata cases. The invisible SwiftUI receiver still cannot dispatch an actual checkbox action.
+Installed build27 separately verifies basic Amend checkbox action in both
+presentations; this does not prove every physical option/lifecycle state or a
+complete hosted pass.
 
 ## Compare and Merge linked pointer scrolling
 

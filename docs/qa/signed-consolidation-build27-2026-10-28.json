@@ -1,0 +1,286 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-arm64-installed-physical-amend-checkboxes-and-streaming-log-inspection-observed",
+  "build": "27",
+  "source_commit": "3d0cf270c26ae9793a0df2d0c2fede4cccabd771",
+  "source_input_sha256": "f585f3650513391ce45d339098283ca20f404a2587da26aaa0774f561d537e22",
+  "source_inputs_unchanged": true,
+  "source_inputs": {
+    "receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed27-inputs-2026-10-28.json",
+    "schema": "TurtleGitDistributionInputsV3",
+    "dirty_at_measurement": false
+  },
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed27-static-2026-10-28.json",
+  "installation_receipt": "build/qa/signed27-installed-2026-10-28.json",
+  "static_validation": {
+    "status": "passed",
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "signing_identity": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "27",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "27"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "27"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "owned_component_count": 8,
+    "architecture_scope": "Apple Silicon local testing; universal/Intel execution and release packaging remain separate.",
+    "runtime_representatives": {
+      "Git": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "LibGit2": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "Metafile": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "runtime_execution_repeated": false,
+    "application_sha256": "bf6b2f1199da04834afaac8c9e0bed329228b7ee7285ecbf7959b7ab8983810d",
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "status": "installed",
+    "path": "/Applications/TurtleGit for Mac.app",
+    "main_sha256": "bf6b2f1199da04834afaac8c9e0bed329228b7ee7285ecbf7959b7ab8983810d",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "preserved_build26_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed27-displaced-installed-2026-10-28",
+    "launchservices_and_plugin_registration_exits": [
+      0,
+      0,
+      0
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "main_app_launched_by_installer": false,
+    "store_submission": false
+  },
+  "implementation_scope": {
+    "families": [
+      "Consistent Commit form/menu option transitions and receipt-owned sign-off",
+      "Owned off-MainActor coalesced Log graph projection and cancellation"
+    ],
+    "commit": "Eleven native Commit menu options use the shared form eligibility/value/transition policy. Unchanged unversioned/submodule choices preserve current selection; staging waits for initial preferences; captured sign-off receipts and modal ownership protect admission. Existing author/date/reset/retry behavior is retained.",
+    "log": "One owned active graph worker and one latest pending projection replace repeated MainActor graph computation. Cancellation reaches hidden ancestry, source lane scans and edge layout; final/generation fences reject late prefixes. Read-only inspection remains available and close/Quit waits for real worker drain.",
+    "history_default": "Pinned upstream unlimited-history default retained; no history cap or lane/topology narrowing."
+  },
+  "retained_focused_evidence": [
+    "docs/qa/commit-option-workflow-2026-10-28.json",
+    "docs/qa/log-projection-pipeline-2026-10-28.json"
+  ],
+  "focused_validation_scope": {
+    "commit": {
+      "status": "native-menu-and-shared-form-binding-passed-both-git-engines",
+      "debug_exit": 0,
+      "native_engines": [
+        "system",
+        "bundled"
+      ],
+      "core_repeated": false,
+      "actual_checkbox": "Private invisible host action discovery remains unresolved. Separate actual signed pointer acceptance now observed Amend on/off in both Git Gui-style and Classic interfaces; this does not certify every option or metadata failure path.",
+      "receipt": "docs/qa/commit-option-workflow-2026-10-28.json"
+    },
+    "log": {
+      "status": "focused-core-and-native-passed-before-consolidation",
+      "debug_exit": 0,
+      "core_distinct_methods_passed": 9,
+      "core_failures": 0,
+      "affected_test_only_recheck": {
+        "methods_passed": 3,
+        "failures": 0,
+        "reason": "Removed checkpoint-count quotas that constrained algorithmic complexity; semantic/oracle and exhaustive/sampled cancellation assertions retained.",
+        "log": "build/qa/log-projection-core-quota-recheck-2026-10-28.log"
+      },
+      "native_engines": [
+        "system",
+        "bundled"
+      ],
+      "native_exit": 0,
+      "receipt": "docs/qa/log-projection-pipeline-2026-10-28.json",
+      "scope": "Private real Git history with held graph computation; native selection/details and MainActor heartbeat while held, canceled old-generation result refusal, final projection consistency, closed-owner and real application Quit drain, unchanged/restored private repository evidence and reaped receivers."
+    },
+    "runtime_helpers": {
+      "execution_repeated": false,
+      "reason": "Runtime helpers unchanged; prior runtime execution evidence inherited, not reexecuted for consolidation27."
+    },
+    "boundary": "Focused unsigned native/Core evidence does not certify signed physical actions, every dialog, complete hosted CI or whole-port completion."
+  },
+  "physical_acceptance": {
+    "status": "scoped-actual-signed-pointer-observations-completed",
+    "private_observation_receipt": "build/qa/signed27-physical-2026-10-28.json",
+    "normal_startup": {
+      "status": "cold-main-starts-observed-via-actual-finder-commit-and-log",
+      "main_absent_before": true,
+      "commit_main_pid": 44070,
+      "log_main_pid": 44398,
+      "cold_finder_commit": true,
+      "cold_finder_log": true,
+      "cache_state": "Warm filesystem; separate cold main processes for scoped Commit and Log observations, not a cache-cold benchmark."
+    },
+    "actual_commit_checkbox": {
+      "status": "actual-visible-signed-amend-pointer-action-passed-in-both-interfaces",
+      "actual_pointer_checkbox_both_interfaces": true,
+      "initial_interface": "Git Gui-style staging",
+      "initial_message_empty": true,
+      "gui_amend_on_loads_head_message": true,
+      "gui_amend_off_restores_empty_draft": true,
+      "classic_amend_on_loads_head_message": true,
+      "classic_amend_off_restores_empty_draft": true,
+      "original_interface_restored": true,
+      "empty_draft_confirmed_before_close": true,
+      "actual_cancel_closed_without_question": true,
+      "boundary": "Actual basic Amend checkbox interaction in both interfaces only; not every option, metadata failure/cancellation path or complete commit submission. Invisible-host checkbox discovery remains a separate unresolved automation limitation."
+    },
+    "physical_commit_menu": {
+      "status": "not-confirmed",
+      "manual_menu_action_confirmed": false,
+      "stale_accessibility_target_errors": true,
+      "keyboard_menu_navigation_unconfirmed": true,
+      "test_character_entered_into_draft": true,
+      "cancel_question_declined": true,
+      "test_character_removed_with_normal_editor_input": true,
+      "empty_draft_restored_before_actual_cancel": true,
+      "boundary": "No physical menu pass claimed. Existing private native menu-action evidence is retained separately."
+    },
+    "log_graph_responsiveness": {
+      "status": "actual-native-selection-message-and-files-while-history-loading-observed",
+      "selection_while_loading": true,
+      "visible_prefix_before_selection": 8192,
+      "visible_prefix_at_details": 32768,
+      "history_progress_at_details": 39313,
+      "full_message_and_seven_files_observed": true,
+      "accepted_selection_to_detail_ready_seconds": 1.081039,
+      "timing_scope": "Single warm-filesystem sample from actual accepted native selection to detail-ready phase; excludes click delivery/AX observation/full history.",
+      "boundary": "One actual native accepted-selection to details phase; excludes physical click delivery, accessibility observation, full-history completion and graph-wide benchmark conclusions."
+    },
+    "integrity": {
+      "no_commit_or_stage_action_invoked": true,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "raw_user_hashes_branches_contents_and_paths_published": false
+    },
+    "quit": {
+      "status": "normal-quit-requested-and-both-owned-processes-independently-confirmed-absent",
+      "normal_quit_requested_for_both": true,
+      "pids": [
+        44070,
+        44398
+      ],
+      "independent_verification": {
+        "command": "/bin/ps -p 44070,44398 -o pid=,comm=",
+        "exit": 1,
+        "matched_rows": 0
+      },
+      "owned_windows": "Disposed by normal process exit; no unrelated process terminated."
+    }
+  },
+  "follow_on": {
+    "status": "scoped-physical-amend-and-streaming-inspection-observed-broader-acceptance-separate",
+    "scope": "Actual signed basic Amend on/off pointer actions passed in both Commit interfaces and loaded Log revision details remained inspectable during streaming. Every option, physical menu action, metadata error path and mutation pipeline remain separate scope.",
+    "commit_timing": "No Commit latency repeated; prior build25 timing evidence remains separately scoped.",
+    "log_timing": "One warm-filesystem accepted-selection to detail-ready phase observed; not a full Log load or click-to-observation benchmark."
+  },
+  "limitations": [
+    "Actual basic Amend checkbox actions passed in both signed Commit interfaces; private invisible-host checkbox action discovery remains unresolved.",
+    "Manual physical menu action was not established after stale accessibility-target errors and unconfirmed keyboard navigation; no physical menu pass claimed.",
+    "Owned signed app components target arm64 local testing; universal runtime representatives do not establish Intel app execution.",
+    "Runtime helper execution evidence is inherited, not repeated for consolidation27.",
+    "Physical observations are single warm-filesystem cold-main samples; no cache-cold benchmark, complete history performance or repeated Commit latency claim.",
+    "No commit/stage or other repository mutation pipeline invoked; actual HEAD/index remained unchanged.",
+    "No every-option metadata-failure acceptance, every-dialog visual parity, complete hosted CI, App Store submission or whole-port completion claim."
+  ]
+}

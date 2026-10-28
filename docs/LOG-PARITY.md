@@ -2960,3 +2960,12 @@ release drains it without publishing into the retired owner. Private HEAD, index
 and working bytes are restored/preserved. The delay is a deterministic ownership
 proof, not a benchmark. The build26 physical result above does not certify this
 later source work or provide a large-history latency measurement.
+
+The [installed build27 sample](qa/signed-consolidation-build27-2026-10-28.json)
+opened Log from Finder with the main app closed. Selection while history loaded
+displayed the full message and seven changed files; projection jobs continued
+in the phase log. Accepted native selection to detail-data readiness took
+1.081 seconds in this sample, excluding click delivery, accessibility observation,
+painting and full-history completion. The owned app exited normally and the
+repository's HEAD/index were unchanged. This is not a representative performance
+benchmark or every graph/filter state.
