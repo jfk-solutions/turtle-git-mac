@@ -125,3 +125,30 @@ records 51 distinct affected Core methods passing cumulatively and native
 checks on Git 2.39.5 and bundled 2.55.0. It retains the initial fixture failures
 and the contradictory Debug-build diagnostic recheck. This reduces unused work;
 it does not establish a fixed startup time or completion of the whole port.
+
+## Ladybird loading observation — October 28, 2026
+
+The user's existing Ladybird checkout was inspected read-only on its current
+branch. Its warm clean status read took about 0.39 seconds with Apple Git and
+0.40 seconds with bundled Git. Each remaining combined diff took at most 0.07
+seconds; the 4.22 MiB/34,303-record index inventory took about 0.02 seconds.
+The actual Debug Core display reader took about 0.85 seconds; the complete measured
+serial read/config/template path took about 1.3 seconds. Index bytes remained
+unchanged. No file contents or pathname inventory were printed, and no hook or
+credential was executed/read. Project provider and Start Commit hook configuration
+were absent in this checkout at measurement time.
+
+[The numeric profile](qa/ladybird-commit-loading-2026-10-28.json) retains the
+individual timings and limits. These are warm diagnostic measurements, not a
+before/after speedup or complete installed UI latency. They do not include cold
+filesystem state, signed sandbox startup, local global hooks, remote association
+credentials or native layout/publication. There was no measured justification to
+remove full index, amend, submodule or statistics semantics from the Core reader.
+
+The connected GUI presentation separates active loading, unknown counts,
+accepted clean results and failures/cancellation. It also permits cancellation
+and replacement of a read-only preview while keeping real hunk writes exclusive.
+Empty selection now retires a blank preview. The former reader already produced
+empty data without running Git for that selection; this is not a new large-diff
+optimization. Further slow installed loading needs an actual phase/timing
+observation rather than a speculative claim that the warm Core read was slow.

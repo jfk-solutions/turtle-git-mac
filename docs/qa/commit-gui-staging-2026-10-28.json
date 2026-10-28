@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-native-passed-both-git-engines-with-bounded-physical-pointer-acceptance",
+  "scope": "Native staging list visibility, Stage/Unstage primary action and loading/preview ownership",
+  "performance_profile": "ladybird-commit-loading-2026-10-28.json",
+  "limits": [
+    "No measured cold/signed whole-dialog speedup claimed.",
+    "No complete hosted CI, renewed signed installation, physical Finder acceptance or whole-port/dialog visual parity claim.",
+    "Physical CUA interaction preceded the final geometry repair; final geometry evidence comes from the separately described grouped native receiver checks.",
+    "The alpha-zero NSView bitmap capture does not correctly composite native buttons/backgrounds: parent inspection found white buttons, missing labels and black backgrounds. Captures support structure only; they were not copied into the guide."
+  ],
+  "initial_native": {
+    "log": "build/qa/commit-gui-staging-native-2026-10-28.log",
+    "result": "failed system Git after first actual stage operation",
+    "receiver_pid": 99047,
+    "failure": "Exact destination-side selected-path continuity did not settle after moving a partially staged Unicode/tab path.",
+    "retained_evidence": "build/qa/commit-gui-staging-failed-0-xd8jzeek",
+    "cleanup": "Receiver reaped; strict owned helper cleanup verified.",
+    "diagnosis": "Initial destination selection assertion failed after an actual Stage operation; retained as failed automated evidence, superseded only by separately recorded later results."
+  },
+  "debug_build": {
+    "log": "build/qa/commit-gui-stable-preview-debug-2026-10-28.log",
+    "exit": 0
+  },
+  "core": "No new Core implementation changes for this UI/interaction family; prior31focusedmethods cumulatively passed.",
+  "automated_attempts": [
+    {
+      "log": "build/qa/commit-gui-staging-native-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "failed",
+      "receiver_pid": 99047,
+      "failure": "After an actual Stage operation, exact destination-side native selection did not settle.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-xd8jzeek",
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
+    },
+    {
+      "log": "build/qa/commit-gui-staging-native-recheck-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "failed",
+      "receiver_pid": 99359,
+      "failure": "Invisible automated double-click did not invoke the native primary action; staging state remained unchanged.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-uehdheu2",
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
+    },
+    {
+      "log": "build/qa/commit-gui-staging-native-pointer-recheck-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "failed",
+      "receiver_pid": 99645,
+      "failure": "Invisible automated pointer hit NSTableBackgroundView rather than the requested table row; assertion stopped dispatch.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-o322c8up",
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
+    },
+    {
+      "log": "build/qa/commit-gui-staging-native-coordinate-recheck-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "failed",
+      "receiver_pid": 99821,
+      "failure": "Corrected pointer hit the row cell, but invisible synthetic double-click still did not invoke the primary action.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-504ot1rl",
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
+    },
+    {
+      "log": "build/qa/commit-gui-staging-native-stable-layout-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "failed fixture before stage dispatch",
+      "receiver_pid": 1589,
+      "failure": "Fixture waited for a SwiftUI action to appear as NSButton; lookup did not settle at line154. This does not establish an app action failure.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-_9w4147q",
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified; parent independently confirmed receiver absent."
+    },
+    {
+      "log": "build/qa/commit-gui-staging-native-layout-adapter-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "failed geometry assertion after accepted Stage operation",
+      "receiver_pid": 1816,
+      "failure": "Native table/header geometry shifted after the captured Stage transfer: unstaged table/header contracted or moved13.5points and staged table shifted14points, a27.5point aggregate split contraction. Exact geometry assertion retained.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-gqplio43",
+      "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
+    },
+    {
+      "log": "build/qa/commit-gui-staging-native-fixed-preview-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "result": "partial pass followed by fixture early-preview-read failure",
+      "receiver_pid": 2263,
+      "passed_scope": "Four actual captured Stage/Unstage transfers and exact native table/header geometry assertions passed.",
+      "failure": "Fixture queried separated hunks before the selected preview completed reading; failed with Fixture has no separated hunk. The fixture now awaits current preview completion before checking hunks.",
+      "retained_evidence": "build/qa/commit-gui-staging-failed-0-glyabb52",
+      "cleanup": "Owned receiver reaped and helper cleanup verified; independent ps check confirms PID2263 absent."
+    }
+  ],
+  "physical_interaction": {
+    "date": "2026-10-28",
+    "result": "passed bounded actual CUA interaction",
+    "performed_by": "Parent agent using native computer interaction with a deliberate owned preview window.",
+    "scope": [
+      "Actual native primaryAction dispatched by double-click to Stage and Unstage a partially staged path containing Unicode and a tab.",
+      "Moved path remained selected in the destination list and the displayed diff matched that destination."
+    ],
+    "owned_preview_pid": 284,
+    "cleanup": "Parent closed the owned preview; independent read-only ps check confirms PID284 is absent.",
+    "limits": [
+      "This physical pass is separate from the four failed invisible automated dispatch attempts.",
+      "It does not validate both Git engines, all ownership/cancellation cases, or the subsequent fixed-geometry change."
+    ]
+  },
+  "layout_change": {
+    "status": "exact native geometry assertions passed after related right-preview repair",
+    "scope": "Persistent24-point operation band,22-point list heading,32-point status slot and24-point action footer; GUI-only preview loading band and information slots also retain allocation. Empty/loading messages remain table overlays.",
+    "regression": "The initial left-slot repair alone still allowed13.5/14point table/header movement; that failed result remains in automated_attempts.",
+    "validated_scope": "Native table/header origins and sizes stay within0.5point across four actual captured transfers per engine and held changes-read feedback. This is bounded native geometry evidence, not visual parity certification of every dialog."
+  },
+  "grouped_native": {
+    "status": "passed",
+    "log": "build/qa/commit-gui-staging-native-preview-ready-2026-10-28.log",
+    "exit": 0,
+    "git_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receiver_pids": [
+      2679,
+      3010
+    ],
+    "scope": [
+      "Two persistent native tables with Path/Status headers, exact native selection and retained doubleAction hookup.",
+      "Captured model action adapters used by the staging controls perform four actual Stage/Unstage Git transfers per engine: partial Unicode/tab path plus literal untracked/deleted multirow paths; exact index bytes and unrelated staged changes are checked.",
+      "Exact table/header geometry remains stable across transfer completion and a held refresh.",
+      "Actual selected-hunk staging writes expected partial index bytes; accepted write blocks interface replacement until drain.",
+      "Loading and accepted-empty state feedback, stale receipts, mode switching, canceled read-only preview, owner close and actual read drain remain fenced.",
+      "Four offscreen native structural captures per engine were produced for loaded/empty states; they are not publication-ready screenshots or visual/color acceptance."
+    ],
+    "interaction_boundary": "Automated transfers call the captured model action adapter and exercise real Git plus native selection/geometry; they do not prove physical double-click dispatch. Separate earlier CUA interaction covers that bounded pointer acceptance.",
+    "cleanup": "Both receivers reaped and owned helper cleanup verified by runner; independent ps check confirms PIDs2679 and3010 absent.",
+    "warnings": [
+      "AppKit emitted two NSTableView delegate reentrancy warnings per engine during fixture selection context. The run passed, but the warning is retained and is not claimed resolved."
+    ]
+  },
+  "sources": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "d8518b055b5e5b6ef672ed470b2c36ce4e59d3c0debd5d500b6f94cc28d9f74b",
+    "Sources/TurtleGitMac/PatchWindow.swift": "8d9cbb719d2be65044f6a3d1ca8810c40ab31329a89bd14d2d05ae55b73b5669",
+    "docs/qa/commit-gui-staging-native-2026-10-28.swift": "cd090bab9f31142680bb117b7237a3137db6f1b368d100ee72affa03c43fb7a2"
+  }
+}

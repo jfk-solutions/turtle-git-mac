@@ -2813,3 +2813,48 @@ skips before its native duplicate-observer assertion failed. Initial/root-commit
 normalization, duplicate callbacks, delayed/pending metadata, coalesced edits and
 retired form receipts retain their behavioral assertions. This does not certify
 every displayed control, older macOS version or the full hosted native suite.
+
+## Git Gui list presentation and transfer — October 28, 2026
+
+The GUI workspace now reserves the operation band above the split view, the
+per-list progress header, a two-line status slot and the action footer in both
+busy and idle states. Starting a scan or Stage/Unstage operation therefore does
+not insert/remove layout rows above the tables or shift their bounds beneath the
+pointer. Idle status/progress decoration is hidden from accessibility and hit
+testing; live phase text, full-text help and the Cancel operation action remain.
+The embedded patch preview also opts into a permanent loading/Cancel band and
+reserves its two-line information slot. Its parent split fills the allocated
+workspace height, so changing preview read text cannot shrink or recenter the
+left-hand lists. Other Patch dialog consumers retain their existing layout.
+The [grouped presentation check](qa/commit-gui-staging-2026-10-28.json)
+records stable native table/header bounds through transfers and held refreshes
+with both Git engines. Actual double-click acceptance is recorded separately
+from the captured-adapter automation.
+
+The optional Git Gui interface now uses persistent native Path/Status tables,
+visible light/dark boundaries, source state icons/colors and separate captions.
+Initial unknown counts, active loading/refresh phases, cancelled/failed reads and
+accepted empty lists have distinct presentation. It does not announce an empty
+repository merely because the first read has not returned.
+
+The requested double-click Stage/Unstage gesture applies only to this two-list
+interface. Pinned `GitStatusListCtrl.cpp:2926` retains Diff on double-click; Classic
+keeps that source behavior. Native primary action, buttons and context commands
+share captured list/path/staging-state receipts. A clicked selected row retains
+the selected group, while a different clicked row targets that row. Refresh,
+interface replacement, changed selection/state, busy work, closure or a different
+side cannot repurpose a stale action. Partial rows remain available on their
+appropriate sides, and selection follows moved files when they leave the source.
+
+Preview reads can be superseded or retired on an interface change. Actual hunk
+application still blocks competing stage/interface work. No-selection retirement
+replaces the former blank patch with selection instructions; the old Patch
+reader already skipped Git diff for an empty path list, so no whole-repository
+speedup is claimed for that presentation correction.
+
+The [staging presentation checkpoint](qa/commit-gui-staging-2026-10-28.json)
+records native tables, actual Git/index/working results, cancellation/owner
+boundaries and light/dark captures. The [loading observations](COMMIT-REFRESH-PERFORMANCE.md#ladybird-loading-observation--october-28-2026)
+separate actual warm read timings from unmeasured cold/signed startup. This does
+not certify all Commit dialogs, physical gestures, external providers or signed
+Finder acceptance.

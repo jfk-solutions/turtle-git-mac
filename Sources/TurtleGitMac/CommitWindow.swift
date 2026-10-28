@@ -835,7 +835,7 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     lazy var clientHooks = ClientHookSession(preferences: dialogDefaults)
     @Published var conflictRebase = false
-    @Published var entries: [StatusEntry] = [] { didSet { if entries != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var entries: [StatusEntry] = [] { didSet { if entries != oldValue { fileMenuGeneration = UUID(); guiFileListGeneration = UUID(); providerDraftChanged() } } }
     @Published var indexFlagFiles: [WorkingTreeFile] = []
     @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet { fileMenuGeneration = UUID() } }
     var restoreWorkingCopy:((WorkingFileRestoreCopy,OperationCancellation?)async throws->Void)?
@@ -847,21 +847,30 @@ import TurtleGitCore
     @Published private(set) var gitGuiInterface = false
     @Published private(set) var guiStaged = false
     @Published private(set) var guiPatch: PatchWindowModel?
+    private var guiFileListGeneration = UUID()
+    private var pendingGuiStageSelection: (paths: GitPathSet, sourceStaged: Bool)?
     var interfaceChanged: () -> Void = {}
     func setCommitInterface(_ gui: Bool) {
-        guard !inputsBlocked, messageFocusAvailable, loadedPreferences, gui != gitGuiInterface, guiPatch?.busy != true else { return }
+        guard !inputsBlocked, messageFocusAvailable, loadedPreferences, gui != gitGuiInterface, guiPatch?.applyingChanges != true else { return }
         closePartial(); guiPatch?.retire(); guiPatch = nil
-        gitGuiInterface = gui; dialogDefaults.set(gui, forKey: "TurtleGit.Commit.GitGuiInterface")
+        gitGuiInterface = gui; guiFileListGeneration = UUID(); pendingGuiStageSelection = nil; dialogDefaults.set(gui, forKey: "TurtleGit.Commit.GitGuiInterface")
         stagingEnabled = gui || (persistedStaging ?? false); appliedStagingMode = stagingEnabled
         selection = []; interfaceChanged(); reload()
     }
     func selectGuiFiles(_ paths: Set<String>, staged: Bool) {
-        guard gitGuiInterface, !inputsBlocked, guiPatch?.busy != true else { return }
-        guiStaged = staged; stagedDiff = staged; selection = GitPathSet(paths)
+        guard gitGuiInterface, messageFocusAvailable, !inputsBlocked, guiPatch?.applyingChanges != true else { return }
+        let available = GitPathSet((staged ? stagedEntries : unstagedEntries).map(\.id))
+        let requested = GitPathSet(paths)
+        guard requested.isSubset(of: available) else { return }
+        guard guiStaged != staged || selection != requested else { return }
+        guiStaged = staged; stagedDiff = staged; selection = requested
         refreshGuiPatch()
     }
     func refreshGuiPatch() {
         guard gitGuiInterface, messageFocusAvailable, guiPatch?.applyingChanges != true else { return }
+        let available = guiStaged ? stagedEntries : unstagedEntries
+        let paths = available.filter { selection.contains($0.id) }.map(\.path)
+        guard !paths.isEmpty else { guiPatch?.retire(); guiPatch = nil; return }
         if guiPatch == nil {
             let patch = PatchWindowModel(repository: repository, access: access, appearancePreferences: dialogDefaults)
             patch.externalAvailability = { [weak self] in self?.gitGuiInterface == true && self?.messageFocusAvailable == true && self?.inputsBlocked == false }
@@ -870,8 +879,71 @@ import TurtleGitCore
             guiPatch = patch
         }
         guiPatch?.base = comparisonBase
-        let available = guiStaged ? stagedEntries : unstagedEntries
-        guiPatch?.reload(paths: available.filter { selection.contains($0.id) }.map(\.path), staged: guiStaged)
+        guiPatch?.reload(paths: paths, staged: guiStaged)
+    }
+    struct GuiFileListSnapshot {
+        let staged: Bool
+        let generation: UUID
+        let entries: [StatusEntry]
+        let states: [Int]
+    }
+    func guiFileListSnapshot(staged: Bool) -> GuiFileListSnapshot {
+        let entries = staged ? stagedEntries : unstagedEntries
+        return GuiFileListSnapshot(staged: staged, generation: guiFileListGeneration, entries: entries, states: entries.map { stagingState($0).rawValue })
+    }
+    private func guiActionPaths(_ ids: some Sequence<String>, snapshot: GuiFileListSnapshot) -> GitPathSet {
+        let requested = GitPathSet(ids)
+        // Native primaryAction normally supplies the entire selected set. Keep
+        // that selection when a selected row delivers only its clicked path.
+        return guiStaged == snapshot.staged && !requested.isEmpty && requested.isSubset(of: selection) ? selection : requested
+    }
+    func canMoveGuiFiles(_ ids: some Sequence<String>, snapshot: GuiFileListSnapshot) -> Bool {
+        guard gitGuiInterface, stagingEnabled, fileListAvailable, !stagingStateNeedsRefresh,
+              guiPatch?.applyingChanges != true, comparisonWindow?.attachedSheet == nil, NSApp.modalWindow == nil,
+              snapshot.generation == guiFileListGeneration else { return false }
+        let available = snapshot.staged ? stagedEntries : unstagedEntries
+        guard available == snapshot.entries, available.map({ stagingState($0).rawValue }) == snapshot.states else { return false }
+        let targets = guiActionPaths(ids, snapshot: snapshot)
+        return !targets.isEmpty && targets.isSubset(of: GitPathSet(available.map(\.id)))
+    }
+    func activateGuiFiles(_ ids: some Sequence<String>, snapshot: GuiFileListSnapshot) {
+        guard canMoveGuiFiles(ids, snapshot: snapshot) else { return }
+        let targets = guiActionPaths(ids, snapshot: snapshot)
+        // Selection, button, menu and double-click all use one captured path
+        // batch. Partial staging stays a separate hunk operation in the preview.
+        guiStaged = snapshot.staged; stagedDiff = snapshot.staged; selection = targets
+        let captured = fileMenu(targets, orderedEntries: snapshot.entries)
+        pendingGuiStageSelection = (targets, snapshot.staged)
+        withFileMenu(captured) { moveToStage(targets, staged: !snapshot.staged) }
+    }
+    private func settleGuiStageSelection() {
+        guard let pending = pendingGuiStageSelection else { return }
+        pendingGuiStageSelection = nil
+        guard gitGuiInterface, guiStaged == pending.sourceStaged, selection == pending.paths else { return }
+        let source = GitPathSet((guiStaged ? stagedEntries : unstagedEntries).map(\.id)).intersection(pending.paths)
+        if !source.isEmpty { selection = source; return }
+        guiStaged.toggle(); stagedDiff = guiStaged
+        selection = GitPathSet((guiStaged ? stagedEntries : unstagedEntries).map(\.id)).intersection(pending.paths)
+    }
+    var guiFileListsLoading: Bool { reloadCancellation != nil || preparingCommitIdentity || !hasLoaded && fileListReadError == nil && !fileListReadCancelled }
+    func guiFileListCount(staged: Bool) -> String {
+        hasLoaded ? String((staged ? stagedEntries : unstagedEntries).count) : "—"
+    }
+    func guiFileListMessage(staged: Bool) -> String? {
+        if pendingReloadCancel { return "Cancelling…" }
+        if preparingCommitIdentity { return reloadStatusMessage }
+        if reloadCancellation != nil { return reloadStatusMessage }
+        if let fileListReadError { return "Could not load changes.\n" + fileListReadError }
+        if fileListReadCancelled { return "Refresh cancelled. Press F5 to retry." }
+        if !hasLoaded { return "Loading changes…" }
+        if stagingStateNeedsRefresh { return "Staging status needs refresh. Press F5 to retry." }
+        guard (staged ? stagedEntries : unstagedEntries).isEmpty else { return nil }
+        return staged ? "No staged changes." : "No unstaged changes."
+    }
+    func guiFileStatus(_ entry: StatusEntry, staged: Bool) -> String {
+        if stagingState(entry) == .mixed { return "Partially staged" }
+        let statistics = staged ? stagedStatistics : unstagedStatistics
+        return statistics[entry.path]?.status ?? entry.state.rawValue.capitalized
     }
     @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } } }
     @Published var viewingPatch = false
@@ -987,6 +1059,26 @@ import TurtleGitCore
     private var reloadTask: Task<Void, Never>?
     private var reloadCancellation: OperationCancellation?
     private var reloadError:String?
+    enum ReloadPhase: String {
+        case identity = "Checking Git user data…"
+        case changes = "Reading changes…"
+        case settings = "Reading repository settings…"
+        case provider = "Preparing issue provider…"
+        case message = "Preparing commit message…"
+        case startHook = "Checking Start Commit hook…"
+        case locks = "Reading LFS locks…"
+    }
+    @Published private(set) var reloadPhase: ReloadPhase?
+    private func setReloadPhase(_ phase: ReloadPhase, token: OperationCancellation) {
+        guard reloadCancellation === token, !token.isCancelled, messageFocusAvailable else { return }
+        reloadPhase = phase
+    }
+    var fileListLoadingStatus: String? { reloadCancellation == nil ? nil : reloadStatusMessage }
+    private var reloadStatusMessage: String {
+        let stem = hasLoaded ? "Refreshing changes…" : "Loading changes…"
+        guard reloadCancellation != nil, let reloadPhase else { return stem }
+        return NSLocalizedString(stem, comment: "") + "\n" + NSLocalizedString(reloadPhase.rawValue, comment: "")
+    }
     @Published private(set) var fileListReadError:String?
     @Published private(set) var fileListReadCancelled=false
     @Published private(set) var unversionedPromptVisible=false
@@ -1001,7 +1093,7 @@ import TurtleGitCore
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry] {didSet{usesCapturedCommitRead=false}}
     var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> GitPathMap<CommitStagingState>
     @Published var statistics: GitPathMap<CommitFile> = [:]
-    @Published var checked = GitPathSet()
+    @Published var checked = GitPathSet() { didSet { if checked != oldValue { providerDraftChanged() } } }
     private var selectedPaths = GitPathSet()
     @Published var nativeFileSelection = Set<String>() {
         didSet {
@@ -1052,7 +1144,7 @@ import TurtleGitCore
     @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
     @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID() } } }
     @Published var changelistsLoaded = false
-    @Published var keepChangelists = false
+    @Published var keepChangelists = false { didSet { if keepChangelists != oldValue { providerDraftChanged() } } }
     @Published var creatingChangelist = false
     @Published var changelistName = ""
     private var changelistPaths: [String] = []
@@ -1060,8 +1152,8 @@ import TurtleGitCore
     @Published var branch = ""
     private(set) var branchFocusIntent=UUID()
     @Published var createBranch = false {didSet{if createBranch != oldValue{retireFormReceipts();branchFocusIntent=supersedeFocusIntent()}}}
-    @Published var newBranch = ""
-    @Published var message = "" { didSet { if !GitReferenceName.equal(message,oldValue) { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
+    @Published var newBranch = "" { didSet { if !GitReferenceName.equal(newBranch, oldValue) { providerDraftChanged() } } }
+    @Published var message = "" { didSet { if !GitReferenceName.equal(message,oldValue) { cancelHistoryIssueUpdate(); scheduleIssueStyling(); providerDraftChanged() } } }
     @Published var projectSettings = ProjectDialogSettings()
     var projectIconAccess: RepositoryAccessLease? { access }
     static private(set) var activeIssueProviderOperations = 0
@@ -1074,6 +1166,24 @@ import TurtleGitCore
     var issueProviderCredentials: any IssueProviderCredentialStore = IssueProviderKeychainStore.shared
     var chooseProviderIssues: (NativeIssueProviderSession, NativeIssueProviderContext) async -> NativeIssueProviderResult? = { _, _ in nil }
     var cancelProviderIssues: () -> Void = {}
+    var acknowledgeProviderCheckFailure: (String, OperationCancellation) async -> Bool = { _, _ in false }
+    var acknowledgeProviderCompletionFailure: (String, OperationCancellation) async -> Bool = { _, _ in false }
+    @Published private(set) var issueProviderAcknowledgementPending = false
+    private var providerDraftRevision = UUID()
+    private func providerDraftChanged() { if issueProviderAcknowledgementPending { providerDraftRevision = UUID() } }
+    /// Byte-exact attempt inputs. The owned error acknowledgement must not
+    /// authorize changed drafts, paths, metadata or a different form lifetime.
+    private var providerAcknowledgementDraft: [Data] {
+        var values = [message, issueID, author, newBranch]
+        values += scopePaths; values += ["\0"]
+        values += checked.sorted(); values += ["\0"]
+        values += selection.sorted()
+        let flags: [Bool] = [amend, amendDiffToLastCommit, setAuthor, setAuthorDate, resetAuthorDate, messageOnly, createBranch, stagingEnabled, showWholeProject, keepChangelists]
+        var result = values.map { Data($0.utf8) }
+        result += flags.map { Data([$0 ? 1 : 0]) }
+        result.append(Data(String(authorDate.timeIntervalSince1970).utf8))
+        return result
+    }
     var providerContext: NativeIssueProviderContext { NativeIssueProviderContext(repositoryRoot: repository.root, paths: scopePaths, message: message, issueID: issueID) }
     func selectProviderIssues() {
         guard messageFocusAvailable, !inputsBlocked, let provider = nativeIssueProvider else { return }
@@ -1164,7 +1274,7 @@ import TurtleGitCore
         }
     }
     private let snippetLoader = MessageSnippetLoader()
-    @Published var issueID = "" { didSet { if !GitReferenceName.equal(issueID,oldValue) { cancelHistoryIssueUpdate() } } }
+    @Published var issueID = "" { didSet { if !GitReferenceName.equal(issueID,oldValue) { cancelHistoryIssueUpdate(); providerDraftChanged() } } }
     private func cancelHistoryIssueUpdate() {
         historyIssueGeneration = UUID()
         historyIssueCancellation?.cancel(); historyIssueTask?.cancel()
@@ -1332,7 +1442,7 @@ import TurtleGitCore
     var amendToParent: Bool { amend && !amendDiffToLastCommit }
     @Published var setAuthorDate = false {didSet{if setAuthorDate != oldValue{formOptionValueChanged(.authorDate)}}}
     @Published var messageCaretPosition = MessageCaretPosition.at("", utf16Offset: 0)
-    @Published var authorDate = Date()
+    @Published var authorDate = Date() { didSet { if authorDate != oldValue { providerDraftChanged() } } }
     @Published var resetAuthorDate = false {didSet{if resetAuthorDate != oldValue{retireFormReceipts()}}}
     @Published var messageOnly = false {
         didSet { if messageOnly != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } }
@@ -1340,7 +1450,7 @@ import TurtleGitCore
     @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{retireFormReceipts()}}}
     @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID() } } }
     @Published var setAuthor = false {didSet{if setAuthor != oldValue{formOptionValueChanged(.author)}}}
-    @Published var author = ""
+    @Published var author = "" { didSet { if !GitReferenceName.equal(author, oldValue) { providerDraftChanged() } } }
     @Published private(set) var loadingAuthorIdentity = false
     @Published private(set) var loadingAuthorDate = false
     @Published private(set) var loadingAmendMessage = false
@@ -1386,9 +1496,9 @@ import TurtleGitCore
         willSet {if newValue != showWholeProject,messageFocusAvailable,!busy {filterPosition = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)}}
         didSet {if showWholeProject != oldValue{retireFormReceipts()};updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
     }
-    @Published var scopePaths: [String] = [] { didSet { updateScopeTitle() } }
+    @Published var scopePaths: [String] = [] { didSet { updateScopeTitle(); if scopePaths.map({Data($0.utf8)}) != oldValue.map({Data($0.utf8)}) { providerDraftChanged() } } }
     @Published var busy = false {didSet{
-        if busy != oldValue {retireFormReceipts()}
+        if busy != oldValue {retireFormReceipts(); guiFileListGeneration = UUID()}
         if busy {cancelFileMetadataRead()} else {refreshRequiredFileMetadata()}
     }}
     @Published var confirmingQuit = false {didSet{
@@ -1468,10 +1578,11 @@ import TurtleGitCore
     var fileListEmptyMessage:String? {
         guard visibleEntries.isEmpty else {return nil}
         if pendingReloadCancel {return "Cancelling…"}
-        if preparingCommitIdentity {return "Checking Git user data…"}
-        if reloadCancellation != nil {return hasLoaded ? "Refreshing changes…":"Loading changes…"}
+        if preparingCommitIdentity {return reloadStatusMessage}
+        if reloadCancellation != nil {return reloadStatusMessage}
         if let fileListReadError {return "Could not load changes.\n"+fileListReadError}
         if fileListReadCancelled {return "Refresh cancelled. Press F5 to retry."}
+        if stagingStateNeedsRefresh {return "Staging status needs refresh. Press F5 to retry."}
         return Self.noChangesMessage
     }
     private var hasHiddenUnversionedFiles:Bool {
@@ -1610,11 +1721,12 @@ import TurtleGitCore
         fileMenuGeneration = UUID(); busy = true; stagingStateNeedsRefresh = true
         Self.activeFileOperations += 1;pendingFileOperations += 1
         let token = OperationCancellation(); reloadCancellation = token
+        setReloadPhase(.changes, token: token)
         let base = comparisonBase, retainedEntries = entries
         reloadTask = Task {
             defer {
                 Self.activeFileOperations -= 1;pendingFileOperations -= 1;fileListRefresh.finish(position)
-                if reloadCancellation === token { reloadCancellation = nil; reloadTask = nil; busy = false }
+                if reloadCancellation === token { reloadCancellation = nil; reloadPhase = nil; reloadTask = nil; busy = false }
                 withExtendedLifetime(access) {}
             }
             do {
@@ -1630,6 +1742,7 @@ import TurtleGitCore
                 stagedStatistics = GitPathMap(staged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 unstagedStatistics = GitPathMap(unstaged.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 stagingStateNeedsRefresh = false
+                settleGuiStageSelection()
                 if refreshPatch { refreshPartial() }
                 if !position.remember {selection = []}
                 await fileListRefresh.restore(position,ids:visibleFileRowIDs);try token.check()
@@ -2025,7 +2138,7 @@ import TurtleGitCore
             defer {
                 Self.activeFileDrops -= 1
                 if reloadCancellation === token {
-                    reloadCancellation = nil; reloadTask = nil; busy = false
+                    reloadCancellation = nil; reloadPhase = nil; reloadTask = nil; busy = false
                     if refresh && messageFocusAvailable && !pendingReloadCancel { reload() }
                 }
             }
@@ -2071,11 +2184,12 @@ import TurtleGitCore
         if hasLoaded {for entry in visibleEntries {retainedScopeChecks[entry.path]=checked.contains(entry.id)}}
         let position = fileListRefresh.begin(preferences:dialogDefaults,reset:!hasLoaded || requestedScope != scopePaths,selectedIDs:selection)
         let token = OperationCancellation(); reloadCancellation = token; Self.activeReloads += 1
+        setReloadPhase(.identity, token: token)
         reloadTask = Task {
             defer {
                 Self.activeReloads -= 1; fileListRefresh.finish(position); withExtendedLifetime(access) {}
                 if reloadCancellation === token {
-                    reloadCancellation=nil;reloadTask=nil;busy=false;offerMergeHint();offerStagingHint();offerUnversionedFiles()
+                    reloadCancellation=nil;reloadPhase=nil;reloadTask=nil;busy=false;offerMergeHint();offerStagingHint();offerUnversionedFiles()
                     if amend,amendMessageReadFailed,!loadingAmendMessage,!confirmingQuit,fileListReadError==nil,!fileListReadCancelled {amendChanged()}
                 }
             }
@@ -2084,9 +2198,11 @@ import TurtleGitCore
                 guard try await requireCommitIdentity(token) else {busy=false;close();return}
                 // Collect the entire next display before changing the accepted
                 // one. Every suspension checks both token and owning window.
+                setReloadPhase(.settings, token: token)
                 let preferences:CommitPreferences?
                 if loadedPreferences { preferences=nil }
                 else { preferences=try await readReload(token) { try await repository.commitPreferences(cancellation:token) } }
+                setReloadPhase(.changes, token: token)
                 let captured:CommitDialogRead?
                 if usesCapturedCommitRead {captured=try await readReload(token) {try await repository.commitDialogRead(amend:amend,amendDiffToLastCommit:amendDiffToLastCommit,cancellation:token)}}
                 else {captured=nil}
@@ -2110,9 +2226,11 @@ import TurtleGitCore
                 let nextBranch:String
                 if let captured {nextBranch=captured.branch}
                 else {nextBranch=try await readReload(token) {try await repository.branch(cancellation:token)}}
+                setReloadPhase(.settings, token: token)
                 let nextReportInEnglish=try await readReload(token) {try await repository.commitFileListReportInEnglish(cancellation:token)}
                 // Commit never displays ignored paths. Avoid resolving/statting
                 // generated build trees just to discard them in visibleEntries.
+                setReloadPhase(.changes, token: token)
                 let displayedCandidates = nextEntries.filter { $0.state != .ignored }
                 let nextMetadataColumns=requiredFileMetadataColumns
                 let supplementary=try await readReload(token) {
@@ -2123,6 +2241,7 @@ import TurtleGitCore
                 let nextHasLFS:Bool
                 if let captured {nextHasLFS=captured.hasLFS}
                 else {nextHasLFS=try await readReload(token) {try await repository.hasLFS(cancellation:token)}}
+                setReloadPhase(.settings, token: token)
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
                 let nextSnippets = try await readReload(token) { await snippetLoader.load(userURL:snippetURL) }
                 let nextChangelists=supplementary.changelists
@@ -2135,6 +2254,7 @@ import TurtleGitCore
                 let nextConflictRebase:Bool
                 if let captured {nextConflictRebase=captured.conflictIsRebase}
                 else {nextConflictRebase=try await readReload(token) {try await repository.conflictIsRebase(cancellation:token)}}
+                setReloadPhase(.changes, token: token)
                 let working:[CommitFile],staged:[CommitFile],unstaged:[CommitFile]
                 if let captured {working=captured.working;staged=captured.staged;unstaged=captured.unstaged}
                 else {
@@ -2150,20 +2270,24 @@ import TurtleGitCore
                     if !pendingRecommitSession,let identity=acceptedCommitIdentity {nextAuthor="\(identity.authorName) <\(identity.authorEmail)>"}
                     else {nextAuthor=try await readReload(token) {try await readAuthor(amend:false,repository:repository,cancellation:token)}}
                 } else { nextAuthor=nil }
+                setReloadPhase(.provider, token: token)
                 let provider = try await readNativeIssueProvider(token)
                 let nextIssueProperties:IssueTrackerProperties?,nextProjectSettings:ProjectDialogSettings?,nextHistory:CommitMessageHistory?,seed:CommitMessageSeed?
                 let draftMessage=message,draftIssueID=issueID
                 if !loadedMessage {
+                    setReloadPhase(.settings, token: token)
                     nextIssueProperties = try await readReload(token) { try await repository.issueTrackerProperties(cancellation:token) }
                     nextProjectSettings = try await readReload(token) { try await repository.projectDialogSettings(source:.effective,cancellation:token) }
                     let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation:token) }
                     let limit = dialogDefaults.object(forKey:"MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey:"Commit.MaxHistoryItems") as? Int ?? 25
                     nextHistory = CommitMessageHistory(repositoryIdentity:identity,defaults:dialogDefaults,limit:limit)
+                    setReloadPhase(.message, token: token)
                     seed = try await readReload(token) { try await loadMessageSeed(includeOperationMessages:!pendingRecommitSession,cancellation:token) }
                 } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
                 var nextOwners:GitPathMap<String>=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
                 var warnings=seed?.warnings ?? []
                 if nextHasLFS && fileColumns.visible.contains(.lfsOwner) {
+                    setReloadPhase(.locks, token: token)
                     lfsOwnerCancellation=token
                     defer {if lfsOwnerCancellation === token {lfsOwnerCancellation=nil}}
                     do {
@@ -2188,6 +2312,7 @@ import TurtleGitCore
                         nextMessage=separated.message;nextIssueID=separated.issueID
                     }
                     do {
+                        setReloadPhase(.startHook, token: token)
                         if let hook = try await clientHooks.run(.startCommit,repository:repository,access:access,paths:requestedScope.isEmpty ? [repository.root.path] : requestedScope.map {repository.root.appendingPathComponent($0).path},message:nextMessage,cancellation:token,allowContinue:true) { nextMessage=hook.message }
                     } catch {
                         guard messageFocusAvailable,reloadCancellation === token,!token.isCancelled else {return}
@@ -2195,6 +2320,7 @@ import TurtleGitCore
                     }
                 }
                 if !loadedMessage,!pendingRecommitSession,let commandLineIssueID {nextIssueID=commandLineIssueID}
+                setReloadPhase(.changes, token: token)
                 try await recoverMissingStagedFiles(nextEntries, repository: repository, token: token,
                     scope: requestedScope, wholeProject: requestedWholeProject)
                 _ = try await readReload(token) { () }
@@ -2554,7 +2680,7 @@ import TurtleGitCore
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
-        guiPatch?.retire(); guiPatch = nil
+        guiPatch?.retire(); guiPatch = nil; pendingGuiStageSelection = nil
         pendingRecommitSession=false;formOptionTransitions=[:];handledFormTransitions=[:]
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
@@ -2569,7 +2695,7 @@ import TurtleGitCore
         diffSession?.cancel(); diffSession = nil
         retireCommitIdentitySettings();retireDetachedChildren();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
-        reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
+        reloadCancellation = nil; reloadPhase = nil; reloadTask = nil; lfsOwnerCancellation = nil
         pendingReloadCancel = false; busy = false
         invalidateMessageFocus()
         invalidateMetadataLoads()
@@ -2823,7 +2949,25 @@ import TurtleGitCore
                 if let provider {
                     issueProviderPreflightPending=true
                     defer {issueProviderPreflightPending=false}
-                    try await provider.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID),cancellation:preflightToken)
+                    do {
+                        try await provider.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID),cancellation:preflightToken)
+                    } catch let rejection as NativeIssueProviderCommitRejection {
+                        throw rejection
+                    } catch {
+                        try validatePreflight(preflight,preflightToken)
+                        if error is CancellationError || error is OperationCancellationFailure { throw OperationCancellationFailure.cancelled }
+                        // Failed CheckCommit reports its runtime diagnostic, then
+                        // continues this exact attempt after acknowledgement.
+                        // A returned provider refusal above never reaches here.
+                        let draft = providerAcknowledgementDraft, form = formReceipt, draftRevision = providerDraftRevision
+                        issueProviderAcknowledgementPending = true
+                        defer { issueProviderAcknowledgementPending = false }
+                        let accepted = await acknowledgeProviderCheckFailure(error.localizedDescription, preflightToken)
+                        try validatePreflight(preflight,preflightToken)
+                        guard accepted, !confirmingQuit, providerAcknowledgementDraft == draft, formReceipt == form, providerDraftRevision == draftRevision else {
+                            busy = false; return
+                        }
+                    }
                 }
                 try validatePreflight(preflight,preflightToken)
                 let isGitSVN = try await repository.finderMetadata(knownBare:false,cancellation:preflightToken).hasGitSVN
@@ -2870,13 +3014,30 @@ import TurtleGitCore
                     result.complete(output:output,success:true,cancelled:false,postActions:[]);commitProgress=nil;return
                 }
                 var completionFailure: String? = providerReceipt?.warning
+                var providerCompletionNotice: String?
+                var providerContinuationAllowed = true
                 if let provider {
                     do {
                         if let revision=providerReceipt?.revision {
                             let warning=try await provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID), revision:revision,cancellation:result.cancellation)
-                            if let warning,!warning.isEmpty {completionFailure="The commit succeeded, but its issue provider reported a completion warning.\n\n"+warning}
+                            if let warning,!warning.isEmpty {providerCompletionNotice="The commit succeeded, but its issue provider reported a completion warning.\n\n"+warning}
                         }
-                    } catch { completionFailure = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
+                    } catch { providerCompletionNotice = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
+                }
+                if let notice = providerCompletionNotice {
+                    result.appendDiagnostic(notice)
+                    // OnCommitFinished failures report a notice, but do not
+                    // undo Git success or clear the source's selected postcmd.
+                    if result.cancellation.isCancelled { providerContinuationAllowed = false }
+                    else {
+                        let draft = providerAcknowledgementDraft, form = formReceipt, draftRevision = providerDraftRevision
+                        issueProviderAcknowledgementPending = true
+                        let accepted = await acknowledgeProviderCompletionFailure(notice, result.cancellation)
+                        issueProviderAcknowledgementPending = false
+                        try validatePreflight(preflight,preflightToken)
+                        providerContinuationAllowed = accepted && !confirmingQuit && !result.cancellation.isCancelled &&
+                            providerAcknowledgementDraft == draft && formReceipt == form && providerDraftRevision == draftRevision
+                    }
                 }
                 try validatePreflight(preflight,preflightToken)
                 var restored=true
@@ -2904,7 +3065,7 @@ import TurtleGitCore
                 historyForAttempt?.add(written.draft)
                 if let nonAmendHistoryForAttempt {historyForAttempt?.add(nonAmendHistoryForAttempt)}
                 if !result.isAbandoned { onCommitted(output) }
-                let postActions:[CommitPostAction]=completionFailure==nil && replaySplit==nil && historyCombine==nil ? (isGitSVN ? [.svnDCommit,.push,.pull,.recommit,.createTag]:[.push,.pull,.recommit,.createTag]):[]
+                let postActions:[CommitPostAction]=completionFailure==nil && providerContinuationAllowed && replaySplit==nil && historyCombine==nil ? (isGitSVN ? [.svnDCommit,.push,.pull,.recommit,.createTag]:[.push,.pull,.recommit,.createTag]):[]
                 if let completionFailure {result.appendDiagnostic(completionFailure)}
                 result.complete(output:output,success:true,cancelled:false,postActions:postActions)
                 if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
@@ -2913,6 +3074,7 @@ import TurtleGitCore
                 rememberCompletionAction(action)
                 commitProgress = nil
                 if let completionFailure {self.error=completionFailure;busy=false;reload();return}
+                if !providerContinuationAllowed {busy=false;reload();return}
                 if action == .recommit || selectedPostAction == .recommit {
                     invalidateMetadataLoads()
                     // These controlled resets acknowledge their settled option
@@ -3294,7 +3456,7 @@ struct CommitDialog: View {
                     Text("Classic").tag(false); Text("Git Gui-style staging").tag(true)
                 }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
                     .accessibilityLabel("Commit window")
-                    .disabled(model.inputsBlocked || model.guiPatch?.busy == true)
+                    .disabled(model.inputsBlocked || model.guiPatch?.applyingChanges == true)
             }
             if model.gitGuiInterface { guiWorkspace } else {
             Group {
@@ -3318,6 +3480,7 @@ struct CommitDialog: View {
                     }
                 }
                 if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
+                if let status = model.fileListLoadingStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
                 if !model.fileOperationTitle.isEmpty { HStack { Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption); Spacer(); Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling) } }
                 GeometryReader { geometry in
                     let maximum = max(245.0, geometry.size.height - 288)
@@ -3388,6 +3551,19 @@ struct CommitDialog: View {
                 Spacer()
                 Button("Refresh") { model.reload() }.disabled(model.inputsBlocked)
             }
+            // Reserve the operation band so starting/stopping Git never moves
+            // either native file list beneath the pointer.
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small).frame(width: 18, height: 18)
+                Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption).lineLimit(1)
+                    .help(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle)
+                Spacer()
+                Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling)
+            }
+            .frame(height: 24)
+            .opacity(model.fileOperationTitle.isEmpty ? 0 : 1)
+            .allowsHitTesting(!model.fileOperationTitle.isEmpty)
+            .accessibilityHidden(model.fileOperationTitle.isEmpty)
             HSplitView {
                 VSplitView {
                     guiFiles(staged: false)
@@ -3404,36 +3580,74 @@ struct CommitDialog: View {
                             .disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.formOptionViewChanged(.amend) }
                         Spacer(); CommitMessagePositionIndicator(model: model)
                     }
-                }.frame(minWidth: 450)
-            }
-        }
+                }.frame(minWidth: 450, maxHeight: .infinity)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
     private func guiFiles(staged: Bool) -> some View {
-        let entries = staged ? model.stagedEntries : model.unstagedEntries
+        let snapshot = model.guiFileListSnapshot(staged: staged)
+        let entries = snapshot.entries
+        let selectedIDs = model.guiStaged == staged ? model.selection : GitPathSet()
         let selection = Binding<Set<String>>(get: {
             model.guiStaged == staged ? Set(model.selection.map { $0 }) : []
         }, set: { model.selectGuiFiles($0, staged: staged) })
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(staged ? "Staged changes" : "Unstaged changes").font(.headline)
-                Text("\(entries.count)").foregroundStyle(.secondary)
-                Spacer()
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                CommandLabel(title: staged ? "Staged changes" : "Unstaged changes", icon: staged ? .commit : .status).font(.headline).lineLimit(1)
+                Text(verbatim: model.guiFileListCount(staged: staged)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).frame(minWidth: 24)
+                Spacer(minLength: 2)
+                ProgressView().controlSize(.small).frame(width: 18, height: 18)
+                    .opacity(model.guiFileListsLoading ? 1 : 0)
+                    .accessibilityLabel("Loading changes…").accessibilityHidden(!model.guiFileListsLoading).allowsHitTesting(false)
+            }.frame(height: 22)
+            Table(entries, selection: selection) {
+                TableColumn("Path") { entry in
+                    HStack(spacing: 6) {
+                        Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16)
+                        Text(verbatim: model.fileListDisplayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selectedIDs.contains(entry.id), preferences: model.colorPreferences))
+                            .background(NativeListSelectionLabelMarker())
+                    }.lineLimit(1).truncationMode(.middle)
+                        .repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
+                }.width(min: 150, ideal: 245)
+                TableColumn("Status") { entry in
+                    Text(FileListLabels.caption(model.guiFileStatus(entry, staged: staged)))
+                        .foregroundStyle(entry.statusTextColor(selected: selectedIDs.contains(entry.id), preferences: model.colorPreferences))
+                        .lineLimit(1).help(FileListLabels.caption(model.guiFileStatus(entry, staged: staged)))
+                }.width(min: 75, ideal: 105)
             }
-            List(entries, id: \.id, selection: selection) { entry in
-                HStack {
-                    Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16)
-                    Text(verbatim: entry.path).lineLimit(1).truncationMode(.middle).help(entry.path)
-                }.tag(entry.id)
-            }.listStyle(.inset).frame(minHeight: 100)
-            HStack {
-                Button { model.moveToStage(model.selection, staged: !staged) } label: {
+            .tableStyle(.bordered(alternatesRowBackgrounds: true)).fileListFont()
+            .contextMenu(forSelectionType: String.self) { ids in
+                Button { model.activateGuiFiles(ids, snapshot: snapshot) } label: {
                     CommandLabel(title: staged ? "Unstage files" : "Stage files", icon: staged ? .revert : .add)
-                }.disabled(model.inputsBlocked || model.guiStaged != staged || model.selection.isEmpty)
+                }.disabled(!model.canMoveGuiFiles(ids, snapshot: snapshot))
+            } primaryAction: { ids in model.activateGuiFiles(ids, snapshot: snapshot) }
+            .disabled(model.inputsBlocked || model.guiPatch?.applyingChanges == true)
+            .overlay {
+                if entries.isEmpty, let message = model.guiFileListMessage(staged: staged) {
+                    Text(message).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).lineLimit(4).help(message)
+                        .padding(12).padding(.top, 24).frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)
+                }
+            }
+            .background(Color(nsColor: .textBackgroundColor))
+            .overlay(Rectangle().stroke(Color(nsColor: .separatorColor), lineWidth: 1).allowsHitTesting(false))
+            .frame(minHeight: 130, maxHeight: .infinity)
+            .accessibilityIdentifier(staged ? "commit-gui-staged-files" : "commit-gui-unstaged-files")
+            // The two-line status slot stays present when idle/empty as well
+            // as while refreshing, so the table and its action footer stay put.
+            let status = entries.isEmpty ? nil : model.guiFileListMessage(staged: staged)
+            Text(status ?? " ").font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                .help(status ?? "").frame(maxWidth: .infinity, alignment: .leading).frame(height: 32, alignment: .topLeading)
+                .accessibilityHidden(status == nil).allowsHitTesting(status != nil)
+            HStack {
+                Button { model.activateGuiFiles(selectedIDs, snapshot: snapshot) } label: {
+                    CommandLabel(title: staged ? "Unstage files" : "Stage files", icon: staged ? .revert : .add)
+                }.disabled(!model.canMoveGuiFiles(selectedIDs, snapshot: snapshot))
+                Spacer(minLength: 2)
                 if !staged {
                     Toggle("Unversioned", isOn: formBinding(.unversioned, \.showUnversioned)).toggleStyle(.checkbox).disabled(model.inputsBlocked)
                 }
-            }
-        }.padding(6)
+            }.frame(height: 24)
+        }.padding(8)
     }
     private func formBinding(_ option:CommitWindowModel.FormOption,_ keyPath:ReferenceWritableKeyPath<CommitWindowModel,Bool>)->Binding<Bool> {
         let receipt=model.formReceipt
@@ -4303,8 +4517,10 @@ private struct GuiCommitPatch: View {
                 Button(model.staged ? "Unstage lines" : "Stage lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
                 Button(model.staged ? "Unstage chunks" : "Stage chunks") { model.apply(entireHunks: true) }.disabled(!model.canApplyHunks)
             }
-            PatchDialog(model: model)
-            Text(model.information).font(.caption).foregroundStyle(.secondary)
+            PatchDialog(model: model, reservesLoadingStatus: true)
+            Text(model.information).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                .help(model.information).frame(maxWidth: .infinity, alignment: .leading).frame(height: 32, alignment: .topLeading)
+                .accessibilityHidden(model.information.isEmpty)
         }
     }
 }

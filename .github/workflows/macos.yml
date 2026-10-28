@@ -488,6 +488,10 @@ jobs:
         run: python3 scripts/test-unified-gutter.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff whole-line native editing and exact byte provenance
         run: python3 scripts/test-unified-line-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Unified Diff caret modes and byte-preserving input
+        run: python3 scripts/test-unified-caret.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Commit staging table presentation and native transfer
+        run: python3 scripts/test-commit-gui-staging.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff native column selection and multiple-range editing
         run: python3 scripts/test-unified-column-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Git Properties live parent pages and scoped ownership

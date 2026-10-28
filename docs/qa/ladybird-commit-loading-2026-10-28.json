@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-28",
+  "scope": "Read-only warm actual Core APIs using existing Debug framework; not complete native Commit latency",
+  "repository": "User-selected Ladybird checkout",
+  "git": "/usr/bin/git",
+  "framework": "build/Build/Products/Debug/TurtleGitCore.framework",
+  "driver": "docs/qa/commit-loading-profile-2026-10-28.swift",
+  "results": [
+    {
+      "read": "identity",
+      "seconds": 0.124203875
+    },
+    {
+      "read": "preferences",
+      "seconds": 0.0315515
+    },
+    {
+      "read": "commitDialogRead",
+      "seconds": 0.848057208
+    },
+    {
+      "read": "fileListSupplementary",
+      "seconds": 0.032895083
+    },
+    {
+      "read": "issueProperties",
+      "seconds": 0.029086375
+    },
+    {
+      "read": "projectSettings",
+      "seconds": 0.029933375
+    },
+    {
+      "read": "messageHistoryIdentity",
+      "seconds": 0.019234292
+    },
+    {
+      "read": "messageSeed",
+      "seconds": 0.0460975
+    },
+    {
+      "read": "nativeIssueAssociation",
+      "seconds": 0.035940417
+    },
+    {
+      "read": "projectClientHooks",
+      "seconds": 0.029283042
+    }
+  ],
+  "entries": 0,
+  "working": 0,
+  "staged": 0,
+  "unstaged": 0,
+  "submodules": 0,
+  "project_provider_configured": false,
+  "project_start_hook_configured": false,
+  "index_unchanged": true,
+  "executed_hooks": false,
+  "read_credentials": false,
+  "content_printed": false,
+  "limitations": [
+    "Does not time cold filesystem cache, installed signed app, sandbox IPC, local association credentials, global hooks, or native layout/publication.",
+    "No performance improvement is claimed from these diagnostic measurements.",
+    "The isolated driver uses CLI-backed display reads and an ordinary .git/index path; it does not execute user global hooks, read credentials or certify the complete installed configuration."
+  ],
+  "bundled_git_reads": [
+    {
+      "read": "status",
+      "seconds": 0.4031,
+      "exit": 0,
+      "bytes": 0,
+      "nul_packets": 0
+    },
+    {
+      "read": "working-diff",
+      "seconds": 0.0452,
+      "exit": 0,
+      "bytes": 0,
+      "nul_packets": 0
+    },
+    {
+      "read": "staged-diff",
+      "seconds": 0.0095,
+      "exit": 0,
+      "bytes": 0,
+      "nul_packets": 0
+    },
+    {
+      "read": "unstaged-diff",
+      "seconds": 0.0396,
+      "exit": 0,
+      "bytes": 0,
+      "nul_packets": 0
+    },
+    {
+      "read": "index",
+      "seconds": 0.015,
+      "exit": 0,
+      "bytes": 4222351,
+      "nul_packets": 34303
+    }
+  ],
+  "bundled_index_unchanged": true,
+  "libgit2_enabled": false
+}

@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-28",
+  "status": "grouped-core-native-checkpoint-passed",
+  "scope": "Typed provider veto vs invocation failure, owned pre/post-commit acknowledgement and captured continuation",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "core": {
+    "methods": 12,
+    "result": "passed",
+    "log": "build/qa/provider-caret-core-2026-10-28.log",
+    "classes": [
+      "NativeIssueProviderTests",
+      "NativeIssueProviderSessionTests"
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-native-issue-provider.py --only check-failure --only commit --only lifetime --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "log": "build/qa/issue-provider-errors-native-recheck-2026-10-28.log",
+    "passed_case_engine_pairs": 6,
+    "owned_receiver_pids": [
+      94323,
+      95421,
+      96506,
+      96636,
+      96794,
+      97010
+    ],
+    "scope": "Actual private HTTP runtime/veto/picker/completion handling, real once-only commits/hooks, owned acknowledgement/duplicate replies, captured ReCommit/Push continuation, stale/cancel/retire suppression and existing provider lifetime."
+  },
+  "initial_failure": {
+    "log": "build/qa/issue-provider-errors-native-2026-10-28.log",
+    "pid": 93634,
+    "cause": "Fixture expected live progress output after forced close, but retired progress intentionally clears visible output while retaining success.",
+    "repair": "Capture actual diagnostic before closure; assert abandoned empty output afterward. Actual commit/provider/success/no-repeat/follow-up assertions retained."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/NativeIssueProvider.swift": "76c7e47b2fbecaa209bd16440be472487f03e0a82ab832731cf9d0fb67cea20e",
+    "Sources/TurtleGitCore/NativeIssueProviderSession.swift": "497537768db6cadb33d5dcaf07163de5291a48a0bc27ec4d6826fe248ef9a99f",
+    "Sources/TurtleGitMac/CommitIssueProvider.swift": "f9b83974acb71b987cd57697c8970d1af2bd15faa812b9686cd2e0b6a9ca6658",
+    "docs/qa/native-issue-provider-2026-10-20.swift": "dff4175f15e38b8dcc114760865fe71658daf4597419b23151dd1afca8d3fc91",
+    "scripts/test-native-issue-provider.py": "4b3498b2f37eb393b7704104cc5e13ed03e6a7692c4fd8c1483e36d1f8f2e788"
+  },
+  "limits": [
+    "Private HTTP cases do not certify public provider products or authentication.",
+    "Signed sandbox, physical/VoiceOver and complete hosted/application acceptance remain open.",
+    "Subsequent staging-family changes share CommitWindow.swift but do not change this provider phase; no provider-repeat claim.",
+    "Installed build20 predates this source batch."
+  ]
+}

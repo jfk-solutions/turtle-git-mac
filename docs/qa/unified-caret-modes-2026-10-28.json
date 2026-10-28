@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-28",
+  "status": "grouped-core-native-checkpoint-passed",
+  "scope": "Unified Diff overtype, source word-part movement/extension and native byte/IME/owner integration",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "core": {
+    "initial_group_methods": 31,
+    "initial_passed": 30,
+    "initial_failure": "PatchCaretEditingTests rejected CRLF-interior caret but NSString composed ranges did not group CRLF.",
+    "initial_log": "build/qa/provider-caret-core-2026-10-28.log",
+    "repair": "Explicit CRLF-interior boundary detection for movement and overtype, additional endpoint assertions.",
+    "affected_recheck": {
+      "class": "PatchCaretEditingTests",
+      "methods": 6,
+      "failures": 0,
+      "log": "build/qa/patch-caret-core-crlf-recheck-2026-10-28.log"
+    },
+    "unchanged_regression_methods_passed": 13,
+    "unchanged_regression_class": "PatchLineEditingTests",
+    "cumulative_distinct_methods_for_caret_and_line_families": 19
+  },
+  "native": {
+    "command": "python3 scripts/test-unified-caret.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "log": "build/qa/unified-caret-native-paste-recheck-2026-10-28.log",
+    "cases": [
+      "navigation",
+      "typing",
+      "bytes",
+      "ownership"
+    ],
+    "git_engines": 2,
+    "passed_case_engine_pairs": 8,
+    "owned_receiver_pids": [
+      97647,
+      97669
+    ],
+    "scope": "Actual native caret menus/shortcuts, typed overtype, selection/IME/Newline/Paste, byte preservation and Save/Undo/Redo, mode replacement/read-only/stale owner guards."
+  },
+  "failures": [
+    {
+      "log": "build/qa/unified-caret-native-2026-10-28.log",
+      "cause": "Fixture actor annotations and nonexistent preview load API; no receiver started.",
+      "repair": "Explicit actor annotation and actual read-only reload API."
+    },
+    {
+      "log": "build/qa/unified-caret-native-recheck-2026-10-28.log",
+      "pid": 94304,
+      "cause": "Ordinary native Paste bypassed existing injected private board and read the general board; no user content was printed or logged.",
+      "repair": "Default general-board Paste remains native super.paste. Named injected board now uses native readSelection inside the same overtype-suppression path; exact expected bytes and private-board isolation checks retained."
+    }
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/PatchCaretEditing.swift": "70dab4af432c13a9565154f35484f65fadbb4fcb818e3f0fc0b2237e28f8cf25",
+    "Sources/TurtleGitMac/PatchWindow.swift": "8fa233c705155b729cdf2531dc4cceca9ca599c7ad49e1a1b6b8f3ea9e61793c",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "b7e0636baf7f300c227caff263221cf2bfab72f5cc10ef8af9f7ac0155d4ba23",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "e90b06fefbbdbb4c91b49c921684b0e77d63ceea360e925e24efb36197d55ba2",
+    "Tests/TurtleGitCoreTests/PatchCaretEditingTests.swift": "a9015ca3270006a82be654fdf28fcd65e2995271826d7890b07bec0ee6a87ca2",
+    "docs/qa/unified-caret-native-2026-10-28.swift": "435ddad58f380ff11ad122297eff321db70d990a3e10630f002825616a73bf8b",
+    "scripts/test-unified-caret.py": "14c64460a6efab32ec31ebe26a6aa79324b948999cef4729e36d85f742fb3939"
+  },
+  "build_logs": [
+    "build/qa/provider-caret-debug-2026-10-28.log",
+    "build/qa/provider-caret-debug-crlf-recheck-2026-10-28.log",
+    "build/qa/provider-caret-debug-paste-recheck-2026-10-28.log"
+  ],
+  "limits": [
+    "Native grapheme/CRLF-safe offsets adapt source scalar boundaries without Unicode normalization.",
+    "Physical keyboard/IME/VoiceOver, signed current deployment, minimum-OS/Intel and complete hosted/application acceptance remain open.",
+    "Installed build20 predates this source batch."
+  ]
+}

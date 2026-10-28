@@ -60,6 +60,8 @@ class ProviderHandler(BaseHTTPRequestHandler):
         elif action == 'listIssues':
             response['issues'] = [{'id': '17', 'summary': 'Snow issue 雪'}, {'id': '42', 'summary': 'Forty two'}]
         elif action == 'commitMessage':
+            if state.get('messageError'):
+                response['error'] = 'Private message preparation failed'
             selected = request.get('selectedIDs', [])
             issue_id = ','.join(selected)
             response['message'] = request['context']['message'] + '\nProvider issues: ' + issue_id + '\n'
@@ -68,12 +70,16 @@ class ProviderHandler(BaseHTTPRequestHandler):
         elif action == 'checkCommit':
             if state.get('rejectCheck'):
                 response['error'] = 'Provider requires review before commit'
+            if state.get('checkHTTPStatus'):
+                status = state['checkHTTPStatus']
         elif action == 'commitFinished':
+            if state.get('finishHTTPStatus'):
+                status = state['finishHTTPStatus']
             if state.get('finishWarning'):
                 response['warning'] = state['finishWarning']
         else:
             response['error'] = 'Unknown private action'
-        payload = json.dumps(response, ensure_ascii=False).encode()
+        payload = b'{invalid-json' if action == 'checkCommit' and state.get('malformedCheck') else json.dumps(response, ensure_ascii=False).encode()
         try:
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')
@@ -86,13 +92,13 @@ class ProviderHandler(BaseHTTPRequestHandler):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['settings', 'commit', 'lifetime'], action='append')
+parser.add_argument('--only', choices=['settings', 'commit', 'lifetime', 'check-failure'], action='append')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='turtlegit-native-issue-provider-') as temporary:
     directory = Path(temporary)
     receiver = build_receiver(root, [root / 'docs/qa/native-issue-provider-2026-10-20.swift'], directory)
-    for case in args.only or ['settings', 'commit', 'lifetime']:
+    for case in args.only or ['settings', 'commit', 'lifetime', 'check-failure']:
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             context = directory / (case + str(index)); context.mkdir(mode=0o700)
             fixture = context / 'fixture'; fixture.mkdir(mode=0o700)

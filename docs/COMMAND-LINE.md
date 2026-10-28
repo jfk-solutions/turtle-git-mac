@@ -712,10 +712,11 @@ extension, with the same graph model, fonts, colors and export renderer as Save
 Graph As. An extensionless output or an unknown suffix appends `.jpg` and uses
 JPEG, matching the source fallback. For example, `--output history.custom`
 writes `history.custom.jpg`. Output authorization names that final path before
-rendering or writing. Windows WMF/EMF are refused before output permission or
-writing; PDF provides the native vector alternative, and metafile graph writing
-remains unported. Hidden
-output owns a separate graph and does not retarget an existing interactive graph.
+rendering or writing. WMF and EMF destinations use the shared enhanced-metafile
+writer, matching the upstream CreateEnhMetaFile route even for a `.wmf` suffix.
+PDF is also available as a native vector format. The
+[shared-scene export record](GRAPH-METAFILE-EXPORT-PARITY.md) describes the
+implemented encoders and their validation limits. Hidden output owns a separate graph and does not retarget an existing interactive graph.
 A normal Graph command reuses its existing view and preserves its filters.
 
 Standalone containing-reference windows retain independent editable input,

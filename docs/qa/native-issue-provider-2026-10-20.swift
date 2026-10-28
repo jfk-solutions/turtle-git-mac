@@ -193,7 +193,7 @@ actor PrivateIssueCredentials: IssueProviderCredentialStore {
         try await wait("provider preflight refusal") { !owner.model.busy && owner.model.error != nil }
         let refusedHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let refusedIndex = try Data(contentsOf: repository.root.appendingPathComponent(".git/index"))
-        try require(presentations == 0 && refusedHead == head && refusedIndex == index && context.requests("commitFinished").isEmpty, "Provider refusal staged files, committed, or presented progress")
+        try require(presentations == 0 && refusedHead == head && refusedIndex == index && context.requests("commitFinished").isEmpty && owner.issueProviderOwner?.runtimeAlert == nil && !owner.model.issueProviderAcknowledgementPending, "Provider refusal staged files, committed, presented progress or became an overridable runtime error")
         owner.model.error = nil
         try await wait("HTTP refusal alert/reload ownership settled") { ready(owner.model) && !owner.model.inputsBlocked && !owner.model.attemptWorkPending && owner.window?.attachedSheet == nil && owner.model.canCommit }
         try context.state(["holdAction": "commitFinished", "finishWarning": "Private completion warning"])
@@ -206,6 +206,8 @@ actor PrivateIssueCredentials: IssueProviderCredentialStore {
         let advanced = try await repository.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
         try require(advanced != committed && receipt["revision"] as? String == committed, "Completion revision followed later HEAD")
         try context.state(["finishWarning": "Private completion warning"])
+        try await wait("owned completion warning acknowledgement") { owner.issueProviderOwner?.runtimeAlert?.window.sheetParent != nil }
+        owner.issueProviderOwner?.runtimeAlert?.buttons[0].performClick(nil)
         try await wait("successful progress with completion warning") { progress?.busy == false }
         guard let result = progress else { throw Failure(description: "No actual commit progress") }
         try require(result.success && result.output.contains("Private completion warning") && presentations == 1, "Completion warning changed successful commit outcome")
@@ -215,6 +217,137 @@ actor PrivateIssueCredentials: IssueProviderCredentialStore {
         try require(count == "3" && finalHead == advanced && context.requests("commitFinished").count == 1, "Provider completion duplicated a commit or rewrote later HEAD")
         for action in ["listIssues", "commitMessage", "checkCommit", "commitFinished"] {
             try require(!context.requests(action).isEmpty && context.requests(action).allSatisfy { $0["authorized"] as? Bool == true }, "Actual HTTP \(action) omitted bearer authentication")
+        }
+    } }
+    static func checkFailure() async throws { try await run { context in
+        try await context.credentials.setToken(context.secret, for: context.endpoint)
+        @MainActor func prepare(_ name: String) async throws -> (GitRepository, CommitWindowController) {
+            let repository = try await context.repository(name)
+            try context.association(repository)
+            let owner = context.commitOwner(repository); try await context.prepare(owner)
+            return (repository, owner)
+        }
+        // A transport/runtime failure is acknowledged once and continues the
+        // same attempt. Actual Git and HTTP receipts prove no recursive retry.
+        let (repository, owner) = try await prepare("runtime-accepted")
+        let hookDirectory = repository.root.appendingPathComponent(".git/private-provider-hooks")
+        try FileManager.default.createDirectory(at: hookDirectory, withIntermediateDirectories: true)
+        let hook = hookDirectory.appendingPathComponent("pre-commit")
+        try Data("#!/bin/sh\nprintf x >> \"$0.count\"\n".utf8).write(to: hook)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: hook.path)
+        _ = try await repository.run(["config", "core.hooksPath", hookDirectory.path])
+        let originalHead = try await repository.run(["rev-parse", "HEAD"]).stdout
+        let originalIndex = try Data(contentsOf: repository.root.appendingPathComponent(".git/index"))
+        var progress: CommitProgressWindowModel?, presentations = 0, acknowledgements = 0
+        let presentProgress = owner.model.onCommitProgress
+        owner.model.onCommitProgress = { value in progress = value; presentations += 1; presentProgress?(value) }
+        guard let providerOwner = owner.issueProviderOwner else { throw Failure(description: "Missing native provider owner") }
+        providerOwner.presentRuntimeFailure = { parent, alert, reply in
+            acknowledgements += 1
+            alert.beginSheetModal(for: parent) { response in reply(response); reply(response) }
+            return true
+        }
+        let checksBefore = context.requests("checkCommit").count, finishedBefore = context.requests("commitFinished").count
+        try context.state(["checkHTTPStatus": 503]); owner.model.commit()
+        try await wait("owned runtime acknowledgement") { providerOwner.runtimeAlert?.window.sheetParent === owner.window && owner.model.issueProviderAcknowledgementPending }
+        try require(owner.model.busy && owner.model.attemptWorkPending && presentations == 0 && !owner.model.canCommit, "Runtime error escaped its captured preflight before acknowledgement")
+        guard let alert = providerOwner.runtimeAlert else { throw Failure(description: "Missing actual runtime alert") }
+        try require(alert.window.alphaValue == 0 && alert.buttons.count == 1 && alert.buttons[0].title == "OK", "Runtime acknowledgement was visible or offered an extra commit decision")
+        let waitingHead = try await repository.run(["rev-parse", "HEAD"]).stdout
+        let waitingIndex = try Data(contentsOf: repository.root.appendingPathComponent(".git/index"))
+        try require(waitingHead == originalHead && waitingIndex == originalIndex && !FileManager.default.fileExists(atPath: hook.path + ".count"), "Runtime acknowledgement staged files, committed or ran Git hooks before OK")
+        alert.buttons[0].performClick(nil)
+        try await wait("actual single commit after acknowledgement") { progress?.busy == false && progress?.success == true }
+        let count = try await repository.run(["rev-list", "--count", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = try await repository.run(["log", "-1", "--format=%B"]).text
+        let hookCount = try Data(contentsOf: URL(fileURLWithPath: hook.path + ".count"))
+        try require(count == "2" && body.contains("Native provider commit") && acknowledgements == 1 && presentations == 1 && hookCount == Data("x".utf8), "Acknowledged runtime failure repeated or changed the captured commit/hooks")
+        try require(context.requests("checkCommit").count == checksBefore + 1 && context.requests("commitFinished").count == finishedBefore + 1, "Runtime acknowledgement repeated provider preflight/completion")
+        try require(!String(describing: alert.informativeText).contains(context.secret), "Runtime diagnostic exposed credential")
+        progress?.choose(nil)
+        try await wait("accepted attempt drain") { !owner.model.attemptWorkPending }
+
+        // Other provider phases retain their own source contracts. A picker
+        // failure stays editable, while a post-success error cannot retry Git.
+        let (_, pickerOwner) = try await prepare("picker-error")
+        pickerOwner.model.selectProviderIssues()
+        try await wait("failure-family picker loaded") { pickerOwner.issueProviderOwner?.picker?.model.loaded == true }
+        guard let picker = pickerOwner.issueProviderOwner?.picker else { throw Failure(description: "Missing failure-family picker") }
+        picker.model.selected = ["17"]
+        let pickerDraft = pickerOwner.model.message
+        try context.state(["messageError": true]); picker.model.submit()
+        try await wait("picker error retained") { !picker.model.busy && picker.model.error != nil }
+        try require(pickerOwner.issueProviderOwner?.picker === picker && pickerOwner.model.message == pickerDraft && picker.model.selected == ["17"] && pickerOwner.issueProviderOwner?.runtimeAlert == nil, "Message-provider failure escaped its picker or changed the draft")
+        try context.state([:]); picker.model.submit()
+        try await wait("picker retry applies once") { !pickerOwner.model.issueProviderBusy }
+        try require(pickerOwner.model.message.components(separatedBy: "Provider issues:").count == 2, "Picker retry lost or duplicated provider text")
+
+        for mode in ["recommit", "push", "cancel", "close", "stale"] {
+            let (finishRepository, finishOwner) = try await prepare("completion-runtime-" + mode)
+            var finishedProgress: CommitProgressWindowModel?, pushes = 0
+            let presentFinishProgress = finishOwner.model.onCommitProgress
+            finishOwner.model.onCommitProgress = { value in finishedProgress = value; presentFinishProgress?(value) }
+            finishOwner.model.onPush = { _ in pushes += 1 }
+            let finishChecks = context.requests("checkCommit").count, finishReceipts = context.requests("commitFinished").count
+            try context.state(["finishHTTPStatus": 503])
+            finishOwner.model.commit(mode == "recommit" ? .recommit : .push)
+            try await wait("owned completion runtime acknowledgement " + mode) { finishOwner.issueProviderOwner?.runtimeAlert?.window.sheetParent != nil && finishOwner.model.issueProviderAcknowledgementPending }
+            guard let finishAlert = finishOwner.issueProviderOwner?.runtimeAlert, let result = finishedProgress else { throw Failure(description: "Missing completion result/notice") }
+            try require(finishAlert.window.sheetParent === finishOwner.window?.attachedSheet && finishAlert.window.alphaValue == 0 && result.busy, "Completion failure did not own an invisible nested progress notice")
+            let completionDiagnostic = result.output
+            try require(completionDiagnostic.contains("completion failed") && finishAlert.informativeText.contains("completion failed"), "Completion error was not reported before its acknowledgement: " + mode)
+            switch mode {
+            case "cancel": result.cancellation.cancel()
+            case "close": finishOwner.close()
+            case "stale": let old = finishOwner.model.message; finishOwner.model.message = "Later draft"; finishOwner.model.message = old; finishAlert.buttons[0].performClick(nil)
+            default: finishAlert.buttons[0].performClick(nil)
+            }
+            try await wait("completion runtime attempt drains " + mode) { !finishOwner.model.attemptWorkPending && !finishOwner.model.issueProviderAcknowledgementPending }
+            let finishCount = try await finishRepository.run(["rev-list", "--count", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let actualChecks = context.requests("checkCommit").count - finishChecks
+            let actualReceipts = context.requests("commitFinished").count - finishReceipts
+            // Retirement intentionally clears visible progress output. Preserve
+            // the actual reported notice as the immutable pre-close witness.
+            let diagnosticRetained = mode == "close" ? result.isAbandoned && result.output.isEmpty && completionDiagnostic.contains("completion failed") : result.output.contains("completion failed")
+            let details = "mode=\(mode), commits=\(finishCount), success=\(result.success), busy=\(result.busy), abandoned=\(result.isAbandoned), checks=\(actualChecks), receipts=\(actualReceipts), diagnostic=\(diagnosticRetained), pushes=\(pushes)"
+            try require(finishCount == "2" && result.success && diagnosticRetained && actualChecks == 1 && actualReceipts == 1, "Completion error lost Git success or repeated Git/provider work: " + details)
+            try require(pushes == (mode == "push" ? 1 : 0), "Completion acknowledgement lost/repeated or authorized stale Push: " + mode)
+            if mode == "recommit" {
+                try await wait("ReCommit ready after acknowledged completion error") { ready(finishOwner.model) && finishOwner.model.message.isEmpty && finishOwner.model.messageFocusAvailable }
+            }
+        }
+
+        // Retiring or mutating the suspended draft must never make the OK
+        // callback authority for a newer commit. Include away/back mutations.
+        for mode in ["message", "paths", "scope", "author", "options", "issue", "cancel", "close", "presentation"] {
+            let (repository, owner) = try await prepare("runtime-" + mode)
+            let head = try await repository.run(["rev-parse", "HEAD"]).stdout
+            let index = try Data(contentsOf: repository.root.appendingPathComponent(".git/index"))
+            let before = context.requests("commitFinished").count
+            var presentations = 0
+            owner.model.onCommitProgress = { _ in presentations += 1 }
+            guard let providerOwner = owner.issueProviderOwner else { throw Failure(description: "Missing owned provider prompt") }
+            if mode == "presentation" { providerOwner.presentRuntimeFailure = { _, _, _ in false } }
+            try context.state(["malformedCheck": true]); owner.model.commit()
+            if mode != "presentation" {
+                try await wait("runtime pending " + mode) { providerOwner.runtimeAlert?.window.sheetParent === owner.window && owner.model.issueProviderAcknowledgementPending }
+                switch mode {
+                case "message": let old = owner.model.message; owner.model.message = "Changed draft"; owner.model.message = old
+                case "paths": let old = owner.model.checked; owner.model.checked = []; owner.model.checked = old
+                case "scope": let old = owner.model.scopePaths; owner.model.scopePaths = ["other"]; owner.model.scopePaths = old
+                case "author": let old = owner.model.author; owner.model.author = "Other <other@example.invalid>"; owner.model.author = old
+                case "options": owner.model.messageOnly.toggle(); owner.model.messageOnly.toggle()
+                case "issue": let old = owner.model.issueID; owner.model.issueID = "99"; owner.model.issueID = old
+                case "cancel": owner.model.cancel(closeWindow: false)
+                case "close": owner.close()
+                default: break
+                }
+                if mode != "cancel" && mode != "close" { providerOwner.runtimeAlert?.buttons[0].performClick(nil) }
+            }
+            try await wait("refused runtime attempt drain " + mode) { !owner.model.attemptWorkPending && !owner.model.issueProviderAcknowledgementPending && providerOwner.runtimeAlert == nil }
+            let afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
+            let afterIndex = try Data(contentsOf: repository.root.appendingPathComponent(".git/index"))
+            try require(presentations == 0 && afterHead == head && afterIndex == index && context.requests("commitFinished").count == before, "Stale/cancelled runtime acknowledgement mutated Git: " + mode)
         }
     } }
     static func lifetime() async throws { try await run { context in
@@ -277,6 +410,7 @@ actor PrivateIssueCredentials: IssueProviderCredentialStore {
         case "settings": try await settings()
         case "commit": try await commit()
         case "lifetime": try await lifetime()
+        case "check-failure": try await checkFailure()
         default: throw Failure(description: "Unknown native provider case")
         }
         print("PASS: native issue provider case completed")

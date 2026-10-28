@@ -114,7 +114,23 @@ Classic Commit keeps the message above its checked-file list:
 
 ![Commit controls and file status colors in dark appearance](site/assets/mac-commit-classic-dark-2026-10-27.png)
 
-The alternative staging workspace separates the index and working tree:
+The alternative staging workspace separates the index and working tree. Both
+panes retain bordered **Path** and **Status** tables, including when there are no
+rows. A loading/refresh indicator and unknown initial count distinguish a read
+in progress from **No unstaged changes.** or **No staged changes.**
+
+Double-click a row to stage it from the upper pane or unstage it from the lower
+pane. Double-clicking a selected row transfers the selected group. The matching
+buttons and context-menu actions perform the same operation. A partly staged
+file can appear in both panes; selecting it previews that side, while whole-file
+transfer and hunk staging keep their separate meanings. Classic mode retains its
+ordinary double-click Diff action.
+
+Read-only previews can be cancelled by selecting another file or changing the
+interface. An active hunk write must finish first. An empty selection displays
+selection instructions rather than a blank patch. During a refresh, the visible
+phase and Cancel control explain ongoing work; a failed or cancelled read keeps
+its own result instead of pretending the repository is empty.
 
 ![Git Gui-style staging with separate index and working-tree lists](site/assets/mac-commit-staging-light-2026-10-27.png)
 
@@ -862,6 +878,17 @@ Ordinary typing and Return affect the active row. Line commands retain their
 source-specific primary-row or per-row behavior. Undo restores the exact document
 and all selections. See [column editing](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md)
 for details and acceptance scope.
+
+Use **Edit → Caret** or the text context menu for Previous/Next Word Part and
+selection extension. **Control-/** and **Control-Backslash** move between camel-case,
+acronym, digit and separator parts; add Shift to extend the selection. In an
+editable patch document, **Command-Option-O** toggles **Overtype**, shown by its
+checked menu item and block caret. Typing replaces the selection or one complete
+character; it preserves an existing line ending. Paste, Return and marked-text
+composition retain their normal behavior. Undo restores the replaced bytes and
+selection. Opening a replacement document resets Overtype. See
+[caret editing modes](UNIFIED-DIFF-CARET-PARITY.md) for native Unicode boundaries,
+column-selection behavior and ownership details.
 
 ![Unified Diff line numbers and column selection in light appearance](site/assets/mac-unified-diff-light-2026-10-27.png)
 

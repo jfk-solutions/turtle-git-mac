@@ -1581,25 +1581,26 @@ require review; a dialog count is not a count of all upstream UI.
 
 ## Current integration verification
 
-The historical [1cfadcc3 hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39494884494)
-completed its Core stage with 2,489 tests, two skipped and two failures. The
-legacy failed-Pick receipt incompatibility has a focused two-method local repair
-pass, retaining all recovery guards. MaskBlt matrix rendering was under diagnosis
-at that checkpoint; later graphics family records above supersede that status.
-No complete current hosted pass follows from those historical scoped checks.
-[Evidence](qa/ci-1cfadcc3-core-failures-2026-10-21.json) records both failures.
+The [October 28 Commit observer checkpoint](qa/commit-option-observers-2026-10-28.json)
+records a completed hosted Core stage with 3,153 methods, two skips and zero
+failures. The subsequent native Commit option step failed; the source repair
+passes local Commit and ReCommit editing checks with both Git engines. A complete
+hosted macOS pass on the current release source remains required.
 
-A historical complete local SwiftPM suite passed **980 tests, zero failures**, with
-one optional MX probe skipped, on October 11, 2026. The system Git 2.50.1 / Swift
-6.3.3 process exited normally after 874.897 seconds. It covers the recorded Core
-checkpoint, including generated change-set comparison, but not native app UI.
-The later Sync Find icon/resource addition passed the three focused MenuIcon
-tests; the complete suite has not been rerun for that addition.
-See [the complete Core checkpoint](qa/core-full-range-log-checkpoint-2026-10-11.json).
-Recent Sync native checks, unsigned builds and bundle audits have separate
-workflow records; these do not expand the Core result's scope.
-These checks do not prove full dialog parity, activated Finder behavior, signed
-sandbox execution, passing hosted CI on the latest source or App Store readiness.
+The [spatial image checkpoint](qa/metafile-spatial-effects-2026-10-28.json)
+records 140 distinct focused Core methods cumulatively passing, the current
+universal helper, Debug app and both native Git-engine workflows. Its initial
+failures, source-reference observations and affected repairs are retained.
+The later [Log checkpoint](qa/log-lfs-family-2026-10-28.json) records both native
+Git-engine passes for LFS entry, cancellation/refresh and retired-window reuse.
+Core was unchanged for that native-only batch.
+
+[Installed build20](qa/signed-consolidation-build20-2026-10-28.json) has separate
+measured-input, signature, universal-component, installed-inventory and focused
+signed sandbox evidence. It predates the Log LFS batch. These results do not
+certify every source dialog, physical Finder workflow, Intel/minimum-macOS
+execution, complete hosted integration or App Store readiness. Current remaining
+gates are listed in [local testing and release gates](RELEASE-BLOCKERS.md).
 
 ## Current component and workflow state — October 25, 2026
 

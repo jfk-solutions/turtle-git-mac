@@ -92,7 +92,21 @@ original filenames, including Unicode and embedded line breaks.</p>
 <p>Classic Commit keeps the message above its checked-file list:</p>
 <p><img src="images/43a1ebc091da-mac-commit-classic-light-2026-10-27.png" alt="Commit message, options and checked files in light appearance" /></p>
 <p><img src="images/442f7399b864-mac-commit-classic-dark-2026-10-27.png" alt="Commit controls and file status colors in dark appearance" /></p>
-<p>The alternative staging workspace separates the index and working tree:</p>
+<p>The alternative staging workspace separates the index and working tree. Both
+panes retain bordered <strong>Path</strong> and <strong>Status</strong> tables, including when there are no
+rows. A loading/refresh indicator and unknown initial count distinguish a read
+in progress from <strong>No unstaged changes.</strong> or <strong>No staged changes.</strong></p>
+<p>Double-click a row to stage it from the upper pane or unstage it from the lower
+pane. Double-clicking a selected row transfers the selected group. The matching
+buttons and context-menu actions perform the same operation. A partly staged
+file can appear in both panes; selecting it previews that side, while whole-file
+transfer and hunk staging keep their separate meanings. Classic mode retains its
+ordinary double-click Diff action.</p>
+<p>Read-only previews can be cancelled by selecting another file or changing the
+interface. An active hunk write must finish first. An empty selection displays
+selection instructions rather than a blank patch. During a refresh, the visible
+phase and Cancel control explain ongoing work; a failed or cancelled read keeps
+its own result instead of pretending the repository is empty.</p>
 <p><img src="images/4032584c64bd-mac-commit-staging-light-2026-10-27.png" alt="Git Gui-style staging with separate index and working-tree lists" /></p>
 <p><img src="images/c40dd63a4ad0-mac-commit-staging-dark-2026-10-27.png" alt="The staging workspace in dark appearance" /></p>
 <p>The Check links follow the source action categories: <strong>Added</strong> includes copies,
@@ -717,6 +731,16 @@ Ordinary typing and Return affect the active row. Line commands retain their
 source-specific primary-row or per-row behavior. Undo restores the exact document
 and all selections. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-COLUMN-EDITING-PARITY.html">column editing</a>
 for details and acceptance scope.</p>
+<p>Use <strong>Edit → Caret</strong> or the text context menu for Previous/Next Word Part and
+selection extension. <strong>Control-/</strong> and <strong>Control-Backslash</strong> move between camel-case,
+acronym, digit and separator parts; add Shift to extend the selection. In an
+editable patch document, <strong>Command-Option-O</strong> toggles <strong>Overtype</strong>, shown by its
+checked menu item and block caret. Typing replaces the selection or one complete
+character; it preserves an existing line ending. Paste, Return and marked-text
+composition retain their normal behavior. Undo restores the replaced bytes and
+selection. Opening a replacement document resets Overtype. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-CARET-PARITY.html">caret editing modes</a> for native Unicode boundaries,
+column-selection behavior and ownership details.</p>
 <p><img src="images/21aac1cf93c1-mac-unified-diff-light-2026-10-27.png" alt="Unified Diff line numbers and column selection in light appearance" /></p>
 <p><img src="images/bd6937300caa-mac-unified-diff-dark-2026-10-27.png" alt="Unified Diff patch colors and column selection in dark appearance" /></p>
 <p>In a Unified Diff window or attached partial-patch view, Command-F opens the

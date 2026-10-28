@@ -84,7 +84,7 @@ public struct NativeIssueProviderSession:Sendable,CustomStringConvertible,Custom
     public func checkCommit(context:NativeIssueProviderContext,cancellation:OperationCancellation?=nil) async throws {
         try check(cancellation)
         if let catalog {try catalog.checkCommit(context:context);return}
-        _ = try await call("checkCommit",context:context,cancellation:cancellation)
+        _ = try await call("checkCommit",context:context,errorPolicy:.commitRejection,cancellation:cancellation)
     }
     public func commitFinished(context:NativeIssueProviderContext,revision:String,cancellation:OperationCancellation?=nil) async throws->String? {
         try check(cancellation)
@@ -98,7 +98,8 @@ public struct NativeIssueProviderSession:Sendable,CustomStringConvertible,Custom
     private func check(_ cancellation:OperationCancellation?)throws {try cancellation?.check();try Task.checkCancellation()}
     private func safe(_ text:String)->String {String(text.replacingOccurrences(of:bearerToken ?? "\0",with:"[redacted]").replacingOccurrences(of:"\0",with:"").prefix(4096))}
     private func failure(_ message:String)->NativeIssueProviderFailure {.configuration("HTTP provider: "+safe(message))}
-    private func call(_ action:String,context:NativeIssueProviderContext,selected:[String]?=nil,revision:String?=nil,cancellation:OperationCancellation?) async throws->[String:Any] {
+    private enum ResponseErrorPolicy {case invocationFailure,commitRejection}
+    private func call(_ action:String,context:NativeIssueProviderContext,selected:[String]?=nil,revision:String?=nil,errorPolicy:ResponseErrorPolicy = .invocationFailure,cancellation:OperationCancellation?) async throws->[String:Any] {
         guard let endpoint else{throw NativeIssueProviderFailure.unavailable(identifier)}
         try check(cancellation)
         guard context.repositoryRoot.isFileURL,context.commonRoot.isFileURL,
@@ -117,7 +118,15 @@ public struct NativeIssueProviderSession:Sendable,CustomStringConvertible,Custom
         try check(cancellation)
         guard let response=(try? JSONSerialization.jsonObject(with:bytes)) as? [String:Any],
               let version=response["version"] as? NSNumber,CFGetTypeID(version)==CFNumberGetTypeID(),version.doubleValue==1 else{throw failure("Expected a version 1 JSON object response.")}
-        if let value=response["error"] {guard let message=value as? String else{throw failure("The provider error must be text.")};if !message.isEmpty {throw failure(message)}}
+        if let value=response["error"] {
+            guard let message=value as? String else{throw failure("The provider error must be text.")}
+            if case .commitRejection=errorPolicy {
+                // Only a valid successful response is the source's returned
+                // refusal text. A malformed field is an invocation failure.
+                guard !message.contains("\0") else{throw failure("The provider refusal must not contain NUL.")}
+                if !message.isEmpty {throw NativeIssueProviderCommitRejection(message:safe(message))}
+            } else if !message.isEmpty {throw failure(message)}
+        }
         return response
     }
 }

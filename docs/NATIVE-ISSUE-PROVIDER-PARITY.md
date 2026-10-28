@@ -51,8 +51,11 @@ while their operation and Quit ownership remain until drainage.
 
 Commit captures the full revision within its synchronous repository operation
 before awaiting completion. A delayed callback cannot substitute a newer HEAD.
-Completion errors preserve Git success, report the failure and suppress automatic
-follow-up actions. Callback cancellation cannot retry the successful commit.
+Completion errors preserve Git success and report the failure through an owned
+acknowledgement before valid source follow-up actions continue. Cancellation or
+changed ownership suppresses those later actions, without retrying the successful
+commit. The October 28 continuation below supersedes the earlier blanket
+follow-up suppression.
 The generic adapter runs as embedded native code in development and Store builds;
 it does not load external binaries or downloaded provider code.
 
@@ -64,9 +67,9 @@ describes the OS-version differences for IP-address exceptions; installed
 minimum-OS acceptance remains separate from local receiver checks.
 
 Third-party vendor-native discovery, arbitrary provider-specific options UI and
-Windows COM binary execution remain open. The native HTTP adapter stops the
-attempt on transport failure, whereas the pinned COM HRESULT failure path reports
-the error and continues; a provider's explicit refusal blocks both workflows.
+Windows COM binary execution remain open. The October 28 error continuation
+below implements the pinned distinction between a failed provider invocation
+and a successful call returning explicit refusal text.
 The pinned GetCommitMessage2 declares revision-property arrays but does not
 consume them; the adapter does not invent SVN revprop storage. Physical keyboard/menus/options/selection, signed sandbox,
 minimum-OS and complete source control acceptance remain unverified. No complete
@@ -84,3 +87,42 @@ beyond navigation retirement. A focused native-only follow-up passed with both
 Git engines, including an actual hosted-page parent close and rejection of later
 editor acceptance. Core and the other passing native families were not repeated.
 The evidence record distinguishes the initial six cases from these two cases.
+
+## Provider errors and captured Commit continuation — October 28, 2026
+
+Pinned `CommitDlg.cpp:821–838` reports a failed `CheckCommit` invocation and then
+continues the same OnOK attempt. Only a successful provider call returning
+nonempty refusal text returns without committing. Native
+`NativeIssueProviderCommitRejection` expresses that refusal independently from
+transport, protocol or invocation errors. The local catalog's required-issue
+check uses the same explicit refusal type. HTTP `checkCommit` requires a valid
+version-1 response and nonempty NUL-free error text for a veto; malformed fields,
+HTTP failures and transport errors remain invocation failures. Token and Task
+cancellation remain cancellation. Picker and completion error-field contracts
+are not reclassified as commit vetoes.
+
+An invocation failure presents an owned native OK sheet. The continuation keeps
+the accepted message, exact path selection, options, form lifetime and attempt;
+it never recursively invokes Commit, CheckCommit or the preceding hook. A
+pending-only draft revision also rejects away-and-back edits. Native sheet
+release completes before the captured operation resumes. Cancel, Quit,
+retirement, changed drafts or refused presentation cannot authorize a commit.
+The existing preflight cancellation and operation counters retain permission and
+Quit ownership until the real work and acknowledgement drain.
+
+Pinned `CommitDlg.cpp:928–965` likewise reports `OnCommitFinished` failures
+without clearing a successful commit or its selected post-command. Native
+completion notices are separate from actual restoration/post-hook/changelist
+failures. A notice attaches to the live owned progress window when present,
+otherwise the Commit owner. Acknowledging it permits only the still-current
+captured ReCommit, Commit & Push or progress post-action; cancellation/retirement
+suppresses continuation and never retries Git or the completion callback. Failure
+to obtain an immutable commit receipt keeps its existing terminal diagnostic.
+Provider callback context retains the original full revision even if HEAD moves.
+
+The [error-family checkpoint](qa/issue-provider-errors-2026-10-28.json) records
+actual Core/native validation, failures and affected repairs. Earlier family
+passes above cover their dated source and do not certify this continuation.
+Private HTTP tests do not establish real vendor/provider behavior, signed
+external consent/grants, physical keyboard/VoiceOver or complete application
+parity. Windows COM provider binaries are not executed by this Mac adapter.

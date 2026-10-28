@@ -2,6 +2,15 @@
 // Native provider contracts adapted from IBugTraqProvider/IBugTraqProvider2.
 import Foundation
 
+/// A successful provider CheckCommit call explicitly refused this commit.
+/// Separate from a failed provider invocation, which the source reports before
+/// continuing its captured commit. Cancellation is never a refusal or failure.
+public struct NativeIssueProviderCommitRejection: LocalizedError, Equatable, Sendable {
+    public let message: String
+    public init(message: String) {self.message=message}
+    public var errorDescription: String? {message}
+}
+
 public enum NativeIssueProviderFailure: LocalizedError {
     case configuration(String), unavailable(String), selection
     public var errorDescription: String? {
@@ -119,7 +128,7 @@ public struct NativeIssueCatalogProvider: NativeIssueProvider {
         return NativeIssueProviderResult(message: message, issueID: ids)
     }
     public func checkCommit(context: NativeIssueProviderContext) throws {
-        if requireIssue && selectedIDs(in: context.issueID).isEmpty { throw NativeIssueProviderFailure.selection }
+        if requireIssue && selectedIDs(in: context.issueID).isEmpty { throw NativeIssueProviderCommitRejection(message:NativeIssueProviderFailure.selection.localizedDescription) }
     }
     public func commitFinished(context: NativeIssueProviderContext, revision: String) throws { /* Embedded catalog has no remote write side effects. */ }
 }

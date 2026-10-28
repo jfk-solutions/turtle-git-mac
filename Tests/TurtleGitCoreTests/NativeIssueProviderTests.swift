@@ -6,7 +6,9 @@ final class NativeIssueProviderTests: XCTestCase {
     func testCatalogOrderSelectionReplacementAndValidation() throws {
         let provider = try NativeIssueCatalogProvider(parameters: parameters)
         let root = URL(fileURLWithPath: "/repo"), initial = NativeIssueProviderContext(repositoryRoot: root, paths: ["a"], message: "body\n", issueID: "")
-        XCTAssertThrowsError(try provider.checkCommit(context: initial))
+        XCTAssertThrowsError(try provider.checkCommit(context: initial)) {error in
+            XCTAssertEqual(error as? NativeIssueProviderCommitRejection,NativeIssueProviderCommitRejection(message:NativeIssueProviderFailure.selection.localizedDescription))
+        }
         let result = try provider.commitMessage(context: initial, selected: ["1", "2"])
         XCTAssertEqual(result.issueID, "2,1"); XCTAssertEqual(result.message, "body\nTicket: 2,1\n")
         let changed = try provider.commitMessage(context: NativeIssueProviderContext(repositoryRoot: root, paths: [], message: result.message + "keep line\n", issueID: result.issueID), selected: ["1"])

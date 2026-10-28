@@ -45,6 +45,31 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+/// Source Ctrl-/ and Ctrl-\ remain editor-local. Overtype also has a Mac
+/// shortcut because many Apple keyboards have no Insert key.
+enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
+    case toggleOvertype,previousPart,nextPart,selectPreviousPart,selectNextPart
+    var id:String {rawValue}
+    var title:String {
+        switch self {case .toggleOvertype:return "Overtype";case .previousPart:return "Previous Word Part";case .nextPart:return "Next Word Part";case .selectPreviousPart:return "Select Previous Word Part";case .selectNextPart:return "Select Next Word Part"}
+    }
+    var backwards:Bool {self == .previousPart || self == .selectPreviousPart}
+    var extending:Bool {self == .selectPreviousPart || self == .selectNextPart}
+    var key:Character {self == .toggleOvertype ? "o":backwards ? "/":"\\"}
+    var modifiers:NSEvent.ModifierFlags {self == .toggleOvertype ? [.command,.option]:extending ? [.control,.shift]:.control}
+    var swiftModifiers:EventModifiers {self == .toggleOvertype ? [.command,.option]:extending ? [.control,.shift]:.control}
+    var icon:MenuIcon {self == .toggleOvertype ? .mergeLineEdited:backwards ? .mergePreviousInline:.mergeNextInline}
+    static func command(for event:NSEvent)->Self? {
+        let flags=event.modifierFlags.intersection([.command,.control,.shift,.option])
+        // macOS calls the Insert key Help; ordinary Help/F1 stay with Mac Help.
+        if event.keyCode==114 && flags.isEmpty {return nil}
+        let key=event.charactersIgnoringModifiers?.lowercased()
+        return allCases.first{command in
+            guard flags==command.modifiers else{return false}
+            return key==String(command.key) || command.extending && key==(command.backwards ? "?":"|")
+        }
+    }
+}
 @MainActor private struct PatchLineOwnerReceipt {
     let identity: UUID, revision: UUID
     let documentRevision: Int
@@ -57,6 +82,10 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
 @MainActor private final class PatchColumnMenuReceipt: NSObject {
     let direction: PatchColumnDirection, owner: PatchLineOwnerReceipt
     init(direction: PatchColumnDirection, owner: PatchLineOwnerReceipt) { self.direction = direction; self.owner = owner }
+}
+@MainActor private final class PatchCaretMenuReceipt:NSObject {
+    let command:PatchCaretCommand,owner:PatchLineOwnerReceipt
+    init(command:PatchCaretCommand,owner:PatchLineOwnerReceipt){self.command=command;self.owner=owner}
 }
 @MainActor private struct PatchLineUndoState {
     let buffer: UnifiedDiffEditBuffer
@@ -78,6 +107,58 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
         guard let current = lineOwner else { return false }
         return current.identity == receipt.identity && current.revision == receipt.revision &&
             current.documentRevision == receipt.documentRevision && current.model == receipt.model
+    }
+    var caretOvertype:Bool {overtypeRevision==coordinator?.model.documentResetRevision && overtypeEnabled}
+    func canPerformCaretCommand(_ command:PatchCaretCommand)->Bool {
+        guard lineOwner != nil else{return false}
+        return command != .toggleOvertype || coordinator?.model.canEditText==true
+    }
+    @discardableResult func performCaretCommand(_ command:PatchCaretCommand)->Bool {
+        guard canPerformCaretCommand(command),let owner=lineOwner else{return false}
+        if command == .toggleOvertype {
+            let enabled = !caretOvertype
+            overtypeRevision=coordinator?.model.documentResetRevision;overtypeEnabled=enabled
+            needsDisplay=true
+            NotificationCenter.default.post(name:NSTextView.didChangeSelectionNotification,object:self)
+            return true
+        }
+        let snapshot=lineSelectionSnapshot,selection=snapshot.primary
+        // Editor::HorizontalMove switches a rectangle to a stream at its
+        // directional outer limit before any non-rectangular word-part move.
+        if snapshot.rectangular {
+            let limit=command.backwards ? snapshot.rows.map{ $0.range.location }.min()!:snapshot.rows.map{NSMaxRange($0.range)}.max()!
+            applyLineSelection(.init(rows:[.init(id:selection.id,anchor:limit,caret:limit)],primarySelectionID:selection.id,rectangular:false))
+            return true
+        }
+        guard let target=PatchCaretEditing.wordPart(text:string,caret:selection.caret,backwards:command.backwards),lineOwnerCurrent(owner) else{return false}
+        let anchor=command.extending ? selection.anchor:target
+        applyLineSelection(.init(rows:[.init(id:selection.id,anchor:anchor,caret:target)],primarySelectionID:selection.id,rectangular:false))
+        return true
+    }
+    func handleCaretTyping(_ replacement:String)->Bool {
+        guard caretOvertype,!suppressOvertype,!hasMarkedText(),!replacement.contains("\n"),!replacement.contains("\r") else{return false}
+        guard let owner=lineOwner,coordinator?.model.canEditText==true else{return true}
+        let state=lineSelectionSnapshot
+        guard let plan=PatchCaretEditing.overtype(text:string,selections:state.rows,primarySelectionID:state.primarySelectionID,replacement:replacement) else{return true}
+        _ = performLinePlan(plan,title:"Typing",owner:owner)
+        return true
+    }
+    func makeCaretCommandMenu()->NSMenu {
+        let menu=NSMenu(title:NSLocalizedString("Caret",comment:"Unified Diff caret menu"));menu.autoenablesItems=false
+        guard let owner=lineOwner else{return menu}
+        let defaults=coordinator?.model.appearancePreferences ?? .standard
+        for command in PatchCaretCommand.allCases {
+            let item=NSMenuItem(title:NSLocalizedString(command.title,comment:"Unified Diff caret action"),action:#selector(dispatchCaretCommand(_:)),keyEquivalent:String(command.key))
+            item.keyEquivalentModifierMask=command.modifiers;item.target=self;item.image=command.icon.contextImage(defaults:defaults)
+            item.representedObject=PatchCaretMenuReceipt(command:command,owner:owner);item.isEnabled=canPerformCaretCommand(command)
+            if command == .toggleOvertype {item.state=caretOvertype ? .on:.off}
+            menu.addItem(item)
+        }
+        return menu
+    }
+    @objc func dispatchCaretCommand(_ sender:NSMenuItem) {
+        guard let receipt=sender.representedObject as? PatchCaretMenuReceipt,lineOwnerCurrent(receipt.owner) else{return}
+        _ = performCaretCommand(receipt.command)
     }
     func canPerformLineCommand(_ command: PatchLineCommand) -> Bool {
         guard lineOwner != nil else { return false }
@@ -314,6 +395,17 @@ struct PatchLineEditingCommands: Commands {
                     Button { context.performLineCommand(command) } label: { CommandLabel(title: command.title, icon: command.icon) }
                         .keyboardShortcut(KeyEquivalent(command.key), modifiers: command.swiftModifiers)
                         .disabled(!context.lineCommands.contains(command))
+                }
+            }
+            Menu("Caret") {
+                ForEach(PatchCaretCommand.allCases) { command in
+                    if command == .toggleOvertype {
+                        Toggle(isOn:Binding(get:{context.caretOvertype},set:{_ in context.performCaretCommand(command)})) {CommandLabel(title:command.title,icon:command.icon)}
+                            .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers).disabled(!context.caretCommands.contains(command))
+                    } else {
+                        Button {context.performCaretCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}
+                            .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers).disabled(!context.caretCommands.contains(command))
+                    }
                 }
             }
             Menu("Column Selection") {

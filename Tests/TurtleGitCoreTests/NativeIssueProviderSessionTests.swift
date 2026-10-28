@@ -119,6 +119,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if path=='/duplicate':value['issues']=[{'id':'café','summary':'NFC'},{'id':'cafe\u0301','summary':'NFD'}]
   if path=='/version-bool':value['version']=True
   if path=='/version':value['version']=2
+  if path=='/error-empty':value['error']=''
+  if path=='/error-number':value['error']=7
+  if path=='/error-null':value['error']=None
+  if path=='/error-nul':value['error']='Policy\u0000malformed'
+  if path=='/reject-long':value['error']='Policy rejected '+(self.headers.get('Authorization') or '')+'x'*6000
+  if path=='/version-error':value={'version':2,'error':'Not a valid veto'}
+  if path=='/status-error':status=503;value['error']='Not a successful veto'
   payload=json.dumps(value,ensure_ascii=False).encode()
   if path=='/bad-json':payload=b'{wrong'
   if path=='/mime':mime='text/plain'
@@ -232,4 +239,68 @@ server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler);server.daemon_th
         try NativeIssueAssociations.validate(.init(path:server.directory.path,provider:NativeIssueProviderSession.httpIdentifier,parameters:String(decoding:parameters,as:UTF8.self)))
         XCTAssertTrue(try server.records().isEmpty,"Options validation must not contact the server")
     }
+    func testCheckCommitDistinguishesExplicitVetoFromProviderInvocationFailure() async throws {
+        let server=try await Server();defer{server.stop()}
+        try await server.session().checkCommit(context:context)
+        try await server.session("error-empty").checkCommit(context:context)
+        do {try await server.session("reject",token:"private-fixture-token").checkCommit(context:context);XCTFail("Explicit provider veto accepted")}
+        catch let rejection as NativeIssueProviderCommitRejection {
+            XCTAssertTrue(rejection.message.contains("Policy rejected"))
+            XCTAssertTrue(rejection.message.contains("[redacted]"))
+            XCTAssertFalse(rejection.message.contains("private-fixture-token"))
+            XCTAssertEqual(rejection.localizedDescription,rejection.message)
+        } catch {XCTFail("Valid provider veto lost its dedicated type: \(error)")}
+        do {try await server.session("reject-long",token:"private-fixture-token").checkCommit(context:context);XCTFail("Long explicit veto accepted")}
+        catch let rejection as NativeIssueProviderCommitRejection {
+            XCTAssertEqual(rejection.message.count,4096)
+            XCTAssertFalse(rejection.message.contains("private-fixture-token"))
+        } catch {XCTFail("Long valid veto lost its dedicated type: \(error)")}
+        for route in ["status","status-error","redirect","bad-json","mime","version","version-bool","version-error","error-number","error-null","error-nul","oversize"] {
+            do {try await server.session(route).checkCommit(context:context);XCTFail("Invalid CheckCommit response accepted: \(route)")}
+            catch {
+                XCTAssertFalse(error is NativeIssueProviderCommitRejection,"Invocation failure became an explicit veto: \(route)")
+                XCTAssertFalse(error is OperationCancellationFailure,"Invocation failure became cancellation: \(route)")
+                XCTAssertLessThan(error.localizedDescription.count,5000,route)
+            }
+        }
+        XCTAssertFalse(try server.records().contains{($0["path"] as? String)=="/leaked"})
+    }
+    func testCommitVetoTypeDoesNotChangePickerOrCompletionErrorContracts() async throws {
+        let server=try await Server();defer{server.stop()}
+        let provider=try server.session("reject",token:"private-fixture-token")
+        do {_ = try await provider.issues(context:context);XCTFail("Issue-list error accepted")}
+        catch {XCTAssertFalse(error is NativeIssueProviderCommitRejection);XCTAssertTrue(error is NativeIssueProviderFailure);XCTAssertFalse(error.localizedDescription.contains("private-fixture-token"))}
+        do {_ = try await provider.commitMessage(context:context,selected:["1"]);XCTFail("Message error accepted")}
+        catch {XCTAssertFalse(error is NativeIssueProviderCommitRejection);XCTAssertTrue(error is NativeIssueProviderFailure);XCTAssertFalse(error.localizedDescription.contains("private-fixture-token"))}
+        do {_ = try await provider.commitFinished(context:context,revision:String(repeating:"a",count:40));XCTFail("Completion error accepted")}
+        catch {XCTAssertFalse(error is NativeIssueProviderCommitRejection);XCTAssertTrue(error is NativeIssueProviderFailure);XCTAssertFalse(error.localizedDescription.contains("private-fixture-token"))}
+        let catalog=try NativeIssueCatalogProvider(parameters:#"{"requireIssue":true,"issues":[{"id":"1","summary":"Required"}]}"#)
+        let local=NativeIssueProviderSession(catalog:catalog)
+        let missing=NativeIssueProviderContext(repositoryRoot:context.repositoryRoot,paths:context.paths,message:context.message,issueID:"")
+        do {try await local.checkCommit(context:missing);XCTFail("Required catalog issue did not veto")}
+        catch let rejection as NativeIssueProviderCommitRejection {XCTAssertEqual(rejection.message,NativeIssueProviderFailure.selection.localizedDescription)}
+        catch {XCTFail("Catalog veto lost its dedicated type: \(error)")}
+        try await local.checkCommit(context:NativeIssueProviderContext(repositoryRoot:context.repositoryRoot,paths:context.paths,message:context.message,issueID:"1"))
+    }
+    func testCheckCommitCancellationRemainsCancellationBeforeAndDuringProviderCall() async throws {
+        let server=try await Server();defer{server.stop()}
+        let provider=try server.session("hold"),captured=context,token=OperationCancellation()
+        let before=OperationCancellation();before.cancel()
+        do {try await provider.checkCommit(context:captured,cancellation:before);XCTFail("Pre-cancelled CheckCommit succeeded")}
+        catch is OperationCancellationFailure {} catch {XCTFail("Pre-cancelled CheckCommit changed error type: \(error)")}
+        XCTAssertTrue(try server.records().isEmpty)
+        let first=Task {try await provider.checkCommit(context:captured,cancellation:token)}
+        defer{token.cancel();first.cancel()}
+        try await server.awaitRequests(1);token.cancel()
+        do {try await first.value;XCTFail("Cancelled CheckCommit succeeded")}
+        catch is OperationCancellationFailure {} catch {XCTFail("Token cancellation became veto/runtime failure: \(error)")}
+        let second=Task {try await provider.checkCommit(context:captured)}
+        defer{second.cancel()}
+        try await server.awaitRequests(2);second.cancel()
+        do {try await second.value;XCTFail("Task-cancelled CheckCommit succeeded")}
+        catch is OperationCancellationFailure {} catch {XCTFail("Task cancellation became veto/runtime failure: \(error)")}
+        try Data().write(to:server.directory.appendingPathComponent("release"))
+        try await server.session().checkCommit(context:captured)
+    }
+
 }

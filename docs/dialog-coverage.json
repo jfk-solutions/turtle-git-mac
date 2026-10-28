@@ -891,6 +891,7 @@
         "docs/qa/commit-dirty-submodule-2026-10-07.json",
         "docs/qa/commit-drop-2026-10-13.json",
         "docs/qa/commit-form-lifecycle-2026-10-28.json",
+        "docs/qa/commit-gui-staging-2026-10-28.json",
         "docs/qa/commit-history-2026-10-10.json",
         "docs/qa/commit-history-issues-2026-10-10.json",
         "docs/qa/commit-issue-controls-2026-10-05.json",
@@ -2308,6 +2309,7 @@
         "docs/NATIVE-ISSUE-PROVIDER-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/issue-provider-errors-2026-10-28.json",
         "docs/qa/native-issue-provider-2026-10-14.json",
         "docs/qa/native-issue-provider-family-2026-10-20.json"
       ]
@@ -2361,6 +2363,7 @@
         "docs/NATIVE-ISSUE-PROVIDER-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/issue-provider-errors-2026-10-28.json",
         "docs/qa/native-issue-provider-2026-10-14.json",
         "docs/qa/native-issue-provider-family-2026-10-20.json"
       ]
@@ -3605,6 +3608,7 @@
         "docs/qa/commit-conflict-hints-2026-10-07.json",
         "docs/qa/commit-dirty-submodule-2026-10-07.json",
         "docs/qa/commit-drop-2026-10-13.json",
+        "docs/qa/commit-gui-staging-2026-10-28.json",
         "docs/qa/commit-history-2026-10-10.json",
         "docs/qa/commit-history-issues-2026-10-10.json",
         "docs/qa/commit-issue-controls-2026-10-05.json",

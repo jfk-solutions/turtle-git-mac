@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "039d52e526f4894302d9f7e7fb2838887eef1104409e983c881ee260280f3d20",
+    "Contents/Info.plist": "c1cde84d20c4fbdd5b2781a3ef1fcab61d3af3dbc5962b0a2ae466a03cebd1be",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
@@ -11,7 +11,7 @@
     "Contents/Resources/en.lproj/COMMIT-CHECKBOX-INDEX.html": "31196eb500526750de51694abe691acdf67fe90d067076d08fe5a8782576f33a",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "be14c467808f87dc2866709f6f7e0ba2369e484484b27175ff4efa2b960646e3",
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "c5f3230989f3f740373cb15dc0fd2bbdc31dd704dc17c3f778621b41616b4588",
-    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "b003097ec7539d2034b2ce51c8e1ac89ae5a5a1f0bd14e420822549ba41395a3",
+    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "3cee7b8d963228a0e8edb139d595429e8d1ea819df3855fe593d8875861570f8",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "d91a6ad2b00c2f393543528443384392cc06e0b41651baa6224128d3c6a70ec0",
     "Contents/Resources/en.lproj/FINDER-DELIVERY-SERVICES-PARITY.html": "245b06ffe465f23e9c4331c947bed5cff6ff38ea9244b176893fff22cb091322",
     "Contents/Resources/en.lproj/FINDER-SERVICES.html": "23c64e4df339587bb915d7b8cec7b150cfca8a34a51ef6585655b8468f89b17d",
@@ -103,7 +103,7 @@
     "docs/COMMIT-CHECKBOX-INDEX.md": "7ac75a0fad48b33316620415726b0cc7dd63709cf50a381e8b05a92956f86ac7",
     "docs/CONFLICT-IDENTITIES.md": "5a0f6ac729c78df24e4ed8a6194e2cd9053d2289438b75519f1f21e908ec2213",
     "docs/CREDENTIAL-SETTINGS.md": "984067cf289fa0a3e9e642037a061c5f7ec0da46dea47132d06bad3200f3c171",
-    "docs/DIALOG-GUIDE.md": "4e33becbc45086104cee5f627862309d8df12826dc6f9f4daf2279ed0e42250b",
+    "docs/DIALOG-GUIDE.md": "d4026ec771c8406e8a2592ec18bbb81fc9bd6f7705fd603174533e8fbbedd231",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/FINDER-DELIVERY-SERVICES-PARITY.md": "e6b4af67a87570cb955afa8c6c48355ee6ac1a26561b04e038afc334858d2924",
     "docs/FINDER-SERVICES.md": "9418ee4884fab374c87e94459f3f4615c77d8ab3ee4762ad6689264d0a4a239b",

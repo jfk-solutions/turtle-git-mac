@@ -467,6 +467,7 @@ import UniformTypeIdentifiers
 
 struct PatchDialog: View {
     @ObservedObject var model: PatchWindowModel
+    var reservesLoadingStatus = false
     @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -480,7 +481,10 @@ struct PatchDialog: View {
             } }
             PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
             if model.findVisible { PartialPatchFindBar(model: model) }
-            if model.loading { HStack { ProgressView(model.cancelling ? "Cancelling…" : "Loading patch…").controlSize(.small); Button("Cancel") { model.cancelRead() }.disabled(model.cancelling) } }
+            if reservesLoadingStatus {
+                loadingStatus.frame(height: 24).opacity(model.loading ? 1 : 0)
+                    .allowsHitTesting(model.loading).accessibilityHidden(!model.loading)
+            } else if model.loading { loadingStatus }
             if model.readOnly { Text(model.documentDirty ? "Modified patch document" : model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }.padding(model.readOnly ? 12 : 0).disabled(model.confirmingQuit)
         .background(Color(nsColor:.windowBackgroundColor))
@@ -490,6 +494,12 @@ struct PatchDialog: View {
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { !model.retired && model.error != nil }, set: { if !$0 && !model.retired { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
+    }
+    private var loadingStatus: some View {
+        HStack {
+            ProgressView(model.cancelling ? "Cancelling…" : "Loading patch…").controlSize(.small)
+            Button("Cancel") { model.cancelRead() }.disabled(model.cancelling)
+        }
     }
 }
 
@@ -710,6 +720,9 @@ struct PatchTextView: NSViewRepresentable {
     final class PatchText: NSTextView {
         weak var coordinator: Coordinator?
         var columnSelection: PatchColumnSelectionController?
+        var overtypeRevision:Int?
+        var overtypeEnabled=false
+        var suppressOvertype=false
         override func setSelectedRange(_ range: NSRange) { columnSelection?.externalSelectionChanged(); super.setSelectedRange(range) }
         override func setSelectedRange(_ range: NSRange, affinity: NSSelectionAffinity, stillSelecting: Bool) {
             columnSelection?.externalSelectionChanged(); super.setSelectedRange(range, affinity: affinity, stillSelecting: stillSelecting)
@@ -722,16 +735,47 @@ struct PatchTextView: NSViewRepresentable {
             columnSelection?.externalSelectionChanged(); super.mouseDown(with: event)
         }
         override func keyDown(with event: NSEvent) {
+            if let command=PatchCaretCommand.command(for:event) {_ = performCaretCommand(command);return}
             if let direction = PatchColumnDirection.direction(for: event), columnSelection?.available == true {
                 _ = columnSelection?.extendRectangle(direction: direction); return
             }
             super.keyDown(with: event)
         }
+        override func drawInsertionPoint(in rect:NSRect,color:NSColor,turnedOn flag:Bool) {
+            guard caretOvertype,isEditable,!hasMarkedText() else {super.drawInsertionPoint(in:rect,color:color,turnedOn:flag);return}
+            var block=rect
+            let at=selectedRange().location,shown=string as NSString
+            var width=(" " as NSString).size(withAttributes:typingAttributes).width
+            if at<shown.length,shown.character(at:at) != 10,shown.character(at:at) != 13 {
+                width=shown.substring(with:shown.rangeOfComposedCharacterSequence(at:at)).size(withAttributes:typingAttributes).width
+            }
+            block.size.width=max(rect.width,max(2,width))
+            // A translucent overlay keeps the source glyph readable. Redraw
+            // its backing glyph on blink-off instead of erasing it with a
+            // wide background-colored insertion point.
+            if flag {
+                NSGraphicsContext.saveGraphicsState();color.withAlphaComponent(0.35).setFill()
+                block.fill(using:.sourceOver);NSGraphicsContext.restoreGraphicsState()
+            } else {setNeedsDisplay(block)}
+        }
         override func copy(_ sender: Any?) { if !handleColumnCopy(cutting: false) { super.copy(sender) } }
         override func cut(_ sender: Any?) { if !handleColumnCopy(cutting: true) { super.cut(sender) } }
-        override func paste(_ sender: Any?) { if !handleColumnPaste() { super.paste(sender) } }
+        override func paste(_ sender: Any?) {
+            suppressOvertype=true;defer{suppressOvertype=false}
+            if !handleColumnPaste() {
+                let board=linePasteboard()
+                if board.name == NSPasteboard.Name.general {super.paste(sender)}
+                else {
+                    // Honor the same explicit board as column Paste without
+                    // consulting the user's clipboard. AppKit still owns the
+                    // plain-text insertion, selection and native Undo path.
+                    _ = readSelection(from:board,type:.string)
+                }
+            }
+        }
         override func insertText(_ value: Any, replacementRange: NSRange) {
             let plain = (value as? NSAttributedString)?.string ?? (value as? String)
+            if replacementRange.location==NSNotFound,!hasMarkedText(),let plain,handleCaretTyping(plain) {return}
             if !hasMarkedText(), let plain, handleColumnTyping(plain) { return }
             super.insertText(value, replacementRange: replacementRange)
         }
@@ -837,6 +881,9 @@ struct PatchTextView: NSViewRepresentable {
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if window?.firstResponder === self,let command=PatchCaretCommand.command(for:event) {
+                _ = performCaretCommand(command);return true
+            }
             if let direction = PatchColumnDirection.direction(for: event), columnSelection?.available == true {
                 _ = columnSelection?.extendRectangle(direction: direction); return true
             }
@@ -932,6 +979,8 @@ struct PatchTextView: NSViewRepresentable {
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let caretMenu=NSMenuItem(title:NSLocalizedString("Caret",comment:"Unified Diff caret menu"),action:nil,keyEquivalent:"")
+            caretMenu.image=MenuIcon.mergeLineEdited.contextImage(defaults:defaults);caretMenu.submenu=makeCaretCommandMenu();menu.addItem(caretMenu)
             let lineMenu = NSMenuItem(title: NSLocalizedString("Lines", comment: "Unified Diff editing menu"), action: nil, keyEquivalent: "")
             lineMenu.image = MenuIcon.mergeLineEdited.contextImage(defaults: defaults)
             lineMenu.submenu = makeLineCommandMenu(); menu.addItem(lineMenu)

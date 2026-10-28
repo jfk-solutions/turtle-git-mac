@@ -92,10 +92,19 @@ OK asks the adapter to prepare the message for the captured selection. A late
 response cannot overwrite a changed draft or a closed Commit window.
 
 The provider checks the prepared message and selected paths before staging or
-committing. A refusal or transport failure stops that attempt. After Git succeeds,
-TurtleGit sends a completion receipt containing the captured full revision ID.
-A completion error or warning reports that Git already succeeded; it does not
-retry the commit. Cancelling an in-flight callback drains its owned network
+committing. An explicit refusal stops the attempt. If the provider cannot run its
+check, TurtleGit reports the error; acknowledging it continues the same captured
+attempt, as TortoiseGit does. It does not repeat the check or start a new Commit.
+Cancelling, closing the owner or changing the captured draft/options while the
+notice is open prevents that continuation.
+
+After Git succeeds, TurtleGit sends a completion receipt containing the captured
+full revision ID. A provider completion error or warning reports that Git already
+succeeded. After acknowledgement, a still-current ReCommit or Commit & Push action
+can continue; the commit and completion callback are never retried. Cancel or a
+retired/changed owner suppresses later actions while retaining Git success.
+Actual working-copy restoration, hook or changelist failures keep their separate
+recovery behavior. Cancelling an in-flight callback drains its owned network
 request before releasing workflow ownership. An adapter may already have processed
 a request when cancellation arrives, so its completion handler should be
 idempotent for the revision ID.
@@ -127,7 +136,12 @@ The request contains the action and immutable context:
 | `checkCommit` | None | No additional fields on acceptance |
 | `commitFinished` | `revision`: full Git object ID | Optional `warning` text |
 
-Any response can return a nonempty `error` string to refuse the operation.
+Any response can return a nonempty `error` string. For `checkCommit`, valid
+version-1 text without NUL is an explicit refusal and blocks Commit. A failed
+HTTP request or malformed response is a provider invocation failure, reported
+through the acknowledgement described above. Other actions retain their own
+error handling: issue-list/message errors remain in the picker for correction or
+retry, and completion errors report the already-successful commit.
 Responses require a successful HTTP status and application/json or an
 application/*+json content type. Bodies are limited to 1 MiB each and lists to
 10,000 items. IDs cannot contain commas, line breaks or NUL; canonically

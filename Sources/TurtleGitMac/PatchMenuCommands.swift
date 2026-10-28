@@ -8,6 +8,8 @@ import TurtleGitCore
 @MainActor final class PatchMenuContext: ObservableObject {
     @Published private(set) var available = false
     @Published private(set) var darkMode = false
+    @Published private(set) var caretCommands=Set<PatchCaretCommand>()
+    @Published private(set) var caretOvertype=false
     @Published private(set) var lineCommands = Set<PatchLineCommand>()
     @Published private(set) var columnSelectionAvailable = false
     @Published private(set) var documentAvailable = false
@@ -53,6 +55,10 @@ import TurtleGitCore
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil && NSApp.modalWindow == nil } ?? false
         if available != enabled { available = enabled }
         let text = controller?.window?.firstResponder as? PatchTextView.PatchText
+        let caret=Set(PatchCaretCommand.allCases.filter{enabled && text?.canPerformCaretCommand($0)==true})
+        if caretCommands != caret {caretCommands=caret}
+        let overtype=text?.caretOvertype ?? false
+        if caretOvertype != overtype {caretOvertype=overtype}
         let commands = Set(PatchLineCommand.allCases.filter { enabled && text?.canPerformLineCommand($0) == true })
         if lineCommands != commands { lineCommands = commands }
         let columns = enabled && text?.columnSelection?.available == true
@@ -80,6 +86,12 @@ import TurtleGitCore
               text.coordinator?.model === controller.model else { return }
         _ = text.columnSelection?.extendRectangle(direction: direction)
         refresh()
+    }
+    func performCaretCommand(_ command:PatchCaretCommand) {
+        refresh()
+        guard caretCommands.contains(command),let controller=current,
+              let text=controller.window?.firstResponder as? PatchTextView.PatchText,text.coordinator?.model === controller.model else{return}
+        _ = text.performCaretCommand(command);refresh()
     }
     func performLineCommand(_ command: PatchLineCommand) {
         refresh()
