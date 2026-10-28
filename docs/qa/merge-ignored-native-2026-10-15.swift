@@ -47,16 +47,18 @@ import TurtleGitCore
             let offset = model.blocks[0].range.location
             try await wait { guard let color = view.textStorage?.attribute(.backgroundColor,at:offset,effectiveRange:nil) as? NSColor else {return false};return rgb(color,appearance:appearance) == palette.colors(.conflicted,dark:dark).background }
         }
-        var asked = "", cancelled:Bool?, warningOwned = false
+        var asked = "", cancelled:Bool?, warningOwned = false, warningCount=0
         model.confirmUnresolvedSave = { message in
-            asked = message; warningOwned = model.busy && MergeRegexOperations.activeRequests > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel
+            warningCount += 1;asked = message; warningOwned = model.busy && MergeRegexOperations.activeRequests > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel
             return false
         }
         model.save(markResolved:false) { cancelled = $0 }
         try await wait {cancelled != nil && !model.busy && view.isEditable}
         try require(cancelled == false && warningOwned && asked.contains("ignored by comparison options") && !model.busy,"Ignored Save did not warn/cancel")
+        asked="";warningOwned=false
         var blocked:Bool?;model.save(markResolved:true){blocked = $0}
-        try require(blocked == false && Data(contentsOf:file) == original && Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Mark resolved bypassed ignored conflict")
+        try await wait {blocked != nil && !model.busy && view.isEditable}
+        try require(blocked == false && warningCount==2 && warningOwned && asked.contains("ignored by comparison options") && Data(contentsOf:file) == original && Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Mark resolved bypassed ignored conflict")
         model.continueResolving();try await wait {model.canChooseConflict};try require(model.selectionRequest == model.blocks[0].range,"Ignored navigation has wrong range")
         try require(view.isEditable,"Result view still disabled after cancelled Save: editable=\(view.isEditable), sourceTools=\(model.sourceToolsAllowed), canChoose=\(model.canChooseConflict), busy=\(model.busy)")
         model.choose(.mine)

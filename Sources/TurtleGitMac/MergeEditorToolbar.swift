@@ -303,7 +303,7 @@ extension MergeEditorToolbar {
                 case .previousConflict: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:true))
                 case .nextConflict: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:true))
                 case .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs: return .init(enabled: text && model.canChooseConflict)
-                case .resolved: return .init(enabled: text && model.repositoryResolutionAllowed && !model.hasUnresolvedConflicts)
+                case .resolved: return .init(enabled: text && model.repositoryResolutionAllowed)
                 case .find: return .init(enabled: text)
                 case .showBase: return .init(enabled: text, checked: model.showBase)
                 case .whitespace: return .init(enabled: text, checked: model.whitespaceDisplay.visible)

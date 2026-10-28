@@ -134,6 +134,10 @@ public struct TextConflictDocument: Sendable {
 public struct TextConflictSaveFailure: LocalizedError, Sendable {
     public let savedDocument: TextConflictDocument
     public let gitError: String
+    public let stageCancelled: Bool
+    public init(savedDocument: TextConflictDocument, gitError: String, stageCancelled: Bool = false) {
+        self.savedDocument = savedDocument; self.gitError = gitError; self.stageCancelled = stageCancelled
+    }
     public var errorDescription: String? { "The merged working file was saved, but Git could not mark it resolved.\n" + gitError }
 }
 public enum TextConflictFailure: LocalizedError {
@@ -208,10 +212,12 @@ extension GitRepository {
         guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
         try cancellation?.check(); return document
     }
-    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(), ignoredConflictsResolved: Bool = false,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(), ignoredConflictsResolved: Bool = false, allowUnresolvedConflicts: Bool = false,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
-        try validateConflicts([document.entry], using: .current)
-        if markResolved && (MergeText.hasMarkers(result) || !ignoredConflictsResolved && document.mergeSources?.ignoredConflicts.isEmpty == false) { throw TextConflictFailure.markers }
+        try validateConflicts([document.entry], using: .current, cancellation: cancellation)
+        // Source HasConflictsWontKeep authorizes just this Save/Resolve attempt.
+        // Never persist its answer in the document or waive filesystem/index CAS.
+        if markResolved && !allowUnresolvedConflicts && (MergeText.hasMarkers(result) || !ignoredConflictsResolved && document.mergeSources?.ignoredConflicts.isEmpty == false) { throw TextConflictFailure.markers }
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
         let location = root.appendingPathComponent(document.entry.path)
         let current: Data?, permissions: Int?
@@ -234,8 +240,22 @@ extension GitRepository {
         saved.rawInputs = document.rawInputs
         saved.mergeSources = document.mergeSources; saved.conflictTitles = document.conflictTitles
         if markResolved {
-            do { _ = try run(["add", "-f", "--", document.entry.path]) }
-            catch { throw TextConflictSaveFailure(savedDocument: saved, gitError: error.localizedDescription) }
+            do {
+                try cancellation?.check()
+                try validateConflicts([document.entry], using: .current, cancellation: cancellation)
+                let (bytes, mode) = try conflictWorkingSnapshot(location)
+                guard bytes == saved.workingContents, mode == nil || mode == saved.permissions else { throw TextConflictFailure.changedWorkingFile }
+                do { _ = try run(["add", "-f", "--", document.entry.path], cancellation: cancellation) }
+                catch let completed as GitCommandCancellationFailure where completed.result.exitCode == 0 {
+                    // Git completed the index publication before cancellation
+                    // was observed. Return success rather than inventing a
+                    // failed Resolve that a retry would find already resolved.
+                }
+                removeSourceMergeFiles(document.entry.path)
+            } catch {
+                throw TextConflictSaveFailure(savedDocument: saved, gitError: error.localizedDescription,
+                    stageCancelled: cancellation?.isCancelled == true || error is OperationCancellationFailure)
+            }
         }
         return saved
     }

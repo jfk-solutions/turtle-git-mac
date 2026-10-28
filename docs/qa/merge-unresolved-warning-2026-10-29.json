@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-native-passed-repository-conflict-scope",
+  "scope": "Repository-conflict unresolved warning, per-attempt Save Anyway and Mark as resolved ownership.",
+  "fixture": "docs/qa/merge-unresolved-warning-native-2026-10-29.swift",
+  "runner": "scripts/test-merge-unresolved-warning.py",
+  "affected_existing_fixture": "docs/qa/merge-ignored-native-2026-10-15.swift",
+  "executed": true,
+  "source_references": [
+    "Pinned MainFrm.cpp::HasConflictsWontKeep 3078\u20133102",
+    "Pinned MainFrm.cpp::OnMergeMarkasresolved 2244\u20132260",
+    "Pinned MainFrm.cpp::FileSave 1684\u20131708"
+  ],
+  "limits": [
+    "Scope is repository conflicts. External standalone/rebound-output Mark Resolved remains unimplemented separately.",
+    "Actual native button performClick/menu/shared-action assertions are not physical mouse, signed OS permissions or complete hosted CI acceptance.",
+    "No persistent/global unresolved override is introduced or assumed.",
+    "Only repository-conflict resolution is covered; no complete Core suite, every merge-tool route, signed deployment or current complete hosted integration claim.",
+    "Signed candidate28 predates this unresolved-warning batch (source956335f4); no signed build or installation was repeated for this checkpoint."
+  ],
+  "validated_native": [
+    "Actual native Mark as resolved command enabled with unresolved repository result; real three-button NSAlert Continue Resolving defaultButtonCell/controlView and Cancel Escape mapping. Continue dispatched through that exact default NSButton.performClick; no physical Return key delivery claim.",
+    "Actual Cancel/Continue buttons preserve disk/index and return actual result focus to first conflict",
+    "Ordinary Save Anyway writes captured marker bytes without staging; subsequent Mark Resolved still asks and stages only with fresh explicit approval",
+    "Held typed asynchronous reply: duplicate request refused, changed draft approval stale, canceled token and retired owner reject late affirmative answer, actual counts/Quit retained until drain",
+    "Real Git stage fail/cancel after successful write adopts saved editor baseline and retains owner/conflict index; exact literal selected path; next attempt prompts again, fresh native Save Anyway retries successfully",
+    "Affected ignored-conflict negative now awaits actual warning/completion and verifies fresh per-attempt refusal, unchanged bytes/index; all original assertions retained"
+  ],
+  "validation": {
+    "core": {
+      "status": "passed",
+      "log": "build/qa/merge-unresolved-core-2026-10-29.log",
+      "methods": 20,
+      "failures": 0,
+      "families": {
+        "TextConflictTests": 19,
+        "MergeFileSaveTests.testDeletedConflictStageFailureKeepsBackupAndRetriesDeletion": 1
+      },
+      "test_seconds": 35.355,
+      "new_methods": 6,
+      "scope": [
+        "Explicit per-call marker/ignored override, default refusal and fresh retry consent",
+        "Postwrite stage failure/cancel saved receipt, no accidental history/index/peer mutation",
+        "Successful stage acknowledged despite late cancellation",
+        "Postwrite conflict-index revalidation before stage",
+        "Resolve cleanup removes LOCAL/REMOTE regular file or symlink itself, preserves unexpected BASE directory, BACKUP and unrelated state"
+      ],
+      "fixture_cleanup": "All six new Core methods remove their private temporary repositories with defer; cancellation and stage subprocesses awaited."
+    },
+    "debug": {
+      "status": "passed",
+      "log": "build/qa/merge-unresolved-debug-2026-10-29.log",
+      "exit": 0,
+      "contradictory_exit_zero_diagnostic_entries": 13,
+      "note": "Recorded exit0 does not erase these diagnostic entries; native receiver links actual current app objects."
+    },
+    "new_native": {
+      "status": "passed-both-git-engines",
+      "log": "build/qa/merge-unresolved-native-recheck-2026-10-29.log",
+      "command_receipt": "build/qa/merge-unresolved-native-recheck-2026-10-29.json",
+      "exit": 0,
+      "command_seconds": 33.694,
+      "receivers_reaped": [
+        59316,
+        59603
+      ]
+    },
+    "affected_ignored_workflow": {
+      "status": "passed-both-git-engines",
+      "log": "build/qa/merge-unresolved-ignored-regression-2026-10-29.log",
+      "command_receipt": "build/qa/merge-unresolved-ignored-regression-2026-10-29.json",
+      "exit": 0,
+      "command_seconds": 9.981,
+      "receivers_reaped": [
+        59907,
+        59978
+      ]
+    },
+    "failed_attempts": [
+      {
+        "log": "build/qa/merge-unresolved-native-2026-10-29.log",
+        "receiver_reaped": 58941,
+        "failure": "Fixture incorrectly required explicit CR keyEquivalent on Continue button even though NSWindow.defaultButtonCell owns Return."
+      },
+      {
+        "log": "build/qa/merge-unresolved-default-diagnostic-2026-10-29.log",
+        "receiver_reaped": 59180,
+        "failure": "Exact diagnostic confirmed Continue Resolving was correct default cell; its button keyEquivalent was empty, Cancel27 and Save Anyway noReturn were correct. No product bug or product repair established.",
+        "fixture_repair": "Assert actual defaultButtonCell.controlView identity/title, all three choices, Save Anyway notReturn and CancelEscape; exercise Continue using that exact native default control."
+      }
+    ],
+    "resources": {
+      "localizations_check": "passed",
+      "locales": 38,
+      "keys": 1325,
+      "help_check": "passed",
+      "help_documents": 60,
+      "help_topics": 51,
+      "help_files": 92
+    },
+    "site_docs": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/merge-unresolved-site-docs-2026-10-29.log"
+    }
+  },
+  "cleanup": {
+    "receiver_pids": [
+      58941,
+      59180,
+      59316,
+      59603,
+      59907,
+      59978
+    ],
+    "all_reaped": true,
+    "independent_ps": "All six absent after final grouped pass.",
+    "scope": "Private repositories/preferences and invisible alpha0/offscreen windows/sheets; held typed replies released and actual Git stage processes awaited/reaped; no unrelated app terminated."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/TextConflict.swift": "d28f801e56f88258daa769ac816585e6344e01a16ed09878293ea0bab407eb7c",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "724a55ed92d7103ce8507152cd00c3a34e4161fc5c2e119d19eafb47ef38d42e",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "da82fc0ae1a36d204ac226b5674e6e307cab513729c1682d48eb47e0dd60fc47",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "eb6f88d8b044229e1cc546f60f0a0e45ee7b1b67f5fe554a6bda93ae7ec1ada6",
+    "Tests/TurtleGitCoreTests/TextConflictTests.swift": "a28672ed16e08d7608c069574d883a9d51921feab9ecb24854524116f4592629",
+    "docs/qa/merge-unresolved-warning-native-2026-10-29.swift": "f053a164cb7ec91ebbe7217668d96c3786a33bc477562f8cdeea5b275a260c9e",
+    "docs/qa/merge-ignored-native-2026-10-15.swift": "696645b8343da303d3f2c11c33237a85439639e9c75de57eb74c87014d95b479",
+    "scripts/test-merge-unresolved-warning.py": "0958a1b215460f962b3167351a37441a47c472abbd657c89905a4b7459c5bee9"
+  },
+  "deployment_boundary": {
+    "tested": "Current local Debug app objects through shared cached native receivers.",
+    "signed_build_repeated": false,
+    "installation_repeated": false,
+    "signed_candidate_28_source_commit_prefix": "956335f4",
+    "candidate_28_contains_this_unresolved_batch": false
+  },
+  "hosted_status_boundary": {
+    "source": "Latest status supplied by root; no additional CI fetch by this agent.",
+    "ff5065_mac": "pending",
+    "ff5065_pages": "green",
+    "older_1b9_mac": "in_progress",
+    "complete_hosted_pass_claim": false
+  }
+}

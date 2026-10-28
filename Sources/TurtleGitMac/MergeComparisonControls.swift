@@ -850,6 +850,10 @@ struct MergeTypingModeControl: View {
     }
 }
 
+enum MergeUnresolvedSaveChoice: Sendable {
+    case saveAnyway, continueResolving, cancel
+}
+
 /// One editor owns each save question and output panel. Programmatic cancellation
 /// aborts saving; the visible empty-file Cancel button still means Keep, upstream.
 @MainActor final class MergeSaveChoices {
@@ -867,6 +871,12 @@ struct MergeTypingModeControl: View {
         guard !cancelled,let window,window.attachedSheet==nil,question==nil,panel==nil else {return nil}
         owner=window;question=alert
         let answer=await withCheckedContinuation {continuation in alert.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
+        // The reply can arrive before AppKit finishes detaching the sheet.
+        // Keep this save's question and operation alive until focus/navigation
+        // can safely return to the editor, including on owner cancellation.
+        while alert.window.sheetParent != nil || window.attachedSheet === alert.window {
+            try? await Task.sleep(nanoseconds:5_000_000)
+        }
         question=nil;owner=nil
         return cancelled ? nil : answer
     }
@@ -878,10 +888,21 @@ struct MergeTypingModeControl: View {
         return answer == .alertFirstButtonReturn ? .delete : .keep
     }
     func unresolved(window:NSWindow?,message:String) async -> Bool {
+        await unresolvedResolution(window:window,message:message) == .saveAnyway
+    }
+    func unresolvedResolution(window:NSWindow?,message:String) async -> MergeUnresolvedSaveChoice {
         let alert=NSAlert();alert.alertStyle = .warning;alert.messageText=message
-        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
-        alert.addButton(withTitle:"Save").keyEquivalent="";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
-        return await ask(alert,window:window) == .alertSecondButtonReturn
+        alert.informativeText="Save the file with unresolved conflicts, or return to the first conflict and continue resolving it."
+        alert.addButton(withTitle:"Save Anyway").keyEquivalent=""
+        let resolving=alert.addButton(withTitle:"Continue Resolving");resolving.keyEquivalent="\r"
+        alert.addButton(withTitle:"Cancel").keyEquivalent="\u{1b}"
+        alert.window.defaultButtonCell=resolving.cell as? NSButtonCell
+        guard let answer=await ask(alert,window:window) else {return .cancel}
+        switch answer {
+        case .alertFirstButtonReturn:return .saveAnyway
+        case .alertSecondButtonReturn:return .continueResolving
+        default:return .cancel
+        }
     }
     func marked(window:NSWindow?) async -> FileComparisonEditing.MarkedSaveChoice? {
         let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="Marked Blocks"

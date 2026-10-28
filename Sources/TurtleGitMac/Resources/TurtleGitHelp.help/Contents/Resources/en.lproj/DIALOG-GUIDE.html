@@ -446,7 +446,20 @@ flags an <strong>Ignored conflict</strong>, retaining Mine text without inventin
 Use the normal conflict navigation and Mine/Theirs choices to resolve it. Undo
 restores its unresolved state even when choosing Mine did not change any bytes.
 Choosing a side counts as a modified result until saved, including that same-byte
-Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.</p>
+Mine choice, so Close and Quit still offer to save it.</p>
+<p>Save and <strong>Mark as resolved</strong> warn while marker or ignored conflicts remain.
+<strong>Continue Resolving</strong> is the default and returns to the first conflict;
+<strong>Cancel</strong> also keeps the editor open without saving or staging the merged result.
+<strong>Save Anyway</strong> saves the
+reviewed result for that attempt. With Mark as resolved, it also stages that file,
+including any conflict markers you explicitly chose to keep. It does not commit
+or continue the merge or rebase.</p>
+<p>If saving succeeds but staging fails or is cancelled, your saved file and draft
+remain available in the editor. Correct the reported Git problem and try Mark as
+resolved again; a result with remaining conflicts requires a fresh confirmation.
+Outside edits still require review. Mark as resolved currently applies to the
+original repository-conflict result; standalone outputs and copies selected with
+Save As retain their separate save workflow.</p>
 <p>Common rows in a three-way merge keep their normal colors even when whitespace,
 case, comment or regex options make their original text compare equal. Collapse
 uses separate visibility metadata shared by all three panes. It can hide a common

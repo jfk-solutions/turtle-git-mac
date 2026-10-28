@@ -268,10 +268,66 @@ The [new-output checkpoint](qa/merge-output-preparation-2026-10-28.json) records
 bundled Git. The final incremental Debug build exited successfully with one
 retained contradictory exit-zero diagnostic; initial compiler failures and their
 repairs remain in the receipt. Native-only corrections were rebuilt before the
-passing native group; Core was not repeated. Remaining source behavior includes
-the explicit unresolved-
-conflict Save Anyway/Mark as resolved override (`MainFrm.cpp` 2230–2246 and
-3078–3105): the current native Mark as resolved still refuses unresolved markers.
-That is an implementation gap, not merely missing acceptance. Physical/signed
-permission sheets, every filter/encoding combination, full hosted integration
-and whole-port acceptance remain separate.
+passing native group; Core was not repeated. At that checkpoint, the explicit
+unresolved-conflict Save Anyway/Mark as resolved override remained unimplemented;
+the follow-up below addresses repository conflicts. Physical/signed permission
+sheets, every filter/encoding combination, full hosted integration and whole-port
+acceptance remain separate.
+
+
+## Repository-conflict Save Anyway and Mark as resolved — October 29, 2026
+
+Pinned `MainFrm.cpp::OnUpdateMergeMarkasresolved` (2230 onward) enables a writable
+merged result even with conflicts. `OnMergeMarkasresolved` (2244 onward) first
+calls `HasConflictsWontKeep` (3078–3105), then saves and dispatches Resolve with
+`/noquestion /skipcheck /silent`. The selected Resolve command performs Git Add;
+this is distinct from the compiled-out `/noui` AutoAdd placeholder described
+above. The source warning defaults to returning to the first unresolved line;
+only an affirmative save continues.
+
+Native repository-conflict controls and the shared editor toolbar now admit that
+warning instead of disabling Mark as resolved whenever marker/ignored conflicts
+remain. Ordinary Save and Mark as resolved use the same owned three-choice
+warning: Save Anyway, Continue Resolving (default Return), and Cancel (Escape).
+The captions are native adaptations of the source command links/common Cancel.
+Both negative replies keep the editor open and return to its first conflict.
+No merged-result or index write precedes affirmation. Separately chosen source
+copies retain their own save operation.
+
+Affirmation belongs to one captured attempt. The current owner/window, document,
+load/input/source-layout generation, serialized result, encoding, line ending and
+ignored/source-choice presentation must still match after the warning and before
+writing. Busy admission rejects a repeated command while the question is owned;
+cancellation, retirement, or a changed draft cannot resume that stale attempt.
+The Core unresolved override is an explicit per-call argument, defaults to false,
+and is never persisted in the document or reused by a retry. Existing ignored-
+conflict resolution bookkeeping remains separate from this explicit warning.
+
+If the file save succeeds but Git Add fails or is cancelled, the still-current
+editor retains the successful saved baseline, reports the stage failure, and
+stays open. A later Mark as resolved attempt requires its own warning and still
+checks external file/index changes; it does not reuse an old approval. Successful
+staging reuses Resolve's bounded cleanup of the LOCAL/REMOTE/BASE source siblings;
+BACKUP files and directories are retained. Failed or cancelled staging does not
+run that cleanup. A Git Add that actually exits successfully is acknowledged even
+if cancellation arrives with its completion.
+
+The [connected checkpoint](qa/merge-unresolved-warning-2026-10-29.json) passed
+20 focused Core methods and both Git engines for the new warning family and
+affected ignored-conflict workflow. Actual native menu/default-button actions,
+negative navigation, per-attempt/stale/retired replies, saved stage failure and
+cancellation, and fresh approved retry are covered. Core checks also retain
+unrelated state and bound successful Resolve cleanup to its source siblings.
+Two failed receiver attempts exposed a fixture assumption: AppKit assigns Return
+to the window's default cell without retaining a CR key equivalent on its button.
+The corrected fixture verifies that actual Continue default control and invokes
+its native action; this does not establish physical keyboard delivery. The build
+passed with 13 recorded exit-zero diagnostic entries. Full hosted, physical and
+signed acceptance remain separate.
+
+An explicit functional gap remains: standalone `WorkingTextMerge` outputs and
+results rebound by Save As still cannot invoke Mark as resolved. Their existing
+`repositoryResolutionAllowed` exclusion needs a separate authorized repository-
+discovery and saved-output resolve workflow. This repository-conflict change does
+not claim complete Mark as resolved parity, signed sheet acceptance, or every
+encoding/filter and physical interaction.

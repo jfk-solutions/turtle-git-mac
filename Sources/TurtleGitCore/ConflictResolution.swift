@@ -164,7 +164,7 @@ extension GitRepository {
     }
     /// Remove only the three source-side sibling files, without following a
     /// symlink or recursively deleting a directory. Other backups remain.
-    private func removeSourceMergeFiles(_ path: String) {
+    func removeSourceMergeFiles(_ path: String) {
         guard path != ".", let file = try? restoreLocation(path) else { return }
         var directory: ObjCBool = false
         if FileManager.default.fileExists(atPath: file.path, isDirectory: &directory), directory.boolValue { return }
