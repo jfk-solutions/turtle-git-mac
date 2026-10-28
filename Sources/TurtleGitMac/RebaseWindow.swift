@@ -29,6 +29,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
 }
 
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
+    private let commandProgressScope = CommandProgressContext.current
     let model: RebaseWindowModel
     private var retiredBatchChildren:[()->Bool]=[]
     private var splitChildRelease:Task<Void,Never>?
@@ -66,7 +67,8 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         if select { model.selection = [id] }
         model.scrollRevisionOccurrence = id; model.scrollRevisionRequest += 1
     }
-    func showRevisionFind(regexExecutable: URL? = nil) {
+    func showRevisionFind(regexExecutable: URL? = nil) { CommandProgressContext.perform(commandProgressScope) { showRevisionFindWithCommandProgressContext(regexExecutable:regexExecutable) } }
+    private func showRevisionFindWithCommandProgressContext(regexExecutable: URL?) {
         guard model.revisionMenuAvailable, let parent = window else { return }
         if let revisionFind { revisionFind.window?.makeKey(); return }
         let child = RevisionGraphFindController(repository: model.repository, access: model.repositoryAccess, preferences: model.columnPreferences, regexExecutable: regexExecutable)
@@ -87,7 +89,8 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         if let window = child.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.addChildWindow(window, ordered: .above); window.center(); window.orderFront(nil); window.makeFirstResponder(child.searchBox) }
         child.updateAvailability(); child.loadReferences()
     }
-    func showRevisionContainingReferences(_ hash: String) {
+    func showRevisionContainingReferences(_ hash: String) { CommandProgressContext.perform(commandProgressScope) { showRevisionContainingReferencesWithCommandProgressContext(hash) } }
+    private func showRevisionContainingReferencesWithCommandProgressContext(_ hash: String) {
         guard model.revisionMenuAvailable, !hash.isEmpty, let parent = window else { return }
         let id = UUID(), child = CommitContainingReferencesWindowController(repository: model.repository, access: model.repositoryAccess, revision: hash, preferences: model.columnPreferences)
         containingWindows[id] = child
@@ -138,7 +141,8 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, UserDefaults, @escaping ([LogEntry]?) -> Void) -> LogWindowController = { repository, access, preferences, choose in
         LogWindowController(repository: repository, access: access, onChooseMultiple: choose, labelDefaults: preferences)
     }
-    func showAdditionalCommits() {
+    func showAdditionalCommits() { CommandProgressContext.perform(commandProgressScope) { showAdditionalCommitsWithCommandProgressContext() } }
+    private func showAdditionalCommitsWithCommandProgressContext() {
         guard let owner = window, owner.attachedSheet == nil, logPicker == nil, let request = model.beginAdditionalSelection() else { return }
         commitPickerRequest = request; Self.activeCommitPickers += 1
         let picker = makeCommitPicker(model.repository, model.repositoryAccess, model.columnPreferences) { [weak self] revisions in
@@ -178,7 +182,8 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
     var makeReferencePicker: (GitRepository, RepositoryAccessLease?, String, UserDefaults, @escaping (String?) -> Void) -> ReferenceBrowserWindowController = { repository, access, initial, preferences, choose in
         ReferenceBrowserWindowController(repository: repository, access: access, initial: initial, preferences: preferences, onChoose: choose)
     }
-    func showReferencePicker(_ target: RebaseReferenceTarget) {
+    func showReferencePicker(_ target: RebaseReferenceTarget) { CommandProgressContext.perform(commandProgressScope) { showReferencePickerWithCommandProgressContext(target) } }
+    private func showReferencePickerWithCommandProgressContext(_ target: RebaseReferenceTarget) {
         guard let owner = window, owner.attachedSheet == nil, referencePicker == nil, let request = model.beginReferenceSelection(target) else { return }
         referenceRequest = request; Self.activeReferencePickers += 1
         let child = makeReferencePicker(model.repository, model.repositoryAccess, target == .upstream ? request.upstream : request.onto, model.columnPreferences) { [weak self] value in
@@ -235,7 +240,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
 
         model.chooseConflictApplication = { [weak self] in await self?.chooseConflictLocation(application: true) }
         model.chooseConflictExport = { [weak self] in await self?.chooseConflictLocation(application: false) }
-        model.onConflictBaseComparison = { [weak self] prepared in
+        model.onConflictBaseComparison = CommandProgressContext.capture(commandProgressScope) { [weak self] prepared in
             guard let self, !self.model.retired, self.conflictBaseViewer == nil else { return }
             let child = FileComparisonWindowController(repository: repository, access: access, conflict: prepared, preferences: preferences)
             self.configureConflictBaseViewer(child.model); self.conflictBaseViewer = child; self.model.viewingConflictBase = true
@@ -245,7 +250,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
             }
             child.showWindow(nil); child.window?.makeKeyAndOrderFront(nil)
         }
-        model.onConflictUnified={ [weak self] bytes,alternate,title,token in
+        model.onConflictUnified=CommandProgressContext.capture(commandProgressScope) { [weak self] bytes,alternate,title,token in
             guard let self,!self.model.retired,!token.isCancelled else {return}
             if try await self.openConflictUnifiedExternal(bytes,alternate,preferences) {return}
             guard !self.model.retired,!token.isCancelled else {return}
@@ -256,7 +261,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
             await self?.askReplay(message,buttons:["Yes","No"],defaultIndex:flags ? 1:0) == 0
         }
         model.cancelConflictRevert={ [weak self] in self?.conflictRevertWindow?.model.cancel() }
-        model.presentConflictRevert={ [weak self] entries,validate in
+        model.presentConflictRevert=CommandProgressContext.capture(commandProgressScope) { [weak self] entries,validate in
             guard let self,!self.model.retired,self.conflictRevertWindow == nil,let window=self.window,window.attachedSheet == nil else {return}
             await withCheckedContinuation { continuation in
                 let child=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences,policy:self.model.pendingConflictRevertPolicy)
@@ -284,7 +289,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         model.cancelConflictFileDialog={ [weak self] in
             self?.conflictAddWindow?.model.cancel();self?.conflictIgnoreWindow?.model.cancel()
         }
-        model.presentConflictAdd={ [weak self] paths,mode,backend,validate in
+        model.presentConflictAdd=CommandProgressContext.capture(commandProgressScope) { [weak self] paths,mode,backend,validate in
             guard let self,!self.model.retired,self.conflictAddWindow == nil,let owner=self.window,owner.attachedSheet == nil else {return}
             await withCheckedContinuation { continuation in
                 let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences,backend:backend,preservePathOrder:true)
@@ -300,7 +305,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
                 if let sheet=child.window {sheet.alphaValue=owner.alphaValue;sheet.appearance=owner.effectiveAppearance;owner.beginSheet(sheet);child.model.start()} else {child.close()}
             }
         }
-        model.presentConflictIgnore={ [weak self] action,paths,validate in
+        model.presentConflictIgnore=CommandProgressContext.capture(commandProgressScope) { [weak self] action,paths,validate in
             guard let self,!self.model.retired,self.conflictIgnoreWindow == nil,let owner=self.window,owner.attachedSheet == nil else {return}
             let child=try IgnoreWindowController(repository:repository,access:access,paths:paths,mask:action.ignoresByExtension,delete:action.removesWhenIgnoring)
             await withCheckedContinuation { continuation in
@@ -339,7 +344,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         model.chooseRestoreReplayStash = { [weak self] in
             await self?.askStash(message: "Restore stashed changes?", detail: "Do you want to pop the changes saved before this replay?", save: false) ?? false
         }
-        model.restoreReplayStash = { [weak self] mode in
+        model.restoreReplayStash = CommandProgressContext.capture(commandProgressScope) { [weak self] mode in
             guard let self, let window = self.window, window.attachedSheet == nil else { return }
             await withCheckedContinuation { continuation in
                 let child = StashRestoreWindowController(repository: repository, access: access, pop: true, showChanges: mode, preferences: preferences)
@@ -483,7 +488,8 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         if stashAlert === alert { stashAlert = nil }
         return !model.retired && response == .alertFirstButtonReturn
     }
-    private func showSplitSelection(_ split: RebaseSplitState, message: String) {
+    private func showSplitSelection(_ split: RebaseSplitState, message: String) { CommandProgressContext.perform(commandProgressScope) { showSplitSelectionWithCommandProgressContext(split,message:message) } }
+    private func showSplitSelectionWithCommandProgressContext(_ split: RebaseSplitState, message: String) {
         guard let window, window.attachedSheet == nil, splitCommitPicker == nil else { model.splitSelectionClosed(committed: false); return }
         let child = CommitWindowController(repository: model.repository, access: model.repositoryAccess, defaults: model.columnPreferences)
         splitCommitPicker = child
@@ -545,6 +551,7 @@ struct RebaseReferenceRequest {
 }
 
 @MainActor final class RebaseWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let repository: GitRepository
     /// A parent-owned Fetch/Sync continuation retains its accepted repository;
     /// ordinary independent loads capture the current dialog preferences.
@@ -978,7 +985,8 @@ struct RebaseReferenceRequest {
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
     func retire() { retired = true;replayProgressEpoch=UUID();replayProgressCallback=nil;pendingLoad=nil;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
-    func finishReplay(after: (() -> Void)? = nil) {
+    func finishReplay(after: (() -> Void)? = nil) { CommandProgressContext.perform(commandProgressScope) { finishReplayWithCommandProgressContext(after:after.map {CommandProgressContext.capture(commandProgressScope,$0)}) } }
+    private func finishReplayWithCommandProgressContext(after: (() -> Void)?) {
         guard !retired, pendingConfirmation == nil, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
         // Preserve immediate completion routing when there is no stash question
         // or restore operation to await.
@@ -1009,7 +1017,7 @@ struct RebaseReferenceRequest {
     var onShowStatus: () -> Void = {}
     var onModeChanged: () -> Void = {}
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
-    lazy var revisionMenuLog = LogWindowModel(repository: repository, access: access, labelDefaults: messageDefaults)
+    lazy var revisionMenuLog = CommandProgressContext.perform(commandProgressScope) {LogWindowModel(repository: repository, access: access, labelDefaults: messageDefaults)}
     var onRefreshRevisionFind: () -> Void = {}
     var onFindAvailability: () -> Void = {}
     var onFindRevision: (() -> Void)?
@@ -1456,7 +1464,8 @@ struct RebaseReferenceRequest {
         case .restart, .rebase: return true
         }
     }
-    func performCompletionAction(_ action: RebaseCompletionAction) {
+    func performCompletionAction(_ action: RebaseCompletionAction) { CommandProgressContext.perform(commandProgressScope) { performCompletionActionWithCommandProgressContext(action) } }
+    private func performCompletionActionWithCommandProgressContext(_ action: RebaseCompletionAction) {
         guard canPerformCompletionAction(action) else { return }
         finishReplay { [weak self] in
             guard let self else { return }
@@ -2265,7 +2274,8 @@ struct RebaseReferenceRequest {
         let question=ActionConfirmation(action:action,message:message,context:formContext,intent:replayIntent)
         pendingConfirmation=question;confirmation=message
     }
-    func execute(_ action: String,repository captured:GitRepository?=nil) {
+    func execute(_ action: String,repository captured:GitRepository?=nil) { CommandProgressContext.perform(commandProgressScope) { executeWithCommandProgressContext(action,repository:captured) } }
+    private func executeWithCommandProgressContext(_ action: String,repository captured:GitRepository?) {
         guard !containingReferenceBlocked, !revisionFindBlocked, !revisionHistoryBlocked, !retired, pendingConfirmation == nil, confirmation == nil, !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished, replayEditor = editorExecutable
         let acceptedMessageEditor = replayMessageEditorID

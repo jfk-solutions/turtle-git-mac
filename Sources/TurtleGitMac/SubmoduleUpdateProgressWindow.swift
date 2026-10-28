@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class SubmoduleUpdateProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SubmoduleUpdateProgressWindowModel
     var onClosed: () -> Void = {}
     static var activeChildReleases: Int { SubmoduleUpdateProgressRelease.activeCount }
@@ -52,6 +53,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleUpdateProgressWindowModel: ObservableObject, ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations = 0
     private(set) var pendingOperations=0
     var isRetired:Bool {invalidated}
@@ -95,6 +97,9 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true; token.cancel() }
     func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {
         guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; Self.activeOperations += 1;pendingOperations += 1; startedAt = ProcessInfo.processInfo.systemUptime
         Task {
             defer { Self.activeOperations -= 1;pendingOperations -= 1; withExtendedLifetime(access) {} }
@@ -160,9 +165,13 @@ import TurtleGitCore
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ operation: BisectOperation) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(operation) }
+    }
+    private func performInCommandProgressScope(_ operation: BisectOperation) {
         guard !activeOperation, !invalidated, presentationAvailable(), success, !dispatched, postActions.contains(operation) else { return }
         dispatched = true; let callback=onBisect
-        if let closeForHandoff {closeForHandoff {callback(operation)}} else {close();callback(operation)}
+        let dispatch=CommandProgressContext.capture(commandProgressScope) {callback(operation)}
+        if let closeForHandoff {closeForHandoff(dispatch)} else {close();dispatch()}
     }
     func action(for operation: BisectOperation) -> RepositoryAction {
         switch operation { case .good: return .bisectGood; case .bad: return .bisectBad; case .skip: return .bisectSkip; case .reset: return .bisectReset }

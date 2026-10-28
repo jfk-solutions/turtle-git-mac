@@ -116,6 +116,7 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class StashWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let preferences: UserDefaults
@@ -164,7 +165,8 @@ import TurtleGitCore
     var onSaved: (StashSaveResult) -> Void = { _ in }
     var onFailed: (String) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
-    func save() {
+    func save() { CommandProgressContext.perform(commandProgressScope) { saveWithCommandProgressContext() } }
+    private func saveWithCommandProgressContext() {
         guard !invalidated, !confirmingQuit, !busy, !preparing, !confirmingUntracked else { return }
         guard prepared else {prepare(saveAfter:true);return}
         var snapshot = options; snapshot.requireIdentity=true
@@ -219,7 +221,8 @@ import TurtleGitCore
     func abandonProgressPresentation(_ progress:StashSaveProgressWindowModel) {
         guard self.progress === progress else{return};progress.invalidate();self.progress=nil;busy=false;formRevision=UUID()
     }
-    private func perform(_ snapshot: StashSaveOptions,followUp:StashSaveFollowUp) {
+    private func perform(_ snapshot: StashSaveOptions,followUp:StashSaveFollowUp) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(snapshot,followUp:followUp) } }
+    private func performWithCommandProgressContext(_ snapshot: StashSaveOptions,followUp:StashSaveFollowUp) {
         guard !invalidated, !confirmingQuit, !busy else { return }
         guard canStart() else { error = "Wait for the current stash operation to finish."; return }
         busy = true
@@ -233,7 +236,7 @@ import TurtleGitCore
             let afterClose=afterClose,generation=interactionGeneration
             progress.onPostAction = { [self,weak progress] action,request in
                 guard !invalidated || progress?.hasDispatchedAction == true else{return}
-                let dispatch={ [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
+                let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
                 if let afterClose {afterClose(dispatch)} else {dispatch()}
             }
         }
@@ -282,6 +285,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class StashSaveProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     private final class CommandReceipt:@unchecked Sendable {
         private let lock=NSLock()
         private var receipt:StashSaveCommandCompletion?
@@ -339,7 +343,8 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     var onPostAction: ((StashSavePostAction, StashSaveFollowUp) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     private func resetAttempt(){busy=true;success=false;cancelled=false;cancelling=false;output="";currentWork="";percentage=nil;completionRange=nil;commandFinished=false;commandSucceeded=false;result=nil;postActions=[]}
-    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
     func cancel() {
         guard canCancel else { return }
         // A question belongs to the phase in which it opened. A late Yes
@@ -358,7 +363,8 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         if !invalidated, !confirmingQuit, !busy, !hasPendingWork, !confirmingCancellation, autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
     }
     func invalidate() { invalidated = true; cancellation.cancel(); confirmingCancellation = false;if !hasPendingWork {busy=false};postActions=[] }
-    func run() async {
+    func run() async { await CommandProgressContext.perform(commandProgressScope) { await runWithCommandProgressContext() } }
+    private func runWithCommandProgressContext() async {
         guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()
     }
     private func bounded(_ text:String,bytes limit:Int)->String {
@@ -452,10 +458,11 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         }
         onFinished(result,originalOutput)
     }
-    func perform(_ action: StashSavePostAction) {
+    func perform(_ action: StashSavePostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
+    private func performWithCommandProgressContext(_ action: StashSavePostAction) {
         guard !invalidated,presentationAvailable(),!confirmingQuit,!dispatched,!busy,!hasPendingWork,!confirmingCancellation,success,postActions.contains(action),let onPostAction else{return}
         dispatched=true;let request=followUp,generation=interactionGeneration
-        let dispatch={ [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
+        let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
         if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}
     }
 }

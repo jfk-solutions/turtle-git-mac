@@ -25,6 +25,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
 }
 
 @MainActor final class GitDaemonWindowModel: ObservableObject, ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     enum Phase { case warning, running, stopping, finished }
     static private(set) var activeOperations = 0
     static private(set) var activeQuestions = 0
@@ -82,10 +83,16 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
         parser = GitCliOutputParser(limit: outputState.limit)
     }
     func begin() {
+        CommandProgressContext.perform(commandProgressScope) { beginInCommandProgressScope() }
+    }
+    private func beginInCommandProgressScope() {
         guard !confirmingQuit, !started, !retired, phase == .warning else { return }
         if preferences.bool(forKey: "DaemonNoSecurityWarning") { proceed() }
     }
     func proceed() {
+        CommandProgressContext.perform(commandProgressScope) { proceedInCommandProgressScope() }
+    }
+    private func proceedInCommandProgressScope() {
         guard !confirmingQuit, !started, !retired, phase == .warning else { return }
         do {
             guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -200,6 +207,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
 }
 
 @MainActor final class GitDaemonWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: GitDaemonWindowModel
     var onClosed: () -> Void = {}
     private var retired=false,releasing=false

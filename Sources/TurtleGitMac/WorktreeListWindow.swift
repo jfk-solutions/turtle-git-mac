@@ -3,6 +3,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class WorktreeListWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: WorktreeListWindowModel
     var onClosed: () -> Void = {}
     var onSubmodules: (URL, RepositoryAccessLease?) -> Void = { _, _ in }
@@ -99,6 +100,9 @@ import TurtleGitCore
         return granted
     }
     private func addWorktree() {
+        CommandProgressContext.perform(commandProgressScope) { addWorktreeInCommandProgressScope() }
+    }
+    private func addWorktreeInCommandProgressScope() {
         guard externalAvailability(), model.canInteract, createWindow == nil, let window, window.attachedSheet == nil else { return }
         let controller = WorktreeCreateWindowController(repository: model.repository, access: model.access,preferences:model.preferences)
         controller.externalAvailability = { [weak self] in self?.model.active == true && self?.externalAvailability() == true }
@@ -117,6 +121,7 @@ import TurtleGitCore
 }
 
 @MainActor final class WorktreeListWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     let progressPresentation: GitCommandPresentation
     static var activeOperations = 0
     private(set) var pendingOperations=0
@@ -170,6 +175,9 @@ import TurtleGitCore
     }
     func finishRequest() { busy=false; cancellation=nil; cancelling=false; currentWork=""; percentage=nil; Self.activeOperations -= 1;pendingOperations -= 1; finishAutomaticClose() }
     private func beginProgress() {
+        CommandProgressContext.perform(commandProgressScope) { beginProgressInCommandProgressScope() }
+    }
+    private func beginProgressInCommandProgressScope() {
         ProgressActionLog.nextAttempt(self, savePrevious: showProgress)
         showProgress=true; output=""; result=""; failed=false; cancelled=false; displayTruncated=false
         cancelling=false; confirmingCancellation=false; autoClosePolicy=GitProgressAutoClose(preferences: preferences)
@@ -251,6 +259,9 @@ import TurtleGitCore
         }
     }
     func modify(_ action: Action, ids: Set<String>) {
+        CommandProgressContext.perform(commandProgressScope) { modifyInCommandProgressScope(action, ids: ids) }
+    }
+    private func modifyInCommandProgressScope(_ action: Action, ids: Set<String>) {
         guard canInteract else { return }
         let chosen = selected(ids), targets = chosen.filter { !$0.isMain }
         guard !chosen.isEmpty else { return }
@@ -317,6 +328,9 @@ import TurtleGitCore
         try await refreshAfterBatch(token)
     }
     func prune() {
+        CommandProgressContext.perform(commandProgressScope) { pruneInCommandProgressScope() }
+    }
+    private func pruneInCommandProgressScope() {
         guard canInteract else { return }; let token=beginRequest()
         Task {
             defer { finishRequest(); withExtendedLifetime(access) {} }
@@ -355,6 +369,9 @@ import TurtleGitCore
         }
     }
     func retryRemovalWithForce() {
+        CommandProgressContext.perform(commandProgressScope) { retryRemovalWithForceInCommandProgressScope() }
+    }
+    private func retryRemovalWithForceInCommandProgressScope() {
         guard active, !busy, !confirmingCancellation, let failedRemoval else { return }
         // ProgressDlg's post-action ends with IDOK, resuming the original batch.
         // Force applies to this failed row; subsequent rows retain their original mode.

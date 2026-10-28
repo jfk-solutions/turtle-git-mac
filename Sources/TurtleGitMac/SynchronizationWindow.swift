@@ -126,6 +126,7 @@ extension SynchronizationTagKind {
 }
 
 @MainActor final class SynchronizationProgressModel: ObservableObject, ActionLogProgress {
+    private let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations = 0
     let progressPresentation: GitCommandPresentation
     let repository: GitRepository, operation: SynchronizationProgressOperation, preferences: UserDefaults
@@ -151,7 +152,8 @@ extension SynchronizationTagKind {
         guard !closed, !working, !busy, !confirmingCancellation, recoveryAvailable, !recoveryConsumed else { return nil }
         return RecoveryReceipt(owner:recoveryOwner,revision:recoveryRevision)
     }
-    func performRecovery(_ receipt: RecoveryReceipt) {
+    func performRecovery(_ receipt: RecoveryReceipt) { CommandProgressContext.perform(commandProgressScope) { performRecoveryWithCommandProgressContext(receipt) } }
+    private func performRecoveryWithCommandProgressContext(_ receipt: RecoveryReceipt) {
         guard receipt.owner == recoveryOwner, receipt.revision == recoveryRevision, captureRecovery() != nil else { return }
         recoveryConsumed = true
         if !requestRecovery(), !closed { recoveryConsumed = false }
@@ -217,7 +219,8 @@ extension SynchronizationTagKind {
         if case .tag = operation { return autoClosePolicy.shouldClose(success: success, postActionCount: 0) }
         return success
     }
-    func start() {
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() {
         guard !started, !closed else { return }; started = true; working = true; Self.activeOperations += 1
         startedAt = ProcessInfo.processInfo.systemUptime; currentWork = operation.work
         Task {
@@ -352,6 +355,7 @@ final class SynchronizationNativeWindow: NSWindow {
 }
 
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
+    private let commandProgressScope = CommandProgressContext.current
     private(set) static var activeInlineReleases = 0
     private var retiredPresentation = false
     var configureExport: (ExportWindowController) -> Void = { _ in }
@@ -737,7 +741,8 @@ final class SynchronizationNativeWindow: NSWindow {
         }
         Self.placementSequence += 1
     }
-    func showImportPatch(oldHead: String) {
+    func showImportPatch(oldHead: String) { CommandProgressContext.perform(commandProgressScope) { showImportPatchWithCommandProgressContext(oldHead:oldHead) } }
+    private func showImportPatchWithCommandProgressContext(oldHead: String) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
               let owner = window, owner.attachedSheet == nil, importPatchController == nil else { return }
         owner.makeFirstResponder(nil)
@@ -754,7 +759,8 @@ final class SynchronizationNativeWindow: NSWindow {
         guard let window = child.window else { child.close(); importPatchController = nil; model.importingPatches = false; return }
         window.alphaValue = owner.alphaValue; owner.beginSheet(window)
     }
-    private func showEmailPatches(_ files: [URL]) {
+    private func showEmailPatches(_ files: [URL]) { CommandProgressContext.perform(commandProgressScope) { showEmailPatchesWithCommandProgressContext(files) } }
+    private func showEmailPatchesWithCommandProgressContext(_ files: [URL]) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
               !files.isEmpty, let owner = window, owner.attachedSheet == nil, emailWorkflow == nil else { return }
         owner.makeFirstResponder(nil); model.emailingPatches = true
@@ -789,7 +795,8 @@ final class SynchronizationNativeWindow: NSWindow {
         if let focus = branchPickerFocus { window.makeFirstResponder(focus) }; branchPickerFocus = nil
         completion()
     }
-    func showBranchPicker(_ target: SynchronizationBranchTarget) {
+    func showBranchPicker(_ target: SynchronizationBranchTarget) { CommandProgressContext.perform(commandProgressScope) { showBranchPickerWithCommandProgressContext(target) } }
+    private func showBranchPickerWithCommandProgressContext(_ target: SynchronizationBranchTarget) {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
               let owner = window, owner.attachedSheet == nil, branchPicker == nil, branchPickerRequest == nil else { return }
         branchPickerFocus = (owner.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0.delegate as? NSResponder : $0 } ?? owner.firstResponder
@@ -812,7 +819,8 @@ final class SynchronizationNativeWindow: NSWindow {
         guard let window = child.window else { branchPicker = nil; branchPickerRequest = nil; model.choosingBranch = false; child.abandonPresentation(); return }
         window.alphaValue = owner.alphaValue; window.appearance = owner.appearance; owner.beginSheet(window); child.model.load()
     }
-    func showRemoteSettings() {
+    func showRemoteSettings() { CommandProgressContext.perform(commandProgressScope) { showRemoteSettingsWithCommandProgressContext() } }
+    private func showRemoteSettingsWithCommandProgressContext() {
         guard !model.closed, !model.confirmingQuit, !model.busy, !model.hasBlockingChild,
               let owner = window, owner.attachedSheet == nil, remoteSettingsController == nil else { return }
         owner.makeFirstResponder(nil)
@@ -847,7 +855,8 @@ final class SynchronizationNativeWindow: NSWindow {
         !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation
             && !model.hasBlockingChild && window?.attachedSheet == nil
     }
-    func showHistoryFind(sourceTab: Int, selectionIndex: Int? = nil, regexExecutable: URL? = nil) {
+    func showHistoryFind(sourceTab: Int, selectionIndex: Int? = nil, regexExecutable: URL? = nil) { CommandProgressContext.perform(commandProgressScope) { showHistoryFindWithCommandProgressContext(sourceTab:sourceTab,selectionIndex:selectionIndex,regexExecutable:regexExecutable) } }
+    private func showHistoryFindWithCommandProgressContext(sourceTab: Int, selectionIndex: Int?, regexExecutable: URL?) {
         guard [0, 4].contains(sourceTab), canHistoryFind, let parent = window else { return }
         // ID_FINDENTRY resets the originating list's search cursor even when
         // focusing its already-open CFindDlg.
@@ -901,7 +910,8 @@ final class SynchronizationNativeWindow: NSWindow {
             }
         }
     }
-    private func showHistoryOperation(_ action: SynchronizationHistoryOperation) {
+    private func showHistoryOperation(_ action: SynchronizationHistoryOperation) { CommandProgressContext.perform(commandProgressScope) { showHistoryOperationWithCommandProgressContext(action) } }
+    private func showHistoryOperationWithCommandProgressContext(_ action: SynchronizationHistoryOperation) {
         guard !model.closed, !model.busy, !model.confirmingQuit, !model.confirmingCancellation,
               !model.hasBlockingChild, historyOperationController == nil,
               let owner = window, owner.attachedSheet == nil else { return }
@@ -1100,6 +1110,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
 }
 
 @MainActor final class SynchronizationWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     private(set) static var activeInlineOperations = 0
     private var inlineAttempts: [UUID: SynchronizationInlineAttempt] = [:]
     let notifications:FileOperationProgressState
@@ -1937,11 +1948,13 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
             }
         }
     }
-    func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
+    func performPullAction(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) { CommandProgressContext.perform(commandProgressScope) { performPullActionWithCommandProgressContext(action,shift:shift) } }
+    private func performPullActionWithCommandProgressContext(_ action: SynchronizationTransportAction?, shift: Bool) {
         if action == nil, compareTagsSelected { compareTags(shift: shift) }
         else { fetch(action ?? pullAction, shift: shift) }
     }
-    func applyPatch() {
+    func applyPatch() { CommandProgressContext.perform(commandProgressScope) { applyPatchWithCommandProgressContext() } }
+    private func applyPatchWithCommandProgressContext() {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         let request = OperationCancellation(); token = request; busy = true; error = nil
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
@@ -1959,7 +1972,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         }
     }
     var canEmailPatch: Bool { !closed && !confirmingQuit && !busy && !hasBlockingChild && window?.attachedSheet == nil && outgoing?.canEmailPatch == true }
-    func emailPatch() {
+    func emailPatch() { CommandProgressContext.perform(commandProgressScope) { emailPatchWithCommandProgressContext() } }
+    private func emailPatchWithCommandProgressContext() {
         guard canEmailPatch else { return }
         let request=OperationCancellation();token=request;busy=true;emailingPatches=true;transportRunning=true;error=nil
         let local=localBranch,selectedRemote=remote,branch=remoteBranch
@@ -2184,7 +2198,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         return value
     }
     /// Shift opens the full Pull/Fetch options; other split entries ignore Shift.
-    func fetch(_ action: SynchronizationTransportAction = .fetch, shift: Bool = false) {
+    func fetch(_ action: SynchronizationTransportAction = .fetch, shift: Bool = false) { CommandProgressContext.perform(commandProgressScope) { fetchWithCommandProgressContext(action,shift:shift) } }
+    private func fetchWithCommandProgressContext(_ action: SynchronizationTransportAction, shift: Bool) {
         guard [.pull, .fetch, .fetchAndRebase, .fetchAllBranches, .remoteUpdate, .prune].contains(action),
               !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         pullAction = action; compareTagsSelected = false
@@ -2193,7 +2208,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         if shift && action != .pull && action != .fetch { return }
         runTransport(action, shift: shift)
     }
-    func push(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
+    func push(_ action: SynchronizationTransportAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) { CommandProgressContext.perform(commandProgressScope) { pushWithCommandProgressContext(action,shift:shift) } }
+    private func pushWithCommandProgressContext(_ action: SynchronizationTransportAction?, shift: Bool) {
         let selected = action ?? pushAction
         guard [.push, .pushTags, .pushNotes].contains(selected), !closed, !confirmingQuit, !confirmingCancellation,
               !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }

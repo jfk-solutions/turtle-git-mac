@@ -11,6 +11,7 @@ import TurtleGitCore
 }
 
 @MainActor final class MergeWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: MergeWindowModel
     var onClosed: () -> Void = {}
     private var transportRetiredProgress:MergeProgressWindowController?
@@ -117,6 +118,7 @@ import TurtleGitCore
 }
 
 @MainActor final class MergeWindowModel: ObservableObject, VersionPickerModel {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeReads = 0
     private(set) var pendingTransportReads=0
     @Published var confirmingQuit=false { didSet { if confirmingQuit != oldValue {formRevision=UUID()};progress?.confirmingQuit=confirmingQuit } }
@@ -297,6 +299,9 @@ import TurtleGitCore
         }
     }
     func merge() {
+        CommandProgressContext.perform(commandProgressScope) { mergeInCommandProgressScope() }
+    }
+    private func mergeInCommandProgressScope() {
         guard canEditForm, !revision.isEmpty else { return }
         var snapshot = options; snapshot.revision = revision
         if messages {
@@ -430,6 +435,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class MergeProgressWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations=0
     @Published private(set) var pendingOperations=0
     var hasPendingWork:Bool {pendingOperations > 0}
@@ -442,7 +448,10 @@ enum MergePostAction: String, CaseIterable, Hashable {
     @Published var confirmingQuit=false
     var presentationAvailable:()->Bool = {true}
     var closeForHandoff:((@escaping ()->Void)->Void)?
-    private func finishAndPerform(_ action:@escaping ()->Void) {if let closeForHandoff {closeForHandoff(action)} else {close();action()}}
+    private func finishAndPerform(_ action:@escaping ()->Void) {
+        let dispatch=CommandProgressContext.capture(commandProgressScope,action)
+        if let closeForHandoff {closeForHandoff(dispatch)} else {close();dispatch()}
+    }
     let repository: GitRepository
     let options: MergeOptions
     let target: CheckoutTarget
@@ -502,8 +511,14 @@ enum MergePostAction: String, CaseIterable, Hashable {
         busy=true;success=false;cancelled=false;cancelling=false;outputState.reset();output="";rawOutput="";percentage=nil;currentWork="";postActions=[]
         completionRange=nil;commandFinished=false;commandSucceeded=false
     }
-    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute(options)}}
-    func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute(options)}
+    func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute(options)}}
+    func run() async {
+        await CommandProgressContext.perform(commandProgressScope) { await runInCommandProgressScope() }
+    }
+    private func runInCommandProgressScope() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute(options)}
     func invalidate() {
         invalidated = true; cancellation.cancel(); inspectionCancellation?.cancel(); dismissalCancellation?.cancel()
         confirmingCancellation = false; confirmingConflictHint = false; confirmingDeletion = false
@@ -636,6 +651,9 @@ enum MergePostAction: String, CaseIterable, Hashable {
         postActions = actions; onChanged(rawOutput)
     }
     func cancelResult() {
+        CommandProgressContext.perform(commandProgressScope) { cancelResultInCommandProgressScope() }
+    }
+    private func cancelResultInCommandProgressScope() {
         guard !invalidated, !confirmingQuit, !busy, !hasPendingWork, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, deletionError == nil, !checkingDismissal else { return }
         checkingDismissal = true;busy=true
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
@@ -654,6 +672,9 @@ enum MergePostAction: String, CaseIterable, Hashable {
         }
     }
     func perform(_ action: MergePostAction) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(action) }
+    }
+    private func performInCommandProgressScope(_ action: MergePostAction) {
         guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !hasPendingWork, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, deletionError == nil, !checkingDismissal, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             ProgressActionLog.nextAttempt(self)
@@ -670,6 +691,9 @@ enum MergePostAction: String, CaseIterable, Hashable {
         } else if let onPostAction { dispatched = true; let options=self.options;finishAndPerform {onPostAction(action, options)} }
     }
     private func deleteBranch() {
+        CommandProgressContext.perform(commandProgressScope) { deleteBranchInCommandProgressScope() }
+    }
+    private func deleteBranchInCommandProgressScope() {
         guard !invalidated, !confirmingQuit, !busy,!hasPendingWork, options.revision.hasPrefix("refs/heads/") else { return }; busy = true;deletingBranch=true
         let token = OperationCancellation(); cancellation = token
         beginWork()
@@ -701,6 +725,7 @@ enum MergeProgressQuestion: Equatable {
     }
 }
 @MainActor final class MergeProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     private var pendingHandoff: (() -> Void)?
     private var release: MergeChildRelease?
     private var presentationParent: NSWindow?
@@ -855,6 +880,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     var bisectOperation: BisectOperation? { BisectOperation(rawValue: rawValue) }
 }
 @MainActor final class MergeAbortWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     var repositoryAccess: RepositoryAccessLease? { access }
@@ -894,8 +920,14 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     var close: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; outputState = GitProgressOutputState(preferences: preferences) }
     func invalidate() { invalidated = true; pendingConfirmation = nil; confirmingCancellation = false; cancellation.cancel(); worker?.cancel() }
-    func showModified() { guard !invalidated, !busy, !hasChild, !showingProgress else { return }; onShowModified?() }
+    func showModified() {
+        CommandProgressContext.perform(commandProgressScope) { showModifiedInCommandProgressScope() }
+    }
+    private func showModifiedInCommandProgressScope() { guard !invalidated, !busy, !hasChild, !showingProgress else { return }; onShowModified?() }
     func abort() {
+        CommandProgressContext.perform(commandProgressScope) { abortInCommandProgressScope() }
+    }
+    private func abortInCommandProgressScope() {
         guard !invalidated, !busy, !hasChild, !showingProgress else { return }
         operationMode = mode; showingProgress = true; onResize(true); start()
     }
@@ -917,6 +949,9 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         return try await operation.value
     }
     private func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {
         ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         busy = true; success = false; cancelled = false; cancelling = false; closeAfterCancellation = false; outputState.reset(); output = ""; percentage = nil; currentWork = ""; completionRange = nil; rawOutput = ""; postActions = []; cancellation = OperationCancellation()
@@ -983,6 +1018,9 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         } else { closeAfterCancellation = true; cancelling = true; token.cancel() }
     }
     func perform(_ action: MergeAbortPostAction) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(action) }
+    }
+    private func performInCommandProgressScope(_ action: MergeAbortPostAction) {
         guard !invalidated, !busy, !hasChild, !confirmingCancellation, postActions.contains(action) else { return }
         if action == .retry {
             saveActionLog();
@@ -1008,6 +1046,7 @@ private final class MergeAbortNativeWindow: NSWindow {
     }
 }
 @MainActor final class MergeAbortWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: MergeAbortWindowModel
     var onClosed: () -> Void = {}
     var configureModifiedComparison:(RevisionComparisonWindowModel)->Void = { _ in }
@@ -1072,6 +1111,7 @@ private final class MergeAbortNativeWindow: NSWindow {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class MergeAbortProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: MergeAbortWindowModel
     var onClosed: () -> Void = {}
     private(set) var cancellationAlert: NSAlert?

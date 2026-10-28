@@ -25,6 +25,7 @@ private final class RevertProgressNativeWindow: NSWindow {
 }
 
 @MainActor final class RevertProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     static private(set) var activeReleases=0
     let model: RevertProgressWindowModel
     let progressFiles:FileOperationProgressFiles
@@ -105,6 +106,7 @@ private struct RevertProgressRow: Identifiable {
 }
 
 @MainActor final class RevertProgressWindowModel: ObservableObject, ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     let progress:FileOperationProgressState
     let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
@@ -178,9 +180,18 @@ private struct RevertProgressRow: Identifiable {
         completed = event.completed; total = event.total
         if !cancelRequested { current = event.step.rawValue + ": " + event.path }
     }
-    func start() { guard !started, !retired else { return }; started = true; run(refreshSelection: false) }
-    func retry() { guard progressActionsAvailable, failed || cancelled else { return }; run(refreshSelection: true) }
+    func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() { guard !started, !retired else { return }; started = true; run(refreshSelection: false) }
+    func retry() {
+        CommandProgressContext.perform(commandProgressScope) { retryInCommandProgressScope() }
+    }
+    private func retryInCommandProgressScope() { guard progressActionsAvailable, failed || cancelled else { return }; run(refreshSelection: true) }
     private func run(refreshSelection: Bool) {
+        CommandProgressContext.perform(commandProgressScope) { runInCommandProgressScope(refreshSelection: refreshSelection) }
+    }
+    private func runInCommandProgressScope(refreshSelection: Bool) {
         let attemptStarted=Date()
         progress.begin("Revert")
         ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); cancellation = request; busy = true; cancelRequested = false; failed = false; cancelled = false; completedSuccessfully = false; information = ""; commandOutput = ""; rows = []; rowIndices = [:]; completed = 0; total = 0; current = refreshSelection ? "Refreshing selected paths…" : "Preparing Revert…"; submodulePaths = []
@@ -221,14 +232,18 @@ private struct RevertProgressRow: Identifiable {
     private func retainCopies(_ urls: [URL]) { var seen = GitPathSet(trashedFiles.map(\.path)); trashedFiles += urls.filter { seen.insert($0.path).inserted } }
     private func finishAutomaticClose() {
         guard progressActionsAvailable, completedSuccessfully else { return }
-        if autoCloseSuccess && submodulePaths.isEmpty || autoClosePolicy.shouldClose(success: true, postActionCount: submodulePaths.isEmpty ? 0 : 1) { close() }
+        // GitStatusListCtrl.cpp:2589–2591 explicitly replaces the constructor's
+        // command/preferences policy with no-options for a nested menu Revert.
+        let shouldClose=autoCloseSuccess ? submodulePaths.isEmpty : autoClosePolicy.shouldClose(success: true, postActionCount: submodulePaths.isEmpty ? 0 : 1)
+        if shouldClose { close() }
     }
     func handleSubmodules() {
         guard progressActionsAvailable,!failed,!cancelled,!submodulePaths.isEmpty,let revision=comparisonRevision else{return}
         let paths=submodulePaths,callback=onHandleSubmodules
         saveActionLog()
         // The controller validates and drains the closing result before handing off.
-        finishAndPerform {accepted in if accepted {callback(revision,paths)}}
+        let dispatch=CommandProgressContext.capture(commandProgressScope) {callback(revision,paths)}
+        finishAndPerform {accepted in if accepted {dispatch()}}
     }
     func revealCopies() {guard progressActionsAvailable,!trashedFiles.isEmpty else{return};revealSavedCopies(trashedFiles)}
     var clipboardOutput:String {rows.map{[$0.action,$0.path].joined(separator:"\t")}.joined(separator:"\n")+"\n\n"+commandOutput+"\n"+information+"\n"+trashedFiles.map{"Moved to Trash: "+$0.path}.joined(separator:"\n")}

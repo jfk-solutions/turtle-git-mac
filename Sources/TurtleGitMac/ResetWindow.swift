@@ -12,6 +12,7 @@ struct ResetChooserDraft: Equatable {
 }
 
 @MainActor final class ResetWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     static var activeChildReleases:Int {ResetChildRelease.activeCount}
     let model: ResetWindowModel
     private var retiredProgress:ResetProgressWindowModel?
@@ -69,6 +70,7 @@ struct ResetChooserDraft: Equatable {
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
         model.afterClose = { [self] action in
+            let action=CommandProgressContext.capture(self.commandProgressScope,action)
             if self.released {action();return}
             self.closedActions.append(action)
             if !self.closed {self.presentationParent=self.window?.sheetParent;self.window?.close()}
@@ -209,6 +211,7 @@ struct ResetChooserDraft: Equatable {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ResetWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeReads = 0
     private(set) var pendingBatchWorkers=0
     struct FormContext:Equatable {let owner:ObjectIdentifier;let generation:Int;let draft:ResetChooserDraft}
@@ -261,11 +264,15 @@ struct ResetChooserDraft: Equatable {
     var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
     var onChanged: (String) -> Void = { _ in }
     func finish(_ result: ResetProgressWindowModel) {
+        CommandProgressContext.perform(commandProgressScope) { finishInCommandProgressScope(result) }
+    }
+    private func finishInCommandProgressScope(_ result: ResetProgressWindowModel) {
         guard !invalidated, progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false; error = nil
         if result.success {
             let completed=onReset,output=result.output
-            if let afterClose {afterClose {completed(output)}} else {close();completed(output)}
+            let dispatch=CommandProgressContext.capture(commandProgressScope) {completed(output)}
+            if let afterClose {afterClose(dispatch)} else {close();dispatch()}
         }
     }
     var close: () -> Void = {}
@@ -371,6 +378,9 @@ struct ResetChooserDraft: Equatable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func reset() {
+        CommandProgressContext.perform(commandProgressScope) { resetInCommandProgressScope() }
+    }
+    private func resetInCommandProgressScope() {
         guard !invalidated, !confirmingQuit, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode, request = OperationCancellation()
         resetCancellation = request
@@ -401,14 +411,20 @@ struct ResetChooserDraft: Equatable {
     }
 
     func apply(_ plan: ResetPlan) {
+        CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope(plan) }
+    }
+    private func applyInCommandProgressScope(_ plan: ResetPlan) {
         guard !invalidated, !confirmingQuit, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences, access: access)
             result.close = { [weak self, weak result] in guard let result else { return }; self?.finish(result) }
             result.onChanged = onChanged; result.onNotificationLog = onNotificationLog
-            let actionCallback=onPostAction,afterClose=afterClose
-            result.onPostAction = { action in if let afterClose {afterClose {actionCallback?(action)}} else {actionCallback?(action)} }
+            let actionCallback=onPostAction,afterClose=afterClose,scope=commandProgressScope
+            result.onPostAction = { action in
+                let dispatch: () -> Void = CommandProgressContext.capture(scope) { _ = actionCallback?(action) }
+                if let afterClose {afterClose(dispatch)} else {dispatch()}
+            }
             progress = result; onProgress(result); if progress === result { result.start() }
         } else {
             let backend=GitLibGit2Configuration.load(from:preferences),recycle=preferences.object(forKey:"RevertWithRecycleBin") == nil || preferences.bool(forKey:"RevertWithRecycleBin")
@@ -536,6 +552,7 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
     func take()->[GitResetNotification]{lock.lock();defer{lock.unlock()};let copy=values;values=[];return copy}
 }
 @MainActor final class ResetProgressWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     let backend:GitLibGit2Configuration
     let recycle:Bool
     let notifications:FileOperationProgressState
@@ -596,7 +613,10 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
     func invalidate() { notifications.retire();invalidated = true; cancellation.cancel(); confirmingCancellation = false; postActions = [];if !hasPendingWork {busy=false} }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     private func resetAttempt(){notifications.begin("Reset "+plan.mode.rawValue+" "+plan.revision);notificationWarnings=[];busy=true;success=false;cancelled=false;cancelling=false;output="";rawOutput="";currentWork="";percentage=nil;postActions=[];completionRange=nil;commandFinished=false;commandSucceeded=false}
-    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
+    func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
     func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()}
     private func bounded(_ text:String,bytes limit:Int)->String {
         let bytes=Data(text.utf8),limit=max(0,limit)
@@ -708,16 +728,22 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: ResetPostAction) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(action) }
+    }
+    private func performInCommandProgressScope(_ action: ResetPostAction) {
         guard !busy,!hasPendingWork, !fileActionBusy, !confirmingQuit, !invalidated, !confirmingCancellation, !dispatched, postActions.contains(action) else { return }
         if action == .retry {
             ProgressActionLog.nextAttempt(self);
             cancellation=OperationCancellation();resetAttempt();beginWork()
             Task { await execute() }; return
         }
-        guard let onPostAction else { return }; dispatched = true;if let closeForHandoff {closeForHandoff {onPostAction(action)}} else {close();onPostAction(action)}
+        guard let onPostAction else { return }; dispatched = true
+        let dispatch=CommandProgressContext.capture(commandProgressScope) {onPostAction(action)}
+        if let closeForHandoff {closeForHandoff(dispatch)} else {close();dispatch()}
     }
 }
 @MainActor final class ResetProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: ResetProgressWindowModel
     let notificationFiles:RemoteProgressFileActions
     private var pendingHandoff:(()->Void)?

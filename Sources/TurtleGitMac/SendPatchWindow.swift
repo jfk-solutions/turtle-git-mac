@@ -50,6 +50,7 @@ final class ApplicationMailContext: @unchecked Sendable {
 }
 
 @MainActor final class SendPatchWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     enum Delivery { case mailClient, smtp }
     @Published private(set) var rows: [SendPatchRow] {didSet {catalogRevision=UUID()}}
     @Published private(set) var checked: Set<UUID>
@@ -173,7 +174,8 @@ final class ApplicationMailContext: @unchecked Sendable {
             if generation == previewGeneration { previewBusy = false; previewWork = nil }
         }
     }
-    func submit() {
+    func submit() { CommandProgressContext.perform(commandProgressScope) { submitWithCommandProgressContext() } }
+    private func submitWithCommandProgressContext() {
         guard canSubmit, let onSubmit else { return }
         endEditing(); guard canSubmit else { return }
         previewWork?.cancel(); previewWork = nil; previewGeneration = UUID(); previewBusy = false
@@ -788,6 +790,7 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     }
 }
 @MainActor final class SendPatchProgressModel: ObservableObject, ActionLogProgress {
+    private let commandProgressScope = CommandProgressContext.current
     typealias Submission = @MainActor (OperationCancellation, @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt]
     let repository: GitRepository
     let total: Int
@@ -835,7 +838,8 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
         policy = GitProgressAutoClose(preferences: preferences); logLimit = GitProgressOutputState(preferences: preferences).limit
         self.submission = submission
     }
-    func start() {
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() {
         guard !started, !invalidated,!confirmingQuit else { return }; started = true; busy = true;pendingOperations += 1;Self.activeSubmissions += 1;currentWork = "Preparing mail…"
         let submission:Submission=self.submission ?? { [self] token,progress in
             if self.request.delivery.delivery == .mailClient{return try await SendPatchMailClientDelivery.send(self.request,repository:self.repository,access:self.access,applicationContext:self.applicationContext,cancellation:token,onProgress:progress)}
@@ -1028,6 +1032,7 @@ private struct SendPatchProgressDialog: View {
 
 /// Retains options, progress and access for every delivery mode until final close.
 @MainActor final class SendMailWorkflow {
+    private let commandProgressScope = CommandProgressContext.current
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
@@ -1055,7 +1060,7 @@ private struct SendPatchProgressDialog: View {
         present = presentation ?? { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
         let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation, customSubject: customSubject, appOwnedFiles: appOwnedFiles, choosePatchTarget: applicationContext != nil)
         options = controller
-        controller.model.onSubmit = { [weak self] request in
+        controller.model.onSubmit = CommandProgressContext.capture(commandProgressScope) { [weak self] request in
             guard let self, !self.finished, !self.finishing, self.progress == nil else { return }
             let model = SendPatchProgressModel(request: request, repository: repository, access: access, preferences: preferences, applicationContext: self.applicationContext)
             let progress = SendPatchProgressWindowController(model: model); self.progress = progress
@@ -1069,7 +1074,8 @@ private struct SendPatchProgressDialog: View {
             if self.progress == nil { self.finish(nil) }
         }
     }
-    func start() { if let options { present(options) } }
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() { if let options { present(options) } }
     /// Forced owner closure cancels work and suppresses workflow completion.
     /// Generated patches remain on disk, as with upstream cancellation.
     func invalidate() {
@@ -1091,7 +1097,8 @@ private struct SendPatchProgressDialog: View {
     private func retainClosing(_ child:NSWindowController) {
         if !retiredChildren.contains(where:{$0 === child}) {retiredChildren.append(child)}
     }
-    private func finish(_ error: String?) {
+    private func finish(_ error: String?) { CommandProgressContext.perform(commandProgressScope) { finishWithCommandProgressContext(error) } }
+    private func finishWithCommandProgressContext(_ error: String?) {
         guard !finished,!finishing else { return };finishing=true
         let current:[NSWindowController?]=[options,progress]
         current.compactMap{$0}.forEach{retainClosing($0)}

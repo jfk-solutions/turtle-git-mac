@@ -830,6 +830,7 @@ import TurtleGitCore
 }
 
 @MainActor final class CommitWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let repository: GitRepository
     let access: RepositoryAccessLease?
     lazy var clientHooks = ClientHookSession(preferences: dialogDefaults)
@@ -2698,7 +2699,8 @@ import TurtleGitCore
     }
     var captureCommitBackend:(()->GitLibGit2Configuration)?
     private(set) var acceptedCommitBackend:GitLibGit2Configuration?
-    func commit(_ action: CompletionAction = .commit) {
+    func commit(_ action: CompletionAction = .commit) { CommandProgressContext.perform(commandProgressScope) { commitWithCommandProgressContext(action) } }
+    private func commitWithCommandProgressContext(_ action: CompletionAction) {
         guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit,
               historyCombine == nil || (amend && !createBranch) else { return }
         let backend=captureCommitBackend?() ?? GitLibGit2Configuration.load(from:dialogDefaults)
@@ -3906,6 +3908,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     var icon: MenuIcon { switch self { case .svnDCommit: return .commit; case .push: return .push; case .pull: return .pull; case .recommit: return .commit; case .createTag: return .tag } }
 }
 @MainActor final class CommitProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let repository: GitRepository
     let action: CommitWindowModel.CompletionAction
     let staging: Bool
@@ -3976,7 +3979,8 @@ enum CommitPostAction: String, CaseIterable, Hashable {
         if resolved { return selected }
         return await withCheckedContinuation { waiter = $0 }
     }
-    func choose(_ action: CommitPostAction?) {
+    func choose(_ action: CommitPostAction?) { CommandProgressContext.perform(commandProgressScope) { chooseWithCommandProgressContext(action) } }
+    private func chooseWithCommandProgressContext(_ action: CommitPostAction?) {
         guard !busy, !resolved else { return }
         if confirmingCancellation { if action == nil { autoCloseRequested = true }; return }
         guard action == nil || postActions.contains(action!) else { return }

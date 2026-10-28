@@ -13,6 +13,7 @@ private final class AddNativeWindow: NSWindow {
     }
 }
 @MainActor final class AddWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: AddWindowModel
     private let access: RepositoryAccessLease?
     private var ignoreController: IgnoreWindowController?
@@ -50,7 +51,7 @@ private final class AddNativeWindow: NSWindow {
             guard let self, !self.closing, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
             progress.model.onProgressLog = { [weak self] path in self?.model.onLog(path) }
-            progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closing else { return }; self.onPullAfterLFSLock() }
+            progress.model.onPullAfterLock = { [weak self] in guard let self, !self.closing else { return }; CommandProgressContext.perform(self.commandProgressScope) { self.onPullAfterLFSLock() } }
             progress.onClosed = { [weak self, weak progress] in
                 guard let self, !self.closing, self.lfsOperation === progress else { return }
                 self.lfsOperation = nil; self.model.finishLFSOperation()
@@ -103,6 +104,9 @@ private final class AddNativeWindow: NSWindow {
         alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishDeleteConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
     private func ignore(_ paths: [String], mask: Bool) {
+        CommandProgressContext.perform(commandProgressScope) { ignoreInCommandProgressScope(paths, mask: mask) }
+    }
+    private func ignoreInCommandProgressScope(_ paths: [String], mask: Bool) {
         guard let window, window.attachedSheet == nil, ignoreController == nil, !model.busy, !model.confirmingQuit else { return }
         do {
             let controller = try IgnoreWindowController(repository: model.repository, access: access, paths: paths, mask: mask, delete: false)
@@ -148,6 +152,7 @@ private final class AddNativeWindow: NSWindow {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class AddWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     static private(set) var activeOperations = 0
     private(set) var retired = false
     private var readTask: Task<Void, Never>?
@@ -193,6 +198,9 @@ private final class AddNativeWindow: NSWindow {
         return [.lock, .unlock]
     }
     func setLFSLocked(_ selected: [AddDialogEntry], marked: String?, locked: Bool) {
+        CommandProgressContext.perform(commandProgressScope) { setLFSLockedInCommandProgressScope(selected, marked: marked, locked: locked) }
+    }
+    private func setLFSLockedInCommandProgressScope(_ selected: [AddDialogEntry], marked: String?, locked: Bool) {
         guard !busy, !confirmingQuit, lfsActions(selected, marked: marked).contains(locked ? .lock : .unlock) else { return }
         busy = true; lockingFiles = true
         if !onLFSOperation(selected.map(\.path), locked) { lockingFiles = false; busy = false }
@@ -280,6 +288,9 @@ private final class AddNativeWindow: NSWindow {
         pendingRevert = rows; busy = true; return true
     }
     func finishRevertConfirmation(accepted: Bool) {
+        CommandProgressContext.perform(commandProgressScope) { finishRevertConfirmationInCommandProgressScope(accepted: accepted) }
+    }
+    private func finishRevertConfirmationInCommandProgressScope(accepted: Bool) {
         guard !retired else { return }
         guard let selected = pendingRevert else { return }; pendingRevert = nil
         guard accepted else { pendingRevertPolicy=nil;busy = false; return }
@@ -588,6 +599,9 @@ private final class AddNativeWindow: NSWindow {
         else { close() }
     }
     func apply() {
+        CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope() }
+    }
+    private func applyInCommandProgressScope() {
         guard canApply else {return}
         let paths = GitPathOperationOrder.sorted(entries.filter {checked.contains($0.path)}.map(\.path))
         guard !paths.isEmpty else {return};acceptedBackend = .load(from: defaults);accepted = true;onAccepted(paths);close()

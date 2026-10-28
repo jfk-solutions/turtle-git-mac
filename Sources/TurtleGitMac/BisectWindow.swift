@@ -5,6 +5,7 @@ import Combine
 import TurtleGitCore
 
 @MainActor final class BisectWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: BisectWindowModel
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
@@ -184,6 +185,7 @@ enum BisectPostAction: Hashable {
 }
 enum BisectQuestion {case stash,cancellation}
 @MainActor final class BisectWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID}
     @Published private(set) var formRevision=UUID()
     var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision)}
@@ -308,9 +310,13 @@ enum BisectQuestion {case stash,cancellation}
     var onSubmoduleUpdate: (() -> Void)? {didSet{formRevision=UUID()}}
     var canUpdateSubmodules: Bool { !retired && !confirmingQuit && !submoduleDispatched && presentationAvailable() && !hasPicker && !busy && !hasPendingWork && !confirmingCancellation && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
     func updateSubmodules(context:FormContext? = nil) {
+        CommandProgressContext.perform(commandProgressScope) { updateSubmodulesInCommandProgressScope(context: context) }
+    }
+    private func updateSubmodulesInCommandProgressScope(context:FormContext? = nil) {
         guard context == nil || context == formContext,canUpdateSubmodules,let action=onSubmoduleUpdate else{return}
         submoduleDispatched=true
-        if let closeForSubmoduleHandoff {closeForSubmoduleHandoff(action)} else {close();action()}
+        let dispatch=CommandProgressContext.capture(commandProgressScope,action)
+        if let closeForSubmoduleHandoff {closeForSubmoduleHandoff(dispatch)} else {close();dispatch()}
     }
     var postActions:[BisectPostAction] {
         guard !retired,!busy,showingProgress else{return []}
@@ -383,6 +389,9 @@ enum BisectQuestion {case stash,cancellation}
         }
     }
     func start(context:FormContext? = nil) {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope(context: context) }
+    }
+    private func startInCommandProgressScope(context:FormContext? = nil) {
         guard context == nil || context == formContext,canStart else { return }
         func normalized(_ value:String) -> String { let trimmed=value.trimmingCharacters(in:.whitespacesAndNewlines);return trimmed.hasPrefix("remotes/") ? String(trimmed.dropFirst(8)) : trimmed }
         let good=normalized(self.good),bad=normalized(self.bad)
@@ -407,6 +416,9 @@ enum BisectQuestion {case stash,cancellation}
         }
     }
     func perform(_ operation: BisectOperation, revisions: [String] = []) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(operation, revisions: revisions) }
+    }
+    private func performInCommandProgressScope(_ operation: BisectOperation, revisions: [String] = []) {
         guard canPerform(operation) else { return };let repository=captureOperationRepository();let token=begin(progress:true)
         Task {
             defer { finish() }

@@ -11,6 +11,7 @@ struct CleanDialogRequest {
 }
 
 @MainActor final class CleanWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     private(set) var retired = false
     private var submitted = false
     func retire() { retired = true; close = {}; onAccepted = { _ in } }
@@ -55,6 +56,9 @@ struct CleanDialogRequest {
         return result
     }
     func accept() {
+        CommandProgressContext.perform(commandProgressScope) { acceptInCommandProgressScope() }
+    }
+    private func acceptInCommandProgressScope() {
         guard !retired, !submitted else { return }
         do {
             let scopes = try directoryScopes()
@@ -66,6 +70,7 @@ struct CleanDialogRequest {
 }
 
 @MainActor final class CleanWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: CleanWindowModel
     var onClosed: () -> Void = {}
     private var closing=false
@@ -129,6 +134,7 @@ private struct CleanDialog: View {
 }
 
 @MainActor final class CleanProgressWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     static var activeOperations = 0
     private(set) var pendingOperations=0
     @Published private(set) var authorizing = false
@@ -210,6 +216,9 @@ private struct CleanDialog: View {
     func retry() { guard failed, !confirmingCancellation, !invalidated else { return }; ProgressActionLog.nextAttempt(self); run(previewOnly: lastPreviewOnly, permanently: lastPermanent) }
     func remove(permanently: Bool) { guard previewSucceeded, !confirmingCancellation, !invalidated else { return }; ProgressActionLog.nextAttempt(self); run(previewOnly: false, permanently: permanently) }
     func perform(_ action: CleanPostAction) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(action) }
+    }
+    private func performInCommandProgressScope(_ action: CleanPostAction) {
         guard !busy, !authorizing, !confirmingCancellation, !invalidated, postActions.contains(action) else { return }
         switch action { case .retry: retry(); case .trash: remove(permanently: false); case .permanent: remove(permanently: true) }
     }
@@ -233,6 +242,9 @@ private struct CleanDialog: View {
         if !lastPreviewOnly && !lastPermanent || autoClosePolicy.shouldClose(success: true, postActionCount: postActions.count) { close() }
     }
     private func run(previewOnly: Bool, permanently: Bool) {
+        CommandProgressContext.perform(commandProgressScope) { runInCommandProgressScope(previewOnly: previewOnly, permanently: permanently) }
+    }
+    private func runInCommandProgressScope(previewOnly: Bool, permanently: Bool) {
         guard !busy, !authorizing, !confirmingCancellation, !invalidated else { return }
         lastPreviewOnly = previewOnly; lastPermanent = permanently
         busy = true; failed = false; previewSucceeded = false; cancelRequested = false; output = ""; trashedFiles = []
@@ -287,6 +299,7 @@ private struct CleanDialog: View {
 }
 
 @MainActor final class CleanProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: CleanProgressWindowModel
     var onClosed: () -> Void = {}
     private var closing=false

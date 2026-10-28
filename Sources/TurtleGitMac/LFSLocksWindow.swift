@@ -43,6 +43,7 @@ import TurtleGitCore
 }
 
 @MainActor final class LFSLocksWindowModel: ObservableObject, ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations = 0
     private(set) var retired = false
     let repository: GitRepository
@@ -332,10 +333,14 @@ import TurtleGitCore
         await runOperation(forceRetry: false)
     }
     private func runOperation(forceRetry: Bool) async {
+        await CommandProgressContext.perform(commandProgressScope) { await runOperationInCommandScope(forceRetry: forceRetry) }
+    }
+    private func runOperationInCommandScope(forceRetry: Bool) async {
         guard !retired, !progressActionBusy, !operationPaths.isEmpty, !forceRetry || canForceRetry else { return }
         var seen = GitPathSet(); operationPaths = operationPaths.filter { seen.insert($0).inserted }
         operationScope = GitPathSet(operationPaths)
         ProgressActionLog.nextAttempt(self); attemptStarted = true
+        let autoClosePolicy = GitProgressAutoClose(preferences: defaults)
         let began = ProcessInfo.processInfo.systemUptime
         let useForce = !operationLocked && (forceRetry || operationForce)
         refreshAfterReview = refreshLocksAfterOperation
@@ -359,7 +364,11 @@ import TurtleGitCore
                 appendNotification(action: "Finished!", text: completion, kind: !operationFailed && !operationCancelled ? .finishedSuccess : .finishedFailure)
             } else { saveActionLog() }
             withExtendedLifetime(access) {}
-            if !retired && openPull { onPullAfterLock() }
+            if !retired, !confirmingQuit, batchID == generation, !cancellation.isCancelled, openPull { onPullAfterLock() }
+            if !retired, batchID == generation, !operationCancelled, !cancellation.isCancelled,
+               autoClosePolicy.shouldClose(success: !operationFailed, postActionCount: 0) {
+                finishProgress()
+            }
         }
         do {
             try validateAccess()

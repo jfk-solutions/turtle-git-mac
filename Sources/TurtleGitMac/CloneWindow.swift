@@ -71,6 +71,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
 }
 
 @MainActor final class CloneWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     static private(set) var activeOperations = 0
     private(set) var pendingOperations=0
     var hasPendingWork:Bool {pendingOperations>0}
@@ -375,7 +376,8 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         guard lease.hasSecurityScope, lease.contains(target) else { error = "The selected permission does not cover “\(target.path)”."; return nil }
         return lease
     }
-    func clone() {
+    func clone() { CommandProgressContext.perform(commandProgressScope) { cloneWithCommandProgressContext() } }
+    private func cloneWithCommandProgressContext() {
         guard canEditForm else{return};formRevision=UUID();submissionGeneration=interactionGeneration;granting=true
         let submittedContext=formContext
         do {
@@ -430,7 +432,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
                 result.onCloned = { [weak self] repo, output in self?.recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess) }
                 let generation=interactionGeneration,log=onLog,explore=onExplore
                 result.onPostAction={ [self] action,repo in
-                    let dispatch={ [self] in guard !confirmingQuit,interactionGeneration==generation else{return};if action == .log{log(repo,access)}else if action == .explore{explore(repo.root)}}
+                    let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration==generation else{return};if action == .log{log(repo,access)}else if action == .explore{explore(repo.root)}}
                     if let afterClose{afterClose(dispatch)}else{dispatch()}
                 }
                 result.close = { [weak self, weak result] in guard let self, let result else { return }; self.finish(result) }
@@ -487,7 +489,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         clonedRepository = repo; completed = repo.root; self.output = output
         if !confirmingQuit,submissionGeneration == interactionGeneration{onCloned(repo,access,options.loadSSHKeyWithAgent ? nil:keyAccess,options.bare,output)}
     }
-    func showLog(){guard !invalidated,!confirmingQuit,!activeOperation,let repo=clonedRepository,let access=destinationAccess else{return};let callback=onLog,generation=interactionGeneration,dispatch={ [self] in guard !confirmingQuit,interactionGeneration==generation else{return};callback(repo,access)};if let afterClose{afterClose(dispatch)}else{close();dispatch()}}
+    func showLog(){guard !invalidated,!confirmingQuit,!activeOperation,let repo=clonedRepository,let access=destinationAccess else{return};let callback=onLog,generation=interactionGeneration,dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration==generation else{return};callback(repo,access)};if let afterClose{afterClose(dispatch)}else{close();dispatch()}}
     func explore(){guard !invalidated,!confirmingQuit,!activeOperation,let destination=completed else{return};let callback=onExplore,generation=interactionGeneration,dispatch={ [self] in guard !confirmingQuit,interactionGeneration==generation else{return};callback(destination)};if let afterClose{afterClose(dispatch)}else{close();dispatch()}}
 }
 
@@ -704,6 +706,7 @@ enum ClonePostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .retry,.inspect: return .refresh; case .log: return .log; case .explore: return .explore } }
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let notifications:FileOperationProgressState
     let backend:GitLibGit2Configuration
     var showsNotifications:Bool {backend.requests(.clone) && !options.svn}
@@ -792,8 +795,10 @@ enum ClonePostAction: String, Hashable {
     func invalidate() { notifications.retire();invalidated = true; cancellation.cancel();confirmingCancellation=false;if !hasPendingWork {busy=false} }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     private func resetAttempt(){notifications.begin("Clone");checkoutCompleted=0;checkoutTotal=0;busy=true;success=false;commandCompleted=false;commandFinished=false;commandSucceeded=false;completionRange=nil;completedOutcome=nil;warnings=[];adopted=false;cancelled=false;cancelling=false;output="";outputState.reset();percentage=nil;currentWork="";postActions=[];repository=nil;commandReceipt.reset()}
-    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
-    func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()}
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
+    func run() async { await CommandProgressContext.perform(commandProgressScope) { await runWithCommandProgressContext() } }
+    private func runWithCommandProgressContext() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()}
     private func execute() async {
         let notificationStarted=Date()
         defer {if showsNotifications,!invalidated,!abandoned {notifications.finish(success:commandSucceeded,cancelled:cancelled,started:notificationStarted)};endWork();withExtendedLifetime((destinationAccess,sourceAccess,keyAccess)) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
@@ -931,7 +936,8 @@ enum ClonePostAction: String, Hashable {
             }
         } else { cancelling = true; token.cancel() }
     }
-    func perform(_ action: ClonePostAction) {
+    func perform(_ action: ClonePostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
+    private func performWithCommandProgressContext(_ action: ClonePostAction) {
         guard !fileActionBusy,!busy,!hasPendingWork,!confirmingQuit,presentationAvailable(), !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .inspect {retryInspection();return}
         if action == .retry {
@@ -941,7 +947,7 @@ enum ClonePostAction: String, Hashable {
         }
         guard let target=repository ?? (action == .explore && commandCompleted ? GitRepository(root:destination,executable:executable):nil),let onPostAction else {return}
         dispatched=true;let generation=interactionGeneration
-        let dispatch={ [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,target)}
+        let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,target)}
         if let finishAndPerform {finishAndPerform(dispatch)}else{close();dispatch()}
     }
 }

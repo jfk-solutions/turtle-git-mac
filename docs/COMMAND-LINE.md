@@ -32,6 +32,27 @@ against that process's working directory. For example:
   --startrev 'HEAD~1' --endrev 'HEAD'
 ```
 
+## Progress completion for one invocation
+
+Use `--closeonend=0` to keep successful progress open, `--closeonend=1` to
+close it only when there are no follow-up actions, or `--closeonend=2` to close
+it on success. The legacy `/closeonend:0`, `:1` and `:2` forms are also accepted.
+Failures remain available for inspection. Omitting the option uses the saved
+**Autoclose Git progress dialog** preference.
+
+The option belongs to this invocation, including later Start/Retry events and
+its follow-up dialogs. It does not change Settings or another open window's
+policy. An explicit command gets its own dialog owner when another invocation
+already has that dialog open for the same repository. Repository mutation and
+closing guards still apply across those owners.
+
+Source-specific continuation rules still apply: nested Revert uses no-options,
+SVN Rebase forces successful intermediate progress to close before continuing,
+and Trash cleanup uses system progress. Silent Resolve has no progress result.
+A command such as About can accept this global option without displaying progress.
+See [progress behavior](PROGRESS-PARITY.md) for source references and remaining
+native acceptance gaps.
+
 ## Supported commands and presets
 
 | Command | Native destination | Presets |
@@ -105,7 +126,7 @@ model readiness, regardless of their ordering.
 Unknown commands, duplicate scalar options and incompatible or unsupported
 switches produce an error in the workspace. They are not silently ignored.
 This is a partial command-family port, not full TortoiseProc CLI compatibility.
-Remaining entry behavior includes shared Windows HWND/group/taskbar/close-on-end
+Remaining entry behavior includes shared Windows HWND/group/taskbar
 options, process exit/result signaling, and commands outside the documented families.
 Windows paths must be converted to macOS paths by the caller. Full symbolic
 Working Copy sentinel, permissive `_wtoi` parsing and every revision-expression

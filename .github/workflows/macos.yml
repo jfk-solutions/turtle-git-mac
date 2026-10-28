@@ -751,6 +751,8 @@ jobs:
         run: python3 scripts/test-conflict-identity-family.py --only identity --only resolve-mutation --only resolve-files --only resolve-drop --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native primary command launch family
         run: python3 scripts/test-primary-commands.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+      - name: Native invocation-owned progress completion and deferred handoffs
+        run: python3 scripts/test-command-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native ordered command transport batches
         run: python3 scripts/test-command-transport-batch.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native workspace completion handoffs

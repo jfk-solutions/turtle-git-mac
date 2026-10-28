@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class SubmoduleAddWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SubmoduleAddWindowModel
     var onClosed: () -> Void = {}
     private var closing=false
@@ -58,6 +59,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleAddWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     enum Picker { case repository, path, key }
     let repository: GitRepository
     private let access: RepositoryAccessLease?, preferences: UserDefaults, basePath: String
@@ -147,6 +149,9 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true; formRevision = UUID(); keyAccess = nil; sourceAccess = nil }
     func apply() {
+        CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope() }
+    }
+    private func applyInCommandProgressScope() {
         guard canApply, let onSubmit else { return }
         do {
             var options = SubmoduleAddOptions(); options.source = source; options.path = path; options.force = force

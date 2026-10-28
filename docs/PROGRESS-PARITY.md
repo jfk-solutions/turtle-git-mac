@@ -26,12 +26,83 @@ hook rejection, retained transport/merge/switch failures, and preference
 snapshot/reopening. A hidden settings host uses a private preference domain; it
 does not prove displayed picker interaction.
 
+## Invocation-owned completion policy — October 28, 2026
+
+The source constructors `CProgressDlg::CProgressDlg` (`ProgressDlg.cpp:58–73`)
+and `CGitProgressDlg::CGitProgressDlg` (`GitProgressDlg.cpp:32–47`) first read
+`AutoCloseGitProgress`, then override it when the current command contains
+`/closeonend`. Values 1 and 2 select the existing no-options and no-errors
+policies; every other numeric value selects manual close. The source automation
+manual documents 0, 1 and 2. Its obsolete 3/4 descriptions are commented out and
+are not additional active modes.
+
+Native command parsing now carries an optional typed `progressAutoClose` value
+with the invocation. An absent option remains absent, so it can inherit the
+owner's persistent preference. Explicit manual remains an actual override,
+including `/closeonend`, `/closeonend:` and `--closeonend=0`. Both legacy
+`/closeonend:2` and native `--closeonend=2` / `--closeonend 2` are accepted. The
+option is global command metadata: a command without a progress result can
+accept it without creating a progress window.
+
+`CCmdLineParser::GetLongVal` (`CmdLineParser.cpp:202–209`) uses `_wtol`, rather
+than strict integer/enum validation. The native carrier retains its observable
+policy mapping: leading C whitespace, an optional sign and a decimal numeric
+prefix are consumed. Thus `+02suffix` selects no-errors, `1.5` selects
+no-options, and empty, nonnumeric, negative, other-mode and overflowing values
+select manual. Huge decimal values cannot wrap into an active policy on a
+64-bit host. Microsoft's [CRT conversion reference](https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/atol-atol-l-wtol-wtol-l)
+documents decimal-prefix conversion, zero when no conversion starts and bounded
+out-of-range returns. Existing duplicate-option, NUL and unrelated unsupported-option
+refusals remain unchanged. Path-file resolution and per-root transport splitting
+preserve the captured override; neither operation grants repository access.
+
+The native handoff and progress consumers must keep that override with their
+request and captured child/Retry lifetime. It is not a write to the stored
+`AutoCloseGitProgress` setting and cannot retarget another open owner's policy.
+The existing success/post-action, failure, accepted cancellation and explicit
+continuation rules still decide whether a result can close. Core parsing alone
+does not establish those native handoffs. The parent records their grouped
+implementation and validation in the command-progress checkpoint; authored Core
+fixtures and this source comparison do not establish a full hosted or signed
+application pass.
+
+### Native ownership and source-local precedence
+
+A typed immutable command scope carries this policy independently of
+`UserDefaults`. Options/progress owners retain it; deferred Start, Retry and
+post-close callbacks restore it before creating another owner. Controller caches
+separate explicit invocations, retain ordinary window reuse, broadcast repository
+refreshes to all owners, and keep repository mutation guards across scopes.
+
+The connected consumers include transport, Commit, patch creation/mail/export,
+local history/replay/Stash, Add/Resolve/Revert/Clean/Reset/Switch/Bisect,
+Worktrees/Submodules/Daemon, SVN progress and LFS lock/unlock. LFS dismisses only
+its completed result sheet; its Locks list remains available. SVN Fetch retains
+Compare/Log under no-options when fetched revisions changed.
+
+Constructor overrides do not supersede later source assignments.
+`GitStatusListCtrl.cpp:2589–2591` explicitly sets nested Revert to no-options;
+`SVNRebaseCommand.cpp:99–100,137–138` forces intermediate progress to no-errors.
+Trash cleanup uses `CSysProgressDlg` (`CleanupCommand.cpp:233+`) and preserves its
+automatic end. Silent Resolve (`ResolveCommand.cpp:40+`) runs without a Git
+progress dialog. These branches remain distinct from generic policy consumers.
+
+The grouped command-progress receiver covers the captured command/window
+ownership and delayed handoffs; it does not establish physical native interaction,
+a signed installed Finder extension or full upstream UI parity. The [October 28 checkpoint](qa/command-progress-2026-10-28.json) records 57
+existing parser tests plus four new policy tests, an unsigned Debug build and six
+native receiver passes across system/bundled Git. It also records the initial
+fixture/compiler failures and their focused repairs. The receiver exercises
+representative real owners with injected private workers; it does not test every
+changed dialog or replace signed/physical acceptance.
+
 ## Remaining parity
 
 Streaming adoption outside Clone, Push, Fetch, merge-based Pull and Merge, complete progress-window controls/layout, physical
 Close/Escape/titlebar/nested-sheet/default/accessibility/theme behavior,
-remaining progress replacements for other command dialogs,
-command-line closeonend override and libgit2 progress variants remain pending.
+remaining progress replacements for other command dialogs.
+The invocation-owned closeonend continuation above supersedes the earlier parser omission;
+remaining native consumer and libgit2 progress acceptance retain their recorded scope.
 Native retries that reuse a sheet retain its captured policy; upstream callbacks
 may create a new progress instance. Rebase split cancellation and signed sandbox/
 Finder/App Store acceptance remain pending. Headless checks and unsigned bundle

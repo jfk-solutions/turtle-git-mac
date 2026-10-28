@@ -4,6 +4,7 @@ import Combine
 import TurtleGitCore
 
 @MainActor final class FormatPatchWindowController: NSWindowController, NSWindowDelegate {
+    private let commandProgressScope = CommandProgressContext.current
     let model: FormatPatchWindowModel
     var onClosed: () -> Void = {}
     private(set) var picker: LogWindowController?
@@ -164,7 +165,8 @@ import TurtleGitCore
         guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
         model.outputAccess = lease; model.directory = folder.path
     }
-    func chooseRevision(_ target: FormatPatchWindowModel.Mode) {
+    func chooseRevision(_ target: FormatPatchWindowModel.Mode) { CommandProgressContext.perform(commandProgressScope) { chooseRevisionWithCommandProgressContext(target) } }
+    private func chooseRevisionWithCommandProgressContext(_ target: FormatPatchWindowModel.Mode) {
         guard target != .number, !retired, model.optionsAvailable,
               picker == nil, referencePicker == nil, let window, window.attachedSheet == nil else { return }
         // Commit the field editor before capturing the entered range.
@@ -272,7 +274,8 @@ import TurtleGitCore
         controller.window?.appearance = window?.appearance; controller.window?.alphaValue = window?.alphaValue ?? 1
         patch = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func composeMail(_ files: [URL]) {
+    private func composeMail(_ files: [URL]) { CommandProgressContext.perform(commandProgressScope) { composeMailWithCommandProgressContext(files) } }
+    private func composeMailWithCommandProgressContext(_ files: [URL]) {
         guard !retired,!model.confirmingQuit,interactionEpoch == presentationEpoch,progressController == nil,window?.attachedSheet == nil else{return}
         guard !files.isEmpty else { model.error = "No patches were created to attach."; return }
         do {
@@ -300,6 +303,7 @@ import TurtleGitCore
 }
 
 @MainActor final class FormatPatchWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations = 0
     enum Mode: Equatable { case since, number, from, to }
     @Published private(set) var pendingOperations=0
@@ -443,7 +447,8 @@ import TurtleGitCore
         if cancelled { return "Cancelled" }
         return success ? "Finished" : "Failed"
     }
-    func export() {
+    func export() { CommandProgressContext.perform(commandProgressScope) { exportWithCommandProgressContext() } }
+    private func exportWithCommandProgressContext() {
         guard optionsAvailable, valid else { return }
         let folder = URL(fileURLWithPath: directory).standardizedFileURL
         if GitRuntime.isAppStoreBuild && !((access?.hasSecurityScope == true && access?.contains(folder) == true) || (outputAccess?.hasSecurityScope == true && outputAccess?.contains(folder) == true)) { chooseDirectory(); return }
@@ -559,11 +564,12 @@ import TurtleGitCore
     func finish() {
         guard !busy,!hasPendingWork,!confirmingQuit,progress,!confirmingCancellation,!finishScheduled,!invalidated else{return}
         saveActionLog();finishScheduled=true;let generation=interactionGeneration,acceptedFiles=files,mail=exportSendMail,succeeded=success
-        finishProgress { [weak self] in
+        let completion=CommandProgressContext.capture(commandProgressScope) { [weak self] in
             guard let self else{return};self.finishScheduled=false;self.progress=false
             guard !self.invalidated,!self.confirmingQuit,self.interactionGeneration==generation else{return}
             if succeeded{if mail{self.composeMail(acceptedFiles)}else{self.close()}}
         }
+        finishProgress(completion)
     }
     func unifiedDiff(alternate: Bool = false, onResult: ((Data) -> Void)? = nil) {
         guard optionsAvailable, hasHead, !bare else { return }

@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-28",
+  "base_commit": "45121d933ece78d7b0c56cd71c5f66346a02e52d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Invocation-owned closeonend across native options, progress, retries, deferred child routes and independent controller caches",
+  "implementation": {
+    "saved_preferences_mutated": false,
+    "typed_immutable_scope": true,
+    "explicit_command_owner_identity": true,
+    "cross_owner_repository_guards_and_refreshes": true,
+    "source_local_precedence": [
+      "nested Revert no-options",
+      "SVN Rebase forced no-errors",
+      "Trash system progress",
+      "silent Resolve without Git progress"
+    ]
+  },
+  "validation": {
+    "core": {
+      "initial": {
+        "tests": 61,
+        "failure_assertions": 5,
+        "cause": "New fixture helper XCTUnwrap recorded expected parse errors as failures; 57 existing parser tests passed."
+      },
+      "focused_recheck": {
+        "tests": 4,
+        "failures": 0,
+        "production_parser_changed_for_recheck": false
+      }
+    },
+    "native_build": {
+      "configuration": "unsigned Debug",
+      "initial_failure": "Reset optional callback inferred Void? instead of Void",
+      "second_failure": "RepositoryModel submodule comparison closure exceeded type inference time",
+      "final_exit_code": 0,
+      "repairs": "Explicit callback/result types; split revision conversions; no assertions removed."
+    },
+    "native_receiver": {
+      "groups": [
+        "routing",
+        "a",
+        "b"
+      ],
+      "git_executables": [
+        "/usr/bin/git",
+        "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "passes": 6,
+      "failed_or_timed_out_receivers": 0,
+      "owned_pids": [
+        62002,
+        62284,
+        62566,
+        62567,
+        62568,
+        62571
+      ],
+      "all_reaped": true,
+      "all_independently_absent": true,
+      "presentation": "prohibited activation; alpha zero/offscreen; owned windows closed",
+      "observed": [
+        "CLI manual/automatic/absent independent Commit caches",
+        "closing explicit owner preserves ordinary cache",
+        "delayed Log-to-Commit retains original command scope",
+        "Push saved/explicit policy table, warning/error retention and delayed retry",
+        "Stash injected deferred worker failure and drain",
+        "LFS manual/no-options/no-errors, failed unlock force retry, cancellation, Pull/quit ownership",
+        "Clean delayed options to progress child",
+        "Add held worker drainage, mode retry, once-only deferred Commit handoff and no-options action availability"
+      ]
+    },
+    "resource_checks": {
+      "localization": "38 locales, 1325 keys --check pass; no UI labels changed",
+      "bundled_help": "60 documents, 51 topics, 92 files --check pass; neither changed guide is included",
+      "dialog_coverage_reconciled": true,
+      "diff_whitespace": "pass"
+    }
+  },
+  "limitations": [
+    "Representative native receivers do not individually prove every changed workflow or physical AppKit interaction.",
+    "No installed signed app replacement, physical Finder test, Intel/minimum-macOS run or App Store upload.",
+    "Current full hosted CI is separate; this is focused local evidence.",
+    "Spatial image effects work remains separate and unaccepted."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/CommandProgressAutoClose.swift": "7dd7331d819b4ebb158d9130766b8abb6e054add725d3890a23308542f48ecc4",
+    "Sources/TurtleGitCore/PrimaryCommandInvocation.swift": "354f473ba332f262c641da00f9947793c8b2ce56e87ef84b42caa2e64574e744",
+    "Sources/TurtleGitMac/AddProgressWindow.swift": "717458675610a7a38b12dd2dc24468749b487e6667e8f0c75deaa7485bd5dea2",
+    "Sources/TurtleGitMac/AddWindow.swift": "16248af9c4a41b2dd879a6a9263b82917da70cb26ea624429627520adde09d91",
+    "Sources/TurtleGitMac/BisectWindow.swift": "d3093dbaa5443e511ab587e138303f19ce930c5dc9895df4577f40a41bbec2d4",
+    "Sources/TurtleGitMac/CleanWindow.swift": "b3f3f0ad474d5f12fb52e05d7a42b09f1a085e06cd0ad9bbc028fd3a68b38039",
+    "Sources/TurtleGitMac/CloneWindow.swift": "b0b8ccc6ac541d7ad1bc582e12cbb9153b5a9bf7f2328bcb9aedb9b30f2623cc",
+    "Sources/TurtleGitMac/CommandProgressContext.swift": "68d4f9e483eaea2b1145173ea6a6500ba12fc9e128dab45f106016e5d2546f8e",
+    "Sources/TurtleGitMac/CommitWindow.swift": "a8c297b2c9a0e8dd2f9d74ba1caf4e6de2fa9e924a1e8f658040f4fc5904fbcc",
+    "Sources/TurtleGitMac/ExportWindow.swift": "bc89a765f9c8e980e30a67e8c17c7e839960442e0b0765ee5c0eb1bc93479a13",
+    "Sources/TurtleGitMac/FetchWindow.swift": "d413242d970da9012ada4580dfa1ab1bdf2dac6d97cc1417a9b08cfa700e13b2",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "49da7509c78347790ea9e75da6ac9c434d7bbac5c6e83daa75e7de2a2575ce47",
+    "Sources/TurtleGitMac/GitDaemonWindow.swift": "172270205bd496cd9504c34cf63d676f132640f6e49501a81d765dfe3b1c1430",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "325d444513a5a1ccaade472aaac2ae195c220668cd43e5631308d6b453787659",
+    "Sources/TurtleGitMac/MergeWindow.swift": "59d60d86cb9cfda1feb3f821cdb6f70fa053dcf41d91c06999e78a2a7a1b447f",
+    "Sources/TurtleGitMac/PushWindow.swift": "f13222e9c062101f577277f6b127b6364751141b4534d8b79655be7df412baac",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "33c4bce86259b313714169bb0ee9490e3f776a96d338238e61638f6538648256",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "7abdf053b1b07a489431a11f8e02d7a3f71c8125c6fd180b9287b329c07638dc",
+    "Sources/TurtleGitMac/ResetWindow.swift": "31498b76f9d683f4fb2a8d704dae28a89e0afb50fcc9b65096fd7ded583870a3",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "745501e7e66856be48efffa6f62d12482532b37e8e849ccbd3508ee898be5cf6",
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "8529fcba800df321ba2909eefd67e2dd99c50cd04147cadf728e0f6c11f84503",
+    "Sources/TurtleGitMac/RevertWindow.swift": "fcb6cd2cca9138e8840254ed42b3e7e05a71a65396aa07c5bd97a570ba28d163",
+    "Sources/TurtleGitMac/SVNWindow.swift": "240baca067af445859f8dc4177956ca71842e3046dc9acebbda5823d45381a62",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "4d235705e11f95348866f41b750e9afa125b16f30d025f35d2a7b86aa4b0cba5",
+    "Sources/TurtleGitMac/StashWindow.swift": "5bc6688428f33e92493344561fa6a4099b961d3678f2735593fc5df842b41a2a",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "2d4412e81e4b2e101da47fc0166b75059c3a7c4618984e1c63c54eb84fa437ec",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "7fa6365abda33d5eb139615ba08e54e2d8f9d58af1a8a8758582ea7eb1bfa103",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "d09ac13169f955e31f7ac65d547b872523ba9a208edd9ae6b56540bae5a0fbb0",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "5f3f3400f18b84f70917d65c8fc944e9157fde4c6eacd092481ea1fde9ffd81b",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "196ac340e2d92752913646a80ad7a81a7507e3ec36f656a015b1b415baaecea1",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "30e7c5b0dd5fb0f4ef437535671422fb0e79e720990b87f2f8c1a19204e5fdc0",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "6d7ed8f9f71a141749dcc6f7fa4c2362ce1fa6767ce833d158f30a0e76d88c47",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "be16685344e849ab9c42adf0d664f45b4bc847c9019a63e1b8091668dff0f9fc",
+    "Sources/TurtleGitMac/WorktreeListWindow.swift": "0315d057da8b5389bd2f5e6c856b96df220616d88b50e7bbe7fcc496d825d42b",
+    "Tests/TurtleGitCoreTests/CommandProgressAutoCloseTests.swift": "7757c50c129d99c121e9bd56851be6dc62938f27219f2cab03a0af998795a9ca",
+    "docs/qa/command-progress-group-a-native-2026-10-28.swift": "9fd6fd49a6202ab5c4999dd05445d2fcbfc234b4b24acaba304add425a55e72b",
+    "docs/qa/command-progress-group-b-native-2026-10-28.swift": "47010d8644bec8887ce353f074c1104296e227b6c9e22bcd8b24908935b5915c",
+    "docs/qa/command-progress-native-2026-10-28.swift": "b1350e4849d5eeb75df04c4f967289196f9bf0a8b1f0afa49f77bbf03ea1917e",
+    "scripts/test-command-progress.py": "35e064fe84ad589451bddd33972c580f2a66989fc77d3b6f396ac753eb2fa57b"
+  },
+  "logs": [
+    {
+      "path": "build/qa/command-progress-core-2026-10-28.log",
+      "sha256": "c9a8fab10d466223483ba499a8f9509386c716b11764914a5ec13fcf0d837d6a"
+    },
+    {
+      "path": "build/qa/command-progress-core-recheck-2026-10-28.log",
+      "sha256": "44c7410f6bdb5730c6e1c0bcfbd0b3550ef09fb667707fc26d1213e36968ea5a"
+    },
+    {
+      "path": "build/qa/command-progress-debug-2026-10-28.log",
+      "sha256": "1b200dcf1f0253627df3fbd5f8caff3e955ee35c1c9f76cb616f1ddc00c46d1e"
+    },
+    {
+      "path": "build/qa/command-progress-debug-recheck-2026-10-28.log",
+      "sha256": "5811ee032aff7bce26982103252032c2947838930c4e9cd4d93f68698320ef69"
+    },
+    {
+      "path": "build/qa/command-progress-debug-final-2026-10-28.log",
+      "sha256": "d089f1aee7a0254bb1d2b1a1e95f47050a102c577668c4e7bf546814cd5d39e9"
+    },
+    {
+      "path": "build/qa/command-progress-native-2026-10-28.log",
+      "sha256": "2e414113400b1570468dd3137aa3c4c026abfd8e09a4b1e774d088fd261bdeea"
+    }
+  ]
+}

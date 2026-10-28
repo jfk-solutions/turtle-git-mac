@@ -4,6 +4,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class SubmoduleSyncWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SubmoduleSyncWindowModel
     var onClosed: () -> Void = {}
     private var closing=false
@@ -37,6 +38,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleSyncWindowModel: ObservableObject, ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations=0
     private(set) var pendingOperations=0
     var isRetired:Bool {invalidated}
@@ -74,6 +76,9 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true; token.cancel() }
     func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {
         guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; startedAt = ProcessInfo.processInfo.systemUptime;Self.activeOperations += 1;pendingOperations += 1
         Task {
             defer { Self.activeOperations -= 1;pendingOperations -= 1;withExtendedLifetime(access) {} }

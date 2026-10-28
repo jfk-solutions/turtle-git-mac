@@ -3,6 +3,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class WorktreeCreateWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: WorktreeCreateWindowModel
     var onClosed: () -> Void = {}
     var externalAvailability: () -> Bool { get { model.externalAvailability } set { model.externalAvailability = newValue } }
@@ -163,6 +164,7 @@ import TurtleGitCore
 }
 
 @MainActor final class WorktreeCreateWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     let progressPresentation: GitCommandPresentation
     static var activeOperations=0
     var active:Bool { !invalidated }
@@ -263,6 +265,9 @@ import TurtleGitCore
     func changedBranch() { guard commandsAvailable, !busy, !progress else { return }; detach = automaticDetach }
     func changedDetach() { guard commandsAvailable, !busy, !progress else { return }; if detach { createBranch = false } }
     func create() {
+        CommandProgressContext.perform(commandProgressScope) { createInCommandProgressScope() }
+    }
+    private func createInCommandProgressScope() {
         guard commandsAvailable, !busy, !chooser.busy, !progress, chooser.pickerTarget == nil else { return }
         guard !directory.isEmpty, directory.hasPrefix("/"), !directory.contains("\0") else { error = "Enter an absolute worktree directory."; return }
         let path = URL(fileURLWithPath: directory, isDirectory: true).standardizedFileURL
@@ -342,18 +347,22 @@ import TurtleGitCore
     }
     func returnToOptions() { guard commandsAvailable, !busy, !confirmingCancellation else { return }; saveActionLog(); progress = false }
     func updateSubmodules() {
+        CommandProgressContext.perform(commandProgressScope) { updateSubmodulesInCommandProgressScope() }
+    }
+    private func updateSubmodulesInCommandProgressScope() {
         guard canUpdateSubmodules, let createdPath else { return }
         let primary = destinationAccess?.contains(createdPath) == true ? destinationAccess : access
         // The linked checkout must retain both destination and common Git-dir
         // authority after this creation owner has actually detached and closed.
         let lease = primary?.retainingRelatedScopes(access.map { [$0] } ?? [])
         let callback = onSubmodules
+        let dispatch=CommandProgressContext.capture(commandProgressScope) {callback(createdPath,lease)}
         handoffPending = true; Self.activeOperations += 1
         var answered = false
         finishAndPerform { [self] accepted in
             guard !answered else { return }; answered = true
             defer { handoffPending = false; Self.activeOperations -= 1; withExtendedLifetime(lease) {} }
-            if accepted, !confirmingQuit, externalAvailability() { callback(createdPath, lease) }
+            if accepted, !confirmingQuit, externalAvailability() { dispatch() }
         }
     }
 }

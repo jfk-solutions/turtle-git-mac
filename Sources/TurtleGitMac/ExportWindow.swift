@@ -178,6 +178,7 @@ enum ExportArchiveChoice:Int,CaseIterable {
 }
 
 @MainActor final class ExportWindowModel: ObservableObject, VersionPickerModel {
+    private let commandProgressScope = CommandProgressContext.current
     private(set) static var activeReads = 0
     private(set) static var activeOperations=0
     struct FormContext:Equatable {let epoch:UUID;let draft:[GitReferenceName]}
@@ -334,7 +335,8 @@ enum ExportArchiveChoice:Int,CaseIterable {
             }
         }
     }
-    func export() {
+    func export() { CommandProgressContext.perform(commandProgressScope) { exportWithCommandProgressContext() } }
+    private func exportWithCommandProgressContext() {
         guard canEditForm,presentationAvailable(), !destination.isEmpty, !revision.isEmpty else { return }
         let context=formContext,grantedOutput=outputAccess
         var url = URL(fileURLWithPath: destination)
@@ -418,6 +420,7 @@ struct ExportDialog: View {
 }
 
 @MainActor final class ExportProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     struct ActionReceipt:Equatable {let owner:ObjectIdentifier;let generation:Int}
     var actionReceipt:ActionReceipt {.init(owner:ObjectIdentifier(self),generation:interactionGeneration)}
     var canExplore:Bool {!busy && !hasPendingWork && success && !invalidated && !confirmingQuit && !confirmingCancellation && !dispatched}
@@ -477,8 +480,10 @@ struct ExportDialog: View {
         }
     }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
-    func start(){guard !started,!invalidated,!confirmingQuit else{return};started=true;beginWork();Task{await execute()}}
-    func run()async{guard !started,!invalidated,!confirmingQuit else{return};started=true;beginWork();await execute()}
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() {guard !started,!invalidated,!confirmingQuit else{return};started=true;beginWork();Task{await execute()}}
+    func run() async { await CommandProgressContext.perform(commandProgressScope) { await runWithCommandProgressContext() } }
+    private func runWithCommandProgressContext() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;beginWork();await execute()}
     private enum StreamEvent:Sendable {case output(Bool),finished(RevisionArchiveCommandCompletion)}
     private func complete(_ receipt:RevisionArchiveCommandCompletion){
         guard !invalidated,!commandFinished else{return}
@@ -566,7 +571,7 @@ struct ExportDialog: View {
     func explore(receipt:ActionReceipt?=nil) {
         guard canExplore,receipt==nil || receipt==actionReceipt else{return};dispatched=true
         let callback=showInFinder,destination=destination,generation=interactionGeneration
-        let dispatch={ [weak self] in guard let self,!self.confirmingQuit,self.interactionGeneration==generation else{return};callback(destination) }
+        let dispatch=CommandProgressContext.capture(commandProgressScope) { [weak self] in guard let self,!self.confirmingQuit,self.interactionGeneration==generation else{return};callback(destination) }
         if let closeForHandoff{closeForHandoff(dispatch)}else{close();dispatch()}
     }
 }

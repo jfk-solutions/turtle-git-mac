@@ -151,6 +151,7 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FetchWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     static var activePreparationReads = 0
     private(set) var pendingOperations=0
     static var activeProgressOperations: Int { PullProgressWindowModel.activeOperations + FetchProgressWindowModel.activeOperations }
@@ -487,7 +488,8 @@ import TurtleGitCore
         if !busy { close() }
     }
 
-    func fetch() {
+    func fetch() { CommandProgressContext.perform(commandProgressScope) { fetchWithCommandProgressContext() } }
+    private func fetchWithCommandProgressContext() {
         guard !invalidated, !operationActive else { return }
         if options.arbitraryURL {
             urls = FetchDialogHistory.save(url, entries: urls, preferences: preferences, key: "History.PullURLS", caseSensitive: true)
@@ -823,13 +825,15 @@ enum PullPostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class PullProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations = 0
     private(set) var pendingOperations=0
     @Published var confirmingQuit = false
     var presentationAvailable: () -> Bool = { true }
     var closeForHandoff: ((@escaping () -> Void) -> Void)?
     private func finishAndPerform(_ action: @escaping () -> Void) {
-        if let closeForHandoff { closeForHandoff(action) } else { close(); action() }
+        let scopedAction=CommandProgressContext.capture(commandProgressScope,action)
+        if let closeForHandoff { closeForHandoff(scopedAction) } else { close(); scopedAction() }
     }
     let repository: GitRepository
     let options: PullOptions
@@ -897,8 +901,10 @@ enum PullPostAction: String, CaseIterable, Hashable {
         self.repository = repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
     }
     func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; resultIdentity=UUID(); busy = false; confirmingCancellation = false; confirmingConflictHint = false; confirmingResultClose = false; dispatchingAction = false }
-    func start() { Task { await run() } }
-    func run() async { guard !started, !invalidated else { return }; started = true; await execute(options) }
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() { Task { await run() } }
+    func run() async { await CommandProgressContext.perform(commandProgressScope) { await runWithCommandProgressContext() } }
+    private func runWithCommandProgressContext() async { guard !started, !invalidated else { return }; started = true; await execute(options) }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
@@ -1028,7 +1034,8 @@ enum PullPostAction: String, CaseIterable, Hashable {
             } else {close()}
         }
     }
-    func perform(_ action: PullPostAction) {
+    func perform(_ action: PullPostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
+    private func performWithCommandProgressContext(_ action: PullPostAction) {
         guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !dispatchingAction, !confirmingConflictHint, !confirmingResultClose, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             ProgressActionLog.nextAttempt(self);
@@ -1233,6 +1240,7 @@ enum FetchRebasePrompt: String, CaseIterable {
 }
 struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
 @MainActor final class FetchProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let notifications:FileOperationProgressState
     let backend:GitLibGit2Configuration
     var showsNotifications:Bool {backend.requests(.fetch)}
@@ -1252,7 +1260,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var presentationAvailable: () -> Bool = { true }
     var closeForHandoff: ((@escaping () -> Void) -> Void)?
     private func finishAndPerform(_ action: @escaping () -> Void) {
-        if let closeForHandoff { closeForHandoff(action) } else { close(); action() }
+        let scopedAction=CommandProgressContext.capture(commandProgressScope,action)
+        if let closeForHandoff { closeForHandoff(scopedAction) } else { close(); scopedAction() }
     }
     let repository: GitRepository
     let options: FetchOptions
@@ -1349,8 +1358,10 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         if explicitCloseRequested || notificationWarnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
     func invalidate() { notifications.retire();invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; deferredRebase = nil; pendingRebase = nil; busy = false; confirmingCancellation = false; confirmingRebaseDecision = false; dispatchingAction = false }
-    func start() { Task { await run() } }
-    func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
+    func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
+    private func startWithCommandProgressContext() { Task { await run() } }
+    func run() async { await CommandProgressContext.perform(commandProgressScope) { await runWithCommandProgressContext() } }
+    private func runWithCommandProgressContext() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
@@ -1482,7 +1493,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             }
         } else { cancelling = true; token.cancel() }
     }
-    func perform(_ action: FetchPostAction) {
+    func perform(_ action: FetchPostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
+    private func performWithCommandProgressContext(_ action: FetchPostAction) {
         guard !fileActionBusy,!invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
         if action == .rebase, let fetched = pendingRebase, onOwnedRebase != nil {
             dispatchingAction = true; Self.activeOperations += 1; pendingOperations += 1
@@ -1628,7 +1640,7 @@ struct FetchProgressDialog: View {
 /// CProgressDlg's constructor mapping and successful END-message close condition.
 enum GitProgressAutoClose: Int, CaseIterable, Sendable {
     case manual = 0, noOptions = 1, noErrors = 2
-    init(preferences: UserDefaults = .standard) { self = Self(rawValue: preferences.integer(forKey: "AutoCloseGitProgress")) ?? .manual }
+    init(preferences: UserDefaults = .standard) { self = Self(rawValue: CommandProgressContext.current?.policy.rawValue ?? preferences.integer(forKey: "AutoCloseGitProgress")) ?? .manual }
     var title: String {
         switch self {
         case .manual: return "Close manually"

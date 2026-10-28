@@ -4,6 +4,52 @@ import TurtleGitCore
 import UniformTypeIdentifiers
 import Darwin
 
+/// Window ownership follows a command invocation, while repository paths remain
+/// untouched. Iteration/values deliberately include every owner for Quit, refresh
+/// and mutation guards; reuse searches see only the originating command.
+struct RepositoryCommandWindowMap<Value>: Sequence, ExpressibleByDictionaryLiteral {
+    private var storage = GitPathMap<Value>()
+    init() {}
+    init(dictionaryLiteral elements: (String, Value)...) {
+        for (key, value) in elements { self[key] = value }
+    }
+    private func cacheKey(_ key: String) -> String {
+        key.contains("\0command-progress:") ? key : CommandProgressContext.windowKey(key)
+    }
+    subscript(key: String) -> Value? {
+        get { storage[cacheKey(key)] }
+        set { storage[cacheKey(key)] = newValue }
+    }
+    var values: [Value] { storage.values }
+    var keys: [String] { storage.keys }
+    var count: Int { storage.count }
+    var isEmpty: Bool { storage.isEmpty }
+    var scopedValues: [Value] { storage.filter { CommandProgressContext.ownsWindowKey($0.key) }.values }
+    private func originalKey(_ key: String) -> String {
+        key.range(of: "\0command-progress:").map { String(key[..<$0.lowerBound]) } ?? key
+    }
+    /// Cross-invocation checks must keep guarding the original cache identity.
+    func allValues(forKey key: String) -> [Value] {
+        let original = originalKey(key)
+        return storage.filter { GitReferenceName.equal(originalKey($0.key), original) }.values
+    }
+    func first(where predicate: ((key: String, value: Value)) throws -> Bool) rethrows -> (key: String, value: Value)? {
+        for entry in storage where CommandProgressContext.ownsWindowKey(entry.key) {
+            let logical = (key: originalKey(entry.key), value: entry.value)
+            if try predicate(logical) { return logical }
+        }
+        return nil
+    }
+    func makeIterator() -> AnyIterator<(key: String, value: Value)> { storage.makeIterator() }
+    func filter(_ predicate: ((key: String, value: Value)) throws -> Bool) rethrows -> Self {
+        var result = Self()
+        result.storage = try storage.filter(predicate)
+        return result
+    }
+    @discardableResult mutating func removeValue(forKey key: String) -> Value? { storage.removeValue(forKey: cacheKey(key)) }
+    mutating func removeAll(keepingCapacity: Bool = false) { storage.removeAll(keepingCapacity: keepingCapacity) }
+}
+
 /// Settings already presents the reason for refusing a context replacement.
 /// Keep that refusal separate from Git/cancellation failures while draining the
 /// ordinary repository-opening operation and restoring its original monitoring.
@@ -155,7 +201,7 @@ private enum TransportBatchPresentationContext {
         guard !nodes.contains(where:{$0.controller === controller}),let owned=controller as? any TransportBatchWindow else{return}
         let node=Node(controller,pending:{owned.transportBatchWorkPending || controller.window?.sheetParent != nil || controller.window?.attachedSheet != nil});nodes.append(node)
         let original=owned.onClosed
-        owned.onClosed={ [weak self,weak node] in
+        owned.onClosed=CommandProgressContext.capture { [weak self,weak node] in
             // Reserve before original cleanup: a source modal callback can
             // launch its successor immediately after onClosed returns.
             self?.closingFences += 1
@@ -183,10 +229,10 @@ private enum TransportBatchPresentationContext {
     var onFinished: (URL?) -> Void = { _ in }
     init(window: NSWindow?, owner: RepositoryWindowOwner) {
         self.window = window; self.owner = owner
-        owner.onCancelled = { [weak self] in self?.cancel() }
+        owner.onCancelled = CommandProgressContext.capture { [weak self] in self?.cancel() }
     }
     func begin(present: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?, selected: @escaping (NSOpenPanel) -> URL?) {
-        let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+        let reply: (NSApplication.ModalResponse) -> Void = CommandProgressContext.capture { [weak self] response in
             guard let self,!self.completed else { return }
             self.finish(response == .OK && !self.owner.cancellation.isCancelled ? selected(self.panel) : nil)
         }
@@ -216,10 +262,10 @@ private enum TransportBatchPresentationContext {
     init(window: NSWindow?, owner: RepositoryWindowOwner) {
         self.window = window; self.owner = owner
         panel.alphaValue = window?.alphaValue ?? 1; panel.appearance = window?.appearance
-        owner.onCancelled = { [weak self] in self?.cancel() }
+        owner.onCancelled = CommandProgressContext.capture { [weak self] in self?.cancel() }
     }
     func begin(present: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?, selected: @escaping (NSOpenPanel) -> URL?) {
-        let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+        let reply: (NSApplication.ModalResponse) -> Void = CommandProgressContext.capture { [weak self] response in
             guard let self else { return }
             self.finish(response == .OK && !self.owner.cancellation.isCancelled ? selected(self.panel) : nil)
         }
@@ -267,7 +313,7 @@ private enum TransportBatchPresentationContext {
                 if let repository {properties=try await repository.issueTrackerProperties(cancellation:request)} else{properties=IssueTrackerProperties()}
                 guard issueTesterRequest === request,!confirmingQuit else{return}
                 let controller=IssueRegexTesterController(model:IssueRegexTesterModel(check:properties.checkExpression,extract:properties.extractionExpression))
-                controller.completed={ [weak self,weak controller] _ in if self?.issueTester === controller {self?.issueTester=nil} }
+                controller.completed=CommandProgressContext.capture { [weak self,weak controller] _ in if self?.issueTester === controller {self?.issueTester=nil} }
                 issueTester=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
             } catch {if !request.isCancelled {self.error=error.localizedDescription}}
         }
@@ -282,11 +328,11 @@ private enum TransportBatchPresentationContext {
             guard !retired, !confirmingQuit else { completion?(1); return true }
             let id = UUID(), session = MergeToolLaunchSession(invocation: invocation, preferences: fileComparisonPreferences, owner: workspaceWindow, permissions: activeAccess.map { [$0] } ?? [])
             configureMergeToolLaunch(session)
-            session.onError = { [weak self] message in
+            session.onError = CommandProgressContext.capture { [weak self] message in
                 self?.error = message
                 if completion != nil { fputs("TurtleGitMerge: " + message + "\n", stderr) }
             }
-            session.onFinished = { [weak self, weak session] status in
+            session.onFinished = CommandProgressContext.capture { [weak self, weak session] status in
                 guard let self, let session, self.mergeToolLaunches[id] === session else { return }
                 self.mergeToolLaunches.removeValue(forKey: id); completion?(status)
             }
@@ -302,21 +348,21 @@ private enum TransportBatchPresentationContext {
         if let mergeOpener { mergeOpener.window?.makeKeyAndOrderFront(nil); return }
         let opener = MergeOpenWindowController(permissions: activeAccess.map { [$0] } ?? [])
         mergeOpener = opener
-        opener.onAccepted = { [weak self] request, permissions in
+        opener.onAccepted = CommandProgressContext.capture { [weak self] request, permissions in
             guard let self else { return }
             switch request {
             case .compare(let base, let mine, let single):
                 let key = "open-" + UUID().uuidString
                 let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: permissions)
                 controller.model.singleFileMode = single; controller.model.useInternalMergeViewer()
-                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
+                controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
             case .merge(let base, let theirs, let mine):
                 let key = "open-merge-" + UUID().uuidString
                 let workingMerge = try WorkingTextMerge(base: base, theirs: theirs, mine: mine)
                 let context = GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable())
                 let controller = TextConflictWindowController(repository: context, access: nil, path: mine.lastPathComponent, workingMerge: workingMerge, permissions: permissions)
-                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
+                controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
                 self.textConflictWindows[key] = controller; controller.showWindow(nil)
             case .patch(let file, let target, let bytes):
                 let workflow = ReviewPatchWorkflow(file: file, target: target, preferred: target ?? self.root, grants: permissions,
@@ -324,21 +370,21 @@ private enum TransportBatchPresentationContext {
                 self.presentReview(workflow)
             }
         }
-        opener.onClosed = { [weak self] in self?.mergeOpener = nil }
+        opener.onClosed = CommandProgressContext.capture { [weak self] in self?.mergeOpener = nil }
         opener.present(parent: workspaceWindow)
     }
     func showLoadImages() {
         guard !busy, !confirmingQuit, imageLoader == nil, workspaceWindow?.attachedSheet == nil else { return }
         let loader = ImageLoadWindowController(leftPath: "", permissions: [])
         imageLoader = loader
-        loader.onAccepted = { [weak self] images, permissions in
+        loader.onAccepted = CommandProgressContext.capture { [weak self] images, permissions in
             guard let self else { return }
             let key = "images-" + UUID().uuidString
             let controller = FileComparisonWindowController(images: images, permissions: permissions)
-            controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
+            controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
         }
-        loader.onClosed = { [weak self] in self?.imageLoader = nil }
+        loader.onClosed = CommandProgressContext.capture { [weak self] in self?.imageLoader = nil }
         loader.present(parent: workspaceWindow)
     }
     weak var workspaceWindow: NSWindow? { didSet { retireWorkspaceMenus() } }
@@ -457,48 +503,48 @@ private enum TransportBatchPresentationContext {
     private var repositoryPermissionPrompt:RepositoryMetadataPermissionPrompt?
     private var repository: GitRepository?
     var settingsContextOverride: (repository:GitRepository,access:RepositoryAccessLease?,localAvailable:Bool)?
-    private var gitPropertyWindows: [String:GitPropertiesWindowController] = [:]
-    private var commitWindows: [String: CommitWindowController] = [:]
+    private var gitPropertyWindows = RepositoryCommandWindowMap<GitPropertiesWindowController>()
+    private var commitWindows = RepositoryCommandWindowMap<CommitWindowController>()
     var commitWindowFactory:((GitRepository,RepositoryAccessLease?)->CommitWindowController)?
     private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
     private var historyRevertWindows: [UUID: HistoryRevertWindowController] = [:]
-    private var logWindows = GitPathMap<LogWindowController>()
+    private var logWindows = RepositoryCommandWindowMap<LogWindowController>()
     private struct ConfiguredLog { weak var model:LogWindowModel? }
     private var configuredLogModels:[ObjectIdentifier:ConfiguredLog]=[:]
     var logWindowFactory:((GitRepository,RepositoryAccessLease?)->LogWindowController)?
-    private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
-    private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
-    private var browserWindows = GitPathMap<RepositoryBrowserWindowController>()
-    private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
+    private var revisionGraphWindows = RepositoryCommandWindowMap<RevisionGraphWindowController>()
+    private var referenceBrowserWindows = RepositoryCommandWindowMap<ReferenceBrowserWindowController>()
+    private var browserWindows = RepositoryCommandWindowMap<RepositoryBrowserWindowController>()
+    private var worktreeListWindows = RepositoryCommandWindowMap<WorktreeListWindowController>()
     var worktreeCreateWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults, URL?) -> WorktreeCreateWindowController)?
     var worktreeListWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> WorktreeListWindowController)?
-    private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
+    private var worktreeCreateWindows = RepositoryCommandWindowMap<WorktreeCreateWindowController>()
     var requestPullPresentation: ((RequestPullWindowController) -> Void)?
     var makeRequestPull: ((GitRepository, RepositoryAccessLease?, String?, String?) -> RequestPullWindowController)?
-    private var requestPullWindows: [String: RequestPullWindowController] = [:]
-    private var importPatchWindows: [String: ImportPatchWindowController] = [:]
-    private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
+    private var requestPullWindows = RepositoryCommandWindowMap<RequestPullWindowController>()
+    private var importPatchWindows = RepositoryCommandWindowMap<ImportPatchWindowController>()
+    private var formatPatchWindows = RepositoryCommandWindowMap<FormatPatchWindowController>()
     private(set) var rebaseCompletionMailWindows:[UUID:RebaseCompletionMailWindowController]=[:]
-    private(set) var blameWindows = GitPathMap<BlameWindowController>()
+    private(set) var blameWindows = RepositoryCommandWindowMap<BlameWindowController>()
     var blameRecentDocuments:BlameRecentDocuments?
-    private var rebaseWindows: [String: RebaseWindowController] = [:]
-    private var fetchWindows: [String: FetchWindowController] = [:]
-    private var pushWindows: [String: PushWindowController] = [:]
+    private var rebaseWindows = RepositoryCommandWindowMap<RebaseWindowController>()
+    private var fetchWindows = RepositoryCommandWindowMap<FetchWindowController>()
+    private var pushWindows = RepositoryCommandWindowMap<PushWindowController>()
     var pushWindowFactory:((GitRepository,RepositoryAccessLease?,UserDefaults)->PushWindowController)?
-    private var synchronizationWindows: [String: SynchronizationWindowController] = [:]
-    private var referenceWindows: [String: BranchTagWindowController] = [:]
+    private var synchronizationWindows = RepositoryCommandWindowMap<SynchronizationWindowController>()
+    private var referenceWindows = RepositoryCommandWindowMap<BranchTagWindowController>()
     private var switchProgressWindows: [UUID: SwitchProgressWindowController] = [:]
-    private var switchWindows: [String: SwitchWindowController] = [:]
+    private var switchWindows = RepositoryCommandWindowMap<SwitchWindowController>()
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
-    private var addWindows: [String: AddWindowController] = [:]
-    private var addUnifiedWindows: [String: PatchWindowController] = [:]
-    private var svnWindows: [String: SVNWindowController] = [:]
+    private var addWindows = RepositoryCommandWindowMap<AddWindowController>()
+    private var addUnifiedWindows = RepositoryCommandWindowMap<PatchWindowController>()
+    private var svnWindows = RepositoryCommandWindowMap<SVNWindowController>()
     var svnPresentation: ((SVNWindowController) -> Void)?
     var svnWindowFactory:((GitRepository,RepositoryAccessLease?,GitSVNOperation)->SVNWindowController)?
-    private var daemonWindows: [String: GitDaemonWindowController] = [:]
+    private var daemonWindows = RepositoryCommandWindowMap<GitDaemonWindowController>()
     var daemonConfiguration = GitDaemonConfiguration()
     var daemonPresentation: ((GitDaemonWindowController) -> Void)?
-    private var lfsLocksWindows = GitPathMap<LFSLocksWindowController>()
+    private var lfsLocksWindows = RepositoryCommandWindowMap<LFSLocksWindowController>()
     private var lfsFileOperations: [UUID: LFSFileOperationController] = [:]
     private var reviewPatchWorkflows: [UUID: ReviewPatchWorkflow] = [:]
     private(set) var patchDocumentWindows: [UUID: PatchWindowController] = [:]
@@ -523,22 +569,22 @@ private enum TransportBatchPresentationContext {
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     var addProgressWindowFactory: ((GitRepository, RepositoryAccessLease?, [String], WorkingFileAddMode, UserDefaults, GitLibGit2Configuration, Bool) -> AddProgressWindowController)?
     var addProgressWindowPresentation: ((AddProgressWindowController) -> Void)?
-    private var cleanWindows: [String: CleanWindowController] = [:]
+    private var cleanWindows = RepositoryCommandWindowMap<CleanWindowController>()
     var cleanWindowFactory:((GitRepository)->CleanWindowController)?
     private var cleanProgressWindows: [UUID: CleanProgressWindowController] = [:]
-    private var revertWindows: [String: RevertWindowController] = [:]
-    private var statusWindows: [String: StatusWindowController] = [:]
-    private var bisectWindows: [String: BisectWindowController] = [:]
-    private var exportWindows: [String: ExportWindowController] = [:]
+    private var revertWindows = RepositoryCommandWindowMap<RevertWindowController>()
+    private var statusWindows = RepositoryCommandWindowMap<StatusWindowController>()
+    private var bisectWindows = RepositoryCommandWindowMap<BisectWindowController>()
+    private var exportWindows = RepositoryCommandWindowMap<ExportWindowController>()
     private var mergeAbortWindows: [UUID: MergeAbortWindowController] = [:]
     var mergeAbortWindowFactory:((GitRepository,RepositoryAccessLease?)->MergeAbortWindowController)?
-    private var mergeWindows: [String: MergeWindowController] = [:]
-    private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
-    private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
-    private var stashWindows: [String: StashWindowController] = [:]
+    private var mergeWindows = RepositoryCommandWindowMap<MergeWindowController>()
+    private var referenceLogWindows = RepositoryCommandWindowMap<ReferenceLogWindowController>()
+    private var stashRestoreWindows = RepositoryCommandWindowMap<StashRestoreWindowController>()
+    private var stashWindows = RepositoryCommandWindowMap<StashWindowController>()
     var stashRestoreWindowFactory: ((GitRepository, RepositoryAccessLease?, Bool, String?, Int) -> StashRestoreWindowController)?
     private var cloneWindows: [UUID: CloneWindowController] = [:]
-    private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    private var createWindows = RepositoryCommandWindowMap<CreateRepositoryWindowController>()
     var createWindowFactory: ((URL, RepositoryAccessLease) -> CreateRepositoryWindowController)?
     var presentFinderServiceFolderPanel:((NSOpenPanel,NSWindow?,@escaping(NSApplication.ModalResponse)->Void)->Void)?
     var selectedFinderServiceFolderURL:(NSOpenPanel)->URL? = {$0.url}
@@ -605,26 +651,26 @@ private enum TransportBatchPresentationContext {
     private var sourceWorktreeFolderChoice: FinderTransferDestinationChoice?
     var finderTransferPresentation: ((FinderRequest, GitRepository, RepositoryAccessLease) -> Void)?
     private var copyWindows: [UUID: FileCopyWindowController] = [:]
-    private(set) var moveWindows: [String: FileMoveWindowController] = [:]
-    private var renameWindows: [String: RenameWindowController] = [:]
-    private(set) var imageConflictWindows = GitPathMap<ImageConflictWindowController>()
-    private(set) var textConflictWindows = GitPathMap<TextConflictWindowController>()
-    private(set) var submoduleDiffWindows = GitPathMap<SubmoduleDiffWindowController>()
-    private var revisionComparisonWindows = GitPathMap<RevisionComparisonWindowController>()
+    private(set) var moveWindows = RepositoryCommandWindowMap<FileMoveWindowController>()
+    private var renameWindows = RepositoryCommandWindowMap<RenameWindowController>()
+    private(set) var imageConflictWindows = RepositoryCommandWindowMap<ImageConflictWindowController>()
+    private(set) var textConflictWindows = RepositoryCommandWindowMap<TextConflictWindowController>()
+    private(set) var submoduleDiffWindows = RepositoryCommandWindowMap<SubmoduleDiffWindowController>()
+    private var revisionComparisonWindows = RepositoryCommandWindowMap<RevisionComparisonWindowController>()
     private var imageLoader: ImageLoadWindowController?
-    private(set) var fileComparisonWindows = GitPathMap<FileComparisonWindowController>()
+    private(set) var fileComparisonWindows = RepositoryCommandWindowMap<FileComparisonWindowController>()
     private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
-    private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]
+    private var submoduleAddWindows = RepositoryCommandWindowMap<SubmoduleAddWindowController>()
     private var submoduleAddProgressWindows: [UUID: SubmoduleAddProgressWindowController] = [:]
     private var submoduleUpdateProgressWindows: [UUID: SubmoduleUpdateProgressWindowController] = [:]
-    private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
-    private var submoduleConflictWindows = GitPathMap<SubmoduleConflictWindowController>()
-    private var deleteConflictWindows = GitPathMap<DeleteConflictWindowController>()
-    private var resetWindows: [String: ResetWindowController] = [:]
-    private var resolveWindows = GitPathMap<ResolveWindowController>()
-    private var ignoreWindows: [String: IgnoreWindowController] = [:]
+    private var submoduleUpdateWindows = RepositoryCommandWindowMap<SubmoduleUpdateWindowController>()
+    private var submoduleConflictWindows = RepositoryCommandWindowMap<SubmoduleConflictWindowController>()
+    private var deleteConflictWindows = RepositoryCommandWindowMap<DeleteConflictWindowController>()
+    private var resetWindows = RepositoryCommandWindowMap<ResetWindowController>()
+    private var resolveWindows = RepositoryCommandWindowMap<ResolveWindowController>()
+    private var ignoreWindows = RepositoryCommandWindowMap<IgnoreWindowController>()
     var ignoreWindowFactory: ((GitRepository, RepositoryAccessLease?, [String], Bool, Bool) throws -> IgnoreWindowController)?
-    private var removeWindows: [String: RemoveWindowController] = [:]
+    private var removeWindows = RepositoryCommandWindowMap<RemoveWindowController>()
     var removeWindowFactory: ((GitRepository, RepositoryAccessLease?, RemovalRequest) -> RemoveWindowController)?
     private var adoptionGeneration = 0
     private var retired = false
@@ -859,8 +905,8 @@ private enum TransportBatchPresentationContext {
     deinit {for observer in finderPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)}}
     func configureSettingsRemote(_ model: RemoteSettingsWindowModel) {
         let repository = model.repository, access = model.access
-        model.onFetch = { [weak self] remote in self?.showFetch(repository: repository, access: access, remote: remote) }
-        model.onRemotesChanged = { [weak self] _ in
+        model.onFetch = CommandProgressContext.capture { [weak self] remote in self?.showFetch(repository: repository, access: access, remote: remote) }
+        model.onRemotesChanged = CommandProgressContext.capture { [weak self] _ in
             self?.refreshRepositoryLogs(repository.root)
             if self?.root == repository.root { Task { await self?.refresh() } }
         }
@@ -925,7 +971,7 @@ private enum TransportBatchPresentationContext {
         panel.message="Choose a repository folder to open in TurtleGit. The selected files or folders do not grant repository access."
         panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
         panel.directoryURL=paths.first.map{$0.hasDirectoryPath ? $0:$0.deletingLastPathComponent()};panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
-        choice.onFinished={ [weak self,weak choice] selected in
+        choice.onFinished=CommandProgressContext.capture { [weak self,weak choice] selected in
             guard let self,let choice else{return}
             Task { @MainActor [self,choice] in
                 defer {self.finderServiceWorkers -= 1;if self.finderServiceFolderChoice === choice {self.finderServiceFolderChoice=nil};if self.finderServiceOwner === owner {self.finderServiceOwner=nil}}
@@ -971,11 +1017,11 @@ private enum TransportBatchPresentationContext {
             if let selected { existing.model.selection=selected }
         } else {
             let editor=RepositoryAccessWindowModel(store:store,provider:repositoryBookmarkProvider,requireScope:requiresRepositoryScope,selected:selected)
-            editor.mayChange={ [weak self] in self?.busy==false && self?.confirmingQuit==false }
-            editor.onChanged={ [weak self] in self?.recentRepositories=store.repositories }
-            editor.open={ [weak self] saved in self?.openRecent(saved) }
+            editor.mayChange=CommandProgressContext.capture { [weak self] in self?.busy==false && self?.confirmingQuit==false }
+            editor.onChanged=CommandProgressContext.capture { [weak self] in self?.recentRepositories=store.repositories }
+            editor.open=CommandProgressContext.capture { [weak self] saved in self?.openRecent(saved) }
             controller=RepositoryAccessWindowController(model:editor)
-            controller.onClosed={ [weak self] in self?.repositoryAccessWindow=nil }
+            controller.onClosed=CommandProgressContext.capture { [weak self] in self?.repositoryAccessWindow=nil }
             repositoryAccessWindow=controller
         }
         controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
@@ -1027,7 +1073,7 @@ private enum TransportBatchPresentationContext {
     private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner suppliedHandoffOwner: RepositoryWindowOwner? = nil, serviceCommand: FinderServiceCommand? = nil, servicePreferences:UserDefaults? = nil, onOpened: (() -> Void)? = nil, requestedLocation: URL? = nil) {
         let handoffOwner = suppliedHandoffOwner ?? (invocation?.request.action == .revisionGraph && invocation?.outputFile != nil ? CommandGraphOutputContext.current?.owner : nil)
         guard !busy, !confirmingQuit, !retired, handoffOwner?.cancellation.isCancelled != true else { onFinished?(false); return }
-        let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
+        let restoreState:()->Void = CommandProgressContext.capture { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
             self.branch=branch;self.bare=bare;self.hasGitSVN=hasGitSVN;self.mergeActive=mergeActive;self.conflictRebase=conflictRebase;self.submodules=submodules;self.section=section;self.output=output
         }
@@ -1528,7 +1574,7 @@ private enum TransportBatchPresentationContext {
     private func showClone(directory: URL? = nil, source: String? = nil, exactPath: Bool = false, directoryAccess:RepositoryAccessLease? = nil) {
         guard !retired, !confirmingQuit else { return }
         let id = UUID(), controller = cloneWindowFactory?(directory ?? root, directoryAccess ?? activeAccess) ?? CloneWindowController(directory: directory ?? root, access: directoryAccess ?? activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
-        controller.onClosed = { [weak self, weak controller] in if self?.cloneWindows[id] === controller { self?.cloneWindows.removeValue(forKey: id) } }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.cloneWindows[id] === controller { self?.cloneWindows.removeValue(forKey: id) } }
         configureCloneInteractions(controller)
         cloneWindows[id] = controller
         controller.model.configureLaunch(source: source, exactPath: exactPath)
@@ -1536,16 +1582,16 @@ private enum TransportBatchPresentationContext {
     }
     func configureCloneInteractions(_ controller: CloneWindowController) {
         let preferences = controller.model.pathCompletionPreferences
-        controller.model.onNotificationLog={ [weak self] repository,access,paths,old,new in
+        controller.model.onNotificationLog=CommandProgressContext.capture { [weak self] repository,access,paths,old,new in
             guard let self,!self.retired,!self.confirmingQuit else{return}
             self.showLog(repository:repository,access:access,paths:paths,endRevision:old == nil ? new:nil,revisionRange:old.map{HistoryRevisionRange(from:$0,to:new ?? "HEAD")},preferences:preferences)
         }
-        controller.model.onLog = { [weak self, weak model = controller.model] repository, access in
+        controller.model.onLog = CommandProgressContext.capture { [weak self, weak model = controller.model] repository, access in
             guard let self, !self.retired, !self.confirmingQuit, let model else { return }
             self.showLog(repository: repository, access: access, paths: [], preferences: preferences, presentation: model.handoffPresentation)
         }
         let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
-        controller.model.onCloned = { [weak self,weak model=controller.model] repo, access, keyAccess, _, result in
+        controller.model.onCloned = CommandProgressContext.capture { [weak self,weak model=controller.model] repo, access, keyAccess, _, result in
             guard let self, !self.retired else { return }
             if let keyAccess {
                 self.cloneKeyAccess[repo.root.path] = keyAccess
@@ -1624,7 +1670,7 @@ private enum TransportBatchPresentationContext {
         let handoff = CompletedRepositoryHandoff(generation: adoptionGeneration, root: repo.root, access: access, owner: owner, output: output)
         completedRepositoryHandoff = handoff
         let id = handoff.id
-        owner.onCancelled = { [weak self] in
+        owner.onCancelled = CommandProgressContext.capture { [weak self] in
             if self?.completedRepositoryHandoff?.id == id { self?.completedRepositoryHandoff = nil }
         }
         // Keep the current operation's generation and busy ownership intact.
@@ -1646,7 +1692,7 @@ private enum TransportBatchPresentationContext {
             guard !self.busy, !self.confirmingQuit else { return }
             self.completedRepositoryHandoff = nil
             guard !self.retired, handoff.generation == self.adoptionGeneration, !handoff.owner.cancellation.isCancelled else { return }
-            self.openSession(handoff.access, selected: FinderRequest(action: .status, paths: [handoff.root]), handoffOwner: handoff.owner, onOpened: { [weak self] in self?.output = handoff.output })
+            self.openSession(handoff.access, selected: FinderRequest(action: .status, paths: [handoff.root]), handoffOwner: handoff.owner, onOpened: CommandProgressContext.capture { [weak self] in self?.output = handoff.output })
         }
     }
     private func showCreateRepository(folder: URL? = nil, commandLaunch: Bool = false, cancellation: OperationCancellation? = nil) {
@@ -1677,7 +1723,7 @@ private enum TransportBatchPresentationContext {
             panel.message = folder.map { "Choose this folder or a containing parent to allow TurtleGit to create the repository: " + $0.path } ?? "Choose the folder that will contain the new repository."
             panel.directoryURL = directory ?? root?.deletingLastPathComponent()
             creationFolderChoice = choice
-            choice.onFinished = { [weak self, weak choice] selected in
+            choice.onFinished = CommandProgressContext.capture { [weak self, weak choice] selected in
                 guard let self, let choice, self.creationFolderChoice === choice else { return }
                 self.creationFolderChoice = nil
                 guard !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled, cancellation?.isCancelled != true, let selected else { return }
@@ -1695,10 +1741,10 @@ private enum TransportBatchPresentationContext {
     private func presentCreateRepository(folder: URL, lease: RepositoryAccessLease, owner: RepositoryWindowOwner) {
         guard !retired, !confirmingQuit, !owner.cancellation.isCancelled, lease.contains(folder), !requiresRepositoryScope || lease.hasSecurityScope else { return }
         let key = GitPathRowIdentity.encode(folder.path)
-        if createWindows[key]?.model.retired == true { error = "The previous Create Repository window is still closing. Wait for it to finish."; return }
+        if createWindows.allValues(forKey: key).contains(where: { $0.model.retired }) { error = "The previous Create Repository window is still closing. Wait for it to finish."; return }
         let controller = createWindows[key] ?? createWindowFactory?(folder, lease) ?? CreateRepositoryWindowController(folder: folder, access: lease, preferences: fileComparisonPreferences)
         let fresh = createWindows[key] == nil
-        controller.onClosed = { [weak self, weak controller] in if self?.createWindows[key] === controller { self?.createWindows.removeValue(forKey: key) } }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.createWindows[key] === controller { self?.createWindows.removeValue(forKey: key) } }
         if fresh {
             configureCreateRepositoryInteractions(controller, owner: owner)
         }
@@ -1710,27 +1756,27 @@ private enum TransportBatchPresentationContext {
         configureCreateRepositoryInteractions(controller, owner: RepositoryWindowOwner(window: workspaceWindow))
     }
     private func configureCreateRepositoryInteractions(_ controller: CreateRepositoryWindowController, owner: RepositoryWindowOwner) {
-        controller.model.onInitialized = { [weak self] repo, access, _, output in
+        controller.model.onInitialized = CommandProgressContext.capture { [weak self] repo, access, _, output in
             self?.adoptRepository(repo, access: access, output: output, owner: owner)
         }
     }
     private func showRename(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
         guard !retired,!confirmingQuit else{return}
         let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + source)
-        guard renameWindows[key]?.model.retired != true else {error="The previous Rename window is still closing. Wait for its operation to finish.";return}
+        guard !renameWindows.allValues(forKey: key).contains(where: { $0.model.retired }) else {error="The previous Rename window is still closing. Wait for its operation to finish.";return}
         let controller = renameWindows[key] ?? RenameWindowController(repository: repository, access: access, source: source, preferences: fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
-        controller.model.onRenamed = { [weak self] old, new, output in
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.renameWindows.removeValue(forKey: key) }
+        controller.model.onRenamed = CommandProgressContext.capture { [weak self] old, new, output in
             guard let self else { return }
-            self.revertWindows[root.path]?.model.didRename(old,to:new); self.renameStatusPaths(root, from: old, to: new)
-            self.commitWindows[root.path]?.model.didRename(old, to: new)
+            self.revertWindows.allValues(forKey: root.path).forEach { $0.model.didRename(old,to:new) }; self.renameStatusPaths(root, from: old, to: new)
+            self.commitWindows.allValues(forKey: root.path).forEach { $0.model.didRename(old, to: new) }
             if self.root == root {
                 self.didMoveWorkspacePath(old,to:new)
                 self.output = output.isEmpty ? "Renamed \(old) to \(new)." : output
             }
         }
-        controller.model.onChanged = { [weak self] in
-            self?.revertWindows[root.path]?.model.requestReload(); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
+            self?.revertWindows.allValues(forKey: root.path).forEach { $0.model.requestReload() }; self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
             if self?.root == root { Task { await self?.refresh() } }
         }
         renameWindows[key] = controller
@@ -1740,13 +1786,13 @@ private enum TransportBatchPresentationContext {
     func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil, renameFirst: Bool = false, stopOnError: Bool = true, automaticallyStart: Bool = false, preferences: UserDefaults? = nil) {
         let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString))
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
-        controller.model.onMoved = { [weak self] old, new, text in
-            guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.renameStatusPaths(root, from: old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.moveWindows.removeValue(forKey: key) }
+        controller.model.onMoved = CommandProgressContext.capture { [weak self] old, new, text in
+            guard let self else { return }; self.revertWindows.allValues(forKey: root.path).forEach { $0.model.didRename(old,to:new) }; self.renameStatusPaths(root, from: old, to: new); self.commitWindows.allValues(forKey: root.path).forEach { $0.model.didRename(old, to: new) }
             if self.root == root { self.didMoveWorkspacePath(old,to:new); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
         }
-        controller.model.onChanged = { [weak self] in
-            self?.revertWindows[root.path]?.model.requestReload(); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
+            self?.revertWindows.allValues(forKey: root.path).forEach { $0.model.requestReload() }; self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }; self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
         moveWindows[key] = controller
@@ -1756,9 +1802,9 @@ private enum TransportBatchPresentationContext {
     func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false, folder: URL? = nil, automaticallyStart: Bool = false, preferences: UserDefaults? = nil) {
         let id = UUID(), root = repository.root
         let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, folder: folder, paste: paste, sourceProvider: fileCopySourceProvider, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.copyWindows.removeValue(forKey: id) }
-        controller.model.onChanged = { [weak self] in
-            self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.copyWindows.removeValue(forKey: id) }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
+            self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
         copyWindows[id] = controller
@@ -1771,10 +1817,10 @@ private enum TransportBatchPresentationContext {
     @discardableResult func receiveTransferDrop(_ providers: [NSItemProvider], repository captured: GitRepository? = nil, access capturedAccess: RepositoryAccessLease? = nil, owner capturedOwner: NSWindow? = nil) -> Bool {
         guard !confirmingQuit, captured != nil || canReceiveTransferDrop, !providers.isEmpty, providers.count <= 256, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }), let repository = captured ?? repository, let owner = capturedOwner ?? workspaceWindow, owner.attachedSheet == nil else { return false }
         let id = UUID(), access = captured == nil ? activeAccess : capturedAccess, controller = FileDropTransferWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
-        controller.receiveAllowed = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
-        controller.onClosed = { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
+        controller.receiveAllowed = CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
         let preferences = fileComparisonPreferences
-        controller.onAccepted = { [weak self] choice, urls, folder in
+        controller.onAccepted = CommandProgressContext.capture { [weak self] choice, urls, folder in
             guard let self, !self.retired, !self.confirmingQuit else { return }
             if choice == .copyAdd { self.showCopy(repository: repository, access: access, sources: urls, folder: folder, preferences: preferences) }
             else { self.showMove(repository: repository, access: access, paths: [], clipboard: urls, destination: folder, renameFirst: choice == .moveRename, stopOnError: false, preferences: preferences) }
@@ -1820,7 +1866,7 @@ private enum TransportBatchPresentationContext {
                         choice.panel.appearance=appearance == "dark" ? NSAppearance(named:.darkAqua) : appearance == "light" ? NSAppearance(named:.aqua) : nil
                     }
                     sourceWorktreeFolderChoice=choice
-                    choice.onFinished={continuation.resume(returning:$0)}
+                    choice.onFinished=CommandProgressContext.capture {continuation.resume(returning:$0)}
                     choice.begin(present:presentWorktreeFolderPanel,selected:selectedWorktreeFolderURL)
                 }
             }
@@ -1895,7 +1941,7 @@ private enum TransportBatchPresentationContext {
                     choice.panel.appearance = appearance == "dark" ? NSAppearance(named: .darkAqua) : appearance == "light" ? NSAppearance(named: .aqua) : nil
                 }
                 sourceTransferFolderChoice = choice
-                choice.onFinished = { continuation.resume(returning: $0) }
+                choice.onFinished = CommandProgressContext.capture { continuation.resume(returning: $0) }
                 choice.begin(present: presentTransferDestinationPanel, selected: selectedTransferDestinationURL)
             }
             guard !retired, !confirmingQuit, !owner.cancellation.isCancelled, let folder else { return }
@@ -1911,10 +1957,10 @@ private enum TransportBatchPresentationContext {
             busy = false; transferred = true
             // openSession performs normal root/metadata/grant checks. The source
             // files are separately authorized by the accepted copy/move workflow.
-            openSession(permission, selected: destination, onFinished: { [weak self] opened in
+            openSession(permission, selected: destination, onFinished: CommandProgressContext.capture { [weak self] opened in
                 if self?.sourceTransferOwner === owner { self?.sourceTransferOwner = nil; self?.sourceTransferFolderChoice = nil }
                 completion?(opened)
-            }, handoffOwner: owner, onOpened: { [weak self] in
+            }, handoffOwner: owner, onOpened: CommandProgressContext.capture { [weak self] in
                 guard let self, !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled,
                       let repository = self.repository, let access = self.activeAccess else { return }
                 guard !self.bare else { self.error = "File transfers require a working tree."; return }
@@ -1925,9 +1971,9 @@ private enum TransportBatchPresentationContext {
     private func showTransferSelection(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], destination: URL, owner: NSWindow?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
         guard !retired, !confirmingQuit, !sources.isEmpty, sources.count <= 256, owner?.attachedSheet == nil, allowed() else { return }
         let id = UUID(), controller = FileDropTransferWindowController(repository: repository, access: access, preferences: preferences, destination: destination)
-        controller.receiveAllowed = { [weak self] in self?.retired == false && self?.confirmingQuit == false && allowed() }
-        controller.onClosed = { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
-        controller.onAccepted = { [weak self] choice, urls, folder in
+        controller.receiveAllowed = CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false && allowed() }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
+        controller.onAccepted = CommandProgressContext.capture { [weak self] choice, urls, folder in
             guard let self, !self.retired, !self.confirmingQuit, allowed() else { return }
             if choice == .copyAdd { self.showCopy(repository: repository, access: access, sources: urls, folder: folder, preferences: preferences) }
             else { self.showMove(repository: repository, access: access, paths: [], clipboard: urls, destination: folder, renameFirst: choice == .moveRename, stopOnError: false, preferences: preferences) }
@@ -1993,7 +2039,7 @@ private enum TransportBatchPresentationContext {
                 if !entry.isSubmodule {
                     let opened: Bool
                     if let external { opened = try await external(repository, access, path, alternate, owner, entry, token, { request.dismissProgress() }, tools) }
-                    else { opened = try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: { request.dismissProgress() }, preferences: tools, expectedEntry: entry, identityOptions: identities) }
+                    else { opened = try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: CommandProgressContext.capture { request.dismissProgress() }, preferences: tools, expectedEntry: entry, identityOptions: identities) }
                     if opened {
                         try token.check(); guard !retired, !confirmingQuit else { return }
                         let root = repository.root
@@ -2007,8 +2053,8 @@ private enum TransportBatchPresentationContext {
                         request.dismissProgress()
                         if let conflictEditorPresentation { conflictEditorPresentation(.image, repository, path, document); return }
                         let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document, preferences: defaults)
-                        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.imageConflictWindows[key] === controller else { return }; self.imageConflictWindows.removeValue(forKey: key) }
-                        controller.model.onChanged = { [weak self] output in
+                        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.imageConflictWindows[key] === controller else { return }; self.imageConflictWindows.removeValue(forKey: key) }
+                        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
                             self?.refreshAfterConflictChange(root)
                             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                         }
@@ -2018,8 +2064,8 @@ private enum TransportBatchPresentationContext {
                     request.dismissProgress()
                     if let conflictEditorPresentation { conflictEditorPresentation(.text, repository, path, nil); return }
                     let controller = (textConflictWindows[key]?.window != nil ? textConflictWindows[key] : nil) ?? TextConflictWindowController(repository: repository, access: access, path: path, preferences: defaults)
-                    controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
-                    controller.model.onChanged = { [weak self] output in
+                    controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
+                    controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
                         self?.refreshAfterConflictChange(root)
                         if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                     }
@@ -2032,16 +2078,16 @@ private enum TransportBatchPresentationContext {
                 let conflictKey=key+"\0git:"+repository.executable.path+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
                 let reusable=submoduleConflictWindows[conflictKey].flatMap{$0.canReuse ? $0:nil}
                 let controller=reusable ?? SubmoduleConflictWindowController(repository:repository,access:access,path:path,preferences:defaults)
-                controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.submoduleConflictWindows[conflictKey] === controller else{return};self.submoduleConflictWindows.removeValue(forKey:conflictKey) }
-                controller.model.onChanged = { [weak self] output in
+                controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.submoduleConflictWindows[conflictKey] === controller else{return};self.submoduleConflictWindows.removeValue(forKey:conflictKey) }
+                controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
                     self?.refreshAfterConflictChange(root)
                     if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                 }
                 let preferences=controller.model.operation.preferences
-                controller.model.onLog={ [weak self] child,revision in self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
-                controller.model.onReset={ [weak self,weak controller] child,revision,done in
+                controller.model.onLog=CommandProgressContext.capture { [weak self] child,revision in self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
+                controller.model.onReset=CommandProgressContext.capture { [weak self,weak controller] child,revision,done in
                     guard let self,!self.retired,!self.confirmingQuit,let controller,controller.canReuse,!controller.model.confirmingQuit else{controller?.model.dismissReset();return}
-                    self.showReset(repository:child,access:access,revision:revision,completion:done,dismissed:{[weak controller] in controller?.resetChildClosed()},preferences:preferences,onCreated:{[weak controller] in controller?.retainReset($0)})
+                    self.showReset(repository:child,access:access,revision:revision,completion:done,dismissed:CommandProgressContext.capture {[weak controller] in controller?.resetChildClosed()},preferences:preferences,onCreated:CommandProgressContext.capture {[weak controller] in controller?.retainReset($0)})
                 }
                 submoduleConflictWindows[conflictKey] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
                 }
@@ -2055,34 +2101,34 @@ private enum TransportBatchPresentationContext {
     private func showDeleteConflict(repository: GitRepository, access: RepositoryAccessLease?, path: String, preferences: UserDefaults) {
         let root = repository.root, key = root.path + "\0" + path
         let controller = deleteConflictWindows[key] ?? DeleteConflictWindowController(repository: repository, access: access, path: path, preferences: preferences)
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.deleteConflictWindows[key] === controller else { return }; self.deleteConflictWindows.removeValue(forKey: key) }
-        controller.model.onChanged = { [weak self] output in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.deleteConflictWindows[key] === controller else { return }; self.deleteConflictWindows.removeValue(forKey: key) }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshAfterConflictChange(root)
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
-        controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
+        controller.model.onLog = CommandProgressContext.capture { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
         deleteConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
     }
     func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
         let root = repository.root, preferences = controller.model.presentationPreferences
-        controller.model.onNotificationLog={ [weak self] child,grant,paths,old,new in
+        controller.model.onNotificationLog=CommandProgressContext.capture { [weak self] child,grant,paths,old,new in
             guard let self,!self.retired,!self.confirmingQuit else{return}
             self.showLog(repository:child,access:grant,paths:paths,endRevision:old == nil ? new:nil,revisionRange:old.map{HistoryRevisionRange(from:$0,to:new ?? "HEAD")},preferences:preferences)
         }
-        controller.configureReferencePicker = { [weak self] model in
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
-        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.configureModifiedComparison = { [weak self] model in
+        controller.configureCommitPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureModifiedComparison = CommandProgressContext.capture { [weak self] model in
             self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
         }
-        controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root)
-            self?.refreshRepositoryLogs(root); self?.commitWindows[root.path]?.model.reload()
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.refreshStatusWindows(root)
+            self?.refreshRepositoryLogs(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
-        controller.model.onReset = { _ in completion?() }
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action in
+        controller.model.onReset = CommandProgressContext.capture { _ in completion?() }
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = controller.model] action in
             guard let self, !self.retired, !self.confirmingQuit, let model else { return }
             let presentation = model.handoffPresentation
             switch action {
@@ -2101,12 +2147,12 @@ private enum TransportBatchPresentationContext {
         guard !confirmingQuit else { return }
         let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
         if revision == nil, let existing = resetWindows[key] {
-            if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
+            if let completion { let previous = existing.model.onReset; existing.model.onReset = CommandProgressContext.capture { output in previous(output); completion() } }
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
         }
         let controller = ResetWindowController(repository: repository, access: access, revision: revision, preferences: preferences ?? fileComparisonPreferences)
         if let mode { controller.model.mode = mode }
-        controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key); dismissed?() }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.resetWindows.removeValue(forKey: key); dismissed?() }
         configureResetInteractions(controller, repository: repository, access: access, completion: completion)
         resetWindows[key]=controller;onCreated?(controller)
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
@@ -2114,11 +2160,11 @@ private enum TransportBatchPresentationContext {
     }
     private func refreshAfterConflictChange(_ root:URL) {
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
-            revertWindows[root.path]?.model.requestReload(); refreshStatusWindows(root);commitWindows[root.path]?.model.reload()
+            revertWindows.allValues(forKey: root.path).forEach { $0.model.requestReload() }; refreshStatusWindows(root);commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             for resolve in resolveWindows.values where resolve.model.repository.root == root {resolve.model.load()}
-            synchronizationWindows[root.path]?.model.refreshConflictFiles()
+            synchronizationWindows.allValues(forKey: root.path).forEach { $0.model.refreshConflictFiles() }
         }
-        rebaseWindows[root.path]?.model.refreshState();refreshRepositoryLogs(root)
+        rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() };refreshRepositoryLogs(root)
     }
     private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults? = nil, commandOptions: ResolveCommandOptions? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -2126,31 +2172,31 @@ private enum TransportBatchPresentationContext {
         let mode = commandOptions.map { "\0command:\($0.silent):\($0.noQuestion)" } ?? ""
         let key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0") + mode + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
         let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick, preferences: defaults, commandOptions: commandOptions)
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.resolveWindows[key] === controller else { return }; self.resolveWindows.removeValue(forKey: key) }
-        controller.onChanged = { [weak self] output in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.resolveWindows[key] === controller else { return }; self.resolveWindows.removeValue(forKey: key) }
+        controller.onChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshAfterConflictChange(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onEdit = { [weak self, weak controller] path in self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window, preferences: defaults) }
-        controller.model.onSubmoduleReset = { [weak self, weak controller] child, revision, done in
-            self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissSubmoduleReset() })
+        controller.model.onEdit = CommandProgressContext.capture { [weak self, weak controller] path in self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window, preferences: defaults) }
+        controller.model.onSubmoduleReset = CommandProgressContext.capture { [weak self, weak controller] child, revision, done in
+            self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: CommandProgressContext.capture { [weak controller] in controller?.model.dismissSubmoduleReset() })
         }
-        controller.model.onFileSubmoduleRevert = { [weak self] revision,paths in
+        controller.model.onFileSubmoduleRevert = CommandProgressContext.capture { [weak self] revision,paths in
             for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)}
         }
-        controller.model.onFileLog = { [weak self] path in self?.showLog(repository:repository,access:access,paths:[path]) }
-        controller.model.onFileBlame = { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
-        controller.model.onFileSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
-        controller.model.onFilePair = { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
+        controller.model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository:repository,access:access,paths:[path]) }
+        controller.model.onFileBlame = CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
+        controller.model.onFileSubmoduleLog = CommandProgressContext.capture { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
+        controller.model.onFilePair = CommandProgressContext.capture { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
         let capturedPreferences = controller.model.preferences
         controller.model.confirmingQuit = confirmingQuit
-        controller.model.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
-        controller.onProgressLog = { [weak self] path in
+        controller.model.externalAvailability = CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onProgressLog = CommandProgressContext.capture { [weak self] path in
             guard let self, !self.retired, !self.confirmingQuit else { return }
             self.showLog(repository: repository, access: access, paths: [path], preferences: capturedPreferences)
         }
-        controller.onCommit = { [weak self, weak controller] in
+        controller.onCommit = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, !self.retired, !self.confirmingQuit else { return }
             self.showCommitDialog(repository: repository, access: access, paths: [], preferences: capturedPreferences, sourceWindow: controller?.window)
         }
@@ -2167,10 +2213,10 @@ private enum TransportBatchPresentationContext {
             if let existing = ignoreWindows[key] { controller = existing }
             else if let factory = ignoreWindowFactory { controller = try factory(repository, access, paths, action.ignoresByExtension, action.removesWhenIgnoring) }
             else { controller = try IgnoreWindowController(repository: repository, access: access, paths: paths, mask: action.ignoresByExtension, delete: action.removesWhenIgnoring, preferences: fileComparisonPreferences) }
-            controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
-            controller.onChanged = { [weak self] output in
+            controller.onClosed = CommandProgressContext.capture { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
+            controller.onChanged = CommandProgressContext.capture { [weak self] output in
                 self?.refreshRepositoryLogs(root)
-                self?.revertWindows[root.path]?.model.requestReload(); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+                self?.revertWindows.allValues(forKey: root.path).forEach { $0.model.requestReload() }; self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -2183,11 +2229,11 @@ private enum TransportBatchPresentationContext {
         do {
             let request = try RemovalRequest(paths: paths, keepLocal: keepLocal)
             let root = repository.root, key = root.path + "\0" + String(keepLocal) + "\0" + request.paths.joined(separator: "\0")
-            guard removeWindows[key]?.model.retired != true else {error="The previous Delete window is still closing. Wait for its operation to finish.";return}
+            guard !removeWindows.allValues(forKey: key).contains(where: { $0.model.retired }) else {error="The previous Delete window is still closing. Wait for its operation to finish.";return}
             let controller = removeWindows[key] ?? removeWindowFactory?(repository, access, request) ?? RemoveWindowController(repository: repository, access: access, request: request, preferences: fileComparisonPreferences)
-            controller.onClosed = { [weak self] in self?.removeWindows.removeValue(forKey: key) }
-            controller.onChanged = { [weak self] output in
-                self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            controller.onClosed = CommandProgressContext.capture { [weak self] in self?.removeWindows.removeValue(forKey: key) }
+            controller.onChanged = CommandProgressContext.capture { [weak self] output in
+                self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -2199,7 +2245,7 @@ private enum TransportBatchPresentationContext {
     private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let root = repository.root
-        if let existing = commitWindows[root.path], !existing.canReuse {
+        if commitWindows.allValues(forKey: root.path).contains(where: { !$0.canReuse }) {
             error = String(localized:"The previous Commit window is still closing. Wait for its operation to finish.")
             return
         }
@@ -2216,20 +2262,20 @@ private enum TransportBatchPresentationContext {
         let preferences = controller.presentationPreferences, access = controller.model.access
         presentation?.apply(to: controller.window)
         if let sourceWindow { controller.window?.alphaValue = sourceWindow.alphaValue; controller.window?.appearance = sourceWindow.effectiveAppearance }
-        controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
-        controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
-        controller.model.onCommitted = { [weak self] output in
+        controller.onPullAfterLFSLock = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
+        controller.model.onCommitted = CommandProgressContext.capture { [weak self] output in
             self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output
             Task { await self.refresh() }
         }
-        controller.model.onPush = { [weak self] continuation in
+        controller.model.onPush = CommandProgressContext.capture { [weak self] continuation in
             self?.showPush(repository:repository,access:access,preferences:preferences,commitContinuation:continuation)
         }
-        controller.model.onPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true), preferences: preferences) }
-        controller.model.onCreateTag = { [weak self] in self?.showReference(repository: repository, access: access, isTag: true, preferences: preferences) }
-        controller.model.onSVNDCommit = { [weak self] in self?.showSVN(.dcommit, repository: repository, access: access) }
+        controller.model.onPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true), preferences: preferences) }
+        controller.model.onCreateTag = CommandProgressContext.capture { [weak self] in self?.showReference(repository: repository, access: access, isTag: true, preferences: preferences) }
+        controller.model.onSVNDCommit = CommandProgressContext.capture { [weak self] in self?.showSVN(.dcommit, repository: repository, access: access) }
         configureCommitInteractions(controller.model, repository: repository, access: access)
         commitWindows[root.path] = controller
         if let invocation { controller.model.applyCommandLine(invocation, message: commandMessage) }
@@ -2260,38 +2306,38 @@ private enum TransportBatchPresentationContext {
                 }
                 let controller = addWindows[key] ?? AddWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
                 guard !controller.model.busy else { controller.window?.makeKeyAndOrderFront(nil); return }
-                controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
-                controller.model.onAccepted = { [weak self, weak controller] paths in
+                controller.onClosed = CommandProgressContext.capture { [weak self] in self?.addWindows.removeValue(forKey: key) }
+                controller.model.onAccepted = CommandProgressContext.capture { [weak self, weak controller] paths in
                     guard let backend = controller?.model.acceptedBackend else { return }
                     self?.showAddProgress(repository: repository, access: access, paths: paths, backend: backend)
                 }
-                controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-                controller.model.onLFSChanged = { [weak self] in
-                    self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
+                controller.onPullAfterLFSLock = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+                controller.model.onLFSChanged = CommandProgressContext.capture { [weak self] in
+                    self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if let self, self.root == repository.root { Task { await self.refresh() } }
                 }
-                controller.model.onPreview = { [weak self, weak controller] path in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: [path], owner: controller.window) }
-                controller.model.onCompare = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller.window) }
-                controller.model.onCompareTwo = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
-                controller.model.unifiedViewerBusy = { [weak self] in self?.addUnifiedWindows[key]?.model.busy == true || self?.addUnifiedWindows[key]?.window?.attachedSheet != nil }
-                controller.model.onUnifiedPatch = { [weak self] bytes, alternate in
+                controller.model.onPreview = CommandProgressContext.capture { [weak self, weak controller] path in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: [path], owner: controller.window) }
+                controller.model.onCompare = CommandProgressContext.capture { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller.window) }
+                controller.model.onCompareTwo = CommandProgressContext.capture { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
+                controller.model.unifiedViewerBusy = CommandProgressContext.capture { [weak self] in self?.addUnifiedWindows[key]?.model.busy == true || self?.addUnifiedWindows[key]?.window?.attachedSheet != nil }
+                controller.model.onUnifiedPatch = CommandProgressContext.capture { [weak self] bytes, alternate in
                     guard let self else { return }
                     if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, title: "HEAD → Working tree", permissions: access.map { [$0] } ?? []) {
-                        self.addUnifiedWindows[key] = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.addUnifiedWindows[key], title: "HEAD → Working tree", onClosed: { [weak self] in self?.addUnifiedWindows.removeValue(forKey: key) })
+                        self.addUnifiedWindows[key] = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.addUnifiedWindows[key], title: "HEAD → Working tree", onClosed: CommandProgressContext.capture { [weak self] in self?.addUnifiedWindows.removeValue(forKey: key) })
                     }
                 }
-                controller.model.onLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-                controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
-                controller.model.onIgnoreChanged = { [weak self] output in
-                    self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
+                controller.model.onLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+                controller.model.onBlame = CommandProgressContext.capture { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
+                controller.model.onIgnoreChanged = CommandProgressContext.capture { [weak self] output in
+                    self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
-                controller.model.onRevert = { [weak self, weak model = controller.model] entries, done in
+                controller.model.onRevert = CommandProgressContext.capture { [weak self, weak model = controller.model] entries, done in
                     guard let self else { done(false); return {} }
                     let progress = self.showRevertProgress(repository: repository, access: access, entries: entries, autoCloseSuccess: true, policy: model?.pendingRevertPolicy, completion: done)
                     return { [weak progress] in progress?.model.cancel() }
                 }
-                controller.model.onRestoreChanged = { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
+                controller.model.onRestoreChanged = CommandProgressContext.capture { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
                 guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -2315,22 +2361,22 @@ private enum TransportBatchPresentationContext {
         }
         if operation == .rebase, let existing = rebaseWindows[key] { existing.window?.makeKeyAndOrderFront(nil); error = "Close the existing Rebase dialog before starting SVN Rebase."; return }
         let controller = svnWindowFactory?(repository,access,operation) ?? SVNWindowController(repository: repository, access: access, operation: operation, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self, weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, self.svnWindows[key] === controller else { return }
             self.svnWindows.removeValue(forKey: key)
         }
         let inherited = controller.model.outputPreferences
-        controller.model.onChanged = { [weak self] in
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
             self?.refreshRepositoryLogs(repository.root)
             if self?.root == repository.root { Task { await self?.refresh() } }
         }
-        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: .revision(from), to: .revision(to), preferences: inherited) }
-        controller.model.onLog = { [weak self] result in self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHash, to: result.newHash), preferences: inherited) }
-        controller.model.onRepositoryLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
-        controller.model.openRebase = { [weak self, weak controller] reference in
+        controller.model.onCompare = CommandProgressContext.capture { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: .revision(from), to: .revision(to), preferences: inherited) }
+        controller.model.onLog = CommandProgressContext.capture { [weak self] result in self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHash, to: result.newHash), preferences: inherited) }
+        controller.model.onRepositoryLog = CommandProgressContext.capture { [weak self] in self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
+        controller.model.openRebase = CommandProgressContext.capture { [weak self, weak controller] reference in
             guard let self, let window = controller?.window, window.attachedSheet == nil, self.rebaseWindows[key] == nil else { return false }
             return await withCheckedContinuation { continuation in
-                self.showRebase(repository: repository, access: access, upstream: String(reference.dropFirst("refs/".count)), owner: window, onResult: { continuation.resume(returning: $0) }, onRequestedLog: { [weak controller] in controller?.model.pendingRebaseLog = true }, preferences: inherited)
+                self.showRebase(repository: repository, access: access, upstream: String(reference.dropFirst("refs/".count)), owner: window, onResult: CommandProgressContext.capture { continuation.resume(returning: $0) }, onRequestedLog: CommandProgressContext.capture { [weak controller] in controller?.model.pendingRebaseLog = true }, preferences: inherited)
             }
         }
         presentation?.apply(to: controller.window)
@@ -2349,7 +2395,7 @@ private enum TransportBatchPresentationContext {
         }
         let key=daemonWindows[base]==nil ? base:base+"\0"+UUID().uuidString
         let controller=GitDaemonWindowController(repository:repository,access:access,configuration:daemonConfiguration,preferences:preferences)
-        controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.daemonWindows[key] === controller else{return};self.daemonWindows.removeValue(forKey:key)}
+        controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.daemonWindows[key] === controller else{return};self.daemonWindows.removeValue(forKey:key)}
         daemonWindows[key]=controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let daemonPresentation {daemonPresentation(controller)} else{controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
@@ -2366,9 +2412,9 @@ private enum TransportBatchPresentationContext {
         // column layout and any progress review already owned by that window.
         if let existing = lfsLocksWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = lfsLocksWindowFactory?(repository, access, fileComparisonPreferences) ?? LFSLocksWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
-        controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-        controller.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.lfsLocksWindows[key] === controller else { return }; self.lfsLocksWindows.removeValue(forKey: key) }
+        controller.model.onProgressLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+        controller.onPullAfterLock = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.lfsLocksWindows[key] === controller else { return }; self.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         Task { await controller.model.refresh() }
     }
@@ -2389,11 +2435,11 @@ private enum TransportBatchPresentationContext {
                 try owner.cancellation.check()
                 guard !retired, !confirmingQuit, window?.attachedSheet == nil else { return }
                 let controller = factory?(repository, access, preferences) ?? LFSFileOperationController(repository: repository, access: access, defaults: preferences)
-                controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-                controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-                controller.onClosed = { [weak self] in
+                controller.model.onProgressLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+                controller.model.onPullAfterLock = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+                controller.onClosed = CommandProgressContext.capture { [weak self] in
                     guard let self else { return }; self.lfsFileOperations.removeValue(forKey: id)
-                    self.refreshStatusWindows(repository.root); self.commitWindows[repository.root.path]?.model.reload()
+                    self.refreshStatusWindows(repository.root); self.commitWindows.allValues(forKey: repository.root.path).forEach { $0.model.reload() }
                     if self.root == repository.root { Task { await self.refresh() } }
                 }
                 lfsFileOperations[id] = controller
@@ -2443,18 +2489,18 @@ private enum TransportBatchPresentationContext {
     private func presentReview(_ workflow: ReviewPatchWorkflow,allowed:(()->Bool)?=nil) {
         guard !retired,!confirmingQuit,workflow.canReuse,allowed?() != false else{workflow.close();return}
         let id = UUID(); reviewPatchWorkflows[id] = workflow
-        workflow.presentation = { [weak self] controller in
+        workflow.presentation = CommandProgressContext.capture { [weak self] controller in
             let root = controller.model.repository.root
-            let refresh: () -> Void = { [weak self] in
-                self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            let refresh: () -> Void = CommandProgressContext.capture { [weak self] in
+                self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.refreshRepositoryLogs(root)
                 if self?.root == root { Task { await self?.refresh() } }
             }
             controller.model.onMutationStopped = refresh
-            controller.model.onChanged = { [weak self] output in refresh(); if self?.root == root { self?.output = output } }
+            controller.model.onChanged = CommandProgressContext.capture { [weak self] output in refresh(); if self?.root == root { self?.output = output } }
             if let presentation = self?.reviewPatchPresentation { presentation(controller) }
             else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         }
-        workflow.onFinished = { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
+        workflow.onFinished = CommandProgressContext.capture { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
         if let reviewPatchPreparation { reviewPatchPreparation(workflow) }
         else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
         if workflow.canReuse,!retired,!confirmingQuit,allowed?() != false {workflow.start()}else{workflow.close()}
@@ -2489,7 +2535,7 @@ private enum TransportBatchPresentationContext {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = true; panel.allowsMultipleSelection = true
         panel.prompt = "Authorize mail files"; panel.message = message
         panel.directoryURL = targets.first?.deletingLastPathComponent(); mailPermissionPanels[id] = panel
-        owner.onCancelled = { [weak self, weak panel] in
+        owner.onCancelled = CommandProgressContext.capture { [weak self, weak panel] in
             guard let panel else { return }
             if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }
             else { panel.cancel(nil) }
@@ -2497,7 +2543,7 @@ private enum TransportBatchPresentationContext {
         }
         return await withCheckedContinuation { continuation in
             var answered = false
-            let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            let reply: (NSApplication.ModalResponse) -> Void = CommandProgressContext.capture { [weak self] response in
                 guard !answered else { return }; answered = true
                 self?.mailPermissionPanels.removeValue(forKey: id)
                 guard !owner.cancellation.isCancelled, self?.retired == false, response == .OK else { continuation.resume(returning: nil); return }
@@ -2513,7 +2559,7 @@ private enum TransportBatchPresentationContext {
         let first = files[0], id = UUID(), owner = RepositoryWindowOwner(window: window)
         let requireScope = requiresRepositoryScope, preferences = capturedPreferences ?? fileComparisonPreferences
         let presentation:((NSWindowController)->Void)? = preparedGrants.map { accepted in
-            { [weak self] (controller:NSWindowController) in
+            CommandProgressContext.capture { [weak self] (controller:NSWindowController) in
                 controller.window?.alphaValue=window?.alphaValue ?? 1;controller.window?.appearance=window?.effectiveAppearance
                 self?.finderServiceFileWorkflowPresentation?(.sendMail,controller,accepted)
                 let reusable=(controller as? SendPatchWindowController)?.canReuse ?? (controller as? SendPatchProgressWindowController)?.canReuse ?? false
@@ -2609,7 +2655,7 @@ private enum TransportBatchPresentationContext {
         if let existing = synchronizationWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; if let synchronizationWindowPresentation {synchronizationWindowPresentation(existing)} else {existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil)};return }
         let controller = SynchronizationWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, sequence: sequence)
         let notificationPreferences = controller.model.preferences
-        controller.model.onNotificationLog = { [weak self, weak controller] child, grant, paths, old, new in
+        controller.model.onNotificationLog = CommandProgressContext.capture { [weak self, weak controller] child, grant, paths, old, new in
             guard let self, !self.retired, !self.confirmingQuit, let controller,
                   controller.model.notificationActionsAvailable else { return }
             self.showLog(repository: child, access: grant, paths: paths,
@@ -2617,138 +2663,138 @@ private enum TransportBatchPresentationContext {
                 revisionRange: old.map { HistoryRevisionRange(from: $0, to: new ?? "HEAD") },
                 preferences: notificationPreferences, sourceWindow: controller.window)
         }
-        controller.configureExport = { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
-        controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
-        controller.configureHistoryReference = { [weak self] child in self?.configureReferenceInteractions(child, repository: repository, access: access) }
-        controller.configureHistoryContainingReferences = { [weak self] child in
-            child.onLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range) }
-            child.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-            child.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.configureExport = CommandProgressContext.capture { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
+        controller.configureBranchPicker = CommandProgressContext.capture { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
+        controller.configureHistoryReference = CommandProgressContext.capture { [weak self] child in self?.configureReferenceInteractions(child, repository: repository, access: access) }
+        controller.configureHistoryContainingReferences = CommandProgressContext.capture { [weak self] child in
+            child.onLog = CommandProgressContext.capture { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range) }
+            child.onBrowse = CommandProgressContext.capture { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+            child.onCompare = CommandProgressContext.capture { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         }
-        controller.model.onHistoryBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
-        controller.model.onHistoryLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
-        controller.model.onHistoryLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
+        controller.model.onHistoryBrowseRepository = CommandProgressContext.capture { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
+        controller.model.onHistoryLog = CommandProgressContext.capture { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
+        controller.model.onHistoryLogRange = CommandProgressContext.capture { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
         configureRevisionComparisonInteractions(controller.model.comparison, repository: repository, access: access)
         configureRevisionComparisonInteractions(controller.model.incomingComparison, repository: repository, access: access)
-        controller.configurePushOptions = { [weak self] child in self?.configurePushInteractions(child, repository: repository, access: access) }
-        controller.model.onTransportFinished = { [weak self] text in
+        controller.configurePushOptions = CommandProgressContext.capture { [weak self] child in self?.configurePushInteractions(child, repository: repository, access: access) }
+        controller.model.onTransportFinished = CommandProgressContext.capture { [weak self] text in
             guard let self else { return }
             self.output = text; self.refreshRepositoryLogs(repository.root)
             if self.root?.path == repository.root.path { Task { await self.refresh() } }
         }
-        controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
-        controller.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
-        controller.model.onStashOptions = { [weak self] in self?.showStash(repository: repository, access: access) }
-        controller.model.onSubmoduleOptions = { [weak self] action in
+        controller.model.onLog = CommandProgressContext.capture { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision) }
+        controller.model.onCommit = CommandProgressContext.capture { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        controller.model.onStashOptions = CommandProgressContext.capture { [weak self] in self?.showStash(repository: repository, access: access) }
+        controller.model.onSubmoduleOptions = CommandProgressContext.capture { [weak self] action in
             if action == .sync { self?.showSubmoduleSync(repository: repository, access: access, scope: []) }
             else { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
         }
-        controller.model.onResultLog = { [weak self,weak controller] revision in
+        controller.model.onResultLog = CommandProgressContext.capture { [weak self,weak controller] revision in
             guard let controller,!controller.model.closed else{return}
             self?.showLog(repository:repository,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:controller.model.preferences,sourceWindow:controller.window)
         }
-        controller.model.onTagLog = { [weak controller] revision in controller?.model.onResultLog?(revision) }
-        controller.model.onTagsChanged = { [weak self] in
+        controller.model.onTagLog = CommandProgressContext.capture { [weak controller] revision in controller?.model.onResultLog?(revision) }
+        controller.model.onTagsChanged = CommandProgressContext.capture { [weak self] in
             guard let self else { return }
             self.refreshRepositoryLogs(repository.root)
             if self.root?.path == repository.root.path { Task { await self.refresh() } }
         }
-        controller.model.onReferenceLog = { [weak self,weak controller] reference in
+        controller.model.onReferenceLog = CommandProgressContext.capture { [weak self,weak controller] reference in
             guard let controller,!controller.model.closed else{return}
             self?.showReferenceLog(repository:repository,access:access,reference:reference,preferences:controller.model.preferences)
         }
-        controller.model.onReferenceCompare = { [weak self,weak controller] old,new in
+        controller.model.onReferenceCompare = CommandProgressContext.capture { [weak self,weak controller] old,new in
             guard let controller,!controller.model.closed else{return}
             let alternate=ComparisonToolInvocation.capture
             ComparisonToolInvocation.$alternate.withValue(alternate) {
                 self?.showRevisionComparison(repository:repository,access:access,from:.revision(old),to:.revision(new),preferences:controller.model.preferences)
             }
         }
-        controller.model.onHistoryCompare = { [weak self,weak controller] from,to in
+        controller.model.onHistoryCompare = CommandProgressContext.capture { [weak self,weak controller] from,to in
             guard let controller,!controller.model.closed else{return}
             let alternate=ComparisonToolInvocation.capture
             ComparisonToolInvocation.$alternate.withValue(alternate) {
                 self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:controller.model.preferences)
             }
         }
-        controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
-        controller.model.onConflictAction = { [weak self, weak controller] action, paths in
+        controller.model.onResolve = CommandProgressContext.capture { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
+        controller.model.onConflictAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             guard let self, let controller, !controller.model.closed else { return }
             if action == .editConflict, let path=paths.first { self.showConflictEditor(repository:repository,access:access,path:path,owner:controller.window) }
             else if action == .log { self.showLog(repository:repository,access:access,paths:paths) }
             else if action.resolveChoice != nil { self.showResolve(repository:repository,access:access,paths:paths,quick:action.resolveChoice) }
         }
-        controller.configureOptions = { [weak self] child in
+        controller.configureOptions = CommandProgressContext.capture { [weak self] child in
             self?.configureFetchInteractions(child, repository: repository, access: access, followUp: PullFollowUp())
         }
-        controller.model.runRebase = { [weak self, weak controller] target, autoStart, preserve in
+        controller.model.runRebase = CommandProgressContext.capture { [weak self, weak controller] target, autoStart, preserve in
             guard let self, let controller, !controller.model.closed, let owner = controller.window,
                   owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
             let accepted=controller.model.acceptedOperationRepository ?? repository.capturingDiffBackend(preferences:controller.model.preferences)
             await withCheckedContinuation { continuation in
                 self.showRebase(repository: accepted, access: access, upstream: target.isEmpty ? nil:target, autoStart: autoStart, preserveMerges: preserve,
-                    afterFetch: true, owner: owner, onDismissed: { continuation.resume() },preferences:controller.model.preferences,acceptedRepository:accepted)
+                    afterFetch: true, owner: owner, onDismissed: CommandProgressContext.capture { continuation.resume() },preferences:controller.model.preferences,acceptedRepository:accepted)
             }
         }
-        controller.model.runHistoryReplay = { [weak self, weak controller] upstream, commits in
+        controller.model.runHistoryReplay = CommandProgressContext.capture { [weak self, weak controller] upstream, commits in
             guard let self, let controller, !controller.model.closed, let owner = controller.window,
                   owner.attachedSheet == nil, self.rebaseWindows[key] == nil else { throw SynchronizationFailure.invalidInput }
             await withCheckedContinuation { continuation in
                 self.showRebase(repository: repository, access: access, upstream: upstream, cherryPick: commits,
-                    fromLog: true, owner: owner, onDismissed: { continuation.resume() })
+                    fromLog: true, owner: owner, onDismissed: CommandProgressContext.capture { continuation.resume() })
             }
         }
-        controller.configureHistoryOperation = { [weak self] child in
+        controller.configureHistoryOperation = CommandProgressContext.capture { [weak self] child in
             switch child {
             case let child as MergeWindowController: self?.configureMergeInteractions(child, repository: repository, access: access)
             case let child as ResetWindowController: self?.configureResetInteractions(child, repository: repository, access: access)
             case let child as SwitchWindowController: self?.configureSwitchInteractions(child, repository: repository, access: access)
             case let child as HistoryCombineWindowController:
-                child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
-                child.model.onChanged = { [weak self] output in
-                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
+                child.configureCommit = CommandProgressContext.capture { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
+                child.model.onChanged = CommandProgressContext.capture { [weak self] output in
+                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
             case let child as HistoryNotesWindowController:
-                child.model.onChanged = { [weak self] output in
+                child.model.onChanged = CommandProgressContext.capture { [weak self] output in
                     guard let self, !self.retired else { return }
                     self.refreshRepositoryLogs(repository.root)
                     if self.root == repository.root { self.output = output }
                 }
             case let child as HistoryRevertWindowController:
-                child.model.onChanged = { [weak self] output in
-                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
+                child.model.onChanged = CommandProgressContext.capture { [weak self] output in
+                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
-                child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+                child.model.onCommit = CommandProgressContext.capture { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
             case let child as SwitchProgressWindowController:
-                child.model.onFinished = { [weak self] output, _ in
-                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
+                child.model.onFinished = CommandProgressContext.capture { [weak self] output, _ in
+                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
                 let inherited = child.model.presentationPreferences
-                child.model.onPostAction = { [weak self, weak model = child.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
+                child.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = child.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
             default: break
             }
         }
         let bisectPreferences = controller.model.preferences
-        controller.model.onHistoryBisect = { [weak self, weak controller] request in
-            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: { [weak controller] in controller?.model.refresh() }, preferences: bisectPreferences)
+        controller.model.onHistoryBisect = CommandProgressContext.capture { [weak self, weak controller] request in
+            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: CommandProgressContext.capture { [weak controller] in controller?.model.refresh() }, preferences: bisectPreferences)
         }
-        controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
-        controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.model.onHistoryReferenceChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
+        controller.model.onHistoryPush = CommandProgressContext.capture { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+        controller.model.onHistoryPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        controller.model.onHistoryReferenceChanged = CommandProgressContext.capture { [weak self] output in
+            self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
             if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onHistoryFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
-        controller.model.detachRebase = { [weak self, weak controller] in
+        controller.model.onHistoryFormatPatch = CommandProgressContext.capture { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
+        controller.model.detachRebase = CommandProgressContext.capture { [weak self, weak controller] in
             guard let child = self?.rebaseWindows[key], let window = child.window,
                   let owner = controller?.window, window.sheetParent === owner else { return }
             owner.endSheet(window)
             if child.model.busy { child.showWindow(nil) } else { child.close() }
         }
-        controller.onClosed = { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }
         synchronizationWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let synchronizationWindowPresentation {synchronizationWindowPresentation(controller)} else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
@@ -2760,22 +2806,22 @@ private enum TransportBatchPresentationContext {
         let controller = addProgressWindowFactory?(repository, access, paths, mode, preferences, capturedBackend, preservePathOrder) ?? AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode, preferences: preferences, backend: capturedBackend, preservePathOrder: preservePathOrder)
         let capturedPreferences = controller.model.preferences
         controller.model.confirmingQuit = confirmingQuit
-        controller.model.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
-        controller.onClosed = { [weak self, weak controller] in
+        controller.model.externalAvailability = CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, self.addProgressWindows[id] === controller else { return }
             self.addProgressWindows.removeValue(forKey: id)
         }
-        controller.model.onFinished = { [weak self] text, _ in
+        controller.model.onFinished = CommandProgressContext.capture { [weak self] text, _ in
             self?.refreshRepositoryLogs(repository.root)
             self?.refreshStatusWindows(repository.root)
-            self?.commitWindows[repository.root.path]?.model.reload()
+            self?.commitWindows.allValues(forKey: repository.root.path).forEach { $0.model.reload() }
             if self?.root?.path == repository.root.path { self?.output = text; Task { await self?.refresh() } }
         }
-        controller.model.onCommit = { [weak self, weak controller] in
+        controller.model.onCommit = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, !self.retired, !self.confirmingQuit else { return }
             self.showCommitDialog(repository: repository, access: access, paths: [], preferences: capturedPreferences, sourceWindow: controller?.window)
         }
-        controller.onProgressLog = { [weak self] path in
+        controller.onProgressLog = CommandProgressContext.capture { [weak self] path in
             guard let self, !self.retired, !self.confirmingQuit else { return }
             self.showLog(repository: repository, access: access, paths: [path], preferences: capturedPreferences)
         }
@@ -2787,7 +2833,7 @@ private enum TransportBatchPresentationContext {
     }
     private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
-        if commandLaunch, let existing = cleanWindows.values.first(where: { GitReferenceName.equal($0.model.repository.root.path, repository.root.path) }) {
+        if commandLaunch, let existing = cleanWindows.scopedValues.first(where: { GitReferenceName.equal($0.model.repository.root.path, repository.root.path) }) {
             existing.window?.makeKeyAndOrderFront(nil)
             error = "A Cleanup dialog is already open. Close it before opening another command-line Cleanup."; return
         }
@@ -2799,17 +2845,17 @@ private enum TransportBatchPresentationContext {
         let inherited = controller.model.presentationPreferences
         let inheritedPresentation = controller.window.map(MergeWindowPresentation.init)
         let serviceContext=finderServiceDispatch
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.cleanWindows[key] === controller else { return }; self.cleanWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.cleanWindows[key] === controller else { return }; self.cleanWindows.removeValue(forKey: key) }
         controller.model.setScope(paths)
-        controller.model.onAccepted = { [weak self] request in
+        controller.model.onAccepted = CommandProgressContext.capture { [weak self] request in
             guard let self, !self.retired, !self.confirmingQuit else { return }
             let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request, preferences: inherited)
-            progress.onClosed = { [weak self] in self?.cleanProgressWindows.removeValue(forKey: id) }
-            progress.model.onFinished = { [weak self] output, changed in
+            progress.onClosed = CommandProgressContext.capture { [weak self] in self?.cleanProgressWindows.removeValue(forKey: id) }
+            progress.model.onFinished = CommandProgressContext.capture { [weak self] output, changed in
                 guard let self else { return }
                 if changed {
                     self.refreshStatusWindows(root)
-                    self.commitWindows[root.path]?.model.reload()
+                    self.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
                     self.refreshRepositoryLogs(root)
                     if self.root == root { Task { await self.refresh() } }
                 }
@@ -2829,20 +2875,20 @@ private enum TransportBatchPresentationContext {
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
         let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
-        controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-        controller.model.onAccepted = { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
-        controller.model.onCompare = { [weak self,weak controller] paths in self?.showWorkingFiles(repository:repository,access:access,paths:paths,owner:controller?.window) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
+        controller.model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+        controller.model.onAccepted = CommandProgressContext.capture { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
+        controller.model.onCompare = CommandProgressContext.capture { [weak self,weak controller] paths in self?.showWorkingFiles(repository:repository,access:access,paths:paths,owner:controller?.window) }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self,weak controller] marked,current in
+        controller.model.onPreparedFileCompare = CommandProgressContext.capture { [weak self,weak controller] marked,current in
             guard let controller,!controller.model.retired else {return}
             self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:controller.window)
         }
-        controller.model.commands.onBlame = { [weak self] path in self?.showBlame(repository:repository,access:access,path:path,revision:"HEAD") }
-        controller.model.commands.onCompareTwoFiles = { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
-        controller.model.commands.onSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
-        controller.model.onHandleSubmodules = { [weak self] revision,paths in for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)} }
-        controller.model.onAction = { [weak self,weak controller] action,paths in
+        controller.model.commands.onBlame = CommandProgressContext.capture { [weak self] path in self?.showBlame(repository:repository,access:access,path:path,revision:"HEAD") }
+        controller.model.commands.onCompareTwoFiles = CommandProgressContext.capture { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
+        controller.model.commands.onSubmoduleLog = CommandProgressContext.capture { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
+        controller.model.onHandleSubmodules = CommandProgressContext.capture { [weak self] revision,paths in for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)} }
+        controller.model.onAction = CommandProgressContext.capture { [weak self,weak controller] action,paths in
             guard let self,let controller,!controller.model.retired else {return}
             if action.isIgnore {self.showIgnore(repository:repository,access:access,paths:paths,action:action);return}
             if action.isResolve {
@@ -2857,8 +2903,8 @@ private enum TransportBatchPresentationContext {
             default:break
             }
         }
-        controller.model.onChanged = { [weak self] in
-            self?.refreshRepositoryLogs(root);self?.refreshStatusWindows(root);self?.commitWindows[root.path]?.model.reload()
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
+            self?.refreshRepositoryLogs(root);self?.refreshStatusWindows(root);self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
         }
 
         revertWindows[root.path] = controller
@@ -2872,22 +2918,22 @@ private enum TransportBatchPresentationContext {
         let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0git:" + repository.executable.path + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
         let reusable=submoduleDiffWindows[key].flatMap{$0.canReuse ? $0:nil}
         let controller = reusable ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:defaults)
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleDiffWindows[key] === controller else { return }; self.submoduleDiffWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: defaults) }
-        controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access, preferences: defaults) }
-        controller.model.onCompare = { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new, preferences: defaults) }
-        controller.model.onConflict={ [weak self,weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.submoduleDiffWindows[key] === controller else { return }; self.submoduleDiffWindows.removeValue(forKey: key) }
+        controller.model.onLog = CommandProgressContext.capture { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: defaults) }
+        controller.model.onStatus = CommandProgressContext.capture { [weak self] child in self?.showStatus(repository: child, access: access, preferences: defaults) }
+        controller.model.onCompare = CommandProgressContext.capture { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new, preferences: defaults) }
+        controller.model.onConflict=CommandProgressContext.capture { [weak self,weak controller] in
             guard let controller else{return}
             controller.closeForConflict { [weak self] in
                 guard let self,!self.retired,!self.confirmingQuit else{return}
                 self.showConflictEditor(repository:repository,access:access,path:path,preferences:defaults,commandLaunch:true)
             }
         }
-        controller.onAttemptCompleted = { [weak self] result in
+        controller.onAttemptCompleted = CommandProgressContext.capture { [weak self] result in
             guard !result.entries.isEmpty else { return }
             self?.refreshAfterSubmoduleMutation(repository.root, output: result.output)
         }
-        controller.onBisect = { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0, preferences: defaults) }
+        controller.onBisect = CommandProgressContext.capture { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0, preferences: defaults) }
         submoduleDiffWindows[key] = controller
         if let appearance { controller.window?.appearance = appearance }
         if let alpha { controller.window?.alphaValue = alpha }
@@ -2902,7 +2948,7 @@ private enum TransportBatchPresentationContext {
         }
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.revisionComparisonWindows[key] === controller else { return }; self.revisionComparisonWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.revisionComparisonWindows[key] === controller else { return }; self.revisionComparisonWindows.removeValue(forKey: key) }
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
         controller.model.load()
@@ -2916,17 +2962,17 @@ private enum TransportBatchPresentationContext {
         if let existing=reusable?.value {guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{return};existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil);return}
         let key=revisionGraphWindows[base]==nil ? base:base+"\0"+UUID().uuidString
         let controller=revisionGraphWindowFactory?(repository,access,preferences,false) ?? RevisionGraphWindowController(repository:repository,access:access,preferences:preferences,automaticallyLoad:false)
-        controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.revisionGraphWindows[key] === controller else{return};self.revisionGraphWindows.removeValue(forKey:key)}
+        controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.revisionGraphWindows[key] === controller else{return};self.revisionGraphWindows.removeValue(forKey:key)}
         let serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
-        controller.model.onLog = { [weak self,weak controller] hash in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: preferences, sourceWindow: controller?.window)} }
-        controller.model.onBrowse = { [weak self] hash in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: preferences)} }
-        controller.model.onCompare = { [weak self] from, to in show {self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: preferences)} }
-        controller.model.onCheckout = { [weak self] hash in show {self?.showSwitch(repository: repository, access: access, revision: hash, preferences: preferences)} }
-        controller.model.onLogRange = { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: preferences)} }
-        controller.model.onSwitchBranch = { [weak self, weak controller] reference in
+        controller.model.onLog = CommandProgressContext.capture { [weak self,weak controller] hash in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: preferences, sourceWindow: controller?.window)} }
+        controller.model.onBrowse = CommandProgressContext.capture { [weak self] hash in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: preferences)} }
+        controller.model.onCompare = CommandProgressContext.capture { [weak self] from, to in show {self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: preferences)} }
+        controller.model.onCheckout = CommandProgressContext.capture { [weak self] hash in show {self?.showSwitch(repository: repository, access: access, revision: hash, preferences: preferences)} }
+        controller.model.onLogRange = CommandProgressContext.capture { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: preferences)} }
+        controller.model.onSwitchBranch = CommandProgressContext.capture { [weak self, weak controller] reference in
             guard let parent = controller?.window, parent.attachedSheet == nil else { return }
-            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: preferences, completion: { [weak controller] in controller?.model.load() })
+            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: preferences, completion: CommandProgressContext.capture { [weak controller] in controller?.model.load() })
         }
         revisionGraphWindows[key]=controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
@@ -2937,65 +2983,65 @@ private enum TransportBatchPresentationContext {
         let preferences = log.colorPreferences
         configureLogMenus(log, repository: repository, access: access)
         configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
-        log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
-        log.onHistoryPush = { [weak self] revision, all in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: all) }
-        log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        log.onCreateReference = { [weak self] tag, revision in self?.showReference(repository: repository, access: access, isTag: tag, revision: revision) }
-        log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: preferences) }
-        log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
+        log.onPush = CommandProgressContext.capture { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        log.onHistoryPush = CommandProgressContext.capture { [weak self] revision, all in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: all) }
+        log.onHistoryPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        log.onCreateReference = CommandProgressContext.capture { [weak self] tag, revision in self?.showReference(repository: repository, access: access, isTag: tag, revision: revision) }
+        log.onCheckout = CommandProgressContext.capture { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: preferences) }
+        log.onExportRevision = CommandProgressContext.capture { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
         configureLogIntegration(log,repository:repository,access:access)
-        log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: preferences) }
-        log.onCherryPick = { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
-        log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+        log.onReset = CommandProgressContext.capture { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: preferences) }
+        log.onCherryPick = CommandProgressContext.capture { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
+        log.onCombineRevisions = CommandProgressContext.capture { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
         configureLogRevert(log,repository:repository,access:access)
-        log.onFormatPatch={ [weak self] preset in self?.showFormatPatch(repository:repository,access:access,preset:preset) }
-        log.onBrowseRepository={ [weak self] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash) }
-        log.onContainingLog={ [weak self] name,select,range in
+        log.onFormatPatch=CommandProgressContext.capture { [weak self] preset in self?.showFormatPatch(repository:repository,access:access,preset:preset) }
+        log.onBrowseRepository=CommandProgressContext.capture { [weak self] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash) }
+        log.onContainingLog=CommandProgressContext.capture { [weak self] name,select,range in
             self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name:nil,revisionRange:range)
         }
         log.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
-        log.onPreparedFileCompare={ [weak self,weak log] marked,current in
+        log.onPreparedFileCompare=CommandProgressContext.capture { [weak self,weak log] marked,current in
             guard let owner=log?.window else {return};self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:owner)
         }
-        log.onFilePairCompare={ [weak self,weak log] revision,files in
+        log.onFilePairCompare=CommandProgressContext.capture { [weak self,weak log] revision,files in
             guard let owner=log?.window else {return};self?.showHistoricalFilePair(repository:repository,access:access,revision:revision,files:files,owner:owner)
         }
-        log.onFileCompare={ [weak self,weak log] from,to,paths in
+        log.onFileCompare=CommandProgressContext.capture { [weak self,weak log] from,to,paths in
             guard let owner=log?.window else {return};self?.showHistoricalFiles(repository:repository,access:access,from:from,to:to,paths:paths,owner:owner)
         }
-        log.onFileComparisons={ [weak self,weak log] requests in
+        log.onFileComparisons=CommandProgressContext.capture { [weak self,weak log] requests in
             guard let owner=log?.window else {return};self?.showGroupedHistoricalFiles(repository:repository,access:access,requests:requests,owner:owner)
         }
-        log.onFileLog={ [weak self] path,hash in self?.showLog(repository:repository,access:access,paths:[path],endRevision:hash) }
-        log.onSubmoduleFileLog={ [weak self,weak log] checkout,hash in
+        log.onFileLog=CommandProgressContext.capture { [weak self] path,hash in self?.showLog(repository:repository,access:access,paths:[path],endRevision:hash) }
+        log.onSubmoduleFileLog=CommandProgressContext.capture { [weak self,weak log] checkout,hash in
             let child=log?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
             self?.showLog(repository:child,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:log?.colorPreferences)
         }
-        log.onBlame={ [weak self] path,hash in self?.showBlame(repository:repository,access:access,path:path,revision:hash) }
-        log.onRevisionChanged={ [weak self] output in
+        log.onBlame=CommandProgressContext.capture { [weak self] path,hash in self?.showBlame(repository:repository,access:access,path:path,revision:hash) }
+        log.onRevisionChanged=CommandProgressContext.capture { [weak self] output in
             guard let self else {return}
             self.refreshRepositoryLogs(repository.root)
-            self.refreshStatusWindows(repository.root);self.commitWindows[repository.root.path]?.model.reload();self.rebaseWindows[repository.root.path]?.model.refreshState()
+            self.refreshStatusWindows(repository.root);self.commitWindows.allValues(forKey: repository.root.path).forEach { $0.model.reload() };self.rebaseWindows.allValues(forKey: repository.root.path).forEach { $0.model.refreshState() }
             if self.root==repository.root {self.output=output;Task{await self.refresh()}}
         }
     }
     private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         let preferences = model.preferences
-        model.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
-        model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:preferences) }
-        model.onSubmoduleLog={ [weak self,weak model] checkout,revision in
+        model.configureReferencePicker = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        model.configureLogPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        model.onBlame=CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:preferences) }
+        model.onSubmoduleLog=CommandProgressContext.capture { [weak self,weak model] checkout,revision in
             let child=model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
             self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences)
         }
-        model.onFilesChanged={ [weak self] in
-            self?.refreshRepositoryLogs(repository.root);self?.refreshStatusWindows(repository.root);self?.commitWindows[repository.root.path]?.model.reload()
+        model.onFilesChanged=CommandProgressContext.capture { [weak self] in
+            self?.refreshRepositoryLogs(repository.root);self?.refreshStatusWindows(repository.root);self?.commitWindows.allValues(forKey: repository.root.path).forEach { $0.model.reload() }
             if self?.root==repository.root {Task{await self?.refresh()}}
         }
-        model.onLogRange = { [weak self] range in self?.showLog(repository:repository,access:access,paths:[],revisionRange:range,preferences:preferences) }
-        model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash,preferences:preferences) }
-        model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash,preferences:preferences) }
-        model.onSubmoduleCompare = { [weak self] path, oldPath, old, new in
+        model.onLogRange = CommandProgressContext.capture { [weak self] range in self?.showLog(repository:repository,access:access,paths:[],revisionRange:range,preferences:preferences) }
+        model.onLog = CommandProgressContext.capture { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash,preferences:preferences) }
+        model.onFileLog = CommandProgressContext.capture { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash,preferences:preferences) }
+        model.onSubmoduleCompare = CommandProgressContext.capture { [weak self] path, oldPath, old, new in
             let from = old == .emptyTree ? "" : old == .workingTree ? "Working tree" : old.label
             let to = new == .emptyTree ? "" : new == .workingTree ? nil : new.label
             self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to,fromPath:oldPath,preferences:preferences)
@@ -3023,7 +3069,7 @@ private enum TransportBatchPresentationContext {
         let cached=fileComparisonWindows[key].flatMap { $0.model.inputEncodingOwnerRetired ? nil:$0 }
         let controller=cached ?? FileComparisonWindowController(repository:repository,access:access,changeSets:comparison,preferences:defaults)
         controller.model.comparisonDefaults=defaults
-        controller.onClosed={ [weak self,weak controller] in
+        controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller,self.fileComparisonWindows[key] === controller else { return }
             self.fileComparisonWindows.removeValue(forKey:key)
         }
@@ -3144,7 +3190,7 @@ private enum TransportBatchPresentationContext {
                     controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission, preferences: defaults)
                 }
                 guard !retired, !token.isCancelled, !confirmingQuit else { return }
-                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
+                controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
                 controller.window?.appearance = appearance
                 if let alpha { controller.window?.alphaValue = alpha }
@@ -3196,7 +3242,7 @@ private enum TransportBatchPresentationContext {
             let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0action\0" + file.action + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0preferences:" + String(describing: ObjectIdentifier(defaults)) + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")
             let cached = fileComparisonWindows[key].flatMap { $0.model.inputEncodingOwnerRetired ? nil : $0 }
             let controller = cached ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path, preferences: defaults, line: line)
-            controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
+            controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.model.comparisonDefaults = defaults
             if let appearance { controller.window?.appearance = appearance }
@@ -3209,8 +3255,8 @@ private enum TransportBatchPresentationContext {
     private func refreshAfterSubmoduleMutation(_ root: URL, output: String) {
         refreshRepositoryLogs(root)
         refreshStatusWindows(root)
-        commitWindows[root.path]?.model.reload()
-        rebaseWindows[root.path]?.model.refreshState()
+        commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
+        rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
         if self.root == root { self.output = output; Task { await self.refresh() } }
     }
     private func showSubmoduleSync(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], commandLaunch: Bool = false) {
@@ -3220,8 +3266,8 @@ private enum TransportBatchPresentationContext {
             if commandLaunch { error = "A Submodule Sync operation is already running. Wait for it before opening another command." }; return
         }
         let id = UUID(), controller = SubmoduleSyncWindowController(repository: repository, access: access, scope: scope, preferences: fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.submoduleSyncWindows.removeValue(forKey: id) }
-        controller.model.onAttemptCompleted = { [weak self] result in
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.submoduleSyncWindows.removeValue(forKey: id) }
+        controller.model.onAttemptCompleted = CommandProgressContext.capture { [weak self] result in
             guard !result.entries.isEmpty else { return }
             self?.refreshAfterSubmoduleMutation(repository.root, output: result.output)
         }
@@ -3240,11 +3286,11 @@ private enum TransportBatchPresentationContext {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Add operation is already running. Wait for it before opening another command."; return
         }
-        guard submoduleAddWindows[key]?.finderServiceCanPresent != false else{error="The previous Submodule Add window is still closing. Wait for it to finish.";return}
+        guard !submoduleAddWindows.allValues(forKey: key).contains(where: { !$0.finderServiceCanPresent }) else{error="The previous Submodule Add window is still closing. Wait for it to finish.";return}
         let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path, preferences: fileComparisonPreferences, clipboardText:creationClipboardText())
-        controller.onClosed = { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
         let serviceContext=finderServiceDispatch
-        controller.model.onSubmit = { [weak self] progress in
+        controller.model.onSubmit = CommandProgressContext.capture { [weak self] progress in
             FinderServicePresentationContext.$current.withValue(serviceContext){self?.showSubmoduleAddProgress(model:progress,access:access)}
         }
         submoduleAddWindows[key] = controller
@@ -3255,8 +3301,8 @@ private enum TransportBatchPresentationContext {
         guard !retired,!confirmingQuit else{return}
         let root = model.repository.root, id = UUID()
         let controller = SubmoduleAddProgressWindowController(model: model)
-        controller.onClosed = { [weak self] in self?.submoduleAddProgressWindows.removeValue(forKey: id) }
-        model.onAttemptCompleted = { [weak self] result in
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.submoduleAddProgressWindows.removeValue(forKey: id) }
+        model.onAttemptCompleted = CommandProgressContext.capture { [weak self] result in
             guard result.attempted else { return }
             self?.refreshAfterSubmoduleMutation(root, output: result.output)
         }
@@ -3268,7 +3314,7 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0") + "\0preferences:" + String(describing: ObjectIdentifier(preferences))
-        if commandLaunch, let existing = submoduleUpdateWindows.values.first(where: { $0.model.repository.root == root }) {
+        if commandLaunch, let existing = submoduleUpdateWindows.scopedValues.first(where: { $0.model.repository.root == root }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Update dialog is already open. Close it before opening another command-line Submodule Update."; return
         }
@@ -3276,15 +3322,15 @@ private enum TransportBatchPresentationContext {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Update operation is already running. Wait for it before opening another command."; return
         }
-        guard submoduleUpdateWindows[key]?.finderServiceCanPresent != false else{error="The previous Submodule Update window is still closing. Wait for it to finish.";return}
+        guard !submoduleUpdateWindows.allValues(forKey: key).contains(where: { !$0.finderServiceCanPresent }) else{error="The previous Submodule Update window is still closing. Wait for it to finish.";return}
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
         presentation?.apply(to: controller.window)
         if let sourceWindow {controller.window?.alphaValue=sourceWindow.alphaValue;controller.window?.appearance=sourceWindow.effectiveAppearance}
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleUpdateWindows[key] === controller else { return }; self.submoduleUpdateWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.submoduleUpdateWindows[key] === controller else { return }; self.submoduleUpdateWindows.removeValue(forKey: key) }
         let progressPreferences = controller.model.presentationPreferences
         let progressPresentation = controller.window.map(MergeWindowPresentation.init)
         let serviceContext=finderServiceDispatch
-        controller.model.onSubmit = { [weak self] paths, options in
+        controller.model.onSubmit = CommandProgressContext.capture { [weak self] paths, options in
             FinderServicePresentationContext.$current.withValue(serviceContext){
                 self?.showSubmoduleUpdateProgress(repository:repository,access:access,paths:paths,options:options,completion:completion,preferences:progressPreferences,presentation:progressPresentation)
             }
@@ -3298,14 +3344,14 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit else { return }
         let root = repository.root, id = UUID()
         let controller = SubmoduleUpdateProgressWindowController(repository: repository, access: access, paths: paths, options: options, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
-        controller.model.onAttemptCompleted = { [weak self] result in
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
+        controller.model.onAttemptCompleted = CommandProgressContext.capture { [weak self] result in
             guard !result.entries.isEmpty else { return }
             self?.refreshAfterSubmoduleMutation(root, output: result.output)
         }
-        controller.model.onUpdated = { _ in completion?() }
+        controller.model.onUpdated = CommandProgressContext.capture { _ in completion?() }
         let inherited = controller.model.presentationPreferences
-        controller.model.onBisect = { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation, preferences: inherited) }
+        controller.model.onBisect = CommandProgressContext.capture { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation, preferences: inherited) }
         presentation?.apply(to: controller.window)
         submoduleUpdateProgressWindows[id] = controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
@@ -3315,21 +3361,21 @@ private enum TransportBatchPresentationContext {
         let root = repository.root, id = UUID()
         let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences:fileComparisonPreferences, policy: policy)
         controller.model.confirmingQuit=confirmingQuit
-        controller.model.externalAvailability={ [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.model.externalAvailability=CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
         let preferences=controller.model.preferences
-        controller.onProgressLog={ [weak self] path in
+        controller.onProgressLog=CommandProgressContext.capture { [weak self] path in
             guard let self,!self.retired,!self.confirmingQuit else{return}
             self.showLog(repository:repository,access:access,paths:[path],preferences:preferences)
         }
-        controller.onClosed = { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
-        controller.model.onFinished = { [weak self] output, succeeded in
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
+        controller.model.onFinished = CommandProgressContext.capture { [weak self] output, succeeded in
             completion(succeeded)
             self?.refreshRepositoryLogs(root)
-            self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onHandleSubmodules = { [weak self] revision, paths in
+        controller.model.onHandleSubmodules = CommandProgressContext.capture { [weak self] revision, paths in
             for path in paths { self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: revision) }
         }
         revertProgressWindows[id] = controller
@@ -3353,15 +3399,15 @@ private enum TransportBatchPresentationContext {
         }
         let key = reusable?.key ?? (statusWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? StatusWindowController(repository: repository, access: access, defaults: preferences)
-        controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.onClosed = { [weak self, weak controller] in if self?.statusWindows[key] === controller { self?.statusWindows.removeValue(forKey: key) } }
-        controller.model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
-        controller.model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
-        controller.model.onTransferDrop = { [weak self, weak controller] providers in
+        controller.onPullAfterLFSLock = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.statusWindows[key] === controller { self?.statusWindows.removeValue(forKey: key) } }
+        controller.model.onCopyAdd = CommandProgressContext.capture { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
+        controller.model.onPasteFiles = CommandProgressContext.capture { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
+        controller.model.onTransferDrop = CommandProgressContext.capture { [weak self, weak controller] providers in
             guard let controller, !controller.model.retired, !controller.model.busy, !controller.model.confirmingQuit else { return false }
             return self?.receiveTransferDrop(providers, repository: repository, access: access, owner: controller.window) ?? false
         }
-        controller.model.onAction = { [weak self, weak controller] action, paths in
+        controller.model.onAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             guard let self else { return }
             if action == .diff { self.showWorkingFiles(repository: repository, access: access, paths: paths, owner: controller?.window); return }
             guard let controller, !controller.model.retired else { return }
@@ -3383,11 +3429,11 @@ private enum TransportBatchPresentationContext {
             self.activate(action, paths: paths)
             if action != .clean && action != .add && action != .diff && action != .submoduleSync && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
-        controller.model.onAddFiles = { [weak self] paths, mode in self?.showAddProgress(repository:repository, access:access, paths:paths, mode:mode, preservePathOrder:true) }
-        controller.model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
-        controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
-        controller.model.onCompareTwoFiles = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
-        controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
+        controller.model.onAddFiles = CommandProgressContext.capture { [weak self] paths, mode in self?.showAddProgress(repository:repository, access:access, paths:paths, mode:mode, preservePathOrder:true) }
+        controller.model.onSubmoduleLog = CommandProgressContext.capture { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
+        controller.model.onBlame = CommandProgressContext.capture { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
+        controller.model.onCompareTwoFiles = CommandProgressContext.capture { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in Task { await self?.refresh() } }
         presentation?.apply(to: controller.window)
         statusWindows[key] = controller
         controller.model.setScope(paths)
@@ -3401,37 +3447,37 @@ private enum TransportBatchPresentationContext {
         let key=reusable?.key ?? (referenceLogWindows[root.path]==nil ? root.path:root.path+"\0context\0"+UUID().uuidString)
         let controller=reusable?.value ?? ReferenceLogWindowController(repository:repository,access:access,reference:reference,preferences:requestedPreferences)
         let operationPreferences=controller.model.preferences
-        controller.onClosed = { [weak self,weak controller] in guard let self,let controller,self.referenceLogWindows[key] === controller else{return};self.referenceLogWindows.removeValue(forKey:key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.referenceLogWindows[key] === controller else{return};self.referenceLogWindows.removeValue(forKey:key) }
         let serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
-        controller.model.onLog = { [weak self,weak controller] hash in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: operationPreferences, sourceWindow: controller?.window)} }
-        controller.model.onLogRange = { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: operationPreferences)} }
-        controller.model.onBrowseRepository = { [weak self] hash in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
-        controller.model.onCreateReference = { [weak self] isTag, hash in show {self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash, preferences: operationPreferences)} }
-        controller.model.onExport = { [weak self] hash in show {self?.showExport(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
-        controller.model.onCompare = { [weak self] from, to in show {self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: operationPreferences)} }
-        controller.model.onCheckout = { [weak self] hash in show {self?.showSwitch(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
-        controller.model.onReset = { [weak self] hash in show {self?.showReset(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
-        controller.model.onSwitchBranch = { [weak self, weak controller] reference in
+        controller.model.onLog = CommandProgressContext.capture { [weak self,weak controller] hash in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: operationPreferences, sourceWindow: controller?.window)} }
+        controller.model.onLogRange = CommandProgressContext.capture { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: operationPreferences)} }
+        controller.model.onBrowseRepository = CommandProgressContext.capture { [weak self] hash in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
+        controller.model.onCreateReference = CommandProgressContext.capture { [weak self] isTag, hash in show {self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash, preferences: operationPreferences)} }
+        controller.model.onExport = CommandProgressContext.capture { [weak self] hash in show {self?.showExport(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
+        controller.model.onCompare = CommandProgressContext.capture { [weak self] from, to in show {self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: operationPreferences)} }
+        controller.model.onCheckout = CommandProgressContext.capture { [weak self] hash in show {self?.showSwitch(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
+        controller.model.onReset = CommandProgressContext.capture { [weak self] hash in show {self?.showReset(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
+        controller.model.onSwitchBranch = CommandProgressContext.capture { [weak self, weak controller] reference in
             guard let parent = controller?.window, parent.attachedSheet == nil else { return }
             self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: operationPreferences)
         }
-        controller.model.onTransport = { [weak self] request in
+        controller.model.onTransport = CommandProgressContext.capture { [weak self] request in
             show {switch request.command {
             case .push: self?.showPush(repository: repository, access: access, source: request.source, preserveAllBranches: true, preferences: operationPreferences)
             case .pull: self?.showFetch(repository: repository, access: access, isPull: true, preferences: operationPreferences)
             case .svnDCommit: self?.showSVN(.dcommit, repository: repository, access: access, preferences: operationPreferences)
             }}
         }
-        controller.model.onBisect = { [weak self] request in show {self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, preferences: operationPreferences)} }
-        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in guard let controller else { return }; show {self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window, preferences: operationPreferences)} }
-        controller.model.onFormatPatch = { [weak self] preset in show {self?.showFormatPatch(repository: repository, access: access, preset: preset, preferences: operationPreferences)} }
-        controller.model.onMergeRevision = { [weak self] hash in show {self?.showMerge(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
-        controller.model.onRebaseRevision = { [weak self] upstream in show {self?.showRebase(repository: repository, access: access, upstream: upstream, preferences: operationPreferences)} }
-        controller.model.onCherryPick = { [weak self] commits in show {self?.showRebase(repository: repository, access: access, cherryPick: commits, preferences: operationPreferences)} }
-        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in guard let controller else { return }; show {self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller.window,preferences:operationPreferences)} }
-        controller.model.onApply = { [weak self] hash in show {self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash, preferences: operationPreferences)} }
-        controller.model.onChanged = { [weak self] output in
+        controller.model.onBisect = CommandProgressContext.capture { [weak self] request in show {self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, preferences: operationPreferences)} }
+        controller.model.onCombineRevisions = CommandProgressContext.capture { [weak self, weak controller] entries, offset, head in guard let controller else { return }; show {self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window, preferences: operationPreferences)} }
+        controller.model.onFormatPatch = CommandProgressContext.capture { [weak self] preset in show {self?.showFormatPatch(repository: repository, access: access, preset: preset, preferences: operationPreferences)} }
+        controller.model.onMergeRevision = CommandProgressContext.capture { [weak self] hash in show {self?.showMerge(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
+        controller.model.onRebaseRevision = CommandProgressContext.capture { [weak self] upstream in show {self?.showRebase(repository: repository, access: access, upstream: upstream, preferences: operationPreferences)} }
+        controller.model.onCherryPick = CommandProgressContext.capture { [weak self] commits in show {self?.showRebase(repository: repository, access: access, cherryPick: commits, preferences: operationPreferences)} }
+        controller.model.onRevertRevisions = CommandProgressContext.capture { [weak self, weak controller] entries, mainline in guard let controller else { return }; show {self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller.window,preferences:operationPreferences)} }
+        controller.model.onApply = CommandProgressContext.capture { [weak self] hash in show {self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash, preferences: operationPreferences)} }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -3451,15 +3497,15 @@ private enum TransportBatchPresentationContext {
         guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
         let key = stashRestoreWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString
         let controller = stashRestoreWindowFactory?(repository, access, pop, reference, showChanges) ?? StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
-        controller.onClosed = { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
-        controller.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload()
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
+        controller.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
-            self?.commitWindows[root.path]?.model.reload()
+            self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.preferences
-        controller.onViewChanges = { [weak self, weak model = controller.model] in
+        controller.onViewChanges = CommandProgressContext.capture { [weak self, weak model = controller.model] in
             guard let self, !self.retired, !self.confirmingQuit, let model else { return }
             self.showStatus(repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)
         }
@@ -3471,22 +3517,22 @@ private enum TransportBatchPresentationContext {
         guard !retired,!confirmingQuit else{return}
         let serviceContext=finderServiceDispatch
         let key = repository.root.path
-        guard worktreeListWindows[key]?.finderServiceCanPresent != false else{error="The previous Worktree List window is still closing. Wait for it to finish.";return}
+        guard !worktreeListWindows.allValues(forKey: key).contains(where: { !$0.finderServiceCanPresent }) else{error="The previous Worktree List window is still closing. Wait for it to finish.";return}
         let controller = worktreeListWindows[key] ?? worktreeListWindowFactory?(repository, access, fileComparisonPreferences) ?? WorktreeListWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
-        controller.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
-        controller.onClosed = { [weak self,weak controller] in
+        controller.externalAvailability = CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller,self.worktreeListWindows[key] === controller else {return}
             self.worktreeListWindows.removeValue(forKey:key)
         }
         let inherited=controller.model.preferences
-        controller.onSubmodules = { [weak self,weak controller] path, lease in
+        controller.onSubmodules = CommandProgressContext.capture { [weak self,weak controller] path, lease in
             guard let self,!self.retired,!self.confirmingQuit else {return}
             let successor=serviceContext.map{FinderServiceDispatchIdentity(action:$0.action,root:path)}
             FinderServicePresentationContext.$current.withValue(successor){
                 self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:inherited,sourceWindow:controller?.window)
             }
         }
-        controller.onCreatePresentation={ [weak self] child in
+        controller.onCreatePresentation=CommandProgressContext.capture { [weak self] child in
             guard let self else{return false}
             return FinderServicePresentationContext.$current.withValue(serviceContext){self.prepareFinderServiceWorkflow(child,repository:repository,access:access)}
         }
@@ -3497,8 +3543,7 @@ private enum TransportBatchPresentationContext {
     @discardableResult private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?, directory: URL? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil, destinationAccess: RepositoryAccessLease? = nil) -> WorktreeCreateWindowController? {
         guard !retired,!confirmingQuit else {return nil}
         let key = repository.root.path
-        if let existing=worktreeCreateWindows[key] ?? worktreeListWindows[key]?.createWindow,
-           !existing.model.active || existing.model.handoffPending {
+        if (worktreeCreateWindows.allValues(forKey: key) + worktreeListWindows.allValues(forKey: key).compactMap(\.createWindow)).contains(where: { !$0.model.active || $0.model.handoffPending }) {
             error=String(localized:"A previous New Worktree window is still closing. Wait for it to finish before opening another.")
             return nil
         }
@@ -3510,26 +3555,26 @@ private enum TransportBatchPresentationContext {
         let controller = worktreeCreateWindows[key] ?? worktreeCreateWindowFactory?(repository, access, inherited, directory) ?? WorktreeCreateWindowController(repository: repository, access: access, preferences: inherited, initialDirectory: directory)
         let presentedPreferences=controller.model.preferences
         let serviceContext=finderServiceDispatch
-        controller.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.externalAvailability = CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
         controller.model.confirmingQuit=confirmingQuit
         if let destinationAccess {controller.model.destinationAccess=destinationAccess}
-        controller.onClosed = { [weak self,weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller,self.worktreeCreateWindows[key] === controller else {return}
             self.worktreeCreateWindows.removeValue(forKey:key)
         }
-        controller.model.onCreated = { [weak self] output in
-            self?.worktreeListWindows[key]?.model.requestReload()
+        controller.model.onCreated = CommandProgressContext.capture { [weak self] output in
+            self?.worktreeListWindows.allValues(forKey: key).forEach { $0.model.requestReload() }
             if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onSubmodules = { [weak self,weak controller] path, lease in
+        controller.model.onSubmodules = CommandProgressContext.capture { [weak self,weak controller] path, lease in
             guard let self,!self.retired,!self.confirmingQuit else {return}
             let successor=serviceContext.map{FinderServiceDispatchIdentity(action:$0.action,root:path)}
             FinderServicePresentationContext.$current.withValue(successor){
                 self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:presentedPreferences,sourceWindow:controller?.window)
             }
         }
-        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.configureReferencePicker = { [weak self] model in
+        controller.configureCommitPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
         worktreeCreateWindows[key] = controller
@@ -3543,8 +3588,8 @@ private enum TransportBatchPresentationContext {
         if let existing = requestPullWindows[key] { if existing.canReuse { existing.window?.makeKeyAndOrderFront(nil) }; return }
         let defaults=preferences ?? finderWorkflowPreferences
         let controller = makeRequestPull?(repository, access, end, repositoryURL) ?? RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL, preferences: defaults)
-        controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.onClosed = { [weak self, weak controller] in
+        controller.configureLogPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, self.requestPullWindows[key] === controller else { return }
             self.requestPullWindows.removeValue(forKey: key)
         }
@@ -3563,17 +3608,17 @@ private enum TransportBatchPresentationContext {
         let baseKey=rootKey+"\0"+repository.executable.path+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
         let reusable=importPatchWindows.first{($0.key==baseKey || $0.key.hasPrefix(baseKey+"\0")) && $0.value.canReuse}
         let key=reusable?.key ?? (importPatchWindows[baseKey] == nil ? baseKey:baseKey+"\0"+UUID().uuidString)
-        if commandLaunch, let existing = importPatchWindows[key], existing.activeOperation {
+        if commandLaunch, let existing = importPatchWindows.values.first(where: { GitReferenceName.equal($0.model.repository.root.path, repository.root.path) && $0.activeOperation }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "Wait for the current patch operation to finish."; return
         }
         let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access, preferences: defaults)
-        controller.model.onMutationStopped = { [weak self] in
-            self?.refreshStatusWindows(repository.root); self?.commitWindows[rootKey]?.model.reload()
+        controller.model.onMutationStopped = CommandProgressContext.capture { [weak self] in
+            self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: rootKey).forEach { $0.model.reload() }
             if self?.root?.path == rootKey { Task { await self?.refresh() } }
         }
-        controller.onClosed = { [weak self,weak controller] in guard let self,let controller,self.importPatchWindows[key] === controller else{return};self.importPatchWindows.removeValue(forKey:key) }
-        controller.model.onChanged = { [weak self] output in
+        controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.importPatchWindows[key] === controller else{return};self.importPatchWindows.removeValue(forKey:key) }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshStatusWindows(repository.root)
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }
@@ -3601,13 +3646,13 @@ private enum TransportBatchPresentationContext {
         let existing = formatPatchWindows[key]
         let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail, preferences: defaults)
         if sendMail && controller.model.optionsAvailable { controller.model.sendMail = true }
-        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
-        controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.onClosed = { [weak self, weak controller] in
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        controller.configureLogPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, self.formatPatchWindows[key] === controller else { return }
             self.formatPatchWindows.removeValue(forKey: key)
         }
-        controller.model.onOutputChanged = { [weak self] output in
+        controller.model.onOutputChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshStatusWindows(repository.root)
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }
@@ -3617,7 +3662,7 @@ private enum TransportBatchPresentationContext {
     private func showRebaseCompletionMail(repository:GitRepository,access:RepositoryAccessLease?,preset:FormatPatchPreset,preferences:UserDefaults) {
         guard !retired,!confirmingQuit else{return}
         let id=UUID(),controller=RebaseCompletionMailWindowController(repository:repository,access:access,preset:preset,preferences:preferences)
-        controller.onClosed={ [weak self,weak controller] in
+        controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller,self.rebaseCompletionMailWindows[id] === controller else{return}
             self.rebaseCompletionMailWindows.removeValue(forKey:id)
             self.refreshStatusWindows(repository.root)
@@ -3627,7 +3672,7 @@ private enum TransportBatchPresentationContext {
         controller.start()
     }
     func configureBrowserRevisionPicker(_ controller:RepositoryBrowserWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
-        controller.configureLogPicker={ [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
+        controller.configureLogPicker=CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
     }
     func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD", preferences: UserDefaults? = nil, initialFile: String? = nil, sourceWindow: NSWindow? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -3640,37 +3685,37 @@ private enum TransportBatchPresentationContext {
         let key = reusable?.key ?? (browserWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision, preferences:defaults, initialFile:initialFile)
         configureBrowserRevisionPicker(controller,repository:repository,access:access)
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.browserWindows[key] === controller else { return }; self.browserWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.browserWindows[key] === controller else { return }; self.browserWindows.removeValue(forKey: key) }
         let serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
-        controller.model.onLog = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults, sourceWindow: controller.window)} }
-        controller.model.onBlame = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults)} }
-        controller.model.onCompare = { [weak self, weak controller] path, hash in
+        controller.model.onLog = CommandProgressContext.capture { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults, sourceWindow: controller.window)} }
+        controller.model.onBlame = CommandProgressContext.capture { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults)} }
+        controller.model.onCompare = CommandProgressContext.capture { [weak self, weak controller] path, hash in
             guard let controller, controller.model.active else { return }
             let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
             show {self?.showHistoricalFiles(repository:accepted,access:access,from:.revision(hash),to:.workingTree,paths:[path],owner:controller.window,preferences:defaults)}
         }
-        controller.model.onChanged = { [weak self] in
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
             guard let self else { return }
             self.refreshStatusWindows(repository.root)
-            self.commitWindows[repository.root.path]?.model.reload()
+            self.commitWindows.allValues(forKey: repository.root.path).forEach { $0.model.reload() }
             if self.root == repository.root { Task { await self.refresh() } }
         }
-        controller.model.currentWorkingComparisonMark = { [weak self] in
+        controller.model.currentWorkingComparisonMark = CommandProgressContext.capture { [weak self] in
             guard let self, !self.retired, !self.confirmingQuit else { return nil }
             return try? self.comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in
+        controller.model.onPreparedFileCompare = CommandProgressContext.capture { [weak self, weak controller] marked, current in
             guard let controller, controller.model.active else { return }
             let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
             show {self?.showPreparedFileComparison(repository:accepted,access:access,marked:marked,current:current,owner:controller.window,preferences:defaults)}
         }
-        controller.model.onSubmoduleUpdate = { [weak self, weak controller] path in
+        controller.model.onSubmoduleUpdate = CommandProgressContext.capture { [weak self, weak controller] path in
             guard let controller, controller.model.active else { return }
             self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],selected:[path],preferences:defaults,sourceWindow:controller.window)
         }
-        controller.model.onSubmodule = { [weak self,weak controller,weak model=controller.model] module,entry,showLog in
+        controller.model.onSubmodule = CommandProgressContext.capture { [weak self,weak controller,weak model=controller.model] module,entry,showLog in
             guard let self, !self.retired, !self.confirmingQuit, let controller, let model, model.active else { return }
             guard let checkout=module.checkout, module.from.available else {
                 if showLog { model.error="Cannot show submodule history at " + entry.objectID + ". The child repository is not initialized or the revision is unavailable." }
@@ -3690,22 +3735,22 @@ private enum TransportBatchPresentationContext {
     }
     private func configureBlameRoutes(_ controller:BlameWindowController) {
         let repository=controller.model.repository,access=controller.model.repositoryAccess,preferences=controller.model.labelDefaults
-        controller.model.onHistoryExport={ [weak self] hash in self?.showExport(repository:repository,access:access,revision:hash,preferences:preferences) }
-        controller.model.onHistoryReference={ [weak self] tag,hash in self?.showReference(repository:repository,access:access,isTag:tag,revision:hash,preferences:preferences) }
-        controller.model.onHistorySwitch={ [weak self] hash in self?.showSwitch(repository:repository,access:access,revision:hash,preferences:preferences) }
-        controller.model.onHistoryBrowse={ [weak self,weak controller] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash,preferences:preferences,initialFile:controller?.model.path) }
-        controller.configureContainingReferences={ [weak self] child in
-            child.onLog={ [weak self] name,select,range in self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name : nil,revisionRange:range,preferences:preferences) }
-            child.onBrowse={ [weak self] name in self?.showRepositoryBrowser(repository:repository,access:access,revision:name,preferences:preferences) }
-            child.onCompare={ [weak self] from,to in self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:preferences) }
+        controller.model.onHistoryExport=CommandProgressContext.capture { [weak self] hash in self?.showExport(repository:repository,access:access,revision:hash,preferences:preferences) }
+        controller.model.onHistoryReference=CommandProgressContext.capture { [weak self] tag,hash in self?.showReference(repository:repository,access:access,isTag:tag,revision:hash,preferences:preferences) }
+        controller.model.onHistorySwitch=CommandProgressContext.capture { [weak self] hash in self?.showSwitch(repository:repository,access:access,revision:hash,preferences:preferences) }
+        controller.model.onHistoryBrowse=CommandProgressContext.capture { [weak self,weak controller] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash,preferences:preferences,initialFile:controller?.model.path) }
+        controller.configureContainingReferences=CommandProgressContext.capture { [weak self] child in
+            child.onLog=CommandProgressContext.capture { [weak self] name,select,range in self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name : nil,revisionRange:range,preferences:preferences) }
+            child.onBrowse=CommandProgressContext.capture { [weak self] name in self?.showRepositoryBrowser(repository:repository,access:access,revision:name,preferences:preferences) }
+            child.onCompare=CommandProgressContext.capture { [weak self] from,to in self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:preferences) }
         }
-        controller.model.onLog={ [weak self,weak controller] origin,hash in guard let controller,!controller.model.retired else{return};self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash,selectedRevision:hash,preferences:preferences) }
+        controller.model.onLog=CommandProgressContext.capture { [weak self,weak controller] origin,hash in guard let controller,!controller.model.retired else{return};self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash,selectedRevision:hash,preferences:preferences) }
         controller.model.onChanges=nil
-        controller.model.onOwnedChanges={ [weak self, weak controller] snapshots,alternate,token in
+        controller.model.onOwnedChanges=CommandProgressContext.capture { [weak self, weak controller] snapshots,alternate,token in
             guard let self,let controller else { throw OperationCancellationFailure.cancelled }
             try await self.showOwnedFileComparisons(repository:repository,access:access,snapshots:snapshots,owner:controller.window,preferences:preferences,alternate:alternate,cancellation:token)
         }
-        controller.model.onPrevious={ [weak self,weak controller] origin,hash,number,inherited in guard let controller,!controller.model.retired else{return};self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited,preferences:preferences) }
+        controller.model.onPrevious=CommandProgressContext.capture { [weak self,weak controller] origin,hash,number,inherited in guard let controller,!controller.model.retired else{return};self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited,preferences:preferences) }
     }
     private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false,preferences:UserDefaults? = nil) {
         let defaults=preferences ?? fileComparisonPreferences
@@ -3717,8 +3762,8 @@ private enum TransportBatchPresentationContext {
         let controller=reusable ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:defaults),preferences:defaults,recentDocuments:blameRecentDocuments)
         controller.model.recentHistoryError=recentFailure
         configureBlameRoutes(controller)
-        controller.onClosed={ [weak self,weak controller] in guard let self,let controller else { return };self.blameWindows=self.blameWindows.filter { $0.value !== controller } }
-        controller.onDocumentChanged={ [weak self,weak controller] in
+        controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller else { return };self.blameWindows=self.blameWindows.filter { $0.value !== controller } }
+        controller.onDocumentChanged=CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller else { return };self.configureBlameRoutes(controller)
             self.blameWindows=self.blameWindows.filter { $0.value !== controller }
             let newKey=GitPathRowIdentity.encode(controller.model.repository.root.path+"\0"+controller.model.path+"\0HEAD")
@@ -3743,12 +3788,12 @@ private enum TransportBatchPresentationContext {
         guard owner?.attachedSheet == nil else { return }
         let id = UUID(), root = repository.root
         let child = HistoryRevertWindowController(repository: repository, access: access, entries: entries, mainline: mainline, preferences: preferences)
-        child.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
+        child.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: [],preferences:preferences) }
-        child.onClosed = { [weak self, weak owner, weak child] in
+        child.model.onCommit = CommandProgressContext.capture { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: [],preferences:preferences) }
+        child.onClosed = CommandProgressContext.capture { [weak self, weak owner, weak child] in
             if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
             self?.historyRevertWindows.removeValue(forKey: id)
         }
@@ -3761,12 +3806,12 @@ private enum TransportBatchPresentationContext {
         guard owner?.attachedSheet == nil else { return }
         let id = UUID(), root = repository.root
         let child = HistoryCombineWindowController(repository: repository, access: access, entries: entries, firstOffset: offset, expectedHead: head, preferences: preferences ?? fileComparisonPreferences)
-        child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
-        child.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
+        child.configureCommit = CommandProgressContext.capture { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
+        child.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        child.onClosed = { [weak self, weak owner, weak child] in
+        child.onClosed = CommandProgressContext.capture { [weak self, weak owner, weak child] in
             if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
             self?.combineWindows.removeValue(forKey: id)
         }
@@ -3781,10 +3826,10 @@ private enum TransportBatchPresentationContext {
         if let existing = gitPropertyWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let contexts = [GitPropertiesContext(repository:repository,paths:selection,access:access,submodule:false)]
         let controller = GitPropertiesWindowController(contexts:contexts)
-        controller.onClosed = { [weak self,weak controller] in guard self?.gitPropertyWindows[key] === controller else { return }; self?.gitPropertyWindows.removeValue(forKey:key) }
-        controller.model.onLog = { [weak self] context in self?.showLog(repository:context.repository,access:context.access,paths:context.paths == ["."] ? [] : context.paths) }
-        controller.model.onChanged = { [weak self] changed in
-            self?.refreshStatusWindows(changed.root); self?.commitWindows[changed.root.path]?.model.reload()
+        controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in guard self?.gitPropertyWindows[key] === controller else { return }; self?.gitPropertyWindows.removeValue(forKey:key) }
+        controller.model.onLog = CommandProgressContext.capture { [weak self] context in self?.showLog(repository:context.repository,access:context.access,paths:context.paths == ["."] ? [] : context.paths) }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] changed in
+            self?.refreshStatusWindows(changed.root); self?.commitWindows.allValues(forKey: changed.root.path).forEach { $0.model.reload() }
             if self?.root == changed.root { Task { await self?.refresh() } }
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -3809,61 +3854,61 @@ private enum TransportBatchPresentationContext {
         let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller: LogWindowController
         if let output = invocation?.outputFile, let outputAccess {
-            let completion: (LogEntry?) -> Void = { [weak self] revision in self?.writeCommandSelection(revision, file: output, permission: outputAccess) }
+            let completion: (LogEntry?) -> Void = CommandProgressContext.capture { [weak self] revision in self?.writeCommandSelection(revision, file: output, permission: outputAccess) }
             controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: defaults, loadsImmediately: false)
         } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: invocation == nil) }
         let operationPreferences = controller.model.colorPreferences
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.logWindows[key] === controller else { return }; self.logWindows.removeValue(forKey: key) }
-        controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
-        controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
-        controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in guard let controller else { return }; self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window) }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.logWindows[key] === controller else { return }; self.logWindows.removeValue(forKey: key) }
+        controller.model.onPush = CommandProgressContext.capture { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onHistoryPush = CommandProgressContext.capture { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
+        controller.model.onHistoryPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
+        controller.model.onCombineRevisions = CommandProgressContext.capture { [weak self, weak controller] entries, offset, head in guard let controller else { return }; self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window) }
         configureLogRevert(controller.model,repository:repository,access:access)
-        controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
-        controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
-        controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: operationPreferences) }
+        controller.model.onFormatPatch = CommandProgressContext.capture { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
+        controller.model.onCreateReference = CommandProgressContext.capture { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
+        controller.model.onCheckout = CommandProgressContext.capture { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: operationPreferences) }
         configureLogMenus(controller.model, repository: repository, access: access)
-        controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
-        controller.model.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
+        controller.model.onCherryPick = CommandProgressContext.capture { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
+        controller.model.onExportRevision = CommandProgressContext.capture { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
         configureLogIntegration(controller.model,repository:repository,access:access)
         configureLogBisect(controller.model, repository: repository, access: access)
-        controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: operationPreferences) }
-        controller.model.onContainingLog = { [weak self] name, select, range in
+        controller.model.onReset = CommandProgressContext.capture { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: operationPreferences) }
+        controller.model.onContainingLog = CommandProgressContext.capture { [weak self] name, select, range in
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
-        controller.model.onFilePairCompare = { [weak self, weak controller] revision, files in guard let controller else { return }; self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files, owner: controller.window) }
-        controller.model.onWorkingFiles = { [weak self] action, paths in
+        controller.model.onPreparedFileCompare = CommandProgressContext.capture { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
+        controller.model.onFilePairCompare = CommandProgressContext.capture { [weak self, weak controller] revision, files in guard let controller else { return }; self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files, owner: controller.window) }
+        controller.model.onWorkingFiles = CommandProgressContext.capture { [weak self] action, paths in
             if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
             else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
             else if action == .revert { self?.showRevert(repository: repository, access: access, paths: paths) }
         }
-        controller.model.onWorkingAdd = { [weak self] paths, mode in
+        controller.model.onWorkingAdd = CommandProgressContext.capture { [weak self] paths, mode in
             self?.showAddProgress(repository: repository, access: access, paths: paths, mode: mode, preservePathOrder:true)
         }
-        controller.model.onIgnoreFiles = { [weak self] action, paths in
+        controller.model.onIgnoreFiles = CommandProgressContext.capture { [weak self] action, paths in
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
         }
-        controller.model.onWorkingFilePairCompare = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
-        controller.model.onConflictAction = { [weak self, weak controller] action, paths in
+        controller.model.onWorkingFilePairCompare = CommandProgressContext.capture { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
+        controller.model.onConflictAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
-        controller.model.onFileCompare = { [weak self, weak controller] from, to, paths in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths, owner: controller.window) }
-        controller.model.onFileComparisons = { [weak self, weak controller] requests in guard let controller else { return }; self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests, owner: controller.window) }
-        controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
-        controller.model.onSubmoduleFileLog = { [weak self,weak model=controller.model] checkout, hash in
+        controller.model.onFileCompare = CommandProgressContext.capture { [weak self, weak controller] from, to, paths in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths, owner: controller.window) }
+        controller.model.onFileComparisons = CommandProgressContext.capture { [weak self, weak controller] requests in guard let controller else { return }; self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests, owner: controller.window) }
+        controller.model.onFileLog = CommandProgressContext.capture { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
+        controller.model.onSubmoduleFileLog = CommandProgressContext.capture { [weak self,weak model=controller.model] checkout, hash in
             let child = model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
             self?.showLog(repository: child, access: access, paths: [], endRevision: hash,selectedRevision:hash,preferences:model?.colorPreferences)
         }
-        controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
-        controller.model.onRevisionChanged = { [weak self] output in
+        controller.model.onBlame = CommandProgressContext.capture { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
+        controller.model.onRevisionChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
+        controller.model.onBrowseRepository = CommandProgressContext.capture { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
         controller.model.revisionRange = revisionRange
@@ -3891,16 +3936,16 @@ private enum TransportBatchPresentationContext {
 
     private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, registerRefresh: Bool = true) {
         let preferences=model.colorPreferences
-        model.onFollowedFileComparison = { [weak self] snapshot, token in
+        model.onFollowedFileComparison = CommandProgressContext.capture { [weak self] snapshot, token in
             self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: preferences)
         }
         configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
         if registerRefresh { configuredLogModels[ObjectIdentifier(model)]=ConfiguredLog(model:model) }
-        model.onCommit={ [weak self,weak model] in
+        model.onCommit=CommandProgressContext.capture { [weak self,weak model] in
             guard let model else { return }
             self?.showCommitDialog(repository:repository,access:access,paths:model.historyPaths)
         }
-        model.onWorkingCommand={ [weak self,weak model] action in
+        model.onWorkingCommand=CommandProgressContext.capture { [weak self,weak model] action in
             switch action {
             case .commit:model?.onCommit()
             case .clean:self?.showClean(repository:repository,access:access,paths:[])
@@ -3913,25 +3958,25 @@ private enum TransportBatchPresentationContext {
             default:break
             }
         }
-        model.onCompare={ [weak self,weak model] from,to in
+        model.onCompare=CommandProgressContext.capture { [weak self,weak model] from,to in
             guard let model else { return }
             self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,paths:model.showWholeProject ? [] : model.historyPaths,preferences:preferences)
         }
-        model.onShowHistory={ [weak self] hash in self?.showLog(repository:repository,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:preferences) }
-        model.onShowHistoryRange={ [weak self,weak model] range in
+        model.onShowHistory=CommandProgressContext.capture { [weak self] hash in self?.showLog(repository:repository,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:preferences) }
+        model.onShowHistoryRange=CommandProgressContext.capture { [weak self,weak model] range in
             guard let model else { return }
             self?.showLog(repository:repository,access:access,paths:model.historyPaths,revisionRange:range,preferences:preferences)
         }
-        model.onCommitChangeSets={ [weak self] comparison in self?.showCommitChangeSets(repository:repository,access:access,comparison:comparison,preferences:preferences) }
-        model.onHistorySVNDCommit={ [weak self] in self?.showSVN(.dcommit,repository:repository,access:access) }
-        model.configureStartReferenceBrowser = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
-        model.onSwitchBranch = { [weak self, weak model] reference in
+        model.onCommitChangeSets=CommandProgressContext.capture { [weak self] comparison in self?.showCommitChangeSets(repository:repository,access:access,comparison:comparison,preferences:preferences) }
+        model.onHistorySVNDCommit=CommandProgressContext.capture { [weak self] in self?.showSVN(.dcommit,repository:repository,access:access) }
+        model.configureStartReferenceBrowser = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        model.onSwitchBranch = CommandProgressContext.capture { [weak self, weak model] reference in
             guard let parent = model?.window, parent.attachedSheet == nil else { return }
             self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: preferences)
         }
     }
     private func configureLogBisect(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, refreshPicker: Bool = false) {
-        model.onBisect = { [weak self, weak model] request in
+        model.onBisect = CommandProgressContext.capture { [weak self, weak model] request in
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil, preferences: model?.colorPreferences)
         }
     }
@@ -3958,18 +4003,18 @@ private enum TransportBatchPresentationContext {
             if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preserveStartDraft: command != nil && existing.model.hasStartReview && !existing.model.showingProgress) }
         } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: defaults) }
         if let sourceLog { controller.model.observeLog(sourceLog) }
-        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.bisectWindows[key] === controller else { return }; self.bisectWindows.removeValue(forKey: key) }
-        controller.model.onAttemptCompleted = { [weak self] result in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.bisectWindows[key] === controller else { return }; self.bisectWindows.removeValue(forKey: key) }
+        controller.model.onAttemptCompleted = CommandProgressContext.capture { [weak self] result in
             guard result.attempted else { return }
             let output = result.output
             onChanged?()
             guard let self else { return }
             self.refreshRepositoryLogs(root)
-            self.commitWindows[root.path]?.model.reload(); self.refreshStatusWindows(root); self.rebaseWindows[root.path]?.model.refreshState()
+            self.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self.refreshStatusWindows(root); self.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
         let inherited = controller.model.preferences
-        controller.model.onSubmoduleUpdate = { [weak self,weak controller] in
+        controller.model.onSubmoduleUpdate = CommandProgressContext.capture { [weak self,weak controller] in
             let presentation=controller?.window.map(MergeWindowPresentation.init)
             self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],preferences:inherited,presentation:presentation)
         }
@@ -3981,8 +4026,8 @@ private enum TransportBatchPresentationContext {
         else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
-        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        controller.configureCommitPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
     }
     private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -4005,7 +4050,7 @@ private enum TransportBatchPresentationContext {
         let key = commandLaunch ? commandKey : reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory, preferences: defaults)
         configureExportInteractions(controller, repository: repository, access: access)
-        controller.onClosed = { [weak self, weak controller] in if self?.exportWindows[key] === controller { self?.exportWindows.removeValue(forKey: key) } }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.exportWindows[key] === controller { self?.exportWindows.removeValue(forKey: key) } }
         presentation?.apply(to: controller.window)
         exportWindows[key] = controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
@@ -4022,14 +4067,14 @@ private enum TransportBatchPresentationContext {
         }
         let id = UUID(), root = repository.root
         let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
-        controller.configureModifiedComparison={ [weak self] model in self?.configureRevisionComparisonInteractions(model,repository:repository,access:access) }
-        controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
-        controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root)
+        controller.configureModifiedComparison=CommandProgressContext.capture { [weak self] model in self?.configureRevisionComparisonInteractions(model,repository:repository,access:access) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPostAction = { [weak self] action in
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self] action in
             if let operation = action.bisectOperation { self?.showBisect(repository: repository, access: access, operation: operation) }
             else if action == .submoduleUpdate { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
             else if action == .clean { self?.showClean(repository: repository, access: access, paths: []) }
@@ -4039,24 +4084,24 @@ private enum TransportBatchPresentationContext {
     }
     func configureMergeInteractions(_ controller: MergeWindowController, repository: GitRepository, access: RepositoryAccessLease?, showStashPop: Bool = false) {
         let transportChain=TransportBatchPresentationContext.chain
-        controller.configureReferencePicker = { [weak self] model in
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
         let root = repository.root, preferences = controller.model.presentationPreferences
-        controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload()
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
-            self?.commitWindows[root.path]?.model.reload()
+            self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.model.configureLogPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.model.showStashPop = showStashPop
-        controller.model.onAbortRequested = { [weak self, weak model = controller.model] in
+        controller.model.onAbortRequested = CommandProgressContext.capture { [weak self, weak model = controller.model] in
             guard let self, !self.retired, !self.confirmingQuit, let model else { return }
             self.showMergeAbort(repository: repository, access: access, preferences: preferences, presentation: model.handoffPresentation)
         }
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action, request in
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = controller.model] action, request in
             self?.performTransportHandoff(transportChain,modal:![MergePostAction.resolve,.commit,.svnDCommit].contains(action)) {
                 guard let self, !self.retired, !self.confirmingQuit, let model else { return }
                 let presentation = model.handoffPresentation
@@ -4076,17 +4121,17 @@ private enum TransportBatchPresentationContext {
         }
     }
     func configureLogRevert(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
-        log.onPreparedRevert={ [weak self,weak log] selection in
+        log.onPreparedRevert=CommandProgressContext.capture { [weak self,weak log] selection in
             self?.showHistoryRevert(repository:repository,access:access,entries:selection.rows,mainline:selection.mainline,owner:log?.window,preferences:log?.colorPreferences ?? self?.fileComparisonPreferences ?? .standard)
         }
     }
     func configureLogIntegration(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
         let preferences = log.colorPreferences
-        log.onMergeRevision = { [weak self,weak log] revision in
+        log.onMergeRevision = CommandProgressContext.capture { [weak self,weak log] revision in
             let accepted=log?.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
             self?.showMerge(repository:accepted,access:access,revision:revision,preferences:preferences)
         }
-        log.onPreparedRebase = { [weak self,weak log] prepared in
+        log.onPreparedRebase = CommandProgressContext.capture { [weak self,weak log] prepared in
             let accepted=log?.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
             self?.showRebase(repository:accepted,access:access,upstream:prepared.canonicalRevision,fromLog:true,preferences:preferences,acceptedRepository:accepted)
         }
@@ -4096,7 +4141,7 @@ private enum TransportBatchPresentationContext {
         let key = repository.root.path + "\0" + (commandLaunch ? "command-merge" : UUID().uuidString)
         if let existing = mergeWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = MergeWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
         configureMergeInteractions(controller, repository: repository, access: access, showStashPop: showStashPop)
         presentation?.apply(to: controller.window)
         mergeWindows[key] = controller; controller.model.load(revision: revision)
@@ -4114,8 +4159,8 @@ private enum TransportBatchPresentationContext {
         guard !stashMutationIsBusy(root) else { error = "Wait for the current stash operation to finish."; return }
         let controller = StashWindowController(repository: repository, access: access, preferences: preferences)
         if let message { controller.model.options.message = message }
-        controller.model.canStart = { [weak self] in self.map { !$0.stashMutationIsBusy(root) } ?? false }
-        controller.onClosed = { [weak self] in self?.stashWindows.removeValue(forKey: key) }
+        controller.model.canStart = CommandProgressContext.capture { [weak self] in self.map { !$0.stashMutationIsBusy(root) } ?? false }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.stashWindows.removeValue(forKey: key) }
         configureStashInteractions(controller, repository: repository, access: access)
         controller.model.followUp = followUp
         presentation?.apply(to: controller.window)
@@ -4126,16 +4171,16 @@ private enum TransportBatchPresentationContext {
     func configureStashInteractions(_ controller: StashWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root, preferences = controller.model.preferences
-        let changed: (String) -> Void = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload()
+        let changed: (String) -> Void = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
-            self?.commitWindows[root.path]?.model.reload()
+            self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onSaved = { result in changed(result.output) }
+        controller.model.onSaved = CommandProgressContext.capture { result in changed(result.output) }
         controller.model.onFailed = changed
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action, request in
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = controller.model] action, request in
             self?.performTransportHandoff(transportChain,modal:true) {
                 guard let self, !self.retired, !self.confirmingQuit, let model else { return }
                 let presentation = model.handoffPresentation
@@ -4150,55 +4195,55 @@ private enum TransportBatchPresentationContext {
     }
     private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         let preferences = model.colorPreferences
-        model.onCommitSubmodule = { [weak self] checkout in
+        model.onCommitSubmodule = CommandProgressContext.capture { [weak self] checkout in
             guard !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(checkout) == true else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
             self?.showCommitDialog(repository: GitRepository(root: checkout, executable: repository.executable), access: access, paths: [], preferences: preferences)
         }
-        model.onCompare = { [weak self, weak model] paths, amendToParent in
+        model.onCompare = CommandProgressContext.capture { [weak self, weak model] paths, amendToParent in
             guard let model, model.messageFocusAvailable else { return }
             self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent, owner: model.comparisonWindow)
         }
-        model.onCompareTwoFiles = { [weak self, weak model] paths in
+        model.onCompareTwoFiles = CommandProgressContext.capture { [weak self, weak model] paths in
             guard let model, model.messageFocusAvailable else { return }
             self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: model.comparisonWindow)
         }
-        model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: [], preferences: preferences) }
-        model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path], preferences: preferences) }
-        model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD", preferences: preferences) }
-        model.onResolve = { [weak self, weak model] action, paths in
+        model.onSubmoduleLog = CommandProgressContext.capture { [weak self] child in self?.showLog(repository: child, access: access, paths: [], preferences: preferences) }
+        model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path], preferences: preferences) }
+        model.onFileBlame = CommandProgressContext.capture { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD", preferences: preferences) }
+        model.onResolve = CommandProgressContext.capture { [weak self, weak model] action, paths in
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: model?.comparisonWindow) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice, preferences: preferences) }
         }
-        model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
-        model.onRevert = { [weak self, weak model] entries, amend, againstHead, done in
+        model.onIgnore = CommandProgressContext.capture { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
+        model.onRevert = CommandProgressContext.capture { [weak self, weak model] entries, amend, againstHead, done in
             guard let self else { done(false); return }
             self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), policy: model?.pendingRevertPolicy, completion: done)
         }
-        model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
-        model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
-        model.onMove = { [weak self] paths in self?.showMove(repository: repository, access: access, paths: paths) }
-        model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
-        model.configureLogPicker = { [weak self] log in
-            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source, preferences: preferences) }
-            log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches, preferences: preferences) }
-            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
-            log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision, preferences: preferences) }
-            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: preferences) }
+        model.onCopyAdd = CommandProgressContext.capture { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
+        model.onPasteFiles = CommandProgressContext.capture { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
+        model.onMove = CommandProgressContext.capture { [weak self] paths in self?.showMove(repository: repository, access: access, paths: paths) }
+        model.onRename = CommandProgressContext.capture { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
+        model.configureLogPicker = CommandProgressContext.capture { [weak self] log in
+            log.onPush = CommandProgressContext.capture { [weak self] source in self?.showPush(repository: repository, access: access, source: source, preferences: preferences) }
+            log.onHistoryPush = CommandProgressContext.capture { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches, preferences: preferences) }
+            log.onHistoryPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
+            log.onCreateReference = CommandProgressContext.capture { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision, preferences: preferences) }
+            log.onCheckout = CommandProgressContext.capture { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: preferences) }
             self?.configureLogMenus(log, repository: repository, access: access)
-            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, preferences: preferences) }
+            log.onExportRevision = CommandProgressContext.capture { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, preferences: preferences) }
             self?.configureLogIntegration(log,repository:repository,access:access)
-            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+            log.onCombineRevisions = CommandProgressContext.capture { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             self?.configureLogRevert(log,repository:repository,access:access)
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
-            log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits, preferences: preferences) }
-            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: preferences) }
+            log.onCherryPick = CommandProgressContext.capture { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits, preferences: preferences) }
+            log.onReset = CommandProgressContext.capture { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: preferences) }
         }
     }
     private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, force: Bool? = nil, commandLaunch: Bool = false, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil, preferences: UserDefaults? = nil,acceptedRepository:GitRepository?=nil) {
         let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root
         let existing = rebaseWindows[root.path]
-        if acceptedRepository != nil,let existing,existing.model.active {
+        if acceptedRepository != nil, rebaseWindows.allValues(forKey: root.path).contains(where: { $0.model.active }) {
             error=RebaseFailure.active.localizedDescription
             onResult?(false);onDismissed?();return
         }
@@ -4210,99 +4255,109 @@ private enum TransportBatchPresentationContext {
         if let existing, existing.window?.sheetParent != nil { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = existing ?? RebaseWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         let inherited = controller.model.columnPreferences
-        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         var dismissed = false
-        controller.onClosed = { [weak self, weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard !dismissed else { return }; dismissed = true
             if let window = controller?.window { window.sheetParent?.endSheet(window) }
             let completed = controller?.model.completedSuccessfully == true
             self?.rebaseWindows.removeValue(forKey: root.path); onResult?(completed); onDismissed?()
         }
-        controller.model.onChanged = { [weak self] in
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] in
             // Rebase publishes its own accepted state before this notification.
             // Feeding this back into refreshState re-enters onChanged forever.
-            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { Task { await self?.refresh() } }
         }
-        controller.model.onShowStatus = { [weak self] in
+        controller.model.onShowStatus = CommandProgressContext.capture { [weak self] in
             guard let self else { return }
             if self.root == root { self.activate(.status) }
             else if let access { self.openSession(access, action: .status) }
         }
-        controller.model.onConflictAction = { [weak self, weak controller] action, paths in
+        controller.model.onConflictAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice, preferences: inherited) }
         }
-        controller.model.onConflictRevertSubmodules={ [weak self] revision,paths in
+        controller.model.onConflictRevertSubmodules=CommandProgressContext.capture { [weak self] revision,paths in
             for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision,preferences:inherited)}
         }
         controller.model.importConflictComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
-        controller.model.onConflictPreparedComparison={ [weak self,weak controller] marked,current in
+        controller.model.onConflictPreparedComparison=CommandProgressContext.capture { [weak self,weak controller] marked,current in
             guard let controller else {return};self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:controller.window)
         }
-        controller.model.onConflictSubmoduleLog={ [weak self] child in self?.showLog(repository:child,access:access,paths:[],preferences:inherited) }
-        controller.model.onConflictFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path], preferences: inherited) }
-        controller.model.onConflictFileBlame = { [weak self] path, revision in self?.showBlame(repository: repository, access: access, path: path, revision: revision, preferences: inherited) }
-        controller.model.onConflictWorkingComparison = { [weak self, weak controller] paths,amendToParent in
+        controller.model.onConflictSubmoduleLog=CommandProgressContext.capture { [weak self] child in self?.showLog(repository:child,access:access,paths:[],preferences:inherited) }
+        controller.model.onConflictFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path], preferences: inherited) }
+        controller.model.onConflictFileBlame = CommandProgressContext.capture { [weak self] path, revision in self?.showBlame(repository: repository, access: access, path: path, revision: revision, preferences: inherited) }
+        controller.model.onConflictWorkingComparison = CommandProgressContext.capture { [weak self, weak controller] paths,amendToParent in
             guard let self, let controller else { return }
             self.prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: controller.window, preferences: inherited) { [weak self] token in
                 let snapshot = try await repository.workingFileComparison(paths: paths,amendToParent:amendToParent, cancellation: token)
                 self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: inherited)
             }
         }
-        controller.model.onConflictWorkingPair = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
+        controller.model.onConflictWorkingPair = CommandProgressContext.capture { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
         controller.model.completionAfterFetch = afterFetch
         controller.model.completionFromLog = fromLog
         controller.model.completionAutoStart = autoStart
-        controller.model.onCompletedLog = onRequestedLog ?? { [weak self] in self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
-        controller.model.onCompletedPush = { [weak self] source in self?.performTransportHandoff(transportChain,modal:true) {self?.showPush(repository: repository, access: access, source: source, preferences: inherited)} }
-        controller.model.onCompletedMail = { [weak self] preset in self?.performTransportHandoff(transportChain,modal:true) {self?.showRebaseCompletionMail(repository: repository, access: access, preset: preset, preferences: inherited)} }
-        controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
+        controller.model.onCompletedLog = CommandProgressContext.capture { [weak self] in
+            if let onRequestedLog { onRequestedLog() }
+            else { self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
+        }
+        controller.model.onCompletedPush = CommandProgressContext.capture { [weak self] source in self?.performTransportHandoff(transportChain,modal:true) {self?.showPush(repository: repository, access: access, source: source, preferences: inherited)} }
+        controller.model.onCompletedMail = CommandProgressContext.capture { [weak self] preset in self?.performTransportHandoff(transportChain,modal:true) {self?.showRebaseCompletionMail(repository: repository, access: access, preset: preset, preferences: inherited)} }
+        controller.model.configureCommitSelection = CommandProgressContext.capture { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
         let revisionFiles=controller.model.revisionFiles
-        revisionFiles.onFileLog={ [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision,preferences:inherited) }
-        revisionFiles.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:inherited) }
-        revisionFiles.onSubmoduleLog={ [weak self,weak revisionFiles] checkout,revision in
+        revisionFiles.onFileLog=CommandProgressContext.capture { [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision,preferences:inherited) }
+        revisionFiles.onBlame=CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:inherited) }
+        revisionFiles.onSubmoduleLog=CommandProgressContext.capture { [weak self,weak revisionFiles] checkout,revision in
             let child=revisionFiles?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
             self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:inherited)
         }
-        revisionFiles.onSubmoduleCompare={ [weak self] path,oldPath,from,to in
-            self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:from == .emptyTree ? "" : from.label,to:to == .workingTree ? nil : to == .emptyTree ? "":to.label,fromPath:oldPath,preferences:inherited)
+        revisionFiles.onSubmoduleCompare = CommandProgressContext.capture { [weak self] (path: String, oldPath: String?, from: ComparisonRevision, to: ComparisonRevision) -> Void in
+            let fromRevision: String = from == .emptyTree ? "" : from.label
+            let toRevision: String?
+            switch to {
+            case .workingTree: toRevision = nil
+            case .emptyTree: toRevision = ""
+            case .revision: toRevision = to.label
+            }
+            self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: fromRevision, to: toRevision, fromPath: oldPath, preferences: inherited)
         }
-        controller.configureContainingReferences = { [weak self] child in
-            child.onLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
+        controller.configureContainingReferences = CommandProgressContext.capture { [weak self] child in
+            child.onLog = CommandProgressContext.capture { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
         }
         let revisionLog = controller.model.revisionMenuLog
         configureLogMenus(revisionLog, repository: repository, access: access, registerRefresh: false)
         configureLogBisect(revisionLog, repository: repository, access: access)
-        revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: inherited) }
-        revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: inherited) }
-        revisionLog.onCreateReference = { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash, preferences: inherited) }
-        revisionLog.onPush = { [weak self] hash in self?.showPush(repository: repository, access: access, source: hash, preferences: inherited) }
-        revisionLog.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches, preferences: inherited) }
-        revisionLog.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: inherited) }
-        revisionLog.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset, preferences: inherited) }
-        revisionLog.onExportRevision = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash, preferences: inherited) }
-        revisionLog.onShowHistoryRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: inherited) }
-        revisionLog.onContainingLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
+        revisionLog.onCompare = CommandProgressContext.capture { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: inherited) }
+        revisionLog.onBrowseRepository = CommandProgressContext.capture { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: inherited) }
+        revisionLog.onCreateReference = CommandProgressContext.capture { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash, preferences: inherited) }
+        revisionLog.onPush = CommandProgressContext.capture { [weak self] hash in self?.showPush(repository: repository, access: access, source: hash, preferences: inherited) }
+        revisionLog.onHistoryPush = CommandProgressContext.capture { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches, preferences: inherited) }
+        revisionLog.onHistoryPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: inherited) }
+        revisionLog.onFormatPatch = CommandProgressContext.capture { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset, preferences: inherited) }
+        revisionLog.onExportRevision = CommandProgressContext.capture { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash, preferences: inherited) }
+        revisionLog.onShowHistoryRange = CommandProgressContext.capture { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: inherited) }
+        revisionLog.onContainingLog = CommandProgressContext.capture { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
 
-        revisionLog.onRevisionChanged = { [weak self] output in
+        revisionLog.onRevisionChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output }
         }
-        controller.model.onShowRevisionLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, preferences: inherited) }
-        controller.model.configureLogPicker = { [weak self] log in
-            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source, preferences: inherited) }
-            log.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches, preferences: inherited) }
-            log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: inherited) }
-            log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision, preferences: inherited) }
-            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: inherited) }
+        controller.model.onShowRevisionLog = CommandProgressContext.capture { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, preferences: inherited) }
+        controller.model.configureLogPicker = CommandProgressContext.capture { [weak self] log in
+            log.onPush = CommandProgressContext.capture { [weak self] source in self?.showPush(repository: repository, access: access, source: source, preferences: inherited) }
+            log.onHistoryPush = CommandProgressContext.capture { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches, preferences: inherited) }
+            log.onHistoryPull = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: inherited) }
+            log.onCreateReference = CommandProgressContext.capture { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision, preferences: inherited) }
+            log.onCheckout = CommandProgressContext.capture { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: inherited) }
             self?.configureLogMenus(log, repository: repository, access: access)
-            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, preferences: inherited) }
+            log.onExportRevision = CommandProgressContext.capture { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, preferences: inherited) }
             self?.configureLogIntegration(log,repository:repository,access:access)
-            log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
+            log.onCombineRevisions = CommandProgressContext.capture { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
             self?.configureLogRevert(log,repository:repository,access:access)
             self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
-            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: inherited) }
+            log.onReset = CommandProgressContext.capture { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: inherited) }
         }
         rebaseWindows[root.path] = controller
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil || acceptedRepository != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force,acceptedRepository:acceptedRepository) }
@@ -4318,27 +4373,27 @@ private enum TransportBatchPresentationContext {
     private func configureFetchInteractions(_ controller: FetchWindowController, repository: GitRepository, access: RepositoryAccessLease?, followUp: PullFollowUp = PullFollowUp()) {
         let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root, preferences = controller.model.presentationPreferences
-        controller.model.onNotificationLog={ [weak self] child,grant,paths,old,new in
+        controller.model.onNotificationLog=CommandProgressContext.capture { [weak self] child,grant,paths,old,new in
             guard let self,!self.retired,!self.confirmingQuit else{return}
             self.showLog(repository:child,access:grant,paths:paths,endRevision:old == nil ? new:nil,revisionRange:old.map{HistoryRevisionRange(from:$0,to:new ?? "HEAD")},preferences:preferences)
         }
-        controller.model.onShowStatus = { [weak self] in
+        controller.model.onShowStatus = CommandProgressContext.capture { [weak self] in
             guard let self else { return }
             if self.root == root { self.activate(.status) }
             else if let access { self.openSession(access, action: .status) }
         }
-        controller.model.onFetched = { [weak self, weak controller] output in
+        controller.model.onFetched = CommandProgressContext.capture { [weak self, weak controller] output in
             guard controller?.model.progress == nil, controller?.model.fetchProgress == nil else { return }
             self?.refreshRepositoryLogs(root)
             self?.refreshStatusWindows(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.followUp = followUp
-        controller.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPullPostAction = { [weak self] action, result in
+        controller.model.onPullPostAction = CommandProgressContext.capture { [weak self] action, result in
             self?.performTransportHandoff(transportChain,modal:![PullPostAction.resolve,.commit,.diff,.log,.submoduleUpdate,.workingTree].contains(action)) {
                 switch action {
                 case .workingTree: self?.showStatus(repository: repository, access: access, paths: [], preferences: preferences)
@@ -4358,7 +4413,7 @@ private enum TransportBatchPresentationContext {
                 }
             }
         }
-        controller.model.onFetchPostAction = { [weak self] action, revision in
+        controller.model.onFetchPostAction = CommandProgressContext.capture { [weak self] action, revision in
             self?.performTransportHandoff(transportChain,modal:![FetchPostAction.log,.resolve].contains(action)) {
                 switch action {
                 case .log: self?.showLog(repository: repository, access: access, paths: [], preferences: preferences)
@@ -4371,7 +4426,7 @@ private enum TransportBatchPresentationContext {
                 }
             }
         }
-        controller.model.onRebase = { [weak self,weak model=controller.model] upstream, autoStart, preserveMerges in
+        controller.model.onRebase = CommandProgressContext.capture { [weak self,weak model=controller.model] upstream, autoStart, preserveMerges in
             let accepted=model?.acceptedOperationRepository ?? repository.capturingDiffBackend(preferences:preferences)
             self?.performTransportHandoff(transportChain,modal:true) {
                 self?.showRebase(repository: accepted, access: access, upstream: upstream.isEmpty ? nil:upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences,acceptedRepository:accepted)
@@ -4383,7 +4438,7 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
         let controller = FetchWindowController(repository: repository, access: access, isPull: isPull, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
         configureFetchInteractions(controller, repository: repository, access: access, followUp: followUp)
         controller.model.clipboardText = transportClipboardText
         presentation?.apply(to: controller.window)
@@ -4395,7 +4450,7 @@ private enum TransportBatchPresentationContext {
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
         let defaults=preferences ?? fileComparisonPreferences
         let controller = pushWindowFactory?(repository,access,defaults) ?? PushWindowController(repository: repository, access: access, preferences:defaults)
-        controller.onClosed = { [weak self,weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller,self.pushWindows[key] === controller else{return}
             self.pushWindows.removeValue(forKey:key)
         }
@@ -4413,14 +4468,14 @@ private enum TransportBatchPresentationContext {
     }
     private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let transportChain=TransportBatchPresentationContext.chain
-        controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
-        controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
+        controller.configureLogPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         let root = repository.root
-        controller.model.onTransportResult = { [weak self] output, _ in
-            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+        controller.model.onTransportResult = CommandProgressContext.capture { [weak self] output, _ in
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPostAction = { [weak self] action, options, superproject in
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self] action, options, superproject in
             self?.performTransportHandoff(transportChain,modal:action != .commitSuperproject) {
                 guard let self else { return }
                 switch action {
@@ -4449,23 +4504,23 @@ private enum TransportBatchPresentationContext {
     }
     func configureReferenceInteractions(_ controller: BranchTagWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let root = repository.root, preferences = controller.model.presentationPreferences
-        controller.model.onCreated = { [weak self] output in
+        controller.model.onCreated = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)
             self?.refreshStatusWindows(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onSwitch = { [weak self, weak controller] reference, done in
+        controller.model.onSwitch = CommandProgressContext.capture { [weak self, weak controller] reference, done in
             guard let self, !self.retired, !self.confirmingQuit, let controller, controller.model.active, !controller.model.confirmingQuit, let parent = controller.window, parent.attachedSheet == nil else { done(); return }
             let progress = self.showSwitchProgress(repository: controller.model.operationRepository, access: access, reference: reference, parent: parent, preferences: preferences, completion: done)
             controller.model.awaitSwitchCloseOnRetirement = progress != nil
-            controller.model.cancelSwitchPresentation = { [weak progress] in progress?.close() }
+            controller.model.cancelSwitchPresentation = CommandProgressContext.capture { [weak progress] in progress?.close() }
         }
-        controller.model.onPushTag = { [weak self, weak model = controller.model] source in
+        controller.model.onPushTag = CommandProgressContext.capture { [weak self, weak model = controller.model] source in
             guard let self, !self.retired, !self.confirmingQuit, let model else { return }
             self.showPush(repository: repository, access: access, source: source, preferences: preferences, presentation: model.handoffPresentation)
         }
-        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.configureReferencePicker = { [weak self] model in
+        controller.configureCommitPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
@@ -4473,7 +4528,7 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
         let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag, preferences:preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self, weak controller] in if self?.referenceWindows[key] === controller { self?.referenceWindows.removeValue(forKey: key) } }
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.referenceWindows[key] === controller { self?.referenceWindows.removeValue(forKey: key) } }
         configureReferenceInteractions(controller, repository: repository, access: access)
         presentation?.apply(to: controller.window)
         referenceWindows[key] = controller; controller.model.load(revision: revision, name: name)
@@ -4484,15 +4539,15 @@ private enum TransportBatchPresentationContext {
         guard transportChain?.canPresent != false,!retired, !confirmingQuit else { completion?(); return nil }
         let id = UUID(), root = repository.root
         let controller = SwitchProgressWindowController(model: SwitchProgressWindowModel(repository: repository, access: access, reference: reference, preferences: preferences))
-        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
-        controller.model.onFinished = { [weak self] output, _ in
-            self?.referenceLogWindows[root.path]?.model.reload()
-            self?.commitWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root)
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
+        controller.model.onFinished = CommandProgressContext.capture { [weak self] output, _ in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
+            self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performTransportHandoff(transportChain,modal:![SwitchPostAction.submoduleUpdate,.commit,.resolve].contains(action)) {self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)} }
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performTransportHandoff(transportChain,modal:![SwitchPostAction.submoduleUpdate,.commit,.resolve].contains(action)) {self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)} }
         switchProgressWindows[id] = controller
         if let window = controller.window { MergeWindowPresentation(parent).apply(to: window); parent.beginSheet(window) }
         controller.model.start(); return controller
@@ -4517,18 +4572,18 @@ private enum TransportBatchPresentationContext {
         if let existing=reusable?.value {guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{return};existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil);return}
         let key=referenceBrowserWindows[base]==nil ? base:base+"\0"+UUID().uuidString
         let controller=ReferenceBrowserWindowController(repository:repository,access:access,initial:"HEAD",preferences:preferences,picking:false){_ in}
-        controller.model.onReferencesChanged={ [weak self] in self?.refreshRepositoryLogs(repository.root);if self?.root==repository.root {Task {await self?.refresh()}}}
+        controller.model.onReferencesChanged=CommandProgressContext.capture { [weak self] in self?.refreshRepositoryLogs(repository.root);if self?.root==repository.root {Task {await self?.refresh()}}}
         configureReferenceBrowser(controller.model,repository:repository,access:access)
         let serviceContext=finderServiceDispatch
-        controller.prepareChildPresentation={ [weak self,weak controller] child in
+        controller.prepareChildPresentation=CommandProgressContext.capture { [weak self,weak controller] child in
             guard let self,controller?.canReuse==true else{return false}
             return FinderServicePresentationContext.$current.withValue(serviceContext){self.prepareFinderServiceWorkflow(child,repository:repository,access:access)}
         }
-        controller.configureTrackingPicker={ [weak self] child in
+        controller.configureTrackingPicker=CommandProgressContext.capture { [weak self] child in
             FinderServicePresentationContext.$current.withValue(serviceContext){self?.configureReferenceBrowser(child.model,repository:repository,access:access)}
         }
 
-        controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.referenceBrowserWindows[key] === controller else{return};self.referenceBrowserWindows.removeValue(forKey:key)}
+        controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.referenceBrowserWindows[key] === controller else{return};self.referenceBrowserWindows.removeValue(forKey:key)}
         referenceBrowserWindows[key]=controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
@@ -4537,40 +4592,40 @@ private enum TransportBatchPresentationContext {
     func configureReferenceBrowser(_ model: ReferenceBrowserWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         let preferences=model.preferences,serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
-        model.configureComparison = { [weak self] comparison in show {self?.configureRevisionComparisonInteractions(comparison, repository: repository, access: access)} }
-        model.onLogRange = { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: preferences)} }
-        model.onLog = { [weak self] name in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: name, preferences: preferences)} }
-        model.onBrowse = { [weak self] name in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: name, preferences: preferences)} }
-        model.onCompare = { [weak self] name in show {self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree, preferences: preferences)} }
-        model.onCompareWithOptions = { [weak self] name, alternate in
+        model.configureComparison = CommandProgressContext.capture { [weak self] comparison in show {self?.configureRevisionComparisonInteractions(comparison, repository: repository, access: access)} }
+        model.onLogRange = CommandProgressContext.capture { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: preferences)} }
+        model.onLog = CommandProgressContext.capture { [weak self] name in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: name, preferences: preferences)} }
+        model.onBrowse = CommandProgressContext.capture { [weak self] name in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: name, preferences: preferences)} }
+        model.onCompare = CommandProgressContext.capture { [weak self] name in show {self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree, preferences: preferences)} }
+        model.onCompareWithOptions = CommandProgressContext.capture { [weak self] name, alternate in
             ComparisonToolInvocation.$alternate.withValue(alternate) {
                 self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree, preferences: preferences)
             }
         }
-        model.configureFetch = { [weak self] controller in show {self?.configureFetchInteractions(controller, repository: repository, access: access)} }
-        model.configureBranch = { [weak self] controller in show {self?.configureReferenceInteractions(controller, repository: repository, access: access)} }
-        model.configureMerge = { [weak self] controller in show {self?.configureMergeInteractions(controller, repository: repository, access: access)} }
-        model.configureSwitch = { [weak self] controller in show {self?.configureSwitchInteractions(controller, repository: repository, access: access)} }
+        model.configureFetch = CommandProgressContext.capture { [weak self] controller in show {self?.configureFetchInteractions(controller, repository: repository, access: access)} }
+        model.configureBranch = CommandProgressContext.capture { [weak self] controller in show {self?.configureReferenceInteractions(controller, repository: repository, access: access)} }
+        model.configureMerge = CommandProgressContext.capture { [weak self] controller in show {self?.configureMergeInteractions(controller, repository: repository, access: access)} }
+        model.configureSwitch = CommandProgressContext.capture { [weak self] controller in show {self?.configureSwitchInteractions(controller, repository: repository, access: access)} }
     }
     func configureSwitchInteractions(_ controller: SwitchWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root
-        controller.model.onSwitched = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload()
-            self?.commitWindows[root.path]?.model.reload()
+        controller.model.onSwitched = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
+            self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
+        controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
+            self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performTransportHandoff(transportChain,modal:![SwitchPostAction.submoduleUpdate,.commit,.resolve].contains(action)) {self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)} }
-        controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.configureReferencePicker = { [weak self] model in
+        controller.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performTransportHandoff(transportChain,modal:![SwitchPostAction.submoduleUpdate,.commit,.resolve].contains(action)) {self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)} }
+        controller.configureCommitPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
+        controller.configureReferencePicker = CommandProgressContext.capture { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
@@ -4579,7 +4634,7 @@ private enum TransportBatchPresentationContext {
         let root = repository.root
         let key = root.path + ":switch:" + UUID().uuidString
         let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision, preferences:preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         configureSwitchInteractions(controller, repository: repository, access: access)
         switchWindows[key] = controller; controller.model.load(revision: revision)
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -4648,7 +4703,7 @@ private enum TransportBatchPresentationContext {
             let key = "working-pair:" + UUID().uuidString
             let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions,preferences:preferences ?? fileComparisonPreferences, line: line)
             controller.model.captureToolChoice(alternateTool)
-            controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
+            controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         } catch { self.error = error.localizedDescription }
@@ -4657,7 +4712,7 @@ private enum TransportBatchPresentationContext {
         let token=owner.cancellation
         finderServiceWorkers += 1
         let startingGeneration=adoptionGeneration
-        owner.onCancelled={ [weak self] in self?.finderServiceTransportStep?.cancel() }
+        owner.onCancelled=CommandProgressContext.capture { [weak self] in self?.finderServiceTransportStep?.cancel() }
         Task { [self,leases,owner] in
             var expectedGeneration=startingGeneration
             var failures:[String]=[]
@@ -4685,7 +4740,7 @@ private enum TransportBatchPresentationContext {
                 defer{step.releaseCompleted()}
                 let opened:Bool=await withCheckedContinuation { continuation in
                     TransportBatchPresentationContext.$chain.withValue(step) {
-                        openSession(lease,selected:selected,action:request.action,commandRootOnly:true,onFinished:{continuation.resume(returning:$0)},handoffOwner:owner,serviceCommand:command)
+                        openSession(lease,selected:selected,action:request.action,commandRootOnly:true,onFinished:CommandProgressContext.capture {continuation.resume(returning:$0)},handoffOwner:owner,serviceCommand:command)
                     }
                 }
                 guard adoptionGeneration==nextGeneration else {
@@ -4731,7 +4786,7 @@ private enum TransportBatchPresentationContext {
         finderServiceFolderChoice=choice;finderServiceWorkers += 1
         defer{finderServiceWorkers -= 1;if finderServiceFolderChoice === choice{finderServiceFolderChoice=nil}}
         let selected:URL?=await withCheckedContinuation { continuation in
-            choice.onFinished={selected in continuation.resume(returning:selected)}
+            choice.onFinished=CommandProgressContext.capture {selected in continuation.resume(returning:selected)}
             choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
         }
         while panel.sheetParent != nil || panel.attachedSheet != nil{try? await Task.sleep(nanoseconds:5_000_000)}
@@ -4764,7 +4819,7 @@ private enum TransportBatchPresentationContext {
         finderServiceFolderChoice=choice
         defer{if finderServiceFolderChoice === choice {finderServiceFolderChoice=nil}}
         let selected:URL?=await withCheckedContinuation { continuation in
-            choice.onFinished={continuation.resume(returning:$0)}
+            choice.onFinished=CommandProgressContext.capture {continuation.resume(returning:$0)}
             choice.begin(present:presentFinderServiceFilePanel,selected:selectedFinderServiceFileURL)
         }
         while panel.sheetParent != nil || panel.attachedSheet != nil || window?.attachedSheet === panel {try? await Task.sleep(nanoseconds:5_000_000)}
@@ -4839,7 +4894,7 @@ private enum TransportBatchPresentationContext {
                     try controller.model.prepareWorkingDocument(document)
                     controller.model.captureToolChoice(tool)
                     controller.window?.alphaValue=window?.alphaValue ?? 1;controller.window?.appearance=window?.effectiveAppearance
-                    controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.fileComparisonWindows[key] === controller else{return};self.fileComparisonWindows.removeValue(forKey:key)}
+                    controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.fileComparisonWindows[key] === controller else{return};self.fileComparisonWindows.removeValue(forKey:key)}
                     fileComparisonWindows[key]=controller
                     finderServiceFileWorkflowPresentation?(request.action,controller,permissions)
                     do{try check()}catch{controller.close();throw error}
@@ -4910,7 +4965,7 @@ private enum TransportBatchPresentationContext {
                 else if request.action == .clone {showClone(directory:request.paths[0],directoryAccess:lease);finish()}
                 else if request.action == .initialize {presentCreateRepository(folder:request.paths[0],lease:lease,owner:owner);finish()}
                 else if request.action == .diff,request.paths.count==2 {handleFilePair(paths:request.paths,serviceAccess:lease);finish()}
-                else {openSession(lease,selected:request,action:request.action,onFinished:{_ in finish()},handoffOwner:owner,serviceCommand:command,servicePreferences:preferences)}
+                else {openSession(lease,selected:request,action:request.action,onFinished:CommandProgressContext.capture {_ in finish()},handoffOwner:owner,serviceCommand:command,servicePreferences:preferences)}
             }
         }
         if transportBatch {
@@ -4939,7 +4994,7 @@ private enum TransportBatchPresentationContext {
         panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
         panel.directoryURL=permissionTargets.first?.deletingLastPathComponent();panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
         finderServiceFolderChoice=choice;finderServiceWorkers += 1;busy=true
-        choice.onFinished={ [weak self,weak choice] selected in
+        choice.onFinished=CommandProgressContext.capture { [weak self,weak choice] selected in
             guard let self,let choice else{return}
             Task{@MainActor [self,choice] in
                 defer{self.finderServiceWorkers -= 1;if self.finderServiceFolderChoice === choice{self.finderServiceFolderChoice=nil}}
@@ -4989,7 +5044,7 @@ private enum TransportBatchPresentationContext {
         controller.presentDocument(Data(), title: title + " – Unified Diff – TurtleGit", comparison: title, information: "")
         if let standaloneCompletion{controller.configureStandaloneInputCompletion(standaloneCompletion)}
         configurePatchDocument(controller)
-        controller.onClosed = { [weak self, weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, self.patchDocumentWindows[id] === controller else { return }
             self.patchDocumentWindows.removeValue(forKey: id); self.patchDocumentOpeningPaths.removeValue(forKey: id)
             completion?()
@@ -5013,7 +5068,7 @@ private enum TransportBatchPresentationContext {
             let entry: (id:UUID,owner:PatchWindowController)
             if invocation.isStandaloneTool {
                 entry=makePatchDocument(directory:directory,title:title,standaloneCompletion:{completion?($0)})
-            } else {entry=makePatchDocument(directory:directory,title:title,completion:{completion?(0)})}
+            } else {entry=makePatchDocument(directory:directory,title:title,completion:CommandProgressContext.capture {completion?(0)})}
             switch invocation.input {
             case .empty:entry.owner.startupInputReporter?(.success)
             case .file(let url):entry.owner.documentSession.openFile(url,title:invocation.isStandaloneTool ? title:invocation.title,authorizeIfNeeded:true,startupResult:entry.owner.startupInputReporter)
@@ -5112,8 +5167,8 @@ private enum TransportBatchPresentationContext {
         let controller = revisionGraphWindowFactory?(repository, access, preferences, false) ?? RevisionGraphWindowController(repository: repository, access: access, preferences: preferences, automaticallyLoad: false)
         if let appearance = handoff?.appearance { controller.window?.appearance = appearance }
         commandGraphWindows[id] = controller
-        owner.onCancelled = { [weak controller] in controller?.model.cancel(); controller?.close() }
-        controller.onClosed = { owner.cancellation.cancel() }
+        owner.onCancelled = CommandProgressContext.capture { [weak controller] in controller?.model.cancel(); controller?.close() }
+        controller.onClosed = CommandProgressContext.capture { owner.cancellation.cancel() }
         if !retired, !confirmingQuit, !owner.cancellation.isCancelled, !controller.model.closed { controller.model.load() }
         else { owner.cancellation.cancel(); controller.close() }
         Task {
@@ -5138,12 +5193,12 @@ private enum TransportBatchPresentationContext {
         let id = UUID(), preferences = fileComparisonPreferences
         let controller = CommitContainingReferencesWindowController(repository: repository, access: access, revision: revision, preferences: preferences)
         let owner = RepositoryWindowOwner(window: controller.window)
-        controller.onClosed = { [weak self] in self?.commandReferenceWindows.removeValue(forKey: id) }
-        controller.onLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range) }
-        controller.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-        controller.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
-        controller.onNavigate = { [weak self] name, select in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil) }
-        controller.onUnified = { [weak self] bytes, alternate in
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.commandReferenceWindows.removeValue(forKey: id) }
+        controller.onLog = CommandProgressContext.capture { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range) }
+        controller.onBrowse = CommandProgressContext.capture { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+        controller.onCompare = CommandProgressContext.capture { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.onNavigate = CommandProgressContext.capture { [weak self] name, select in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil) }
+        controller.onUnified = CommandProgressContext.capture { [weak self] bytes, alternate in
             guard let self else { return }
             try await self.presentCommandUnifiedDiff(bytes, title: "References commit is on", repository: repository, access: access, alternate: alternate, preferences: preferences, cancellation: owner.cancellation)
         }
@@ -5171,10 +5226,13 @@ private enum TransportBatchPresentationContext {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }
             guard !busy, commandRepositoryBatchCancellation == nil else { error = "Wait for the current repository operation before opening a command."; return }
             let backend:GitLibGit2Configuration?=invocation.request.action == .cat ? (captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)):nil
-            try CommandGraphOutputContext.$current.withValue(nil) {
-                try HistoricalMaterializationContext.$backend.withValue(backend) {
-                    if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
-                    else { try launchCommandLine(invocation) }
+            let progressScope=invocation.progressAutoClose.map {CommandProgressScope(policy:$0)}
+            try CommandProgressContext.perform(progressScope) {
+                try CommandGraphOutputContext.$current.withValue(nil) {
+                    try HistoricalMaterializationContext.$backend.withValue(backend) {
+                        if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
+                        else { try launchCommandLine(invocation) }
+                    }
                 }
             }
         } catch { if !retired, !confirmingQuit, !(error is OperationCancellationFailure) { self.error = error.localizedDescription } }
@@ -5393,7 +5451,7 @@ private enum TransportBatchPresentationContext {
                             choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
                             choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the working tree containing the selected paths."; choice.panel.directoryURL = selected.deletingLastPathComponent()
                             resolutionCommandFolderChoice = choice
-                            choice.onFinished = { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
+                            choice.onFinished = CommandProgressContext.capture { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
                             choice.begin(present: nil, selected: { $0.url })
                         }
                     }
@@ -5436,7 +5494,7 @@ private enum TransportBatchPresentationContext {
                 // Adopt the validated root without dispatching an uncaptured
                 // editor action. The original selected item stays in invocation.
                 let rootRequest = invocation.selecting([resolved]).request
-                openSession(access, selected: rootRequest, commandRootOnly: true, handoffOwner: owner, onOpened: { [weak self] in
+                openSession(access, selected: rootRequest, commandRootOnly: true, handoffOwner: owner, onOpened: CommandProgressContext.capture { [weak self] in
                     guard let self, !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled, cancellation?.isCancelled != true,
                           let repository = self.repository, let access = self.activeAccess else { return }
                     self.persistResolutionCommandScopes(prepared.newFolders, root: repository.root)
@@ -5472,7 +5530,7 @@ private enum TransportBatchPresentationContext {
                         choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
                         choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the working tree containing the drop destination."; choice.panel.directoryURL = target
                         transferFolderChoice = choice
-                        choice.onFinished = { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
+                        choice.onFinished = CommandProgressContext.capture { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
                         choice.begin(present: nil, selected: { $0.url })
                     }
                 }
@@ -5490,7 +5548,7 @@ private enum TransportBatchPresentationContext {
                 guard canChangeSettingsContext() else { return }
                 busy = false; transferred = true
                 let destination = invocation.selecting([target])
-                openSession(access, selected: destination.request, action: destination.request.action, handoffOwner: owner, onOpened: { [weak self] in
+                openSession(access, selected: destination.request, action: destination.request.action, handoffOwner: owner, onOpened: CommandProgressContext.capture { [weak self] in
                     guard let self, !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled,
                           let repository = self.repository, let access = self.activeAccess else { return }
                     self.showCommandTransfer(invocation, repository: repository, access: access, preferences: preferences)
@@ -5520,7 +5578,7 @@ private enum TransportBatchPresentationContext {
                         choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
                         choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the folder containing this Settings path."; choice.panel.directoryURL = selected.deletingLastPathComponent()
                         settingsFolderChoice = choice
-                        choice.onFinished = { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
+                        choice.onFinished = CommandProgressContext.capture { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
                         choice.begin(present: nil, selected: { $0.url })
                     }
                 }
@@ -5563,7 +5621,7 @@ private enum TransportBatchPresentationContext {
             choice.panel.message = file.map { "Choose this patch file or its containing folder to allow TurtleGit to import it: " + $0.path } ?? "Choose the repository into which the selected patches will be imported."
             choice.panel.directoryURL = file?.deletingLastPathComponent() ?? root
             commandImportFolderChoice = choice
-            choice.onFinished = { [weak self, weak choice] selected in
+            choice.onFinished = CommandProgressContext.capture { [weak self, weak choice] selected in
                 guard let self, let choice, self.commandImportFolderChoice === choice else { continuation.resume(returning: nil); return }
                 Task { @MainActor [self,choice] in
                     while choice.panel.sheetParent != nil || choice.panel.attachedSheet != nil || window?.attachedSheet === choice.panel {try? await Task.sleep(nanoseconds:5_000_000)}
@@ -5636,10 +5694,10 @@ private enum TransportBatchPresentationContext {
                 guard repositoryGrant.contains(requested), !requiresRepositoryScope || repositoryGrant.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let selected = FinderRequest(action: .importPatch, paths: [requested])
                 transferred = true; busy = false
-                openSession(repositoryGrant, selected: selected, onFinished: { [weak self] _ in
+                openSession(repositoryGrant, selected: selected, onFinished: CommandProgressContext.capture { [weak self] _ in
                     if self?.commandImportOwner === owner { self?.commandImportOwner = nil }
                     if self?.finderServiceImportOwner === owner {self?.finderServiceImportOwner=nil}
-                }, handoffOwner: owner,serviceCommand:serviceCommand,servicePreferences:defaults,onOpened: { [weak self] in
+                }, handoffOwner: owner,serviceCommand:serviceCommand,servicePreferences:defaults,onOpened: CommandProgressContext.capture { [weak self] in
                     guard let self, !self.retired, !owner.cancellation.isCancelled, !self.confirmingQuit, cancellation?.isCancelled != true, let repository = self.repository, let access = self.activeAccess else { return }
                     if self.bare { self.activate(.importPatch); return }
                     let context=serviceCommand.map{_ in FinderServiceDispatchIdentity(action:.importPatch,root:repository.root,preferences:defaults)}
@@ -5765,7 +5823,7 @@ private enum TransportBatchPresentationContext {
         panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
         panel.directoryURL=paths.first?.deletingLastPathComponent();panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
         let folder:URL?=await withCheckedContinuation { continuation in
-            choice.onFinished={ selected in continuation.resume(returning:selected) }
+            choice.onFinished=CommandProgressContext.capture { selected in continuation.resume(returning:selected) }
             choice.begin(present:presentCommandTransportFolderPanel,selected:selectedCommandTransportFolderURL)
         }
         while panel.sheetParent != nil || panel.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
@@ -5813,7 +5871,7 @@ private enum TransportBatchPresentationContext {
                 guard let lease=await commandTransportAccess(invocation.transportPaths,owner:owner) else {token.cancel();return}
                 leases.append(lease)
             }
-            owner.onCancelled={ [weak self] in token.cancel();self?.commandTransportChain?.cancel() }
+            owner.onCancelled=CommandProgressContext.capture { [weak self] in token.cancel();self?.commandTransportChain?.cancel() }
             for path in invocation.transportPaths {
                 while busy,allowed(){try? await Task.sleep(nanoseconds:10_000_000)}
                 guard allowed() else{return}
@@ -5836,7 +5894,7 @@ private enum TransportBatchPresentationContext {
                 let next=invocation.selecting([path])
                 let opened:Bool=await withCheckedContinuation { continuation in
                     TransportBatchPresentationContext.$chain.withValue(chain) {
-                        openSession(access,selected:next.request,action:next.request.action,invocation:next,commandRootOnly:true,onFinished:{continuation.resume(returning:$0)},handoffOwner:owner)
+                        openSession(access,selected:next.request,action:next.request.action,invocation:next,commandRootOnly:true,onFinished:CommandProgressContext.capture {continuation.resume(returning:$0)},handoffOwner:owner)
                     }
                 }
                 if adoptionGeneration != nextGeneration {
@@ -5874,7 +5932,7 @@ private enum TransportBatchPresentationContext {
         if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: title, permissions: access.map { [$0] } ?? [], cancellation: cancellation) { return }
         try cancellation.check(); guard !confirmingQuit, !retired else { return }
         let id = UUID()
-        let controller = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: nil, title: title, preferences: preferences, onClosed: { [weak self] in self?.commandUnifiedWindows.removeValue(forKey: id) })
+        let controller = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: nil, title: title, preferences: preferences, onClosed: CommandProgressContext.capture { [weak self] in self?.commandUnifiedWindows.removeValue(forKey: id) })
         commandUnifiedWindows[id] = controller
     }
     private func presentInaccessibleRepository(repository: GitRepository, access: RepositoryAccessLease, diagnosis: GitRepositoryDiagnosis? = nil) {
@@ -5886,15 +5944,15 @@ private enum TransportBatchPresentationContext {
             if existing.model.available { existing.model.refresh() }; return
         }
         let controller = InaccessibleRepositoryWindowController(repository: repository, access: access, diagnosis: diagnosis)
-        if let read = inaccessibleReadDiagnosis { controller.model.readDiagnosis = { try await read(repository, $0) } }
+        if let read = inaccessibleReadDiagnosis { controller.model.readDiagnosis = CommandProgressContext.capture { try await read(repository, $0) } }
         configureInaccessibleWindow?(controller)
-        controller.model.onRetry = { [weak self, weak controller] in
+        controller.model.onRetry = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, !self.retired, !self.busy, !self.confirmingQuit,
                   self.inaccessibleWindows[key] === controller, controller.model.canRetry else { return }
             // Source ends after trust; reopening is an explicit native action.
             controller.close(); self.openSession(access, requestedLocation: repository.root)
         }
-        controller.onClosed = { [weak self, weak controller] in
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in
             guard let self, let controller, self.inaccessibleWindows[key] === controller else { return }
             self.inaccessibleWindows.removeValue(forKey: key)
         }
@@ -6101,7 +6159,7 @@ private enum FinderSelectionFailure: LocalizedError {
         }
         return await withCheckedContinuation { continuation in
             response={ continuation.resume(returning:$0) }
-            let completed:(NSApplication.ModalResponse)->Void={ [weak self,weak picker] value in
+            let completed:(NSApplication.ModalResponse)->Void=CommandProgressContext.capture { [weak self,weak picker] value in
                 guard let self else { return };self.finish(value == .OK && !cancellation.isCancelled ? picker?.url : nil)
             }
             if let owner { picker.beginSheetModal(for:owner,completionHandler:completed) }

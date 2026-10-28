@@ -213,6 +213,7 @@ struct CommitPushContinuation {
 }
 
 @MainActor final class PushWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     static var activePreparationReads = 0
     private(set) var pendingOperations=0
     static var activePushWorkflows = 0
@@ -553,7 +554,8 @@ struct CommitPushContinuation {
             if proceed { self.push(confirmed: true) }else{self.confirmationRepository=nil}
         }
     }
-    func push(confirmed: Bool = false,progressBeforePreflight:Bool=false) {
+    func push(confirmed: Bool = false,progressBeforePreflight:Bool=false) { CommandProgressContext.perform(commandProgressScope) { pushWithCommandProgressContext(confirmed:confirmed,progressBeforePreflight:progressBeforePreflight) } }
+    private func pushWithCommandProgressContext(confirmed: Bool,progressBeforePreflight:Bool) {
         guard !choosingReference else { return }
         guard !invalidated, !confirmingQuit, !busy, !preparing, !preparationNeedsRetry, progress == nil, confirmed || confirmation == nil else { return }
         let repository=confirmed ? (confirmationRepository ?? self.repository.capturingDiffBackend(preferences:preferences)):(directContinuation ? (continuationRepository ?? self.repository.capturingDiffBackend(preferences:preferences)):self.repository.capturingDiffBackend(preferences:preferences))
@@ -819,6 +821,7 @@ enum PushPostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .requestPull: return .unifiedDiff; case .push: return .push; case .switchBranch: return .checkout; case .commitSuperproject: return .commit; case .pull: return .pull; case .fetch: return .fetch } }
 }
 @MainActor final class PushProgressWindowModel: ObservableObject {
+    private let commandProgressScope = CommandProgressContext.current
     let progressPresentation: GitCommandPresentation
     let options: PushOptions
     private(set) var superproject: URL?
@@ -859,6 +862,9 @@ enum PushPostAction: String, Hashable {
         }
     }
     func complete(output: String, success: Bool, cancelled: Bool, failure: PushExecutionFailure? = nil,completionWarning:String?=nil) {
+        CommandProgressContext.perform(commandProgressScope) { completeWithCommandProgressContext(output:output,success:success,cancelled:cancelled,failure:failure,completionWarning:completionWarning) }
+    }
+    private func completeWithCommandProgressContext(output: String, success: Bool, cancelled: Bool, failure: PushExecutionFailure?,completionWarning:String?) {
         guard busy else { return }
         if success {
             if displayedBytes.isEmpty {self.output=GitProgressFailureOutput.renderDetails(output,existing:"",limit:outputLimit)}
@@ -886,8 +892,9 @@ enum PushPostAction: String, Hashable {
         busy = false
         if abandoned || !hasCompletionWarning && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { automaticCloseRequested = true; tryAutomaticClose() }
     }
-    func tryAutomaticClose() { if automaticCloseRequested, !busy, !invalidated { close() } }
-    func perform(_ action: PushPostAction) {
+    func tryAutomaticClose() { CommandProgressContext.perform(commandProgressScope) { if automaticCloseRequested, !busy, !invalidated { close() } } }
+    func perform(_ action: PushPostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
+    private func performWithCommandProgressContext(_ action: PushPostAction) {
         guard !busy, !invalidated, !dispatched, postActions.contains(action), let onPostAction else { return }
         dispatched = true; close(); onPostAction(action)
     }

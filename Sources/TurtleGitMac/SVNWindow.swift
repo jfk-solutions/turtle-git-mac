@@ -7,6 +7,8 @@ import TurtleGitCore
 @MainActor final class SVNWindowModel: ObservableObject {
     enum Phase: Equatable { case loading, options, progress, finished }
     static private(set) var activeOperations = 0
+    let commandProgressScope = CommandProgressContext.current
+    private let autoClosePolicy: GitProgressAutoClose
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let operation: GitSVNOperation
@@ -73,11 +75,13 @@ import TurtleGitCore
     func cancel(context:FormContext) {guard accepts(context),canCancel else{return};cancel()}
     func questionPresented(_ presented:Bool) {hasQuestion=presented}
     var canShowFetched:Bool {!retired && !busy && !hasQuestion && !confirmingCancellation && phase == .finished && operation == .fetch && fetched?.changed == true}
-    func compare(_ result:GitSVNFetchResult,context:FormContext) {
+    func compare(_ result:GitSVNFetchResult,context:FormContext) { CommandProgressContext.perform(commandProgressScope) { compareInCommandScope(result,context:context) } }
+    private func compareInCommandScope(_ result:GitSVNFetchResult,context:FormContext) {
         guard accepts(context),canShowFetched,fetched?.oldHash==result.oldHash,fetched?.newHash==result.newHash else{return}
         onCompare(result.oldHash,result.newHash)
     }
-    func log(_ result:GitSVNFetchResult,context:FormContext) {
+    func log(_ result:GitSVNFetchResult,context:FormContext) { CommandProgressContext.perform(commandProgressScope) { logInCommandScope(result,context:context) } }
+    private func logInCommandScope(_ result:GitSVNFetchResult,context:FormContext) {
         guard accepts(context),canShowFetched,fetched?.oldHash==result.oldHash,fetched?.newHash==result.newHash else{return}
         onLog(result)
     }
@@ -86,6 +90,7 @@ import TurtleGitCore
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, operation: GitSVNOperation, preferences: UserDefaults = .standard, clipboard: NSPasteboard = .general) {
         self.repository = repository; self.access = access; self.operation = operation
+        autoClosePolicy = operation == .rebase ? .noErrors : GitProgressAutoClose(preferences: preferences)
         outputPreferences = preferences; outputClipboard = clipboard
         visible = GitProgressOutputState(preferences: preferences); parser = GitCliOutputParser(limit: visible.limit)
     }
@@ -126,6 +131,9 @@ import TurtleGitCore
         }
     }
     private func launch(_ action: @escaping () async throws -> Void) {
+        CommandProgressContext.perform(commandProgressScope) { launchInCommandScope(action) }
+    }
+    private func launchInCommandScope(_ action: @escaping () async throws -> Void) {
         guard !busy, !retired else { return }
         busy = true; success = false; completionRange = nil; currentWork = ""; percentage = nil
         let startedAt = ProcessInfo.processInfo.systemUptime
@@ -149,6 +157,7 @@ import TurtleGitCore
                 }
                 busy = false; Self.activeOperations -= 1
                 if closeAfterCancel && !retired { close() }
+                else { finishAutomaticClose() }
             }
             do { try await action() }
             catch {
@@ -161,6 +170,14 @@ import TurtleGitCore
                 phase = .finished
             }
         }
+    }
+    private func finishAutomaticClose() {
+        // SVN Rebase explicitly forces the intermediate source progress to
+        // no-errors before continuing. Fetch retains its Compare/Log choices.
+        guard !retired, !busy, !hasQuestion, !confirmingCancellation,
+              phase == .finished, !token.isCancelled, error == nil,
+              autoClosePolicy.shouldClose(success: success, postActionCount: operation == .fetch && fetched?.changed == true ? 2 : 0) else { return }
+        close()
     }
     private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output; currentWork = visible.currentWork; percentage = visible.percentage }
     private func execute(_ accepted:Options) async throws {
@@ -227,12 +244,13 @@ import TurtleGitCore
         let result = try await repository.svnPopCreatedStash(hash, cancellation: token)
         try checkAccess(); parser.appendChunk(Data(result.utf8)); stashHash = nil; onChanged()
     }
-    func cancel(closeWhenStopped: Bool = false) {
+    func cancel(closeWhenStopped: Bool = false) { CommandProgressContext.perform(commandProgressScope) { cancelInCommandScope(closeWhenStopped:closeWhenStopped) } }
+    private func cancelInCommandScope(closeWhenStopped: Bool) {
         guard canCancel else { return }
         if !busy { close(); return }
         let request = token; confirmingCancellation = true
         Task {
-            defer { confirmingCancellation = false }
+            defer { confirmingCancellation = false; finishAutomaticClose() }
             guard await confirmCancel(), !retired, token === request, busy else { return }
             closeAfterCancel = closeWhenStopped; token.cancel(); status = "Cancelling…"
         }

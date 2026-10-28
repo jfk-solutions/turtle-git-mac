@@ -11,6 +11,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
 }
 
 @MainActor final class SubmoduleUpdateWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SubmoduleUpdateWindowModel
     var onClosed: () -> Void = {}
     private var closing=false
@@ -48,6 +49,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
 }
 
 @MainActor final class SubmoduleUpdateWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeReads = 0
     private(set) var pendingReads=0
     var isRetired:Bool {invalidated || submitted}
@@ -130,6 +132,9 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     }
     func selectAll() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selection.isEmpty ? Set(paths.map { GitReferenceName($0) }) : [] }
     func apply() {
+        CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope() }
+    }
+    private func applyInCommandProgressScope() {
         guard canApply, let onSubmit else { return }
         let selected = paths.filter { selection.contains(GitReferenceName($0)) }, snapshot = options
         guard !selected.isEmpty else { return }; submitted = true

@@ -118,6 +118,7 @@ extension UserDefaults {
 }
 
 @MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SwitchWindowModel
     var onClosed: () -> Void = {}
     private var retiredProgress:SwitchProgressWindowModel?
@@ -217,6 +218,7 @@ extension UserDefaults {
 }
 
 @MainActor final class SwitchWindowModel: ObservableObject, VersionPickerModel {
+    let commandProgressScope = CommandProgressContext.current
     @Published private(set) var pendingReferenceReads=0
     var hasPendingReferenceReads:Bool {pendingReferenceReads > 0}
     private(set) static var activeReads = 0
@@ -432,6 +434,9 @@ extension UserDefaults {
         }
     }
     func checkout(allowTagConflict: Bool = false) {
+        CommandProgressContext.perform(commandProgressScope) { checkoutInCommandProgressScope(allowTagConflict: allowTagConflict) }
+    }
+    private func checkoutInCommandProgressScope(allowTagConflict: Bool = false) {
         guard !confirmingQuit, !busy, pickerTarget == nil, progress == nil, browser == nil, !invalidated, !finished else { return }
         var snapshot = options; snapshot.revision = revision; snapshot.allowTagNameConflict = allowTagConflict
         if allowTagConflict, let captured = conflictSnapshot { snapshot = captured; snapshot.allowTagNameConflict = true }
@@ -719,6 +724,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class SwitchProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SwitchProgressWindowModel
     var onClosed: () -> Void = {}
     var onClosing:(NSWindow)->Void = {_ in}
@@ -771,6 +777,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     private func finishResult(_ action:@escaping ()->Void) {
+        let action=CommandProgressContext.capture(commandProgressScope,action)
         guard !closed,!retiring,!finishing,model.active,!model.confirmingQuit else{return}
         pendingAction=action;finishing=true;closeIfReady()
     }
@@ -803,6 +810,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     let progressPresentation: GitCommandPresentation
     let repository: GitRepository
     let reference: String
@@ -866,8 +874,14 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         busy=true;success=false;cancelled=false;cancelling=false;postActions=[];output="";currentWork="";percentage=nil
         completionRange=nil;commandFinished=false;commandSucceeded=false;previousBranch=""
     }
-    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute(merge:options.merge)}}
-    func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute(merge:options.merge)}
+    func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute(merge:options.merge)}}
+    func run() async {
+        await CommandProgressContext.perform(commandProgressScope) { await runInCommandProgressScope() }
+    }
+    private func runInCommandProgressScope() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute(merge:options.merge)}
     private func finishAutomaticClose() {
         if !confirmingQuit, !busy, !hasPendingWork, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
     }
@@ -885,13 +899,16 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: SwitchPostAction) {
+        CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(action) }
+    }
+    private func performInCommandProgressScope(_ action: SwitchPostAction) {
         guard !confirmingQuit,presentationAvailable(), !busy, !hasPendingWork, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .retry || action == .switchWithMerge {
             ProgressActionLog.nextAttempt(self);
             let merge = action == .switchWithMerge || merging
             cancellation = OperationCancellation();resetAttempt();beginWork()
             Task { await execute(merge: merge) }
-        } else if let onPostAction {dispatched=true;let branch=previousBranch,dispatch={onPostAction(action,branch)};if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}}
+        } else if let onPostAction {dispatched=true;let branch=previousBranch,dispatch=CommandProgressContext.capture(commandProgressScope) {onPostAction(action,branch)};if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}}
     }
     private func bounded(_ text:String,bytes limit:Int)->String {
         let bytes=Data(text.utf8),limit=max(0,limit)

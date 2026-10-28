@@ -5,6 +5,7 @@ import TurtleGitCore
 import UniformTypeIdentifiers
 
 @MainActor final class ResolveWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
     static private(set) var activeReleases=0
     let model: ResolveWindowModel
@@ -70,7 +71,7 @@ import UniformTypeIdentifiers
         model.presentFileRevert = { [weak self] rows,validate in
             guard let self,!self.retired,self.fileRevertWindow == nil,let window=self.window,window.attachedSheet == nil else {return nil}
             return await withCheckedContinuation {continuation in
-                let child = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences,policy:self.model.pendingFileRevertPolicy)
+                let child = CommandProgressContext.perform(self.commandProgressScope) { RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences,policy:self.model.pendingFileRevertPolicy) }
                 child.model.externalAvailability={ [weak self] in self?.retired == false && self?.model.confirmingQuit == false }
                 child.onProgressLog={ [weak self] path in guard let self,!self.retired,!self.model.confirmingQuit else{return};self.onProgressLog(path) }
                 let policy=child.model.policy
@@ -142,8 +143,11 @@ import UniformTypeIdentifiers
         }
     }
     func commit() {
+        CommandProgressContext.perform(commandProgressScope) { commitInCommandProgressScope() }
+    }
+    private func commitInCommandProgressScope() {
         guard !retired,!finishing,model.progressActionsAvailable,model.success,!model.cancelled,window?.attachedSheet==nil else{return}
-        finishing=true;model.handoffPending=true;commitHandoff=onCommit
+        finishing=true;model.handoffPending=true;commitHandoff=CommandProgressContext.capture(commandProgressScope,onCommit)
         model.saveActionLog();window?.orderOut(nil);close()
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {
@@ -180,6 +184,7 @@ struct ResolveConflictRow: Identifiable {
 }
 
 @MainActor final class ResolveWindowModel: ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
     let repository: GitRepository
@@ -347,6 +352,9 @@ struct ResolveConflictRow: Identifiable {
         }
     }
     private func startUnreviewedProgress() {
+        CommandProgressContext.perform(commandProgressScope) { startUnreviewedProgressInCommandProgressScope() }
+    }
+    private func startUnreviewedProgressInCommandProgressScope() {
         guard active,!confirmingQuit,!handoffPending,externalAvailability(), !commandStarted, !busy, !hasQuestion, !hasChild else { return }
         commandStarted = true; closeAfterResolution = true
         let token = begin(); showingProgress = true; output = ""; success = false;cancelled=false;progressStarted=Date();progress.begin("Resolve");completionRange=nil
@@ -379,6 +387,9 @@ struct ResolveConflictRow: Identifiable {
     }
     func rejectConfirmation() { pendingResolution = nil; if quick != nil { close() } else if reloadQueued { reloadQueued = false; load() } }
     func apply(_ selected: [ConflictEntry], using choice: ResolveChoice) {
+        CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope(selected, using: choice) }
+    }
+    private func applyInCommandProgressScope(_ selected: [ConflictEntry], using choice: ResolveChoice) {
         guard active,!confirmingQuit,!handoffPending,externalAvailability(), !busy, !hasQuestion, !hasChild else { return }
         if let pendingResolution {
             guard pendingResolution.0 == generation, pendingResolution.1 == selected, pendingResolution.2 == choice else { return }
@@ -471,6 +482,9 @@ struct ResolveConflictRow: Identifiable {
         closeProgress()
     }
     func closeProgress(commit: Bool = false) {
+        CommandProgressContext.perform(commandProgressScope) { closeProgressInCommandProgressScope(commit: commit) }
+    }
+    private func closeProgressInCommandProgressScope(commit: Bool = false) {
         guard active,!confirmingQuit,!handoffPending,externalAvailability(), !busy, !confirmingCancellation, !hasQuestion, !hasChild,!progressFileActionBusy else { return }
         saveActionLog()
         if commit || quick != nil || commandOptions?.noQuestion == true || (success && closeAfterResolution) { close() }

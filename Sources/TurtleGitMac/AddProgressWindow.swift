@@ -10,6 +10,7 @@ private final class AddPathReceipts: @unchecked Sendable {
 }
 
 @MainActor final class AddProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     static private(set) var activeReleases=0
     let model:AddProgressWindowModel
     let progressFiles:FileOperationProgressFiles
@@ -67,6 +68,7 @@ private final class AddPathReceipts: @unchecked Sendable {
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
 }
 @MainActor final class AddProgressWindowModel:ObservableObject,ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     static private(set) var activeOperations=0
     let repository:GitRepository,paths:[String],mode:WorkingFileAddMode
     let preferences:UserDefaults
@@ -117,7 +119,10 @@ private final class AddPathReceipts: @unchecked Sendable {
         }
     }
     private func stop(_ token:OperationCancellation){cancelling=true;token.cancel();information="Cancelling…"}
-    private func begin(_ command:String){workerStarted=Date();progress.begin(command);autoClosePolicy=GitProgressAutoClose(preferences:preferences);percentage=nil;currentWork=command;completionRange=nil}
+    private func begin(_ command:String) {
+        CommandProgressContext.perform(commandProgressScope) { beginInCommandProgressScope(command) }
+    }
+    private func beginInCommandProgressScope(_ command:String) {workerStarted=Date();progress.begin(command);autoClosePolicy=GitProgressAutoClose(preferences:preferences);percentage=nil;currentWork=command;completionRange=nil}
     private func complete(){
         guard let date=workerStarted else{return}
         progress.finish(success:success,cancelled:cancelled,started:date)
@@ -130,6 +135,9 @@ private final class AddPathReceipts: @unchecked Sendable {
         for path in receipts.take(){if addedPaths.insert(path).inserted{progress.append("Added",path,kind:.file)}}
     }
     func run()async {
+        await CommandProgressContext.perform(commandProgressScope) { await runInCommandProgressScope() }
+    }
+    private func runInCommandProgressScope()async {
         guard !started,!retired else{return};started=true;Self.activeOperations += 1;LocalGitCommandProgress.begin()
         let receipts=AddPathReceipts();addReceipts=receipts
         defer{drainAdded(receipts);addReceipts=nil;Self.activeOperations -= 1;LocalGitCommandProgress.end();busy=false;cancelling=false;withExtendedLifetime(access){};saveActionLog();if !retired{onFinished(information,success);finishAutomaticClose()}}
@@ -142,6 +150,9 @@ private final class AddPathReceipts: @unchecked Sendable {
         if !retired{complete()}
     }
     func changeMode(_ mode:WorkingFileAddMode)async {
+        await CommandProgressContext.perform(commandProgressScope) { await changeModeInCommandProgressScope(mode) }
+    }
+    private func changeModeInCommandProgressScope(_ mode:WorkingFileAddMode)async {
         guard commandsAvailable,success,!busy,!fileActionBusy,!confirmingCancellation,mode != .normal else{return}
         saveActionLog();ProgressActionLog.nextAttempt(self,savePrevious:false);cancellation=OperationCancellation();busy=true;cancelled=false;success=false;workerStarted=nil;Self.activeOperations += 1;LocalGitCommandProgress.begin()
         defer{Self.activeOperations -= 1;LocalGitCommandProgress.end();busy=false;cancelling=false;withExtendedLifetime(access){};saveActionLog();if !retired{onFinished(information,success);finishAutomaticClose()}}
@@ -151,12 +162,18 @@ private final class AddPathReceipts: @unchecked Sendable {
         }catch{cancelled=cancellation.isCancelled;information=cancelled ? "Mode change cancelled. The index was not replaced.":error.localizedDescription;progress.append(cancelled ? "User cancelled":"Error",information,kind:.error)}
         if !retired{complete()}
     }
-    func commit(){
+    func commit() {
+        CommandProgressContext.perform(commandProgressScope) { commitInCommandProgressScope() }
+    }
+    private func commitInCommandProgressScope() {
         guard commandsAvailable,allowsCommit,success,!cancelled,!busy,!fileActionBusy,!confirmingCancellation else{return}
-        let callback=onCommit;handoffPending=true;Self.activeOperations += 1;var answered=false
+        let callback=CommandProgressContext.capture(commandProgressScope,onCommit);handoffPending=true;Self.activeOperations += 1;var answered=false
         finishAndPerform{ [self] accepted in guard !answered else{return};answered=true;defer{handoffPending=false;Self.activeOperations -= 1;withExtendedLifetime(access){}};if accepted,!confirmingQuit,externalAvailability(){callback()}}
     }
-    func start(){Task{await run()}}
+    func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() {Task{await run()}}
     var output:String{progress.output+"\n"+information}
     var actionLogRepository:URL{repository.root}
     var actionLogEligible:Bool{workerStarted != nil}

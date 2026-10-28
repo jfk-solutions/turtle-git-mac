@@ -17,6 +17,7 @@ private final class RevertNativeWindow:NSWindow {
 }
 
 @MainActor final class RevertWindowController:NSWindowController,NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model:RevertWindowModel
     var onClosed:()->Void = {}
     var commandKeyWindow:()->NSWindow? = {NSApp.keyWindow}
@@ -49,8 +50,8 @@ private final class RevertNativeWindow:NSWindow {
         }
         model.commands.onLFSOperation = { [weak self] paths,locked in
             guard let self,!self.model.retired,!self.model.busy,!self.model.confirmingQuit,let window=self.window,window.attachedSheet == nil,self.lfsOperation == nil else {return false}
-            let operation = LFSFileOperationController(repository:repository,access:access,defaults:preferences)
-            operation.model.onPullAfterLock = { [weak model=self.model] in model?.onAction(.pull,[]) }
+            let operation = CommandProgressContext.perform(self.commandProgressScope) { LFSFileOperationController(repository:repository,access:access,defaults:preferences) }
+            operation.model.onPullAfterLock = { [weak model=self.model] in guard let model else{return}; CommandProgressContext.perform(model.commandProgressScope) { model.onAction(.pull,[]) } }
             operation.model.onProgressLog = { [weak model=self.model] path in model?.onFileLog(path) }
             operation.onClosed = { [weak self,weak operation] in
                 guard let self,!self.model.retired,self.lfsOperation === operation else {return};self.lfsOperation = nil
@@ -126,6 +127,7 @@ private final class RevertNativeWindow:NSWindow {
 }
 
 @MainActor final class RevertWindowModel:ObservableObject {
+    let commandProgressScope = CommandProgressContext.current
     static private(set) var activeOperations = 0
     let repository:GitRepository
     private let access:RepositoryAccessLease?
@@ -298,6 +300,9 @@ private final class RevertNativeWindow:NSWindow {
     }
     func invalidate() {guard !retired else {return};retired = true;fileListRefresh.retire();generation = UUID();request?.cancel();refreshRequested = false;commands.invalidate();cancelFileChoice()}
     func apply() {
+        CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope() }
+    }
+    private func applyInCommandProgressScope() {
         guard canApply else {return}
         let selected = GitPathMap(uniqueKeysWithValues:entries.filter {checked.contains($0.path)}.map {($0.path,$0)})
         let ordered = GitPathOperationOrder.sorted(selected.keys).compactMap {selected[$0]}

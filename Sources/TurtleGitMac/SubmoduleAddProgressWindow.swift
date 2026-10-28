@@ -29,6 +29,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleAddProgressWindowController: NSWindowController, NSWindowDelegate {
+    var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: SubmoduleAddProgressWindowModel
     var onClosed: () -> Void = {}
     private var closing=false
@@ -66,6 +67,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleAddProgressWindowModel: ObservableObject, ActionLogProgress {
+    let commandProgressScope = CommandProgressContext.current
     private(set) static var activeOperations=0
     private(set) var pendingOperations=0
     var isRetired:Bool {invalidated}
@@ -107,9 +109,18 @@ import TurtleGitCore
         self.options = options; self.preferences = preferences; self.identities = identities; self.makeSSHCoordinator = makeSSHCoordinator
         autoClosePolicy = GitProgressAutoClose(preferences: preferences); streamState = GitProgressOutputState(preferences: preferences)
     }
-    func start() { guard !started, !invalidated, !confirmingQuit else { return }; started = true; execute(options) }
-    func retry() { guard canRetry else { return }; ProgressActionLog.nextAttempt(self); execute(options,receipt:lastOutcome.added ? lastOutcome.receipt:nil) }
+    func start() {
+        CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
+    }
+    private func startInCommandProgressScope() { guard !started, !invalidated, !confirmingQuit else { return }; started = true; execute(options) }
+    func retry() {
+        CommandProgressContext.perform(commandProgressScope) { retryInCommandProgressScope() }
+    }
+    private func retryInCommandProgressScope() { guard canRetry else { return }; ProgressActionLog.nextAttempt(self); execute(options,receipt:lastOutcome.added ? lastOutcome.receipt:nil) }
     private func execute(_ options: SubmoduleAddOptions,receipt:SubmoduleAddReceipt?=nil) {
+        CommandProgressContext.perform(commandProgressScope) { executeInCommandProgressScope(options, receipt: receipt) }
+    }
+    private func executeInCommandProgressScope(_ options: SubmoduleAddOptions,receipt:SubmoduleAddReceipt?=nil) {
         let request = OperationCancellation(); token = request; busy = true; success = false; output = receipt == nil ? "Adding submodule…":"Configuring the added submodule’s SSH key…"; error = nil; streamState.reset(); currentWork = ""; percentage = nil; completionRange = nil; cancelled = false; cancelling = false
         let startedAt = ProcessInfo.processInfo.systemUptime
         let factory = makeSSHCoordinator, identities = identities, presenter = presentSSH
