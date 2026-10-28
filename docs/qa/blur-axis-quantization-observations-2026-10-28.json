@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-28",
+  "run": 40672793339,
+  "job": 122763547688,
+  "artifact": 12809261798,
+  "sourceCommit": "45121d933ece78d7b0c56cd71c5f66346a02e52d",
+  "zipSHA256": "1321efb780f76a6252e0664fede7020cc1b52a709dc23c12d9285229f5de58e4",
+  "verifiedMembers": 124,
+  "manifests": 4,
+  "casesPerManifest": 5,
+  "plannedNewCases": 4,
+  "controls": 1,
+  "serializedStatusCount": 75,
+  "effectRGBA": 40,
+  "sourceRGBA": 20,
+  "originalEMFs": 5,
+  "sourceVerification": [
+    {
+      "path": "docs/qa/metafile-spatial-effects-reference-2026-10-27/BlurAxisQuantizationReference.cpp",
+      "gitSHA256": "e691f3f03d0e8e2a76f8425fc6fbca792bea5154e9df776980bcdeea355b2681",
+      "windowsSHA256": "2cf1b2738959359f6171501f6b0f6ac98423b4b6c4a581c1873077a0297cda66",
+      "lineEndings": "CRLF"
+    },
+    {
+      "path": ".github/workflows/metafile-blur-axis-quantization-reference.yml",
+      "gitSHA256": "bc850cba18128b9a06b0fb7901e4ccc2e3d69edcfdee16ffe4208bd7fede5858",
+      "windowsSHA256": "5a248975adf0e33ed0825abf1369480e4b52ec109f0de5e7bca2b7a8556f4e0b",
+      "lineEndings": "CRLF"
+    },
+    {
+      "path": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp",
+      "gitSHA256": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984",
+      "windowsSHA256": "5403a9dde05ceb7de37b80afa7984cde18f091ee9231183ba79f56ab020e8089",
+      "lineEndings": "CRLF"
+    }
+  ],
+  "observations": [
+    {
+      "name": "blur-axis-control-constant",
+      "allEightRGBAIdentical": true,
+      "outputSHA256": "2c0f7d19daacefb534e78f44eb4a91086bb5ef290206101a9ff5347f167173c5",
+      "originalEMFSHA256": "355bce8e8434f9bc6a13f9607589971ffca576a99774d9a15813f0651b34af39"
+    },
+    {
+      "name": "blur-axis-horizontal-a1-63-128",
+      "allEightRGBAIdentical": true,
+      "outputSHA256": "d5bdaf50f15dd37f74a0fe9c666e1f761c564a70655e2e65a4d6a8f648a1b1c8",
+      "originalEMFSHA256": "84d8b9745576f701bea1f71655743a29467f0807428fdfae7cf0d21f28e0b867"
+    },
+    {
+      "name": "blur-axis-vertical-a1-63-128",
+      "allEightRGBAIdentical": true,
+      "outputSHA256": "afb88c0e963191f237b99f972fb47cf564d26a0073e2410d0d617f61be0faf39",
+      "originalEMFSHA256": "af14200edd74d0164f20ce2dee86e467cf9c0e91a8ddda47eec60a839b3fe340"
+    },
+    {
+      "name": "blur-axis-horizontal-a97-200-255",
+      "allEightRGBAIdentical": true,
+      "outputSHA256": "03011a67a30f07c0cd66da5f5d125a685016e3c92d7617186b654154717b5f12",
+      "originalEMFSHA256": "50bff5b84d0f0ee5dac6467ffb38f790cf300c6156874edd8135660456fe5772"
+    },
+    {
+      "name": "blur-axis-vertical-a97-200-255",
+      "allEightRGBAIdentical": true,
+      "outputSHA256": "c55068c24099ec41499f3cd2ed7ae641e79dad34e71bf9221575f4ec7308d3a7",
+      "originalEMFSHA256": "b0e8ce13785d0df8b72a0545d236e19ae4decb1a9946161f7bee63f5349e50a3"
+    }
+  ],
+  "scope": "Independent native Windows observations verified from downloaded artifact, not macOS renderer or whole-family acceptance.",
+  "findings": {
+    "axisTranspose": "Both amplitude packets have exact whole-RGBA horizontal/vertical transpose outputs, each invariant on the perpendicular axis.",
+    "constantControl": "All1024 pixels remain(91,157,223,255).",
+    "scalarCoarsePairs": {
+      "1": [
+        1,
+        0
+      ],
+      "63": [
+        33,
+        30
+      ],
+      "128": [
+        67,
+        61
+      ],
+      "97": [
+        51,
+        46
+      ],
+      "200": [
+        105,
+        95
+      ],
+      "255": [
+        134,
+        121
+      ]
+    },
+    "scalarModel": "These rounded normalized exponent1.96 Gaussian pairs followed by half-center floor interpolation reproduce all32 native samples per amplitude. This does not identify the general2D lattice.",
+    "inverseReconstruction": "18 RGB/case/operator diagnostics, all four integer corners within +/-2 of generative values. Zero tuples reproduce full quadrant buffers within1; best maximum2 in every diagnostic.",
+    "HfloatVround": "Axis-exact variants still fail old2D controls; best reported axis-exact ranking max2/736 channels exceeding1.",
+    "halo": "432 general stage/reduction/interpolation hypotheses leave failures; none preserves all four axis buffers byte exactly. Not adopted.",
+    "endpointRetaining": "Four specific coherent endpoint sampling geometries leave maximum56..67 errors and nonzero axis discrepancies. Not a rejection of all possible endpoint schemes."
+  },
+  "remaining": "General2D large-kernel reconstruction/lattice/coupledquantization and small-kernel high-gain Sharpen precision remain unresolved. No fitted coefficients, oracle/tolerance changes or bounded-subset acceptance.",
+  "productionChange": "Removed only unused VerticalPolicy.unverified sentinel and its throws; no live numerical/input behavior changed.",
+  "productionSHA256": "fc1f28dd08cb5132a3c6cf28cf6142ed79d6e2f50973eaba0648ba170a46441f",
+  "notes": "docs/qa/metafile-spatial-effects-reference-2026-10-27/README-blur-axis-findings-2026-10-28.md",
+  "analysisSHA256": {
+    "build/qa/verify-blur-axis-capture-2026-10-28.py": "1c33eec1903e5cb7fe91b43618531c6ba2aa2896ec2739fe6b5c478a9c84e89a",
+    "build/qa/invert-large-quadrant-reconstruction-2026-10-28.py": "d8e26157c17726dfb2c98f83744a407fdfe5e4eb17c59485ed700b25c0daf928",
+    "build/qa/analyze-blur-axis-Hfloat-Vround-2026-10-28.py": "1ce7c11bcd8df0f09a26de6e7c145336b9acb0795fb26e26b92b642758590c31",
+    "build/qa/analyze-large-gaussian-halo-2026-10-28.py": "0b54483258a35290cb8e9c778d729d8f86caf18bae4e64cf373786082ab5bd58",
+    "build/qa/analyze-large-endpoint-lattices-2026-10-28.py": "46d4dab6682b42e84f66e9fdbfb26312fa304add4f1f665cda6d90414dde3655",
+    "build/qa/derive-blur-axis-scalar-2026-10-28.py": "262493289f2b0fac6e2f6d4ee54a87059ad1bd86ac223f0b78294af9460e597d"
+  },
+  "subsequentImplementation": "docs/qa/blur-axis-implementation-2026-10-28.json",
+  "productionSnapshotQualification": "The productionSHA256/productionChange fields above record the initial capture/inverse checkpoint, before the linked causal per-axis implementation."
+}

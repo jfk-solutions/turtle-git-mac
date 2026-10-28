@@ -1,0 +1,793 @@
+{
+  "date": "2026-10-27",
+  "source_parent": "df6d486e83628bfb92e2c9c77a2c7e31124a6076",
+  "status": "implementing-spatial-family-awaiting-native-numerical-contract",
+  "scope": [
+    "Blur radius0..255 with expandEdge and source/destination placement",
+    "Sharpen fractionalradius0..255 and amount0..100",
+    "RedEyeCorrection variable signedRectL areas, actualROI/overlap/alpha behavior",
+    "Bounded immutable nativeRGBA/PNG adapter, typedparser, source-copy/clip/ownership, originalbytes",
+    "Complete family implementation before groupedCore/native/application checkpoint"
+  ],
+  "reference_attempts": [
+    {
+      "run": 40511117352,
+      "job": 122212980515,
+      "source_commit": "1cf1a17a981b12b49e192dde0569e3e09a3c66f5",
+      "conclusion": "failure",
+      "phase": "IndependentWindowsSDKassaycompile",
+      "diagnostic": "SpatialEffectsReference.cpp(46) C2589/C2059: Windows min macro expands std::min call. Repair own assay source; no application check attempted."
+    },
+    {
+      "run": 40511480514,
+      "source_commit": "c712b62faf3fdbae90bbdf511a0daf618ff622b4",
+      "conclusion": "success",
+      "artifact": 12737507101,
+      "archive_sha256": "6d0aeedc14ed36d7c9a9216b8b4298110150d2744a398e194f1bcdd6be6ef947",
+      "bytes": 11408175,
+      "members": 6758,
+      "scope": "410newspatialcases; noearlierpointwisecorpusrecapture; nativeAPI/fileconsumerreferenceonly",
+      "observed_statuses": {
+        "blur": {
+          "cases": 136,
+          "sdk_direct_created_file_success": 136
+        },
+        "sharpen": {
+          "cases": 220,
+          "sdk_direct_created_file_success": 220
+        },
+        "redEyeCorrection": {
+          "cases": 54,
+          "sdk_parameter_refusals_no_wire": 12,
+          "record_file_success": 42,
+          "direct_created_apply_success": 36,
+          "wholly_outside_apply_refusals_with_recorded_blank_file_success": 6
+        }
+      }
+    },
+    {
+      "run": 40513243004,
+      "artifact": 12737188986,
+      "source_commit": "b30e0921ad863fc74f3c4fca34837e4d03f29694",
+      "conclusion": "success",
+      "archive_sha256": "bdac527b093646c459fdd076e25e77e3f43d4bdac92db745fb7176baff4e1660",
+      "members": 1310,
+      "scope": "65NEWopaqueRedEye/fractionalBlur/tall-bar witnesses; no410recapture"
+    },
+    {
+      "run": 40513920648,
+      "artifact": 12738098361,
+      "source_commit": "f1addc94468cdbd28edc0b025638f100e20a0142",
+      "conclusion": "success",
+      "archive_sha256": "48e45804831f6482ecdea8976d2648e9e46872d2a1ba963f3c48a9bd07511600",
+      "members": 186,
+      "scope": "10NEWfractionalSharpen/fractionalSourceRectBlur witnesses; noearlierrecapture"
+    },
+    {
+      "run": 40514534635,
+      "artifact": 12737439850,
+      "source_commit": "c3a5df824973345ede8f93fa130bfe2e38658e6a",
+      "conclusion": "success",
+      "archive_sha256": "41a5b5dc61aca5720dac577809cb47ef87ac5dcdf71dc9e33c9508dc46e1736b",
+      "members": 50,
+      "scope": "2NEWrectangulargradientBlur witnessesresolveverticalextent; noearlierrecapture"
+    },
+    {
+      "run": 40519989485,
+      "artifact": 12740622913,
+      "source_commit": "0377e722c38e962b096a61edf2cee59a1d164d57",
+      "conclusion": "success",
+      "archive_sha256": "86925a508d08c2b05081705179277c43c44c86b0decb53bb5097aaa4bd49231f",
+      "bytes": 191912,
+      "members": 148,
+      "scope": "6NEWfullbyte-domainBlurproduct/pairinputs; sourcecontractonly/noMacappcheck"
+    },
+    {
+      "run": 40521022045,
+      "artifact": 12741183136,
+      "source_commit": "224818b73ca443db0139b1998f00ea75cc8a5a8c",
+      "conclusion": "success",
+      "archive_sha256": "6ebfc19d2aca08b480d5b4790930a0fc0214b864b09192fb6f2748a46dafb810",
+      "bytes": 782015,
+      "members": 286,
+      "scope": "12NEWsourceROI/full/fraction/integer/ExpandEdgecontracts; sourcecontractonly/noMacappcheck"
+    },
+    {
+      "run": 40522284959,
+      "artifact": 12741828565,
+      "source_commit": "7dcef538d483cc99f97d94f296d17e86c2bcb3aa",
+      "conclusion": "success",
+      "archive_sha256": "f662ddb1d24be8ede990882793d9bc43f01c51f4f18bcff6d0bf070cef8c9bc7",
+      "bytes": 1070091,
+      "members": 490,
+      "scope": "24NEWlargeBlurdecisionboundaries; sourcecontractonly/noMacappcheck"
+    },
+    {
+      "run": 40522284889,
+      "artifact": 12741278311,
+      "source_commit": "7dcef538d483cc99f97d94f296d17e86c2bcb3aa",
+      "conclusion": "success",
+      "archive_sha256": "68a3498260ad556400789413d0a8a8151639747451f47370a2ee3467962c820f",
+      "bytes": 107710,
+      "members": 150,
+      "scope": "6NEWRedEyeinverseholeinfluencecases+1freshsolidcontrol; sourcecontractonly/noMacappcheck"
+    },
+    {
+      "run": 40533097577,
+      "job": 122290950871,
+      "source_commit": "ba207c7cfef3768b5b2c0c883c2484cf21f8815e",
+      "conclusion": "success",
+      "phase": "Six new independent RedEye detector seed discriminators plus same-job uniform control",
+      "artifact": 12746393843,
+      "archiveSHA256": "5f693f6052f9ce650fbdc2be3ad5b8d91db1abc6ffb9717bbad9ae1629c086f6",
+      "archiveBytes": 111889,
+      "archiveMembers": 150,
+      "allRecordedMemberHashesVerified": true,
+      "sourceWorkflowIncludeHashes": "All match Git source after normal LF-to-CRLF Windows checkout transformation; initial literal-byte comparison reported mismatch, explained and verified by that transform.",
+      "sdkAndFileStatusCount": 105,
+      "allStatusesZero": true,
+      "sourceCountIncludingControl": 7,
+      "allEightObservationBuffersEqualForEachCase": true,
+      "qualification": "Native Windows observations only, no Mac renderer acceptance."
+    },
+    {
+      "run": 40541111677,
+      "artifact": 12751221622,
+      "source_commit": "4b10bf0741c8bf0d68f5d9ae73da0ebf0fc07a07",
+      "conclusion": "success",
+      "archive_sha256": "86fc0e6cf087446d6c83392aea9368807a28531990696564e36f24ff0b026ca6",
+      "bytes": 107912,
+      "members": 150,
+      "scope": "Six new radial/statistical RedEye inputs plus same-job control",
+      "allRecordedMemberHashesVerified": true,
+      "qualification": "Independent Windows SDK observations; no application build, Core or native consumer acceptance."
+    },
+    {
+      "run": 40541111490,
+      "artifact": 12750512352,
+      "source_commit": "4b10bf0741c8bf0d68f5d9ae73da0ebf0fc07a07",
+      "conclusion": "success",
+      "archive_sha256": "3ff9c3aa345dd867bcd56acc1cfba69520005328317e523e336aaa1f84b9d2f9",
+      "bytes": 337496,
+      "members": 170,
+      "scope": "Six large-Blur amplitude/quadrant bases and radius19/20 branch discriminators",
+      "allRecordedMemberHashesVerified": true,
+      "qualification": "Independent Windows SDK observations; no application build, Core or native consumer acceptance."
+    },
+    {
+      "run": 40542269586,
+      "artifact": 12751237699,
+      "source_commit": "832d54f7ca3d2fa8f857b597ee6db9b515581ceb",
+      "conclusion": "success",
+      "archive_sha256": "c987a952cf2dfe1d074ac210c5fafe7dd1e4a07022c8fc2c5353870d55dbed9f",
+      "bytes": 39325,
+      "members": 98,
+      "scope": "Six RedEye native replay cases over an opaque sentinel background",
+      "allRecordedMemberHashesVerified": true,
+      "qualification": "Independent Windows SDK observations; no application build, Core or native consumer acceptance."
+    },
+    {
+      "run": 40546957643,
+      "artifact": 12752763365,
+      "source_commit": "3993175af3bc03175efe4f64a4be185f00fa5f11",
+      "conclusion": "success",
+      "archive_sha256": "151e950fc96032e56cdb2bc35341dfc021519672c60ecbe883a2d9b3e6a802aa",
+      "bytes": 129753,
+      "members": 79,
+      "scope": "Three matched-contribution256-amplitude Blur inputs isolate reflection/orientation fromcoefficients",
+      "allRecordedMemberHashesVerified": true,
+      "sourceWorkflowIncludeHashes": "Verified exact or LF-to-CRLF Windows checkout-normalized SHA256",
+      "qualification": "Source behavior observations only; no Mac application acceptance."
+    },
+    {
+      "run": 40546957616,
+      "artifact": 12752793201,
+      "source_commit": "3993175af3bc03175efe4f64a4be185f00fa5f11",
+      "conclusion": "success",
+      "archive_sha256": "e374c4156dd5a37a533711224ed34668c27bb9e04be8af968963ff04dec29637",
+      "bytes": 581866,
+      "members": 999,
+      "scope": "43RedEye detector inputs cover dimensions,ROI,RGB,intensity,selection,alpha andasymmetricforeground",
+      "allRecordedMemberHashesVerified": true,
+      "sourceWorkflowIncludeHashes": "Verified exact or LF-to-CRLF Windows checkout-normalized SHA256",
+      "qualification": "Source behavior observations only; no Mac application acceptance."
+    }
+  ],
+  "primary_contracts": [
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/5b45e8f4-f1ff-4701-a058-c85d15d8f0c2",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/5e61e7fb-fe4a-44bf-82d4-a21352b01919",
+    "https://learn.microsoft.com/en-us/windows/win32/api/gdipluseffects/ns-gdipluseffects-blurparams",
+    "https://learn.microsoft.com/en-us/windows/desktop/api/Gdipluseffects/ns-gdipluseffects-sharpenparams",
+    "https://learn.microsoft.com/en-us/windows/win32/api/gdipluseffects/ns-gdipluseffects-redeyecorrectionparams",
+    "https://raw.githubusercontent.com/microsoft/win32metadata/main/generation/WinSDK/RecompiledIdlHeaders/um/gdipluseffects.h"
+  ],
+  "constraints": [
+    "APIparameter descriptions do not establish nativekernel or actualmetafileplayback pixels.",
+    "SDK in-place Blur ApplyEffect ignores expandEdge; bitmap-returning/direct and actualrecordedfileplayback are separate.",
+    "RedEye SDKpointerstruct is not serializedcount/inlineRectL wire layout; SDKassaybacks both fullstruct+tail and pointedstableareaarray.",
+    "No missingnumericaleffect ships as acceptedno-op; allremaininggaps explicit.",
+    "Installed19 remains earlier source; no AppStoreupload/signing/physicalacceptance implied."
+  ],
+  "application_checks": "SpatialCore/native checks still deferred until family implementation freeze. Shared helper compiled for Browser/Commit repairs is not spatial pixel acceptance.",
+  "observations": [
+    "Blur bitmap-returning API expands byceilradius for ExpandEdge, independently of in-place/API file behavior.",
+    "RedEye native effect is spatial and ROI/order-dependent; direct,create-output and Picture replay may differ. No simplepointwise classifier accepted.",
+    "MissingEMF BitmapLoad2 forSDKrefused profiles is not malformedwireplayback evidence."
+  ],
+  "implementation_state": {
+    "wire": "StrictGUID/length/float/BOOL/signedRectL parser withboundedvariablearrays",
+    "native_bridge": "ROIroundedfarendpointsincludeoneextrasample; containedROItransparentedgewithoutoutputpadding; 12SDKcreatedRGBAmodelsmax1andcreatedN\u00b2matchesallactualfilepaintedpixelsEXACT; realappintegrationnotchecked",
+    "kernels": "Small Q8 leading-row kernel and large dyadic/full-Gaussian/reconstruction authored. Large coarse edge follows minimum lattice support; fractional final vertical pass survives to reconstruction. All22 unexpanded mathematical profiles still have up to2 channel levels of residual error; strict native oracles unchanged. Typed all-area validation, no-paint control flow, immutable statistical helpers and uniform component authored. General nonuniform detector remains explicitly unsupported pending scalar/geometry/overlap/alpha derivation.",
+    "workflows": "Offscreen IDiff explicit/automatic, expanded/cropped/blank/refusal, close/Quit and real Git binary conflict fixture authored; four opaque no-paint sentinels now checked over every RGBA byte in both IDiff routes. Not executed.",
+    "fixtures": "552 original native EMFs/fullRGBA: Blur201, Sharpen228, RedEye123; 35 derived malformed files including6 validation-order cases;12 SDK parameter refusals retained separately. Per-capture provenance retained, complete pixels strict1-byte."
+  },
+  "working_parent": "3993175af3bc03175efe4f64a4be185f00fa5f11",
+  "implementation": {
+    "blur": "Small Q8 leading-row kernel and large dyadic/full-Gaussian/reconstruction authored. Large coarse edge follows minimum lattice support; fractional final vertical pass survives to reconstruction. All22 unexpanded mathematical profiles still have up to2 channel levels of residual error; strict native oracles unchanged.",
+    "sharpen": "General Q6 unsharp stage shares both Blur paths; high gain amplifies unresolved Blur precision.",
+    "redEye": "Typed all-area validation/no-paint, uniform component and supplied opaque-glint component authored. The source-pixel circle coefficient5 is measured across sizes,rectangularimages,ROI andmultiplecolors; no selector/eligibility/foregroundellipse is fabricated. General detector remains disabled pendingRGB/statistical composition. Earlieruniform20proof is SDK-direct-only: pure-redfileplaybackisacounterexample; suppliedcomponent mustnotbeusedasacceptedfilefallback.",
+    "bridge": "Rejected valid RedEye draws return typed no-paint, skip both SVG image emission and SourceCopy erasure, and allocate no transformed PNG. Malformed count/extents are rejected before decode, empty source crop, E-clear and no-paint shortcuts. Original source remains immutable.",
+    "fixtures": "598 original native EMFs/fullRGBA: Blur204, Sharpen228, RedEye166;35 derived malformed files and12SDK parameter refusals separate. All552 previouscase entries and1139previousbinaries unchanged. All default-v1/file startup-v2 native rasterpairs match.",
+    "validation": "No spatial Core, native consumer or application build checkpoint has run. Family implementation remains incomplete; mathematical source comparisons are independent evidence, not app acceptance."
+  },
+  "fixture_generation": {
+    "scope": "Generation/hash/schema integrity only; no application builds or Core/native checks",
+    "baseBinaryFilesUnchanged": 825,
+    "baseCaseEntriesUnchanged": 398,
+    "baseMalformedEntriesUnchanged": 29,
+    "sdkRefusalsUnchanged": 12,
+    "cases": 627,
+    "coverage": {
+      "blur": 204,
+      "sharpen": 228,
+      "redEyeCorrection": 195
+    },
+    "supplementalReferences": [
+      {
+        "prefix": "followup",
+        "windowsRun": 40513243004,
+        "artifact": 12737188986,
+        "archiveSHA256": "bdac527b093646c459fdd076e25e77e3f43d4bdac92db745fb7176baff4e1660",
+        "startupVersion": 1,
+        "sourceCaseCount": 65,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "61f54c05fca0c144c3deaf192f20e6737bd7ea9cbca5795be5cd8e87179da0ba",
+          "replay-v1.json": "867323941a8ee2a258a958ed873da09d93f03dbc95c5ffc153a32b182ed256ee",
+          "replay.json": "85fa0282bc3102ced51d303835f8b5bb6bd3f3d44b7d7a70c62fdfa6bd5ccb80"
+        },
+        "retainedCases": 65,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "boundary",
+        "windowsRun": 40513920648,
+        "artifact": 12738098361,
+        "archiveSHA256": "48e45804831f6482ecdea8976d2648e9e46872d2a1ba963f3c48a9bd07511600",
+        "startupVersion": 1,
+        "sourceCaseCount": 10,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "46ac87c2d8d85e09e1a17ea93444b00db666c0a26d05707b3c644a84210cdf76",
+          "replay-v1.json": "4aec0631b531291efc527f6db776c8a3b0e130c616820ebcd41522112b3eeb26",
+          "replay.json": "f03ed36672a817677ee12fc5bf8462d5dcf36926a994c84879ee8277267ef2ce"
+        },
+        "retainedCases": 10,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "vertical",
+        "windowsRun": 40514534635,
+        "artifact": 12737439850,
+        "archiveSHA256": "41a5b5dc61aca5720dac577809cb47ef87ac5dcdf71dc9e33c9508dc46e1736b",
+        "startupVersion": 1,
+        "sourceCaseCount": 2,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "16604598b4e002d6c86e3fd21fb7eb7f34be97ec3e737ff05ce55d27d91b56e2",
+          "replay-v1.json": "1ae3a02dcf059d611198d3e1247e63170de9537a387bd173f4fc00677810a3f5",
+          "replay.json": "64a63314ede0b516268e83948a5347ea4bca0f96350c15dc659c4b0d1c4325cf"
+        },
+        "retainedCases": 2,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "coefficient",
+        "windowsRun": 40519989485,
+        "artifact": 12740622913,
+        "archiveSHA256": "86925a508d08c2b05081705179277c43c44c86b0decb53bb5097aaa4bd49231f",
+        "startupVersion": 1,
+        "sourceCaseCount": 6,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "544f5f19cb1c18665944fb9d8f0346758c5530f9513800bbea18cb42755d0ddc",
+          "replay-v1.json": "58e200c51fb243786ae9e85ab116c7270b91c9ecd640893f1eb2eaa3641386b9",
+          "replay.json": "feb7e92cf8378734681c73d592d3c8dc4e96e9eb4e25042f19ecc47e7e71fc0b"
+        },
+        "retainedCases": 6,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "roi",
+        "windowsRun": 40521022045,
+        "artifact": 12741183136,
+        "archiveSHA256": "6ebfc19d2aca08b480d5b4790930a0fc0214b864b09192fb6f2748a46dafb810",
+        "startupVersion": 1,
+        "sourceCaseCount": 12,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "6ce2001bcef97da31813c23bd3d9669aeccf87bcfc66d66a916eadb3f25a2aba",
+          "replay-v1.json": "a9dafd24bf3b879698a933af669fd09926e6b44f661b5a73db80be8031169b06",
+          "replay.json": "4f06857ac963d6bdc399a424d36d9358265f08d10fa09f50a5e393d8bbb145c2"
+        },
+        "retainedCases": 12,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "large",
+        "windowsRun": 40522284959,
+        "artifact": 12741828565,
+        "archiveSHA256": "f662ddb1d24be8ede990882793d9bc43f01c51f4f18bcff6d0bf070cef8c9bc7",
+        "startupVersion": 1,
+        "sourceCaseCount": 24,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "1dd620cc6ee28bd94af63ab2f4e8648f81c3c5329644342dc0f6ae808582a739",
+          "replay-v1.json": "11591e3939a7bb7e8b926b315e5fece5a70b96f0afb79aee3328baf60be86ab4",
+          "replay.json": "f584dde659c2395542618857a19f3d18e19d13ecf79cbc364e9eb530257a768e"
+        },
+        "retainedCases": 24,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "inverse",
+        "windowsRun": 40522284889,
+        "artifact": 12741278311,
+        "archiveSHA256": "68a3498260ad556400789413d0a8a8151639747451f47370a2ee3467962c820f",
+        "startupVersion": 1,
+        "sourceCaseCount": 6,
+        "sourceControlCount": 1,
+        "manifestSHA256": {
+          "generate.json": "7c55bc7397f7cf2a658bd4782932db4692eaa794a57b3e0747014e0398d2d0c0",
+          "replay-v1.json": "6000198256075209bba021ca748a07dd9a3ec1a27b471585e3ee7abe840fb009",
+          "replay.json": "87e82f51959deedc8be01c3199bcece35d0f1ee37339da0372ff0ef39e7fd94f"
+        },
+        "retainedCases": 7,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "seed",
+        "windowsRun": 40533097577,
+        "artifact": 12746393843,
+        "archiveSHA256": "5f693f6052f9ce650fbdc2be3ad5b8d91db1abc6ffb9717bbad9ae1629c086f6",
+        "startupVersion": 1,
+        "sourceCaseCount": 6,
+        "sourceControlCount": 1,
+        "manifestSHA256": {
+          "generate.json": "a2905aecb84dbf1bfd74aac697662d5ebd06b15bbbc5c50a2f0812b4076c28e6",
+          "replay-v1.json": "1a99458555b0c4b533d630f937074c0e1fe373eff63513f81e443a9f3f876d95",
+          "replay.json": "43c3e914e6dc7666ffe8a727f4acc4afe3f03744d06adf0678a63ba50eacea25"
+        },
+        "retainedCases": 7,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "paint",
+        "windowsRun": 40542269586,
+        "artifact": 12751237699,
+        "archiveSHA256": "c987a952cf2dfe1d074ac210c5fafe7dd1e4a07022c8fc2c5353870d55dbed9f",
+        "startupVersion": 1,
+        "sourceCaseCount": 6,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "4481ea9ac4f56ff4de5f5ad9e42204907551c85ca9bc07eb371c6ee314e7cec0",
+          "replay-v1.json": "149121bbefe7db3b67bbdcf573d96976bb91dcfbb18720c98dc067e95c9d9b60",
+          "replay.json": "811a2487f638ef6ec43f009edc5457dc10076dbdb0e2f6ed3ec9faf2fcad46fc"
+        },
+        "retainedCases": 6,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "radial",
+        "windowsRun": 40541111677,
+        "artifact": 12751221622,
+        "archiveSHA256": "86fc0e6cf087446d6c83392aea9368807a28531990696564e36f24ff0b026ca6",
+        "startupVersion": 1,
+        "sourceCaseCount": 6,
+        "sourceControlCount": 1,
+        "manifestSHA256": {
+          "generate.json": "c145f39577f5e99df534509affe1623a91cc76636db5e5bcc1786b6f94ed51ee",
+          "replay-v1.json": "2d8c809d698b1a7815fe1a598fc4d4ad12b15d06a9f36c70501c33da019e54af",
+          "replay.json": "a56e63ba8811eb0a61e2c1ea10aa878839d51d7c3b20f617985852075622b06b"
+        },
+        "retainedCases": 7,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "basis",
+        "windowsRun": 40541111490,
+        "artifact": 12750512352,
+        "archiveSHA256": "3ff9c3aa345dd867bcd56acc1cfba69520005328317e523e336aaa1f84b9d2f9",
+        "startupVersion": 1,
+        "sourceCaseCount": 8,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "52c15d198402d0366613a6b03bff43ddceb5c77159a6ac4a557a3ad13ec647c8",
+          "replay-v1.json": "e9e836b2503e463223f00aa6fe22bd08130c7ea13af29a67d53bc832b1f798bf",
+          "replay.json": "3e7edb186af3da0da9419275808b463f7632c017e64eaeb4678ac0b9e5ba5ba4"
+        },
+        "retainedCases": 8,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "matched",
+        "windowsRun": 40546957643,
+        "artifact": 12752763365,
+        "archiveSHA256": "151e950fc96032e56cdb2bc35341dfc021519672c60ecbe883a2d9b3e6a802aa",
+        "startupVersion": 1,
+        "sourceCaseCount": 3,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "62e9613d98213201d7edcd0f9975dcae7e7ff926cbfbcdd0feaa160fc3b4171e",
+          "replay-v1.json": "937732dfcf35aacf88ea84a39922ebc45624a1c0907939496c76cd9e9e0d3bbb",
+          "replay.json": "2337918367f6bb7635b8509f56dca1fa6e6908fd271be781461492529634f845"
+        },
+        "retainedCases": 3,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "detector",
+        "windowsRun": 40546957616,
+        "artifact": 12752793201,
+        "archiveSHA256": "e374c4156dd5a37a533711224ed34668c27bb9e04be8af968963ff04dec29637",
+        "startupVersion": 1,
+        "sourceCaseCount": 43,
+        "sourceControlCount": 0,
+        "manifestSHA256": {
+          "generate.json": "3829a8ff726565306bbeeb350672e60519b9a98e03d9a68d0ab616da69381ee5",
+          "replay-v1.json": "e2f0081e0eb693afe400291ae24fca4b217d068e260f00dae56b30a6c0ddca78",
+          "replay.json": "70e0cab13826ee7e900b148c99e05d8b178df7342ad493787997002f5ca78b6d"
+        },
+        "retainedCases": 43,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": true
+      },
+      {
+        "prefix": "model-discriminator",
+        "windowsRun": 40565912384,
+        "artifact": 12761959752,
+        "archiveSHA256": "be23a07456f30b83fa3bc144b6a9894329e6de3d504a8575ea757a6ec4ac102c",
+        "startupVersion": 1,
+        "sourceCaseCount": 29,
+        "sourceControlCount": 2,
+        "manifestSHA256": {
+          "generate.json": "7ff815ef319cb3c7808f6d05654527f5a5aca0d58e10d5281196af1092ec31df",
+          "replay-v1.json": "7f203c20282f99e396e3b501be116c3cef5012ec05272e75b56dfe3ee6ddba8d",
+          "replay.json": "4e14935a8269f7ad28d36d6837cdf9701f8aa80109fbecbcaa1916afdf4d57e5"
+        },
+        "retainedCases": 29,
+        "sdkRefusals": 0,
+        "allV1EqualsV2": false,
+        "plannedCaseCount": 27,
+        "effectObservationBufferCount": 232,
+        "verifiedZeroStatusCount": 435,
+        "verifiedSourceEqualityPairCount": 58,
+        "verificationReceipt": "build/qa/metafile-redeye-model-native-windows-verification-2026-10-28.json"
+      }
+    ],
+    "allV1EqualsV2": true,
+    "manifestSHA256": "ee525ef4ff4e4856c9a682b9fab5912b934e900d6dccd4fc62c5d6ff4003c8b9",
+    "malformedCases": 35,
+    "newValidationOrderingRefusals": [
+      {
+        "file": "refused-redEyeCorrection-count-zero.emf",
+        "family": "redEyeCorrection",
+        "sourceSHA256": "5e5475f7e7b326a2697b8b8b3c963d6c0a72912c5aab65b9f2cf38dd2d5ff182",
+        "derivedFrom": "redeye-1.emf"
+      },
+      {
+        "file": "refused-redEyeCorrection-empty-crop-count-zero.emf",
+        "family": "redEyeCorrection",
+        "sourceSHA256": "6df8f58cb4948eae55ede94d247527d39fe2abd1feebee829cff42f60888b7dd",
+        "derivedFrom": "redeye-1.emf",
+        "derivedSourceRect": [
+          64,
+          64,
+          8,
+          8
+        ]
+      },
+      {
+        "file": "refused-redEyeCorrection-outside-then-reversed-area.emf",
+        "family": "redEyeCorrection",
+        "sourceSHA256": "5f41eb2142f19b79b3ebafaedd9451e3cd276d73c4a0dc17630d717d5550b620",
+        "derivedFrom": "redeye-1.emf"
+      },
+      {
+        "file": "refused-redEyeCorrection-empty-crop-outside-then-reversed-area.emf",
+        "family": "redEyeCorrection",
+        "sourceSHA256": "8c23b010224cd91320863aae600d6cd921fb1ef6b7ab871819cf7b388122d458",
+        "derivedFrom": "redeye-1.emf",
+        "derivedSourceRect": [
+          64,
+          64,
+          8,
+          8
+        ]
+      },
+      {
+        "file": "refused-redEyeCorrection-outside-then-zero-extent-area.emf",
+        "family": "redEyeCorrection",
+        "sourceSHA256": "ef78b625339729cc84b2b776a094bc20297e9505d303da35520076e720233194",
+        "derivedFrom": "redeye-1.emf"
+      },
+      {
+        "file": "refused-redEyeCorrection-empty-crop-outside-then-zero-extent-area.emf",
+        "family": "redEyeCorrection",
+        "sourceSHA256": "8268bcda3a70b6e15285471b72c0f175cf62a8e1905ba17cecae95dbf39e4fd1",
+        "derivedFrom": "redeye-1.emf",
+        "derivedSourceRect": [
+          64,
+          64,
+          8,
+          8
+        ]
+      }
+    ],
+    "previousCaseEntriesUnchanged": 552,
+    "previousBinaryFilesUnchanged": 1139,
+    "generatorSHA256": "eb32c1fe4618d68eca8498284d710bf37aaf2f60b152fbd2f1b2d1fbe7411b93"
+  },
+  "source_hashes_current": {
+    "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "cf7934574742d2b15b230c2a92ac94aefd3e9ab2f490f280826142f256024df3",
+    "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "1fb24e9122e315f14f7affc1bb284b3c5e506733bc63bac53e0f2bed4b850ffe",
+    "Sources/TurtleGitMetafile/main.swift": "276fc8f67b007319726a6e753c72dd818936fa69169963c55ee64a01ee3eeea9",
+    "patches/metafile-renderer.patch": "c4c8746c872313b1dc53f58a4981b195f5d8f328e4e2a23f2c099b820556cbcb",
+    "docs/qa/metafile-spatial-effects-reference-2026-10-27/generate-fixtures.py": "eb32c1fe4618d68eca8498284d710bf37aaf2f60b152fbd2f1b2d1fbe7411b93",
+    "docs/qa/metafile-spatial-effects-native-2026-10-27.swift": "68853c93cc2e1d99d24806c37f880ea48c4f55b947d6b78a209f4a9b7b63b55b",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/SpatialEffects/windows-reference.json": "ee525ef4ff4e4856c9a682b9fab5912b934e900d6dccd4fc62c5d6ff4003c8b9"
+  },
+  "no_paint_contract": {
+    "captureRun": 40542269586,
+    "sourceRGBA": [
+      240,
+      20,
+      10,
+      255
+    ],
+    "backgroundRGBA": [
+      17,
+      61,
+      173,
+      255
+    ],
+    "observed": "Wholly outside areas and mixed valid/outside areas in either order leave every destination pixel opaque sentinel. Partial outside/full controls paint. Thus apply refusal is valid skipped drawing, not transparent SourceCopy output or partial earlier-area output.",
+    "implementation": "All endpoints validated first, typed RedEyeImageEffectNoPaint caught in native bridge, private JavaScript per-draw sentinel, both image emission and SourceCopy coverage bypassed.",
+    "applicationValidation": "Not run; original captured files retained in strict corpus."
+  },
+  "red_eye_remaining": [
+    "High-red-fraction angular statistic and radial composition; low-mean rational component alone is falsified by new same-sector multi-hole captures.",
+    "Selected first/closest glint and admissible geometry; simple half-ellipse qualification is falsified by off-axis6,12 capture.",
+    "General foreground origin/ellipse, alpha behavior, ordered overlapping areas and create-output/Picture snapshot semantics."
+  ],
+  "red_eye_histogram_evidence": {
+    "analysisSource": "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-plateaus.py",
+    "analysisSHA256": "7b4690191f6782803283a8652d9068a05094a41e9c96c6f8dbd9f7333417994e",
+    "report": "build/qa/metafile-redeye-plateaus-model-2026-10-27.json",
+    "reportSHA256": "53f99620353bc49e2d26e2f93db77ad4b53156e1ff2cd2c6eccf1697fb08dd13",
+    "populations": 27,
+    "observations": 471,
+    "incompatibleMatchingHistograms": 0,
+    "conclusion": "Same histogram produces compatible all-channel correction intervals across shifted single holes, multi-hole and central-square arrangements. Mean-only rational/fifth expansion and twice-variance do not explain all27 groups; general scalar remains unproven.",
+    "qualification": "Independent mathematical analysis of retained Windows captures, not application acceptance."
+  },
+  "small_blur_remaining": {
+    "knownResiduals": "Nine captured Sharpen channels exceed1 and one paired Blur RGB witness differs; all are outside leading vertical prefix, localizing residuals to horizontal/edge processing.",
+    "excludedMechanisms": "Reversed stage order, contiguous/interleaved SIMD grouping and biased grouping, and left/right/both reflected duplicate or symmetric pair folding match or worsen current residuals.",
+    "productionChangedForTheseHypotheses": false,
+    "strictOracleWidened": false
+  },
+  "red_eye_glint_evidence": {
+    "report": "build/qa/redeye-glint-geometry-2026-10-27.json",
+    "reportSHA256": "23bdf0a8388007c0738f70ec62c9c457179e1e37773af51b9cbe606ffa039a60",
+    "activeCases": 11,
+    "offRayResult": "Supplied glint center, coefficient5 and ROI ellipse clip explain all11 observed off-ray domains within1 channel level;8 exact. Source background is32x32 opaque240/20/10 only.",
+    "remaining": "No isolated glints at other dimensions/colors/tight or partial areas establish radius scaling. Eligibility cutoff only bounded102.5<=R\u00b2<110.5 at32x32. First-global-min and first-eligible selection remain ambiguous. General caller must not invent these choices.",
+    "qualification": "Independent math on retained Windows references; no general production selector or app acceptance."
+  },
+  "red_eye_detector_capture": {
+    "statuses": "All43x15 SDK/file status fields zero",
+    "requestedActualSources": "All43 identical in both startup processes",
+    "allEightStageBuffersEqual": 39,
+    "differentStageCases": [
+      "color-pure-red",
+      "both-alpha128",
+      "opaque-red-transparent-glint",
+      "alpha128-red-opaque-glint"
+    ],
+    "actualFileTarget": "All43 intrinsic/final file buffers agree across startup versions. Pure-red direct API divergence and alpha associations are retained separately; direct results are not substituted for file oracle.",
+    "glint": "Circle S=max(0,M-5*distanceSquared), M=max(0,R-max(G,B)), holds across measured dimensions16/24/32/33,rectangular/tightROI,sourcecolors. Selection precedes spatial eligibility on equal-gray far/near controls.",
+    "remaining": "Exact signedRGB orratio classifier, minimum tie rules for differing colors, eligibility cutoff and dynamic foregroundcenter/ellipse not fully identified. Neutral0/96/255 intensity changes disprove all scalar-redness-only histogram models."
+  },
+  "matched_blur_capture": {
+    "statuses": "All3x15SDK/file statuses zero",
+    "requestedActualSources": "Both startups equal all3 sources",
+    "allEightStageBuffersEqual": 3,
+    "finding": "Both interior orientations and mirroredrightedge256-amplitude vectors exactly equal earlierleftedgevector, includinga63=>64. Reflection andorientation cannot explain numerical residual.",
+    "coefficientConstraint": "Nominal1.96Gaussian nearestQ8 excludesmatchedpair; adjustedCinterval cannot satisfyallnativeasymmetricconstraints atsame radius5. Unnormalizedfixedpointweights andnaturalTaylor/Pade/cellintegral candidates fail to improve. No fittedcoefficient/oraclechange."
+  },
+  "uniform_component_qualification": {
+    "scope": "Earlier20uniform opaque component matches SDK direct observations; it does NOT establish actual Bitmap(file,FALSE) behavior for everycolor.",
+    "counterexample": "Retainedfollowupsolid-pure-red at24,16: allSDKdirect/createv1/v2=[246,4,4], allFILEintrinsic/finalv1/v2=[228,12,12]. SameFILEprofile appears withnewpure-redgrayhole.",
+    "consequence": "Generalapply remains disabled. Uniformhelper is an inactivecomponent, notvalidfallback foracceptedpictures. Nextspatialsourceedit mustqualifyoldcomments alongside actualimplementation; currentrendererfreeze retained throughseparateUDiffcompilecheckpoint."
+  },
+  "red_eye_full_buffer_analysis_continuation": {
+    "qualification": "Mathematical diagnostics against captured Windows FILE buffers only. No new app/pixel checkpoint. Production general apply remains disabled; no coefficient or geometry guesses shipped.",
+    "artifacts_sha256": {
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-rgb-dispersion.py": "afca5deaee01e6bdc5ab5e683781e92fc06093649f16b889c411d8f969788dcb",
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-radial-composition.py": "2e4471f3732fa85a5e68aa4173716a1aa438ad786cfbfd9d7b5af7fd87bbc864",
+      "build/qa/metafile-redeye-rgb-dispersion-model-2026-10-27.json": "2876e824a67c2cef1cd6b80e6baafc9590baa58fc050e441d0d903b2348a0ab3",
+      "build/qa/metafile-redeye-radial-circle-signed-model-2026-10-27.json": "8b59e46792f979c25b77250fc329b10518c2d7431bbf2859c826c65c21d8cb6e",
+      "build/qa/metafile-redeye-followup-radial-composition-model-2026-10-27.json": "e5cec9f7089cb05c42cc3250fe54df8f63deaa9da208d3daaf5dd03c18908ceb"
+    },
+    "candidate": "Signed per-bin redness contrast h and radial M*(h+(1-h)*Q^2/4), max with independently derived angular floor and supplied glint, using shorter circular radius for nonsquare supplied areas. Source-derived prediction, no observed coefficients fed back into predictions.",
+    "remaining": [
+      "Global radial amplitude for larger square/disk foreground; uniform quarter vs captured larger amplitude still unexplained",
+      "Mixed neutral RGB angular floor and odd-center assignment",
+      "Nonuniform foreground origin, glint classification/eligibility, alpha and ordered overlaps",
+      "Pure-red FILE cone amplitude differs from SDK direct; no case-dependent coefficient selector accepted"
+    ],
+    "next_discriminators": "Derive common foreground/angular aggregate normalization from both larger-shape and uniform controls; preserve full-buffer failures and strict per-channel tolerance.",
+    "parent_workflow": "Dedicated Unified Diff checkpoint c0b78afe passed separately; does not accept image effects."
+  },
+  "red_eye_geometry_falsification_continuation": {
+    "qualification": "Independent numerical diagnostics only; no application builds/checks or new captures. Original Windows FILE buffers and strict byte tolerances remain unchanged. Production general apply is disabled and source stays frozen through the separate parent native checkpoint.",
+    "source_derived_candidates": [
+      "positive-redness weighted centroid",
+      "positive-redness bounding rectangle center",
+      "one-pass initial-circle clipped positive centroid",
+      "iterated circle-clipped positive centroid"
+    ],
+    "results": "All four source-derived policies recover central square/disk8 translations but fail offcenter, partial and asymmetric shapes. Unclipped centroid: far4 64pixels>1/max108; far20 62/max96; L111/max143; shiftedL110/max15; partialL36/max93. No case-based center selector accepted.",
+    "angle_precision": "Endpoint-matched linear/cubic/quintic atan approximations use standard mathematical coefficients, never coefficients fitted to native output. They fail previously exact central square8/16 (linear64/240bad; cubic32/160; quintic0/56) and do not solve asymmetric shapes. Ordinary fast-angle precision is not an established explanation.",
+    "bounded_inverse_geometry": "A separate diagnostic enumerates289 diagonal-center/radius pairs per symmetric far square, never reusing a scored center in production. Best coarse candidates still fail16/max15 and10/max12 pixels, respectively; no recovered general origin formula.",
+    "amplitude_constraint": "Square24 all60 bins support a common radial C in [0.6589622622,0.6602346792]; disk24 supports [0.6598593544,0.6626449397] in S=M*(h+(1-h)*C*Q^2). Their global RGB populations and bin extrema differ. Joint interval is [0.6598593544,0.6602346792]. The Q4-shaped value(13/16)^2=.66015625 lies inside; the earlier RGB identity3/4*((240-(20+10)/2)/240)^2=.6591796875 does NOT lie in the joint exact rounding interval (earlier message corrected), though a one-byte renderer budget may not separate them. Neither selects an accepted formula. Uniform and single-gray controls use C=.25.",
+    "additional_mixed_rgb_constraint": "Bright192 plus dark64 in one bin preserves binary redness but invalidates the earlier source-RGB enhancement at6pixels/max7. A covariance finite-bound factor can fit that one discriminator but is not uniquely justified and is not promoted.",
+    "remaining": "Dynamic origin/radius and global amplitude/classification; mixed-RGB moments; odd-center assignment; alpha associations and area ordering. No uniform-only fallback, accepted fitted coordinates/coefficient table, or relaxed oracle.",
+    "sha256": {
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-radial-composition.py": "2077e525fe093bf9d8523df85751b13097568df426dd5fe34d77d0ba24ffc719",
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-origin-radius-inversion.py": "6cde108633b1413a9dfa1247d43aef7d3fa5fc6b3674678058f4525a67d2d4bc",
+      "build/qa/metafile-redeye-centroid-radial-composition-model-2026-10-27.json": "1b054b76caa6540f73bcca5c432ea4a1291d652d2a96f077224ab8115e7bdc83",
+      "build/qa/metafile-redeye-ellipse-centroid-radial-composition-model-2026-10-27.json": "5b1ab2674e2f8a8e5d3a3ef8fe27e6b65908519282859ba429284fc191878a99",
+      "build/qa/metafile-redeye-iterative-centroid-radial-composition-model-2026-10-27.json": "91c3b13ff4f3e4a6f44186d938298f94c4d5c08abc66e1639fd9d9ab128f1c1e",
+      "build/qa/metafile-redeye-bounds-radial-composition-model-2026-10-27.json": "492ed625b188993efbf8ed6bdff6697c073fbf5d3d0cab91d15b1d9c9c9dc3ba",
+      "build/qa/metafile-redeye-linear-angle-model-2026-10-27.json": "5e5c22d5c6b56993af111da403b7fa6210bd46ee082d28b5d71bd5eefbab62ca",
+      "build/qa/metafile-redeye-cubic-angle-model-2026-10-27.json": "93e18b66bc669d4d04e545b11ba2bc5da21194a36b9b87e3df9eca36c1268685",
+      "build/qa/metafile-redeye-quintic-angle-model-2026-10-27.json": "4aeb0ff4fd8ec90ab603fa6dc1e53e2f9e169b679de8ae242c1bfd29b03ff443"
+    }
+  },
+  "red_eye_mean_only_extension_continuation": {
+    "qualification": "Source-derived numerical hypothesis only. No production image source edits, app tests/builds, new Windows capture or general detector acceptance. All strict original observations and failures retained.",
+    "scope": {
+      "plateauObservations": 485,
+      "originalComparedPixels": 1694,
+      "maxRGBAByteDelta": 1,
+      "pixelsExceedingOne": 0
+    },
+    "formula": {
+      "z": "max(0,R-(G+B)/2)",
+      "meanZ": "max(0,meanR-(meanG+meanB)/2)",
+      "h": "(z_pixel-meanZ)/z_pixel; zero strength if h<=0 or z_pixel<=0",
+      "delta": "dG=meanG-G_pixel; dB=meanB-B_pixel",
+      "strength": "M*max(0,h+(1-h)*abs(dG)*dG*dB/(meanG*(abs(dG)*meanB+abs(dB)*meanG))); zero extra term if denominator<=0"
+    },
+    "derivation": "Algebraic extension of the earlier two-population RGB component. Uses actual source means and pixel RGB only, no fitted coefficients, source family names or native observed strengths as predictor inputs.",
+    "newConstraint": "Full bright192/dark64 file buffer now matches within1 byte with the independently supplied glint/ROI geometry; the old dispersion/covariance component failed6pixels/max7. Consequently the prior covariance/Bhatia-Davis reduction was not uniquely identified and must not be promoted as the general algorithm.",
+    "fullBufferFailures": "The same mean-only extension does not resolve larger square/disk radial amplitude or red-gradient/native dynamic geometry. Alpha, nonuniform foreground center/radius, odd-center bin assignment and area-ordering remain unresolved.",
+    "futureDiscriminators": "Retain distinction between exact square/disk common radial coefficient and guessed identity: joint exact interval[.6598593544,.6602346792]. A same-global-RGB-histogram layout permutation versus square24, and centered gray8 hole versus gray border/red30 square on otherwise red source would separate foreground extent from histogram confidence. These are concrete proposed discriminators only; no new job authorized or run here.",
+    "sha256": {
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-mean-extension.py": "a9ba008ab4206ae70507ca3ad9ebf557e14e0c28c0e4f573a4b4cf52eacf58a5",
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-radial-composition.py": "319509fd30c84c247bf56e785886cce9e0d24a010ffc4e2bf6f6f522c37ac66b",
+      "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-origin-radius-inversion.py": "6cde108633b1413a9dfa1247d43aef7d3fa5fc6b3674678058f4525a67d2d4bc",
+      "build/qa/metafile-redeye-mean-extension-model-2026-10-27.json": "9d7da92be19c3afeb15b5d648c44f19c9538649676f3de17bcedf30502684e87",
+      "build/qa/metafile-redeye-mean-composition-model-2026-10-27.json": "dc87bffa3a45ee3e1b81d4e9d9288d4a52d0b0e254719f6b97bfb3e57a9c9cfd",
+      "build/qa/redeye-origin-radius-inversion-2026-10-27.json": "dbae483ef94cf7017b8725f8c88084fda3865da453d5b970db3237243d8d12b2"
+    }
+  },
+  "red_eye_model_capture_continuation": {
+    "date": "2026-10-28",
+    "receipt": "docs/qa/metafile-redeye-model-2026-10-28.json",
+    "nativeReferencesVerified": true,
+    "sourceConsumerStartupVersion": 1,
+    "sourceAnchors": [
+      "src/Utils/MiscUI/Picture.h:197",
+      "src/Utils/MiscUI/Picture.cpp:415"
+    ],
+    "priorCasesPreserved": 598,
+    "priorBinaryMembersPreserved": 1232,
+    "addedCases": 29,
+    "totalPositiveCases": 627,
+    "stageIdentity": {
+      "direct-v2": 29,
+      "created-v2": 29,
+      "direct-v1": 29,
+      "created-v1": 29,
+      "file-v1": 29,
+      "file-v2": 27
+    },
+    "startupQualification": "Original radial analysis selected first replay (startup2) implicitly. The analysis now chooses replay-v1 by default, matching pinned Picture startup1. New pure-red240 cases differ in FILE-v2 only; older pure-red255 FILE-v1/v2 versus direct discrepancy remains valid for those different inputs. Never apply one blanket pure-red factor.",
+    "quarterConeWithCandidateGlint": {
+      "passingCases": 15,
+      "failingCases": 14
+    },
+    "conditionalCoefficientInterval": {
+      "cases": [
+        "model-hist-square24",
+        "model-hist-two-rectangles",
+        "model-hist-center-rows",
+        "model-red-square20",
+        "model-red-square22",
+        "model-red-square26"
+      ],
+      "interval": [
+        0.6598915578253728,
+        0.6600190750800763
+      ],
+      "warning": "Conditioned on current ROI/angular/radial composition, excluding supplied glint support. Does not establish a general coefficient or global histogram selection rule."
+    },
+    "conclusions": [
+      "All29 FILE-v1 buffers equal both direct and created outputs for both SDK startup versions.",
+      "Only model-channel-gb0-uniform and model-channel-gb0-gray-hole differ between FILE startup1 and2. Older pure-red255 file/direct disagreement remains separately valid; new pure-red240 is not the same input.",
+      "Constant quarter cone with candidate glint is exact/within1byte for15of29 default-v1 full buffers; all five continuous gradients and several equal-histogram layouts still refute general acceptance.",
+      "Centered red squares20,22,24,26 share a conditional coefficient near0.66; square28/30 instead agree with quarter cone. An extent/population switch is constrained, not identified.",
+      "Mean-only and dispersion angular candidates remain unaccepted: their continuous-distribution errors are not repaired by selecting a different fixed cone coefficient."
+    ],
+    "nextImplementationStep": "Derive the angular statistic and amplitude-selection rule from the full default-v1 buffers, retaining signed rounding bounds and independent spatial geometry. Separate green-zero behavior and red255 recording/replay behavior from ordinary colors. Do not enable fitted per-case branches.",
+    "productionChanged": false,
+    "coreOrNativeChecksRun": false
+  },
+  "red_eye_angular_gradient_continuation": {
+    "receipt": "docs/qa/metafile-redeye-angular-2026-10-28.json",
+    "candidates": 11200,
+    "fullBufferPixelsPerCandidate": 1024,
+    "sourceCases": 5,
+    "allRejected": true,
+    "strongConstraints": [
+      "Fixed original-circle support is false for the complete gradient family: twelve modified pixels outside it for red-x and red-y, six for fixed-chromaticity brightness-x.",
+      "Plain source-red centroid and nearest-edge radius improve the red gradients substantially but still miss158pixels each by more than1byte. Geometry improvement does not identify a complete detector.",
+      "Direct mean, red-green/red-blue differences, ratio-of-means color transforms, and source-centroid variations all fail complete buffers. No low-mean/binary plateau match establishes the continuous-distribution rule.",
+      "One unified source-center weight (R-max(G,B))/max(G,B) remains rejected; it cannot be promoted from the red-ramp agreement."
+    ],
+    "minimalNextGenerativeHypothesis": "Keep one source-derived center recipe w=max(0,R/G-1), with zero-green points excluded and all-zero weights falling back to original ROI center, fixed for every input. Derive its bin RGB/covariance reduction and radius independently rather than choose another coordinate recipe per gradient. This is a constrained hypothesis only: current blue/brightness results still reject the existing angular reduction/composition.",
+    "productionChanged": false,
+    "applicationChecksRun": false
+  },
+  "red_eye_connected_geometry_continuation": {
+    "receipt": "docs/qa/metafile-redeye-connected-geometry-2026-10-28.json",
+    "sourceCases": 195,
+    "opaqueSingleAreaCompared": 139,
+    "otherContractsOpen": 56,
+    "fullBufferPredictions": 1946,
+    "strongConstraints": [
+      "Largest-only connected-region selection is contradicted independently of an amplitude fit: matched permuted input has11components and nativechanges9; matchedtwo-rectangles has2components and nativechangesboth. Their first neutral ratio-minimum lies outside the central glint eligibility domain.",
+      "The accepted-centroid model improves89to95of139 admitted buffers and7394to4705badpixels against the originalROI model; all44remaining failures stay failures, and56excluded contracts remain open. This is not a feature completion rate.",
+      "A tiny source-derived permuted-image centroid shift to(15.5,15.4479166667) improves its272badpixels to107under an ungated nearest-edge model, showing angular membership is sensitive to detector origin. This is evidence, not an observed coordinate reused in production.",
+      "Simple covariance ellipses and per-component bounds do not identify the detector. They perform worse than the single union-center model across the same full-buffer corpus."
+    ],
+    "nextDerivation": "Keep union source moments, original ROI, and eligibility as explicit independent stages. Derive a single RGB/angular reduction jointly with conditional radius/amplitude constraints; never choose center recipes per image. Radially symmetric continuous-color sources would isolate the geometry/statistic confound if current independent captures cannot resolve it; no such capture is authored or requested here.",
+    "productionChanged": false,
+    "applicationChecksRun": false
+  }
+}

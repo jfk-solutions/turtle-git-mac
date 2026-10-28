@@ -89,6 +89,30 @@ paths and shares validation with drawing, clipping, custom caps and accepted
 gradient boundaries. Negative region rectangle extents, singular
 region fill transforms remain explicit refusals. The [embedded-metafile family](METAFILE-EMBEDDED-IMAGE-PARITY.md) supersedes the former nested-image/texture refusal with bounded child playback and isolated texture surfaces.
 
+## Serialized spatial bitmap effects
+
+The [image-effects continuation](METAFILE-IMAGE-EFFECTS-PARITY.md) implements
+Blur, Sharpen and RedEyeCorrection in the same native decoder used by image
+comparison and conflict previews. Bounded source/halo preparation, image-space
+origins, transparent edges and no-paint results feed the existing crop, affine,
+wrap, clip and SourceCopy consumers. An empty working source region or a native
+rejected RedEye area list preserves prior paint; an inclusive working sample at
+an exactly touching boundary can still draw. Pixel planes, association copies
+and arithmetic work are reserved before allocation across the conversion.
+
+Standalone Swift arithmetic matches all 389 retained Blur/Sharpen buffers
+exactly. RedEye uses the image-local fresh-first-use contract over its 195-case
+arithmetic inventory: 185 painted cases stay within their existing one-byte
+bound (182 exact), and ten are whole-draw no-paint. The
+[fresh-context receipt](qa/metafile-redeye-fresh-context-2026-10-28.json) records
+those domains. A separate Windows source capture records 20 Picture file
+playbacks in 16 processes, preserving both older process-history observations
+and two separately identified fresh context references. These references do not
+replace old oracles or widen their bounds. Native source capture and arithmetic
+comparison remain distinct from the [grouped spatial checkpoint](qa/metafile-spatial-effects-2026-10-28.json);
+earlier signed or native image checks below do not cover this batch.
+Original repository files and conflict bytes remain unchanged.
+
 ## Explicit remaining format behavior
 
 The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph outlines for DrawString layouts, including direction, tabs, tracking, wrapping and trimming.

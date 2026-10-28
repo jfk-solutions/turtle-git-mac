@@ -53,6 +53,7 @@ def main():
     from importlib.util import spec_from_file_location, module_from_spec
     spec = spec_from_file_location('metafile_builder', ROOT / 'scripts/build-metafile-runtime.py')
     builder = module_from_spec(spec); spec.loader.exec_module(builder)
+    assert set(manifest['source_sha256']) == set(builder.FILES), 'Runtime corresponding-source inventory is incomplete or stale'
     with tempfile.TemporaryDirectory(prefix='metafile-verify-') as directory:
         source = pathlib.Path(directory)
         builder.extract(runtime / 'Sources/renderer.tar.gz', source)

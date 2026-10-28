@@ -1,0 +1,1397 @@
+{
+  "cases": [
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-3.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "redeye-12.emf",
+      "noPaint": true
+    },
+    {
+      "file": "redeye-13.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-17.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-3.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "redeye-swapped-12.emf",
+      "noPaint": true
+    },
+    {
+      "file": "redeye-swapped-13.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-17.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-3.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "eye-12.emf",
+      "noPaint": true
+    },
+    {
+      "file": "eye-13.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-17.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-gray.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-skin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 21084,
+      "file": "followup-solid-pure-red.emf",
+      "maxByteDelta": 80,
+      "nonexactPixels": 656,
+      "pixelsExceedingOne": 556
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-1-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-2-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-4-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-16-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-24-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-2-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-4-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-16-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-24-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-shift0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-shift1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-shift2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-shift0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-shift1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-shift2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 3,
+      "file": "followup-square-8-at4.emf",
+      "maxByteDelta": 1,
+      "nonexactPixels": 3,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 4,
+      "file": "followup-square-8-at20.emf",
+      "maxByteDelta": 1,
+      "nonexactPixels": 4,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 5,
+      "file": "followup-square-8-roi3.emf",
+      "maxByteDelta": 1,
+      "nonexactPixels": 5,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi7.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-low-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-high-green.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-high-blue.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-balanced.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-red-gradient.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-repeat.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-repeat.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-size16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-size24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-size33.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-roi14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-roi16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-gray-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-gray-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-gray-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-low-red-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-holes-gray-diagonal.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-holes-gray-horizontal.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-solid-red-baseline.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-12-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-15-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-16-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-6-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-holes-gray-separated-main.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-holes-gray-separated-anti.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-solid-red-baseline.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "paint-outside-negative.emf",
+      "noPaint": true
+    },
+    {
+      "file": "paint-outside-positive.emf",
+      "noPaint": true
+    },
+    {
+      "file": "paint-valid-then-outside.emf",
+      "noPaint": true
+    },
+    {
+      "file": "paint-outside-then-valid.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "paint-partial-outside.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "paint-full-control.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-two-same-bin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-four-same-bin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-off-diagonal-6-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-off-diagonal-5-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-low-red-same-bin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-two-off-diagonal.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-solid-red-baseline.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-16-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-16-edge.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-24-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-24-edge.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-33-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-33-edge.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-roi16-in-source32.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-partial-roi-glint.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-low-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-high-green.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-high-blue.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-balanced.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 9279,
+      "file": "detector-color-pure-red.emf",
+      "maxByteDelta": 31,
+      "nonexactPixels": 536,
+      "pixelsExceedingOne": 437
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-skin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-neutral-0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-neutral-255.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-single-9-9.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-far6-near15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-far4-near15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-far5-15-near15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-bright-first-dark-later.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-weak-red-first-neutral-later.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-7-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-6-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-25-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-15-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-32.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L-shift.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L-partial.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-two-lobes-left-small.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-two-lobes-right-small.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L-tight.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-16x32-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-16x32-off-axis.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-32x16-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-32x16-off-axis.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-both-alpha128.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-opaque-red-transparent-glint.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-alpha128-red-opaque-glint.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-control-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-control-gray.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-square24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-permuted.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-two-rectangles.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-center-rows.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-center-gray.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole8.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square20.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square22.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square26.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square28.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square30.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-g0-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-g0-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-b0-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-b0-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-gb0-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-gb0-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-r255-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-r255-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-red-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-red-y.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-green-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-blue-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-brightness-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    }
+  ],
+  "qualification": "Standalone arithmetic development comparison; not app, Core or native checks. Original retained Windows buffers only.",
+  "status": "Pending two opaque pure-red255 FILE-v1 source contracts; general apply remains disabled.",
+  "counts": {
+    "sourceCases": 195,
+    "withinExistingOneByteBound": 183,
+    "exactBuffers": 180,
+    "wholeDrawNoPaint": 10,
+    "unresolvedBuffers": 2
+  },
+  "sourceFiles": [
+    {
+      "file": "Sources/TurtleGitMetafile/RedEyeImageEffect.swift",
+      "sha256": "a0038cbdb436aba18ba0053f3ed2c1a791a29bba868018948d227805ba38d7ed"
+    },
+    {
+      "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyeCausalArithmeticMain.swift",
+      "sha256": "69a90c7034b14c251e45ca96f7ae5b5a96196a8999c366211c44c10f547a0eb1"
+    },
+    {
+      "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/prepare-redeye-causal-inputs.py",
+      "sha256": "72ae1d921d3b679efc280ac7ed3599433f03997a726b6e6ecd244c1a20226221"
+    }
+  ],
+  "research": {
+    "repository": "https://github.com/ChristopherVR/emf-converter",
+    "commit": "effcf337218fefc08e4ac8f74e59cd2af1a9235c",
+    "source": "src/emf-plus-image-effects.ts",
+    "license": "Apache-2.0",
+    "use": "Mathematical behavioral research; no external implementation code or capture buffers incorporated. Original Swift formulation under unchanged existing GPL declaration."
+  },
+  "independentDiscriminators": [
+    "All 29 matched-model originals are byte-exact, including all five continuous gradients.",
+    "Alpha-zero samples are excluded from sector and percentile populations after measured source association; alpha itself is retained.",
+    "Immutable per-ROI source replacement and centroid carry are required; disabling carry regresses 13 multiple-area buffers.",
+    "The image-coordinate first-brightest carry fixes 14 pixels of disjoint redeye-17 without changing the other 194 predictions.",
+    "A single-pixel area preserves its source; there is no quarter-cone fallback.",
+    "Ten empty-clipped-area lists return whole-draw no-paint, preserving destination paint."
+  ],
+  "capturePending": {
+    "workflow": ".github/workflows/metafile-redeye-playback-state-reference.yml",
+    "scope": "Three retained wires: nine fresh-process playbacks and six ordered-sequence playbacks through actual Picture startup1; five separately recorded Blur ROI witnesses. Original oracles unchanged.",
+    "executed": false
+  },
+  "checksNotRun": [
+    "App build",
+    "Metafile helper acceptance",
+    "Core test suite",
+    "Native receiver checks",
+    "Hosted CI",
+    "New Windows capture"
+  ],
+  "actualDevelopmentProbe": {
+    "source": "build/qa/redeye-causal-arithmetic-main-2026-10-28.swift",
+    "sourceSHA256": "8df54aeb856133d63da682a67af2642a7aaa790405ae0408143cde8f5c623b45",
+    "executableSHA256": "bfa7432410f265301e4bc2c064d81bf857d2cbb2e6a6419cee72c92e16e7f844",
+    "command": "/usr/bin/swiftc -O Sources/TurtleGitMetafile/SpatialImageEffects.swift Sources/TurtleGitMetafile/RedEyeImageEffect.swift build/qa/redeye-causal-arithmetic-main-2026-10-28.swift -o build/qa/redeye-causal-arithmetic-2026-10-28",
+    "qualification": "Tracked reproduction main adds input/output argument handling around the same numerical body; the executed private main uses the recorded development input/output paths."
+  }
+}

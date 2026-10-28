@@ -885,11 +885,6 @@ import TurtleGitCore
     @Published private(set) var messageEditorSession=UUID()
     @Published private(set) var attemptWorkPending=false
     private var pendingRecommitSession=false
-    private var resetMetadataTransitions:[String:Bool]=[:]
-    private func consumesResetTransition(_ key:String,value:Bool)->Bool {
-        guard let expected=resetMetadataTransitions.removeValue(forKey:key) else{return false}
-        return value==expected
-    }
 
     private func requireCommitIdentity(_ token:OperationCancellation)async throws->Bool {
         if commitIdentityPrepared{return true}
@@ -934,7 +929,10 @@ import TurtleGitCore
     /// changes. A stable value's identity remains acknowledged until an actual
     /// model change, rather than consuming a one-shot Boolean suppression flag.
     func formOptionViewChanged(_ option:FormOption) {
-        guard handledFormTransitions[option] != formTransition(option) else{return}
+        // A view callback is a delivery of a real model mutation, never a
+        // request to create one. Older SwiftUI releases can deliver an observer
+        // while installing/replacing an unchanged conditional option control.
+        guard let transition=formOptionTransitions[option],handledFormTransitions[option] != transition else{return}
         switch option {
         case .amend:amendChanged()
         case .amendComparison:comparisonChanged()
@@ -2206,7 +2204,11 @@ import TurtleGitCore
                     persistedStaging=preferences.staging;stagingEnabled=gitGuiInterface || preferences.staging;appliedStagingMode=stagingEnabled;stagingHintPending=preferences.staging && !gitGuiInterface;loadedPreferences=true
                 }
                 operation=nextOperation;if nextOperation != nil {createBranch=false}
-                amend=nextAmend;amendDiffToLastCommit=nextAmendDiff
+                // The accepted snapshot already applied these comparisons.
+                // A later view delivery must not start another read for a
+                // normalization performed by this very read (root/merge HEAD).
+                if amend != nextAmend {amend=nextAmend;acknowledgeFormTransition(.amend)}
+                if amendDiffToLastCommit != nextAmendDiff {amendDiffToLastCommit=nextAmendDiff;acknowledgeFormTransition(.amendComparison)}
                 hasHead=nextHasHead;hasParent=nextHasParent;comparisonBase=nextBase
                 scopePaths=requestedScope;showWholeProject=requestedWholeProject
                 fileMetadataReadID=UUID();fileMetadataColumns=nextMetadataColumns
@@ -2487,7 +2489,6 @@ import TurtleGitCore
         return Date(timeIntervalSince1970:TimeInterval(commit.author.time))
     }
     func amendChanged() {
-        if consumesResetTransition("amend",value:amend){acknowledgeFormTransition(.amend);return}
         guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
         acknowledgeFormTransition(.amend)
         retireFormReceipts()
@@ -2554,7 +2555,7 @@ import TurtleGitCore
     }
     func invalidateForClose() {
         guiPatch?.retire(); guiPatch = nil
-        pendingRecommitSession=false;resetMetadataTransitions=[:];formOptionTransitions=[:];handledFormTransitions=[:]
+        pendingRecommitSession=false;formOptionTransitions=[:];handledFormTransitions=[:]
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
@@ -2579,14 +2580,12 @@ import TurtleGitCore
         appliedMessageFocusRequest = request
     }
     func comparisonChanged() {
-        if consumesResetTransition("comparison",value:amendDiffToLastCommit){acknowledgeFormTransition(.amendComparison);return}
         guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else{return}
         acknowledgeFormTransition(.amendComparison)
         hasLoaded = false
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
     func authorChanged(repository captured:GitRepository?=nil) {
-        if consumesResetTransition("author",value:setAuthor){acknowledgeFormTransition(.author);return}
         guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
         acknowledgeFormTransition(.author)
         retireFormReceipts()
@@ -2615,7 +2614,6 @@ import TurtleGitCore
         }
     }
     func dateChanged(repository captured:GitRepository?=nil) {
-        if consumesResetTransition("date",value:setAuthorDate){acknowledgeFormTransition(.authorDate);return}
         guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
         acknowledgeFormTransition(.authorDate)
         retireFormReceipts()
@@ -2917,15 +2915,12 @@ import TurtleGitCore
                 if let completionFailure {self.error=completionFailure;busy=false;reload();return}
                 if action == .recommit || selectedPostAction == .recommit {
                     invalidateMetadataLoads()
-                    // These are controlled reset transitions, not user toggles.
-                    // Keep their delayed SwiftUI callbacks from restoring the
-                    // previous amend buffer over the accepted next template.
-                    if amend {resetMetadataTransitions["amend"]=false}
-                    if amendDiffToLastCommit {resetMetadataTransitions["comparison"]=false}
-                    if setAuthor {resetMetadataTransitions["author"]=false}
-                    if setAuthorDate {resetMetadataTransitions["date"]=false}
+                    // These controlled resets acknowledge their settled option
+                    // identities synchronously. View deliveries cannot restore
+                    // the previous amend buffer over the accepted next template.
                     pendingRecommitSession=true
                     createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
+                    for option in [FormOption.amend,.amendComparison,.author,.authorDate] {acknowledgeFormTransition(option)}
                     selectFilesAutomatically = true
                     checked = []; selection = []; hasLoaded = false; loadedMessage = false
                     busy = false

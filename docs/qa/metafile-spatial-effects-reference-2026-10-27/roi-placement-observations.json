@@ -1,0 +1,116 @@
+{
+  "scope": "Source contract analysis, not Mac Core/native acceptance",
+  "reference_run": 40521022045,
+  "archive_sha256": "6ebfc19d2aca08b480d5b4790930a0fc0214b864b09192fb6f2748a46dafb810",
+  "cases": [
+    {
+      "name": "roi-full-e0",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "dd0ccbea3c017e7cc4fc37c1bfd101d234c2fe82d78607ebf512d0b7d7fe3f92",
+      "contained": false,
+      "model_max": 0,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-fractional-e0",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "81e91bd49ed5510c5dd2c589a3cc0608f94a885b22ded0d674745c54d519f03e",
+      "contained": true,
+      "model_max": 0,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-near-origin-e0",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "ff1a26883748f3e0c5eee52a30af2243681ee0721f6c9e4a4f22efdda441048d",
+      "contained": true,
+      "model_max": 0,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-far-fraction-e0",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "9691bcd2d6483afc5a630287056f975350a1b4aaf995c74ea449f1bb3bd549d0",
+      "contained": true,
+      "model_max": 0,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-integer-e0",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "f0f53e6ccd6e2b621a58d5da67e58cf33dfdc96ee96a979bc4ed5a5108f62273",
+      "contained": true,
+      "model_max": 0,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-shifted-integer-e0",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "b8593234680996385522d8dac61cfa3e6be7d14cffb9abe2b21cd8b57e3ba19e",
+      "contained": true,
+      "model_max": 0,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-full-e1",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "ac094403ff79b366ef27c1f39e1046d9f203692bd908ec1348b8046c259a2c63",
+      "contained": false,
+      "model_max": 1,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-fractional-e1",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "eb40cba7e9a21c2a3838785583bc368ace886dd1a008b1753610d6adca6d5e3d",
+      "contained": true,
+      "model_max": 1,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-near-origin-e1",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "6c103bd5136b80f917624dd65c064798b9238c9dffc038edacde56519eee208c",
+      "contained": true,
+      "model_max": 1,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-far-fraction-e1",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "41170d1ef5d5b61d6f6aa1223f7abb058b09ab6c57379e95ae831c7e334b979b",
+      "contained": true,
+      "model_max": 1,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-integer-e1",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "89a1f8b7b55d5f0bc8dcb125dce81f2be7848a33417774272451c544e9e449c7",
+      "contained": true,
+      "model_max": 1,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    },
+    {
+      "name": "roi-shifted-integer-e1",
+      "source_sha256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+      "created_sha256": "dcd6f820770012892bb93644b42aeabb870c658ffcc68b3418bf45b0085de32a",
+      "contained": true,
+      "model_max": 1,
+      "model_channels_over_one": 0,
+      "native_created_to_file": "exact-full-RGBA-both-startup-versions"
+    }
+  ],
+  "qualification": "Contained and full-crossing ROIs measured. Arbitrary far-outside/negative ROI profiles and general effect numerical kernels remain separate."
+}

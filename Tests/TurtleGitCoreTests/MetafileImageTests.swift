@@ -48,20 +48,67 @@ final class MetafileImageTests: XCTestCase {
             return (0..<3).map{alpha>0 ? CGFloat(rgba[offset+$0])/(255*alpha):0}+[alpha]
         }
     }
+    /// The final Picture consumer may rasterize the complete scene. Its original
+    /// paint remains in an unrendered, explicitly marked subtree so source-pixel
+    /// oracles stay independent of that final compositing/sampling boundary.
+    private func sourceScene(_ bytes:Data)throws->XMLElement {
+        let text=String(decoding:bytes,as:UTF8.self)
+        guard text.range(of:"<!DOCTYPE",options:.caseInsensitive)==nil,
+              text.range(of:"<!ENTITY",options:.caseInsensitive)==nil else {
+            throw NSError(domain:"Unexpected entity declaration in helper SVG",code:1)
+        }
+        let document=try XMLDocument(data:bytes,options:[.nodeLoadExternalEntitiesNever])
+        let root=try XCTUnwrap(document.rootElement())
+        XCTAssertEqual(root.localName,"svg")
+        func descendants(_ element:XMLElement)->[XMLElement] {
+            [element]+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{descendants($0)}
+        }
+        let elements=descendants(root)
+        let sources=elements.filter{$0.attribute(forName:"id")?.stringValue=="turtle-picture-source-scene"}
+        let outputs=elements.filter{$0.attribute(forName:"id")?.stringValue=="turtle-picture-output"}
+        if sources.isEmpty && outputs.isEmpty {return root}
+        XCTAssertEqual(sources.count,1,"Picture output must retain exactly one original source scene")
+        XCTAssertEqual(outputs.count,1,"Picture output must have exactly one final raster")
+        let source=try XCTUnwrap(sources.first),output=try XCTUnwrap(outputs.first)
+        XCTAssertEqual(source.localName,"g")
+        XCTAssertEqual((source.parent as? XMLElement)?.localName,"defs","Source scene must remain unrendered")
+        XCTAssertTrue(source.parent?.parent === root,"Source metadata must belong to the outer Picture document")
+        let scenes=(source.children ?? []).compactMap{$0 as? XMLElement}
+        XCTAssertEqual(scenes.count,1,"Source metadata must preserve one complete original SVG subtree")
+        let scene=try XCTUnwrap(scenes.first)
+        XCTAssertEqual(scene.localName,"svg")
+        XCTAssertFalse(descendants(scene).contains{$0 === output},"Final raster must not replace original paint metadata")
+        let visible=(root.children ?? []).compactMap{$0 as? XMLElement}.filter{$0.localName != "defs"}
+        XCTAssertEqual(visible.count,1,"Original metadata must not add a second visible paint")
+        XCTAssertTrue(visible.first === output)
+        XCTAssertEqual(output.localName,"image")
+        for coordinate in ["x","y"] {XCTAssertEqual(Double(try XCTUnwrap(output.attribute(forName:coordinate)?.stringValue)),0)}
+        let width=try XCTUnwrap(Double(try XCTUnwrap(root.attribute(forName:"width")?.stringValue)))
+        let height=try XCTUnwrap(Double(try XCTUnwrap(root.attribute(forName:"height")?.stringValue)))
+        XCTAssertEqual(Double(try XCTUnwrap(output.attribute(forName:"width")?.stringValue)),width)
+        XCTAssertEqual(Double(try XCTUnwrap(output.attribute(forName:"height")?.stringValue)),height)
+        let href=try XCTUnwrap(output.attribute(forName:"href")?.stringValue),prefix="data:image/png;base64,"
+        XCTAssertTrue(href.hasPrefix(prefix))
+        let png=try XCTUnwrap(Data(base64Encoded:String(href.dropFirst(prefix.count))))
+        let decoded=try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil))
+        XCTAssertEqual(CGImageSourceGetCount(decoded),1)
+        let image=try XCTUnwrap(CGImageSourceCreateImageAtIndex(decoded,0,nil))
+        XCTAssertEqual(Double(image.width),width);XCTAssertEqual(Double(image.height),height)
+        return scene
+    }
     /// Inspect the helper's source pixels without SVG, AppKit caching, clipping,
     /// display profiles or reconstruction filters. Device placement comes from
     /// image attributes; no hatch lookup table is duplicated in this oracle.
     private func embeddedPaints(_ name:String)throws->[EmbeddedPaint]{
-        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data(name))),as:UTF8.self),text=svg as NSString
-        let tags=try NSRegularExpression(pattern:"<image\\b[^>]*>").matches(in:svg,range:NSRange(location:0,length:text.length))
-        return try tags.map{tag in
-            let value=text.substring(with:tag.range),source=value as NSString
+        let scene=try sourceScene(XCTUnwrap(MetafileImageDecoder.convert(data(name))))
+        func paints(_ element:XMLElement)->[XMLElement] {
+            (element.localName=="image" ? [element]:[])+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{paints($0)}
+        }
+        return try paints(scene).map{element in
             func attribute(_ name:String)throws->String{
-                let pattern="\\s"+name+"=\"([^\"]*)\"",expression=try NSRegularExpression(pattern:pattern)
-                let match=try XCTUnwrap(expression.firstMatch(in:value,range:NSRange(location:0,length:source.length)),"Missing \(name) in embedded paint")
-                return source.substring(with:match.range(at:1))
+                try XCTUnwrap(element.attribute(forName:name)?.stringValue,"Missing \(name) in embedded paint")
             }
-            let href=try attribute("(?:xlink:)?href"),prefix="data:image/png;base64,"
+            let href=try XCTUnwrap(element.attribute(forName:"href")?.stringValue ?? element.attribute(forLocalName:"href",uri:"http://www.w3.org/1999/xlink")?.stringValue),prefix="data:image/png;base64,"
             XCTAssertTrue(href.hasPrefix(prefix));let png=try XCTUnwrap(Data(base64Encoded:String(href.dropFirst(prefix.count))))
             let imageSource=try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil)),image=try XCTUnwrap(CGImageSourceCreateImageAtIndex(imageSource,0,nil))
             let x=Int(try XCTUnwrap(Double(attribute("x")))),y=Int(try XCTUnwrap(Double(attribute("y")))),width=Int(try XCTUnwrap(Double(attribute("width")))),height=Int(try XCTUnwrap(Double(attribute("height"))))
@@ -79,7 +126,8 @@ final class MetafileImageTests: XCTestCase {
         "finalCGImage=\(image.pixels.width)x\(image.pixels.height),profile=\(String(describing:image.pixels.colorSpace?.name)),bits=\(image.pixels.bitsPerComponent)/\(image.pixels.bitsPerPixel),alpha=\(image.pixels.alphaInfo.rawValue)"
     }
     private func embeddedRGBA(_ name:String,_ x:Int=0,_ y:Int=0)throws->[CGFloat] {
-        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data(name))),as:UTF8.self)
+        let scene=try sourceScene(XCTUnwrap(MetafileImageDecoder.convert(data(name))))
+        let svg=scene.xmlString
         let start=try XCTUnwrap(svg.range(of:"data:image/png;base64,")),tail=svg[start.upperBound...]
         let end=try XCTUnwrap(tail.firstIndex(of:"\"")),png=try XCTUnwrap(Data(base64Encoded:String(tail[..<end])))
         let source=try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil)),image=try XCTUnwrap(CGImageSourceCreateImageAtIndex(source,0,nil))

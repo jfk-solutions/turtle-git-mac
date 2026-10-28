@@ -154,16 +154,25 @@
     "inputs": [
       "LICENSE",
       "Licenses/Wine-LGPL-2.1.txt",
+      "Licenses/BaseHmiTypes-MIT.txt",
       "NOTICE",
       "Configuration/MetafileRuntime.json",
       "Sources/TurtleGitMetafile/main.swift",
+      "Sources/TurtleGitMetafile/SpatialImageEffects.swift",
+      "Sources/TurtleGitMetafile/RedEyeImageEffect.swift",
+      "Sources/TurtleGitMetafile/SpatialImageSampling.swift",
       "patches/metafile-renderer.patch",
       "scripts/build-metafile-runtime.py",
       "scripts/validate-metafile-runtime.py",
       "scripts/embed-metafile-runtime.py",
       "scripts/pinned_download.py",
       "scripts/runtime_bundle_layout.py",
-      "scripts/git_lfs_runtime.py"
+      "scripts/git_lfs_runtime.py",
+      "Sources/TurtleGitMetafile/Resources/color-curves.bin",
+      "Sources/TurtleGitMetafile/Resources/color-curves.json",
+      "scripts/build-metafile-curve-data.py",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp"
     ],
     "validate": [
       "python3",

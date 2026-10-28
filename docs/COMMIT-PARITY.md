@@ -2794,3 +2794,22 @@ ignored-file metadata work and the complete Working Tree inventory from Commitâ€
 change refresh. Current changed rows retain exact index flags and the existing
 coherent cancellation/ownership transaction. The [grouped checkpoint](qa/commit-refresh-2026-10-26.json)
 records 11 Core checks, the Debug build and four native case/engine pairs passing.
+
+
+## Option observers and accepted metadata normalization â€” October 28, 2026
+
+An unchanged or initial native option notification must not start metadata work
+or invalidate an editable form. Option observers now accept only an identity
+created by an actual value change. Reload-owned normalization of Amend and its
+comparison choice acknowledges its own transition before returning editable
+state. ReCommit resets acknowledge their settled identities synchronously;
+they do not leave a marker waiting for an SDK-dependent callback that may never
+arrive. A later real edit keeps its independent identity.
+
+The [observer checkpoint](qa/commit-option-observers-2026-10-28.json) records the
+hosted failure and actual focused validation. The earlier local lifecycle pass
+remains separate; the subsequent hosted run passed 3,153 Core methods with two
+skips before its native duplicate-observer assertion failed. Initial/root-commit
+normalization, duplicate callbacks, delayed/pending metadata, coalesced edits and
+retired form receipts retain their behavioral assertions. This does not certify
+every displayed control, older macOS version or the full hosted native suite.

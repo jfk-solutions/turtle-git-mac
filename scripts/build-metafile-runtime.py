@@ -14,7 +14,11 @@ import uuid
 from pinned_download import download_verified
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FILES = ['LICENSE', 'Licenses/Wine-LGPL-2.1.txt', 'Licenses/BaseHmiTypes-MIT.txt', 'NOTICE', 'Configuration/MetafileRuntime.json', 'Sources/TurtleGitMetafile/main.swift',
+SWIFT_SOURCES = ['Sources/TurtleGitMetafile/main.swift',
+                 'Sources/TurtleGitMetafile/SpatialImageEffects.swift',
+                 'Sources/TurtleGitMetafile/RedEyeImageEffect.swift',
+                 'Sources/TurtleGitMetafile/SpatialImageSampling.swift']
+FILES = ['LICENSE', 'Licenses/Wine-LGPL-2.1.txt', 'Licenses/BaseHmiTypes-MIT.txt', 'NOTICE', 'Configuration/MetafileRuntime.json', *SWIFT_SOURCES,
          'patches/metafile-renderer.patch', 'scripts/build-metafile-runtime.py',
          'scripts/validate-metafile-runtime.py', 'scripts/embed-metafile-runtime.py',
          'scripts/pinned_download.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py',
@@ -118,7 +122,7 @@ def main():
             part = work / ('metafile-convert-' + arch)
             subprocess.run(['xcrun', 'swiftc', *flags, '-sdk', sdk,
                             '-target', arch + '-apple-macosx' + pin['deployment_target'],
-                            str(ROOT / 'Sources/TurtleGitMetafile/main.swift'), '-o', str(part)], check=True)
+                            *[str(ROOT / name) for name in SWIFT_SOURCES], '-o', str(part)], check=True)
             slices.append(str(part))
         subprocess.run(['lipo', '-create', *slices, '-output', str(binary)], check=True)
     stage = output.with_name(output.name + '-stage-' + uuid.uuid4().hex)

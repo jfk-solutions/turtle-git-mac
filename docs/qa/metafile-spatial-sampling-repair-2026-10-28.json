@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-28",
+  "scope": "Causal repair after the grouped spatial Core checkpoint; isolated arithmetic/static source evidence, not a repaired integration pass",
+  "priorCheckpoint": {
+    "log": "build/qa/metafile-spatial-core-2026-10-28.log",
+    "sha256": "850f33ae1126c7f5e48a21375f9d4639f1a46355a559c1e0237fbea4d585e2f1",
+    "methods": 19,
+    "passedMethods": 18,
+    "failedMethod": "testSpatialBlurFullNativeRasterIncludesExpandedOutput",
+    "assertionFailures": 21,
+    "failedFixtures": [
+      "blur-alpha-expanded-25500.emf",
+      "blur-asymmetric-crop-scale.emf",
+      "blur-strip-impulse-r100-e0.emf",
+      "blur-strip-impulse-r100-e1.emf",
+      "blur-strip-impulse-r150-e1.emf",
+      "blur-strip-impulse-r300-e1.emf",
+      "blur-strip-impulse-r1000-e1.emf",
+      "blur-strip-impulse-r25500-e1.emf",
+      "blur-strip-constant-r100-e1.emf",
+      "blur-strip-constant-r150-e1.emf",
+      "blur-strip-constant-r300-e1.emf",
+      "blur-strip-constant-r1000-e1.emf",
+      "blur-strip-constant-r25500-e1.emf",
+      "boundary-blur-fractional-crop-e0.emf",
+      "boundary-blur-fractional-crop-e1.emf",
+      "roi-roi-fractional-e0.emf",
+      "roi-roi-near-origin-e0.emf",
+      "roi-roi-far-fraction-e0.emf",
+      "roi-roi-fractional-e1.emf",
+      "roi-roi-near-origin-e1.emf",
+      "roi-roi-far-fraction-e1.emf"
+    ],
+    "unaffectedPasses": "RedEye fresh-domain195, Sharpen228, five new ROI cases, old pointwise/image-effects methods and malformed cases passed; their oracles remain unchanged."
+  },
+  "causes": [
+    "File-backed natural canvas extents used forced96DPI instead of recorded device/millimeter ratios, losing one row on three large native frames.",
+    "CoreSVG antialiases fractional image clips and ignores crispEdges there; native DrawImagePoints uses hard device-pixel coverage.",
+    "CoreSVG with interpolation none uses nearest image reconstruction. Native scaled spatial draws use premultiplied bilinear sampling at integer device sample locations with nearest11-bit fractions.",
+    "Output association was performed before image reconstruction, changing partial-alpha edge colors. Both native association boundaries follow filtering, at the inner image and outer file-consumer stages.",
+    "The final Picture rectangle overload forms inverse steps by multiplying source extent by a directed-float32 reciprocal of destination extent and accumulates positions toward minus infinity. This can be nonidentity even for equal integer extents, producing the observed wide-strip phase."
+  ],
+  "implementation": {
+    "affine": "Original native bounded affine sampler reads raw effect bytes, preserves inner identity DrawImagePoints mapping, applies nearest11-bit premultiplied bilinear filtering, then explicit fixed-point unassociation. Independently generated opaque geometric coverage is a separate PNG plane used for SourceCopy.",
+    "picture": "Generic finished-root document consumer plans its coordinate lookup before drawing. Quantized identity preserves the original SVG. A nonidentity lookup samples the completed premultiplied document once using the actual rectangle overload and TileFlipXY. Cached root planning keeps the second association boundary at the correct stage, including spatial child draws.",
+    "bounds": "Validated finite matrix/inverse/source geometry, clamped destination bounding rectangles, source-byte immutability, both independent output planes and scalar work reserved before allocation. Source, spatial and raster budgets remain conversion-owned.",
+    "ordinary": "Ordinary/pointwise image placement is unchanged. The generic nonidentity final file consumer and recorded-DPI natural extent apply by their mathematical metadata/lookup, never by filename or fixture identity.",
+    "associationCouplingReview": "Confirmed ordinary/pointwise transform outputAssociations included the final Picture boundary. A planned nonidentity finished-document sampler now subtracts exactly one from the prepared output count (minimum zero), while preserving decode source association. Quantized identity documents retain their previous counts. This keeps ordinary, pointwise, spatial and child paints from receiving an extra boundary in mixed documents. Source review only; no new execution."
+  },
+  "sourceHashes": {
+    "Sources/TurtleGitMetafile/SpatialImageSampling.swift": "7168aa0de01fb06ae45bf1cd8e75bd9e58bebdafc49b05a026b7f5cb9f8f82ba",
+    "Sources/TurtleGitMetafile/main.swift": "72f133131a42e34b0377105ec82b985bf7b6179dc0670c15f8b8dd85cfccca4d",
+    "patches/metafile-renderer.patch": "0b947eb754725dc9d505b809a61f7e64c676fae0d1680cfdf3397cfc0a270f8f",
+    "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab"
+  },
+  "isolatedEvidence": {
+    "scaledAffineAndPicture": {
+      "profiles": 1,
+      "pixels": 9216,
+      "maximumAssociatedError": 0,
+      "channelsExceedingOne": 0,
+      "differentChannels": 0,
+      "source": "Native created ROI18x20 [4,6,22,26], independently matching original asymmetric source; expected remains actual native FILE-v1 final96x96.",
+      "probe": "build/qa/spatial-sampling-isolated-2026-10-28/Probe.swift"
+    },
+    "pictureStrips": {
+      "profiles": 16,
+      "maximumAssociatedError": 0,
+      "channelsExceedingOne": 0,
+      "differentChannels": 0,
+      "comparison": "build/qa/spatial-sampling-isolated-2026-10-28/picture-comparison.json",
+      "probe": "build/qa/spatial-sampling-isolated-2026-10-28/PictureProbe.swift"
+    },
+    "coreSVG": "Standalone offscreen NSImage/CoreGraphics probe: fractional clip corner alpha95 both with and without crispEdges; hard snapped geometry alpha0, confirming real coverage mechanism. Image-rendering quality/speed attributes likewise do not restore bilinear filtering under interpolation none.",
+    "staticChecks": "New pure Swift source compiled in optimized isolated arithmetic executables. Three extracted JS modules pass node --check; patch hunk lengths parse with git apply --numstat."
+  },
+  "oracles": "All old627 entries and buffers, two generic fresh context references and five ROI captures remain untouched. No tolerance changes or narrowing. Original389 Blur/Sharpen arithmetic source hash is unchanged.",
+  "validationPending": "Parent rebuilds helper with the new Swift source, then only affected Blur/native-frame/output baseline groups. No helper/app/Core/native rerun occurred during this repair; standalone arithmetic is not integration acceptance."
+}

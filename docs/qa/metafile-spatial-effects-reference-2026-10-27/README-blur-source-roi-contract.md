@@ -1,7 +1,10 @@
-# Proposed bounded Blur source-rectangle contract capture
+# Bounded Blur source-rectangle contract capture
 
-This is an authored source-contract experiment, not an observed result or a
-macOS application check. It preserves previous native captures unchanged.
+The authored experiment below has now returned native observations in
+[run 40683242082](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40683242082).
+The [observation receipt](../blur-source-roi-observation-2026-10-28.json) records
+source verification, actual Picture pixels and the resulting adapter correction.
+It preserves previous native captures unchanged.
 `BlurSourceRoiContractReference.cpp` records exactly four new SDK witnesses and
 one contained transport control. The shared source is the existing independent
 opaque 32×32 asymmetric RGB formula, without new colors or a candidate kernel.
@@ -39,5 +42,36 @@ The workflow records source hashes, original EMF hashes and all artifact member
 hashes. No expected pixels, tolerance changes, fitted coefficients or production
 geometry replacement are part of the proposed capture.
 
-The scoped contract remains pending source review, commit and Windows execution.
-Only independently verified returned pixels can resolve the adapter questions.
+## Observed result and adapter correction
+
+All 20 generator status fields and 15 playback startup/load/draw status fields
+are zero. Each of the five 4240-byte originals contains one serialized Blur and
+one E-set DrawImagePoints; its embedded 32×32 source matches the separately
+observed and authored source pixels exactly. Each playback has its own startup-1
+process. Parent verification checked all 115 combined artifact member hashes and
+lengths; the receipt retains that provenance separately from this Blur analysis.
+
+The fully outside working crop leaves every sentinel pixel unchanged. It now
+returns the existing typed no-paint result rather than an erasing transparent
+dummy. Exact touch behaves differently: its inclusive extra working source
+column produces paint over the whole 6×12 destination, including transparent
+pixels under SourceCopy. A visible-intersection early gate would be incorrect.
+
+The other discrepancies come from preparing the expanded canvas after cropping
+away surrounding bitmap pixels. Noncontained expanding Blur now copies the
+original bitmap intersection into a bounded full-resolution halo canvas, with
+zero only outside the bitmap, filters that canvas in place, and returns its
+image-space origin. Its dimensions also select the small-radius vertical row
+extent. The exact-touch witness distinguishes this from retaining the original
+ROI row count. The contained control keeps its previous cropped behavior.
+
+The original mathematical adapter predictor reproduces all 20,480 actual
+Picture pixels exactly across the five full 64×64 outputs, including sentinel
+paint, clipping and both association boundaries. No expected buffer or tolerance
+changed. Later intrinsic reads retain one-level differences on 9, 32 and 89
+channels for the partial, negative and contained cases; these are separate
+consumer-stage observations, not replacements for actual Picture output.
+
+This is source/wire and arithmetic analysis. Application/helper builds, Core and
+native suites remain the parent-owned grouped integration checkpoint. The
+389-profile kernel source is unchanged, and no patch geometry changed.

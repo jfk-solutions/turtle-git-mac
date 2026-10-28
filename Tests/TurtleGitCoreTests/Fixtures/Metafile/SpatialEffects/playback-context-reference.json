@@ -1,0 +1,2289 @@
+{
+  "windowsRun": 40683242082,
+  "artifact": 12812964186,
+  "archiveSHA256": "2745d7bd0b82a74f456d185586124ae94dd6c7a6969fde9405a1b14d4d854108",
+  "sourceCommit": "4438157375b49d8758f8ec8dcc48c3a130c17ee1",
+  "startupVersion": 1,
+  "consumer": "fresh process: Bitmap(file,FALSE), immediate Picture SourceCopy/default interpolation/half pixel offset/TileFlipXY, then observation",
+  "originalManifestSHA256": "04affe438a49a52e3010afd08453d6d5db53cdab5509fedc779ece15acc4b75d",
+  "replacements": [
+    {
+      "file": "followup-solid-pure-red.emf",
+      "sourceSHA256": "474595233adbd1722061ee896d55198cf857ab630ee5594fa3518d2f2d8600e8",
+      "previousReferenceRGBA": "followup-solid-pure-red.windows.rgba",
+      "previousRGBA_SHA256": "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1",
+      "freshRepeats": [
+        {
+          "label": "fresh-0-1",
+          "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+          "intrinsicSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa"
+        },
+        {
+          "label": "fresh-0-2",
+          "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+          "intrinsicSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa"
+        },
+        {
+          "label": "fresh-0-3",
+          "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+          "intrinsicSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa"
+        }
+      ],
+      "case": {
+        "file": "followup-solid-pure-red.emf",
+        "family": "redEyeCorrection",
+        "parameters": {
+          "numberOfAreas": 1,
+          "areas": [
+            [
+              0,
+              0,
+              32,
+              32
+            ]
+          ]
+        },
+        "width": 32,
+        "height": 32,
+        "sourceSHA256": "474595233adbd1722061ee896d55198cf857ab630ee5594fa3518d2f2d8600e8",
+        "referenceRGBA": "fresh-file-v1-followup-solid-pure-red.rgba",
+        "rgbaSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+        "samples": [
+          {
+            "x": 0,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 8,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 8,
+            "rgba": [
+              251,
+              2,
+              2,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 8,
+            "rgba": [
+              243,
+              5,
+              5,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 8,
+            "rgba": [
+              252,
+              1,
+              1,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 8,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 16,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 16,
+            "rgba": [
+              243,
+              5,
+              5,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 16,
+            "rgba": [
+              215,
+              18,
+              18,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 16,
+            "rgba": [
+              246,
+              4,
+              4,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 16,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 24,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 24,
+            "rgba": [
+              252,
+              1,
+              1,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 24,
+            "rgba": [
+              246,
+              4,
+              4,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 24,
+            "rgba": [
+              253,
+              1,
+              1,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 24,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          }
+        ],
+        "alphaTolerance": 1,
+        "v1EqualsV2": true,
+        "directSetParametersStatus": 0,
+        "directApplyStatus": 0,
+        "createdSetParametersStatus": 0,
+        "createdApplyStatus": 0,
+        "referencePrefix": "followup",
+        "referenceOriginalName": "solid-pure-red",
+        "isNativeBaseline": false,
+        "nativeGeometry": {
+          "sourceWidth": 32,
+          "sourceHeight": 32,
+          "recordFrameWidth": 32,
+          "recordFrameHeight": 32,
+          "sourceDefinition": {
+            "shape": "solid",
+            "left": 0,
+            "top": 0,
+            "size": 32,
+            "foregroundRGB": [
+              255,
+              0,
+              0
+            ],
+            "backgroundRGB": [
+              96,
+              96,
+              96
+            ]
+          }
+        },
+        "origin": "Original supplemental native Windows EMF and default-v1 Bitmap(file,FALSE) full raster"
+      }
+    },
+    {
+      "file": "detector-color-pure-red.emf",
+      "sourceSHA256": "24d426d0e05bad17130ba8d1a33cc9bbc74160429f14ed5019c6be0841608555",
+      "previousReferenceRGBA": "detector-color-pure-red.windows.rgba",
+      "previousRGBA_SHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+      "freshRepeats": [
+        {
+          "label": "fresh-1-1",
+          "finalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+          "intrinsicSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489"
+        },
+        {
+          "label": "fresh-1-2",
+          "finalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+          "intrinsicSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489"
+        },
+        {
+          "label": "fresh-1-3",
+          "finalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+          "intrinsicSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489"
+        }
+      ],
+      "case": {
+        "file": "detector-color-pure-red.emf",
+        "family": "redEyeCorrection",
+        "parameters": {
+          "numberOfAreas": 1,
+          "areas": [
+            [
+              0,
+              0,
+              32,
+              32
+            ]
+          ]
+        },
+        "width": 32,
+        "height": 32,
+        "sourceSHA256": "24d426d0e05bad17130ba8d1a33cc9bbc74160429f14ed5019c6be0841608555",
+        "referenceRGBA": "fresh-file-v1-detector-color-pure-red.rgba",
+        "rgbaSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+        "samples": [
+          {
+            "x": 0,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 0,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 8,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 8,
+            "rgba": [
+              161,
+              43,
+              43,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 8,
+            "rgba": [
+              243,
+              5,
+              5,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 8,
+            "rgba": [
+              252,
+              1,
+              1,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 8,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 16,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 16,
+            "rgba": [
+              243,
+              5,
+              5,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 16,
+            "rgba": [
+              87,
+              77,
+              77,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 16,
+            "rgba": [
+              246,
+              4,
+              4,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 16,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 24,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 24,
+            "rgba": [
+              252,
+              1,
+              1,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 24,
+            "rgba": [
+              246,
+              4,
+              4,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 24,
+            "rgba": [
+              253,
+              1,
+              1,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 24,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 0,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 8,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 16,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 24,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          },
+          {
+            "x": 31,
+            "y": 31,
+            "rgba": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "tolerance": 1
+          }
+        ],
+        "alphaTolerance": 1,
+        "v1EqualsV2": true,
+        "directSetParametersStatus": 0,
+        "directApplyStatus": 0,
+        "createdSetParametersStatus": 0,
+        "createdApplyStatus": 0,
+        "referencePrefix": "detector",
+        "referenceOriginalName": "color-pure-red",
+        "isNativeBaseline": false,
+        "nativeGeometry": {
+          "sourceWidth": 32,
+          "sourceHeight": 32,
+          "recordSourceRect": [
+            0,
+            0,
+            32,
+            32
+          ],
+          "recordImageMatrix": [
+            1,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "recordFrameWidth": 32,
+          "recordFrameHeight": 32,
+          "recordBackgroundRGBA": [
+            17,
+            61,
+            173,
+            255
+          ],
+          "sourceDefinition": {
+            "width": 32,
+            "height": 32,
+            "backgroundRGBA": [
+              255,
+              0,
+              0,
+              255
+            ],
+            "foregroundRectangles": [],
+            "foregroundRGBA": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "holes": [
+              [
+                15,
+                15,
+                96,
+                96,
+                96,
+                255
+              ]
+            ]
+          }
+        },
+        "origin": "Original supplemental native Windows EMF and default-v1 Bitmap(file,FALSE) full raster"
+      }
+    }
+  ],
+  "historyObservations": [
+    {
+      "file": "followup-solid-pure-red.emf",
+      "freshFirstUseSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+      "priorCapturedSHA256": "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1",
+      "contexts": [
+        {
+          "label": "sequence-forward",
+          "order": 0,
+          "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+          "intrinsicSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa"
+        },
+        {
+          "label": "sequence-reverse",
+          "order": 2,
+          "finalSHA256": "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1",
+          "intrinsicSHA256": "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1"
+        }
+      ]
+    },
+    {
+      "file": "detector-color-pure-red.emf",
+      "freshFirstUseSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+      "priorCapturedSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+      "contexts": [
+        {
+          "label": "sequence-forward",
+          "order": 1,
+          "finalSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+          "intrinsicSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44"
+        },
+        {
+          "label": "sequence-reverse",
+          "order": 1,
+          "finalSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+          "intrinsicSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44"
+        }
+      ]
+    }
+  ],
+  "additionalCases": [
+    {
+      "file": "blur-roi-fully-outside.emf",
+      "family": "blur",
+      "sourceSHA256": "fac2adec39b6d793c653643bedc426ccc260addd7bf54a5d0a3badd042e246aa",
+      "referenceRGBA": "picture-file-v1-blur-roi-fully-outside.rgba",
+      "rgbaSHA256": "ea4422c633635ded0757026a98b306a8d58cd6df47b546ac3418c8f03cdbcb44",
+      "width": 64,
+      "height": 64,
+      "alphaTolerance": 1,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        }
+      ],
+      "parameters": {
+        "radius": 2,
+        "expandEdge": true
+      },
+      "recordSourceRect": [
+        -8,
+        6,
+        4,
+        12
+      ],
+      "recordStatus": 0,
+      "referenceContext": "blur-fully-outside",
+      "intrinsicSHA256": "ea4422c633635ded0757026a98b306a8d58cd6df47b546ac3418c8f03cdbcb44"
+    },
+    {
+      "file": "blur-roi-exact-touch.emf",
+      "family": "blur",
+      "sourceSHA256": "47b9c3508ed40d688e8803f77550952ff96db6c7cc407773a7f485cdf7b4821c",
+      "referenceRGBA": "picture-file-v1-blur-roi-exact-touch.rgba",
+      "rgbaSHA256": "98824cb749089ef778abe478f168bc46c14b75fff13ec7ed629ddedd72ddcade",
+      "width": 64,
+      "height": 64,
+      "alphaTolerance": 1,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        }
+      ],
+      "parameters": {
+        "radius": 2,
+        "expandEdge": true
+      },
+      "recordSourceRect": [
+        -6,
+        6,
+        6,
+        12
+      ],
+      "recordStatus": 0,
+      "referenceContext": "blur-exact-touch",
+      "intrinsicSHA256": "98824cb749089ef778abe478f168bc46c14b75fff13ec7ed629ddedd72ddcade"
+    },
+    {
+      "file": "blur-roi-partial-right-bottom.emf",
+      "family": "blur",
+      "sourceSHA256": "99d2b4297c49c8ef3e562fb1df908d5bd460e415203d09b4798613bbd88f40c2",
+      "referenceRGBA": "picture-file-v1-blur-roi-partial-right-bottom.rgba",
+      "rgbaSHA256": "7b2e1f2fddd9614ee31a39408f2435e2316792572d56625d5d922e82db8a0ffb",
+      "width": 64,
+      "height": 64,
+      "alphaTolerance": 1,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 48,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        }
+      ],
+      "parameters": {
+        "radius": 2,
+        "expandEdge": true
+      },
+      "recordSourceRect": [
+        24,
+        25,
+        12,
+        11
+      ],
+      "recordStatus": 0,
+      "referenceContext": "blur-partial-right-bottom",
+      "intrinsicSHA256": "828e7e0726fdeb430df98c9dc9a34eb882e6236b992ba5d2c3866ec73f67fc72"
+    },
+    {
+      "file": "blur-roi-negative-left-top.emf",
+      "family": "blur",
+      "sourceSHA256": "cfa6191efe6e91bed8671af352eb5b55fb2ba57efa99f3e8017f92d7e5516bf0",
+      "referenceRGBA": "picture-file-v1-blur-roi-negative-left-top.rgba",
+      "rgbaSHA256": "696a0afb5268a1899be8d4aeaac4bbe0b69e35c261623bc61d530584b92229a6",
+      "width": 64,
+      "height": 64,
+      "alphaTolerance": 1,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            4,
+            14,
+            7,
+            178
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        }
+      ],
+      "parameters": {
+        "radius": 2,
+        "expandEdge": true
+      },
+      "recordSourceRect": [
+        -4,
+        -3,
+        18,
+        19
+      ],
+      "recordStatus": 0,
+      "referenceContext": "blur-negative-left-top",
+      "intrinsicSHA256": "0a109753b32ddb09958ed322127f6628e962fbcd68b05c0e826215149ff0a60c"
+    },
+    {
+      "file": "blur-roi-contained-control.emf",
+      "family": "blur",
+      "sourceSHA256": "d2f08af064e6b52b5ec8f3112f21824bbaf5d84444c0ebf0e14bd00e387b1044",
+      "referenceRGBA": "picture-file-v1-blur-roi-contained-control.rgba",
+      "rgbaSHA256": "540b7b3242b01e9e491c819913d6a17dc6aa1c84f3e9aee6260891e5774ecfca",
+      "width": 64,
+      "height": 64,
+      "alphaTolerance": 1,
+      "samples": [
+        {
+          "x": 0,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 0,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 16,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 32,
+          "rgba": [
+            77,
+            109,
+            128,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 32,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 48,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 0,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 16,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 32,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 48,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        },
+        {
+          "x": 63,
+          "y": 63,
+          "rgba": [
+            17,
+            41,
+            73,
+            255
+          ],
+          "tolerance": 1
+        }
+      ],
+      "parameters": {
+        "radius": 2,
+        "expandEdge": true
+      },
+      "recordSourceRect": [
+        4,
+        6,
+        17,
+        19
+      ],
+      "recordStatus": 0,
+      "referenceContext": "blur-contained-control",
+      "intrinsicSHA256": "a4f20d3b1b9a25b756412525e956e8a7d7d46a8c2f423b8d2661e48fbfff5cd8"
+    }
+  ],
+  "limitations": "Old references remain unchanged and valid for their captured process histories. Fresh-first-use context is the independent per-conversion target; no claim that a particular prior effect causes the changed history values."
+}

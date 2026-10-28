@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-28",
+  "scope": "Actual mutation option observers and accepted Commit/ReCommit normalization",
+  "status": "grouped-native-checkpoint-passed",
+  "hosted_failure": {
+    "run": 40670845968,
+    "job": 122757557238,
+    "commit": "5f9062c42402d86d28b03069066ff6e9b2370c6a",
+    "core_methods": 3153,
+    "core_skips": 2,
+    "core_failures": 0,
+    "native_assertion": "Duplicate settled option observers restarted metadata or retired the form"
+  },
+  "implementation": [
+    "Unchanged initial option notifications do not create mutation identities or start metadata reads.",
+    "Reload normalization and accepted ReCommit explicitly acknowledge the option identities they settle.",
+    "Actual changed values retain stable identities, stale/duplicate rejection and coalesced-edit behavior."
+  ],
+  "validation": {
+    "git_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "checks": [
+      {
+        "command": "python3 scripts/test-primary-parity-family.py --only commit --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "result": "2/2 passed",
+        "log": "build/qa/commit-option-observers-native-2026-10-28.log",
+        "owned_pids": [
+          75229,
+          75591
+        ]
+      },
+      {
+        "command": "python3 scripts/test-commit-result-lifecycle.py --only editor --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "result": "2/2 passed",
+        "log": "build/qa/commit-option-observers-editor-2026-10-28.log",
+        "owned_pids": [
+          76068,
+          76254
+        ]
+      }
+    ],
+    "cleanup": "All four receiver PIDs reaped by harness and independently absent from process table after completion.",
+    "scope": "Actual native option/focus/ownership and held metadata outcomes; actual NSTextView edits and Undo; real Git ReCommit session replacement and retained draft/Undo after failure. No Core implementation changed for this fix."
+  },
+  "limits": [
+    "Local unsigned native checks do not establish a complete hosted CI pass.",
+    "Installed build19 predates this repair; signed deployment and physical Finder acceptance were not repeated."
+  ]
+}

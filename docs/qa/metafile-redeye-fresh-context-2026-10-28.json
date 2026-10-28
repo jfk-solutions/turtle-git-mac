@@ -1,0 +1,1715 @@
+{
+  "status": "General source-derived application enabled with deterministic fresh-first-use FILE-v1 semantics; grouped application/renderer validation pending.",
+  "nativeCapture": {
+    "runID": 40683242082,
+    "jobID": 122799020071,
+    "artifactID": 12812964186,
+    "archiveSHA256": "2745d7bd0b82a74f456d185586124ae94dd6c7a6969fde9405a1b14d4d854108",
+    "sourceCommit": "4438157375b49d8758f8ec8dcc48c3a130c17ee1",
+    "combinedInventory": {
+      "memberCount": 115,
+      "playbackProcesses": 16,
+      "playbacks": 20,
+      "fullRGBA": 40,
+      "png": 40
+    },
+    "scope": "RedEye subset: three exact retained wires, nine fresh and six ordered playbacks; intrinsic observations follow actual Picture final draw. Root separately verifies all source/member/status/SDK inventory."
+  },
+  "processContextAnalysis": {
+    "qualification": "Bounded native process-context observations; no claim of random nondeterminism or an identified memory mechanism. Old oracles are unchanged.",
+    "sourceRevision": "4438157375b49d8758f8ec8dcc48c3a130c17ee1",
+    "processCount": 11,
+    "playbackCount": 15,
+    "intrinsicEqualsFinalCount": 15,
+    "freshRepeatCountPerWire": 3,
+    "sourceCases": {
+      "followup-solid-pure-red.emf": {
+        "sourceSHA256": "474595233adbd1722061ee896d55198cf857ab630ee5594fa3518d2f2d8600e8",
+        "oldReferenceSHA256": "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1",
+        "observations": [
+          {
+            "label": "fresh-0-1",
+            "processID": 3384,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 80,
+              "pixelsExceedingOne": 556
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "fresh-0-2",
+            "processID": 5900,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 80,
+              "pixelsExceedingOne": 556
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "fresh-0-3",
+            "processID": 2336,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 80,
+              "pixelsExceedingOne": 556
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "sequence-forward",
+            "processID": 4612,
+            "order": 0,
+            "freshProcess": false,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 80,
+              "pixelsExceedingOne": 556
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "sequence-reverse",
+            "processID": 6936,
+            "order": 2,
+            "freshProcess": false,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": false,
+              "maxByteDelta": 80,
+              "pixelsExceedingOne": 556
+            }
+          }
+        ],
+        "freshFinalSHA256": "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+        "uniqueFinalHashes": [
+          "4cee5c0822ca13d8009fe27456df4138ceefaedb0322fcb7f1137a23e3bf80fa",
+          "8cc83b558ddccbfb918c639091395b262dd299487e94c33a034f7dfe55aa5ee1"
+        ]
+      },
+      "detector-color-pure-red.emf": {
+        "sourceSHA256": "24d426d0e05bad17130ba8d1a33cc9bbc74160429f14ed5019c6be0841608555",
+        "oldReferenceSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+        "observations": [
+          {
+            "label": "fresh-1-1",
+            "processID": 4004,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 31,
+              "pixelsExceedingOne": 437
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "fresh-1-2",
+            "processID": 5728,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 31,
+              "pixelsExceedingOne": 437
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "fresh-1-3",
+            "processID": 1244,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+            "deltaFromOld": {
+              "exact": false,
+              "maxByteDelta": 31,
+              "pixelsExceedingOne": 437
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "sequence-forward",
+            "processID": 4612,
+            "order": 1,
+            "freshProcess": false,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": false,
+              "maxByteDelta": 31,
+              "pixelsExceedingOne": 437
+            }
+          },
+          {
+            "label": "sequence-reverse",
+            "processID": 6936,
+            "order": 1,
+            "freshProcess": false,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": false,
+              "maxByteDelta": 31,
+              "pixelsExceedingOne": 437
+            }
+          }
+        ],
+        "freshFinalSHA256": "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489",
+        "uniqueFinalHashes": [
+          "5adb84f7707e795ba9e273a454fc42bc0db13a7a370026eac9d87d003af14b44",
+          "6464cf18abe8b53f67d1df665201304034bc8417c3a508ce505493be493e4489"
+        ]
+      },
+      "redeye-17.emf": {
+        "sourceSHA256": "ff9bd6dc4d7acffcf745250a775366cdc57dc4352b01188afa2a0a589489774f",
+        "oldReferenceSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+        "observations": [
+          {
+            "label": "fresh-2-1",
+            "processID": 1888,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "fresh-2-2",
+            "processID": 2960,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "fresh-2-3",
+            "processID": 3884,
+            "order": 0,
+            "freshProcess": true,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "sequence-forward",
+            "processID": 4612,
+            "order": 2,
+            "freshProcess": false,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          },
+          {
+            "label": "sequence-reverse",
+            "processID": 6936,
+            "order": 0,
+            "freshProcess": false,
+            "intrinsicEqualsFinal": true,
+            "finalSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+            "deltaFromOld": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            },
+            "deltaFromFresh": {
+              "exact": true,
+              "maxByteDelta": 0,
+              "pixelsExceedingOne": 0
+            }
+          }
+        ],
+        "freshFinalSHA256": "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1",
+        "uniqueFinalHashes": [
+          "ab6643f0919669ca386203a27d777b9e5aed0ed912212ebff968124cc88573f1"
+        ]
+      }
+    }
+  },
+  "numericalQualification": {
+    "sourceCases": 195,
+    "paintedBuffersWithinExistingOneByteBound": 185,
+    "exactPaintedBuffers": 182,
+    "wholeDrawNoPaint": 10,
+    "unresolvedFreshDomainBuffers": 0,
+    "oldOracleResidualsRetained": 2,
+    "profile": "deterministic fresh first-use, startup1 Bitmap(file,FALSE) actual Picture settings",
+    "referenceSelection": "Generic development input preparer verifies original manifest SHA, unchanged exact input SHA, old reference path/hash, fresh reference hash and at least three matching fresh intrinsic/final hashes before overlay selection."
+  },
+  "production": {
+    "noFixtureKnowledge": true,
+    "noSourceCaseBranches": true,
+    "noPriorProcessSimulation": true,
+    "noToleranceChange": true,
+    "atomicPreflight": "Every area endpoint is validated before any no-paint result. One overflow-checked reservation precedes detector/output allocation.",
+    "aggregateBudget": "Three full-image copies plus 12 four-byte allocation-equivalent units per area sample and 1024 fixed units per area; 12 work units per image pixel plus 192 per area sample and 2048 fixed units per area."
+  },
+  "causalLimit": "Old pure255 buffers equal radial strength.75 and fresh buffers use source-derived.25, with remaining mathematical terms unchanged. Sequences include inter-file observation/PNG work; no internal memory mechanism or random nondeterminism is established.",
+  "checksNotRun": [
+    "Application build",
+    "Real metafile helper acceptance",
+    "Core test suite",
+    "Native receiver group",
+    "Hosted CI"
+  ],
+  "sourceHashes": [
+    {
+      "file": "Sources/TurtleGitMetafile/RedEyeImageEffect.swift",
+      "sha256": "8501d0fb85ad2b3f035a98bb105d54531acedb8f9b5233aa4aab66e238074c15"
+    },
+    {
+      "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/prepare-redeye-causal-inputs.py",
+      "sha256": "64535a181d2d6a579a3e31e0252ffeb54ab0aed67f21e8695b556bb9bf1a5e6f"
+    },
+    {
+      "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyeCausalArithmeticMain.swift",
+      "sha256": "472a46570667a69bc27f20a3e7660adbf8a207b16af2ae42602de06cf8fe7359"
+    },
+    {
+      "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-playback-state.py",
+      "sha256": "92a944c10fd14664015a325a7d3ad8c1b3d5107608d335d247e14a83a04f96c1"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/Fixtures/Metafile/SpatialEffects/playback-context-reference.json",
+      "sha256": "b0b1109b2fd5724aae707668293e93bdff2a32f35daf09bee54a6cde8406c767"
+    }
+  ],
+  "arithmeticCases": [
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-3.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "redeye-12.emf",
+      "noPaint": true
+    },
+    {
+      "file": "redeye-13.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-17.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-3.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "redeye-swapped-12.emf",
+      "noPaint": true
+    },
+    {
+      "file": "redeye-swapped-13.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "redeye-swapped-17.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-3.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "eye-12.emf",
+      "noPaint": true
+    },
+    {
+      "file": "eye-13.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "eye-17.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-gray.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-skin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-pure-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-1-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-2-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-4-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-16-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-24-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-2-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-4-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-16-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-24-bounds.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-shift0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-shift1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-shift2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-shift0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-shift1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-disk-8-shift2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 3,
+      "file": "followup-square-8-at4.emf",
+      "maxByteDelta": 1,
+      "nonexactPixels": 3,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 4,
+      "file": "followup-square-8-at20.emf",
+      "maxByteDelta": 1,
+      "nonexactPixels": 4,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 5,
+      "file": "followup-square-8-roi3.emf",
+      "maxByteDelta": 1,
+      "nonexactPixels": 5,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-roi7.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-low-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-high-green.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-high-blue.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-threshold-balanced.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-red-gradient.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-repeat.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-square-8-repeat.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-size16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-size24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-size33.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-roi14.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "followup-solid-red-roi16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-gray-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-gray-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-gray-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-hole-low-red-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-holes-gray-diagonal.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-holes-gray-horizontal.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "inverse-solid-red-baseline.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-12-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-15-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-16-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-hole-gray-6-6.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-holes-gray-separated-main.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-holes-gray-separated-anti.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "seed-solid-red-baseline.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "file": "paint-outside-negative.emf",
+      "noPaint": true
+    },
+    {
+      "file": "paint-outside-positive.emf",
+      "noPaint": true
+    },
+    {
+      "file": "paint-valid-then-outside.emf",
+      "noPaint": true
+    },
+    {
+      "file": "paint-outside-then-valid.emf",
+      "noPaint": true
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "paint-partial-outside.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "paint-full-control.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-two-same-bin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-four-same-bin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-off-diagonal-6-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-off-diagonal-5-15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-low-red-same-bin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-gray-two-off-diagonal.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "radial-solid-red-baseline.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-16-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-16-edge.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-24-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-24-edge.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-33-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-scale-33-edge.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-roi16-in-source32.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-partial-roi-glint.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-low-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-high-green.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-high-blue.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-balanced.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-pure-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-color-skin.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-neutral-0.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-neutral-255.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-single-9-9.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-far6-near15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-far4-near15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-far5-15-near15.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-bright-first-dark-later.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-weak-red-first-neutral-later.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-7-10.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-6-11.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-25-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-eligibility-15-5.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-1.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-12.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-glint-redness-32.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L-shift.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L-partial.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-two-lobes-left-small.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-two-lobes-right-small.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-shape-L-tight.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-16x32-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-16x32-off-axis.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-32x16-center.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-nonsquare-32x16-off-axis.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-both-alpha128.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-opaque-red-transparent-glint.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "detector-alpha128-red-opaque-glint.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-control-red.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-control-gray.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-square24.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-permuted.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-two-rectangles.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-center-rows.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-hist-center-gray.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole2.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole4.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole8.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gray-hole16.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square20.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square22.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square26.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square28.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-red-square30.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-g0-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-g0-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-b0-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-b0-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-gb0-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-gb0-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-r255-uniform.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-channel-r255-gray-hole.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-red-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-red-y.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-green-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-blue-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    },
+    {
+      "absoluteByteError": 0,
+      "file": "model-discriminator-model-gradient-brightness-x.emf",
+      "maxByteDelta": 0,
+      "nonexactPixels": 0,
+      "pixelsExceedingOne": 0
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 # Bounded native playback state and Blur source-region discriminator
 
-This assay records pending native evidence; it does not modify existing oracles
-or establish a process-history explanation in advance.
+Native Windows run40683242082 / artifact12812964186 completed successfully.
+The bounded observations establish process-context differences while preserving
+every original oracle.
 
 `redeye-playback-state-inputs.json` contains three unchanged synthetic EMF wires
 already present in the retained corpus, with exact byte counts and SHA256:
@@ -38,5 +39,12 @@ materialized inputs, toolchain, executable, GDI+ module version, OS, manifests a
 all output member hashes are retained. The workflow checks each declared geometry,
 name, status, RGBA byte count and source equality before uploading.
 
-Native observation is pending. The workflow may be dispatched or triggered by an
-approved source push; authoring these files does not itself run the capture.
+All nine fresh RedEye playbacks match the source-derived model exactly. The
+two pure-red255 wires reproduce their distinct old expected buffers in ordered
+sequence contexts; the disjoint-area control is invariant. Every intrinsic buffer
+equals its final Picture output. The sequence includes inter-file observation
+work, so this proves process-history dependence without identifying an internal
+memory mechanism or random nondeterminism. See the causal checkpoint and
+`analyze-redeye-playback-state.py` for exact hashes and full-buffer differences.
+The archive SHA256 is
+`2745d7bd0b82a74f456d185586124ae94dd6c7a6969fde9405a1b14d4d854108`.

@@ -1,0 +1,561 @@
+{
+  "qualification": "Pure arithmetic development comparison against retained native observations; no new capture, oracle edit, fitted coordinate, app/helper/Core/native check.",
+  "scope": "Sixteen original strip intrinsic-to-Picture-final buffers and one independent ROI-created-to-scaled-Picture-final buffer. Development causal evidence; grouped renderer repair/validation belongs to the parent batch.",
+  "mathematics": {
+    "step": "down32(sourceExtent * down32(1 / destinationExtent))",
+    "position": "Start at down32(half * step), recur position=down32(position+step) per covered pixel, then subtract half.",
+    "phase": "Nearest complementary eleven-bit fractions.",
+    "channels": "Source straight RGBA -> rounded associated bytes -> bilinear -> rounded associated bytes -> fixed-point unassociate -> one measured association/unassociate round trip.",
+    "coverage": "Scaled ROI source [4,6,17,19], independently captured crop [4,6,22,26] supplies 18x20 pixels including the far interpolation sample; recorded points (24,25),(58,25),(24,53.5), hard destination bbox [24,25,58,54]."
+  },
+  "sourceManifestSHA256": "04affe438a49a52e3010afd08453d6d5db53cdab5509fedc779ece15acc4b75d",
+  "sameOriginalSourceAtlasSHA256": "a3af93ff0e7c058c2d2d0e4a2fd28e6c8f97cd0f3cc85eb950f8b5460d3e5eb1",
+  "createdROI_SHA256": "89a1f8b7b55d5f0bc8dcb125dce81f2be7848a33417774272451c544e9e449c7",
+  "script": {
+    "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-picture-affine-sampling.py",
+    "sha256": "7006d539543559243ae95f4fe561001ba31eab5b18bc615f7650c5a045ca4772"
+  },
+  "stripSummary": [
+    {
+      "recipe": "identity",
+      "half": 0,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 221,
+      "maxByteDelta": 2
+    },
+    {
+      "recipe": "identity",
+      "half": 0.5,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 221,
+      "maxByteDelta": 2
+    },
+    {
+      "recipe": "quotient-down",
+      "half": 0,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 221,
+      "maxByteDelta": 2
+    },
+    {
+      "recipe": "quotient-down",
+      "half": 0.5,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 221,
+      "maxByteDelta": 2
+    },
+    {
+      "recipe": "reciprocal-product-nearest",
+      "half": 0,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 221,
+      "maxByteDelta": 2
+    },
+    {
+      "recipe": "reciprocal-product-nearest",
+      "half": 0.5,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 221,
+      "maxByteDelta": 2
+    },
+    {
+      "recipe": "reciprocal-product-down",
+      "half": 0,
+      "passingBuffers": 16,
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1
+    },
+    {
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "passingBuffers": 16,
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1
+    },
+    {
+      "recipe": "physical-div100-first",
+      "half": 0,
+      "passingBuffers": 8,
+      "pixelsExceedingOne": 4252,
+      "maxByteDelta": 4
+    },
+    {
+      "recipe": "physical-div100-first",
+      "half": 0.5,
+      "passingBuffers": 8,
+      "pixelsExceedingOne": 4252,
+      "maxByteDelta": 5
+    },
+    {
+      "recipe": "physical-density-first",
+      "half": 0,
+      "passingBuffers": 8,
+      "pixelsExceedingOne": 4252,
+      "maxByteDelta": 4
+    },
+    {
+      "recipe": "physical-density-first",
+      "half": 0.5,
+      "passingBuffers": 8,
+      "pixelsExceedingOne": 4252,
+      "maxByteDelta": 5
+    },
+    {
+      "recipe": "physical-divmm-first",
+      "half": 0,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 4318,
+      "maxByteDelta": 4
+    },
+    {
+      "recipe": "physical-divmm-first",
+      "half": 0.5,
+      "passingBuffers": 7,
+      "pixelsExceedingOne": 4318,
+      "maxByteDelta": 5
+    }
+  ],
+  "stripAcceptedPredictions": [
+    {
+      "file": "blur-strip-impulse-r100-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "605121cd053eefd4f0d835b26cf38ea5e24b7e942f6cfa4e6c4a3e8d5efbfb08",
+      "finalSHA256": "c8e3e69be28efe0bb9a6d2a58356875b3c12e6f72a536aec2b283718b1ff7e16",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-impulse-r100-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999998807907104
+      ],
+      "intrinsicSHA256": "2262769972c16031abbd2583ed533238eb54cadd5209c4ddeb41392d358ef053",
+      "finalSHA256": "373db33fe431834f52b0c37eb9882a9889ea921c64f10e9cdd9eabc6f0e1a16b",
+      "lastIndexDifference": [
+        -0.01055908203125,
+        -1.52587890625e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-impulse-r150-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "286af2c07b6011bfedfbfa941478d6cc1e3e83e09cc978d32ba47ce6d1d4d988",
+      "finalSHA256": "4999fa904e4a2039925e6fe3d8aade0a6a63562cd34976a593c17f92a930ee32",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-impulse-r150-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "b8e9cd877d9330d958e545d8267ec5dd6deffcd6454c2f456147d011340549a0",
+      "finalSHA256": "47ce390af9d4a1421d931ad2e083a525acc66508aab5cd08f7ed1533ca581aba",
+      "lastIndexDifference": [
+        -0.01068115234375,
+        -1.9073486328125e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 34
+    },
+    {
+      "file": "blur-strip-impulse-r300-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "59c480cf5071c37fa3283afb2c80d03328104eebae56310bc8ef01ec953cd4cb",
+      "finalSHA256": "59c480cf5071c37fa3283afb2c80d03328104eebae56310bc8ef01ec953cd4cb",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-impulse-r300-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999998807907104
+      ],
+      "intrinsicSHA256": "1638eb762797054cca702f739a5e013c828468dccda6ec3b6d521d93d2cc1ded",
+      "finalSHA256": "2d7f541be209d3614551bcd048bb5941771fab9de401201482451e1be2e50b23",
+      "lastIndexDifference": [
+        -0.01080322265625,
+        -2.288818359375e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 34
+    },
+    {
+      "file": "blur-strip-impulse-r1000-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "eed3134ea8e1be96f024ed4d26dab9e8d1e666698cf90cfd82548e7cfe50c5e2",
+      "finalSHA256": "eed3134ea8e1be96f024ed4d26dab9e8d1e666698cf90cfd82548e7cfe50c5e2",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-impulse-r1000-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999998807907104,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "7937fdd2369162d7bad3e405626e4c15386b4e261ffc606615ce4f94730d8869",
+      "finalSHA256": "cc68dacbca059df00d6b6cf1aeeeb1b991a681d2640c1546e9ba4ae1d0900127",
+      "lastIndexDifference": [
+        -0.01165771484375,
+        -5.7220458984375e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 34
+    },
+    {
+      "file": "blur-strip-constant-r100-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "finalSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-constant-r100-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999998807907104
+      ],
+      "intrinsicSHA256": "8971d6b7ed8e56d9dbc5b91baa3f13467678575f1a15dee9c551a8cff7b57ac0",
+      "finalSHA256": "944b33325e04a9ae4ee0530397f4de095dc9c19cacb65d474d372d45f1385da4",
+      "lastIndexDifference": [
+        -0.01055908203125,
+        -1.52587890625e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 34
+    },
+    {
+      "file": "blur-strip-constant-r150-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "finalSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-constant-r150-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "7a5c43f1856b79c4cec0055074511f52ee7326541a9c320878ca1a90543e9956",
+      "finalSHA256": "0be33e6ce319d18a0f8719c194f2d7c78a5aca5ebd850e027ca442753b3289cd",
+      "lastIndexDifference": [
+        -0.01068115234375,
+        -1.9073486328125e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-constant-r300-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "finalSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-constant-r300-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999998807907104
+      ],
+      "intrinsicSHA256": "f4a3f4bb4e03edce31cd9c26cf67e79ac58319dbbd1f1b0d27ade186ef62be7f",
+      "finalSHA256": "ba33d68edcc485672868b1b640c6743a129c0b852edfd1127fcdae4202e3dd95",
+      "lastIndexDifference": [
+        -0.01080322265625,
+        -2.288818359375e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 68
+    },
+    {
+      "file": "blur-strip-constant-r1000-e0.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999999403953552,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "finalSHA256": "388613b4aa122dc04bb967d44d44f3cd6741ac8708d497cc5f2e143f37322ef5",
+      "lastIndexDifference": [
+        -0.01043701171875,
+        -1.1444091796875e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "file": "blur-strip-constant-r1000-e1.emf",
+      "recipe": "reciprocal-product-down",
+      "half": 0.5,
+      "steps": [
+        0.9999998807907104,
+        0.9999999403953552
+      ],
+      "intrinsicSHA256": "886aa2fc7f5884d8e71526f719fcef66cc086b21d8d80f676c7304e8ff2678d9",
+      "finalSHA256": "47c3017eb313b75d7098a1d818323da3b4ad28e54e8decc5c289e0c2a5d4fb47",
+      "lastIndexDifference": [
+        -0.01165771484375,
+        -5.7220458984375e-05
+      ],
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 102
+    }
+  ],
+  "scaledCropPredictions": [
+    {
+      "inputAssociations": 0,
+      "outputAssociations": 0,
+      "half": 0,
+      "pixelsExceedingOne": 161,
+      "maxByteDelta": 2,
+      "nonexactPixels": 221
+    },
+    {
+      "inputAssociations": 0,
+      "outputAssociations": 0,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 0,
+      "outputAssociations": 1,
+      "half": 0,
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 0,
+      "nonexactPixels": 0
+    },
+    {
+      "inputAssociations": 0,
+      "outputAssociations": 1,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 0,
+      "outputAssociations": 2,
+      "half": 0,
+      "pixelsExceedingOne": 0,
+      "maxByteDelta": 1,
+      "nonexactPixels": 110
+    },
+    {
+      "inputAssociations": 0,
+      "outputAssociations": 2,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 1,
+      "outputAssociations": 0,
+      "half": 0,
+      "pixelsExceedingOne": 111,
+      "maxByteDelta": 2,
+      "nonexactPixels": 230
+    },
+    {
+      "inputAssociations": 1,
+      "outputAssociations": 0,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 1,
+      "outputAssociations": 1,
+      "half": 0,
+      "pixelsExceedingOne": 30,
+      "maxByteDelta": 3,
+      "nonexactPixels": 132
+    },
+    {
+      "inputAssociations": 1,
+      "outputAssociations": 1,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 1,
+      "outputAssociations": 2,
+      "half": 0,
+      "pixelsExceedingOne": 64,
+      "maxByteDelta": 4,
+      "nonexactPixels": 179
+    },
+    {
+      "inputAssociations": 1,
+      "outputAssociations": 2,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 2,
+      "outputAssociations": 0,
+      "half": 0,
+      "pixelsExceedingOne": 108,
+      "maxByteDelta": 2,
+      "nonexactPixels": 220
+    },
+    {
+      "inputAssociations": 2,
+      "outputAssociations": 0,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 2,
+      "outputAssociations": 1,
+      "half": 0,
+      "pixelsExceedingOne": 75,
+      "maxByteDelta": 4,
+      "nonexactPixels": 183
+    },
+    {
+      "inputAssociations": 2,
+      "outputAssociations": 1,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    },
+    {
+      "inputAssociations": 2,
+      "outputAssociations": 2,
+      "half": 0,
+      "pixelsExceedingOne": 112,
+      "maxByteDelta": 5,
+      "nonexactPixels": 199
+    },
+    {
+      "inputAssociations": 2,
+      "outputAssociations": 2,
+      "half": 0.5,
+      "pixelsExceedingOne": 985,
+      "maxByteDelta": 42,
+      "nonexactPixels": 985
+    }
+  ],
+  "limitations": [
+    "All16stripbuffers are within the unchanged one-byte bound; this does not uniquely distinguish Half versus None at that stage.",
+    "The scaled crop uniquely rejects the Half grid (985 pixels exceed one, maximum42) and is byte-exact with None grid and the stated post-filter association.",
+    "Physical-frame fractional-extent chains cause thousands of mismatching pixels and are rejected as the sampling-step explanation; this does not invalidate separate native natural-canvas dimension conversion.",
+    "No source-frame thresholds, fitted offsets, fixture-specific production branches or expected-pixel tables are proposed.",
+    "No application, helper, Core or native checks ran in this analysis."
+  ]
+}

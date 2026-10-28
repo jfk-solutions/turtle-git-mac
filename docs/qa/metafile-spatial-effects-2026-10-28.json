@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-28",
+  "scope": "Spatial image effects complete implementation; real helper/Core/native grouped checkpoint",
+  "status": "grouped-checkpoint-passed",
+  "limits": "Local helper/Core/native evidence and unsigned Debug app with ad-hoc embedded helper; installed build19 predates this batch. Complete hosted CI, physical Finder/image review, signed deployment and complete format/application parity remain unproven.",
+  "initial_core": {
+    "methods": 19,
+    "failing_methods": 1,
+    "failure_assertions": 21,
+    "passed_scope": "All RedEye, Sharpen, five new Blur ROI witnesses, malformed refusal, prior image/pointwise effect groups and fresh-context provenance.",
+    "remaining": "3 Blur canvas extents, 8 fractional coverage cases, 10 sampling cases; original native expected buffers independently confirmed."
+  },
+  "initial_app_build": {
+    "result": "failed during embedding",
+    "reason": "Runtime input fingerprint changed while root added missing exact CI cache dependencies; no Swift source compiler error."
+  },
+  "repair": {
+    "scope": "Recorded DPI, bounded native affine color and independent coverage planes, association placement, generic root Picture sampling and retained SVG metadata.",
+    "isolated_evidence": "Scaled96x96 raster and 16 strip buffers byte-exact; subsequent actual helper/Core/native acceptance passed as recorded below."
+  },
+  "core": {
+    "broad_command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'MetafileImageTests|MetafileSpatialEffectsTests|MetafileImageEffectsTests|MetafilePointwiseEffectsTests'",
+    "broad_log": "build/qa/metafile-spatial-core-final-2026-10-28.log",
+    "broad_methods": 140,
+    "broad_passed": 139,
+    "broad_failures": 1,
+    "remaining_failure": "Resource refusal correctly rejected the image, but omitted raster budget classification. Split invalid/nonpositive dimensions from dimension/pixel resource-cap diagnostics; no rendering arithmetic changed.",
+    "affected_recheck": {
+      "method": "MetafileImageTests.testMalformedClassicBooleanRecordsAndUnrepresentableOperandsRefuseExplicitly",
+      "log": "build/qa/metafile-spatial-core-budget-diagnostic-2026-10-28.log",
+      "passed": 1,
+      "failed": 0
+    },
+    "cumulative_distinct_methods_passed": 140,
+    "spatial_inputs": "All 627 retained positive sources with two independently captured fresh-context expected-buffer overlays, five additional native Blur ROI cases and 35 malformed derived cases. Original references retained, tolerances unchanged.",
+    "broad_runtime_provenance_sha256": "3760996794cf51d110e12b0c28d0ae3beb307469a5b3f7da813821d508f0a425"
+  },
+  "native": {
+    "command": "python3 scripts/test-metafile-image-effects.py --only spatial-effects --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "log": "build/qa/metafile-spatial-native-2026-10-28.log",
+    "results": [
+      {
+        "case": "spatial-effects",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "spatial-effects",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "owned_pids": [
+      82760,
+      83721
+    ],
+    "cleanup": "Both receivers reaped by harness and independently absent afterward. Private homes/preferences/repositories, offscreen windows and owned helper cleanup.",
+    "scope": "Actual Compare routes, selected complete Windows-reference rasters including fresh-context and ROI cases, no-paint sentinel preservation, cancellation/retirement, three-way image conflict previews and real original-byte conflict resolution."
+  },
+  "runtime": {
+    "build_log": "build/qa/metafile-spatial-runtime-budget-diagnostic-2026-10-28.log",
+    "binary_sha256": "86773a1f6c7b59e7119333f9fa89e87dc4eddd5bd34868ca7c39473af423cac9",
+    "renderer_sha256": "169b8e305a96c6781d963256bef880b0396d5a42eb09fd8b3c95534f66ae4784",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+      "NOTICE": "8a6cac872f782158611511cbdcc6167d3c0686f2644e86f378b153b8d366311b",
+      "Configuration/MetafileRuntime.json": "8046aa31cbcc2069da6784533c6695116f6df591f3de9e478c07b4daa8f1159a",
+      "Sources/TurtleGitMetafile/main.swift": "5e36c62850bb5d7832e2619f63a980c5554cc408321f8625ae1473ebb3db8f9d",
+      "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab",
+      "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "8501d0fb85ad2b3f035a98bb105d54531acedb8f9b5233aa4aab66e238074c15",
+      "Sources/TurtleGitMetafile/SpatialImageSampling.swift": "ecfc3c0b3226ba9db7befdfe801fa206ce07f2310ed1d9360ef0a4de712e3313",
+      "patches/metafile-renderer.patch": "392edbe83a26254c3f77530988b7783568f0789057fc5ab58316f68831eff940",
+      "scripts/build-metafile-runtime.py": "021b9612232f960ba32f7d47fc9f3cc01ba95d681bca1bd007fa3e22fb6bfc7d",
+      "scripts/validate-metafile-runtime.py": "695aff48c2cfefc316633ce132cbf9419520731dce6d565cbe6ec8e007ba7d04",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+      "Sources/TurtleGitMetafile/Resources/color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+      "Sources/TurtleGitMetafile/Resources/color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609",
+      "scripts/build-metafile-curve-data.py": "d9f35ab69a5d1a9c5bcae6604a72e92e5d6d1cbe5cc3cc5eeb17cafb4626decd",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984"
+    },
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "deployment_target": "13.0",
+    "embedded_executable_sha256": "ed27bc715a23d351ead2f2fe8ed1b8154bfae8df8452282b86b97d48bbf87f25",
+    "embedded_unsigned_sha256": "86773a1f6c7b59e7119333f9fa89e87dc4eddd5bd34868ca7c39473af423cac9",
+    "embedded_source_renderer_resource_license_toolchain_fingerprints_match": true,
+    "embedded_signature": "ad-hoc, no TeamIdentifier; separate from installed Apple Development package",
+    "validation_scope": "Pinned source reconstruction, universal helper structure and dependency checks; numerical evidence recorded separately above."
+  },
+  "app_build": {
+    "result": "passed",
+    "log": "build/qa/metafile-spatial-debug-budget-diagnostic-2026-10-28.log",
+    "configuration": "Debug, CODE_SIGNING_ALLOWED=NO",
+    "installed": false
+  },
+  "supporting_checks": {
+    "runtime_cache_input_invalidation": "One existing dependency-key test passed after all four helper sources were added.",
+    "localizations": "--check: 38 languages, 1325 keys",
+    "help": "--check: 60 documents, 51 topics, 92 files",
+    "coverage": "Both tracked ledgers reconciled. Resource/control counts are not feature completion."
+  },
+  "intermediate_failures": [
+    "Metadata wrapper initially retained a nested XML declaration, causing four conversion failures; remove only the leading nested declaration before preserving the scene.",
+    "Existing source-paint assertions now inspect explicitly marked preserved SVG and independently verify one bounded visible Picture output. No positive case or tolerance was removed."
+  ]
+}

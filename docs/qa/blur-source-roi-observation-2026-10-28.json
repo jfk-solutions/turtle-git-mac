@@ -1,0 +1,413 @@
+{
+  "date": "2026-10-28",
+  "scope": "Observed five original SDK Blur ROI files and actual Picture FILE-v1 source contract; original mathematical adapter comparison, not app/helper/Core/native validation",
+  "provenance": {
+    "run": 40683242082,
+    "job": 122799020071,
+    "artifact": 12812964186,
+    "archiveSHA256": "2745d7bd0b82a74f456d185586124ae94dd6c7a6969fde9405a1b14d4d854108",
+    "archiveVerification": "Root independently verified115member lengths/SHA; this receipt independently checks Blur manifests/statuses/source/EMF records/geometry and full Picture buffers.",
+    "generatorStartupVersion": 2,
+    "playbackStartupVersion": 1,
+    "recordStatusCount": 20,
+    "playbackStatusCount": 15,
+    "all35StatusesZero": true,
+    "freshProcessCount": 5,
+    "sourceRGBABytes": 4096,
+    "allFiveEmbeddedSourcePixelsExact": true
+  },
+  "findings": [
+    "An empty clamped working crop preserves all 4096 prior opaque sentinel pixels despite an E-set recorded draw. Return typed no-paint, never a transparent dummy.",
+    "Exact-touch ROI retains one inclusive working source column and paints its whole 6\u00d712 destination under SourceCopy. Do not add an x+w<=0 early gate.",
+    "Noncontained expanded Blur reads neighboring original pixels into its bounded full-resolution canvas. Only positions outside the bitmap are zero; filtering then runs in place.",
+    "The prepared canvas dimensions determine the small-radius leading vertical extent: exact-touch canvas ceil 4 is exact, while original ROI ceil 13 leaves 17 RGB differences with maximum 24.",
+    "The strictly contained integer ROI remains unchanged and exact.",
+    "Later intrinsic reads differ from the first actual Picture final output by one level on 9, 32 and 89 channels for partial right/bottom, negative left/top and the contained control. Both observations are retained; actual Picture final is authoritative for this consumer."
+  ],
+  "implementation": {
+    "mainSHA256": "2aae70d4ae6814358575519ff254313abb6cfaa5ea60e00ed4e3a65beaa91fc7",
+    "arithmeticSHA256": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab",
+    "change": "Generic noncontained expanded Blur input window: bounded halo, reserve the private plane before allocation, copy the original bitmap intersection, apply expandOutput:false on the canvas dimensions, and return the window origin. An empty working crop uses the existing typed skipsDrawing protocol. Contained/nonexpanded/Sharpen/RedEye preparation, association rules and patch geometry are unchanged."
+  },
+  "comparison": {
+    "profiles": 5,
+    "fullPicturePixels": 20480,
+    "allFiveByteExact": true,
+    "maximumChannelError": 0,
+    "oldFullOutsideMax255": true,
+    "oldOtherMaximums": [
+      34,
+      77,
+      18
+    ],
+    "toleranceOrOracleChanges": false
+  },
+  "validation": "Source, manifest and wire inspection plus original NumPy arithmetic analysis of retained native bytes only. No helper/app/Core/native build or suite. The earlier 389 isolated Swift arithmetic profiles remain unchanged; the parent grouped integration checkpoint is pending.",
+  "cases": [
+    {
+      "name": "blur-roi-fully-outside",
+      "sourceRect": [
+        -8,
+        6,
+        4,
+        12
+      ],
+      "recordStatuses": {
+        "recordSetParametersStatus": 0,
+        "recordCreateStatus": 0,
+        "recordSentinelStatus": 0,
+        "recordStatus": 0
+      },
+      "emfBytes": 4240,
+      "emfSHA256": "fac2adec39b6d793c653643bedc426ccc260addd7bf54a5d0a3badd042e246aa",
+      "embeddedSourceExact": true,
+      "serializedEffectCount": 1,
+      "EsetDrawImagePointsCount": 1,
+      "drawFlags": 24576,
+      "processID": 7240,
+      "startupVersion": 1,
+      "changedSentinelPixels": 0,
+      "changedBounds": null,
+      "alphaHistogram": {
+        "255": 4096
+      },
+      "oldBridgePrediction": {
+        "name": "blur-roi-fully-outside",
+        "currentMaximum": 255,
+        "currentOver1": 192,
+        "currentAlphaOver1": 48,
+        "currentDifferent": 192,
+        "intrinsicVsPictureDifferent": 0,
+        "intrinsicVsPictureMax": 0,
+        "workingROI": [
+          0,
+          6,
+          0,
+          19
+        ],
+        "contained": false
+      },
+      "newCanvasPrediction": {
+        "name": "blur-roi-fully-outside",
+        "currentMaximum": 0,
+        "currentOver1": 0,
+        "currentAlphaOver1": 0,
+        "currentDifferent": 0,
+        "intrinsicVsPictureDifferent": 0,
+        "intrinsicVsPictureMax": 0,
+        "workingROI": [
+          0,
+          6,
+          0,
+          19
+        ],
+        "contained": false
+      },
+      "finalRGBA": "blur-fully-outside-0.rgba",
+      "finalSHA256": "ea4422c633635ded0757026a98b306a8d58cd6df47b546ac3418c8f03cdbcb44",
+      "intrinsicRGBA": "blur-fully-outside-0-intrinsic.rgba",
+      "intrinsicSHA256": "ea4422c633635ded0757026a98b306a8d58cd6df47b546ac3418c8f03cdbcb44"
+    },
+    {
+      "name": "blur-roi-exact-touch",
+      "sourceRect": [
+        -6,
+        6,
+        6,
+        12
+      ],
+      "recordStatuses": {
+        "recordSetParametersStatus": 0,
+        "recordCreateStatus": 0,
+        "recordSentinelStatus": 0,
+        "recordStatus": 0
+      },
+      "emfBytes": 4240,
+      "emfSHA256": "47b9c3508ed40d688e8803f77550952ff96db6c7cc407773a7f485cdf7b4821c",
+      "embeddedSourceExact": true,
+      "serializedEffectCount": 1,
+      "EsetDrawImagePointsCount": 1,
+      "drawFlags": 24576,
+      "processID": 7972,
+      "startupVersion": 1,
+      "changedSentinelPixels": 72,
+      "changedBounds": [
+        10,
+        22,
+        16,
+        34
+      ],
+      "alphaHistogram": {
+        "0": 48,
+        "14": 12,
+        "77": 12,
+        "255": 4024
+      },
+      "oldBridgePrediction": {
+        "name": "blur-roi-exact-touch",
+        "currentMaximum": 34,
+        "currentOver1": 51,
+        "currentAlphaOver1": 13,
+        "currentDifferent": 54,
+        "intrinsicVsPictureDifferent": 0,
+        "intrinsicVsPictureMax": 0,
+        "workingROI": [
+          0,
+          6,
+          1,
+          19
+        ],
+        "contained": false
+      },
+      "newCanvasPrediction": {
+        "name": "blur-roi-exact-touch",
+        "currentMaximum": 0,
+        "currentOver1": 0,
+        "currentAlphaOver1": 0,
+        "currentDifferent": 0,
+        "intrinsicVsPictureDifferent": 0,
+        "intrinsicVsPictureMax": 0,
+        "workingROI": [
+          0,
+          6,
+          1,
+          19
+        ],
+        "contained": false
+      },
+      "finalRGBA": "blur-exact-touch-0.rgba",
+      "finalSHA256": "98824cb749089ef778abe478f168bc46c14b75fff13ec7ed629ddedd72ddcade",
+      "intrinsicRGBA": "blur-exact-touch-0-intrinsic.rgba",
+      "intrinsicSHA256": "98824cb749089ef778abe478f168bc46c14b75fff13ec7ed629ddedd72ddcade"
+    },
+    {
+      "name": "blur-roi-partial-right-bottom",
+      "sourceRect": [
+        24,
+        25,
+        12,
+        11
+      ],
+      "recordStatuses": {
+        "recordSetParametersStatus": 0,
+        "recordCreateStatus": 0,
+        "recordSentinelStatus": 0,
+        "recordStatus": 0
+      },
+      "emfBytes": 4240,
+      "emfSHA256": "99d2b4297c49c8ef3e562fb1df908d5bd460e415203d09b4798613bbd88f40c2",
+      "embeddedSourceExact": true,
+      "serializedEffectCount": 1,
+      "EsetDrawImagePointsCount": 1,
+      "drawFlags": 24576,
+      "processID": 6192,
+      "startupVersion": 1,
+      "changedSentinelPixels": 132,
+      "changedBounds": [
+        40,
+        41,
+        52,
+        52
+      ],
+      "alphaHistogram": {
+        "0": 62,
+        "14": 7,
+        "77": 7,
+        "178": 7,
+        "241": 7,
+        "255": 4006
+      },
+      "oldBridgePrediction": {
+        "name": "blur-roi-partial-right-bottom",
+        "currentMaximum": 77,
+        "currentOver1": 56,
+        "currentAlphaOver1": 14,
+        "currentDifferent": 56,
+        "intrinsicVsPictureDifferent": 9,
+        "intrinsicVsPictureMax": 1,
+        "workingROI": [
+          24,
+          25,
+          32,
+          32
+        ],
+        "contained": false
+      },
+      "newCanvasPrediction": {
+        "name": "blur-roi-partial-right-bottom",
+        "currentMaximum": 0,
+        "currentOver1": 0,
+        "currentAlphaOver1": 0,
+        "currentDifferent": 0,
+        "intrinsicVsPictureDifferent": 9,
+        "intrinsicVsPictureMax": 1,
+        "workingROI": [
+          24,
+          25,
+          32,
+          32
+        ],
+        "contained": false
+      },
+      "finalRGBA": "blur-partial-right-bottom-0.rgba",
+      "finalSHA256": "7b2e1f2fddd9614ee31a39408f2435e2316792572d56625d5d922e82db8a0ffb",
+      "intrinsicRGBA": "blur-partial-right-bottom-0-intrinsic.rgba",
+      "intrinsicSHA256": "828e7e0726fdeb430df98c9dc9a34eb882e6236b992ba5d2c3866ec73f67fc72"
+    },
+    {
+      "name": "blur-roi-negative-left-top",
+      "sourceRect": [
+        -4,
+        -3,
+        18,
+        19
+      ],
+      "recordStatuses": {
+        "recordSetParametersStatus": 0,
+        "recordCreateStatus": 0,
+        "recordSentinelStatus": 0,
+        "recordStatus": 0
+      },
+      "emfBytes": 4240,
+      "emfSHA256": "cfa6191efe6e91bed8671af352eb5b55fb2ba57efa99f3e8017f92d7e5516bf0",
+      "embeddedSourceExact": true,
+      "serializedEffectCount": 1,
+      "EsetDrawImagePointsCount": 1,
+      "drawFlags": 24576,
+      "processID": 2364,
+      "startupVersion": 1,
+      "changedSentinelPixels": 342,
+      "changedBounds": [
+        12,
+        13,
+        30,
+        32
+      ],
+      "alphaHistogram": {
+        "0": 54,
+        "1": 1,
+        "4": 2,
+        "10": 1,
+        "14": 29,
+        "23": 1,
+        "53": 1,
+        "72": 1,
+        "77": 28,
+        "178": 16,
+        "241": 16,
+        "255": 3946
+      },
+      "oldBridgePrediction": {
+        "name": "blur-roi-negative-left-top",
+        "currentMaximum": 18,
+        "currentOver1": 65,
+        "currentAlphaOver1": 17,
+        "currentDifferent": 69,
+        "intrinsicVsPictureDifferent": 32,
+        "intrinsicVsPictureMax": 1,
+        "workingROI": [
+          0,
+          0,
+          15,
+          17
+        ],
+        "contained": false
+      },
+      "newCanvasPrediction": {
+        "name": "blur-roi-negative-left-top",
+        "currentMaximum": 0,
+        "currentOver1": 0,
+        "currentAlphaOver1": 0,
+        "currentDifferent": 0,
+        "intrinsicVsPictureDifferent": 32,
+        "intrinsicVsPictureMax": 1,
+        "workingROI": [
+          0,
+          0,
+          15,
+          17
+        ],
+        "contained": false
+      },
+      "finalRGBA": "blur-negative-left-top-0.rgba",
+      "finalSHA256": "696a0afb5268a1899be8d4aeaac4bbe0b69e35c261623bc61d530584b92229a6",
+      "intrinsicRGBA": "blur-negative-left-top-0-intrinsic.rgba",
+      "intrinsicSHA256": "0a109753b32ddb09958ed322127f6628e962fbcd68b05c0e826215149ff0a60c"
+    },
+    {
+      "name": "blur-roi-contained-control",
+      "sourceRect": [
+        4,
+        6,
+        17,
+        19
+      ],
+      "recordStatuses": {
+        "recordSetParametersStatus": 0,
+        "recordCreateStatus": 0,
+        "recordSentinelStatus": 0,
+        "recordStatus": 0
+      },
+      "emfBytes": 4240,
+      "emfSHA256": "d2f08af064e6b52b5ec8f3112f21824bbaf5d84444c0ebf0e14bd00e387b1044",
+      "embeddedSourceExact": true,
+      "serializedEffectCount": 1,
+      "EsetDrawImagePointsCount": 1,
+      "drawFlags": 24576,
+      "processID": 1776,
+      "startupVersion": 1,
+      "changedSentinelPixels": 323,
+      "changedBounds": [
+        20,
+        22,
+        37,
+        41
+      ],
+      "alphaHistogram": {
+        "124": 1,
+        "168": 1,
+        "169": 2,
+        "178": 31,
+        "227": 2,
+        "241": 48,
+        "255": 4011
+      },
+      "oldBridgePrediction": {
+        "name": "blur-roi-contained-control",
+        "currentMaximum": 0,
+        "currentOver1": 0,
+        "currentAlphaOver1": 0,
+        "currentDifferent": 0,
+        "intrinsicVsPictureDifferent": 89,
+        "intrinsicVsPictureMax": 1,
+        "workingROI": [
+          4,
+          6,
+          22,
+          26
+        ],
+        "contained": true
+      },
+      "newCanvasPrediction": {
+        "name": "blur-roi-contained-control",
+        "currentMaximum": 0,
+        "currentOver1": 0,
+        "currentAlphaOver1": 0,
+        "currentDifferent": 0,
+        "intrinsicVsPictureDifferent": 89,
+        "intrinsicVsPictureMax": 1,
+        "workingROI": [
+          4,
+          6,
+          22,
+          26
+        ],
+        "contained": true
+      },
+      "finalRGBA": "blur-contained-control-0.rgba",
+      "finalSHA256": "540b7b3242b01e9e491c819913d6a17dc6aa1c84f3e9aee6260891e5774ecfca",
+      "intrinsicRGBA": "blur-contained-control-0-intrinsic.rgba",
+      "intrinsicSHA256": "a4f20d3b1b9a25b756412525e956e8a7d7d46a8c2f423b8d2661e48fbfff5cd8"
+    }
+  ]
+}

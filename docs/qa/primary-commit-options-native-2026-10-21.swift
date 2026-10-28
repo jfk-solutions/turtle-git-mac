@@ -21,6 +21,7 @@ enum PrimaryCommitOptionsVerification {
     @MainActor final class Context {
         let repository:GitRepository,preferences:UserDefaults,suite:String
         var owners:[CommitWindowController]=[],menus:[NSMenu]=[],gates:[Gate]=[]
+        var temporaryDirectories:[URL]=[]
         init(repository:GitRepository){
             self.repository=repository;suite="TurtleGit.PrimaryCommitOptions."+UUID().uuidString;preferences=UserDefaults(suiteName:suite)!
             preferences.set(false,forKey:"UseLibgit2");preferences.set(true,forKey:"ShowAppContextMenuIcons")
@@ -43,6 +44,7 @@ enum PrimaryCommitOptionsVerification {
             try await PrimaryCommitOptionsVerification.wait(nil,"Commit fixture workers did not drain"){
                 CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activeReloads==0 && CommitWindowModel.activeCommitPreflights==0
             }
+            for directory in temporaryDirectories {try? FileManager.default.removeItem(at:directory)};temporaryDirectories=[]
             preferences.removePersistentDomain(forName:suite)
         }
     }
@@ -168,6 +170,7 @@ enum PrimaryCommitOptionsVerification {
         let settledMetadata=CommitWindowModel.activeMetadataOperations
         for option in [CommitWindowModel.FormOption.amend,.amendComparison,.author] {
             model.formOptionViewChanged(option);model.formOptionViewChanged(option)
+            try require(model.formReceipt==settledAmendReceipt && CommitWindowModel.activeMetadataOperations==settledMetadata && !model.busy,"Duplicate settled option observer \(option) restarted metadata or retired the form (receiptChanged=\(model.formReceipt != settledAmendReceipt), metadata=\(CommitWindowModel.activeMetadataOperations)/\(settledMetadata), busy=\(model.busy))")
         }
         try require(model.formReceipt==settledAmendReceipt && CommitWindowModel.activeMetadataOperations==settledMetadata && !model.busy,"Duplicate settled option observers restarted metadata or retired the form")
         let comparison=try await readyItem(context,owner,"amendComparison")
@@ -399,6 +402,37 @@ enum PrimaryCommitOptionsVerification {
         try require(amendModel.message.contains("second source revision"),"Amend retry did not install actual HEAD message")
         amendOwner.close()
     }
+    @MainActor static func initialAndNormalizedTransitions(_ context:Context)async throws {
+        // This independent one-commit repository forces the source's root-HEAD
+        // comparison normalization. It does not alter the main fixture's HEAD,
+        // index or pending draft; cleanup follows actual worker drainage.
+        let root=context.repository.root.appendingPathComponent(".git/form-normalization-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);context.temporaryDirectories.append(root)
+        let repository=GitRepository(root:root,executable:context.repository.executable,diffDetection:.init(),libgit2Configuration:.init(enabled:false))
+        _=try await repository.run(["init","-b","main"])
+        for(key,value)in [("user.name","Form identity QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_=try await repository.run(["config",key,value])}
+        try Data("root source\n".utf8).write(to:root.appendingPathComponent("literal.txt"));try await repository.stage(["literal.txt"]);_=try await repository.run(["commit","-m","root source revision"])
+        try Data("pending root draft\n".utf8).write(to:root.appendingPathComponent("literal.txt"))
+        let owner=CommitWindowController(repository:repository,access:nil,defaults:context.preferences),model=owner.model
+        context.owners.append(owner);owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-18000,y:-18000));owner.showWindow(nil)
+        model.reload(paths:["literal.txt"])
+        try await wait(owner.window,"Root comparison fixture did not load"){!model.busy && model.changelistsLoaded && owner.commandsAvailable}
+        model.message="Independent root draft"
+        let initial=model.formReceipt,initialReads=CommitWindowModel.activeMetadataOperations
+        for option in [CommitWindowModel.FormOption.amend,.amendComparison,.author,.authorDate] {
+            model.formOptionViewChanged(option);model.formOptionViewChanged(option)
+            try require(model.formReceipt==initial && CommitWindowModel.activeMetadataOperations==initialReads && !model.busy && model.message=="Independent root draft","Initial unchanged observer \(option) invented a metadata transition")
+        }
+        model.setFormOption(.amend,value:true,receipt:model.formReceipt)
+        try await wait(owner.window,"Root Amend normalization did not settle"){model.amend && model.amendDiffToLastCommit && !model.hasParent && !model.busy && !model.loadingAmendMessage && !model.loadingAuthorIdentity && !model.loadingAuthorDate}
+        let normalized=model.formReceipt,normalizedReads=CommitWindowModel.activeMetadataOperations
+        for option in [CommitWindowModel.FormOption.amend,.amendComparison,.author,.authorDate] {
+            model.formOptionViewChanged(option);model.formOptionViewChanged(option)
+            try require(model.formReceipt==normalized && CommitWindowModel.activeMetadataOperations==normalizedReads && !model.busy,"Snapshot-owned root normalization \(option) started a second metadata transition")
+        }
+        owner.close()
+        try await wait(nil,"Root normalization owner did not drain"){!model.messageFocusAvailable && CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activeReloads==0}
+    }
     @MainActor static func run(root:URL,git:URL)async throws {
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repository=GitRepository(root:root,executable:git,diffDetection:.init(),libgit2Configuration:.init(enabled:false))
@@ -410,7 +444,7 @@ enum PrimaryCommitOptionsVerification {
         let beforeHead=try await repository.run(["rev-parse","HEAD"]).stdout,beforeIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),beforeFile=try Data(contentsOf:file)
         let context=Context(repository:repository)
         do {
-            try await options(context);try await focusIntents(context);try await metadata(context);try await context.clean()
+            try await initialAndNormalizedTransitions(context);try await options(context);try await focusIntents(context);try await metadata(context);try await context.clean()
             let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterFile=try Data(contentsOf:file)
             try require(afterHead==beforeHead && afterIndex==beforeIndex && afterFile==beforeFile,"Read-only Commit form interactions changed Git or working bytes")
             print("PASS: Commit source option/focus commands, superseding native focus intents, native owner receipts/minimum geometry and held metadata Quit success/error/cancel/retry")

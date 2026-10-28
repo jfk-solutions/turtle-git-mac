@@ -1,0 +1,5062 @@
+{
+  "date": "2026-10-28",
+  "scope": "Original Blur/Sharpen arithmetic continuation; no app/helper/Core/native suite acceptance",
+  "research": {
+    "repository": "https://github.com/ChristopherVR/emf-converter",
+    "commit": "effcf337218fefc08e4ac8f74e59cd2af1a9235c",
+    "notes": "https://christophervr.github.io/emf-converter/parity-notes",
+    "source": "src/emf-plus-image-effects.ts",
+    "license": "Apache-2.0",
+    "use": "Behavioral/math research only. Original Swift implementation and predictors; no external implementation code, dependency or pixel oracle copied. Existing project declarations retained."
+  },
+  "implementation": [
+    "Gaussian weights use toward-zero float32 at each ordered operation; offsets accumulate before exponential and normalization.",
+    "The center contributes two separately nearest-Q8-rounded half-products in each axis.",
+    "Large effects complete reduction/filter/enlargement per axis; partial blocks divide by actual sample count.",
+    "Expanded effects pad the full-resolution output canvas before reduction, retaining output-origin block alignment.",
+    "Each axis selects mirror/clamp from its own odd-rounded support and ceil reduced length; narrow images retain reduction, removing the unsupported full-resolution fallback.",
+    "Radius80 belongs to factor4; the next representable radius enters factor8.",
+    "Single-sample geometry has finite constant continuation and the researched covered-half-block trailing sample rule."
+  ],
+  "allocation": "Both complete axis plans and all padded/reduced/filtered/reconstructed planes, center products and reconstruction work are reserved before allocation. Small scratch prefix and Sharpen output planes are charged. Source immutable; budget aggregate and shared.",
+  "isolatedArithmetic": {
+    "profiles": 389,
+    "byteExactProfiles": 389,
+    "maximumChannelError": 0,
+    "channelsExceedingOne": 0,
+    "totalAbsoluteError": 0,
+    "allOutputDimensionsAndRectsMatch": 389,
+    "sourceSHA256": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab",
+    "probeSHA256": "495be9b3f9b483faba8b6e70efe5c50f2c287c1859b8b1a15929bb9ddceaa238",
+    "scopeBreakdown": {
+      "large": 69,
+      "small": 311,
+      "coefficient": 6,
+      "matchedContributions": 3
+    }
+  },
+  "validation": "Optimized isolated Swift arithmetic only. Initial command used absent RedEyeImageEffects.swift and failed before compilation; corrected RedEyeImageEffect.swift command compiled/run successfully, logs retained. The initial rectangle bookkeeping check compared native endpoints with width/height and was corrected to origin+extent; all389 native rectangles then match. No build-metafile-runtime, app/helper build, Core/native suite, full627 corpus rerun, new Windows capture, oracle edit or tolerance change.",
+  "remaining": "Parent grouped integration checkpoint pending: draw-time ROI/contained/cropped rendering, aggregate budget/error behavior and spatial family integration. Finite native observations do not prove every possible radius/dimension. No port-completion claim.",
+  "artifacts": [
+    "build/qa/spatial-precision-isolated-2026-10-28/comparison.json",
+    "build/qa/spatial-precision-isolated-2026-10-28/matched/comparison.json",
+    "build/qa/spatial-precision-isolated-2026-10-28/boundary/comparison.json",
+    "build/qa/spatial-precision-isolated-2026-10-28/compile.log",
+    "build/qa/spatial-precision-isolated-2026-10-28/compile-final.log",
+    "build/qa/spatial-precision-isolated-2026-10-28/run.log",
+    "build/qa/derive-blur-directed-kernel-2026-10-28.py",
+    "build/qa/derive-blur-axis-canvas-2026-10-28.py",
+    "build/qa/derive-small-blur-center-2026-10-28.py"
+  ],
+  "results": [
+    {
+      "name": "blur-impulse-r10-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r10-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 26163424,
+      "outputPixels": 1248768,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r10-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r10-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r10-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r10-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r10-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r10-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 26163424,
+      "outputPixels": 1248768,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "sharpen-step-r10-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r10-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r10-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r10-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r10-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r10-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 26163424,
+      "outputPixels": 1248768,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "sharpen-constant-r10-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r10-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r10-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r10-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r10-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r10-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 26163424,
+      "outputPixels": 1248768,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r10-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r10-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r10-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r10-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r10-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r10-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 26163424,
+      "outputPixels": 1248768,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r10-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r10-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r10-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r10-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 95232,
+      "outputPixels": 4352,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-expanded-25500",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 26163424,
+      "outputPixels": 1248768,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "blur-strip-impulse-r25500-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 843744,
+      "outputPixels": 29337,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-impulse-r25500-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 47994944,
+      "outputPixels": 2291458,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "blur-strip-constant-r25500-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 843744,
+      "outputPixels": 29337,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-constant-r25500-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 47994944,
+      "outputPixels": 2291458,
+      "origin": [
+        -255,
+        -255
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r31-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 212992,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r31-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 1837888,
+      "outputPixels": 53016,
+      "origin": [
+        -31,
+        -31
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r32-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 212992,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r32-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 1916928,
+      "outputPixels": 55296,
+      "origin": [
+        -32,
+        -32
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r33-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 221184,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r33-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 2074464,
+      "outputPixels": 57624,
+      "origin": [
+        -33,
+        -33
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r63-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 143360,
+      "outputPixels": 4096,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r63-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 3516448,
+      "outputPixels": 125136,
+      "origin": [
+        -63,
+        -63
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r64-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 143360,
+      "outputPixels": 4096,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r64-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 3584000,
+      "outputPixels": 128000,
+      "origin": [
+        -64,
+        -64
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r127-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 108544,
+      "outputPixels": 3584,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r127-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 8689824,
+      "outputPixels": 368368,
+      "origin": [
+        -127,
+        -127
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r128-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 108544,
+      "outputPixels": 3584,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-32x32-r128-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 8792064,
+      "outputPixels": 373248,
+      "origin": [
+        -128,
+        -128
+      ]
+    },
+    {
+      "name": "blur-asymmetric-17x33-r31-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 120088,
+      "outputPixels": 2855,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-17x33-r31-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 1572872,
+      "outputPixels": 45204,
+      "origin": [
+        -31,
+        -31
+      ]
+    },
+    {
+      "name": "blur-asymmetric-17x33-r32-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 120088,
+      "outputPixels": 2855,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-17x33-r32-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 1646360,
+      "outputPixels": 47320,
+      "origin": [
+        -32,
+        -32
+      ]
+    },
+    {
+      "name": "blur-asymmetric-33x17-r31-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 120088,
+      "outputPixels": 2855,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-33x17-r31-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 1572872,
+      "outputPixels": 45204,
+      "origin": [
+        -31,
+        -31
+      ]
+    },
+    {
+      "name": "blur-asymmetric-33x17-r32-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 120088,
+      "outputPixels": 2855,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-33x17-r32-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 1646360,
+      "outputPixels": 47320,
+      "origin": [
+        -32,
+        -32
+      ]
+    },
+    {
+      "name": "blur-quadrant-basis-a255-r31",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 212992,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-quadrant-basis-a255-r32",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 212992,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-quadrant-basis-a255-r255",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-quadrant-basis-a128-r31",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 212992,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-quadrant-basis-a128-r32",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 212992,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-quadrant-basis-a128-r255",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-boundary-r20",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 163840,
+      "outputPixels": 5120,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-axis-control-constant",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-axis-horizontal-a1-63-128",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-axis-vertical-a1-63-128",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-axis-horizontal-a97-200-255",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-axis-vertical-a97-200-255",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 91136,
+      "outputPixels": 3328,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r0-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r0-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r0-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r0-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r0-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r0-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r1-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r1-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r1-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r1-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r1-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r1-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r2-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r2-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r2-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r2-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r2-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r2-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r3-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r3-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r3-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r3-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r3-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r3-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r4-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r4-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r4-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r4-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r4-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r4-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r5-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r5-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r5-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r5-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r5-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r5-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r6-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r6-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r6-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r6-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r6-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r6-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r7-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 33792,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r7-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 40128,
+      "outputPixels": 1482,
+      "origin": [
+        -3,
+        -3
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r7-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r7-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r7-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r7-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r8-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 50688,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r8-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 66528,
+      "outputPixels": 1806,
+      "origin": [
+        -5,
+        -5
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r8-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r8-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r8-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r8-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r9-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 92928,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-impulse-r9-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 151008,
+      "outputPixels": 2756,
+      "origin": [
+        -10,
+        -10
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r9-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r9-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r9-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-impulse-r9-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r0-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r0-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r0-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r0-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r0-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r0-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r1-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r1-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-step-r1-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r1-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r1-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r1-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r2-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r2-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-step-r2-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r2-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r2-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r2-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r3-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r3-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-step-r3-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r3-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r3-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r3-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r4-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r4-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-step-r4-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r4-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r4-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r4-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r5-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r5-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-step-r5-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r5-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r5-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r5-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r6-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r6-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-step-r6-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r6-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r6-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r6-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r7-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 33792,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r7-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 40128,
+      "outputPixels": 1482,
+      "origin": [
+        -3,
+        -3
+      ]
+    },
+    {
+      "name": "sharpen-step-r7-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r7-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r7-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r7-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r8-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 50688,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r8-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 66528,
+      "outputPixels": 1806,
+      "origin": [
+        -5,
+        -5
+      ]
+    },
+    {
+      "name": "sharpen-step-r8-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r8-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r8-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r8-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r9-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 92928,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-step-r9-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 151008,
+      "outputPixels": 2756,
+      "origin": [
+        -10,
+        -10
+      ]
+    },
+    {
+      "name": "sharpen-step-r9-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r9-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r9-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-step-r9-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r0-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r0-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r0-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r0-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r0-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r0-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r1-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r1-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-constant-r1-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r1-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r1-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r1-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r2-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r2-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-constant-r2-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r2-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r2-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r2-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r3-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r3-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-constant-r3-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r3-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r3-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r3-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r4-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r4-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-constant-r4-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r4-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r4-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r4-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r5-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r5-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-constant-r5-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r5-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r5-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r5-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r6-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r6-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-constant-r6-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r6-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r6-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r6-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r7-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 33792,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r7-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 40128,
+      "outputPixels": 1482,
+      "origin": [
+        -3,
+        -3
+      ]
+    },
+    {
+      "name": "sharpen-constant-r7-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r7-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r7-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r7-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r8-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 50688,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r8-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 66528,
+      "outputPixels": 1806,
+      "origin": [
+        -5,
+        -5
+      ]
+    },
+    {
+      "name": "sharpen-constant-r8-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r8-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r8-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r8-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r9-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 92928,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-constant-r9-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 151008,
+      "outputPixels": 2756,
+      "origin": [
+        -10,
+        -10
+      ]
+    },
+    {
+      "name": "sharpen-constant-r9-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r9-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r9-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-constant-r9-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r0-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r0-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r0-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r0-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r0-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r0-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r1-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r1-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r1-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r1-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r1-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r1-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r2-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r2-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r2-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r2-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r2-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r2-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r3-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r3-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r3-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r3-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r3-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r3-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r4-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r4-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r4-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r4-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r4-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r4-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r5-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r5-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r5-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r5-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r5-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r5-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r6-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r6-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r6-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r6-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r6-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r6-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r7-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 33792,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r7-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 40128,
+      "outputPixels": 1482,
+      "origin": [
+        -3,
+        -3
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r7-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r7-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r7-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r7-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r8-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 50688,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r8-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 66528,
+      "outputPixels": 1806,
+      "origin": [
+        -5,
+        -5
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r8-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r8-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r8-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r8-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r9-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 92928,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-asymmetric-r9-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 151008,
+      "outputPixels": 2756,
+      "origin": [
+        -10,
+        -10
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r9-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r9-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r9-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-asymmetric-r9-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r0-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r0-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 0,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r0-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r0-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r0-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r0-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r1-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r1-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r1-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r1-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r1-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r1-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r2-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r2-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r2-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r2-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r2-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r2-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r3-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r3-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r3-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r3-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r3-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r3-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r4-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 16896,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r4-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 17952,
+      "outputPixels": 1190,
+      "origin": [
+        -1,
+        -1
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r4-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r4-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r4-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r4-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 20992,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r5-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r5-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r5-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r5-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r5-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r5-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r6-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 25344,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r6-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 28512,
+      "outputPixels": 1332,
+      "origin": [
+        -2,
+        -2
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r6-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r6-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r6-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r6-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 29440,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r7-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 33792,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r7-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 40128,
+      "outputPixels": 1482,
+      "origin": [
+        -3,
+        -3
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r7-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r7-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r7-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r7-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 37888,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r8-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 50688,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r8-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 66528,
+      "outputPixels": 1806,
+      "origin": [
+        -5,
+        -5
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r8-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r8-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r8-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r8-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 54784,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r9-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 92928,
+      "outputPixels": 1056,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-alpha-r9-e1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 151008,
+      "outputPixels": 2756,
+      "origin": [
+        -10,
+        -10
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r9-a0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 4096,
+      "outputPixels": 1024,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r9-a25",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r9-a50",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "sharpen-alpha-r9-a100",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 97024,
+      "outputPixels": 2080,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-impulse-r100-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 147744,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-impulse-r150-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 221616,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-impulse-r300-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 295488,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-impulse-r1000-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 812592,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-constant-r100-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 147744,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-constant-r150-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 221616,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-constant-r300-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 295488,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-strip-constant-r1000-e0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 812592,
+      "outputPixels": 9234,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-coefficient-isolated-x0",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 422400,
+      "outputPixels": 8800,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-coefficient-isolated-x1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 422400,
+      "outputPixels": 8800,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-coefficient-isolated-x3",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 422400,
+      "outputPixels": 8800,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-coefficient-isolated-x16",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 422400,
+      "outputPixels": 8800,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-coefficient-paired-x0-x1",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 422400,
+      "outputPixels": 8800,
+      "origin": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "blur-coefficient-paired-x15-x16",
+      "maximum": 0,
+      "over1": 0,
+      "different": 0,
+      "totalAbsoluteError": 0,
+      "work": 422400,
+      "outputPixels": 8800,
+      "origin": [
+        0,
+        0
+      ]
+    }
+  ],
+  "matchedResults": {
+    "profiles": 3,
+    "byteExactProfiles": 3,
+    "names": [
+      "blur-matched-right-pair",
+      "blur-matched-interior-forward",
+      "blur-matched-interior-reverse"
+    ]
+  },
+  "boundaryResults": {
+    "profiles": 3,
+    "byteExactProfiles": 3,
+    "names": [
+      "blur-asymmetric-32x32-r17-e0",
+      "blur-asymmetric-32x32-r17-e1",
+      "blur-asymmetric-boundary-r19"
+    ]
+  },
+  "staticBridgeReview": {
+    "mainSHA256": "5ec0dac0e6b3e31b4b8a26ff9c8808d6cae8f37f08ddceb822c1d46596ab76d0",
+    "change": "Before allocation charge cropped-source pixels plus four scalar copy visits per pixel; before mutable output association charge the separately owned COW plane plus six RGB association visits per pixel. These real reservations legitimately tighten aggregate rejection. No coordinate, source association, output association or patch geometry change.",
+    "unchangedGeometry": "Existing strict-contained fractional/crop fixtures preserve inclusive working sample and original source origin; expanded full canvas remains clipped by original DrawImage source rectangle. Logical bitmap dimensions retain original wrap period.",
+    "uncoveredResearchCases": [
+      "A noncontained ROI touching right/bottom but beginning inside source may need surrounding original pixels outside the ROI in its expanded canvas.",
+      "Negative left/top with contained far endpoint may select a different cropped branch.",
+      "A source rectangle missing the bitmap currently returns a transparent dummy; SourceCopy may need no-paint instead."
+    ],
+    "validation": "Static source review only; no additional build, buffer execution or integration check.",
+    "resolvedBy": "docs/qa/blur-source-roi-observation-2026-10-28.json; original static review and source hash retained as the earlier snapshot."
+  }
+}

@@ -1,0 +1,4197 @@
+{
+  "date": "2026-10-28",
+  "scope": "Native Windows RedEye source observations, retained original fixtures and numerical hypothesis falsification only",
+  "status": "reference_verified_general_algorithm_unidentified",
+  "windowsRun": 40565912384,
+  "artifact": 12761959752,
+  "archiveSHA256": "be23a07456f30b83fa3bc144b6a9894329e6de3d504a8575ea757a6ec4ac102c",
+  "verification": {
+    "verifiedMembers": 676,
+    "statusCount": 435,
+    "effectBuffers": 232,
+    "sourceEqualityPairs": 58,
+    "sourceStartupEqualityPairs": 29,
+    "sourceHashes": [
+      {
+        "file": "docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyeModelReference.cpp",
+        "localSHA256": "1b9422cbf290f75d9d18bc3fedf523e3beb04aa11870ff2e3d68017dec9f1af1",
+        "windowsCRLFSHA256": "4fbbb6fa3a00a2238362634be33f6d0ee2dc2f1eed312029f34fb3e895c02bea",
+        "normalization": "LF to CRLF matches Windows checkout hash"
+      },
+      {
+        "file": ".github/workflows/metafile-redeye-model-reference.yml",
+        "localSHA256": "cbe3a8374413e2f25626a0636600f0e7bae2be3062ac42bb5b352c504ad5a5b6",
+        "windowsCRLFSHA256": "af0b3aa65a08dd6a703714ae1a6b0ee4b8e54081125a6f4447f92791b46b631e",
+        "normalization": "LF to CRLF matches Windows checkout hash"
+      },
+      {
+        "file": "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp",
+        "localSHA256": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984",
+        "windowsCRLFSHA256": "5403a9dde05ceb7de37b80afa7984cde18f091ee9231183ba79f56ab020e8089",
+        "normalization": "LF to CRLF matches Windows checkout hash"
+      }
+    ],
+    "sourceRevision": "eabf99f902644ec8ba8cb2295a4d904a111bfc35",
+    "manifestSHA256": {
+      "generate": "7ff815ef319cb3c7808f6d05654527f5a5aca0d58e10d5281196af1092ec31df",
+      "direct-v1": "199c4728f4f9aee3ef968a3117b4c6089bd61edc4da942a6340007a7b181c7fd",
+      "replay": "4e14935a8269f7ad28d36d6837cdf9701f8aa80109fbecbcaa1916afdf4d57e5",
+      "replay-v1": "7f203c20282f99e396e3b501be116c3cef5012ec05272e75b56dfe3ee6ddba8d"
+    }
+  },
+  "fixtureAppend": {
+    "oldManifestSHA256": "ee525ef4ff4e4856c9a682b9fab5912b934e900d6dccd4fc62c5d6ff4003c8b9",
+    "oldEntries": 598,
+    "preservedBinaryMembers": 1232,
+    "oldEntriesAndBinaryBytesUnchanged": true,
+    "newCases": 29,
+    "totalCases": 627,
+    "coverage": {
+      "blur": 204,
+      "sharpen": 228,
+      "redEyeCorrection": 195
+    },
+    "provenance": {
+      "prefix": "model-discriminator",
+      "windowsRun": 40565912384,
+      "artifact": 12761959752,
+      "archiveSHA256": "be23a07456f30b83fa3bc144b6a9894329e6de3d504a8575ea757a6ec4ac102c",
+      "startupVersion": 1,
+      "sourceCaseCount": 29,
+      "sourceControlCount": 2,
+      "manifestSHA256": {
+        "generate.json": "7ff815ef319cb3c7808f6d05654527f5a5aca0d58e10d5281196af1092ec31df",
+        "replay-v1.json": "7f203c20282f99e396e3b501be116c3cef5012ec05272e75b56dfe3ee6ddba8d",
+        "replay.json": "4e14935a8269f7ad28d36d6837cdf9701f8aa80109fbecbcaa1916afdf4d57e5"
+      },
+      "retainedCases": 29,
+      "sdkRefusals": 0,
+      "allV1EqualsV2": false,
+      "plannedCaseCount": 27,
+      "effectObservationBufferCount": 232,
+      "verifiedZeroStatusCount": 435,
+      "verifiedSourceEqualityPairCount": 58,
+      "verificationReceipt": "build/qa/metafile-redeye-model-native-windows-verification-2026-10-28.json"
+    }
+  },
+  "platform": {
+    "windows.json": {
+      "WindowsProductName": "Windows Server 2022 Datacenter",
+      "WindowsVersion": "2009",
+      "OsBuildNumber": "20348"
+    },
+    "gdiplus-version.json": {
+      "FileName": "C:\\Windows\\WinSxS\\amd64_microsoft.windows.gdiplus_6595b64144ccf1df_1.1.20348.5756_none_c562c10f49830848\\gdiplus.dll",
+      "FileVersion": "10.0.20348.5756 (WinBuild.160101.0800)",
+      "ProductVersion": "10.0.20348.5756"
+    }
+  },
+  "analysis": {
+    "qualification": "Numerical source-contract evidence only. No production algorithm, renderer acceptance, Core/native check or tolerance change. Conditional inferred intervals are diagnostics, never prediction coefficients.",
+    "sourceConsumer": {
+      "anchors": [
+        "src/Utils/MiscUI/Picture.h:197",
+        "src/Utils/MiscUI/Picture.cpp:415"
+      ],
+      "startupVersion": 1,
+      "reason": "GdiplusStartupInput constructed with default Version1; Picture calls GdiplusStartup without overriding Version."
+    },
+    "observationMode": "replay-v1",
+    "caseCount": 29,
+    "fullBufferPixels": 29696,
+    "stageIdentityCounts": {
+      "direct-v2": 29,
+      "created-v2": 29,
+      "direct-v1": 29,
+      "created-v1": 29,
+      "file-v1": 29,
+      "file-v2": 27
+    },
+    "quarterConeWithExplicitGlint": {
+      "passingCases": 15,
+      "failingCases": 14
+    },
+    "matchedHistogram": {
+      "cases": [
+        "model-hist-square24",
+        "model-hist-permuted",
+        "model-hist-two-rectangles",
+        "model-hist-center-rows",
+        "model-hist-center-gray"
+      ],
+      "histogram": [
+        {
+          "rgba": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "count": 448
+        },
+        {
+          "rgba": [
+            240,
+            20,
+            10,
+            255
+          ],
+          "count": 576
+        }
+      ],
+      "conditionalCommonConeInterval": {
+        "cases": [
+          "model-hist-square24",
+          "model-hist-two-rectangles",
+          "model-hist-center-rows",
+          "model-red-square20",
+          "model-red-square22",
+          "model-red-square26"
+        ],
+        "interval": [
+          0.6598915578253728,
+          0.6600190750800763
+        ],
+        "warning": "Conditioned on current ROI/angular/radial composition, excluding supplied glint support. Does not establish a general coefficient or global histogram selection rule."
+      }
+    },
+    "newConstraints": [
+      "All29 FILE-v1 buffers equal both direct and created outputs for both SDK startup versions.",
+      "Only model-channel-gb0-uniform and model-channel-gb0-gray-hole differ between FILE startup1 and2. Older pure-red255 file/direct disagreement remains separately valid; new pure-red240 is not the same input.",
+      "Constant quarter cone with candidate glint is exact/within1byte for15of29 default-v1 full buffers; all five continuous gradients and several equal-histogram layouts still refute general acceptance.",
+      "Centered red squares20,22,24,26 share a conditional coefficient near0.66; square28/30 instead agree with quarter cone. An extent/population switch is constrained, not identified.",
+      "Mean-only and dispersion angular candidates remain unaccepted: their continuous-distribution errors are not repaired by selecting a different fixed cone coefficient."
+    ],
+    "nextImplementationStep": "Derive the angular statistic and amplitude-selection rule from the full default-v1 buffers, retaining signed rounding bounds and independent spatial geometry. Separate green-zero behavior and red255 recording/replay behavior from ordinary colors. Do not enable fitted per-case branches.",
+    "inputSHA256": {
+      "build/qa/redeye-model-mixture-mean-v1-2026-10-28.json": "a9b138d57a229edd5429e7bb86dc4e63d38089866ba5ebf0bb9f969aac4107a1"
+    },
+    "cases": [
+      {
+        "name": "model-control-red",
+        "sourceSHA256": "7b8431dfe40de151499765feb6b9384bee5007d17c6e48716b29856f0d488464",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 1024
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "same-job-control",
+          "description": "Opaque uniform red quarter-cone baseline.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "bf17b6f5162643240954e828d3ea8533209457c02a231434405bcd8585054e89",
+          "created-v2": "bf17b6f5162643240954e828d3ea8533209457c02a231434405bcd8585054e89",
+          "direct-v1": "bf17b6f5162643240954e828d3ea8533209457c02a231434405bcd8585054e89",
+          "created-v1": "bf17b6f5162643240954e828d3ea8533209457c02a231434405bcd8585054e89",
+          "file-v1": "bf17b6f5162643240954e828d3ea8533209457c02a231434405bcd8585054e89",
+          "file-v2": "bf17b6f5162643240954e828d3ea8533209457c02a231434405bcd8585054e89"
+        },
+        "center15_15": {
+          "direct-v2": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "created-v2": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "direct-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "created-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "file-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "file-v2": [
+            206,
+            36,
+            26,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24981610438310423,
+          0.2500693390054947
+        ]
+      },
+      {
+        "name": "model-control-gray",
+        "sourceSHA256": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 1024
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "same-job-control",
+          "description": "Opaque gray identity control.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d",
+          "created-v2": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d",
+          "direct-v1": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d",
+          "created-v1": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d",
+          "file-v1": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d",
+          "file-v2": "5b2c573a1907eeaad3efae519f21eb366149127f0558bcb78f50d490ad76147d"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": null
+      },
+      {
+        "name": "model-hist-square24",
+        "sourceSHA256": "d90eb4b5ae906c45996882d108b5bf1e46b9dc16e206e6a49aa7a35317225b22",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 448
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 576
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "matched-histogram",
+          "description": "Red square[4,4,28,28],576red/448gray; same-job anchor to prior24-shape amplitude.",
+          "matchedHistogramGroup": "576red448gray"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "b9cdea006d64ad210391c4e5d9eebe3af98dde509bd30bc72d021814e25cf356",
+          "created-v2": "b9cdea006d64ad210391c4e5d9eebe3af98dde509bd30bc72d021814e25cf356",
+          "direct-v1": "b9cdea006d64ad210391c4e5d9eebe3af98dde509bd30bc72d021814e25cf356",
+          "created-v1": "b9cdea006d64ad210391c4e5d9eebe3af98dde509bd30bc72d021814e25cf356",
+          "file-v1": "b9cdea006d64ad210391c4e5d9eebe3af98dde509bd30bc72d021814e25cf356",
+          "file-v2": "b9cdea006d64ad210391c4e5d9eebe3af98dde509bd30bc72d021814e25cf356"
+        },
+        "center15_15": {
+          "direct-v2": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "created-v2": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "direct-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "created-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "file-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "file-v2": [
+            149,
+            61,
+            51,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 260,
+          "maxByteDelta": 57
+        },
+        "candidateConeConstraint": [
+          0.6589622621680713,
+          0.6602346791989161
+        ]
+      },
+      {
+        "name": "model-hist-permuted",
+        "sourceSHA256": "60675110b97a52934b05be5ff841eb28a71b41dc962c5690a462afdd7b954812",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 448
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 576
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "matched-histogram",
+          "description": "Red iff(73*linearIndex+19)mod1024<576; exact histogram, distributed extent32.",
+          "matchedHistogramGroup": "576red448gray"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "a7018ade0a1918b0243602915333bb8afd605ed9957787625bc3269688b9e034",
+          "created-v2": "a7018ade0a1918b0243602915333bb8afd605ed9957787625bc3269688b9e034",
+          "direct-v1": "a7018ade0a1918b0243602915333bb8afd605ed9957787625bc3269688b9e034",
+          "created-v1": "a7018ade0a1918b0243602915333bb8afd605ed9957787625bc3269688b9e034",
+          "file-v1": "a7018ade0a1918b0243602915333bb8afd605ed9957787625bc3269688b9e034",
+          "file-v2": "a7018ade0a1918b0243602915333bb8afd605ed9957787625bc3269688b9e034"
+        },
+        "center15_15": {
+          "direct-v2": [
+            130,
+            70,
+            60,
+            255
+          ],
+          "created-v2": [
+            130,
+            70,
+            60,
+            255
+          ],
+          "direct-v1": [
+            130,
+            70,
+            60,
+            255
+          ],
+          "created-v1": [
+            130,
+            70,
+            60,
+            255
+          ],
+          "file-v1": [
+            130,
+            70,
+            60,
+            255
+          ],
+          "file-v2": [
+            130,
+            70,
+            60,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 272,
+          "maxByteDelta": 68
+        },
+        "candidateConeConstraint": [
+          27686.886431282273,
+          0.4139106709243195
+        ]
+      },
+      {
+        "name": "model-hist-two-rectangles",
+        "sourceSHA256": "782b5745799db4836ce5455937db549d554bd7a785b3e87afbfdb78fca89ef87",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 448
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 576
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "matched-histogram",
+          "description": "Red rectangles[0,4,12,28]and[20,4,32,28],exact576red/448gray.",
+          "matchedHistogramGroup": "576red448gray"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "cb237d633ae931423a3f43f28ae6fc6957d902e52f08e3b09a7d36895649388c",
+          "created-v2": "cb237d633ae931423a3f43f28ae6fc6957d902e52f08e3b09a7d36895649388c",
+          "direct-v1": "cb237d633ae931423a3f43f28ae6fc6957d902e52f08e3b09a7d36895649388c",
+          "created-v1": "cb237d633ae931423a3f43f28ae6fc6957d902e52f08e3b09a7d36895649388c",
+          "file-v1": "cb237d633ae931423a3f43f28ae6fc6957d902e52f08e3b09a7d36895649388c",
+          "file-v2": "cb237d633ae931423a3f43f28ae6fc6957d902e52f08e3b09a7d36895649388c"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 196,
+          "maxByteDelta": 28
+        },
+        "candidateConeConstraint": [
+          0.6597554750173454,
+          0.6604551797036475
+        ]
+      },
+      {
+        "name": "model-hist-center-rows",
+        "sourceSHA256": "96ca059b28befee5b1974686d470273109273db958593d0461a48828f176b03a",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 448
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 576
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "matched-histogram",
+          "description": "Red rows7..<25,576red/448gray; centered32x18extent.",
+          "matchedHistogramGroup": "576red448gray"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "7eecbe53187b6730fa2ba433f607b1e21498260911e3003455862c7c257c9fb1",
+          "created-v2": "7eecbe53187b6730fa2ba433f607b1e21498260911e3003455862c7c257c9fb1",
+          "direct-v1": "7eecbe53187b6730fa2ba433f607b1e21498260911e3003455862c7c257c9fb1",
+          "created-v1": "7eecbe53187b6730fa2ba433f607b1e21498260911e3003455862c7c257c9fb1",
+          "file-v1": "7eecbe53187b6730fa2ba433f607b1e21498260911e3003455862c7c257c9fb1",
+          "file-v2": "7eecbe53187b6730fa2ba433f607b1e21498260911e3003455862c7c257c9fb1"
+        },
+        "center15_15": {
+          "direct-v2": [
+            131,
+            70,
+            60,
+            255
+          ],
+          "created-v2": [
+            131,
+            70,
+            60,
+            255
+          ],
+          "direct-v1": [
+            131,
+            70,
+            60,
+            255
+          ],
+          "created-v1": [
+            131,
+            70,
+            60,
+            255
+          ],
+          "file-v1": [
+            131,
+            70,
+            60,
+            255
+          ],
+          "file-v2": [
+            131,
+            70,
+            60,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 300,
+          "maxByteDelta": 50
+        },
+        "candidateConeConstraint": [
+          0.6597554750173454,
+          0.6600190750800763
+        ]
+      },
+      {
+        "name": "model-hist-center-gray",
+        "sourceSHA256": "a1da375991ea8b7edddb7caa9cec9a1ceecf3e048349299421218112f7bf0238",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 448
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 576
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "matched-histogram",
+          "description": "Gray rectangle[8,2,24,30],448gray/576red; red extent32.",
+          "matchedHistogramGroup": "576red448gray"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "5d0a7c2ffd7f3948c6faf59a5401fcee840921315760826f9aafe42dcea517c8",
+          "created-v2": "5d0a7c2ffd7f3948c6faf59a5401fcee840921315760826f9aafe42dcea517c8",
+          "direct-v1": "5d0a7c2ffd7f3948c6faf59a5401fcee840921315760826f9aafe42dcea517c8",
+          "created-v1": "5d0a7c2ffd7f3948c6faf59a5401fcee840921315760826f9aafe42dcea517c8",
+          "file-v1": "5d0a7c2ffd7f3948c6faf59a5401fcee840921315760826f9aafe42dcea517c8",
+          "file-v2": "5d0a7c2ffd7f3948c6faf59a5401fcee840921315760826f9aafe42dcea517c8"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 4,
+          "maxByteDelta": 2
+        },
+        "candidateConeConstraint": [
+          0.616471521210137,
+          0.6605052012965752
+        ]
+      },
+      {
+        "name": "model-gray-hole2",
+        "sourceSHA256": "d763fa64891f46596f57c24546b92cf38df55e2931e02486dc7d5700e9cb80e6",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 4
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 1020
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered gray square size2 on otherwise red source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "f7263d0934ff18003b1f23d7dcccf97c5900767b217d6790202590ebba02ab65",
+          "created-v2": "f7263d0934ff18003b1f23d7dcccf97c5900767b217d6790202590ebba02ab65",
+          "direct-v1": "f7263d0934ff18003b1f23d7dcccf97c5900767b217d6790202590ebba02ab65",
+          "created-v1": "f7263d0934ff18003b1f23d7dcccf97c5900767b217d6790202590ebba02ab65",
+          "file-v1": "f7263d0934ff18003b1f23d7dcccf97c5900767b217d6790202590ebba02ab65",
+          "file-v2": "f7263d0934ff18003b1f23d7dcccf97c5900767b217d6790202590ebba02ab65"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.2495458951560826,
+          0.2506615756156836
+        ]
+      },
+      {
+        "name": "model-gray-hole4",
+        "sourceSHA256": "554e63e7d6c6f72bab30abb7ade744ce2a9573e332b58d8748def132ee741b41",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 16
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 1008
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered gray square size4 on otherwise red source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "282d9bffcc90f8cb3c4a5221d13e4116e91bdbacc5ef79c2ed73deef221e57c4",
+          "created-v2": "282d9bffcc90f8cb3c4a5221d13e4116e91bdbacc5ef79c2ed73deef221e57c4",
+          "direct-v1": "282d9bffcc90f8cb3c4a5221d13e4116e91bdbacc5ef79c2ed73deef221e57c4",
+          "created-v1": "282d9bffcc90f8cb3c4a5221d13e4116e91bdbacc5ef79c2ed73deef221e57c4",
+          "file-v1": "282d9bffcc90f8cb3c4a5221d13e4116e91bdbacc5ef79c2ed73deef221e57c4",
+          "file-v2": "282d9bffcc90f8cb3c4a5221d13e4116e91bdbacc5ef79c2ed73deef221e57c4"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 1
+        },
+        "candidateConeConstraint": [
+          0.2495458951560826,
+          0.2506615756156836
+        ]
+      },
+      {
+        "name": "model-gray-hole8",
+        "sourceSHA256": "3a206b3a4c86acb464ba484ecbd9da5554754176a2e7c604c5498055aa2970a1",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 64
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 960
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered gray square size8 on otherwise red source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "8efbf8667ce9744103fac8be1e9a277ecd7dbd67753e0e13b1f5d22f14867199",
+          "created-v2": "8efbf8667ce9744103fac8be1e9a277ecd7dbd67753e0e13b1f5d22f14867199",
+          "direct-v1": "8efbf8667ce9744103fac8be1e9a277ecd7dbd67753e0e13b1f5d22f14867199",
+          "created-v1": "8efbf8667ce9744103fac8be1e9a277ecd7dbd67753e0e13b1f5d22f14867199",
+          "file-v1": "8efbf8667ce9744103fac8be1e9a277ecd7dbd67753e0e13b1f5d22f14867199",
+          "file-v2": "8efbf8667ce9744103fac8be1e9a277ecd7dbd67753e0e13b1f5d22f14867199"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 1
+        },
+        "candidateConeConstraint": [
+          0.2495458951560824,
+          0.2506615756156836
+        ]
+      },
+      {
+        "name": "model-gray-hole16",
+        "sourceSHA256": "63dd521fb47d1fb5844ed6f7601f4e61badd3ebfde19ffddd01a2b477eda44aa",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 256
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 768
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered gray square size16 on otherwise red source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "872d8246a4b277fe2c5e15e7c0686f277e236091ed3b190f7a1cecbfd7562bbe",
+          "created-v2": "872d8246a4b277fe2c5e15e7c0686f277e236091ed3b190f7a1cecbfd7562bbe",
+          "direct-v1": "872d8246a4b277fe2c5e15e7c0686f277e236091ed3b190f7a1cecbfd7562bbe",
+          "created-v1": "872d8246a4b277fe2c5e15e7c0686f277e236091ed3b190f7a1cecbfd7562bbe",
+          "file-v1": "872d8246a4b277fe2c5e15e7c0686f277e236091ed3b190f7a1cecbfd7562bbe",
+          "file-v2": "872d8246a4b277fe2c5e15e7c0686f277e236091ed3b190f7a1cecbfd7562bbe"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 1
+        },
+        "candidateConeConstraint": null
+      },
+      {
+        "name": "model-red-square20",
+        "sourceSHA256": "66f2ab3dcbc006df8dff7695c943dee601e5287218b048e787b7c685a8ce3f28",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 624
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 400
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered red square size20 on gray source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "c8dc531fcfa0dd9e305ebcfa7fc2cefd4d9666602a39baaf37c9fcd58bab1bec",
+          "created-v2": "c8dc531fcfa0dd9e305ebcfa7fc2cefd4d9666602a39baaf37c9fcd58bab1bec",
+          "direct-v1": "c8dc531fcfa0dd9e305ebcfa7fc2cefd4d9666602a39baaf37c9fcd58bab1bec",
+          "created-v1": "c8dc531fcfa0dd9e305ebcfa7fc2cefd4d9666602a39baaf37c9fcd58bab1bec",
+          "file-v1": "c8dc531fcfa0dd9e305ebcfa7fc2cefd4d9666602a39baaf37c9fcd58bab1bec",
+          "file-v2": "c8dc531fcfa0dd9e305ebcfa7fc2cefd4d9666602a39baaf37c9fcd58bab1bec"
+        },
+        "center15_15": {
+          "direct-v2": [
+            135,
+            68,
+            58,
+            255
+          ],
+          "created-v2": [
+            135,
+            68,
+            58,
+            255
+          ],
+          "direct-v1": [
+            135,
+            68,
+            58,
+            255
+          ],
+          "created-v1": [
+            135,
+            68,
+            58,
+            255
+          ],
+          "file-v1": [
+            135,
+            68,
+            58,
+            255
+          ],
+          "file-v2": [
+            135,
+            68,
+            58,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 120,
+          "maxByteDelta": 44
+        },
+        "candidateConeConstraint": [
+          0.6591435692673411,
+          0.660142209355891
+        ]
+      },
+      {
+        "name": "model-red-square22",
+        "sourceSHA256": "700ef578cbc75cb9497812f0a942d9b8c076caeaea2ada7253793418dc1d534a",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 540
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 484
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered red square size22 on gray source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "78c007ac5fc5d45a408de0a20b5a4fe850e538ed48e5eba917130e560fd17a55",
+          "created-v2": "78c007ac5fc5d45a408de0a20b5a4fe850e538ed48e5eba917130e560fd17a55",
+          "direct-v1": "78c007ac5fc5d45a408de0a20b5a4fe850e538ed48e5eba917130e560fd17a55",
+          "created-v1": "78c007ac5fc5d45a408de0a20b5a4fe850e538ed48e5eba917130e560fd17a55",
+          "file-v1": "78c007ac5fc5d45a408de0a20b5a4fe850e538ed48e5eba917130e560fd17a55",
+          "file-v2": "78c007ac5fc5d45a408de0a20b5a4fe850e538ed48e5eba917130e560fd17a55"
+        },
+        "center15_15": {
+          "direct-v2": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "created-v2": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "direct-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "created-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "file-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "file-v2": [
+            149,
+            61,
+            51,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 172,
+          "maxByteDelta": 57
+        },
+        "candidateConeConstraint": [
+          0.6598593544015926,
+          0.6602346791989161
+        ]
+      },
+      {
+        "name": "model-red-square26",
+        "sourceSHA256": "0aa86f724c7a3d58b6b6f513fae23ee93f8531ba4b7cd56655c15a9f74d8c1ce",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 348
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 676
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered red square size26 on gray source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "9765e6fedf8db9d4244d6e77e84acdc83950d146bce0844596ca02c0f6dae55d",
+          "created-v2": "9765e6fedf8db9d4244d6e77e84acdc83950d146bce0844596ca02c0f6dae55d",
+          "direct-v1": "9765e6fedf8db9d4244d6e77e84acdc83950d146bce0844596ca02c0f6dae55d",
+          "created-v1": "9765e6fedf8db9d4244d6e77e84acdc83950d146bce0844596ca02c0f6dae55d",
+          "file-v1": "9765e6fedf8db9d4244d6e77e84acdc83950d146bce0844596ca02c0f6dae55d",
+          "file-v2": "9765e6fedf8db9d4244d6e77e84acdc83950d146bce0844596ca02c0f6dae55d"
+        },
+        "center15_15": {
+          "direct-v2": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "created-v2": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "direct-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "created-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "file-v1": [
+            149,
+            61,
+            51,
+            255
+          ],
+          "file-v2": [
+            149,
+            61,
+            51,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 340,
+          "maxByteDelta": 57
+        },
+        "candidateConeConstraint": [
+          0.6598915578253728,
+          0.6600572725420731
+        ]
+      },
+      {
+        "name": "model-red-square28",
+        "sourceSHA256": "7de1f97a9bf8d25a1a98fbe79ea5cb9bfa75627de46672caf132ea10c26c7fe1",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 240
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 784
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered red square size28 on gray source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "bb1efb37dc9bcf682a35217d4c2793b6ae135cc31e9aa4f93ced477a89682f92",
+          "created-v2": "bb1efb37dc9bcf682a35217d4c2793b6ae135cc31e9aa4f93ced477a89682f92",
+          "direct-v1": "bb1efb37dc9bcf682a35217d4c2793b6ae135cc31e9aa4f93ced477a89682f92",
+          "created-v1": "bb1efb37dc9bcf682a35217d4c2793b6ae135cc31e9aa4f93ced477a89682f92",
+          "file-v1": "bb1efb37dc9bcf682a35217d4c2793b6ae135cc31e9aa4f93ced477a89682f92",
+          "file-v2": "bb1efb37dc9bcf682a35217d4c2793b6ae135cc31e9aa4f93ced477a89682f92"
+        },
+        "center15_15": {
+          "direct-v2": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "created-v2": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "direct-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "created-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "file-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "file-v2": [
+            206,
+            36,
+            26,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 1
+        },
+        "candidateConeConstraint": [
+          0.24981610438310423,
+          0.2500693390054947
+        ]
+      },
+      {
+        "name": "model-red-square30",
+        "sourceSHA256": "25058483775597a89a815c5307c22c19176020a9eca2890209cfe2640c11141b",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 124
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 900
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "holes-borders",
+          "description": "Centered red square size30 on gray source; full32ROI.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "8960f829790844bc4f06bb421fb6ec353e2ec9afa883aaf9c5eae60a7ae22ee8",
+          "created-v2": "8960f829790844bc4f06bb421fb6ec353e2ec9afa883aaf9c5eae60a7ae22ee8",
+          "direct-v1": "8960f829790844bc4f06bb421fb6ec353e2ec9afa883aaf9c5eae60a7ae22ee8",
+          "created-v1": "8960f829790844bc4f06bb421fb6ec353e2ec9afa883aaf9c5eae60a7ae22ee8",
+          "file-v1": "8960f829790844bc4f06bb421fb6ec353e2ec9afa883aaf9c5eae60a7ae22ee8",
+          "file-v2": "8960f829790844bc4f06bb421fb6ec353e2ec9afa883aaf9c5eae60a7ae22ee8"
+        },
+        "center15_15": {
+          "direct-v2": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "created-v2": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "direct-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "created-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "file-v1": [
+            206,
+            36,
+            26,
+            255
+          ],
+          "file-v2": [
+            206,
+            36,
+            26,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24981610438310423,
+          0.2500693390054947
+        ]
+      },
+      {
+        "name": "model-channel-g0-uniform",
+        "sourceSHA256": "4643a50c3d2d7d649dbf591af12103f9f9e60956cd39bef261d9cb1d113d930c",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              240,
+              0,
+              10,
+              255
+            ],
+            "count": 1024
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(240,0,10,255); no hole.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "d5549b649f31e6f2e9b9a94483076cc161fadfe93f347e13829b1ea28942390d",
+          "created-v2": "d5549b649f31e6f2e9b9a94483076cc161fadfe93f347e13829b1ea28942390d",
+          "direct-v1": "d5549b649f31e6f2e9b9a94483076cc161fadfe93f347e13829b1ea28942390d",
+          "created-v1": "d5549b649f31e6f2e9b9a94483076cc161fadfe93f347e13829b1ea28942390d",
+          "file-v1": "d5549b649f31e6f2e9b9a94483076cc161fadfe93f347e13829b1ea28942390d",
+          "file-v2": "d5549b649f31e6f2e9b9a94483076cc161fadfe93f347e13829b1ea28942390d"
+        },
+        "center15_15": {
+          "direct-v2": [
+            204,
+            16,
+            26,
+            255
+          ],
+          "created-v2": [
+            204,
+            16,
+            26,
+            255
+          ],
+          "direct-v1": [
+            204,
+            16,
+            26,
+            255
+          ],
+          "created-v1": [
+            204,
+            16,
+            26,
+            255
+          ],
+          "file-v1": [
+            204,
+            16,
+            26,
+            255
+          ],
+          "file-v2": [
+            204,
+            16,
+            26,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24983715883728652,
+          0.2500686990285876
+        ]
+      },
+      {
+        "name": "model-channel-g0-gray-hole",
+        "sourceSHA256": "bd4ca3bf76ff587893c0518ea704f94ce4e9bca47c0e156597ca0e14f8764c36",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 1
+          },
+          {
+            "rgba": [
+              240,
+              0,
+              10,
+              255
+            ],
+            "count": 1023
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(240,0,10,255) with gray96 at15,15.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "f1c16a66252ce9d21a3100deea93e0934b41919273365918dab7bdf5e8cae0e4",
+          "created-v2": "f1c16a66252ce9d21a3100deea93e0934b41919273365918dab7bdf5e8cae0e4",
+          "direct-v1": "f1c16a66252ce9d21a3100deea93e0934b41919273365918dab7bdf5e8cae0e4",
+          "created-v1": "f1c16a66252ce9d21a3100deea93e0934b41919273365918dab7bdf5e8cae0e4",
+          "file-v1": "f1c16a66252ce9d21a3100deea93e0934b41919273365918dab7bdf5e8cae0e4",
+          "file-v2": "f1c16a66252ce9d21a3100deea93e0934b41919273365918dab7bdf5e8cae0e4"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 9,
+          "maxByteDelta": 5
+        },
+        "candidateConeConstraint": [
+          180.09848521398453,
+          0.2502708655739497
+        ]
+      },
+      {
+        "name": "model-channel-b0-uniform",
+        "sourceSHA256": "40de8644b78d46963b1d636013c1fc6ee089ffacbbee36e29b2f2b2fe9647f73",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              240,
+              20,
+              0,
+              255
+            ],
+            "count": 1024
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(240,20,0,255); no hole.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "5fb060bc4e03801d1195962a7376a056d1da014d035bd5c34021ee3270160485",
+          "created-v2": "5fb060bc4e03801d1195962a7376a056d1da014d035bd5c34021ee3270160485",
+          "direct-v1": "5fb060bc4e03801d1195962a7376a056d1da014d035bd5c34021ee3270160485",
+          "created-v1": "5fb060bc4e03801d1195962a7376a056d1da014d035bd5c34021ee3270160485",
+          "file-v1": "5fb060bc4e03801d1195962a7376a056d1da014d035bd5c34021ee3270160485",
+          "file-v2": "5fb060bc4e03801d1195962a7376a056d1da014d035bd5c34021ee3270160485"
+        },
+        "center15_15": {
+          "direct-v2": [
+            206,
+            36,
+            16,
+            255
+          ],
+          "created-v2": [
+            206,
+            36,
+            16,
+            255
+          ],
+          "direct-v1": [
+            206,
+            36,
+            16,
+            255
+          ],
+          "created-v1": [
+            206,
+            36,
+            16,
+            255
+          ],
+          "file-v1": [
+            206,
+            36,
+            16,
+            255
+          ],
+          "file-v2": [
+            206,
+            36,
+            16,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24981610438310423,
+          0.2500693390054947
+        ]
+      },
+      {
+        "name": "model-channel-b0-gray-hole",
+        "sourceSHA256": "645bf5adfc006b928f906e020e26caf66fa05baa2b996043bb96d6378c23f671",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 1
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              0,
+              255
+            ],
+            "count": 1023
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(240,20,0,255) with gray96 at15,15.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "4bf3b8d2f103d98d27a034be254cc759a674cc10e2687104074df3e923c5136b",
+          "created-v2": "4bf3b8d2f103d98d27a034be254cc759a674cc10e2687104074df3e923c5136b",
+          "direct-v1": "4bf3b8d2f103d98d27a034be254cc759a674cc10e2687104074df3e923c5136b",
+          "created-v1": "4bf3b8d2f103d98d27a034be254cc759a674cc10e2687104074df3e923c5136b",
+          "file-v1": "4bf3b8d2f103d98d27a034be254cc759a674cc10e2687104074df3e923c5136b",
+          "file-v2": "4bf3b8d2f103d98d27a034be254cc759a674cc10e2687104074df3e923c5136b"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.2495458951560826,
+          0.2506615756156836
+        ]
+      },
+      {
+        "name": "model-channel-gb0-uniform",
+        "sourceSHA256": "1d353500b85c1dc170c3a41eb23775a42e152a56c979543343e3140abbfc1ff0",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              240,
+              0,
+              0,
+              255
+            ],
+            "count": 1024
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(240,0,0,255); no hole.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": false
+        },
+        "stageSHA256": {
+          "direct-v2": "6004b8fd1aaab8096b382acafa8e94f341ae05115f414de86221694cdb290a6c",
+          "created-v2": "6004b8fd1aaab8096b382acafa8e94f341ae05115f414de86221694cdb290a6c",
+          "direct-v1": "6004b8fd1aaab8096b382acafa8e94f341ae05115f414de86221694cdb290a6c",
+          "created-v1": "6004b8fd1aaab8096b382acafa8e94f341ae05115f414de86221694cdb290a6c",
+          "file-v1": "6004b8fd1aaab8096b382acafa8e94f341ae05115f414de86221694cdb290a6c",
+          "file-v2": "5507f0511c25e16dc2b036ae009b2b4a452c08ee74a0ecdc20bbde562922ba10"
+        },
+        "center15_15": {
+          "direct-v2": [
+            202,
+            17,
+            17,
+            255
+          ],
+          "created-v2": [
+            202,
+            17,
+            17,
+            255
+          ],
+          "direct-v1": [
+            202,
+            17,
+            17,
+            255
+          ],
+          "created-v1": [
+            202,
+            17,
+            17,
+            255
+          ],
+          "file-v1": [
+            202,
+            17,
+            17,
+            255
+          ],
+          "file-v2": [
+            127,
+            51,
+            51,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24994156180345775,
+          0.25006999140547626
+        ]
+      },
+      {
+        "name": "model-channel-gb0-gray-hole",
+        "sourceSHA256": "430883927f8232c2f0dde54749f85bef7a12e4a2b6408d42666a29675f4109f9",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 1
+          },
+          {
+            "rgba": [
+              240,
+              0,
+              0,
+              255
+            ],
+            "count": 1023
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(240,0,0,255) with gray96 at15,15.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": false
+        },
+        "stageSHA256": {
+          "direct-v2": "4489e05652e954ab2fe0b1c32021a797cb1debff150d181a8bac38adbcb3cb09",
+          "created-v2": "4489e05652e954ab2fe0b1c32021a797cb1debff150d181a8bac38adbcb3cb09",
+          "direct-v1": "4489e05652e954ab2fe0b1c32021a797cb1debff150d181a8bac38adbcb3cb09",
+          "created-v1": "4489e05652e954ab2fe0b1c32021a797cb1debff150d181a8bac38adbcb3cb09",
+          "file-v1": "4489e05652e954ab2fe0b1c32021a797cb1debff150d181a8bac38adbcb3cb09",
+          "file-v2": "8d313a8dfb88655aab37f3e057ec09033ea3709f7b443414d164485c4dc0e42e"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24994156180345775,
+          0.25006999140547626
+        ]
+      },
+      {
+        "name": "model-channel-r255-uniform",
+        "sourceSHA256": "9aead4aeead0bf2fcb56fca92d8f30b91ef8fe106192eb9dfc1ad0ee834c3ea6",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              255,
+              20,
+              10,
+              255
+            ],
+            "count": 1024
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(255,20,10,255); no hole.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "8665d024b5cac9de8bd353ae5ac4e62e1fca3b64aec9df7225190aeda73178b6",
+          "created-v2": "8665d024b5cac9de8bd353ae5ac4e62e1fca3b64aec9df7225190aeda73178b6",
+          "direct-v1": "8665d024b5cac9de8bd353ae5ac4e62e1fca3b64aec9df7225190aeda73178b6",
+          "created-v1": "8665d024b5cac9de8bd353ae5ac4e62e1fca3b64aec9df7225190aeda73178b6",
+          "file-v1": "8665d024b5cac9de8bd353ae5ac4e62e1fca3b64aec9df7225190aeda73178b6",
+          "file-v2": "8665d024b5cac9de8bd353ae5ac4e62e1fca3b64aec9df7225190aeda73178b6"
+        },
+        "center15_15": {
+          "direct-v2": [
+            218,
+            37,
+            27,
+            255
+          ],
+          "created-v2": [
+            218,
+            37,
+            27,
+            255
+          ],
+          "direct-v1": [
+            218,
+            37,
+            27,
+            255
+          ],
+          "created-v1": [
+            218,
+            37,
+            27,
+            255
+          ],
+          "file-v1": [
+            218,
+            37,
+            27,
+            255
+          ],
+          "file-v2": [
+            218,
+            37,
+            27,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.24982662903027755,
+          0.25061596672881425
+        ]
+      },
+      {
+        "name": "model-channel-r255-gray-hole",
+        "sourceSHA256": "b5c1221060e97236103c8aeca28f76e20878204c1fcc7fe7c0637bc9f022ce88",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              96,
+              96,
+              96,
+              255
+            ],
+            "count": 1
+          },
+          {
+            "rgba": [
+              255,
+              20,
+              10,
+              255
+            ],
+            "count": 1023
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "zero-channel",
+          "description": "Uniform RGBA(255,20,10,255) with gray96 at15,15.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "a37abb1ec15dc9241ebe6b0dba88d79ab273a3bdd3c7d930c48c50f1a8147800",
+          "created-v2": "a37abb1ec15dc9241ebe6b0dba88d79ab273a3bdd3c7d930c48c50f1a8147800",
+          "direct-v1": "a37abb1ec15dc9241ebe6b0dba88d79ab273a3bdd3c7d930c48c50f1a8147800",
+          "created-v1": "a37abb1ec15dc9241ebe6b0dba88d79ab273a3bdd3c7d930c48c50f1a8147800",
+          "file-v1": "a37abb1ec15dc9241ebe6b0dba88d79ab273a3bdd3c7d930c48c50f1a8147800",
+          "file-v2": "a37abb1ec15dc9241ebe6b0dba88d79ab273a3bdd3c7d930c48c50f1a8147800"
+        },
+        "center15_15": {
+          "direct-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v2": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "direct-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "created-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v1": [
+            96,
+            96,
+            96,
+            255
+          ],
+          "file-v2": [
+            96,
+            96,
+            96,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 0,
+          "maxByteDelta": 0
+        },
+        "candidateConeConstraint": [
+          0.2498226112226615,
+          0.25104204726288476
+        ]
+      },
+      {
+        "name": "model-gradient-red-x",
+        "sourceSHA256": "0c501e1288e57e4f2131c35a74ceefe44f70ae5ae0d609e21da39a213bf348f0",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              32,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              38,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              45,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              52,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              58,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              65,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              72,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              78,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              85,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              92,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              99,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              105,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              112,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              119,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              125,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              132,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              139,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              146,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              152,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              159,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              166,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              172,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              179,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              186,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              193,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              199,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              206,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              213,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              219,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              226,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              233,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "continuous-gradient",
+          "description": "R=32+floor(208*x/31),G20,B10.",
+          "matchedHistogramGroup": "red-gradient-axis-permutation"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "2f5b2e6d734ffedebf7bc810c4e6cb565261c665e83d10648f2524328ad2cd8c",
+          "created-v2": "2f5b2e6d734ffedebf7bc810c4e6cb565261c665e83d10648f2524328ad2cd8c",
+          "direct-v1": "2f5b2e6d734ffedebf7bc810c4e6cb565261c665e83d10648f2524328ad2cd8c",
+          "created-v1": "2f5b2e6d734ffedebf7bc810c4e6cb565261c665e83d10648f2524328ad2cd8c",
+          "file-v1": "2f5b2e6d734ffedebf7bc810c4e6cb565261c665e83d10648f2524328ad2cd8c",
+          "file-v2": "2f5b2e6d734ffedebf7bc810c4e6cb565261c665e83d10648f2524328ad2cd8c"
+        },
+        "center15_15": {
+          "direct-v2": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "created-v2": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "direct-v1": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "created-v1": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "file-v1": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "file-v2": [
+            114,
+            28,
+            18,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 506,
+          "maxByteDelta": 38
+        },
+        "candidateConeConstraint": [
+          1.359638870877817,
+          0.07000552952725213
+        ]
+      },
+      {
+        "name": "model-gradient-red-y",
+        "sourceSHA256": "65ad15ea0589d512652950466e619e9d750c942d0c5c335d7ab30f232a823da4",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              32,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              38,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              45,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              52,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              58,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              65,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              72,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              78,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              85,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              92,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              99,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              105,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              112,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              119,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              125,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              132,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              139,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              146,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              152,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              159,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              166,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              172,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              179,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              186,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              193,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              199,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              206,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              213,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              219,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              226,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              233,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "continuous-gradient",
+          "description": "R=32+floor(208*y/31),G20,B10; exact histogram match red-x.",
+          "matchedHistogramGroup": "red-gradient-axis-permutation"
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "9c2f49211984c43fca14af5bb040eadea7a309d424f55536859fbc315a336540",
+          "created-v2": "9c2f49211984c43fca14af5bb040eadea7a309d424f55536859fbc315a336540",
+          "direct-v1": "9c2f49211984c43fca14af5bb040eadea7a309d424f55536859fbc315a336540",
+          "created-v1": "9c2f49211984c43fca14af5bb040eadea7a309d424f55536859fbc315a336540",
+          "file-v1": "9c2f49211984c43fca14af5bb040eadea7a309d424f55536859fbc315a336540",
+          "file-v2": "9c2f49211984c43fca14af5bb040eadea7a309d424f55536859fbc315a336540"
+        },
+        "center15_15": {
+          "direct-v2": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "created-v2": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "direct-v1": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "created-v1": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "file-v1": [
+            114,
+            28,
+            18,
+            255
+          ],
+          "file-v2": [
+            114,
+            28,
+            18,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 506,
+          "maxByteDelta": 38
+        },
+        "candidateConeConstraint": [
+          1.359638870877817,
+          0.07000552952725213
+        ]
+      },
+      {
+        "name": "model-gradient-green-x",
+        "sourceSHA256": "292ea82bcdd7e6739adc32268c502ae82e92057c106c96a6b58450fa880435f5",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              240,
+              0,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              3,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              6,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              9,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              12,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              15,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              18,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              21,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              24,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              27,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              30,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              34,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              37,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              40,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              43,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              46,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              49,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              52,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              55,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              58,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              61,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              65,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              68,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              71,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              74,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              77,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              80,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              83,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              86,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              89,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              92,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              96,
+              10,
+              255
+            ],
+            "count": 32
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "continuous-gradient",
+          "description": "R240,G=floor(96*x/31),B10.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "64a32dc0cb9851ceca022a9acff662428e8118c9f5f778c483b2a128625af227",
+          "created-v2": "64a32dc0cb9851ceca022a9acff662428e8118c9f5f778c483b2a128625af227",
+          "direct-v1": "64a32dc0cb9851ceca022a9acff662428e8118c9f5f778c483b2a128625af227",
+          "created-v1": "64a32dc0cb9851ceca022a9acff662428e8118c9f5f778c483b2a128625af227",
+          "file-v1": "64a32dc0cb9851ceca022a9acff662428e8118c9f5f778c483b2a128625af227",
+          "file-v2": "64a32dc0cb9851ceca022a9acff662428e8118c9f5f778c483b2a128625af227"
+        },
+        "center15_15": {
+          "direct-v2": [
+            240,
+            46,
+            10,
+            255
+          ],
+          "created-v2": [
+            240,
+            46,
+            10,
+            255
+          ],
+          "direct-v1": [
+            240,
+            46,
+            10,
+            255
+          ],
+          "created-v1": [
+            240,
+            46,
+            10,
+            255
+          ],
+          "file-v1": [
+            240,
+            46,
+            10,
+            255
+          ],
+          "file-v2": [
+            240,
+            46,
+            10,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 540,
+          "maxByteDelta": 55
+        },
+        "candidateConeConstraint": [
+          18.962329059470346,
+          0.12645868262243348
+        ]
+      },
+      {
+        "name": "model-gradient-blue-x",
+        "sourceSHA256": "a825361eaa6660446536aed4ba6fac54ba4fce0d9ba97301a5266ec0f594c5ff",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              240,
+              20,
+              0,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              3,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              6,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              9,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              12,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              15,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              18,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              21,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              24,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              27,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              30,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              34,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              37,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              40,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              43,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              46,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              49,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              52,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              55,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              58,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              61,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              65,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              68,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              71,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              74,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              77,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              80,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              83,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              86,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              89,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              92,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              240,
+              20,
+              96,
+              255
+            ],
+            "count": 32
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "continuous-gradient",
+          "description": "R240,G20,B=floor(96*x/31).",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "c90326f63400395a47c9a3f8bc92b5ea288c0af66af50efcde162d13df1aad3b",
+          "created-v2": "c90326f63400395a47c9a3f8bc92b5ea288c0af66af50efcde162d13df1aad3b",
+          "direct-v1": "c90326f63400395a47c9a3f8bc92b5ea288c0af66af50efcde162d13df1aad3b",
+          "created-v1": "c90326f63400395a47c9a3f8bc92b5ea288c0af66af50efcde162d13df1aad3b",
+          "file-v1": "c90326f63400395a47c9a3f8bc92b5ea288c0af66af50efcde162d13df1aad3b",
+          "file-v2": "c90326f63400395a47c9a3f8bc92b5ea288c0af66af50efcde162d13df1aad3b"
+        },
+        "center15_15": {
+          "direct-v2": [
+            211,
+            33,
+            59,
+            255
+          ],
+          "created-v2": [
+            211,
+            33,
+            59,
+            255
+          ],
+          "direct-v1": [
+            211,
+            33,
+            59,
+            255
+          ],
+          "created-v1": [
+            211,
+            33,
+            59,
+            255
+          ],
+          "file-v1": [
+            211,
+            33,
+            59,
+            255
+          ],
+          "file-v2": [
+            211,
+            33,
+            59,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 436,
+          "maxByteDelta": 22
+        },
+        "candidateConeConstraint": [
+          0.7040477715242273,
+          0.02295049881213585
+        ]
+      },
+      {
+        "name": "model-gradient-brightness-x",
+        "sourceSHA256": "adb211b90a679b522af12955cc00c69eb8efb22873b394dcc460ea91a412a970",
+        "sourceHistogram": [
+          {
+            "rgba": [
+              7,
+              2,
+              1,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              14,
+              4,
+              2,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              21,
+              6,
+              3,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              28,
+              8,
+              4,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              35,
+              10,
+              5,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              42,
+              12,
+              6,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              49,
+              14,
+              7,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              56,
+              16,
+              8,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              63,
+              18,
+              9,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              70,
+              20,
+              10,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              77,
+              22,
+              11,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              84,
+              24,
+              12,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              91,
+              26,
+              13,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              98,
+              28,
+              14,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              105,
+              30,
+              15,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              112,
+              32,
+              16,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              119,
+              34,
+              17,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              126,
+              36,
+              18,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              133,
+              38,
+              19,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              140,
+              40,
+              20,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              147,
+              42,
+              21,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              154,
+              44,
+              22,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              161,
+              46,
+              23,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              168,
+              48,
+              24,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              175,
+              50,
+              25,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              182,
+              52,
+              26,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              189,
+              54,
+              27,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              196,
+              56,
+              28,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              203,
+              58,
+              29,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              210,
+              60,
+              30,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              217,
+              62,
+              31,
+              255
+            ],
+            "count": 32
+          },
+          {
+            "rgba": [
+              224,
+              64,
+              32,
+              255
+            ],
+            "count": 32
+          }
+        ],
+        "sourceDefinition": {
+          "width": 32,
+          "height": 32,
+          "group": "continuous-gradient",
+          "description": "R=7*(x+1),G=2*(x+1),B=x+1; exact fixed7:2:1chromaticity, allpositive.",
+          "matchedHistogramGroup": ""
+        },
+        "fileV1EqualsStage": {
+          "direct-v2": true,
+          "created-v2": true,
+          "direct-v1": true,
+          "created-v1": true,
+          "file-v1": true,
+          "file-v2": true
+        },
+        "stageSHA256": {
+          "direct-v2": "e1282828e8505e3123a6b4835beb349428b9369f2c642582ac17b4618ad8985c",
+          "created-v2": "e1282828e8505e3123a6b4835beb349428b9369f2c642582ac17b4618ad8985c",
+          "direct-v1": "e1282828e8505e3123a6b4835beb349428b9369f2c642582ac17b4618ad8985c",
+          "created-v1": "e1282828e8505e3123a6b4835beb349428b9369f2c642582ac17b4618ad8985c",
+          "file-v1": "e1282828e8505e3123a6b4835beb349428b9369f2c642582ac17b4618ad8985c",
+          "file-v2": "e1282828e8505e3123a6b4835beb349428b9369f2c642582ac17b4618ad8985c"
+        },
+        "center15_15": {
+          "direct-v2": [
+            84,
+            45,
+            29,
+            255
+          ],
+          "created-v2": [
+            84,
+            45,
+            29,
+            255
+          ],
+          "direct-v1": [
+            84,
+            45,
+            29,
+            255
+          ],
+          "created-v1": [
+            84,
+            45,
+            29,
+            255
+          ],
+          "file-v1": [
+            84,
+            45,
+            29,
+            255
+          ],
+          "file-v2": [
+            84,
+            45,
+            29,
+            255
+          ]
+        },
+        "quarterConeWithExplicitGlint": {
+          "comparedPixelCount": 1024,
+          "pixelsExceedingOne": 66,
+          "maxByteDelta": 19
+        },
+        "candidateConeConstraint": [
+          1.6634655699119665,
+          0.11057906244654862
+        ]
+      }
+    ]
+  },
+  "sha256": {
+    "docs/qa/metafile-spatial-effects-reference-2026-10-27/verify-model-reference.py": "8f8fbd41abc636574b9a858a1e7a0de92d948b33a6f16df34baed0f3aea0df27",
+    "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-model-discriminators.py": "108e5263e9dc957e6f6e289594d85616798d702ec1ad2abc7aaca7c2d7ea57fd",
+    "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-radial-composition.py": "003476236036d13b9d16fa3799052788af2ac5207eebd9a5400469b61ea7ec06",
+    "build/qa/redeye-model-mixture-mean-v1-2026-10-28.json": "a9b138d57a229edd5429e7bb86dc4e63d38089866ba5ebf0bb9f969aac4107a1",
+    "build/qa/redeye-model-mixture-mean-v2-2026-10-28.json": "8577c8a5560ed10d2a684f5cc1e0b77353aa818a191731eb4a63fd41a15241cb"
+  },
+  "production": "No renderer, Swift source, native app, Core test or tolerance change. General RedEye application remains disabled. No new Windows capture requested.",
+  "nextStep": "Derive the angular statistic and amplitude-selection rule from the full default-v1 buffers, retaining signed rounding bounds and independent spatial geometry. Separate green-zero behavior and red255 recording/replay behavior from ordinary colors. Do not enable fitted per-case branches."
+}

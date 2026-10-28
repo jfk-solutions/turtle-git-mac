@@ -1,0 +1,78 @@
+{
+  "scope": "Independent native Windows numerical observation and original mathematical analysis, not application verification",
+  "run": 40519989485,
+  "artifact": 12740622913,
+  "source": "0377e722c38e962b096a61edf2cee59a1d164d57",
+  "archiveSHA256": "86925a508d08c2b05081705179277c43c44c86b0decb53bb5097aaa4bd49231f",
+  "members": 148,
+  "assaySource": "SixCaseBlurCoefficientReference.cpp",
+  "analyzer": "analyze-blur-coefficients.py",
+  "sourceSHA256": "be79b74d2cc00e942aaa45014541a5d12d35c0789e9dfa2e48b518406fe8ff51",
+  "observations": {
+    "cases": 6,
+    "manifestModes": [
+      "generate",
+      "direct-v1",
+      "replay",
+      "replay-v1"
+    ],
+    "statusFields": 90,
+    "nonzeroStatuses": 0,
+    "requestedActualInputEqual": true,
+    "directCreatedEqual": true,
+    "v1v2DirectCreatedIntrinsicFinalPairComparisons": 24,
+    "v1v2Mismatches": 0,
+    "nonGrayDiagnosticSamples": 0,
+    "nonOpaqueDiagnosticSamples": 0
+  },
+  "coefficientResults": {
+    "allIsolated256SampleMapsAdmitNearestLinearCoefficientIntervals": true,
+    "allPairedMapsIndividuallyAdmitTwoCoefficients": true,
+    "isolatedProductIntervalsExcludeOneNormalizedGaussianExponent": {
+      "source1Output0Exponent": [
+        1.960503,
+        1.961444
+      ],
+      "source16Output20Exponent": [
+        1.957384,
+        1.959241
+      ]
+    },
+    "samePositionCounterexample": {
+      "outputX": 5,
+      "firstSourceX": 0,
+      "secondSourceX": 1,
+      "isolatedFirstCoefficientMinimum": 0.02287581699346405,
+      "isolatedSecondCoefficientMinimum": 0.04639175257731959,
+      "pairedFirstInput": 14,
+      "pairedSecondInput": 241,
+      "minimumLinearOutput": 11.50067380904252,
+      "actualNativeByte": 11,
+      "conclusion": "No common unquantized linear product coefficients with ordinary nearest rounding explain all isolated and paired maps at this same output position."
+    }
+  },
+  "candidateNotShippingProof": {
+    "model": "normalized exp(-1.96*(d/r)^2), nearest Q8 product accumulation, nearest byte output",
+    "newRelevantPixels": 13276,
+    "newPixelMismatches": 1,
+    "singleRemainingNewMismatch": {
+      "case": "blur-coefficient-paired-x0-x1",
+      "amplitude": 63,
+      "outputX": 1,
+      "continuousValue": 63.499862542936775,
+      "Q8Sum": 63.49609375,
+      "actualNativeByte": 64
+    },
+    "initialSmallCreatedProfiles": 308,
+    "maximumBlurByteError": 1,
+    "maximumSharpenByteError": 2,
+    "remainingGreaterThanOneProfile": "sharpen-asymmetric-r8-a100 (radius5)",
+    "remainingGreaterThanOneChannels": 9
+  },
+  "limits": [
+    "Kernel numeric finalization remains pending; no newly fitted coefficient table is accepted.",
+    "Large-radius pyramid branch analyzed independently.",
+    "Spatial family has not been built, application-tested, or declared complete."
+  ],
+  "implementationStatus": "Supported nearest-Q8 product profile integrated with unchanged analytic Gaussian weights; remaining precision and large-radius gaps stay open. No application validation claimed."
+}

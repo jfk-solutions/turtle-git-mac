@@ -117,6 +117,8 @@ private final class NativeImageEffects {
     private var calls = 0
     private var pixelsProcessed = 0
     private var curveData:Data?
+    private var spatialBudget=SpatialImageEffectBudget()
+    private var picturePlan:(width:Int,height:Int,needed:Bool)?
     /// Parameters are copied out of JavaScript before pixel work starts. No
     /// transform retains mutable script objects or changes an image-object cache.
     private enum Effect {
@@ -128,6 +130,7 @@ private final class NativeImageEffects {
         case levels(Int,Int,Int)
         case colorCurve(adjustment:Int,channel:Int,value:Int)
         case tint(hue:Int,amount:Int)
+        case spatial(SpatialImageEffect)
     }
     private enum PreparedEffect {
         case ordinary
@@ -158,6 +161,32 @@ private final class NativeImageEffects {
         guard number.isFinite,number.rounded()==number,number>=Double(range.lowerBound),number<=Double(range.upperBound) else {throw invalid("invalid "+key)}
         return Int(number)
     }
+    private func real(_ object:JSValue,_ key:String,range:ClosedRange<Double>)throws->Double {
+        guard let value=object.forProperty(key),value.isNumber else {throw invalid("missing "+key)}
+        let number=value.toDouble()
+        guard number.isFinite,range.contains(number) else {throw invalid("invalid "+key)}
+        return number
+    }
+    private func areas(_ object:JSValue)throws->[SpatialImageEffectRect] {
+        guard let values=object.forProperty("areas"),values.isArray,
+              let countValue=values.forProperty("length"),countValue.isNumber else {throw invalid("invalid red-eye areas")}
+        let size=countValue.toDouble()
+        guard size.isFinite,size>=1,size<=4096,size.rounded()==size else {throw invalid("invalid red-eye area count")}
+        return try (0..<Int(size)).map {index in
+            guard let area=values.atIndex(index),area.isArray,area.forProperty("length")?.toDouble()==4 else {throw invalid("invalid red-eye rectangle")}
+            let endpoints=try (0..<4).map {component->Int in
+                guard let item=area.atIndex(component),item.isNumber else {throw invalid("invalid red-eye rectangle endpoint")}
+                let number=item.toDouble()
+                guard number.isFinite,number.rounded()==number,number>=Double(Int32.min),number<=Double(Int32.max) else {throw invalid("invalid red-eye rectangle endpoint")}
+                return Int(number)
+            }
+            // Validate the complete wire profile before image decoding or an
+            // empty source-crop shortcut. Valid outside areas may skip paint;
+            // malformed later endpoints must still refuse the conversion.
+            guard endpoints[0]<endpoints[2],endpoints[1]<endpoints[3] else {throw invalid("invalid red-eye rectangle endpoints")}
+            return SpatialImageEffectRect(left:endpoints[0],top:endpoints[1],right:endpoints[2],bottom:endpoints[3])
+        }
+    }
     private func parse(_ object:JSValue)throws->Effect {
         guard object.isObject,!object.isArray,let kind=object.forProperty("kind"),kind.isString else {throw invalid("invalid effect object")}
         switch kind.toString() {
@@ -172,6 +201,11 @@ private final class NativeImageEffects {
             let range:ClosedRange<Int>=adjustment<2 ? -255...255:adjustment<6 ? -100...100:0...255
             return .colorCurve(adjustment:adjustment,channel:try integer(object,"channel",range:0...3),value:try integer(object,"adjustValue",range:range))
         case "tint":return .tint(hue:try integer(object,"hue",range:-180...180),amount:try integer(object,"amount",range:-100...100))
+        case "blur":
+            guard let expand=object.forProperty("expandEdge"),expand.isBoolean else {throw invalid("invalid blur expandEdge")}
+            return .spatial(.blur(radius:try real(object,"radius",range:0...255),expandEdge:expand.toBool()))
+        case "sharpen":return .spatial(.sharpen(radius:try real(object,"radius",range:0...255),amount:try real(object,"amount",range:0...100)))
+        case "redEyeCorrection":return .spatial(.redEyeCorrection(areas:try areas(object)))
         default:throw invalid("unsupported effect kind")
         }
     }
@@ -194,6 +228,7 @@ private final class NativeImageEffects {
             let identity=(0..<256).map{UInt8($0)}
             return .lookup((1...3).map {channel==0 || channel==$0 ? values:identity}+[identity])
         case .tint(let hue,let amount):return .rgb(tintTransform(hue,amount))
+        case .spatial:throw invalid("spatial effects require the geometry adapter")
         }
     }
     /// The complete finite integer Curve domain was captured from native
@@ -366,7 +401,7 @@ private final class NativeImageEffects {
     /// before multiplication matters for nonlinear effects at low alpha. This
     /// also exactly reproduces the earlier matrix/LUT captured draw bands.
     /// Other ImageIO layouts use bounded native RGBA conversion without scaling.
-    private func straightPixels(_ image:CGImage)throws->(bytes:Data,space:CGColorSpace) {
+    private func straightPixels(_ image:CGImage,normalizeStraight:Bool=true)throws->(bytes:Data,space:CGColorSpace) {
         let width=image.width,height=image.height
         var result=Data(count:width*height*4)
         let alpha=image.alphaInfo
@@ -390,7 +425,7 @@ private final class NativeImageEffects {
                 for channel in 0..<3 {
                     let value=sample((first && hasSlot ? 1:0)+(channels==1 ? 0:channel))
                     let associated=premultiplied ? value:(value*a+127)/255
-                    result[output+channel]=windowsUnassociate(associated,a)
+                    result[output+channel] = !normalizeStraight && !premultiplied ? UInt8(value):windowsUnassociate(associated,a)
                 }
                 result[output+3]=UInt8(a)
             }}
@@ -419,7 +454,7 @@ private final class NativeImageEffects {
     func prepareOrdinary(_ href:String,effectPipeline:Bool)throws->String {
         try transform(href,prepared:.ordinary,outputAssociations:effectPipeline ? 2:1)
     }
-    private func transform(_ href:String,prepared:PreparedEffect,outputAssociations:Int)throws->String {
+    private func decode(_ href:String,normalizeStraight:Bool=true)throws->(pixels:Data,width:Int,height:Int,space:CGColorSpace) {
         let prefix="data:image/png;base64,"
         guard href.hasPrefix(prefix),href.utf8.count<=outputLimit,
               let encoded=Data(base64Encoded:String(href.dropFirst(prefix.count))),encoded.count<=inputLimit,
@@ -436,8 +471,128 @@ private final class NativeImageEffects {
         // not rely on ImageIO selecting a particular alpha-storage layout.
         guard let image=CGImageSourceCreateImageAtIndex(source,0,[kCGImageSourceShouldCacheImmediately:false] as CFDictionary),
               CGImageSourceGetStatusAtIndex(source,0) == .statusComplete,image.width==width,image.height==height else {throw invalid("incomplete source PNG")}
-        let decoded=try straightPixels(image)
-        var output=decoded.bytes
+        let decoded=try straightPixels(image,normalizeStraight:normalizeStraight)
+        return (decoded.bytes,width,height,decoded.space)
+    }
+    func applySpatial(_ href:String,effect:JSValue,sourceRect:JSValue)throws->NSDictionary {
+        guard case .spatial(let requested)=try parse(effect) else {throw invalid("expected spatial effect")}
+        let decoded=try decode(href)
+        let range = -Double(Float.greatestFiniteMagnitude)...Double(Float.greatestFiniteMagnitude)
+        let x=try real(sourceRect,"x",range:range),y=try real(sourceRect,"y",range:range)
+        let w=try real(sourceRect,"w",range:0...Double(Float.greatestFiniteMagnitude))
+        let h=try real(sourceRect,"h",range:0...Double(Float.greatestFiniteMagnitude))
+        guard w>0,h>0 else {throw invalid("invalid spatial source rectangle")}
+        let requestedLeft=floor(x),requestedTop=floor(y)
+        let requestedRight=ceil(x+w)+1,requestedBottom=ceil(y+h)+1
+        let contained=requestedLeft>=0 && requestedTop>=0 && requestedRight<=Double(decoded.width) && requestedBottom<=Double(decoded.height)
+        // Clamp while values are floating point, before conversion to Int. A
+        // recorded source rectangle may extend beyond its bitmap by any finite
+        // amount; it may not allocate an image of that untrusted extent.
+        let left=Int(max(0,min(Double(decoded.width),requestedLeft)))
+        let top=Int(max(0,min(Double(decoded.height),requestedTop)))
+        // DrawImage's effect source region includes the rounded far endpoint.
+        // The extra source sample affects the convolution before the original
+        // floating rectangle clips the painted result. A minimal covering crop
+        // incorrectly mirrors that last sample back into the visible edge.
+        let right=Int(max(0,min(Double(decoded.width),requestedRight)))
+        let bottom=Int(max(0,min(Double(decoded.height),requestedBottom)))
+        if right<=left || bottom<=top {
+            // Native FILE playback preserves prior paint when even the extra
+            // working sample misses the bitmap. A transparent dummy would
+            // instead erase the destination under SourceCopy. Exact-touch ROIs
+            // with a nonempty inclusive working sample still run the effect.
+            return ["skipsDrawing":true]
+        }
+        let padding:Int
+        if case .blur(let radius,let expandEdge)=requested,expandEdge,!contained {padding=Int(ceil(radius))}
+        else {padding=0}
+        // Noncontained expanding Blur reads the original bitmap around the
+        // working ROI. Build that bounded full-resolution canvas before its
+        // axis passes; only coordinates outside the bitmap are transparent.
+        // Strictly contained regions keep their existing cropped edge policy.
+        let inputLeft=left-padding,inputTop=top-padding
+        let width=right-left+2*padding,height=bottom-top+2*padding
+        guard width>0,height>0,width<=32768,height<=32768,width<=16_777_216/height else {
+            throw invalid("expanded spatial source exceeds pixel limit")
+        }
+        // Charge the private input plane and its copy work before allocation.
+        try spatialBudget.reserve(outputPixels:width*height,work:width*height*4)
+        var cropped=Data(count:width*height*4)
+        let copyLeft=max(0,inputLeft),copyTop=max(0,inputTop)
+        let copyRight=min(decoded.width,inputLeft+width),copyBottom=min(decoded.height,inputTop+height)
+        if copyRight>copyLeft,copyBottom>copyTop {
+            let rowBytes=(copyRight-copyLeft)*4
+            for row in copyTop..<copyBottom {
+                let source=(row*decoded.width+copyLeft)*4
+                let destination=((row-inputTop)*width+copyLeft-inputLeft)*4
+                cropped.replaceSubrange(destination..<destination+rowBytes,with:decoded.pixels[source..<source+rowBytes])
+            }
+        }
+        let spatial:SpatialImageEffect
+        if case .redEyeCorrection(let areas)=requested {
+            spatial = .redEyeCorrection(areas:areas.map {SpatialImageEffectRect(left:$0.left-left,top:$0.top-top,right:$0.right-left,bottom:$0.bottom-top)})
+        } else {spatial=requested}
+        let result:SpatialImageEffectResult
+        // The noncontained Blur canvas is already expanded and positioned.
+        // Filter it in place so its dimensions also determine the native small
+        // kernel's leading vertical rows and large-kernel block alignment.
+        do {result=try SpatialImageEffects.apply(spatial,toStraightRGBA:cropped,width:width,height:height,expandOutput:padding==0 && !contained,budget:&spatialBudget)}
+        catch is RedEyeImageEffectNoPaint {
+            // Native file playback rejects the complete draw, including mixed
+            // valid/outside area lists. Preserve the destination; transparent
+            // SourceCopy pixels would incorrectly erase existing paint.
+            return ["skipsDrawing":true]
+        }
+        catch {throw invalid(error.localizedDescription)}
+        guard result.width>0,result.height>0,result.width<=32768,result.height<=32768,
+              result.width<=16_777_216/result.height,result.pixels.count==result.width*result.height*4,
+              (-512...512).contains(result.originX),(-512...512).contains(result.originY) else {throw invalid("invalid spatial image output geometry")}
+        // Spatial paint is sampled before output association. Retaining raw
+        // effect bytes here avoids moving two conversion boundaries across an
+        // affine bilinear filter, which changes translucent edge colors.
+        return ["href":try encode(result.pixels,width:result.width,height:result.height,space:decoded.space),
+                "width":result.width,"height":result.height,"originX":result.originX+inputLeft,"originY":result.originY+inputTop]
+    }
+    func sampleSpatial(_ href:String,geometry:JSValue)throws->NSDictionary {
+        guard let picturePlan else {throw invalid("missing root Picture plan")}
+        let decoded=try decode(href,normalizeStraight:false)
+        let matrix=try numbers(geometry,"matrix",count:6),source=try numbers(geometry,"source",count:4)
+        let originX=try integer(geometry,"originX",range:-512...33280),originY=try integer(geometry,"originY",range:-512...33280)
+        let logicalWidth=try integer(geometry,"logicalWidth",range:1...32768),logicalHeight=try integer(geometry,"logicalHeight",range:1...32768)
+        let canvasWidth=try integer(geometry,"canvasWidth",range:1...32768),canvasHeight=try integer(geometry,"canvasHeight",range:1...32768)
+        let wrap=try integer(geometry,"wrap",range:0...4),clamp=try real(geometry,"clamp",range:0...Double(UInt32.max))
+        guard clamp.rounded()==clamp else {throw invalid("invalid spatial sample clamp")}
+        guard let output=try SpatialImageSampling.affine(decoded.pixels,width:decoded.width,height:decoded.height,
+            originX:originX,originY:originY,logicalWidth:logicalWidth,logicalHeight:logicalHeight,matrix:matrix,
+            source:.init(x:source[0],y:source[1],width:source[2],height:source[3]),canvasWidth:canvasWidth,canvasHeight:canvasHeight,
+            wrap:wrap,clamp:UInt32(clamp),associateOutput:!picturePlan.needed,budget:&spatialBudget) else {return ["skipsDrawing":true]}
+        return ["href":try encode(output.pixels,width:output.width,height:output.height,space:decoded.space),
+                "coverage":try encode(output.coverage,width:output.width,height:output.height,space:decoded.space),
+                "width":output.width,"height":output.height,"originX":output.x,"originY":output.y]
+    }
+    func pictureNeeded(width:Int,height:Int)throws->Bool {
+        if let picturePlan {
+            guard picturePlan.width==width,picturePlan.height==height else {throw invalid("root Picture plan changed")}
+            return picturePlan.needed
+        }
+        let needed=try SpatialImageSampling.pictureNeeded(width:width,height:height,budget:&spatialBudget)
+        picturePlan=(width,height,needed);return needed
+    }
+    func samplePicture(_ pixels:Data,width:Int,height:Int)throws->String {
+        let output=try SpatialImageSampling.picture(pixels,width:width,height:height,budget:&spatialBudget)
+        guard let space=CGColorSpace(name:CGColorSpace.sRGB) else {throw invalid("cannot prepare Picture color space")}
+        return try encode(output,width:width,height:height,space:space)
+    }
+    private func transform(_ href:String,prepared:PreparedEffect,outputAssociations:Int)throws->String {
+        guard let picturePlan else {throw invalid("missing root Picture plan")}
+        // A nonidentity final document consumer supplies the final truncating
+        // boundary itself. Keep the source association in decode(), but avoid
+        // baking that output boundary a second time into ordinary/pointwise
+        // pixels, including those mixed with spatial paints or child scenes.
+        let preparedAssociations=max(0,outputAssociations-(picturePlan.needed ? 1:0))
+        let decoded=try decode(href)
+        let width=decoded.width,height=decoded.height
+        var output=decoded.pixels
         try output.withUnsafeMutableBytes { storage in
             let bytes=storage.bindMemory(to:UInt8.self)
             for offset in stride(from:0,to:bytes.count,by:4) {
@@ -468,14 +623,18 @@ private final class NativeImageEffects {
                 let alpha=Int(bytes[offset+3])
                 for channel in 0..<3 {
                     var value=bytes[offset+channel]
-                    for _ in 0..<outputAssociations {value=windowsAssociation(value,alpha)}
+                    for _ in 0..<preparedAssociations {value=windowsAssociation(value,alpha)}
                     bytes[offset+channel]=value
                 }
             }
         }
+        return try encode(output,width:width,height:height,space:decoded.space)
+    }
+    private func encode(_ output:Data,width:Int,height:Int,space:CGColorSpace)throws->String {
+        let prefix="data:image/png;base64,"
         guard let provider=CGDataProvider(data:output as CFData),
               let result=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,
-                space:decoded.space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.last.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else {throw invalid("cannot prepare result PNG")}
+                space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.last.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else {throw invalid("cannot prepare result PNG")}
         let bytes=NSMutableData()
         guard let destination=CGImageDestinationCreateWithData(bytes,UTType.png.identifier as CFString,1,nil) else {throw invalid("cannot encode result PNG")}
         CGImageDestinationAddImage(destination,result,nil)
@@ -595,6 +754,14 @@ private final class NativeRasterComposite {
         calls+=1;renderedPixels+=pixels
         guard let source=try svg(value,size:CGSize(width:width,height:height),required:true) else{throw invalid("missing embedded image scene")}
         return try encode(render(source,width:width,height:height),width:width,height:height)
+    }
+    func picturePixels(_ value:JSValue,width:Int,height:Int)throws->Data {
+        guard width>0,height>0,width<=32768,height<=32768,width<=16_777_216/height else {throw invalid("invalid Picture raster dimensions")}
+        let pixels=width*height
+        guard calls<4096,pixels<=67_108_864-renderedPixels else {throw invalid("Picture raster work budget exceeded")}
+        calls+=1;renderedPixels+=pixels
+        guard let source=try svg(value,size:CGSize(width:width,height:height),required:true) else {throw invalid("missing Picture scene")}
+        return try render(source,width:width,height:height)
     }
     private func region(_ request:JSValue,width:Int,height:Int)throws->Region {
         if request.isUndefined || request.isNull{return Region(x:0,y:0,width:width,height:height)}
@@ -2495,6 +2662,36 @@ private func run() throws {
         catch {nativeError("Cannot apply metafile image effect");return ""}
     }
     context.setObject(applyImageEffect,forKeyedSubscript:"turtleGitApplyImageEffect" as NSString)
+    let applySpatialImageEffect:@convention(block)(String,JSValue,JSValue)->NSDictionary = {href,effect,sourceRect in
+        do {return try imageEffects.applySpatial(href,effect:effect,sourceRect:sourceRect)}
+        catch ConversionError.invalid(let message) {nativeError(message);return [:]}
+        catch {nativeError("Cannot apply spatial metafile image effect");return [:]}
+    }
+    context.setObject(applySpatialImageEffect,forKeyedSubscript:"turtleGitApplySpatialImageEffect" as NSString)
+    let sampleSpatialImage:@convention(block)(String,JSValue)->NSDictionary = {href,geometry in
+        do {return try imageEffects.sampleSpatial(href,geometry:geometry)}
+        catch {nativeError("Cannot sample spatial image: "+String(describing:error));return [:]}
+    }
+    context.setObject(sampleSpatialImage,forKeyedSubscript:"turtleGitSampleSpatialImage" as NSString)
+    let planPicture:@convention(block)(Double,Double)->Bool = {width,height in
+        do {
+            guard width.isFinite,height.isFinite,width.rounded()==width,height.rounded()==height,width>=1,height>=1 else {throw ConversionError.invalid("Invalid Picture plan dimensions")}
+            guard width<=32768,height<=32768,width*height<=16_777_216 else {throw ConversionError.invalid("Picture raster dimension/pixel budget exceeded")}
+            return try imageEffects.pictureNeeded(width:Int(width),height:Int(height))
+        }catch {nativeError("Cannot plan Picture document: "+String(describing:error));return false}
+    }
+    context.setObject(planPicture,forKeyedSubscript:"__turtlePicturePlan" as NSString)
+    let samplePicture:@convention(block)(JSValue,Double,Double)->String = {scene,width,height in
+        do {
+            guard width.isFinite,height.isFinite,width.rounded()==width,height.rounded()==height,width>=1,height>=1 else {throw ConversionError.invalid("Invalid Picture raster dimensions")}
+            guard width<=32768,height<=32768,width*height<=16_777_216 else {throw ConversionError.invalid("Picture raster dimension/pixel budget exceeded")}
+            let w=Int(width),h=Int(height)
+            guard try imageEffects.pictureNeeded(width:w,height:h) else {return ""}
+            let pixels=try rasterCompositor.picturePixels(scene,width:w,height:h)
+            return try imageEffects.samplePicture(pixels,width:w,height:h)
+        }catch {nativeError("Cannot sample Picture document: "+String(describing:error));return ""}
+    }
+    context.setObject(samplePicture,forKeyedSubscript:"__turtlePictureSample" as NSString)
     let prepareOrdinaryImage:@convention(block)(String,Bool)->String = {href,effectPipeline in
         do {return try imageEffects.prepareOrdinary(href,effectPipeline:effectPipeline)}
         catch ConversionError.invalid(let message) {nativeError(message);return ""}

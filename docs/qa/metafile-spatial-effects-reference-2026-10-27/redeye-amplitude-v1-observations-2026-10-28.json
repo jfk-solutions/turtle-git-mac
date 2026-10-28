@@ -1,0 +1,390 @@
+{
+  "date": "2026-10-28",
+  "scope": "RedEye amplitude/source-statistic full-buffer hypothesis falsification only",
+  "status": "general_amplitude_selector_not_identified",
+  "observationMode": "replay-v1",
+  "corpusContext": "627 retained positive Windows fixtures overall; this analysis enumerates original source manifests including refused/unsupported isolated cases. It compares139opaque,singleROI,matching-framingFILE-v1 cases, not627renderer tests.",
+  "analysisScript": "docs/qa/metafile-spatial-effects-reference-2026-10-27/analyze-redeye-amplitude-v1.py",
+  "analysisScriptSHA256": "96998b660a09e5128145f81ffb381ce05062d8a1faaa8520c9cbf76d889e925d",
+  "fullReport": "build/qa/redeye-amplitude-v1-2026-10-28.json",
+  "fullReportSHA256": "c809e03707d541f0131f09d489496ac37ebb56df5ed503d9c71c1cac3f08a115",
+  "comparedCases": 139,
+  "comparedPixels": 136835,
+  "skippedReasons": {
+    "Native FILE-v1 failed": 12,
+    "Nonopaque composition not isolated": 21,
+    "Outside ROI has separate no-paint contract": 17,
+    "Multiple ROI composition not isolated": 17,
+    "Degenerate radius": 1
+  },
+  "suppliedHypotheses": [
+    "ROI center and shorter-radius circle",
+    "Current mean-extension angular floor",
+    "MinimumR/G candidate glint and2/3eligibility",
+    "Source-only amplitude selectors; observed/inferred coefficients are never fed back to prediction"
+  ],
+  "fixedLiteralQualification": "The .66 literal is an explicitly proposed SDK-literal hypothesis from prior conditional constraints, not a derived constant. The contrast expression .75*(R-max(G,B))/(R+min(G,B)) is an independent color-ratio hypothesis. No inferred output coefficient, observed RGB or fixture name chooses a prediction.",
+  "policySummary": {
+    "quarter": {
+      "fullBufferPasses": 98,
+      "failingCases": 41,
+      "pixelsExceedingOne": 6782,
+      "maxByteDelta": 137
+    },
+    "three-quarter": {
+      "fullBufferPasses": 6,
+      "failingCases": 133,
+      "pixelsExceedingOne": 41152,
+      "maxByteDelta": 142
+    },
+    "any-mixed-sdk-literal": {
+      "fullBufferPasses": 45,
+      "failingCases": 94,
+      "pixelsExceedingOne": 28377,
+      "maxByteDelta": 140
+    },
+    "majority-mixed-sdk-literal": {
+      "fullBufferPasses": 104,
+      "failingCases": 35,
+      "pixelsExceedingOne": 5883,
+      "maxByteDelta": 137
+    },
+    "majority-mixed-source-contrast": {
+      "fullBufferPasses": 104,
+      "failingCases": 35,
+      "pixelsExceedingOne": 5715,
+      "maxByteDelta": 137
+    },
+    "majority-mixed-sdk-literal-pure255": {
+      "fullBufferPasses": 106,
+      "failingCases": 33,
+      "pixelsExceedingOne": 4890,
+      "maxByteDelta": 137
+    }
+  },
+  "constraints": [
+    "Any mixed angular bin ->.66 is falsified: square28 has24mixedbins yet quarterfullbufferpasses; grayhole2/4/8 have4/12/28mixedbins and quarterpasses.",
+    "Majority mixed bins ->.66 is also falsified: square16 has60mixedbins and strictconditionalCnear.25; changing to.66 causes84badpixels; disk16 causes80badpixels; grayhole16 causes8badpixels.",
+    "Cnear.66 survives six20..26square/stripe conditionalconstraints; the exact selection mechanism is not identified by these matches.",
+    "An identical fully-red supplied-geometry sector in square26 and28 has disjoint conditionalCintervals; a local sector histogram/scatter/count cannot explain both. Globalgeometry orstatisticalselection remains unresolved.",
+    "UniformR255alone is insufficient:255/20/10 isquarter. ZeroG/Balone isinsufficient:240/0/0 isquarter. Theconjunction255/0/0 purepixel predicate repairs two oldcompletebuffers within the supplied composition but isnotan acceptedgeneral/recording model.",
+    "EmbeddedPNG IHDR is the same32x32,8bitRGBA,colorType6 for old255/0/0,old240/20/10,new240/0/0,new255/20/10; no simplepalette/bitdepth branch explains the consumerdifference."
+  ],
+  "identicalSectorWitness": {
+    "sector": 39,
+    "qualification": "All supplied-geometry coordinates and RGBA in this sector are byte-identical; observed sector bytes differ. Conditional coefficient interpretation still depends on supplied geometry/composition.",
+    "first": {
+      "name": "model-red-square26",
+      "count": 13,
+      "positiveRedCount": 13,
+      "meanRGB": [
+        240.0,
+        20.0,
+        10.0
+      ],
+      "lower": 0.6597554750173454,
+      "upper": 0.6600572725420731,
+      "informativePixels": 11,
+      "sourceSectorSHA256": "6444d1b679323274cb0e6e1563d735b2e8983d3d4150d3b96e55dc21b0ad681a",
+      "nativeSectorSHA256": "218e6e0f357aa2fb758ba2edf33bf12eeada7627a9c4244e518d8918e1f6f9ae"
+    },
+    "second": {
+      "name": "model-red-square28",
+      "count": 13,
+      "positiveRedCount": 13,
+      "meanRGB": [
+        240.0,
+        20.0,
+        10.0
+      ],
+      "lower": 0.2495458951560826,
+      "upper": 0.2537551960435047,
+      "informativePixels": 9,
+      "sourceSectorSHA256": "6444d1b679323274cb0e6e1563d735b2e8983d3d4150d3b96e55dc21b0ad681a",
+      "nativeSectorSHA256": "ef665b26c87e23397de3922b7c8a9a3b3379adcb545a930cf93a3186bc5c2aa7"
+    }
+  },
+  "modelDiscriminatorRows": [
+    {
+      "name": "model-hist-square24",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 564,
+        "angularBins": 60,
+        "mixedAngularBins": 48,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.6589622621680713,
+          0.6602346791989161
+        ],
+        "informativePixels": 272,
+        "informativeSectors": 60,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-hist-two-rectangles",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 460,
+        "angularBins": 60,
+        "mixedAngularBins": 32,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.6597554750173454,
+          0.6604551797036475
+        ],
+        "informativePixels": 212,
+        "informativeSectors": 36,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-hist-center-rows",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 520,
+        "angularBins": 60,
+        "mixedAngularBins": 36,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.6597554750173454,
+          0.6600190750800763
+        ],
+        "informativePixels": 332,
+        "informativeSectors": 52,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-hist-center-gray",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 292,
+        "angularBins": 60,
+        "mixedAngularBins": 52,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.616471521210137,
+          0.6605052012965752
+        ],
+        "informativePixels": 4,
+        "informativeSectors": 4,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-red-square20",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 400,
+        "angularBins": 60,
+        "mixedAngularBins": 60,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.6591435692673411,
+          0.660142209355891
+        ],
+        "informativePixels": 128,
+        "informativeSectors": 52,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-red-square22",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 484,
+        "angularBins": 60,
+        "mixedAngularBins": 56,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.6598593544015926,
+          0.6602346791989161
+        ],
+        "informativePixels": 184,
+        "informativeSectors": 60,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-red-square26",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 636,
+        "angularBins": 60,
+        "mixedAngularBins": 40,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.6598915578253729,
+          0.6600572725420731
+        ],
+        "informativePixels": 360,
+        "informativeSectors": 60,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-red-square28",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 700,
+        "angularBins": 60,
+        "mixedAngularBins": 24,
+        "majorityMixed": false
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.24981610438310423,
+          0.2500693390054947
+        ],
+        "informativePixels": 364,
+        "informativeSectors": 44,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-red-square30",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 740,
+        "angularBins": 60,
+        "mixedAngularBins": 0,
+        "majorityMixed": false
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.24981610438310423,
+          0.2500693390054947
+        ],
+        "informativePixels": 524,
+        "informativeSectors": 60,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-gray-hole2",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 736,
+        "angularBins": 60,
+        "mixedAngularBins": 4,
+        "majorityMixed": false
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.2495458951560826,
+          0.2506615756156836
+        ],
+        "informativePixels": 383,
+        "informativeSectors": 60,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-gray-hole4",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 724,
+        "angularBins": 60,
+        "mixedAngularBins": 12,
+        "majorityMixed": false
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.2495458951560826,
+          0.2506615756156836
+        ],
+        "informativePixels": 347,
+        "informativeSectors": 57,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-gray-hole8",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 676,
+        "angularBins": 60,
+        "mixedAngularBins": 28,
+        "majorityMixed": false
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.2495458951560824,
+          0.2506615756156836
+        ],
+        "informativePixels": 206,
+        "informativeSectors": 40,
+        "consistent": true
+      }
+    },
+    {
+      "name": "model-gray-hole16",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 484,
+        "angularBins": 60,
+        "mixedAngularBins": 60,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": null,
+        "informativePixels": 0,
+        "informativeSectors": 0,
+        "consistent": false
+      }
+    },
+    {
+      "name": "square-16",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 256,
+        "angularBins": 60,
+        "mixedAngularBins": 60,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": [
+          0.23976554689590318,
+          0.25156101372521916
+        ],
+        "informativePixels": 4,
+        "informativeSectors": 4,
+        "consistent": true
+      }
+    },
+    {
+      "name": "disk-16",
+      "sourceStatistics": {
+        "ellipsePixels": 740,
+        "positiveRedPixels": 208,
+        "angularBins": 60,
+        "mixedAngularBins": 60,
+        "majorityMixed": true
+      },
+      "conditionalCoefficient": {
+        "interval": null,
+        "informativePixels": 0,
+        "informativeSectors": 0,
+        "consistent": false
+      }
+    }
+  ],
+  "production": "No renderer/Core/native/sourcefixture/tolerance change. No app build, Core check or native test. All .66/contrast/majority/pure255 alternatives remain diagnostics, not accepted implementation.",
+  "nextStep": "Identify a global source-statistic/geometry selection rule that explains smallsquare16 quarter, midsizedsquare20..26 enhanced, largesquare28..30 quarter, grayhole16 quarter and matchedhistogram shapes together; separate angular-origin failures before interpreting continuousgradients."
+}

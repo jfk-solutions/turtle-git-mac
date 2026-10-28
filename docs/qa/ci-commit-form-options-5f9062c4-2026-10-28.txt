@@ -1,0 +1,14 @@
+Hosted failure excerpt; source commit 5f9062c42402d86d28b03069066ff6e9b2370c6a
+Run https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40670845968
+Job 122757557238; earlier full Core integration step succeeded; full native job failed.
+
+Run python3 scripts/test-primary-parity-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+2026-10-28T12:40:19.0694170Z python3 scripts/test-primary-parity-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+2026-10-28T12:40:19.0696780Z python3 scripts/test-primary-presentation-corrections.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+2026-10-28T12:40:19.0786200Z shell: /bin/bash -e {0}
+2026-10-28T12:40:19.0787160Z ##[endgroup]
+2026-10-28T12:40:35.1261630Z Native QA: compiled fixture only: primary-commit-options-native-2026-10-21.swift, primary-log-columns-native-2026-10-21.swift, primary-settings-appearance-native-2026-10-21.swift, PrimaryParityMain.swift
+2026-10-28T12:40:35.1582790Z Checking primary parity commit with /usr/bin/git
+2026-10-28T12:40:44.4536110Z Owned receiver reaped: 35375
+2026-10-28T12:40:45.0517360Z Native QA failed: 172: Duplicate settled option observers restarted metadata or retired the form
+2026-10-28T12:40:45.0719160Z swift-driver version: 1.120.5

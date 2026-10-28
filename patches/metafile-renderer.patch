@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,543 @@
+@@ -0,0 +1,551 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -587,8 +587,8 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      // interchangeable source rectangles or texture periods.
 +      if(frame&&frame.right>frame.left&&frame.bottom>frame.top){
 +        const device=header.szlDevice,mm=header.szlMillimeters;
-+        const dx=child&&device&&mm&&device.cx>0&&mm.cx>0?device.cx*25.4/mm.cx:96;
-+        const dy=child&&device&&mm&&device.cy>0&&mm.cy>0?device.cy*25.4/mm.cy:96;
++        const dx=device&&mm&&device.cx>0&&mm.cx>0?device.cx*25.4/mm.cx:96;
++        const dy=device&&mm&&device.cy>0&&mm.cy>0?device.cy*25.4/mm.cy:96;
 +        const inclusive=child?0:1;
 +        width=Math.round((frame.right-frame.left)*dx/2540)+inclusive;
 +        height=Math.round((frame.bottom-frame.top)*dy/2540)+inclusive;
@@ -607,6 +607,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||width>32768||height>32768||width*height>67108864)fail('invalid or oversized image bounds');
 +    if(parsed.records.length>1000000)fail('record count limit');
 +    if(playback&&playback.inspectOnly)return {width,height};
++    if(!child){if(typeof globalThis.__turtlePicturePlan!=='function')fail('native Picture document plan unavailable');globalThis.__turtlePicturePlan(width,height);}
 +    const context=new SvgContext();shareBudgets(context);context._turtleTransparentSurface=child;
 +    const parent=playback&&playback.parent;
 +    if(parent){
@@ -647,6 +648,13 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    let svg=normalizePaintColors(context.getSvg());
 +    if(typeof svg!=='string'||svg.length>128*1024*1024)fail('output size limit');
++    if(!child) {
++      if(typeof globalThis.__turtlePictureSample!=='function')fail('native Picture document sampling unavailable');
++      const href=globalThis.__turtlePictureSample(svg,width,height);
++      // Quantized identity lookups preserve the original vector scene. A real
++      // file-consumer lookup is applied once, after all paints and composition.
++      if(href){if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')||href.length>64*1024*1024)fail('invalid Picture document raster');if(svg.length+href.length+1024>128*1024*1024)fail('Picture scene metadata/output budget exceeded');svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'"><defs><g id="turtle-picture-source-scene">'+svg.replace(/^\s*<\?xml[\s\S]*?\?>\s*/,'')+'</g></defs><image id="turtle-picture-output" x="0" y="0" width="'+width+'" height="'+height+'" href="'+escape(href)+'" preserveAspectRatio="none"/></svg>';}
++    }
 +    if(child){if(svg.length>64*1024*1024-conversion.childBytes||context._defs.length>131072-conversion.definitions)fail('aggregate embedded metafile serialization budget exceeded');conversion.childBytes+=svg.length;conversion.definitions+=context._defs.length;
 +      const prefix='embedded-'+(++conversion.namespace)+'-';svg=svg.replace(/\bid="([^"]+)"/g,(_,id)=>'id="'+prefix+id+'"').replace(/url\(#([^)]*)\)/g,(_,id)=>'url(#'+prefix+id+')').replace(/href="#([^"]+)"/g,(_,id)=>'href="#'+prefix+id+'"');
 +    }
@@ -940,7 +948,7 @@ diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
 diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 --- /dev/null
 +++ b/src/turtleGitImages.js
-@@ -0,0 +1,224 @@
+@@ -0,0 +1,291 @@
 +// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.2.1.5, 2.2.2.21/22/37,
 +// 2.3.4.8/9. No document-derived resource or executable access.
 +module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded}) {
@@ -950,6 +958,7 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +  // nor graphics-state copies can share mutable effect parameters.
 +  const effects=new WeakMap();
 +  const ordinaryFallback=Object.freeze({ordinaryFallback:true});
++  const skipsDrawing=Symbol('native-spatial-no-paint');
 +  const preparedImages=new WeakSet(),ordinaryImages=new WeakMap(),fallbackImages=new WeakMap();
 +  function curveEffect(data,count) {
 +    if(count!==12)fail('invalid color curve effect length');
@@ -1017,6 +1026,28 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +      const hue=u32(data,20)|0,amount=u32(data,24)|0;
 +      if(hue < -180 || hue > 180 || amount < -100 || amount > 100)fail('invalid tint effect parameters');
 +      effect={kind:'tint',hue,amount};
++    } else if(guid==='a4803c6343182b489ef2be2834c5fdd4') {
++      if(count!==8)fail('invalid blur effect length');
++      const radius=f32(data,20),expandEdge=u32(data,24);
++      if(!Number.isFinite(radius)||radius<0||radius>255||expandEdge>1)fail('invalid blur effect parameters');
++      effect={kind:'blur',radius,expandEdge:expandEdge===1};
++    } else if(guid==='eef3cb6326c52c408f7162c540bf5142') {
++      if(count!==8)fail('invalid sharpen effect length');
++      const radius=f32(data,20),amount=f32(data,24);
++      if(!Number.isFinite(radius)||radius<0||radius>255||!Number.isFinite(amount)||amount<0||amount>100)fail('invalid sharpen effect parameters');
++      effect={kind:'sharpen',radius,amount};
++    } else if(guid==='059dd274a469664295493cc52836b632') {
++      if(count<4)fail('truncated red-eye effect areas');
++      const numberOfAreas=u32(data,20)|0;
++      if(numberOfAreas<1||numberOfAreas>4096||count!==4+numberOfAreas*16)fail('invalid red-eye effect area count');
++      const areas=[];
++      for(let i=0;i<numberOfAreas;i++) {
++        const offset=24+i*16;
++        const area=[u32(data,offset)|0,u32(data,offset+4)|0,u32(data,offset+8)|0,u32(data,offset+12)|0];
++        if(area[0]>=area[2]||area[1]>=area[3])fail('invalid red-eye rectangle endpoints');
++        areas.push(Object.freeze(area));
++      }
++      effect={kind:'redEyeCorrection',areas:Object.freeze(areas)};
 +    } else fail('unsupported serialized image effect GUID');
 +    effects.set(this,Object.freeze(effect));
 +  }
@@ -1027,6 +1058,10 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    ctx._turtleEffectPixels=(ctx._turtleEffectPixels||0)+pixels;
 +    if(ctx._turtleEffectPixels>67108864)fail('aggregate prepared image pixel budget exceeded');
 +    const href=convert();
++    if(href===skipsDrawing) {
++      const result=Object.freeze({...image,_turtleSkipsDrawing:true});
++      preparedImages.add(result);return result;
++    }
 +    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')||href.length>64*1024*1024)fail('invalid native prepared image result');
 +    ctx._turtleEffectBytes=(ctx._turtleEffectBytes||0)+href.length;
 +    if(ctx._turtleEffectBytes>64*1024*1024)fail('aggregate prepared image output budget exceeded');
@@ -1040,11 +1075,34 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    const result=prepareBitmap(drawer,image,()=>globalThis.turtleGitPrepareImage(image.href,effectPipeline));
 +    cache.set(image,result);return result;
 +  }
-+  function effectedImage(drawer,image,effect) {
++  function spatialImage(drawer,image,effect,source) {
++    if(typeof globalThis.turtleGitApplySpatialImageEffect!=='function')fail('native spatial image adapter unavailable');
++    let output;
++    const result=prepareBitmap(drawer,image,()=>{
++      output=globalThis.turtleGitApplySpatialImageEffect(image.href,effect,source);
++      if(output&&output.skipsDrawing===true) {
++        if(Object.keys(output).length!==1)fail('invalid native no-paint result');
++        return skipsDrawing;
++      }
++      if(!output||!Number.isInteger(output.width)||!Number.isInteger(output.height)||output.width<1||output.height<1||output.width>32768||output.height>32768||output.width*output.height>16777216||!Number.isInteger(output.originX)||!Number.isInteger(output.originY)||output.originX < -512||output.originY < -512||output.originX>33280||output.originY>33280)fail('invalid spatial image geometry');
++      return output.href;
++    });
++    if(result._turtleSkipsDrawing===true)return result;
++    const extra=Math.max(0,output.width*output.height-image.width*image.height);
++    const ctx=drawer.ctx;ctx._turtleEffectPixels+=extra;
++    if(ctx._turtleEffectPixels>67108864)fail('aggregate spatial image pixel budget exceeded');
++    result._turtleSpatialImage=true;
++    result.logicalWidth=image.width;result.logicalHeight=image.height;
++    result.width=output.width;result.height=output.height;
++    result.originX=output.originX;result.originY=output.originY;
++    return result;
++  }
++  function effectedImage(drawer,image,effect,source) {
 +    // E without a pending block follows ordinary two-boundary playback. An
 +    // ignored serialized block adds source preparation but no color transform.
 +    if(!effect)return ordinaryImage(drawer,image);
 +    if(effect===ordinaryFallback)return ordinaryImage(drawer,image,true);
++    if(['blur','sharpen','redEyeCorrection'].includes(effect.kind))return spatialImage(drawer,image,effect,source);
 +    if(typeof globalThis.turtleGitApplyImageEffect!=='function')fail('native image effect adapter unavailable');
 +    return prepareBitmap(drawer,image,()=>globalThis.turtleGitApplyImageEffect(image.href,effect));
 +  }
@@ -1092,22 +1150,39 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    // Windows consumes one pending block on the next DrawImagePoints even
 +    // when E is clear. No-draw Save/Restore and containers leave it pending.
 +    const effect=effects.get(this);effects.delete(this);
-+    const image=flags&0x2000?effectedImage(this,p.image,effect):p.image;
++    const image=flags&0x2000?effectedImage(this,p.image,effect,p.source):p.image;
 +    this._drawImageObj(image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs);
 +  };
 +  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src,attrs=null) {
++    if(img._turtleSkipsDrawing===true)return;
 +    img=ordinaryImage(this,img);
 +    if(img.type==='imageMetafile') {
 +      return embedded.draw(this,img,x1,y1,x2,y2,x3,y3,src,attrs);
 +    }
-+    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:img.width,sh=src?src.h:img.height;
++    const iw=img.logicalWidth||img.width,ih=img.logicalHeight||img.height,ox=img.originX||0,oy=img.originY||0;
++    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:iw,sh=src?src.h:ih;
 +    if(sw<=0||sh<=0)fail('invalid bitmap source extent');
 +    const a=(x2-x1)/sw,b=(y2-y1)/sw,c=(x3-x1)/sh,d=(y3-y1)/sh,e=x1-a*sx-c*sy,f=y1-b*sx-d*sy;
 +    const transform=matrix([a,b,c,d,e,f]);if(a*d-b*c===0)return;
 +    const ctx=this.ctx,id='turtle-image-clip-'+ctx._defs.length;
++    if(img._turtleSpatialImage) {
++      if(typeof globalThis.turtleGitSampleSpatialImage!=='function')fail('native spatial image sampling unavailable');
++      const world=currentMatrix(this),combined=[world[0]*a+world[2]*b,world[1]*a+world[3]*b,world[0]*c+world[2]*d,world[1]*c+world[3]*d,world[0]*e+world[2]*f+world[4],world[1]*e+world[3]*f+world[5]];
++      const output=globalThis.turtleGitSampleSpatialImage(img.href,{matrix:combined,source:[sx,sy,sw,sh],originX:ox,originY:oy,logicalWidth:iw,logicalHeight:ih,canvasWidth:ctx.canvas.width,canvasHeight:ctx.canvas.height,wrap:attrs?attrs.wrap:4,clamp:attrs?attrs.color>>>0:0});
++      if(output&&output.skipsDrawing===true){if(Object.keys(output).length!==1)fail('invalid spatial sample no-paint');return {spatialCoverage:[]};}
++      if(!output||!Number.isInteger(output.width)||!Number.isInteger(output.height)||output.width<1||output.height<1||output.width>32768||output.height>32768||output.width*output.height>16777216||!Number.isInteger(output.originX)||!Number.isInteger(output.originY)||output.originX<0||output.originY<0||output.originX+output.width>ctx.canvas.width||output.originY+output.height>ctx.canvas.height)fail('invalid spatial sample geometry');
++      for(const href of [output.href,output.coverage])if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')||href.length>64*1024*1024)fail('invalid native spatial sample PNG');
++      ctx._turtleEffectPixels+=output.width*output.height*2;ctx._turtleEffectBytes+=output.href.length+output.coverage.length;
++      if(ctx._turtleEffectPixels>67108864||ctx._turtleEffectBytes>64*1024*1024)fail('aggregate spatial sample output budget exceeded');
++      const determinant=world[0]*world[3]-world[1]*world[2];if(!determinant)fail('singular sampled image world');
++      const back=[world[3]/determinant,-world[1]/determinant,-world[2]/determinant,world[0]/determinant,(world[2]*world[5]-world[3]*world[4])/determinant,(world[1]*world[4]-world[0]*world[5])/determinant];
++      const node=href=>'<g transform="matrix('+matrix(back)+')"><image x="'+output.originX+'" y="'+output.originY+'" width="'+output.width+'" height="'+output.height+'" href="'+escape(href)+'" preserveAspectRatio="none"/></g>';
++      ctx.rawPush(node(output.href));
++      return {spatialCoverage:[node(output.coverage)]};
++    }
 +    const rect='<rect x="'+sx+'" y="'+sy+'" width="'+sw+'" height="'+sh+'"/>';
 +    ctx._defs.push('<clipPath id="'+id+'" clipPathUnits="userSpaceOnUse">'+rect+'</clipPath>');
-+    function image(extra='') {return'<image x="0" y="0" width="'+img.width+'" height="'+img.height+'" href="'+escape(img.href)+'" preserveAspectRatio="none" '+extra+'/>';}
++    function image(extra='') {return'<image x="'+ox+'" y="'+oy+'" width="'+img.width+'" height="'+img.height+'" href="'+escape(img.href)+'" preserveAspectRatio="none" '+extra+'/>';}
 +    let body;
 +    if(attrs&&attrs.wrap<4) {
 +      const flipX=attrs.wrap===1||attrs.wrap===3,flipY=attrs.wrap===2||attrs.wrap===3;
@@ -1117,7 +1192,7 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +      const corners=[inverse(-1,-1),inverse(ctx.canvas.width+1,-1),inverse(-1,ctx.canvas.height+1),inverse(ctx.canvas.width+1,ctx.canvas.height+1)];
 +      const left=Math.max(sx,Math.min(...corners.map(p=>p[0]))),right=Math.min(sx+sw,Math.max(...corners.map(p=>p[0]))),top=Math.max(sy,Math.min(...corners.map(p=>p[1]))),bottom=Math.min(sy+sh,Math.max(...corners.map(p=>p[1])));
 +      if(right<=left||bottom<=top)return;
-+      const firstX=Math.floor(left/img.width),lastX=Math.ceil(right/img.width)-1,firstY=Math.floor(top/img.height),lastY=Math.ceil(bottom/img.height)-1;
++      const firstX=Math.floor(left/iw),lastX=Math.ceil(right/iw)-1,firstY=Math.floor(top/ih),lastY=Math.ceil(bottom/ih)-1;
 +      const count=(lastX-firstX+1)*(lastY-firstY+1);
 +      if(!Number.isFinite(count)||count>16384)fail('visible bitmap tile count limit');
 +      this._turtleImageTiles=(this._turtleImageTiles||0)+count;if(this._turtleImageTiles>65536)fail('metafile bitmap tile count limit');
@@ -1131,23 +1206,23 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +      // CoreSVG misplaces bitmap pattern cells. Explicit visible copies retain
 +      // the actual tile phase, including negative indices and axis reflection.
 +      for(let row=firstY;row<=lastY;row++)for(let column=firstX;column<=lastX;column++) {
-+        const x=column*img.width,y=row*img.height,fx=flipX&&column%2!==0,fy=flipY&&row%2!==0;
-+        const l=Math.max(sx,x)-x,r=Math.min(sx+sw,x+img.width)-x,t=Math.max(sy,y)-y,bot=Math.min(sy+sh,y+img.height)-y;
++        const x=column*iw,y=row*ih,fx=flipX&&column%2!==0,fy=flipY&&row%2!==0;
++        const l=Math.max(sx,x)-x,r=Math.min(sx+sw,x+iw)-x,t=Math.max(sy,y)-y,bot=Math.min(sy+sh,y+ih)-y;
 +        if(r<=l||bot<=t)continue;
 +        let clip='';
-+        if(l>0||t>0||r<img.width||bot<img.height) {
++        if(l>0||t>0||r<iw||bot<ih||ox||oy||img.width!==iw||img.height!==ih) {
 +          const key='turtle-tile-clip-'+ctx._defs.length;
-+          ctx._defs.push('<clipPath id="'+key+'" clipPathUnits="userSpaceOnUse"><rect x="'+(fx?img.width-r:l)+'" y="'+(fy?img.height-bot:t)+'" width="'+(r-l)+'" height="'+(bot-t)+'"/></clipPath>');
++          ctx._defs.push('<clipPath id="'+key+'" clipPathUnits="userSpaceOnUse"><rect x="'+(fx?iw-r:l)+'" y="'+(fy?ih-bot:t)+'" width="'+(r-l)+'" height="'+(bot-t)+'"/></clipPath>');
 +          clip='clip-path="url(#'+key+')"';
 +        }
-+        body+='<g transform="translate('+(x+(fx?img.width:0))+' '+(y+(fy?img.height:0))+') scale('+(fx?-1:1)+' '+(fy?-1:1)+')">'+image(clip)+'</g>';
++        body+='<g transform="translate('+(x+(fx?iw:0))+' '+(y+(fy?ih:0))+') scale('+(fx?-1:1)+' '+(fy?-1:1)+')">'+image(clip)+'</g>';
 +      }
 +    } else {
 +      body='';
 +      if(attrs&&attrs.color>>>24) {
 +        // ClampColor applies only outside the intrinsic bitmap, never underneath
 +        // translucent bitmap pixels. The outer source clip bounds the XOR path.
-+        const outside='M '+sx+' '+sy+' h '+sw+' v '+sh+' h '+(-sw)+' Z M 0 0 H '+img.width+' V '+img.height+' H 0 Z';
++        const outside='M '+sx+' '+sy+' h '+sw+' v '+sh+' h '+(-sw)+' Z M 0 0 H '+iw+' V '+ih+' H 0 Z';
 +        body='<path d="'+outside+'" fill-rule="evenodd" fill="'+color(attrs.color)+'" fill-opacity="'+((attrs.color>>>24)/255)+'" clip-path="url(#'+id+')"/>';
 +      }
 +      body+=image('clip-path="url(#'+id+')"');
@@ -3835,7 +3910,7 @@ new file mode 100644
 index 0000000..7cc8a67
 --- /dev/null
 +++ b/src/turtleGitSourceCopy.js
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,99 @@
 +// Original TurtleGit EMF+ alpha replacement, MIT.
 +// MS-EMFPLUS 2.3.6.2 / 2.1.1.5. Source alpha is paint, never coverage.
 +module.exports=function installSourceCopy({EmfPlusDrawer,SvgContext,fail,escape,matrix,currentMatrix,masked,raw}) {
@@ -3877,6 +3952,9 @@ index 0000000..7cc8a67
 +  }
 +  const drawImage=EmfPlusDrawer.prototype._drawImageObj;
 +  EmfPlusDrawer.prototype._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,...args) {
++    // A native rejected effect draw preserves prior destination paint. Do not
++    // register SourceCopy coverage for an operation which never painted.
++    if(img._turtleSkipsDrawing===true)return;
 +    const ctx=this.ctx,batch=ctx._turtleCopyBatch;
 +    if(!batch||batch.depth)return drawImage.call(this,img,x1,y1,x2,y2,x3,y3,...args);
 +    const start=ctx._nodes.length;let result;batch.depth++;
@@ -3884,7 +3962,7 @@ index 0000000..7cc8a67
 +    const x4=x2+x3-x1,y4=y2+y3-y1;
 +    if([x1,y1,x2,y2,x3,y3,x4,y4].some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('invalid SourceCopy image destination');
 +    if((x2-x1)*(y3-y1)===(x3-x1)*(y2-y1))return result;
-+    const coverage=['<path d="M '+x1+' '+y1+' L '+x2+' '+y2+' L '+x4+' '+y4+' L '+x3+' '+y3+' Z" fill="white"/>'];
++    const coverage=result&&result.spatialCoverage?result.spatialCoverage:['<path d="M '+x1+' '+y1+' L '+x2+' '+y2+' L '+x4+' '+y4+' L '+x3+' '+y3+' Z" fill="white"/>'];
 +    remember(ctx,batch,start,coverage,[Math.min(x1,x2,x3,x4),Math.min(y1,y2,y3,y4),Math.max(x1,x2,x3,x4),Math.max(y1,y2,y3,y4)]);return result;
 +  };
 +  function roi(ctx,bounds,world) {
