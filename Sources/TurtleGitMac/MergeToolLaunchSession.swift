@@ -105,10 +105,18 @@ private enum MergeToolAuthorizationFailure:LocalizedError {
                 let inputs = [invocation.base, invocation.theirs, invocation.mine, invocation.diff, invocation.originalFile, invocation.modifiedFile].compactMap { $0 }
                 for url in inputs {
                     let absent = !FileManager.default.fileExists(atPath: url.path)
-                    try await permission(for: absent ? url.deletingLastPathComponent() : url, folder: absent)
+                    let requested:URL
+                    if absent {requested=try await Task.detached {try MergeOutputDirectories(capturing:url).ancestor}.value}
+                    else {requested=url}
+                    try cancellation.check()
+                    try await permission(for:requested,folder:absent)
                 }
                 if let folder = invocation.patchPath { try await permission(for: folder, folder: true) }
-                if let output = invocation.merged { try await permission(for: output.deletingLastPathComponent(), folder: true) }
+                if let output = invocation.merged {
+                    let plan=try await Task.detached {try MergeOutputDirectories(capturing:output)}.value
+                    try cancellation.check()
+                    try await permission(for:plan.ancestor,folder:true)
+                }
                 try cancellation.check(); guard !retired else { return }
                 if invocation.deleteInputsOnClose {
                     let paths = [invocation.base, invocation.theirs, invocation.mine].compactMap { $0 }

@@ -392,7 +392,7 @@ private extension FileComparisonDocument {
     private var mergeToolInputs: [Bool: MergeToolOutputTarget] = [:]
     private var replacementReflectedNames: [Bool:String] = [:]
     @Published private var mergeToolDidSave = false
-    var mergeToolSaved: Bool { mergeToolDidSave && drafts?.dirtySides.isEmpty != false && !mergeToolSaveRequired }
+    var mergeToolSaved: Bool { mergeToolDidSave && drafts?.dirtySides.isEmpty != false && !mergeToolSaveRequired && pendingNewOutputAdd == nil }
     @Published private(set) var mergeToolSaveRequired = false
     private var ownedMergeOperations = 0
     var mergeToolHasPendingWork: Bool { loadSession != nil || ownedMergeOperations > 0 || externalReload?.hasPendingWork == true }
@@ -539,10 +539,10 @@ private extension FileComparisonDocument {
         let content = base ? document?.base : document?.destination
         return [content.map{displayedComparisonPath($0.path)}, mergeToolReflectedName(base: base)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
     }
-    private var mergeToolNeedsOutput: Bool { mergeToolOutput != nil && !mergeToolSaved && !mergeToolReadOnly }
+    private var mergeToolNeedsOutput: Bool { mergeToolOutput != nil && (!mergeToolDidSave || mergeToolSaveRequired) && !mergeToolReadOnly }
     private var saveAllSides: [Bool] {
         var sides = drafts?.dirtySides ?? []
-        if mergeToolSaveRequired || mergeToolNeedsOutput, !sides.contains(mergeToolResultSide) { sides.append(mergeToolResultSide) }
+        if mergeToolSaveRequired || mergeToolNeedsOutput || pendingNewOutputAdd != nil, !sides.contains(mergeToolResultSide) { sides.append(mergeToolResultSide) }
         return sides
     }
     private(set) var requestedSourceLine: Int?
@@ -1362,8 +1362,10 @@ private extension FileComparisonDocument {
                         paneTargets[base] = target;inputEncodingOverrides.removeValue(forKey:storageSide(base));retainPermissions([permission])
                         self.document = document.replacingPane(base: base, content: target.content)
                         try drafts?.didSaveAs(target.content, base: base)
+                        if base == mergeToolResultSide { pendingNewOutputAdd = nil }
                         if base == mergeToolResultSide, mergeToolInvocation != nil {
                             mergeToolOutput = try MergeToolOutputTarget(capturing: url); mergeToolDidSave = true; mergeToolSaveRequired = false
+                            pendingNewOutputAdd = nil
                         }
                         updateHistoryState(); rebuildAlignment(); reloadEditorConfig()
                     }
@@ -1909,6 +1911,38 @@ private extension FileComparisonDocument {
         }
     }
     let saveFolderAccess=MergeSaveFolderAccess()
+    let newOutputAdd = MergeNewOutputAdd()
+    @Published private(set) var pendingNewOutputAdd: MergeNewOutputReceipt?
+    var canRetryNewOutputAdd: Bool { pendingNewOutputAdd != nil && !mergeToolReadOnly && canBeginOutput }
+    private func advanceNewOutputAdd(before: ComparisonFileContent, after: ComparisonFileContent, at url: URL, enabled: Bool) throws {
+        if let pending = pendingNewOutputAdd, GitReferenceName.equal(pending.url.path, url.path) {
+            pendingNewOutputAdd = try pending.refreshingSavedOutput(after)
+        } else if enabled {
+            pendingNewOutputAdd = try MergeNewOutputReceipt.capture(before: before, after: after, at: url)
+        }
+    }
+    private func addSavedNewOutput(_ request: OperationCancellation) async throws -> Bool {
+        guard let pending = pendingNewOutputAdd else { return true }
+        guard let acquired = try await newOutputAdd.perform(pending, repository: repository,
+            permissions: [access].compactMap { $0 } + openPermissions, window: window, cancellation: request) else { return false }
+        try ensurePaneSave(request)
+        retainPermissions(acquired); pendingNewOutputAdd = nil
+        return true
+    }
+    func retryNewOutputAdd() {
+        guard canRetryNewOutputAdd else { return }
+        let request = OperationCancellation(), permissions = openPermissions
+        paneSave = request; busy = true; error = nil
+        Self.activePaneExports += 1; ownedMergeOperations += 1
+        Task {
+            defer {
+                if paneSave === request { paneSave = nil; busy = false }
+                Self.activePaneExports -= 1; ownedMergeOperations -= 1; withExtendedLifetime(permissions) {}
+            }
+            do { _ = try await addSavedNewOutput(request) }
+            catch { if !retired && !request.isCancelled { self.error = "The result is saved, but Git Add did not complete. " + error.localizedDescription } }
+        }
+    }
     private func authorizeWorkingReplacement(at file:URL,cancellation:OperationCancellation) async throws -> Bool {
         guard let acquired=try await saveFolderAccess.authorize(file:file,permissions:openPermissions,window:window,cancellation:cancellation) else {return false}
         try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
@@ -1930,7 +1964,7 @@ private extension FileComparisonDocument {
     private var paneSave: OperationCancellation?
     private let saveChoices=MergeSaveChoices()
     private var updatingSaveDecision = false
-    func cancelPaneSave() {paneSave?.cancel();saveChoices.cancel();saveFolderAccess.cancel()}
+    func cancelPaneSave() {paneSave?.cancel();saveChoices.cancel();saveFolderAccess.cancel();newOutputAdd.cancel()}
     private func ensurePaneSave(_ request: OperationCancellation) throws {
         guard !retired, paneSave === request else { throw OperationCancellationFailure.cancelled }
         try request.check()
@@ -1967,8 +2001,10 @@ private extension FileComparisonDocument {
         paneTargets[base]=target;inputEncodingOverrides.removeValue(forKey:storageSide(base));retainPermissions([permission])
         self.document=document.replacingPane(base:base,content:target.content)
         try drafts?.didSaveAs(target.content,base:base)
+        if base == mergeToolResultSide { pendingNewOutputAdd = nil }
         if mergeToolInvocation != nil, base == mergeToolResultSide {
             mergeToolOutput = try MergeToolOutputTarget(capturing:url); mergeToolDidSave = true; mergeToolSaveRequired = false
+            pendingNewOutputAdd = nil
         }
         updateHistoryState();rebuildAlignment();reloadEditorConfig()
         return true
@@ -1978,6 +2014,7 @@ private extension FileComparisonDocument {
         guard !mergeToolReadOnly, paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), choiceAllowed, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
         let request = OperationCancellation(), permissions = openPermissions
         paneSave = request;saveChoices.reset();error=nil; Self.activePaneExports += 1; ownedMergeOperations += 1; busy = true
+        let autoAdd = MergeEditorPreferences.load(from: comparisonDefaults).autoAdd
         Task {
             var saved = false, writtenURLs: [URL] = []
             defer {
@@ -2000,10 +2037,15 @@ private extension FileComparisonDocument {
                     guard let document, let text = drafts?.text(base: base) else { throw FileComparisonEditFailure.unsupported }
                     let content=base ? document.base : document.destination
                     if base == mergeToolResultSide, let output = mergeToolOutput {
-                        for input in mergeToolInputs.values { try input.validate() }
                         if MergePaneSaveAs.requiresSaveAs(at:output.url,permissions:output.content.permissions,absent:output.content.isDeleted) {
                             guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request,wrote:{ writtenURLs.append($0) }) else { return }
                             continue
+                        }
+                        let directories = try await Task.detached { try MergeOutputDirectories(capturing: output.url) }.value
+                        try ensurePaneSave(request)
+                        if let pending = pendingNewOutputAdd, GitReferenceName.equal(pending.url.path, output.url.path) {
+                            try await Task.detached { try request.check(); try pending.validate() }.value
+                            try ensurePaneSave(request)
                         }
                         guard try await authorizeWorkingReplacement(at:output.url,cancellation:request) else { return }
                         try ensurePaneSave(request)
@@ -2013,10 +2055,15 @@ private extension FileComparisonDocument {
                             else { guard let answer = await saveChoices.empty(window:window,path:output.url.path) else { return }; choice = answer }
                         } else { choice = .keep }
                         try ensurePaneSave(request)
-                        let options = MergeFileSaveOptions(backupOriginal:MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice)
-                        for input in mergeToolInputs.values { try input.validate() }
-                        let target = try output.save(text:text,encoding:drafts?.encoding(base:base),options:options)
+                        let options = MergeFileSaveOptions(backupOriginal:MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice,outputDirectories:directories)
+                        let inputs = Array(mergeToolInputs.values), selectedEncoding = drafts?.encoding(base:base)
+                        let target = try await Task.detached {
+                            try request.check()
+                            for input in inputs { try request.check(); try input.validate() }
+                            return try output.save(text:text,encoding:selectedEncoding,options:options,cancellation:request)
+                        }.value
                         writtenURLs.append(target.url)
+                        guard !retired, paneSave === request else { return }
                         let savedContent = target.savedPaneContent(like:content)
                         mergeToolOutput = target
                         for (side,input) in mergeToolInputs where input.url.resolvingSymlinksInPath().standardizedFileURL.path == target.url.resolvingSymlinksInPath().standardizedFileURL.path {
@@ -2026,6 +2073,8 @@ private extension FileComparisonDocument {
                         try drafts?.didSave(savedContent,base:base)
                         if inputEncodingOverrides[storageSide(base)] != nil,let codec=savedContent.encoding {inputEncodingOverrides[storageSide(base)]=codec}
                         mergeToolDidSave = true; mergeToolSaveRequired = false
+                        try advanceNewOutputAdd(before: output.content, after: target.content, at: target.url, enabled: autoAdd)
+                        if request.isCancelled { return }
                         continue
                     }
                     if content.path.contains("\0") {
@@ -2038,6 +2087,12 @@ private extension FileComparisonDocument {
                         guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request,wrote:{ writtenURLs.append($0) }) else {return}
                         continue
                     }
+                    let directories = try await Task.detached { try MergeOutputDirectories(capturing: file) }.value
+                    try ensurePaneSave(request)
+                    if let pending = pendingNewOutputAdd, GitReferenceName.equal(pending.url.path, file.path) {
+                        try await Task.detached { try request.check(); try pending.validate() }.value
+                        try ensurePaneSave(request)
+                    }
                     guard try await authorizeWorkingReplacement(at:file,cancellation:request) else {return}
                     try ensurePaneSave(request)
                     let choice: MergeEmptyResult
@@ -2048,7 +2103,7 @@ private extension FileComparisonDocument {
                     }
                     else { choice = .keep }
                     try ensurePaneSave(request)
-                    let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice)
+                    let options = MergeFileSaveOptions(backupOriginal: MergeFileSaveOptions.backupEnabled(from: comparisonDefaults), emptyResult: choice,outputDirectories:directories)
                     let result: FileComparisonDocument
                     let context = oriented(savingContext(document)), physicalBase = storageSide(base)
                     if let target = paneTargets[base] {
@@ -2070,7 +2125,7 @@ private extension FileComparisonDocument {
                         result = oriented(try await repository.saveComparisonFile(snapshot, document: context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options,cancellation:request))
                     } else { throw RevisionComparisonFailure.selection }
                     writtenURLs.append(paneTargets[base]?.url ?? file)
-                    try ensurePaneSave(request)
+                    guard !retired, paneSave === request else { return }
                     var combined = result
                     for other in paneTargets.keys where other != base { combined = combined.replacingPane(base: other, content: other ? document.base : document.destination) }
                     self.document = combined
@@ -2086,9 +2141,17 @@ private extension FileComparisonDocument {
                     if mergeToolInvocation != nil, base == mergeToolResultSide { mergeToolDidSave = true; mergeToolSaveRequired = false }
                     if let target = paneTargets[base] { paneTargets[base] = try target.recording(savedContent) }
                     else { originalPaneDocument = originalPaneDocument?.replacingPane(base: base, content: savedContent) }
+                    if base == mergeToolResultSide && paneTargets[base] == nil {
+                        try advanceNewOutputAdd(before: content, after: savedContent, at: file, enabled: autoAdd)
+                    }
+                    if request.isCancelled { return }
+                }
+                if sides.contains(mergeToolResultSide) {
+                    if autoAdd { if !(try await addSavedNewOutput(request)) { return } }
+                    else { pendingNewOutputAdd = nil }
                 }
                 if !retainingViewEdits { rebuildAlignment() }; saved = true
-            } catch { if !retired && !request.isCancelled { self.error = error.localizedDescription } }
+            } catch { if !retired && !request.isCancelled { self.error = pendingNewOutputAdd == nil ? error.localizedDescription : "The result is saved, but Git Add did not complete. " + error.localizedDescription } }
         }
     }
     func remapOtherAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, changedBase: Bool) {
@@ -2389,6 +2452,14 @@ private struct FileComparisonDialog: View {
                     .accessibilityLabel("Interface")
                     .disabled(model.busy || model.confirmingQuit)
             }.padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 4)
+            if model.pendingNewOutputAdd != nil {
+                HStack {
+                    Text("The result is saved. Git Add is pending.").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button { model.retryNewOutputAdd() } label: { CommandLabel(title: "Retry Add", icon: .add) }
+                        .disabled(!model.canRetryNewOutputAdd)
+                }.padding(.horizontal, 10).padding(.bottom, 6)
+            }
             if !model.nativeToolbarInstalled {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)

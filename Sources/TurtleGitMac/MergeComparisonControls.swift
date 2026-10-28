@@ -921,12 +921,15 @@ struct MergeTypingModeControl: View {
         guard requireScope else {return []}
         let file=file.standardizedFileURL,parent=file.deletingLastPathComponent()
         if permissions.contains(where:{$0.permits(file) && $0.permits(parent)}) {return []}
+        let plan = try await Task.detached { try MergeOutputDirectories(capturing: file) }.value
+        try cancellation.check()
+        let requested = plan.ancestor
         let selected:URL?
-        if let chooseFolder {selected=await chooseFolder(window,parent)}
+        if let chooseFolder {selected=await chooseFolder(window,requested)}
         else {
             guard let window,window.attachedSheet==nil,panel==nil else {return nil}
             let panel=NSOpenPanel();panel.canChooseFiles=false;panel.canChooseDirectories=true;panel.allowsMultipleSelection=false
-            panel.directoryURL=parent;panel.prompt=readingEditorConfig ? "Read EditorConfig" : "Allow Save";panel.title=readingEditorConfig ? "Read EditorConfig" : "Allow saving in this folder"
+            panel.directoryURL=requested;panel.prompt=readingEditorConfig ? "Read EditorConfig" : "Allow Save";panel.title=readingEditorConfig ? "Read EditorConfig" : "Allow saving in this folder"
             panel.message=readingEditorConfig ? "Choose the folder containing “" + file.lastPathComponent + "” to read its EditorConfig settings." : "Choose the folder containing “" + file.lastPathComponent + "” to allow saving and backups."
             self.panel=panel
             let answer=await withCheckedContinuation {continuation in panel.beginSheetModal(for:window) {continuation.resume(returning:$0)}}
@@ -937,6 +940,109 @@ struct MergeTypingModeControl: View {
         let permission=makeLease(selected)
         guard permission.permits(file),permission.permits(parent) else {throw RepositoryAccessFailure.securityScopeUnavailable}
         return [permission]
+    }
+}
+
+/// Saving bytes and authorizing an index change are distinct operations. A
+/// caller keeps its saved baseline and receipt until this owned Add completes.
+@MainActor final class MergeNewOutputAdd {
+    var requiresScope = GitRuntime.isAppStoreBuild
+    var executable: (() throws -> URL)?
+    var resolveRepository: ((URL, OperationCancellation) async throws -> (GitRepository, [RepositoryAccessLease])?)?
+    var chooseRepository: ((NSWindow?, URL) async -> URL?)?
+    var makeLease: (URL) -> RepositoryAccessLease = { RepositoryAccessLease(url: $0) }
+    private(set) var panel: NSOpenPanel?
+    private var retainedPermissions: [RepositoryAccessLease] = []
+    func cancel() {
+        if let panel {
+            if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }
+            else { panel.cancel(nil) }
+            panel.orderOut(nil)
+        }
+    }
+    private func covers(_ root: URL, with permissions: [RepositoryAccessLease]) -> Bool {
+        !requiresScope || permissions.contains { $0.hasSecurityScope && $0.contains(root) }
+    }
+    private func chooseFolder(_ start: URL, message: String, window: NSWindow?) async -> URL? {
+        if let chooseRepository { return await chooseRepository(window, start) }
+        guard panel == nil, window?.attachedSheet == nil else { return nil }
+        let chooser = NSOpenPanel(); chooser.canChooseFiles = false; chooser.canChooseDirectories = true
+        chooser.allowsMultipleSelection = false; chooser.directoryURL = start
+        chooser.title = NSLocalizedString("Add saved file to Git", comment: "")
+        chooser.prompt = NSLocalizedString("Allow Add", comment: ""); chooser.message = message
+        panel = chooser
+        let answer = await withCheckedContinuation { continuation in
+            if let window, window.isVisible { chooser.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
+            else { chooser.begin { continuation.resume(returning: $0) } }
+        }
+        panel = nil; return answer == .OK ? chooser.url : nil
+    }
+    func perform(_ receipt: MergeNewOutputReceipt, repository: GitRepository? = nil,
+        permissions: [RepositoryAccessLease], window: NSWindow?, cancellation: OperationCancellation) async throws -> [RepositoryAccessLease]? {
+        try cancellation.check()
+        let effectivePermissions = permissions + retainedPermissions
+        let resolved: (GitRepository, [RepositoryAccessLease])
+        if let resolveRepository {
+            guard let value = try await resolveRepository(receipt.url, cancellation) else { return nil }
+            resolved = value
+        } else {
+            let git: URL
+            if let executable { git = try executable() }
+            else if let repository { git = repository.executable }
+            else { git = try GitRuntime.executable() }
+            let parent = receipt.url.deletingLastPathComponent(), scoped = requiresScope
+            // Marker discovery stops at the live grant boundary. Do not start
+            // Git's upward repository walk with only a narrow output grant.
+            let discovered = try await Task.detached {
+                try RepositoryMetadataAccess.settingsRepository(at: parent, permissions: effectivePermissions,
+                    requireSecurityScope: scoped, cancellation: cancellation)
+            }.value
+            try cancellation.check()
+            if let root = discovered, covers(root, with: effectivePermissions) {
+                resolved = (GitRepository(root: root, executable: git), [])
+            } else {
+                guard let selected = await chooseFolder(parent,
+                    message: NSLocalizedString("Choose the Git repository folder to add the saved file. The file is already saved.", comment: ""), window: window) else { return nil }
+                try cancellation.check()
+                let grant = makeLease(selected)
+                guard covers(selected, with: [grant]), RepositoryAccessLease.pathIsContained(receipt.url, by: selected) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                resolved = (GitRepository(root: selected, executable: git), [grant])
+            }
+        }
+        var held = effectivePermissions + resolved.1, acquired = resolved.1
+        defer { withExtendedLifetime(held) {} }
+        try cancellation.check()
+        guard covers(resolved.0.root, with: held), RepositoryAccessLease.pathIsContained(receipt.url, by: resolved.0.root) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        retainedPermissions += resolved.1
+        let expectedRoot = resolved.0.root, rootPermissions = held, scoped = requiresScope
+        let markedRoot = try await Task.detached {
+            try RepositoryMetadataAccess.settingsRepository(at: expectedRoot, permissions: rootPermissions,
+                requireSecurityScope: scoped, cancellation: cancellation)
+        }.value
+        guard let markedRoot, GitReferenceName.equal(markedRoot.resolvingSymlinksInPath().standardizedFileURL.path, expectedRoot.resolvingSymlinksInPath().standardizedFileURL.path) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        if requiresScope {
+            for _ in 0..<256 {
+                let currentPermissions = held, root = resolved.0.root
+                let needed = try await Task.detached {
+                    try RepositoryMetadataAccess.next(at: root, permissions: currentPermissions, cancellation: cancellation)
+                }.value
+                guard let needed else { break }
+                guard let selected = await chooseFolder(needed.folder, message: needed.explanation, window: window) else { return nil }
+                try cancellation.check()
+                let grant = makeLease(selected)
+                guard covers(needed.folder, with: [grant]) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                held.append(grant); acquired.append(grant); retainedPermissions.append(grant)
+            }
+            let finalPermissions = held, root = resolved.0.root
+            let remaining = try await Task.detached {
+                try RepositoryMetadataAccess.next(at: root, permissions: finalPermissions, cancellation: cancellation)
+            }.value
+            guard remaining == nil else { throw RepositoryMetadataAccessFailure.tooManyDependencies }
+        }
+        let actual = try await resolved.0.discoverRoot(cancellation: cancellation)
+        guard GitReferenceName.equal(actual.resolvingSymlinksInPath().standardizedFileURL.path, resolved.0.root.resolvingSymlinksInPath().standardizedFileURL.path), covers(actual, with: held) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        try await resolved.0.addNewMergeOutput(receipt, cancellation: cancellation)
+        return acquired
     }
 }
 

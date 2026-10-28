@@ -393,7 +393,7 @@ private enum MergeSourceSide {
     private var mergeToolInitialLine: Int?
     private var ownedFormatChoices = 0
     private var ownedEditorConfigReads = 0
-    var mergeToolHasPendingWork: Bool { externalReloadCoordinator?.hasPendingWork==true || preservingSourceCopies || closingDecisionPending || busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedReloadChoices > 0 || ownedEditorConfigReads > 0 }
+    var mergeToolHasPendingWork: Bool { externalReloadCoordinator?.hasPendingWork==true || preservingSourceCopies || closingDecisionPending || busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedReloadChoices > 0 || ownedEditorConfigReads > 0 || reloadPreparationPending > 0 }
     private var explicitMergeToolReadOnly = false
     private var replacementReflectedNames: [String: String] = [:]
     private var hasMergeToolReplacementPolicy = false
@@ -461,7 +461,7 @@ private enum MergeSourceSide {
     @Published var patchResultCompleted = false
     var repositoryResolutionAllowed:Bool {!mergeToolReadOnly && workingMerge == nil && patchComparison == nil && mergedResultTarget == nil}
     func cancelPatchOperation() {if patchComparison != nil {cancelSaveOperation()}}
-    func cancelSaveOperation() {loadCancellation?.cancel();saveChoices.cancel();saveFolderAccess.cancel()}
+    func cancelSaveOperation() {newOutputAdd.cancel();loadCancellation?.cancel();saveChoices.cancel();saveFolderAccess.cancel()}
     let saveFolderAccess=MergeSaveFolderAccess()
     private let saveChoices=MergeSaveChoices()
     private(set) var mergedResultTarget:SavedMergePane?
@@ -1136,7 +1136,7 @@ private enum MergeSourceSide {
         let sourceCompletion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];sourceCompletion?(false,sheets)
         retireFormatChoice()
         inputEncodingEpoch=UUID();retireReloadChoice()
-        saveChoices.cancel();saveFolderAccess.cancel()
+        saveChoices.cancel();saveFolderAccess.cancel();newOutputAdd.cancel()
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
         lineWrapping.retire(); pointerOrigins.removeAll()
@@ -1747,54 +1747,96 @@ private enum MergeSourceSide {
             } catch { if !retired,!confirmingQuit,!token.isCancelled, loadGeneration == generation { pendingComparisonOptions = nil; self.error = error.localizedDescription } }
         }
     }
+    struct ReloadPreparation:Sendable {
+        let document:TextConflictDocument
+        let sourceTargets:[Bool:SavedMergePane]
+        let resultTarget:SavedMergePane?
+        let profiles:MergeCommentProfiles
+        let presentation:MergeResultPresentation
+        let initialResult:String
+        let lineRanges:[NSRange]
+        let lineEnding:MergeLineEnding
+        let alignedProjection:MergeAlignedResultProjection?
+        let p4Projection:P4MergeResultProjection
+    }
+    /// The complete immutable read/rebuild job runs on a worker; adoption stays
+    /// with the current dialog generation after the actual worker has drained.
+    var prepareReload:@Sendable (@escaping @Sendable () async throws -> ReloadPreparation) async throws -> ReloadPreparation = {try await $0()}
+    @Published private(set) var reloadPreparationPending=0
     private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil,inputEncodings:MergeInputEncodingOverrides = .init(),regenerateResult:Bool=false) async throws {
         let requested = filterName
         let filter = regexFilters.first { MergeRegexFilters.sameName($0.name,requested) }
-        var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
+        let configuredEngine=engineConfiguration
         let changingOptions = pendingComparisonOptions != nil
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
-        let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
-        engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path]); engine.blame = mergeToolBlame
-        let loadedSources=try sourceTargets.mapValues {try $0.read()}
-        var next: TextConflictDocument
-        if mergedResultTarget != nil,workingMerge==nil,let current=document {
-            // Once Save As owns the result, the captured source panes remain
-            // usable even after the original repository conflict is resolved.
-            next=try current.replacingSources(mine:loadedSources[true],theirs:loadedSources[false],engine:engine,cancellation:cancellation)
-        } else if let patchComparison {
-            let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults),legacy = legacyEncoding
-            next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,legacyEncoding:legacy,inputEncodings:inputEncodings,cancellation:cancellation)}.value
-        } else if let workingMerge {
-            if saveFolderAccess.requireScope {
-                for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
-                    guard workingMergePermissions.contains(where: { $0.permits(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-                }
+        let sourceTargets=self.sourceTargets,mergedResultTarget=self.mergedResultTarget,current=document
+        let workingMerge=self.workingMerge,patchComparison=self.patchComparison,repository=self.repository,path=self.path
+        let profileURL=commentProfileURL,blame=mergeToolBlame,preferUTF8=ComparisonTextEncoding.preferUTF8(from:comparisonDefaults),legacy=legacyEncoding
+        let identityOptions=ConflictIdentityOptions(defaults:comparisonDefaults),permissions=openPermissions
+        if let workingMerge,saveFolderAccess.requireScope {
+            for url in [workingMerge.baseURL,workingMerge.theirsURL,workingMerge.mineURL] {
+                guard workingMergePermissions.contains(where:{$0.permits(url)}) else {throw RepositoryAccessFailure.securityScopeUnavailable}
             }
-            next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding,inputEncodings:inputEncodings, cancellation: cancellation)
         }
-        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding,inputEncodings:inputEncodings, identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
-        if workingMerge == nil, mergedResultTarget == nil, !sourceTargets.isEmpty {
-            next = try next.replacingSources(mine: loadedSources[true], theirs: loadedSources[false], engine: engine, cancellation: cancellation)
-        }
-        if !inputEncodings.isEmpty,mergedResultTarget != nil && workingMerge==nil || !sourceTargets.isEmpty {
-            next=try next.reinterpretingInputs(inputEncodings,engine:engine,cancellation:cancellation)
-        }
-        var nextSourceTargets=sourceTargets
-        for (mine, target) in sourceTargets {
-            guard let loaded=loadedSources[mine] else{throw TextConflictFailure.changedWorkingFile}
-            let current=try target.read()
-            guard current.bytes==loaded.bytes,current.mode==loaded.mode,current.permissions==loaded.permissions,current.isDeleted==loaded.isDeleted else{throw TextConflictFailure.changedWorkingFile}
-            nextSourceTargets[mine] = try target.recording(loaded)
-        }
-        var nextResultTarget=mergedResultTarget
-        if let target=mergedResultTarget {
-            let content=try target.read();next=try next.recordingOwnedWorkingWrite(content)
-            nextResultTarget=try target.recording(content)
-        }
+        let prepare=prepareReload
+        reloadPreparationPending += 1
+        let prepared:ReloadPreparation
+        do {
+            prepared=try await Task.detached {
+                defer {withExtendedLifetime(permissions) {}}
+                return try await prepare {
+                    var engine=try configuredEngine ?? SubversionMergeConfiguration.bundled(filter:filter)
+                    let profiles = try MergeCommentProfileFile.load(at: profileURL)
+                    engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path]); engine.blame = blame
+                    let loadedSources=try sourceTargets.mapValues {try $0.read()}
+                    var next: TextConflictDocument
+                    if mergedResultTarget != nil,workingMerge==nil,let current {
+                        // Once Save As owns the result, the captured source panes remain
+                        // usable even after the original repository conflict is resolved.
+                        next=try current.replacingSources(mine:loadedSources[true],theirs:loadedSources[false],engine:engine,cancellation:cancellation)
+                    } else if let patchComparison {
+                        let prefer = preferUTF8
+                        next = try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,legacyEncoding:legacy,inputEncodings:inputEncodings,cancellation:cancellation)
+                    } else if let workingMerge {
+                        next = try await workingMerge.read(engine: engine, mergePreferUTF8: preferUTF8,mergeLegacyEncoding:legacy,inputEncodings:inputEncodings, cancellation: cancellation)
+                    }
+                    else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: preferUTF8,mergeLegacyEncoding:legacy,inputEncodings:inputEncodings, identityOptions: identityOptions, cancellation: cancellation) }
+                    if workingMerge == nil, mergedResultTarget == nil, !sourceTargets.isEmpty {
+                        next = try next.replacingSources(mine: loadedSources[true], theirs: loadedSources[false], engine: engine, cancellation: cancellation)
+                    }
+                    if !inputEncodings.isEmpty,mergedResultTarget != nil && workingMerge==nil || !sourceTargets.isEmpty {
+                        next=try next.reinterpretingInputs(inputEncodings,engine:engine,cancellation:cancellation)
+                    }
+                    var nextSourceTargets=sourceTargets
+                    for (mine, target) in sourceTargets {
+                        guard let loaded=loadedSources[mine] else{throw TextConflictFailure.changedWorkingFile}
+                        let current=try target.read()
+                        guard current.bytes==loaded.bytes,current.mode==loaded.mode,current.permissions==loaded.permissions,current.isDeleted==loaded.isDeleted else{throw TextConflictFailure.changedWorkingFile}
+                        nextSourceTargets[mine] = try target.recording(loaded)
+                    }
+                    var nextResultTarget=mergedResultTarget
+                    if let target=mergedResultTarget {
+                        let content=try target.read();next=try next.recordingOwnedWorkingWrite(content)
+                        nextResultTarget=try target.recording(content)
+                    }
+                    try cancellation?.check()
+                    guard let comparison=next.mergeSources else {throw SubversionMergeDiffFailure.invalidOutput}
+                    let initialResult=regenerateResult ? next.generatedResult:next.initialResult
+                    let presentation=MergeResultPresentation(text:next.generatedResult,comparison:comparison).reconciling(initialResult)
+                    let ranges=MergeLineEndings.lineRanges(in:initialResult),lineEnding=MergeLineEndings.predominantStyle(in:next.mine)
+                    let aligned=MergeAlignedResultProjection(comparison:comparison,presentation:presentation)
+                    let p4=P4MergeResultProjection(presentation:presentation,chunks:comparison.chunks,lineEnding:lineEnding)
+                    try cancellation?.check()
+                    return ReloadPreparation(document:next,sourceTargets:nextSourceTargets,resultTarget:nextResultTarget,profiles:profiles,presentation:presentation,initialResult:initialResult,lineRanges:ranges,lineEnding:lineEnding,alignedProjection:aligned,p4Projection:p4)
+                }
+            }.value
+        } catch {reloadPreparationPending -= 1;throw error}
+        reloadPreparationPending -= 1
+        let next=prepared.document,nextSourceTargets=prepared.sourceTargets,nextResultTarget=prepared.resultTarget,profiles=prepared.profiles
         try cancellation?.check()
         guard !retired,!confirmingQuit,generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
-        sourceTargets=nextSourceTargets;mergedResultTarget=nextResultTarget;inputEncodingOverrides=inputEncodings
+        self.sourceTargets=nextSourceTargets;self.mergedResultTarget=nextResultTarget;inputEncodingOverrides=inputEncodings
         resetHistory(); canUndo = false; canRedo = false;resultCopySavepoint=nil
         if let invocation = mergeToolInvocation {
             standaloneSavedResult = next.workingContents.flatMap { next.encoding.decode($0) } ?? ""
@@ -1805,11 +1847,13 @@ private enum MergeSourceSide {
             }
         }
         lineDiffBarVisible = false
-        let initialResult=regenerateResult ? next.generatedResult:next.initialResult
-        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, comparison: comparison).reconciling(initialResult); result = initialResult; encoding = next.encoding
+        let initialResult=prepared.initialResult
+        document = next; sourceComparison = comparison; resultPresentation = prepared.presentation; result = initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
-        resultLineEnding = MergeLineEndings.predominantStyle(in:next.mine); savedResultLineEnding = resultLineEnding
+        resultLineEnding = prepared.lineEnding; savedResultLineEnding = resultLineEnding
+        alignedResultCache=(loadGeneration,resultPresentation,prepared.alignedProjection)
+        p4ProjectionCache=(resultPresentationRevision,sourceLayoutRevision,resultLineEnding,prepared.p4Projection)
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
@@ -1818,7 +1862,7 @@ private enum MergeSourceSide {
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         generalPreferences = .load(from: comparisonDefaults)
         showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults)
-        let ranges = MergeLineEndings.lineRanges(in: result)
+        let ranges = prepared.lineRanges
         let firstChanged = comparison.resultLocator?.states.firstIndex { $0 != .normal && $0 != .filtered && $0 != .empty }
         let difference = firstChanged.flatMap { ranges.indices.contains($0) ? ranges[$0] : nil }
         selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
@@ -2030,6 +2074,31 @@ private enum MergeSourceSide {
         guard !retired,loadCancellation === token else {throw OperationCancellationFailure.cancelled}
         try token.check()
     }
+    let newOutputAdd=MergeNewOutputAdd()
+    @Published private(set) var pendingNewOutput:MergeNewOutputReceipt?
+    private func addSavedNewOutput(_ receipt:MergeNewOutputReceipt,cancellation:OperationCancellation) async throws {
+        guard let acquired=try await newOutputAdd.perform(receipt,repository:repository,permissions:openPermissions,window:window,cancellation:cancellation) else {
+            throw OperationCancellationFailure.cancelled
+        }
+        workingMergePermissions.append(contentsOf:acquired)
+    }
+    func retryNewOutputAdd() {
+        guard sourceMutationsAllowed,!confirmingQuit,window?.attachedSheet==nil,let receipt=pendingNewOutput else{return}
+        let token=OperationCancellation(),permissions=openPermissions
+        busy=true;error=nil;loadCancellation=token;MergeRegexOperations.activeRequests += 1
+        Task {
+            defer {busy=false;if loadCancellation === token {loadCancellation=nil};MergeRegexOperations.activeRequests -= 1;withExtendedLifetime(permissions) {}}
+            do {
+                try ensureSave(token)
+                try await addSavedNewOutput(receipt,cancellation:token)
+                try ensureSave(token)
+                pendingNewOutput=nil
+                onChanged("Added saved merged result: " + receipt.url.lastPathComponent)
+            } catch {
+                if !retired {self.error="The merged result was saved, but Git Add did not complete. " + error.localizedDescription}
+            }
+        }
+    }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
         guard !externalReloadBlocksCommands,!preservingSourceCopies,!mergeToolReadOnly,!patchResultCompleted,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),!retired,!markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts,window?.attachedSheet==nil,let document else {completion?(false);return}
         if hasKeptSourceChanges,!chooseNewOutput {
@@ -2040,7 +2109,7 @@ private enum MergeSourceSide {
             return
         }
         let text=result,outputEncoding=encoding,ignoredResolved=resultPresentation.ignoredConflicts.isEmpty,ignoredSnapshot=resultPresentation.ignoredConflicts,choiceSnapshot=resultPresentation.sourceChoiceRevision,endingSnapshot=resultLineEnding
-        let unresolved=hasUnresolvedConflicts,permissions=openPermissions,token=OperationCancellation()
+        let unresolved=hasUnresolvedConflicts,permissions=openPermissions,token=OperationCancellation(),autoAddForSave=editorPreferences.autoAdd
         let resultPaneBeforeSave = "Merged · \(resultPath)"
         busy=true;error=nil;loadCancellation=token;saveChoices.reset();MergeRegexOperations.activeRequests += 1
         Task { [self] in
@@ -2067,9 +2136,20 @@ private enum MergeSourceSide {
                 else {chosenOutput=existingOutput}
                 attemptedOutput=chosenOutput
                 let independentRetainedCopy=chooseNewOutput && workingMerge != nil && (!keptExternalInputIDs.isEmpty || retainedIndependentResultCopy)
-                if !independentRetainedCopy && !retainedIndependentResultCopy {for target in sourceTargets.values {try target.validate()}}
+                if !independentRetainedCopy && !retainedIndependentResultCopy {
+                    let targets=Array(sourceTargets.values)
+                    try await Task.detached {for target in targets {try token.check();try target.validate()}}.value
+                    try ensureSave(token)
+                }
                 let choosingRepositoryCopy=workingMerge==nil && patchComparison==nil && (needsNewOutput || mergedResultTarget != nil)
                 if !choosingRepositoryCopy,workingMerge==nil,GitRuntime.isAppStoreBuild,(access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                // Capture the destination hierarchy before any permission sheet;
+                // the eventual write must reject a replaced ancestor.
+                let outputDirectories:MergeOutputDirectories?
+                if patchComparison==nil,let chosenOutput {
+                    outputDirectories=try await Task.detached {try MergeOutputDirectories(capturing:chosenOutput)}.value
+                    try ensureSave(token)
+                } else {outputDirectories=nil}
                 if patchComparison==nil,let chosenOutput {
                     guard let acquired=try await saveFolderAccess.authorize(file:chosenOutput,permissions:openPermissions,window:window,cancellation:token) else {return}
                     try ensureSave(token);workingMergePermissions.append(contentsOf:acquired)
@@ -2084,7 +2164,19 @@ private enum MergeSourceSide {
                 } else {choice = .keep}
                 try ensureSave(token)
                 guard result.utf8.elementsEqual(text.utf8),encoding==outputEncoding else {throw FileComparisonEditFailure.changed}
-                let options=MergeFileSaveOptions(backupOriginal:!needsNewOutput && MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice)
+                let options=MergeFileSaveOptions(backupOriginal:!needsNewOutput && MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice,outputDirectories:outputDirectories)
+                let autoAddCandidate = !markResolved && !needsNewOutput && !chooseNewOutput && patchComparison==nil && mergedResultTarget==nil && document.workingContents==nil && autoAddForSave
+                let ordinaryOutput = !markResolved && !needsNewOutput && !chooseNewOutput && patchComparison==nil && mergedResultTarget==nil
+                let pendingResave:MergeNewOutputReceipt? = ordinaryOutput && autoAddForSave && chosenOutput.map {output in pendingNewOutput.map {GitReferenceName.equal($0.url.path,output.standardizedFileURL.path)} ?? false} == true ? pendingNewOutput:nil
+                if let pendingResave {
+                    try await Task.detached {try pendingResave.validate()}.value
+                    try ensureSave(token)
+                }
+                let beforeNewOutput:ComparisonFileContent?
+                if autoAddCandidate,let chosenOutput {
+                    beforeNewOutput=try await Task.detached {try MergeToolFileInput.read(at:chosenOutput)}.value
+                    try ensureSave(token)
+                } else {beforeNewOutput=nil}
                 if let patchResultSaver {
                     let next=try await patchResultSaver(text,outputEncoding,token);try ensureSave(token);self.document=next
                 } else if let workingMerge {
@@ -2106,7 +2198,12 @@ private enum MergeSourceSide {
                     } else {
                         next=try await workingMerge.saveTo(chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
                     }
-                    try ensureSave(token);self.document=next
+                    // Once the actor returned a successful ordinary creation,
+                    // retain that save even if Cancel arrived just after write.
+                    if autoAddCandidate || pendingResave != nil {
+                        guard !retired,loadCancellation === token else{return}
+                    } else {try ensureSave(token)}
+                    self.document=next
                     workingMergeOutput=chosenOutput;standaloneSavedResult=text;standaloneSavedEncoding=outputEncoding
                     window?.title=mergeToolPaneTitle(chosenOutput.lastPathComponent,result:true) + " – TurtleGitMerge"
                 } else if choosingRepositoryCopy,let chosenOutput {
@@ -2124,7 +2221,10 @@ private enum MergeSourceSide {
                     window?.title=mergeToolPaneTitle(chosenOutput.lastPathComponent,result:true) + " – TurtleGitMerge"
                 } else {
                     let next=try await repository.saveTextConflict(document,result:text,markResolved:markResolved,encoding:outputEncoding,options:options,ignoredConflictsResolved:ignoredResolved,cancellation:token)
-                    try ensureSave(token);self.document=next
+                    if autoAddCandidate || pendingResave != nil {
+                        guard !retired,loadCancellation === token else{return}
+                    } else {try ensureSave(token)}
+                    self.document=next
                 }
                 if mergeToolInvocation != nil { mergeToolRequiredSave = false; mergeToolAcceptedSave = true }
                 if resultPaneBeforeSave != "Merged · \(resultPath)" { reloadEditorConfig() }
@@ -2133,6 +2233,33 @@ private enum MergeSourceSide {
                 if let chosenOutput,let accepted=self.document {try acknowledgeOwnedSourceAliases(accepted,at:chosenOutput)}
                 await refreshExternalReloadSources(invalidatingWrittenURLs:[chosenOutput].compactMap{$0})
                 onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)
+                // A rebound result is a copy, and disabling AutoAdd for this
+                // ordinary save retires its previous automatic-add intent.
+                if needsNewOutput || ordinaryOutput && !autoAddForSave {pendingNewOutput=nil}
+                // The file and its editor baseline are already accepted. Git
+                // Add is a separate owned operation: failure must never repeat
+                // the write or discard the successful save receipt.
+                if (beforeNewOutput != nil || pendingResave != nil),let chosenOutput {
+                    let receipt=try await Task.detached {
+                        let after=try MergeToolFileInput.read(at:chosenOutput)
+                        if let pendingResave {return try pendingResave.refreshingSavedOutput(after)}
+                        guard let beforeNewOutput else {throw FileComparisonEditFailure.changed}
+                        return try MergeNewOutputReceipt.capture(before:beforeNewOutput,after:after,at:chosenOutput)
+                    }.value
+                    guard !retired,loadCancellation === token else{return}
+                    pendingNewOutput=receipt
+                    if let receipt,autoAddForSave {
+                        do {
+                            try ensureSave(token)
+                            try await addSavedNewOutput(receipt,cancellation:token)
+                            try ensureSave(token)
+                            pendingNewOutput=nil
+                        } catch {
+                            if !retired {self.error="The merged result was saved, but Git Add did not complete. " + error.localizedDescription}
+                            return
+                        }
+                    }
+                }
                 if markResolved && !choosingRepositoryCopy || closeAfter {close()}
                 else if reloadAfter {try await reloadDocument(filterName:regexFilterName,cancellation:token)}
                 saved=true
@@ -2312,6 +2439,14 @@ private struct TextConflictDialog: View {
                     .accessibilityLabel("Interface")
                     .disabled(model.busy || model.confirmingQuit)
             }.padding(.horizontal,10).padding(.top,6).padding(.bottom,4)
+            if model.pendingNewOutput != nil {
+                HStack {
+                    Text("The merged result is saved. Git Add is pending.").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button {model.retryNewOutputAdd()} label:{CommandLabel(title:"Retry Add",icon:.add)}
+                        .disabled(!model.sourceMutationsAllowed)
+                }.padding(.horizontal,8).padding(.vertical,4)
+            }
             if curvedInterface { P4MergeWorkspace(model:model) }
             else { classicBody }
         }

@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-native-passed-physical-signed-pointer-acceptance-separate",
+  "scope": "Native Log rendered-row hash selection across accepted-but-unrendered projection delivery and blocked-highlight reconciliation.",
+  "fixture": "docs/qa/log-native-selection-2026-10-28.swift",
+  "runner": "scripts/test-log-native-selection.py",
+  "retained_checkpoints": [
+    "docs/qa/log-native-selection-2026-10-28.json",
+    "docs/qa/log-projection-pipeline-2026-10-28.json"
+  ],
+  "executed": true,
+  "limits": [
+    "Deterministic accepted-projection delivery test assigns real records before rendering; it is explicitly a native delivery boundary fixture, not an external process timing measurement.",
+    "Synthetic mouse delivery in the private invisible host failed and is explicitly unverified; no physical/signed pointer acceptance or complete hosted CI claim.",
+    "The source-proven dropped-selection race is distinct from the unconfirmed accessibility message/selection mismatch; this checkpoint does not claim every Log state is verified."
+  ],
+  "validated_assertions": [
+    "Use actual parsed Git records and Core graph to synchronously accept next256-row model projection while native128-row prefix is still displayed; strict command projection stamp stale, native selection still owns rendered hash",
+    "Actual native NSTableView selectRowIndexes/delegate routing updates selected commit, message and changed files; real key events and installed doubleAction/shared file action retained. Synthetic mouse delivery was unavailable in invisible receiver and is not counted as passed.",
+    "Busy native row event restores accepted highlight/model identity. Retired owner event cannot change accepted hash/revision/files or restart details; highlight assertion applies only to attached visible native tables.",
+    "All prior real streamed prefix/final/cancel, native keys/diff and held projection ownership/drain/Quit assertions retained"
+  ],
+  "validation": {
+    "debug": {
+      "status": "passed",
+      "log": "build/qa/merge-output-debug-recheck2-2026-10-29.log",
+      "exit": 0,
+      "known_exit_zero_diagnostic_entries": 1
+    },
+    "native": {
+      "status": "passed-both-git-engines",
+      "log": "build/qa/log-rendered-selection-recheck-2026-10-29.log",
+      "exit": 0,
+      "system_receiver_reaped": 52884,
+      "bundled_receiver_reaped": 53405
+    },
+    "failed_attempts": [
+      {
+        "log": "build/qa/log-rendered-selection-native-2026-10-29.log",
+        "receiver_reaped": 51484,
+        "failure": "Unphased detail-read timeout while actual128-row stream held. The next bounded diagnostic identified the synthetic mouse-delivery boundary."
+      },
+      {
+        "log": "build/qa/log-rendered-selection-diagnostic-2026-10-29.log",
+        "receiver_reaped": 52459,
+        "failure": "Paired synthetic native mouseDown/mouseUp did not change selection in alpha0/prohibited private host. Native hash, model selected/revision and actual message all remained Selection3; accepted-model/unrendered-native selection and details had passed. No message/model desynchronization established.",
+        "repair": "Removed unsupported synthetic event helper and restored actual native selection/delegate route; no production patch for unavailable hidden-host mouse delivery. Retired detached-table highlight is not asserted as visible UI behavior."
+      }
+    ],
+    "core": {
+      "repeated_for_this_native_repair": false,
+      "reason": "Existing connected Core checkpoint retained; native delivery fixture correction did not change Core."
+    }
+  },
+  "cleanup": {
+    "pids": [
+      51484,
+      52459,
+      52884,
+      53405
+    ],
+    "all_reaped": true,
+    "independent_ps": "All four absent after final grouped pass.",
+    "scope": "Private repositories/preferences/pasteboard; actual notes/projection worker holds released and drained, native windows offscreen/alpha0, no unrelated user app terminated."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "686dc8def02a4eebb873e116d4851a809e156504fc1d50882db6cf570bdd8a0d",
+    "docs/qa/log-native-selection-2026-10-28.swift": "e879a2c60d42e509502a5cb1f38b0a9cb8b09f466a635c1613f94dc4641bec05",
+    "scripts/test-log-native-selection.py": "89304899190526ff9133909198068484ac1991439016b928988b8cc66082197c"
+  }
+}

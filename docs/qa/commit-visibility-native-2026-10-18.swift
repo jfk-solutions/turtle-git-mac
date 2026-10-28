@@ -117,7 +117,7 @@ import TurtleGitCore
         // Initial loading/failure, retry and cancellation retain real worker ownership.
         let loading=make();var status:CheckedContinuation<[StatusEntry],Error>?
         loading.model.queryCommitStatus={_,_ in try await withCheckedThrowingContinuation {status=$0}};loading.model.reload();try await wait {status != nil}
-        try require(loading.model.fileListEmptyMessage=="Loading changes…","Initial empty read did not show loading")
+        try require(loading.model.fileListEmptyMessage=="Loading changes…\nReading changes…" && loading.model.reloadPhase == .changes && loading.model.busy && CommitWindowModel.activeReloads>0,"Initial held status read did not show its loading and changes phase")
         status?.resume(throwing:Failure(description:"private status failure"));status=nil;try await wait {!loading.model.busy}
         try require(loading.model.fileListReadError != nil && loading.model.fileListEmptyMessage?.contains("Could not load changes.")==true && !loading.model.unversionedPromptVisible,"Read failure claimed a clean tree/offered hidden files")
         loading.model.error=nil;try await wait {loading.window?.attachedSheet==nil}

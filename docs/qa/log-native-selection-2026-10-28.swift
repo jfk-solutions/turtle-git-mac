@@ -156,10 +156,18 @@ private final class LogProjectionWorkerProbe:@unchecked Sendable {
             guard let table=views(content).compactMap({$0 as? HistoryTableView}).first else{throw Failure(description:"Revision table missing")}
             try await wait("displayed native history matches provisional projection"){content.layoutSubtreeIfNeeded();return table.numberOfRows==model.entries.count && table.numberOfRows==128 && !table.visibleRect.isEmpty}
             func row(_ hash:String)throws->Int{guard let value=model.entries.firstIndex(where:{$0.hash==hash})else{throw Failure(description:"Expected actual commit missing")};return value}
+            var detailPhase="initial"
             func assertDetails(_ hash:String,_ number:Int)async throws {
-                try await wait("native selected commit, message and changed files") {
+                do{try await wait("native selected commit, message and changed files phase=\(detailPhase) expected=\(number):\(hash)") {
                     model.selected==[hash] && model.revision?.hash==hash && model.files.contains{$0.path==name} &&
                     views(content).compactMap{$0 as? LogMessageTextView}.contains{$0.string.contains("Native detail body \(number)")}
+                }
+                }catch{
+                    let rendered=(table.delegate as? RevisionTable.Coordinator)?.renderedEntries ?? []
+                    let native=table.selectedRowIndexes.map{rendered.indices.contains($0) ? rendered[$0].hash:"invalid"}
+                    let messages=views(content).compactMap{$0 as? LogMessageTextView}.map{String($0.string.prefix(400))}
+                    fputs("LOG_SELECTION_DETAILS phase=\(detailPhase) expected=\(hash) nativeRows=\(table.selectedRowIndexes) nativeHashes=\(native) selected=\(model.selected.sorted()) revision=\(model.revision?.hash ?? "nil") fileCount=\(model.files.count) canInspect=\(model.canInspectHistory) strictInput=\((table.delegate as? RevisionTable.Coordinator)?.revisionInputAvailable ?? false) message=\(messages)\n",stderr)
+                    throw error
                 }
                 try require(model.error==nil,"Native selection detail read failed")
             }
@@ -167,17 +175,33 @@ private final class LogProjectionWorkerProbe:@unchecked Sendable {
             let local=NSPoint(x:min(table.bounds.maxX-8,table.rect(ofColumn:table.column(withIdentifier:.init("message"))).midX),y:table.rect(ofRow:middle).midY)
             let contentPoint=(content.superview ?? content).convert(local,from:table),hit=content.hitTest(contentPoint)
             try require(hit === table || hit?.isDescendant(of:table)==true,"Log row pointer target intercepted outside native revision list: hit=\(hit.map{String(describing:type(of:$0))} ?? "nil") local=\(local) converted=\(contentPoint) tableframe=\(table.frame) tablebounds=\(table.bounds) visible=\(table.visibleRect) contentframe=\(content.frame)")
-            // AppKit's actual row selection sends the production delegate
-            // notification. Never seed model.select to make this assertion pass.
+            // Deliver a genuine next Git prefix to the model synchronously,
+            // before SwiftUI updates the currently displayed native128 rows.
+            let actualHistory=try await repo.history(),savedEntries=model.entries,savedGraph=model.graph
+            let nextProjection=CommitGraph.project(Array(actualHistory.prefix(256)),walk:model.historyWalk,references:model.referenceVisibility)
+            guard let coordinator=table.delegate as? RevisionTable.Coordinator,let displayedRow=savedEntries.firstIndex(where:{$0.hash==hashes[2]})else{throw Failure(description:"Actual native rendered row identity unavailable")}
+            model.entries=nextProjection.entries;model.graph=nextProjection.graph
+            try require(!coordinator.revisionInputAvailable,"Fixture did not enter model-accepted/native-unrendered prefix boundary")
+            table.selectRowIndexes(IndexSet(integer:displayedRow),byExtendingSelection:false)
+            try require(model.selected==[hashes[2]],"Native displayed-row selection was rejected or reinterpreted during newer projection delivery")
+            model.entries=savedEntries;model.graph=savedGraph
+            detailPhase="accepted-model-unrendered-native"
+            try await assertDetails(hashes[2],3)
+            try await wait("restored current native projection before actual click"){coordinator.revisionInputAvailable && table.numberOfRows==128}
+            detailPhase="native-stable-row-selection"
+            // Actual AppKit selection/delegate routing is reliable in the
+            // invisible receiver. Physical mouse delivery is separate acceptance.
             table.selectRowIndexes(IndexSet(integer:middle),byExtendingSelection:false)
             try await assertDetails(hashes[1],2)
             var heartbeat=false;DispatchQueue.main.async{heartbeat=true}
             try await wait("MainActor responsive while actual history held"){heartbeat}
             try require(window.makeFirstResponder(table) && window.firstResponder === table,"Native revision list refused keyboard focus")
             guard let down=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\u{f701}",charactersIgnoringModifiers:"\u{f701}",isARepeat:false,keyCode:125)else{throw Failure(description:"Native arrow event unavailable")}
+            detailPhase="native-arrow-down"
             table.keyDown(with:down)
             try await assertDetails(hashes[0],1)
             guard let up=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\u{f700}",charactersIgnoringModifiers:"\u{f700}",isARepeat:false,keyCode:126)else{throw Failure(description:"Native arrow event unavailable")}
+            detailPhase="native-arrow-up"
             table.keyDown(with:up)
             try await assertDetails(hashes[1],2)
             guard let action=table.doubleAction,let target=table.target else{throw Failure(description:"Native revision double action absent")}
@@ -205,6 +229,10 @@ private final class LogProjectionWorkerProbe:@unchecked Sendable {
             try require(model.entries.first(where:{$0.hash==older})?.notes=="Preserved streaming note","Final actual notes metadata was lost")
             try require(table.selectedRowIndexes==IndexSet(integer:try row(hashes[1])),"Final stream publication lost native inspected row")
             if let heldPID{try require(kill(heldPID,0) != 0,"Held actual history helper survived completion")}
+            let acceptedNativeRows=table.selectedRowIndexes,acceptedHashes=model.selected
+            model.busy=true;table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+            try require(model.selected==acceptedHashes && table.selectedRowIndexes==acceptedNativeRows,"Blocked native selection left highlight and accepted message revision inconsistent")
+            model.busy=false
             // Repeat a real stream, change its provisional selection and close
             // while Git is held. Retirement must drain the worker and restore
             // stable rows without reverting the user's inspected revision.
@@ -217,6 +245,11 @@ private final class LogProjectionWorkerProbe:@unchecked Sendable {
             owner.close()
             try await wait("Log native owner/readers drained"){LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeActionReads==0 && LogMessageView.Coordinator.activeOperations==0 && owner.window?.isVisible != true}
             try require(model.selected==[hashes[2]] && model.entries.count==258,"Canceled stream rollback lost valid user selection or stable history")
+            let retiredRows=table.selectedRowIndexes,retiredFiles=model.files.map(\.id),retiredRevision=model.revision?.hash
+            let attachedVisibleDelegate=table.window?.isVisible==true && table.delegate != nil
+            table.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+            try require(model.selected==[hashes[2]] && model.files.map(\.id)==retiredFiles && model.revision?.hash==retiredRevision && LogWindowModel.activeActionReads==0,"Retired native row event reactivated accepted revision/details")
+            if attachedVisibleDelegate{try require(table.selectedRowIndexes==retiredRows,"Blocked attached native row event left highlight inconsistent") }
             if let cancelledPID{try require(kill(cancelledPID,0) != 0,"Canceled history helper survived actual owner drain")}
             let head=try await repo.rebaseCommit("HEAD").hash
             try require(head==hashes[2] && (try Data(contentsOf:indexURL))==index && (try Data(contentsOf:file))==working,"Native Log interaction changed repository bytes")

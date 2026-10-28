@@ -2969,3 +2969,35 @@ in the phase log. Accepted native selection to detail-data readiness took
 painting and full-history completion. The owned app exited normally and the
 repository's HEAD/index were unchanged. This is not a representative performance
 benchmark or every graph/filter state.
+
+### Displayed-row selection across pending projection updates — 2026-10-29
+
+Pinned `LogDlg.cpp::OnLvnItemchangedLoglist` (1869 onward) maps a displayed
+revision to its commit message and changed files; it does not require the full
+history read to finish. Native selection now also accepts a still-current hash
+from the displayed row snapshot when a newer graph projection has reached the
+model but SwiftUI has not yet replaced the native rows. It never interprets that
+old row number against the newer projection. Context menus, Return and revision
+double-click retain their stricter current-projection command receipts.
+
+Busy, modal, retired and removed-row selection attempts cannot retarget details;
+active native highlights are reconciled to the model's accepted selection.
+The table compares its actual selected row indexes with a projection-scoped
+selection receipt, remapping the complete list only after projection/selection
+changes or actual native highlight drift. Lazy cell updates do not scan the
+whole history merely to reapply an unchanged selection.
+
+The [focused delivery checkpoint](qa/log-native-selection-delivery-2026-10-29.json)
+passes with system and bundled Git. It verifies native rendered-hash selection
+before a newer model projection is rendered, matching message/files, actual
+keyboard and diff actions, busy highlight reconciliation and retired-owner
+refusal, while retaining the real streamed/projection ownership checks.
+
+Two earlier receiver attempts are retained. A diagnostic showed that synthetic
+mouse events in the invisible private host did not change native selection;
+native hash, model and message remained consistent. The fixture now uses actual
+AppKit selection/delegate delivery and does not count that unavailable mouse
+route as passing. Physical/signed pointer acceptance remains separate. The
+source-proven dropped-selection interval is distinct from the unconfirmed
+message-paint mismatch observed through a non-atomic accessibility snapshot;
+this change does not certify every Log interaction.

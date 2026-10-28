@@ -224,7 +224,7 @@ extension GitRepository {
         guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
         let deleting = options.emptyResult == .delete
         try MergeWorkingFileSave.write(at: location, original: current, permissions: document.permissions, bytes: contents,
-                                       delete: deleting, backup: options.backupOriginal) {
+                                       delete: deleting, backup: options.backupOriginal, outputDirectories: options.outputDirectories) {
             try cancellation?.check()
             let (bytes, mode) = try self.conflictWorkingSnapshot(location)
             guard bytes == current, mode == permissions else { throw TextConflictFailure.changedWorkingFile }
@@ -354,7 +354,7 @@ public actor WorkingTextMerge {
         if original.bytes != nil && MergePaneSaveAs.requiresSaveAs(at:output,permissions:original.permissions) { throw TextConflictFailure.readOnly }
         let selected = encoding ?? document.encoding, bytes = try selected.encode(result), deleting = options.emptyResult == .delete
         try MergeWorkingFileSave.write(at:output, original:original.bytes, permissions:original.permissions, bytes:bytes,
-                                       delete:deleting, backup:options.backupOriginal, validate:validate)
+                                       delete:deleting, backup:options.backupOriginal, outputDirectories:options.outputDirectories, validate:validate)
         let observed = try? snapshot(output, absentPermissions:original.permissions)
         let expectedBytes = deleting ? nil : bytes
         let savedOutput = Snapshot(bytes:expectedBytes, permissions:original.permissions,
@@ -416,7 +416,7 @@ public actor WorkingTextMerge {
         let bytes = try selected.encode(result)
         try MergeWorkingFileSave.write(at: destination, original: target.content.isDeleted ? nil : target.content.bytes,
             permissions: target.content.permissions ?? 0o644, bytes: bytes, delete: false,
-            backup: options.backupOriginal, validate: validateDestination)
+            backup: options.backupOriginal, outputDirectories: options.outputDirectories, validate: validateDestination)
         let written = try MergeToolOutputTarget(capturing: destination)
         guard written.content.bytes == bytes else { throw TextConflictFailure.changedWorkingFile }
         let content = ComparisonFileContent(path: destination.path, revision: .workingTree, bytes: bytes,

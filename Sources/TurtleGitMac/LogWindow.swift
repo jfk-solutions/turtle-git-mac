@@ -4638,10 +4638,14 @@ struct RevisionTable: NSViewRepresentable {
             }
             if sizingChanged { coordinator.fitAutomaticColumns(sampled: true) }
         }
-        if projectionChanged || coordinator.appliedSelection != model.selected {
+        // AppKit can change its highlight before a refused notification, and
+        // model selection may remain unchanged. Reconcile actual row indices,
+        // rather than trusting only the last applied model selection receipt.
+        if projectionChanged || coordinator.appliedSelection != model.selected || table.selectedRowIndexes != coordinator.appliedSelectionRows {
             let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
             if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
             coordinator.appliedSelection = model.selected
+            coordinator.appliedSelectionRows = indices
         }
         if coordinator.scrollRequest != model.scrollRequest {
             coordinator.scrollRequest = model.scrollRequest
@@ -4720,9 +4724,31 @@ struct RevisionTable: NSViewRepresentable {
         var updating = false
         var renderedEntries: [LogEntry] = []
         var renderedProjection: UUID?
-        var revisionInputAvailable: Bool { !retired && !updating && model.canInspectHistory && renderedProjection == model.historyProjectionEpoch }
+        var revisionInputAvailable: Bool { selectionInputAvailable && renderedProjection == model.historyProjectionEpoch }
+        // A progressive projection can be accepted before SwiftUI replaces the
+        // native rows. Selection owns the displayed hash, not its old row index;
+        // commands retain the stricter projection receipt above.
+        var selectionInputAvailable: Bool { !retired && !updating && model.canInspectHistory }
+        private func reconcileNativeSelection() {
+            guard !retired,let table else{return}
+            let indices=IndexSet(renderedEntries.enumerated().compactMap {model.selected.contains($0.element.hash) ? $0.offset:nil})
+            guard table.selectedRowIndexes != indices else{return}
+            let wasUpdating=updating;updating=true
+            table.selectRowIndexes(indices,byExtendingSelection:false)
+            updating=wasUpdating
+        }
+        func selectionShouldChange(in tableView:NSTableView)->Bool {
+            updating || tableView === table && selectionInputAvailable
+        }
+        func tableView(_ tableView:NSTableView,shouldSelectRow row:Int)->Bool {
+            if updating {return true}
+            guard tableView === table,selectionInputAvailable,renderedEntries.indices.contains(row) else{return false}
+            let hash=renderedEntries[row].hash
+            return model.entries.contains {$0.hash==hash}
+        }
         var contentEpoch: UUID?, graphEpoch: UUID?
         var appliedSelection = Set<String>()
+        var appliedSelectionRows = IndexSet()
         var sizingProjection:UUID?
         var sizingFullMessage=false,sizingTagsRight=false
         var logFont: NSFont?
@@ -4909,14 +4935,19 @@ struct RevisionTable: NSViewRepresentable {
             return cell
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard revisionInputAvailable, let table else { return }
+            guard !updating,let table,(notification.object as? NSTableView) === table else{return}
+            guard selectionInputAvailable else {reconcileNativeSelection();return}
             let available = Set(model.entries.map(\.hash))
             let hashes = Set(table.selectedRowIndexes.compactMap { renderedEntries.indices.contains($0) ? renderedEntries[$0].hash : nil }).intersection(available)
+            // A removed/reordered projection must never reinterpret the old
+            // native index as a different revision or erase a valid selection.
+            guard table.selectedRowIndexes.isEmpty || !hashes.isEmpty else {reconcileNativeSelection();return}
             let mark = table.selectedRowIndexes.last(where: { renderedEntries.indices.contains($0) && hashes.contains(renderedEntries[$0].hash) && !model.selected.contains(renderedEntries[$0].hash) }).map { renderedEntries[$0].hash }
             if hashes != model.selected {
                 model.select(hashes,mark:mark)
                 NativeDialogStartupTrace.mark("log.selection.accepted", count: hashes.count)
             }
+            reconcileNativeSelection()
         }
         private func applySearchHighlights(_ text: NSMutableAttributedString, hash: String, column: String) {
             for range in searchHighlights[hash]?[column] ?? [] where range.length > 0 && range.location >= 0 && NSMaxRange(range) <= text.length {

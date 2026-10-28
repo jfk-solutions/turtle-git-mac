@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-local-pass-hosted-integration-open",
+  "hosted_evidence": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40734366346",
+    "revision": "b1f99dff9b01b0972942d4cd7a9b0c1d05d199ca",
+    "job": 123002382247,
+    "step": "Commit visibility and Log source command families",
+    "failure": "Initial empty read did not show loading",
+    "scope": "Latest actual failed run inspected; later runs may be pending or superseded. This record does not declare the latest hosted workflow successful."
+  },
+  "repair": "Align the held initial Commit read assertion with the current two-line Loading changes / Reading changes phase caption, preserving actual busy/reload ownership and cancellation/error/retry assertions. Production UI unchanged.",
+  "validation": {
+    "argv": [
+      "python3",
+      "scripts/test-app-port-families.py",
+      "--only",
+      "commit",
+      "--git",
+      "/usr/bin/git",
+      "--git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "exit": 0,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "owned_receivers_reaped": [
+      50164,
+      51072
+    ],
+    "passed": "Commit visibility, empty/error/retry, native prompt ownership, author/date callbacks, cancellation, real selected Commit and staging/submodule policy."
+  },
+  "limits": [
+    "Local focused pass does not prove complete hosted integration, signed deployment, physical UI or Log parity.",
+    "The actual invisible native checkbox/menu limitations recorded in prior option checkpoints remain separate."
+  ]
+}

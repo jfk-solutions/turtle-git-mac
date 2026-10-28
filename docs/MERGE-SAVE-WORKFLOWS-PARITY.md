@@ -218,3 +218,60 @@ Grouped verification is recorded in
 [the batch record](qa/merge-result-copy-savepoint-2026-10-17.json). Physical panels,
 Undo gestures, source alias variants, signed folder scopes and installed Finder
 acceptance remain open; this does not certify complete merge or application parity.
+
+## New outputs, Auto Add and retained-source preparation — October 29, 2026
+
+Pinned `MainFrm.cpp::FileSave` captures whether the ordinary result was absent
+and, with AutoAdd enabled (default), dispatches Add after saving the new file.
+`FileSaveAs` does not apply that dispatch. In the pinned
+`TortoiseProc/Commands/AddCommand.cpp`, however, the `/noui` body contains only a
+compiled-out SVN placeholder: it does not stage Git data. The native real Git Add
+is therefore an explicit functional adaptation of the setting, not a claim that
+the pinned child command already performs it. `FileTextLines.cpp` creates missing
+output ancestors. The setting already existed in TurtleGit, but ordinary
+Merge/Compare results did not consume it and nested missing output parents could
+not be saved.
+
+The connected native implementation captures a directory identity plan before
+an output permission question, authorizes the nearest existing ancestor, and
+creates missing components through pinned directory descriptors. Symlink or
+ancestor replacement refuses publication. Failed preparation removes only still-
+empty directories created by that operation, preserving peer files. Existing
+backup/empty-result/output CAS semantics remain in the shared writer.
+
+Successful ordinary creation records its saved document baseline before Git Add.
+Only initially absent, retained outputs participate; existing targets, Save As
+and source copies do not. AutoAdd is captured for the Save attempt. An Add failure
+or cancellation retains the saved file and exact receipt; a compact Retry Add
+control retries that saved version without rewriting it. A reviewed ordinary
+resave advances the pending receipt; disabling AutoAdd for that successful Save
+retires the automatic intent. Explicit Save As rebinding does not retarget an old
+Add receipt. External saved-file changes and conflicting raced index entries are
+refused; unrelated staged entries remain unchanged.
+
+A narrow output-folder grant is not a repository grant. Marker discovery stays
+within live scopes before Git starts, selected roots must be actual roots, and
+linked metadata/object folders require their own covering grant. New grants stay
+owned through failure/retry. Native permission adaptation is separate from the
+Windows child-process dispatch; this checkpoint does not prove signed grants.
+
+Retained-source reads, replacement/reinterpretation, validation rereads and
+result presentation prepare off the main actor, with one current owner accepting
+the immutable result only after token/generation checks. The existing
+`WorkingTextMerge` is already an actor: its synchronous `read` method is correctly
+called with `await` and was never proof of main-thread execution. The earlier
+inspection inference was corrected before implementation; no actor clone was
+introduced for that reason.
+
+The [new-output checkpoint](qa/merge-output-preparation-2026-10-28.json) records
+18 focused Core methods and the grouped native fixture passing with system and
+bundled Git. The final incremental Debug build exited successfully with one
+retained contradictory exit-zero diagnostic; initial compiler failures and their
+repairs remain in the receipt. Native-only corrections were rebuilt before the
+passing native group; Core was not repeated. Remaining source behavior includes
+the explicit unresolved-
+conflict Save Anyway/Mark as resolved override (`MainFrm.cpp` 2230–2246 and
+3078–3105): the current native Mark as resolved still refuses unresolved markers.
+That is an implementation gap, not merely missing acceptance. Physical/signed
+permission sheets, every filter/encoding combination, full hosted integration
+and whole-port acceptance remain separate.

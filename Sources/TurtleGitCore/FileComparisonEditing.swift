@@ -527,7 +527,7 @@ extension FileComparisonEditing {
         let bytes = try original.isDeleted ? (encoding ?? original.encoding ?? .utf8).encode(text) : FileComparisonEditing.encoded(text, like: original, encoding: encoding)
         let deleting = options.emptyResult == .delete
         try MergeWorkingFileSave.write(at: location, original: original.isDeleted ? nil : original.bytes, permissions: permissions,
-                                       bytes: bytes, delete: deleting, backup: options.backupOriginal, validate: validate)
+                                       bytes: bytes, delete: deleting, backup: options.backupOriginal, outputDirectories: options.outputDirectories, validate: validate)
         return ComparisonFileContent(path: original.path, revision: original.revision, bytes: deleting ? Data() : bytes,
                                      mode: original.mode, permissions: permissions, encoding: encoding ?? original.encoding, isDeleted: deleting)
     }
@@ -617,10 +617,177 @@ public struct FileComparisonDrafts {
 }
 
 public enum MergeEmptyResult: Sendable, Equatable { case keep, delete }
+/// A named output may have missing parents. Capture the last existing folder
+/// before authorization, then create only the missing suffix under its identity.
+/// Existing macOS aliases such as /var are resolved once, never followed anew
+/// during creation or publication.
+public struct MergeOutputDirectories: Sendable {
+    public let output: URL
+    public let ancestor: URL
+    private let canonicalAncestor: URL
+    private let identity: String
+    private let components: [String]
+    private static func identity(_ info: stat) -> String { "\(info.st_dev):\(info.st_ino)" }
+    public init(capturing output: URL) throws {
+        let output = output.standardizedFileURL
+        guard output.isFileURL, !output.path.utf8.contains(0), !output.lastPathComponent.isEmpty else { throw FileComparisonEditFailure.unsupported }
+        self.output = output
+        var directory = output.deletingLastPathComponent(), missing: [String] = []
+        while true {
+            var info = stat()
+            if fstatat(AT_FDCWD, directory.path, &info, 0) == 0 {
+                guard info.st_mode & S_IFMT == S_IFDIR else { throw FileComparisonEditFailure.unsupported }
+                ancestor = directory; canonicalAncestor = directory.resolvingSymlinksInPath(); identity = Self.identity(info)
+                components = Array(missing.reversed()); return
+            }
+            guard errno == ENOENT, directory.path != "/" else { throw FileComparisonEditFailure.changed }
+            let name = directory.lastPathComponent
+            guard !name.isEmpty, name != ".", name != ".." else { throw FileComparisonEditFailure.unsupported }
+            missing.append(name); directory.deleteLastPathComponent()
+        }
+    }
+    private func openAncestor() throws -> Int32 {
+        guard ancestor.resolvingSymlinksInPath().path.utf8.elementsEqual(canonicalAncestor.path.utf8) else { throw FileComparisonEditFailure.changed }
+        let fd = open(canonicalAncestor.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard fd >= 0 else { throw FileComparisonEditFailure.changed }
+        var info = stat()
+        guard fstat(fd, &info) == 0, Self.identity(info) == identity else { Darwin.close(fd); throw FileComparisonEditFailure.changed }
+        return fd
+    }
+    /// Executes with a pinned destination directory. Failure removes only our
+    /// still-empty new directories, never a peer's replacement or contents.
+    fileprivate func withParent<T>(at output: URL, validate: () throws -> Void, _ body: (Int32, () throws -> Void) throws -> T) throws -> T {
+        guard self.output.path.utf8.elementsEqual(output.standardizedFileURL.path.utf8) else { throw FileComparisonEditFailure.changed }
+        var descriptors = [try openAncestor()]
+        var created: [(parent: Int32, name: String, identity: String)] = []
+        defer {
+            for item in created.reversed() {
+                var info = stat()
+                if fstatat(item.parent, item.name, &info, AT_SYMLINK_NOFOLLOW) == 0,
+                   info.st_mode & S_IFMT == S_IFDIR, Self.identity(info) == item.identity {
+                    _ = unlinkat(item.parent, item.name, AT_REMOVEDIR)
+                }
+            }
+            for fd in descriptors.reversed() { Darwin.close(fd) }
+        }
+        try validate()
+        for name in components {
+            try validate()
+            let parent = descriptors.last!
+            guard mkdirat(parent, name, 0o755) == 0 else { throw FileComparisonEditFailure.changed }
+            let fd = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            guard fd >= 0 else { throw FileComparisonEditFailure.changed }
+            var info = stat()
+            guard fstat(fd, &info) == 0 else { Darwin.close(fd); throw FileComparisonEditFailure.changed }
+            created.append((parent, name, Self.identity(info))); descriptors.append(fd)
+        }
+        func validateParent() throws {
+            var named = try openAncestor()
+            defer { Darwin.close(named) }
+            for name in components {
+                let child = openat(named, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+                guard child >= 0 else { throw FileComparisonEditFailure.changed }
+                Darwin.close(named); named = child
+            }
+            var actual = stat(), expected = stat()
+            guard fstat(named, &actual) == 0, fstat(descriptors.last!, &expected) == 0,
+                  Self.identity(actual) == Self.identity(expected) else { throw FileComparisonEditFailure.changed }
+        }
+        try validateParent()
+        return try body(descriptors.last!, validateParent)
+    }
+}
+
+/// A successful new ordinary result owns this receipt even if its later Git Add
+/// fails. Retrying Add validates the exact saved file, without repeating Save.
+/// Save As/source copies must not request a receipt.
+public struct MergeNewOutputReceipt: Sendable {
+    public let url: URL
+    private let target: MergeToolOutputTarget
+    public static func capture(before: ComparisonFileContent, after: ComparisonFileContent, at url: URL) throws -> Self? {
+        guard before.isDeleted, !after.isDeleted else { return nil }
+        guard ["100644", "100755"].contains(after.mode ?? "") else { throw FileComparisonEditFailure.unsupported }
+        let target = try MergeToolOutputTarget(capturing: url)
+        guard !target.content.isDeleted, target.content.bytes == after.bytes, target.content.permissions == after.permissions,
+              target.content.mode == after.mode else { throw FileComparisonEditFailure.changed }
+        return Self(url: target.url, target: target)
+    }
+    public func validate() throws { try target.validate() }
+    /// Preserve this session's initial-new intent after an accepted same-path
+    /// ordinary resave. The caller has already applied the disk CAS receipt.
+    public func refreshingSavedOutput(_ after: ComparisonFileContent) throws -> Self? {
+        guard !after.isDeleted else { return nil }
+        let absent = ComparisonFileContent(path: url.path, revision: .workingTree, bytes: Data(), mode: after.mode, permissions: after.permissions, isDeleted: true)
+        return try Self.capture(before: absent, after: after, at: url)
+    }
+}
+
+public enum MergeNewOutputFailure: LocalizedError {
+    case indexChanged
+    public var errorDescription: String? {
+        "The merged result was saved, but the Git index already contains different content for this path. Review the index before adding the result."
+    }
+}
+
+extension GitRepository {
+    /// Only a caller with an actual authorized repository may invoke this policy.
+    /// The literal path packet changes this result's index entry, never its peers.
+    public func addNewMergeOutput(_ receipt: MergeNewOutputReceipt, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        let prefix = root.standardizedFileURL.path + "/", location = receipt.url.standardizedFileURL.path
+        guard location.utf8.starts(with: prefix.utf8), RepositoryAccessLease.pathIsContained(receipt.url, by: root) else { throw FileComparisonEditFailure.unsupported }
+        let path = String(location.dropFirst(prefix.count))
+        guard !path.isEmpty, !path.split(separator: "/").contains(".git") else { throw FileComparisonEditFailure.unsupported }
+        try receipt.validate(); try cancellation?.check()
+        let snapshot = try captureCommitIndex(cancellation: cancellation)
+        let lock = URL(fileURLWithPath: snapshot.location.path + ".lock")
+        let descriptor = open(lock.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard descriptor >= 0 else { throw GitFailure(arguments: ["add"], code: 1, message: "Could not lock the Git index: " + String(cString: strerror(errno))) }
+        defer {
+            var owned = stat(), current = stat()
+            if fstat(descriptor, &owned) == 0, lstat(lock.path, &current) == 0,
+               owned.st_dev == current.st_dev, owned.st_ino == current.st_ino { _ = unlink(lock.path) }
+            Darwin.close(descriptor)
+        }
+        guard try commitIndexBytes(at: snapshot.location) == snapshot.bytes else { throw MergeNewOutputFailure.indexChanged }
+        let permissions = (try? FileManager.default.attributesOfItem(atPath: snapshot.location.path))?[.posixPermissions] as? NSNumber
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-new-merge-output-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let privateIndex = directory.appendingPathComponent("index"), environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
+        if let bytes = snapshot.bytes { try bytes.write(to: privateIndex) }
+        else { _ = try run(["read-tree", "--empty"], environmentOverrides: environment, cancellation: cancellation) }
+        _ = try run(["-c", "core.splitIndex=false", "update-index", "--no-split-index"], environmentOverrides: environment, cancellation: cancellation)
+        let prior = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout
+        try receipt.validate()
+        _ = try run(["add", "--pathspec-from-file=-", "--pathspec-file-nul"], environmentOverrides: environment, cancellation: cancellation, input: literalPathPacket([path]))
+        let prepared = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout
+        guard !prepared.isEmpty, prior.isEmpty || prior == prepared else { throw MergeNewOutputFailure.indexChanged }
+        try cancellation?.check(); try receipt.validate()
+        guard try commitIndexBytes(at: snapshot.location) == snapshot.bytes else { throw MergeNewOutputFailure.indexChanged }
+        // A cancelled Add that actually completed may be retried. An exact
+        // existing index entry is already accepted; never rewrite its peers.
+        if prior == prepared { return }
+        let bytes = try Data(contentsOf: privateIndex)
+        let duplicate = dup(descriptor)
+        guard duplicate >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        let output = FileHandle(fileDescriptor: duplicate, closeOnDealloc: true)
+        defer { try? output.close() }
+        try output.write(contentsOf: bytes); try output.synchronize()
+        if let permissions { guard fchmod(descriptor, mode_t(permissions.uint16Value)) == 0 else { throw CocoaError(.fileWriteUnknown) } }
+        try cancellation?.check(); try receipt.validate()
+        guard try commitIndexBytes(at: snapshot.location) == snapshot.bytes else { throw MergeNewOutputFailure.indexChanged }
+        guard Darwin.rename(lock.path, snapshot.location.path) == 0 else { throw GitFailure(arguments: ["add"], code: 1, message: "Could not publish the new result's Git index entry: " + String(cString: strerror(errno))) }
+    }
+}
+
 public struct MergeFileSaveOptions: Sendable {
     public var backupOriginal: Bool
     public var emptyResult: MergeEmptyResult
-    public init(backupOriginal: Bool = false, emptyResult: MergeEmptyResult = .keep) { self.backupOriginal = backupOriginal; self.emptyResult = emptyResult }
+    public var outputDirectories: MergeOutputDirectories?
+    public init(backupOriginal: Bool = false, emptyResult: MergeEmptyResult = .keep, outputDirectories: MergeOutputDirectories? = nil) {
+        self.backupOriginal = backupOriginal; self.emptyResult = emptyResult; self.outputDirectories = outputDirectories
+    }
     public static func backupEnabled(from defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: "TurtleGitMerge.Backup") }
     public static func saveBackupPreference(_ value: Bool, to defaults: UserDefaults = .standard) { defaults.set(value, forKey: "TurtleGitMerge.Backup") }
 }
@@ -650,19 +817,49 @@ enum MergeWorkingFileSave {
         try validate()
         guard Darwin.rename(temporary.path,target.path)==0 else{throw CocoaError(.fileWriteUnknown)}
     }
-    static func write(at location: URL, original: Data?, permissions: Int, bytes: Data, delete: Bool, backup: Bool, validate: () throws -> Void) throws {
-        let manager = FileManager.default
-        let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitSave-" + UUID().uuidString)
-        defer { try? manager.removeItem(at: temporary) }
-        if !delete {
-            try bytes.write(to: temporary, options: .withoutOverwriting)
-            try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: temporary.path)
+    static func write(at location: URL, original: Data?, permissions: Int, bytes: Data, delete: Bool, backup: Bool, outputDirectories: MergeOutputDirectories? = nil, validate: () throws -> Void) throws {
+        // Deleting an already absent output must not create an empty hierarchy.
+        if delete, original == nil { try validate(); return }
+        let plan = try outputDirectories ?? MergeOutputDirectories(capturing: location)
+        try plan.withParent(at: location, validate: validate) { parent, validateParent in
+            let leaf = location.lastPathComponent
+            let temporary = ".TurtleGitSave-" + UUID().uuidString
+            let backupTemporary = ".TurtleGitBackup-" + UUID().uuidString
+            defer { _ = unlinkat(parent, temporary, 0); _ = unlinkat(parent, backupTemporary, 0) }
+            func posixFailure() -> NSError { NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+            func prepare(_ name: String, bytes: Data) throws {
+                let fd = openat(parent, name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, mode_t(0o600))
+                guard fd >= 0 else { throw posixFailure() }
+                defer { Darwin.close(fd) }
+                try bytes.withUnsafeBytes { raw in
+                    var offset = 0
+                    while offset < raw.count {
+                        let count = Darwin.write(fd, raw.baseAddress!.advanced(by: offset), min(65_536, raw.count - offset))
+                        if count < 0, errno == EINTR { continue }
+                        guard count > 0 else { throw posixFailure() }
+                        offset += count
+                    }
+                }
+                guard fchmod(fd, mode_t(permissions)) == 0 else { throw posixFailure() }
+            }
+            if !delete { try prepare(temporary, bytes: bytes) }
+            try validateParent(); try validate()
+            if backup, let original {
+                let name = leaf + ".bak"; var info = stat()
+                if fstatat(parent, name, &info, AT_SYMLINK_NOFOLLOW) == 0 {
+                    guard info.st_mode & S_IFMT == S_IFREG else { throw MergeFileSaveFailure.backupTarget }
+                } else if errno != ENOENT { throw posixFailure() }
+                try prepare(backupTemporary, bytes: original)
+                try validateParent(); try validate()
+                guard renameat(parent, backupTemporary, parent, name) == 0 else { throw posixFailure() }
+            }
+            try validateParent(); try validate()
+            if delete {
+                guard unlinkat(parent, leaf, 0) == 0 else { throw posixFailure() }
+            } else {
+                guard renameat(parent, temporary, parent, leaf) == 0 else { throw posixFailure() }
+            }
         }
-        try validate()
-        if backup {try Self.backup(at:location,original:original,permissions:permissions,validate:validate)}
-        try validate()
-        if delete { if original != nil { try manager.removeItem(at: location) } }
-        else { guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) } }
     }
 }
 

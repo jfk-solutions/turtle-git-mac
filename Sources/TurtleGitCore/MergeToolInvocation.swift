@@ -136,22 +136,27 @@ public struct MergeToolOutputTarget:Sendable {
         let current=try Self(capturing:url,absentPermissions:content.permissions ?? 0o644)
         guard current.content.bytes==content.bytes,current.content.permissions==content.permissions,current.content.mode==content.mode,current.content.isDeleted==content.isDeleted,current.identity==identity else{throw FileComparisonEditFailure.changed}
     }
-    public func save(text:String,encoding:ComparisonTextEncoding?=nil,options:MergeFileSaveOptions = .init())throws->Self {
+    public func save(text:String,encoding:ComparisonTextEncoding?=nil,options:MergeFileSaveOptions = .init(),cancellation:OperationCancellation?=nil)throws->Self {
+        try cancellation?.check()
         guard !text.utf8.contains(0) else{throw FileComparisonEditFailure.encoding}
         let selected=encoding ?? content.encoding ?? .utf8
-        return try write(bytes:selected.encode(text),encoding:selected,options:options)
+        return try write(bytes:selected.encode(text),encoding:selected,options:options,cancellation:cancellation)
     }
     /// Unified patches may contain arbitrary original bytes. Never decode and
     /// re-encode them merely to write a command-line output.
-    public func save(bytes:Data,options:MergeFileSaveOptions = .init())throws->Self {
-        try write(bytes:bytes,encoding:nil,options:options)
+    public func save(bytes:Data,options:MergeFileSaveOptions = .init(),cancellation:OperationCancellation?=nil)throws->Self {
+        try write(bytes:bytes,encoding:nil,options:options,cancellation:cancellation)
     }
-    private func write(bytes:Data,encoding:ComparisonTextEncoding?,options:MergeFileSaveOptions)throws->Self {
-        try validate()
+    private func write(bytes:Data,encoding:ComparisonTextEncoding?,options:MergeFileSaveOptions,cancellation:OperationCancellation?)throws->Self {
+        try cancellation?.check(); try validate()
         guard options.emptyResult != .delete || bytes.isEmpty else{throw MergeFileSaveFailure.nonemptyDeletion}
         guard !MergePaneSaveAs.requiresSaveAs(at:url,permissions:content.permissions,absent:content.isDeleted) else{throw FileComparisonEditFailure.readOnly}
         let deleting=options.emptyResult == .delete
-        try MergeWorkingFileSave.write(at:url,original:content.isDeleted ? nil:content.bytes,permissions:content.permissions ?? 0o644,bytes:bytes,delete:deleting,backup:options.backupOriginal,validate:validate)
+        try MergeWorkingFileSave.write(at:url,original:content.isDeleted ? nil:content.bytes,permissions:content.permissions ?? 0o644,bytes:bytes,delete:deleting,backup:options.backupOriginal,outputDirectories:options.outputDirectories) {
+            try cancellation?.check(); try validate()
+        }
+        // Publication has succeeded. Always return its owned receipt, even if
+        // cancellation arrives now; callers must adopt a completed disk write.
         let observed=try Self(capturing:url,absentPermissions:content.permissions ?? 0o644)
         guard observed.content.isDeleted==deleting,deleting || observed.content.bytes==bytes else{throw FileComparisonEditFailure.changed}
         let saved=ComparisonFileContent(path:url.path,revision:.workingTree,bytes:deleting ? Data():bytes,mode:observed.content.mode,permissions:observed.content.permissions,encoding:encoding ?? observed.content.encoding,isDeleted:deleting)

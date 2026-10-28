@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-core-and-grouped-native-passed-signed-physical-acceptance-separate",
+  "scope": "Connected Merge/Compare ordinary new-output Save, missing parent creation and folder authority, optional Git Add with separate saved receipt/retry, plus off-MainActor saved-source preparation.",
+  "fixture": "docs/qa/merge-output-preparation-native-2026-10-28.swift",
+  "runner": "scripts/test-merge-output-preparation.py",
+  "executed": true,
+  "correction_to_initial_audit": "WorkingTextMerge is a public actor. Its existing await read already performs an actor hop and serializes internal snapshot maps. The preparation work moved here is the surrounding saved-source IO, replacement/reinterpretation and result projections; no claim that prior ordinary actor read ran inline or that canceled completed reads leave actor maps untouched.",
+  "remaining_explicit_gap": "Pinned Mark Resolved Save Anyway behavior remains deferred to a separate implementation batch.",
+  "limits": [
+    "Private injected permissions prove native authority routing/containment, not signed OS security-scope grants.",
+    "Held real preparation is deterministic ownership/responsiveness evidence, not a user-repository performance benchmark.",
+    "The final Debug command exited0 while retaining one contradictory exit-zero diagnostic entry; not a pristine diagnostic-free claim.",
+    "Scoped Core18 and grouped system/bundled native passes do not prove complete hosted CI, physical pointer, signed/App Store behavior, every encoding/filter combination or full-dialog/whole-port certification."
+  ],
+  "validation_date": "2026-10-29",
+  "validated_assertions": [
+    "Actual configured three-file native Merge: nested Unicode/tab/bracket output Save with AutoAdd on/off; unrelated untracked file excluded",
+    "Existing ordinary output and explicit Save As/source copy excluded from automatic staging",
+    "Actual configured two-file comparison with existing base/mine and separate absent merged output: AutoAdd on/off, existing-output and explicit Save As exclusion, original mine bytes retained",
+    "Real private Git Add wrapper failure/cancellation after successful Save, pending receipt and saved editor baseline retained, close/reload suppressed; explicit Retry Add stages exact NUL path packet without rewriting saved inode/bytes",
+    "Ordinary own resave refreshes pending initial-new receipt; externally replaced saved output refuses stale Add",
+    "Missing-parent Save suggests existing ancestor; canceled folder grant creates no directories; valid ancestor grant authorizes exact nested output",
+    "Narrow output-folder grant cannot authorize Git root/index change; canceled repository choice retains saved output until explicit root-grant retry",
+    "Actual source Save As followed by changed saved-source read/remerge/reinterpret/result preparation; executor calls real work then holds immutable result offMain, UI heartbeat and busy/pending/Quit lifetime retained; late result cannot mutate retired native document/target"
+  ],
+  "source_behavior_adaptation": "Pinned MainFrm.cpp::FileSave dispatches default-enabled AutoAdd for newly created ordinary results, but AddCommand.cpp /noui contains only a #if0 SVN placeholder and does not perform working Git staging. Native exact-path Git Add is an explicit functional adaptation of the exposed setting; SaveAs/source copies remain excluded.",
+  "validation": {
+    "core": {
+      "distinct_methods_passed": 18,
+      "failures": 0,
+      "groups": [
+        {
+          "log": "build/qa/merge-output-core-recheck2-2026-10-29.log",
+          "command_receipt": "build/qa/merge-output-core-recheck2-command-2026-10-29.json",
+          "methods_passed": 15,
+          "exit": 0,
+          "tests_seconds": 8.772
+        },
+        {
+          "log": "build/qa/merge-output-core-save-regressions-2026-10-29.log",
+          "methods_passed": 3,
+          "exit": 0,
+          "tests_seconds": 0.03,
+          "reason": "Three backup/empty-result methods belong to MergeFileSaveTests rather than FileComparisonEditingTests; run the omitted relevant class methods without repeating the15 already passed."
+        }
+      ],
+      "scope": "Eight new output/directory/index-race methods and ten existing affected output CAS/encoding/mode/link/backup/deletion/saved-but-stage-failed regressions. No full Core-suite repeat."
+    },
+    "debug": {
+      "log": "build/qa/merge-log-debug-checkpoint-2026-10-29.log",
+      "command_receipt": "build/qa/merge-log-debug-checkpoint-2026-10-29.json",
+      "exit": 0,
+      "contradictory_exit_zero_diagnostic_entries": 1,
+      "boundary": "Exit0 is recorded together with the retained diagnostic; no pristine-build claim.",
+      "reason": "Affected final incremental rebuild after native pending-output disposition corrections and the separate displayed-hash Log selection change. Core source unchanged after its focused pass.",
+      "earlier_successful_debug": {
+        "log": "build/qa/merge-output-debug-recheck2-2026-10-29.log",
+        "command_receipt": "build/qa/merge-output-debug-recheck2-command-2026-10-29.json",
+        "exit": 0
+      }
+    },
+    "native": {
+      "log": "build/qa/merge-output-native-2026-10-29.log",
+      "exit": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receiver_pids": [
+        49644,
+        49963
+      ],
+      "receivers_reaped": true,
+      "scope": "Private actual Merge/Compare save/AutoAdd/retry/index-preservation, permission-boundary routing and held real source-preparation lifetimes; current Debug objects linked once."
+    },
+    "failed_compile_attempts": [
+      {
+        "logs": [
+          "build/qa/merge-output-core-2026-10-29.log",
+          "build/qa/merge-output-debug-2026-10-29.log"
+        ],
+        "core_exit": 1,
+        "debug_exit": 65,
+        "tests_executed": false,
+        "cause": "Unqualified rename resolved to GitRepository.rename rather than Darwin.rename.",
+        "repair": "Qualify filesystem publication as Darwin.rename."
+      },
+      {
+        "logs": [
+          "build/qa/merge-output-core-recheck-2026-10-29.log",
+          "build/qa/merge-output-debug-recheck-2026-10-29.log"
+        ],
+        "core_exit": 1,
+        "debug_exit": 65,
+        "tests_executed": false,
+        "cause": "Retry Add catch assigned to implicit error instead of the model error property; native frontend compilation failed/crashed.",
+        "repair": "Qualify self.error in the Retry Add catch."
+      }
+    ]
+  },
+  "cleanup": {
+    "receiver_pids": [
+      49644,
+      49963
+    ],
+    "reaped": true,
+    "scope": "Private temporary repositories, preferences, pasteboards, alpha0/offscreen owners and sheets; actual held workers and owned Git wrappers drained/reaped. No unrelated app terminated."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "cd7b3c2852d822d954accd708d5d230a4afd9b15c119e52778e72e77c3fb939d",
+    "Sources/TurtleGitCore/TextConflict.swift": "63eb66305c95fa93398bc01c3be25ae02f27db5f8be82bee4f80c00017ef44d2",
+    "Sources/TurtleGitCore/MergeToolInvocation.swift": "ffcbdd4f41dbfa80f8014d68441773f13b10dd95a690c6cd274956506cc4b24a",
+    "Tests/TurtleGitCoreTests/MergeNewOutputSaveTests.swift": "c742ea4fae20fd2baf61bc2a791221d2ad9a8423e1c8e3a5318ff0bfbd4c821c",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "93869df0775e2e3999e680d8f47d5b18e74ddaa82adcf06bc445dfd8c3b99a4b",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "222a68bbbf8bb95683b32032a927a89ae8068474c2c66147f75f6c63e862e844",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "77743ee5e8ea1ed0aa23cab455d61879ee21559aad4f15e46632870084358aff",
+    "Sources/TurtleGitMac/MergeToolLaunchSession.swift": "5ee439bfb51c28c8d1cbda8d806efffb9828d640d1e2af8c9377efeacbcec4b8",
+    "docs/qa/merge-output-preparation-native-2026-10-28.swift": "550dd3bb8a653eeb72bce29542359fe2094491e372797039bb5c03f9639f8037",
+    "scripts/test-merge-output-preparation.py": "e00cfeb08acdcc73e8d8d5fba15eed71a6037f2a5d4ad67aff7590d8418b294f"
+  }
+}
