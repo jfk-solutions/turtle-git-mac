@@ -136,3 +136,35 @@ acceptance, full upstream Commit state/layout comparison, interactive signing/
 hooks/provider failures, every staging/amend/operation combination, signed access
 and complete source patch-mode behavior. AppKit disabled-list and inherited-sheet
 checks do not establish every upstream dialog or whole-port completion.
+
+## Native option routes and retained choices — October 28, 2026
+
+The later hosted Commit failure (`40709146937`, primary options assertion 173)
+exposed a separate dispatch defect: the native Amend menu changed the Boolean
+directly, while the checkbox entered the receipt-owned handler synchronously.
+The observer could arrive after a caller had already mistaken the form for a
+settled Amend state. Earlier observer-identity checks did not remove that native
+menu bypass.
+
+This related batch aligns the eleven menu options with the same form admission,
+checked state and mutation boundary used by the controls: Amend, amend comparison,
+author/date/reset, new branch, staging, unversioned visibility, whole project,
+message only and submodule autoselection. Repeated unchanged values must preserve
+the user's current file inclusion and manually rechecked submodule choices.
+Staging admission reflects whether its initial preferences have loaded. Explicit
+metadata retry/read handlers retain their separate purpose.
+
+Sign-off button and menu admission also belong to the current owned form and its
+modal/readiness checks, with their existing Git identity, trailer, cancellation
+and worker-drain behavior retained. This is a route and ownership correction;
+new source checkboxes or different Git Commit semantics are not required.
+
+The [grouped native checkpoint](qa/commit-option-workflow-2026-10-28.json) passes
+with system and bundled Git. The default fixture exercises actual menu dispatch and the shared form
+handler while HEAD metadata is held, alongside retained file choices and existing
+author/date/branch/submodule/ownership cases. The invisible SwiftUI receiver does
+not expose its checkbox as an actionable public accessibility element; attempted
+native-control discovery remains recorded as unavailable, not a passed checkbox
+interaction. An explicit acceptance mode retains that actual-action requirement.
+Physical checkbox acceptance, a complete hosted run and newly installed source
+remain separate gates.

@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-native-menu-and-form-binding-passed-actual-checkbox-acceptance-unresolved",
+  "scope": "Consistent Commit native checkbox/menu option admission, same-value no-ops and receipt-owned sign-off.",
+  "fixture": "docs/qa/primary-commit-options-native-2026-10-21.swift",
+  "runner": "scripts/test-primary-parity-family.py --only commit",
+  "executed": true,
+  "limits": [
+    "Native performClick and action routing do not certify physical pointer interaction or signed application behavior.",
+    "No complete hosted CI or whole-port completion claim.",
+    "Unavailable actual checkbox acceptance is preserved explicitly; the bounded default pass does not certify it or resolve hosted SDK delivery by itself."
+  ],
+  "validated_assertions": [
+    "Actual native menu vs shared form-binding setter: synchronous held real-HEAD metadata admission, duplicate pending/settled observers do not restart, stale native menu and prior form binding refused; this is not actual checkbox delivery.",
+    "Unchanged unversioned option retains actual selected row with RememberFileListPosition disabled and does not rewrite private preference domain",
+    "Actual independent Git repository with gitlink and changed nested checkout: manually checked submodule retained after unchanged no-autoselect setting; parent index unchanged",
+    "Stale sign-off receipt and actual owned sheet refuse identity read; current accepted receipt retains operation and appends actual Git signature once",
+    "Preload staging option unavailable before preferences; all original author/date/reset/newbranch/submodule/focus/metadata Quit/cancellation/retry/normalization assertions retained",
+    "Private owners/preferences/pasteboards, real worker drain and main fixture HEAD/index/working bytes unchanged"
+  ],
+  "validation": {
+    "debug": {
+      "status": "passed",
+      "log": "build/qa/commit-option-dispatch-debug-2026-10-28.log",
+      "command_receipt": "build/qa/commit-option-dispatch-debug-command-2026-10-28.json",
+      "exit": 0,
+      "known_exit_zero_diagnostic_entries": 3
+    },
+    "native": [
+      {
+        "engine": "/usr/bin/git",
+        "status": "passed",
+        "log": "build/qa/commit-option-workflow-binding-recheck-2026-10-28.log",
+        "exit": 0,
+        "receiver_reaped": 38143
+      },
+      {
+        "engine": "build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "log": "build/qa/commit-option-workflow-bundled-binding-recheck-2026-10-28.log",
+        "exit": 0,
+        "receiver_reaped": 38757
+      }
+    ],
+    "core": {
+      "run": false,
+      "reason": "Native-only workflow changes; no complete Core or previous Core/watch repeat."
+    },
+    "failed_attempts": [
+      {
+        "log": "build/qa/commit-option-workflow-native-2026-10-28.log",
+        "receiver_reaped": 37337,
+        "failure": "New fixture assumed actual SwiftUI Amend Toggle was an NSButton; no such control exposed."
+      },
+      {
+        "log": "build/qa/commit-option-workflow-checkbox-recheck-2026-10-28.log",
+        "receiver_reaped": 37626,
+        "failure": "Public accessibility AXLabel-only checkbox lookup unavailable in invisible private host."
+      },
+      {
+        "log": "build/qa/commit-option-workflow-checkbox-ax-diagnosis-2026-10-28.log",
+        "receiver_reaped": 37862,
+        "failure": "Actual bounded AX role/title/label/native-class diagnostic exposed NSHostingView AXGroup and AppKit representables, but no SwiftUI AXCheckBox/NSButton with usable actual Amend action."
+      }
+    ]
+  },
+  "actual_checkbox_acceptance": {
+    "status": "unresolved-in-private-invisible-swiftui-host",
+    "command": "python3 scripts/test-primary-parity-family.py --only commit --require-native-checkbox",
+    "behavior": "Explicit opt-in still requires genuine installed NSButton action or public accessibility checkbox press and fails if unavailable. Never replaces that acceptance with model mutation.",
+    "default_evidence": "Native menu dispatch and accurately named shared form-binding admission pass; neither is counted as native checkbox or physical pointer acceptance.",
+    "remaining": "Actual visible/signed/SDK checkbox action acceptance remains a separate gate."
+  },
+  "cleanup": {
+    "receiver_pids": [
+      37337,
+      37626,
+      37862,
+      38143,
+      38757
+    ],
+    "all_reaped": true,
+    "independent_ps": "All five absent after their respective checks.",
+    "ownership": "Private repositories/preferences/pasteboards, alpha0/offscreen receiver windows and child sheets; actual held metadata gates released and workers drained on success/failure. No unrelated app terminated."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "44115121d6ecc78a14e3fa3aa0e9302ba77ad760779d7b81b338e512a37b8f4f",
+    "docs/qa/primary-commit-options-native-2026-10-21.swift": "823f1dd762066c31d4aa00f3a89a70b4f98dacb29c11d1b640c155a23a3c703e",
+    "scripts/test-primary-parity-family.py": "c619117a5c42b2b3957cfebab2f7d1e840718ae087cc3dff921ff2e95eeb47b3"
+  }
+}

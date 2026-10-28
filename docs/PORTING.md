@@ -25,6 +25,18 @@ Build26 checks its bundled identity and provenance without repeating that
 execution. Physical input/VoiceOver, Intel/minimum-macOS, complete hosted and
 whole-port acceptance remain separate gates.
 
+## Commit option workflow continuation
+
+The [option workflow checkpoint](qa/commit-option-workflow-2026-10-28.json)
+aligns all eleven native menu options with shared form admission and fixes late
+Amend metadata startup. Unchanged callbacks preserve selected files and manually
+rechecked submodules; Sign-off uses the current form and modal guards. The native
+menu/shared-handler family passes with both Git engines, including real gitlink
+and held metadata cases. Actual checkbox action is unavailable in the invisible
+SwiftUI receiver and remains an explicit acceptance gap. Installed build26
+predates this source continuation; no new signed installation or full hosted pass
+is inferred from its focused native checks.
+
 ## Compare and Merge linked pointer scrolling
 
 The [pointer scrolling continuation](VIEWPORT-NAVIGATION-PARITY.md#linked-pointer-scrolling--october-28-2026)

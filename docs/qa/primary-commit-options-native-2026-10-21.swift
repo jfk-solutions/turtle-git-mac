@@ -30,6 +30,7 @@ enum PrimaryCommitOptionsVerification {
         }
         func owner()async throws->CommitWindowController {
             let owner=CommitWindowController(repository:repository,access:nil,defaults:preferences)
+            try PrimaryCommitOptionsVerification.require(!owner.model.canChangeFormOption(.staging),"Unloaded preferences exposed a native staging mode action")
             owners.append(owner);owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-18000,y:-18000))
             owner.showWindow(nil);owner.model.reload(paths:["literal.txt"])
             try await PrimaryCommitOptionsVerification.wait(owner.window,"Initial Commit snapshot did not settle"){!owner.model.busy && owner.model.changelistsLoaded && owner.commandsAvailable}
@@ -60,6 +61,169 @@ enum PrimaryCommitOptionsVerification {
     @MainActor static func keyboard(_ owner:CommitWindowController,_ text:String,_ flags:NSEvent.ModifierFlags) throws->Bool {
         guard let window=owner.window,let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:0,windowNumber:window.windowNumber,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:0) else{throw Failure(description:"Could not construct native Commit key event")}
         return window.performKeyEquivalent(with:event)
+    }
+    /// Compare native menu admission with the shared form-binding setter.
+    /// A separately requested checkbox acceptance requires a genuine installed
+    /// native/public AX action; an unavailable invisible-host control is not a pass.
+    @MainActor static func amendCheckboxAction(_ owner:CommitWindowController)->(()throws->Void)? {
+        if let button=views(owner.window?.contentView).compactMap({$0 as? NSButton}).first(where:{$0.isEnabled && ($0.title=="Amend Last Commit" || $0.accessibilityLabel()=="Amend Last Commit")}) {
+            return {button.performClick(nil)}
+        }
+        // SwiftUI may render Toggle without an NSButton. Use the actual public
+        // same-process accessibility checkbox action, never a model substitute.
+        var seen=Set<ObjectIdentifier>(),remaining=4096
+        func property(_ object:NSObject,_ name:String)->Any? {
+            let selector=NSSelectorFromString(name);guard object.responds(to:selector) else{return nil}
+            return object.perform(selector)?.takeUnretainedValue()
+        }
+        func find(_ value:Any,_ depth:Int)->(()throws->Void)? {
+            guard depth<48,remaining>0,let object=value as? NSObject,seen.insert(ObjectIdentifier(object)).inserted else{return nil}
+            remaining -= 1
+            let label=property(object,"accessibilityLabel") as? String,title=property(object,"accessibilityTitle") as? String,role=property(object,"accessibilityRole") as? String
+            if (label=="Amend Last Commit" || title=="Amend Last Commit"),role==NSAccessibility.Role.checkBox.rawValue {
+                if let element=value as? NSAccessibilityProtocol,element.isAccessibilityEnabled() {
+                    return {try require(element.accessibilityPerformPress(),"Actual accessible Amend checkbox refused its press")}
+                }
+                let selector=NSSelectorFromString("accessibilityPerformPress"),enabled=NSSelectorFromString("isAccessibilityEnabled")
+                if object.responds(to:selector),object.responds(to:enabled) {
+                    typealias BooleanMethod = @convention(c) (AnyObject,Selector)->Bool
+                    let can=unsafeBitCast(object.method(for:enabled),to:BooleanMethod.self)
+                    if can(object,enabled) {
+                        return {let action=unsafeBitCast(object.method(for:selector),to:BooleanMethod.self);try require(action(object,selector),"Actual SwiftUI Amend accessibility press refused")}
+                    }
+                }
+            }
+            let children=(property(object,"accessibilityChildren") as? [Any] ?? [])+(property(object,"accessibilityChildrenInNavigationOrder") as? [Any] ?? [])
+            for child in children{if let action=find(child,depth+1){return action}}
+            return nil
+        }
+        for view in views(owner.window?.contentView){if let action=find(view,0){return action}}
+        return nil
+    }
+    @MainActor static func nativeAmendRoutes(_ context:Context)async throws {
+        let routes=["menu","form-binding"]+(ProcessInfo.processInfo.environment["TURTLEGIT_COMMIT_NATIVE_CHECKBOX_ACCEPTANCE"]=="1" ? ["checkbox"]:[])
+        for route in routes {
+            let owner=try await context.owner(),model=owner.model,repository=context.repository
+            defer{owner.close()}
+            let gate=context.gate();var token:OperationCancellation?
+            model.message="Native \(route) pre-amend draft"
+            model.queryAmendMessage={cancellation in
+                token=cancellation
+                guard case .commit(let value)=try await repository.singleCommitDetails(revision:"HEAD",cancellation:cancellation) else{throw Failure(description:"Actual Amend HEAD unavailable")}
+                await gate.hold();return value.subject+"\n"+value.body
+            }
+            let previous=model.formReceipt,stale=try await readyItem(context,owner,"noAutoSubmodules")
+            let before=model.doNotAutoselectSubmodules,reads=CommitWindowModel.activeMetadataOperations
+            if route=="menu" {
+                try press(try await readyItem(context,owner,"amend"))
+            } else if route=="form-binding" {
+                // This is the actual shared setter used by formBinding. It
+                // verifies admission/lifecycle, not native checkbox delivery.
+                model.setFormOption(.amend,value:true,receipt:model.formReceipt)
+            } else {
+                do{try await wait(owner.window,"Actual native/accessibility Amend checkbox unavailable"){amendCheckboxAction(owner) != nil}}catch{
+                    var seen=Set<ObjectIdentifier>(),count=0
+                    func dump(_ value:Any,_ depth:Int){
+                        guard depth<30,count<250,let object=value as? NSObject,seen.insert(ObjectIdentifier(object)).inserted else{return};count += 1
+                        func property(_ name:String)->Any?{let selector=NSSelectorFromString(name);return object.responds(to:selector) ? object.perform(selector)?.takeUnretainedValue():nil}
+                        fputs("COMMIT_AX \(type(of:value)) role=\(property("accessibilityRole") ?? "nil") label=\(property("accessibilityLabel") ?? "nil") title=\(property("accessibilityTitle") ?? "nil")\n",stderr)
+                        for child in (property("accessibilityChildren") as? [Any] ?? [])+(property("accessibilityChildrenInNavigationOrder") as? [Any] ?? []){dump(child,depth+1)}
+                    }
+                    for view in views(owner.window?.contentView){dump(view,0)}
+                    throw error
+                }
+                guard let action=amendCheckboxAction(owner) else{throw Failure(description:"Actual Amend checkbox disappeared")}
+                try action()
+            }
+            try require(model.amend && model.loadingAmendMessage && CommitWindowModel.activeMetadataOperations==reads+1,
+                        "Native \(route) Amend returned before admitting its metadata worker")
+            let accepted=model.formReceipt,acceptedReads=CommitWindowModel.activeMetadataOperations
+            model.formOptionViewChanged(.amend);model.formOptionViewChanged(.amend)
+            try require(model.formReceipt==accepted && CommitWindowModel.activeMetadataOperations==acceptedReads,
+                        "Native \(route) duplicate observer restarted accepted Amend")
+            try press(stale)
+            model.setFormOption(.noAutoSubmodules,value:!before,receipt:previous)
+            try require(model.doNotAutoselectSubmodules==before,"Native \(route) metadata admitted a retired menu/binding receipt")
+            try await wait(owner.window,"Native Amend actual metadata did not enter owned hold"){gate.entered}
+            try require(token?.isCancelled==false && model.loadingAmendMessage,"Native Amend did not retain actual worker ownership")
+            gate.release()
+            try await wait(owner.window,"Native Amend route did not settle actual metadata and comparison"){!model.loadingAmendMessage && !model.loadingAuthorIdentity && !model.loadingAuthorDate && !model.busy}
+            try require(model.error==nil && model.message.contains("second source revision"),"Native \(route) Amend failed to install actual HEAD metadata")
+            let settled=model.formReceipt,settledReads=CommitWindowModel.activeMetadataOperations
+            model.formOptionViewChanged(.amend);model.formOptionViewChanged(.amend)
+            try require(model.formReceipt==settled && CommitWindowModel.activeMetadataOperations==settledReads && !model.busy,
+                        "Native \(route) settled delayed callback retired the form")
+            owner.close()
+            try await wait(nil,"Native Amend route owner did not drain"){CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activeReloads==0}
+        }
+    }
+    @MainActor static func unchangedOptionsAndSignOff(_ context:Context)async throws {
+        let owner=try await context.owner(),model=owner.model
+        defer{owner.close()}
+        context.preferences.set(false,forKey:"RememberFileListPosition")
+        defer{context.preferences.removeObject(forKey:"RememberFileListPosition")}
+        model.selection=["literal.txt"]
+        let position=model.selection,visible=model.showUnversioned
+        let defaults=context.preferences.persistentDomain(forName:context.suite) as NSDictionary?
+        model.setFormOption(.unversioned,value:visible,receipt:model.formReceipt)
+        try require(model.selection==position,"Unchanged visible-files option reset user's selected row")
+        try require((context.preferences.persistentDomain(forName:context.suite) as NSDictionary?)==defaults,"Unchanged option rewrote private preferences")
+        let stale=model.formReceipt;model.confirmingQuit=true;model.confirmingQuit=false
+        var queries=0
+        model.querySignOff={token in queries += 1;return try await context.repository.commitSignOffLine(cancellation:token)}
+        let draft="Private receipt-owned sign-off draft";model.message=draft
+        model.addSignOff(receipt:stale)
+        try require(queries==0 && !model.busy && model.message==draft,"Retired sign-off binding started a Git identity read")
+        guard let window=owner.window else{throw Failure(description:"Actual Sign-off owner missing")}
+        let sheet=NSWindow(contentRect:.init(x:-18000,y:-18000,width:220,height:90),styleMask:[.titled],backing:.buffered,defer:true)
+        sheet.isReleasedWhenClosed=false;sheet.alphaValue=0
+        defer{if sheet.sheetParent != nil{window.endSheet(sheet)};sheet.orderOut(nil);sheet.close()}
+        window.beginSheet(sheet,completionHandler:nil)
+        try require(window.attachedSheet === sheet,"Private sign-off modal ownership missing")
+        model.addSignOff(receipt:model.formReceipt)
+        try require(queries==0 && !model.busy && model.message==draft,"Sign-off bypassed its actual owned modal sheet")
+        window.endSheet(sheet);sheet.orderOut(nil);sheet.close()
+        try await wait(window,"Private sign-off sheet did not drain"){window.attachedSheet==nil}
+        model.addSignOff(receipt:model.formReceipt)
+        try require(model.busy,"Accepted sign-off did not synchronously retain operation ownership")
+        try await wait(window,"Accepted actual signing identity did not settle"){!model.busy && CommitWindowModel.activeFileOperations==0}
+        try require(queries==1 && model.error==nil && model.message.contains("Signed-off-by: Primary Commit QA <qa@example.invalid>"),"Current sign-off receipt did not append actual Git identity exactly once")
+    }
+    @MainActor static func unchangedSubmodulePolicy(_ context:Context)async throws {
+        let saved=context.preferences.object(forKey:"Commit.DoNotAutoselectSubmodules")
+        defer{if let saved{context.preferences.set(saved,forKey:"Commit.DoNotAutoselectSubmodules")}else{context.preferences.removeObject(forKey:"Commit.DoNotAutoselectSubmodules")}}
+        let root=context.repository.root.appendingPathComponent(".git/manual-gitlink-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);context.temporaryDirectories.append(root)
+        let repository=GitRepository(root:root,executable:context.repository.executable,libgit2Configuration:.init(enabled:false))
+        _=try await repository.run(["init","--template=","-b","main"])
+        for(key,value)in[("user.name","Gitlink option QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_=try await repository.run(["config",key,value])}
+        try Data("base\n".utf8).write(to:root.appendingPathComponent("file"));try await repository.stage(["file"]);_=try await repository.commit(message:"base")
+        let base=try await repository.rebaseCommit("HEAD").hash
+        let modules="""
+        [submodule "module"]
+            path = module
+            url = https://example.invalid/module.git
+        """
+        try Data(modules.utf8).write(to:root.appendingPathComponent(".gitmodules"))
+        try await repository.stage([".gitmodules"]);_=try await repository.run(["update-index","--add","--cacheinfo","160000",base,"module"]);_=try await repository.commit(message:"actual gitlink")
+        let moduleRoot=root.appendingPathComponent("module",isDirectory:true)
+        try FileManager.default.createDirectory(at:moduleRoot,withIntermediateDirectories:false)
+        let module=GitRepository(root:moduleRoot,executable:context.repository.executable,libgit2Configuration:.init(enabled:false))
+        _=try await module.run(["init","--template=","-b","main"])
+        for(key,value)in[("user.name","Actual submodule QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_=try await module.run(["config",key,value])}
+        try Data("actual nested checkout\n".utf8).write(to:moduleRoot.appendingPathComponent("nested"));try await module.stage(["nested"]);_=try await module.commit(message:"distinct actual module HEAD")
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let owner=CommitWindowController(repository:repository,access:nil,defaults:context.preferences),model=owner.model;context.owners.append(owner)
+        defer{owner.close()};owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-18000,y:-18000));owner.showWindow(nil);model.reload(paths:["."])
+        try await wait(owner.window,"Actual changed gitlink did not settle"){!model.busy && model.changelistsLoaded && model.submodules.contains("module") && model.visibleEntries.contains{$0.path=="module"}}
+        model.setFormOption(.noAutoSubmodules,value:true,receipt:model.formReceipt)
+        guard let row=model.visibleEntries.first(where:{$0.path=="module"})else{throw Failure(description:"Actual gitlink row missing")}
+        model.setFileChecked(row,files:model.visibleEntries,highlighted:[row.id],checked:true,receipt:model.fileCheckReceipt)
+        try require(model.checked.contains("module"),"Actual manual gitlink check was refused")
+        let before=model.formReceipt,checks=model.checked
+        model.setFormOption(.noAutoSubmodules,value:true,receipt:before)
+        try require(model.checked==checks && model.formReceipt==before && context.preferences.bool(forKey:"Commit.DoNotAutoselectSubmodules"),"Unchanged submodule policy erased manual gitlink choice or retired form")
+        try require((try Data(contentsOf:root.appendingPathComponent(".git/index")))==index,"Checkbox policy changed actual gitlink index")
     }
     @MainActor static func options(_ context:Context)async throws {
         let owner=try await context.owner(),model=owner.model
@@ -444,7 +608,7 @@ enum PrimaryCommitOptionsVerification {
         let beforeHead=try await repository.run(["rev-parse","HEAD"]).stdout,beforeIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),beforeFile=try Data(contentsOf:file)
         let context=Context(repository:repository)
         do {
-            try await initialAndNormalizedTransitions(context);try await options(context);try await focusIntents(context);try await metadata(context);try await context.clean()
+            try await initialAndNormalizedTransitions(context);try await nativeAmendRoutes(context);try await unchangedOptionsAndSignOff(context);try await unchangedSubmodulePolicy(context);try await options(context);try await focusIntents(context);try await metadata(context);try await context.clean()
             let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterFile=try Data(contentsOf:file)
             try require(afterHead==beforeHead && afterIndex==beforeIndex && afterFile==beforeFile,"Read-only Commit form interactions changed Git or working bytes")
             print("PASS: Commit source option/focus commands, superseding native focus intents, native owner receipts/minimum geometry and held metadata Quit success/error/cancel/retry")

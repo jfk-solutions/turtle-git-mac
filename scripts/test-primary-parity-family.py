@@ -48,6 +48,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=['commit', 'log', 'settings'], action='append')
 parser.add_argument('--capture-dir', type=Path)
+parser.add_argument('--require-native-checkbox', action='store_true', help='Require genuine installed Commit checkbox action; unavailable invisible-host SwiftUI controls fail this explicit acceptance.')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 generated = root / 'build/qa/primary-parity-native-sources'
@@ -129,6 +130,9 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-primary-parity-') as temporar
                        XDG_CONFIG_HOME=str(paths['xdg']), TMPDIR=str(paths['temporary'])+'/',
                        TURTLEGIT_PRIMARY_PARITY_CASE=case)
             env.pop('TURTLEGIT_PRIMARY_PARITY_CAPTURES', None)
+            env.pop('TURTLEGIT_COMMIT_NATIVE_CHECKBOX_ACCEPTANCE', None)
+            if args.require_native_checkbox:
+                env['TURTLEGIT_COMMIT_NATIVE_CHECKBOX_ACCEPTANCE'] = '1'
             if args.capture_dir and index == 0:
                 args.capture_dir.mkdir(parents=True, exist_ok=True)
                 env['TURTLEGIT_PRIMARY_PARITY_CAPTURES'] = str(args.capture_dir.resolve())

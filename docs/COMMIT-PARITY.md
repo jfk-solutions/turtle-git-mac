@@ -96,9 +96,10 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   stops at a boundary and pulses the native window; physical keyboard/placement
   acceptance remains incomplete.
   Added/deleted file partial changes would extend the pinned upstream behavior.
-- Full issue controls and message-history behavior; native root/merge/
-  rename amend QA and broader date/author combinations. Native new branch,
-  submodule toggle and broader Commit action combinations remain.
+- Complete issue-provider/message-history acceptance, root/merge/rename amend
+  combinations and broader date/author combinations remain to be established.
+  Native new-branch and submodule-autoselection controls exist; their existence
+  does not prove every Commit action/operation combination.
 - Broader physical message-history acceptance, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
 - Broader grouped-list selection and conditional workflows, displayed dirty-submodule prompt acceptance, broader binary/ignored preview acceptance,

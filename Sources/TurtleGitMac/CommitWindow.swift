@@ -1025,21 +1025,37 @@ import TurtleGitCore
         case .amendComparison:return amend && hasParent && replaySplit==nil && historyCombine==nil
         case .resetDate:return amend && setAuthorDate && !loadingAuthorDate
         case .wholeProject:return !scopePaths.isEmpty
+        case .staging:return loadedPreferences
         default:return true
         }
     }
+    func formOptionValue(_ option: FormOption) -> Bool {
+        switch option {
+        case .newBranch: return createBranch
+        case .amend: return amend
+        case .amendComparison: return amendDiffToLastCommit
+        case .author: return setAuthor
+        case .authorDate: return setAuthorDate
+        case .resetDate: return resetAuthorDate
+        case .wholeProject: return showWholeProject
+        case .messageOnly: return messageOnly
+        case .noAutoSubmodules: return doNotAutoselectSubmodules
+        case .staging: return stagingEnabled
+        case .unversioned: return showUnversioned
+        }
+    }
     func setFormOption(_ option:FormOption,value:Bool,receipt:FormReceipt) {
-        guard acceptsFormReceipt(receipt),canChangeFormOption(option) else{return}
+        guard acceptsFormReceipt(receipt),canChangeFormOption(option),formOptionValue(option) != value else{return}
         switch option {
         case .newBranch:createBranch=value
         case .amend:
-            guard amend != value else{return};amend=value;formOptionViewChanged(.amend)
+            amend=value;formOptionViewChanged(.amend)
         case .amendComparison:
-            guard amendDiffToLastCommit != value else{return};amendDiffToLastCommit=value;formOptionViewChanged(.amendComparison)
+            amendDiffToLastCommit=value;formOptionViewChanged(.amendComparison)
         case .author:
-            guard setAuthor != value else{return};setAuthor=value;formOptionViewChanged(.author)
+            setAuthor=value;formOptionViewChanged(.author)
         case .authorDate:
-            guard setAuthorDate != value else{return};setAuthorDate=value;formOptionViewChanged(.authorDate)
+            setAuthorDate=value;formOptionViewChanged(.authorDate)
         case .resetDate:resetAuthorDate=value
         case .wholeProject:setShowWholeProject(value)
         case .messageOnly:messageOnly=value
@@ -2777,7 +2793,8 @@ import TurtleGitCore
         }
     }
     var querySignOff:((OperationCancellation) async throws -> String)?
-    func addSignOff() {
+    func addSignOff(receipt: FormReceipt? = nil) {
+        guard acceptsFormReceipt(receipt ?? formReceipt) else { return }
         let focus=focusIntent
         runFileOperation("Reading signing identity…",operation:{ [self] token,_ in
             let trailer:String
@@ -3685,7 +3702,7 @@ struct CommitDialog: View {
                         Toggle("Set author", isOn:formBinding(.author,\.setAuthor)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
                         CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity, acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorInputAvailable})
                             .frame(minWidth:220,idealWidth:280).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
-                        Button("Add Signed-off-by") { model.addSignOff() }
+                        Button("Add Signed-off-by") { model.addSignOff(receipt: receipt) }
                     }
                 }.padding(4)
             }
@@ -4355,10 +4372,27 @@ private struct CommitProgressDialog: View {
         default:return nil
         }
     }
+    private func formOption(_ command: Command) -> CommitWindowModel.FormOption? {
+        switch command {
+        case .newBranch: return .newBranch
+        case .amend: return .amend
+        case .amendComparison: return .amendComparison
+        case .author: return .author
+        case .authorDate: return .authorDate
+        case .resetDate: return .resetDate
+        case .staging: return .staging
+        case .showUnversioned: return .unversioned
+        case .noAutoSubmodules: return .noAutoSubmodules
+        case .whole: return .wholeProject
+        case .messageOnly: return .messageOnly
+        default: return nil
+        }
+    }
     private func enabled(_ command:Command)->Bool {
         guard active,let owner else{return false}
         if command == .refresh {return owner.refreshCommandAvailable}
         guard ready else{return false};let model=owner.model
+        if let option = formOption(command) { return model.canChangeFormOption(option) }
         switch command {
         case .current,.commit:return model.canCommit
         case .recommit,.push:return model.canCommit && model.replaySplit==nil && model.historyCombine==nil
@@ -4366,19 +4400,12 @@ private struct CommitProgressDialog: View {
         case .focusFiles:return model.fileListAvailable && owner.fileTable() != nil
         case .history:return model.messageHistory?.entries.isEmpty==false && owner.messageEditor() != nil
         case .hash,.message,.pasteFiles:return owner.messageEditor() != nil
-        case .whole:return !model.scopePaths.isEmpty
-        case .amend:return model.hasHead && model.operation==nil && model.replaySplit==nil && model.historyCombine==nil
-        case .newBranch:return model.canChangeFormOption(.newBranch)
-        case .amendComparison:return model.canChangeFormOption(.amendComparison)
-        case .author:return model.canChangeFormOption(.author)
-        case .authorDate:return model.canChangeFormOption(.authorDate)
-        case .resetDate:return model.canChangeFormOption(.resetDate)
-        case .noAutoSubmodules:return model.canChangeFormOption(.noAutoSubmodules)
         case .focusBranch:return model.nativeNewBranchInputAvailable
         case .focusAuthor:return !model.loadingAuthorIdentity
         case .focusDate,.focusTime:return model.nativeAuthorDateInputAvailable
         case .focusIssue:return model.issueProperties.showsIssueField
         case .issues:return model.nativeIssueProvider != nil
+        case .signOff:return model.acceptsFormReceipt(model.formReceipt)
         case .patch:return !model.stagingEnabled
         case .partialStage,.partialUnstage:return model.stagingEnabled && !model.selection.isEmpty
         default:return true
@@ -4386,21 +4413,11 @@ private struct CommitProgressDialog: View {
     }
     private func checked(_ command:Command)->Bool {
         guard let model=owner?.model else {return false}
+        if let option = formOption(command) { return model.formOptionValue(option) }
         switch command {
         case .commit:return model.currentCompletionAction == .commit
         case .recommit:return model.currentCompletionAction == .recommit
         case .push:return model.currentCompletionAction == .push
-        case .staging:return model.stagingEnabled
-        case .showUnversioned:return model.showUnversioned
-        case .whole:return model.showWholeProject
-        case .messageOnly:return model.messageOnly
-        case .amend:return model.amend
-        case .newBranch:return model.createBranch
-        case .amendComparison:return model.amendDiffToLastCommit
-        case .author:return model.setAuthor
-        case .authorDate:return model.setAuthorDate
-        case .resetDate:return model.resetAuthorDate
-        case .noAutoSubmodules:return model.doNotAutoselectSubmodules
         case .patch:return model.viewingPatch
         case .partialStage:return model.partialMode==false
         case .partialUnstage:return model.partialMode==true
@@ -4421,6 +4438,10 @@ private struct CommitProgressDialog: View {
     }
     private func perform(_ command:Command) {
         guard enabled(command),let owner else {return};let model=owner.model
+        if let option = formOption(command) {
+            model.setFormOption(option, value: !model.formOptionValue(option), receipt: model.formReceipt)
+            return
+        }
         switch command {
         case .current:model.commitCurrentAction()
         case .commit:model.commit(.commit)
@@ -4436,21 +4457,12 @@ private struct CommitProgressDialog: View {
         case .focusIssue:model.focusIssueField()
         case .issues:model.selectProviderIssues()
         case .history,.hash,.message,.pasteFiles:owner.messageEditor()?.performCommitMenuCommand(command)
-        case .signOff:model.addSignOff()
+        case .signOff:model.addSignOff(receipt: model.formReceipt)
         case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:
             let shift=modifierFlags().contains(.shift),value=command == .none ? shift:!shift
             if let category=category(command) {model.checkCategory(category,checking:value,receipt:model.fileCheckReceipt)}
-        case .staging:model.setStagingEnabled(!model.stagingEnabled)
-        case .showUnversioned:model.setShowUnversioned(!model.showUnversioned)
-        case .whole:model.setShowWholeProject(!model.showWholeProject)
-        case .messageOnly:model.messageOnly.toggle()
-        case .amend:model.amend.toggle()
-        case .newBranch:model.setFormOption(.newBranch,value:!model.createBranch,receipt:model.formReceipt)
-        case .amendComparison:model.setFormOption(.amendComparison,value:!model.amendDiffToLastCommit,receipt:model.formReceipt)
-        case .author:model.setFormOption(.author,value:!model.setAuthor,receipt:model.formReceipt)
-        case .authorDate:model.setFormOption(.authorDate,value:!model.setAuthorDate,receipt:model.formReceipt)
-        case .resetDate:model.setFormOption(.resetDate,value:!model.resetAuthorDate,receipt:model.formReceipt)
-        case .noAutoSubmodules:model.setFormOption(.noAutoSubmodules,value:!model.doNotAutoselectSubmodules,receipt:model.formReceipt)
+        case .staging, .showUnversioned, .whole, .messageOnly, .amend, .newBranch,
+             .amendComparison, .author, .authorDate, .resetDate, .noAutoSubmodules: break // Admitted above.
         case .patch:model.showViewPatch()
         case .partialStage:model.showPartial(false)
         case .partialUnstage:model.showPartial(true)
