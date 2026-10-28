@@ -1,6 +1,5 @@
 import AppKit
 import FinderSync
-import Carbon
 import TurtleGitCore
 import os
 
@@ -245,27 +244,17 @@ import os
                 // request. Its missing receipt becomes the existing owned
                 // action error UI instead of leaving a cold click silent.
                 guard let unavailable = FinderActionDelivery(receipt: UUID().uuidString.lowercased(), action: request.action) else { return }
-                let failureConfiguration = NSWorkspace.OpenConfiguration()
-                failureConfiguration.activates = true
-                failureConfiguration.createsNewApplicationInstance = false
-                failureConfiguration.arguments = unavailable.arguments
-                failureConfiguration.appleEvent = Self.actionEvent(unavailable)
-                NSWorkspace.shared.openApplication(at: application, configuration: failureConfiguration) { _, failure in
+                FinderApplicationHandoff.open(unavailable, application: application, activates: true) { _, failure in
                     if let failure { Self.handoffLog.error("Finder failure handoff failed: \((failure as NSError).code, privacy: .public)") }
                 }
                 return
             }
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.activates = request.action != .registerRepository; configuration.createsNewApplicationInstance = false
-            configuration.arguments = delivery.arguments
-            // Sandboxed callers cannot pass launch arguments (NSWorkspace's
-            // API contract). Supply the command as the explicit first event,
-            // before any default application-open/reopen event is requested.
-            configuration.appleEvent = Self.actionEvent(delivery)
-            NSWorkspace.shared.openApplication(at: application, configuration: configuration) { launched, error in
+            FinderApplicationHandoff.open(delivery, application: application, activates: request.action != .registerRepository) { launched, error in
                 if let error {
-                    Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)")
-                    // The first event may already have been accepted. Do not
+                    let failure = error as NSError
+                    let underlying = failure.userInfo[NSUnderlyingErrorKey] as? NSError
+                    Self.handoffLog.error("Finder application handoff failed: \(failure.domain, privacy: .public) \(failure.code, privacy: .public); underlying \(underlying?.domain ?? "none", privacy: .public) \(underlying?.code ?? 0, privacy: .public)")
+                    // The URL event may already have been accepted. Do not
                     // revoke a live receiver's clipboard capability merely
                     // because Launch Services also reported an error.
                     if launched == nil {
@@ -276,11 +265,22 @@ import os
             }
         }
     }
-    static func actionEvent(_ delivery: FinderActionDelivery) -> NSAppleEventDescriptor {
-        let event = NSAppleEventDescriptor(eventClass: AEEventClass(kInternetEventClass), eventID: AEEventID(kAEGetURL),
-            targetDescriptor: nil, returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
-        event.setParam(NSAppleEventDescriptor(string: delivery.url.absoluteString), forKeyword: AEKeyword(keyDirectObject))
-        return event
+}
+
+/// URL delivery is the sandbox-supported Launch Services entry point. Signed
+/// Finder acceptance rejected our custom first-event configuration. Arguments
+/// are only a supplementary path for unsandboxed development callers.
+enum FinderApplicationHandoff {
+    typealias Completion = (NSRunningApplication?, Error?) -> Void
+    typealias Opener = ([URL], URL, NSWorkspace.OpenConfiguration, @escaping Completion) -> Void
+    static func open(_ delivery: FinderActionDelivery, application: URL, activates: Bool,
+                     opener: Opener = { urls, app, configuration, completion in
+                         NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: configuration, completionHandler: completion)
+                     }, completion: @escaping Completion) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = activates; configuration.createsNewApplicationInstance = false
+        configuration.arguments = delivery.arguments
+        opener([delivery.url], application, configuration, completion)
     }
 }
 

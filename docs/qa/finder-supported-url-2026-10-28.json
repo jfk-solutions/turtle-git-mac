@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-native-passed-signed-physical-pending",
+  "scope": "Restore ordinary sandbox-compatible Launch Services URL delivery after signed23 explicit-event launch error256.",
+  "source_repair": {
+    "sender": "FinderApplicationHandoff.open passes exactly one receipt URL to NSWorkspace.open(urls:withApplicationAt:configuration:), with no custom appleEvent and no forced new instance.",
+    "tool_relay": "Single Finder receipt uses ordinary URL delivery; sandbox-ignored arguments remain supplementary only for unsandboxed callers.",
+    "diagnostics": "Launch errors include error domain/code and underlying domain/code; no repository paths or payload bytes logged."
+  },
+  "validation": {
+    "debug": {
+      "log": "build/qa/finder-supported-url-debug-2026-10-28.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/finder-supported-url-native-2026-10-28.log",
+      "exit": 0,
+      "git_engines": [
+        "system",
+        "bundled"
+      ],
+      "receivers": [
+        22329,
+        22400
+      ],
+      "independently_absent": true,
+      "assertions": "Actual sender seam preserves receipt URL, activation and instance policy and supplies no rejected custom event. Existing cold-menu/watch lifecycle assertions retained."
+    },
+    "retained_core_and_watch_checkpoint": "finder-registered-context-2026-10-28.json",
+    "core_repeated": false,
+    "watch_runner_repeated": false
+  },
+  "limits": [
+    "Native opener injection proves API configuration, not sandbox launch success.",
+    "Signed physical Finder launch must pass before claiming the reported bug fixed.",
+    "No complete hosted, Intel, accessibility or whole-port acceptance claim."
+  ]
+}

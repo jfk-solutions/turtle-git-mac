@@ -2,23 +2,21 @@
 
 ## Current installed checkpoint
 
-[Build22](qa/signed-consolidation-build22-2026-10-28.json), version 0.1.0 (22),
-is installed from `9be589267fb14f3e3dba664516bde82fb549f26f`. Its measured inputs,
-strict signatures, eight universal owned components, bundled Help and complete
-installed inventory pass. Build21 is preserved for recovery.
+[Build23](qa/signed-consolidation-build23-2026-10-28.json), version 0.1.0 (23),
+is installed from `f2796388f28b3cff7aa03b25ce62d29724cc5cb0` for Apple Silicon local testing. Measured inputs,
+strict signatures, eight owned components containing arm64, bundled Help and
+complete installed inventory pass. Universal build22 is preserved for recovery.
 
-The package includes the [cold launch receipt and deferred startup work](qa/finder-cold-start-2026-10-28.json)
-and linked pointer scrolling. The physical Finder check exposed a remaining
-command-discovery defect: the full Git menu disappears after its last live
-publisher exits. Cold Finder Commit acceptance therefore failed; the private
-launch checks do not supersede this observation. A following source repair
-separates durable registered-root command hints from live status and moves large
-Finder snapshot decoding away from its callbacks. See
-[the startup record](FINDER-STARTUP-PERFORMANCE.md).
+Normal startup was observed. Registered-folder commands remained visible after
+full app exit, but the actual Finder Commit launch failed with error256 using
+an explicit first-event configuration. The following source repair restores
+ordinary Launch Services URL delivery. Neither native descriptor construction
+nor private argv tests establish sandboxed launch acceptance. See
+[the startup record](FINDER-STARTUP-PERFORMANCE.md) and its physical receipt.
 
 The unchanged Metafile runtime retains the separate focused signed-parent
 execution from [build20](qa/signed-consolidation-build20-2026-10-28.json).
-Build22 checks its bundled identity and provenance without repeating that
+Build23 checks its bundled identity and provenance without repeating that
 execution. Physical input/VoiceOver, Intel/minimum-macOS, complete hosted and
 whole-port acceptance remain separate gates.
 

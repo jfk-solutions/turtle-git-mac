@@ -7,16 +7,16 @@ This page identifies current gates; dated implementation detail is in
 
 ## Installed local checkpoint
 
-[Build22, version 0.1.0 (22)](qa/signed-consolidation-build22-2026-10-28.json)
-is installed from `9be589267fb14f3e3dba664516bde82fb549f26f`. Measured inputs,
-strict Apple Development signatures, eight universal owned components, bundled
-Help and the complete installed inventory pass. Build21 is preserved for recovery.
-Installation did not restart Finder or Dock. Only TurtleGit's extension was reloaded.
+[Build23, version 0.1.0 (23)](qa/signed-consolidation-build23-2026-10-28.json)
+is installed from `f2796388f28b3cff7aa03b25ce62d29724cc5cb0` as an Apple Silicon local test package. Measured
+inputs, strict signatures, eight owned arm64 components, bundled Help and complete
+installed inventory pass. Universal build22 is preserved. Finder and Dock were
+not restarted; only TurtleGit's extension registration was refreshed.
 
-Physical acceptance remains incomplete: the full Finder menu reverted to its
-first-use commands after the app exited. The following source repair retains
-registered-root command discovery independently of live status; build22 predates
-that repair. This is a local test package, not an App Store release.
+The registered folder retained its general menu after full app exit, but actual
+Finder Commit launch failed with error256. The following source repair uses
+ordinary URL delivery instead of the failed explicit first-event configuration.
+Current signed launch acceptance remains open until that repair is checked.
 
 ## Remaining gates
 
@@ -24,7 +24,7 @@ that repair. This is a local test package, not an App Store release.
 | --- | --- |
 | Source behavior and layout | [Family records](PORTING.md#current-component-and-workflow-state--october-25-2026) describe connected implementations. The [resource ledger](DIALOG-COVERAGE.md) keeps partial controls and unmapped platform/example resources explicit. Complete dialog states, command eligibility, layout, keyboard and accessibility acceptance must be established from their actual consumers, rather than counting screens. |
 | Current hosted integration | The [dated Commit failure record](qa/commit-option-observers-2026-10-28.json) records a hosted Core stage with 3,153 methods, two skips and no failures, followed by a native Commit observer failure. Its local repair passes both Git engines; that is not a full hosted pass. The later [hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40709146937) failed the Amend option observer assertion; the native menu still bypasses synchronous metadata handling and its repair remains open. A complete macOS workflow on the release source remains required. Pages success does not certify the app. |
-| Installed workflow acceptance | Earlier signed physical checks cover specific private workflows, not every current source batch. Repeat the relevant installed Commit/Log/comparison/replay/Settings paths after consolidation, including error, cancellation and reopen behavior. Build22's static checks and older focused sandbox evidence do not replace those checks. |
+| Installed workflow acceptance | Earlier signed physical checks cover specific private workflows, not every current source batch. Repeat the relevant installed Commit/Log/comparison/replay/Settings paths after consolidation, including error, cancellation and reopen behavior. Build23's static checks and older focused sandbox evidence do not replace those checks. |
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
 | Startup and large repositories | [Finder publication](qa/finder-publication-pipeline-2026-10-27.json) and [shared Commit reads](qa/commit-shared-display-read-2026-10-27.json) have measured improvements. Complete installed startup/status latency and representative large repositories remain separate measurements; synthetic command counts are not an end-user timing guarantee. |
 | Text, image and document compatibility | [Comparison](IMAGE-COMPARISON.md), [metafile compatibility](IMAGE-METAFILE-PARITY.md), [formatted text](METAFILE-TEXT-PARITY.md) and the document-tool records retain unsupported formats, encodings, font/locale differences and external application boundaries. Explicit refusals must remain visible; a passed corpus is not universal format support. |

@@ -75,9 +75,13 @@ import TurtleGitCore
     static func main()async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         guard let delivery=FinderActionDelivery(receipt:UUID().uuidString.lowercased(),action:.commit) else{throw Failure(description:"Private delivery construction failed")}
-        let event=FinderSync.actionEvent(delivery)
-        try require(event.eventClass==AEEventClass(kInternetEventClass) && event.eventID==AEEventID(kAEGetURL),"Finder cold launch must provide a real first GetURL event")
-        try require(event.paramDescriptor(forKeyword:AEKeyword(keyDirectObject))?.stringValue==delivery.url.absoluteString,"First Apple event lost bounded receipt envelope")
+        var opened:[URL]=[],launchConfiguration:NSWorkspace.OpenConfiguration?,launchCompleted=false
+        let application=URL(fileURLWithPath:"/private/Fixture.app",isDirectory:true)
+        FinderApplicationHandoff.open(delivery,application:application,activates:true,opener:{urls,app,configuration,reply in
+            opened=urls;launchConfiguration=configuration;reply(nil,nil)
+        }){_,error in launchCompleted=error==nil}
+        try require(opened==[delivery.url] && launchCompleted,"Finder must deliver the bounded receipt through Launch Services URLs")
+        try require(launchConfiguration?.appleEvent==nil && launchConfiguration?.createsNewApplicationInstance==false && launchConfiguration?.activates==true,"Finder sandbox handoff must not supply a rejected custom event or force another instance")
         try require(delivery.arguments==[FinderActionDelivery.argumentFlag,delivery.url.absoluteString],"Unsandboxed argv fallback changed")
         let folder=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let root=folder.appendingPathComponent("registered 雪",isDirectory:true)

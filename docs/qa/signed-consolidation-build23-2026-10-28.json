@@ -1,0 +1,185 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-arm64-installed-cold-menu-passed-physical-command-handoff-failed",
+  "build": "23",
+  "source_commit": "f2796388f28b3cff7aa03b25ce62d29724cc5cb0",
+  "source_input_sha256": "acdb38103d358f9b7823ede08dccddc0557b252683b45947b2820e501bf3683c",
+  "source_inputs_unchanged": true,
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed23-static-2026-10-28.json",
+  "installation_receipt": "build/qa/signed23-installed-2026-10-28.json",
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "signing_identity": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "23",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "23"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "23"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "owned_component_count": 8,
+    "architecture_scope": "Apple Silicon local testing; universal/Intel execution and release packaging remain separate.",
+    "runtime_representatives": {
+      "Git": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "LibGit2": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "Metafile": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "runtime_execution_repeated": false,
+    "application_sha256": "e934eaef192e7510c70f9e490763a6c1802b59a4b4b9b1dbe8924270f21216d6",
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "main_sha256": "e934eaef192e7510c70f9e490763a6c1802b59a4b4b9b1dbe8924270f21216d6",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "preserved_build22_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed23-displaced-installed-2026-10-28",
+    "launchservices_and_plugin_registration_exits": [
+      0,
+      0,
+      0
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "store_submission": false
+  },
+  "physical_acceptance": {
+    "normal_startup": {
+      "status": "observed-workspace-in-first-capture",
+      "pid": 21794,
+      "configuration": "Installed sandboxed development-signed build23; deliberate CUA launch.",
+      "catalog_entries": 4,
+      "ladybird_kind": "workingTree"
+    },
+    "quit": {
+      "pid": 21794,
+      "status": "quit-and-independently-ps-confirmed-absent"
+    },
+    "cold_finder_menu": {
+      "status": "passed",
+      "observation": "Actual Finder folder retained general Git menu including Commit with main application fully exited."
+    },
+    "cold_finder_commit": {
+      "status": "failed",
+      "time_local": "2026-10-28 21:32:50 Europe/Berlin",
+      "action": "Actual Git Eintragen menu click",
+      "main_process_started": false,
+      "finder_extension_pid": 21760,
+      "diagnostic": "application handoff failed:256",
+      "inspection_after_click": "No app get/open followed failed click; failure was not obscured by an inspection-triggered launch.",
+      "cause": "Explicit first-event NSWorkspace configuration failed in this observed deployment; exact OS error cause is not established."
+    }
+  },
+  "retained_focused_evidence": "docs/qa/finder-registered-context-2026-10-28.json",
+  "follow_on": {
+    "status": "build24-repair-pending",
+    "scope": "Restore ordinary URL delivery through helper seam; remove explicit first-event configuration from Finder and WorkspaceOpenHandoff, retain argv solely as unsandboxed supplement.",
+    "affected_sender_native_debug_check": "Running under root ownership; not recorded here as passed.",
+    "core_and_watch_repeats": false
+  },
+  "limitations": [
+    "Build23 owned components are arm64 only; universal runtime representatives do not make this an Intel-compatible app package.",
+    "No runtime helper execution was repeated for this static/signing checkpoint.",
+    "A direct descriptor or unsandboxed argv fixture did not prove sandboxed Finder transport; actual physical cold command failed.",
+    "Failure does not establish that all custom Apple events are prohibited.",
+    "No App Store submission, complete hosted CI or whole-port visual parity claim."
+  ]
+}

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
-import Carbon
 import TurtleGitCore
 
 /// An external Finder/document request must not become a document owned by the
@@ -28,14 +27,8 @@ import TurtleGitCore
         guard application.isFileURL, application.pathExtension == "app" else {
             reply(WorkspaceHandoffFailure.unbundled); return
         }
-        if configuration.appleEvent != nil {
-            NSWorkspace.shared.openApplication(at: application, configuration: configuration) { _, error in
-                Task { @MainActor in reply(error) }
-            }
-        } else {
-            NSWorkspace.shared.open(urls, withApplicationAt: application, configuration: configuration) { _, error in
-                Task { @MainActor in reply(error) }
-            }
+        NSWorkspace.shared.open(urls, withApplicationAt: application, configuration: configuration) { _, error in
+            Task { @MainActor in reply(error) }
         }
     }
     var presentFailure: ((String, @escaping () -> Void) -> Void)?
@@ -51,7 +44,7 @@ import TurtleGitCore
         let accepted = urls.filter(Self.accepts)
         guard !accepted.isEmpty else { return }
         // A tool-mode process never consumes Finder authority. Each opaque
-        // action gets its own first event in the independent general process.
+        // action gets its own URL event in the independent general process.
         if accepted.count > 1, accepted.contains(where: { FinderActionDelivery(url: $0) != nil }) {
             var ordinary: [URL] = []
             for url in accepted {
@@ -70,12 +63,8 @@ import TurtleGitCore
         let needsWorkspace=accepted.contains { $0.host == "service-open" || ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains($0.absoluteString) }
         if accepted.count == 1, let delivery = FinderActionDelivery(url: accepted[0]) {
             configuration.arguments = delivery.arguments
-            // NSWorkspace ignores arguments from sandboxed callers. The first
-            // event carries the same unconsumed receipt to its general owner.
-            let event = NSAppleEventDescriptor(eventClass: AEEventClass(kInternetEventClass), eventID: AEEventID(kAEGetURL),
-                targetDescriptor: nil, returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
-            event.setParam(NSAppleEventDescriptor(string: delivery.url.absoluteString), forKeyword: AEKeyword(keyDirectObject))
-            configuration.appleEvent = event
+            // Sandboxed callers rely on ordinary URL delivery. Arguments are
+            // only a supplementary receipt path for unsandboxed callers.
         }
         else { configuration.arguments=needsWorkspace ? []:["--turtlegit-action-only"] }
         configuration.activates=accepted.contains { url in

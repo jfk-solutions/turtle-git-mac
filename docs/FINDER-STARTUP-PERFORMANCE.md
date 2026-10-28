@@ -151,7 +151,7 @@ remembers accepted attempt IDs so an argv/event duplicate cannot repeat a Git
 action or show a second error. Different menu clicks retain distinct IDs, even
 for the same command and path. Missing or malformed requests use the existing
 owned compact error presentation. A tool process forwards the unconsumed request
-to an independent application owner using the explicit first event. Neither transport nor its private payload
+to an independent application owner using Launch Services URL delivery. Neither transport nor its private payload
 grants repository authority.
 
 The payload is bounded to 1 MiB and retains the existing private handoff
@@ -240,10 +240,16 @@ performance guarantee.
 
 The installed SDK's `NSWorkspace.OpenConfiguration.arguments` contract states
 that arguments are ignored when the caller is sandboxed. Finder is such a
-caller. Private argv receivers therefore establish only the unsandboxed protocol,
-not Finder's actual launch behavior. Finder now calls `openApplication` with an
-explicit first `kAEGetURL` Apple event containing the receipt. The tool-to-general
-workspace relay uses the same first-event path for a single Finder receipt;
-ordinary document handoffs retain their existing behavior. Unsandboxed launch
-arguments remain supported and deduplicated against events. Signed physical
-acceptance must exercise the actual extension sender.
+caller. Private argv receivers establish only the unsandboxed protocol, not
+Finder's actual launch behavior. Build23 attempted an explicit first GetURL
+event; the physical signed extension received launch error256 and no main app
+started. The exact OS error cause was not established. This failed configuration
+is recorded separately from the successful post-exit menu persistence check.
+
+The following repair uses ordinary `open(urls:withApplicationAt:configuration:)`
+URL delivery, preserving the same private receipt envelope and startup ownership.
+The tool relay also retains ordinary URL delivery for a single Finder receipt.
+Unsandboxed launch arguments remain supplementary and deduplicated against URL
+events. The native sender seam asserts the URL, activation and instance policy,
+and absence of the rejected custom event. Signed physical acceptance remains
+required; descriptor construction alone does not prove sandbox launch behavior.
