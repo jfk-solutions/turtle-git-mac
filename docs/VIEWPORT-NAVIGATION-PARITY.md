@@ -57,3 +57,60 @@ Native points, font-cell and viewport metrics replace Windows device pixels.
 Physical keyboard layouts, mouse/trackpad timing, VoiceOver, complete source
 layout, installed signed Finder/App Store workflows, minimum-version/Intel and
 full hosted integration remain separate acceptance requirements.
+
+## Linked pointer scrolling — October 28, 2026
+
+This connected family covers the native two-pane/combined Compare and
+three-pane Merge viewports. Pinned `TortoiseMerge/BaseView.cpp:1049–1110`
+broadcasts horizontal scrollbar actions, while `2275–2333` broadcasts wheel
+movement. A thumb position and a wheel delta have different contracts: the
+former establishes a common text column; the latter advances each pane from its
+own offset and clamps at that pane's limit. Native leading ruler/inset offsets
+are accounted for independently, rather than treating each clip origin as zero.
+`EnsureCaretVisible` also calls
+`ScrollAllToChar` at `3725–3727`, so horizontal coupling is not restricted to
+mouse-tracking callbacks.
+
+The source exchanges vertical and horizontal wheel directions when Control
+**or** Shift is held. Both modifiers together still exchange the axes once.
+Horizontal movement is ignored while wrapping; vertical movement remains
+available. The native policy retains diagonal components instead of choosing
+only the largest delta. Direction is axis-specific: Windows horizontal wheel
+messages define positive as right, while native positive horizontal deltas
+move the viewport left. For native deltas `(X, Y)`, ordinary origin movement
+is `(-X, -Y)`; modified movement is `(-Y, +X)`. A bare swap would reverse the
+source's modified horizontal-wheel action. The source handlers and
+[Windows horizontal-wheel contract](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousehwheel)
+must be considered together, rather than substituting native X for raw Windows
+wheel units.
+
+The negative-X/rightward native convention is also visible in a separate
+[macOS backend implementation](https://raw.githubusercontent.com/godotengine/godot/master/platform/macos/godot_content_view.mm)
+(`scrollWheel`, lines 838–862 at the review date); that code was reviewed as
+directional evidence, not copied into the app.
+
+Native precise deltas use points. Coarse deltas use the receiving pane's font
+cell and line metrics. AppKit has already applied the user's natural-scroll
+direction; it must not be inverted a second time. These units follow the
+[NSEvent scrolling delta contract](https://developer.apple.com/documentation/appkit/nsevent/scrollingdeltay)
+and the SDK's `NSEvent.h:349–359`, rather than treating Windows wheel units as
+Mac pixels. Actual device/driver Shift behavior is a separate physical acceptance
+scope, not something established by a synthetic event.
+
+All recipients must belong to the current live editor and presentation.
+Hidden, detached, replaced, busy, modal or retired panes cannot initiate or
+receive a linked gesture. A relative movement batch suppresses ordinary
+position-following callbacks so a peer cannot move twice. Locator, rulers and
+line-preview offsets must follow the resulting accepted positions, without
+changing document bytes, selected ranges, focus or Undo history.
+
+P4-style source panes contain unaligned text and retain their existing vertical
+independence. Horizontal movement links their live visible panes; a vertical
+component affects only its receiving pane. This is the native P4-style layout's
+policy, not a claim that upstream TortoiseMerge contains that optional layout.
+
+The [pointer-family checkpoint](qa/merge-pointer-scrolling-2026-10-28.json)
+records the actual implementation, validation and failures. It must be assessed
+separately from the earlier keyboard/menu family above. Full physical mouse,
+trackpad/momentum, keyboard-layout, VoiceOver, signed installation and upstream
+layout acceptance remain separate requirements.

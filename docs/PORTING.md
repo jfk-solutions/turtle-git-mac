@@ -2,18 +2,33 @@
 
 ## Current installed checkpoint
 
-[Build20](qa/signed-consolidation-build20-2026-10-28.json), version 0.1.0 (20),
-is installed from `69930ed12384fadd5f2c57307332661405a10aa2`. It consolidates
-Commit option delivery, invocation-owned progress and SVN Action log, and spatial
-image effects. Measured inputs, strict signatures, universal owned components and
-complete installed inventory pass. Focused signed sandbox metafile execution also
-passes, with owned processes drained. Build19 is preserved for recovery. No
-shipping GUI, Finder or Dock was launched or restarted during this installation.
-The later Log working-tree LFS batch is not part of this frozen package. Physical
-Finder/UI/VoiceOver, Intel/minimum-macOS, full hosted and complete port acceptance
-remain separate gates.
+[Build21](qa/signed-consolidation-build21-2026-10-28.json), version 0.1.0 (21),
+is installed from `9c87d343842cb46b16497b4c96a72017ce59d2dd`. It consolidates
+Commit staging tables, whole-file transfer and stable loading layout, provider
+callback continuation, Log working-tree LFS actions and Unified Diff caret modes.
+Measured inputs, strict signatures, eight universal owned components, bundled
+Help and the complete installed inventory pass. Build20 is preserved for recovery.
+The installation did not launch the app or restart Finder or Dock. Current signed
+UI, physical Finder/VoiceOver, Intel/minimum-macOS, full hosted and complete port
+acceptance remain separate gates.
 
-### Previous installed checkpoint
+The unchanged Metafile runtime retains the separate focused signed-parent
+execution from [build20](qa/signed-consolidation-build20-2026-10-28.json). Build21
+checks its bundled identity and provenance; it does not repeat that execution or
+silently renew every older native workflow check.
+
+## Compare and Merge linked pointer scrolling
+
+The [pointer scrolling continuation](VIEWPORT-NAVIGATION-PARITY.md#linked-pointer-scrolling--october-28-2026)
+connects horizontal scrollbar positions, relative wheel/trackpad movement,
+source modifier directions, independent pane limits and interruption ownership.
+Classic aligned panes share vertical movement; P4/Base previews retain their
+unaligned vertical policy. The [focused checkpoint](qa/merge-pointer-scrolling-2026-10-28.json)
+keeps the actual build, native outcomes, failures and remaining physical input
+scope explicit. This source continuation follows installed build21 and is not
+part of that frozen signed package.
+
+## Previous installed checkpoints
 
 [Build19](qa/signed-consolidation-build19-2026-10-27.json), version 0.1.0 (19),
 was the previous installed package from `6de62e8848529871d5c0c92cf320c8b68d1eace9`.

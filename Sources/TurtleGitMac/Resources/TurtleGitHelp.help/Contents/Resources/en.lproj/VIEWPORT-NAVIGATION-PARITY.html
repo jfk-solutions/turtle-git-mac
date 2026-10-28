@@ -47,4 +47,53 @@ native navigation family.</p>
 Physical keyboard layouts, mouse/trackpad timing, VoiceOver, complete source
 layout, installed signed Finder/App Store workflows, minimum-version/Intel and
 full hosted integration remain separate acceptance requirements.</p>
+<h2 id="linked-pointer-scrolling--october-28-2026">Linked pointer scrolling — October 28, 2026</h2>
+<p>This connected family covers the native two-pane/combined Compare and
+three-pane Merge viewports. Pinned <code>TortoiseMerge/BaseView.cpp:1049–1110</code>
+broadcasts horizontal scrollbar actions, while <code>2275–2333</code> broadcasts wheel
+movement. A thumb position and a wheel delta have different contracts: the
+former establishes a common text column; the latter advances each pane from its
+own offset and clamps at that pane's limit. Native leading ruler/inset offsets
+are accounted for independently, rather than treating each clip origin as zero.
+<code>EnsureCaretVisible</code> also calls
+<code>ScrollAllToChar</code> at <code>3725–3727</code>, so horizontal coupling is not restricted to
+mouse-tracking callbacks.</p>
+<p>The source exchanges vertical and horizontal wheel directions when Control
+<strong>or</strong> Shift is held. Both modifiers together still exchange the axes once.
+Horizontal movement is ignored while wrapping; vertical movement remains
+available. The native policy retains diagonal components instead of choosing
+only the largest delta. Direction is axis-specific: Windows horizontal wheel
+messages define positive as right, while native positive horizontal deltas
+move the viewport left. For native deltas <code>(X, Y)</code>, ordinary origin movement
+is <code>(-X, -Y)</code>; modified movement is <code>(-Y, +X)</code>. A bare swap would reverse the
+source's modified horizontal-wheel action. The source handlers and
+<a href="https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-mousehwheel">Windows horizontal-wheel contract</a>
+must be considered together, rather than substituting native X for raw Windows
+wheel units.</p>
+<p>The negative-X/rightward native convention is also visible in a separate
+<a href="https://raw.githubusercontent.com/godotengine/godot/master/platform/macos/godot_content_view.mm">macOS backend implementation</a>
+(<code>scrollWheel</code>, lines 838–862 at the review date); that code was reviewed as
+directional evidence, not copied into the app.</p>
+<p>Native precise deltas use points. Coarse deltas use the receiving pane's font
+cell and line metrics. AppKit has already applied the user's natural-scroll
+direction; it must not be inverted a second time. These units follow the
+<a href="https://developer.apple.com/documentation/appkit/nsevent/scrollingdeltay">NSEvent scrolling delta contract</a>
+and the SDK's <code>NSEvent.h:349–359</code>, rather than treating Windows wheel units as
+Mac pixels. Actual device/driver Shift behavior is a separate physical acceptance
+scope, not something established by a synthetic event.</p>
+<p>All recipients must belong to the current live editor and presentation.
+Hidden, detached, replaced, busy, modal or retired panes cannot initiate or
+receive a linked gesture. A relative movement batch suppresses ordinary
+position-following callbacks so a peer cannot move twice. Locator, rulers and
+line-preview offsets must follow the resulting accepted positions, without
+changing document bytes, selected ranges, focus or Undo history.</p>
+<p>P4-style source panes contain unaligned text and retain their existing vertical
+independence. Horizontal movement links their live visible panes; a vertical
+component affects only its receiving pane. This is the native P4-style layout's
+policy, not a claim that upstream TortoiseMerge contains that optional layout.</p>
+<p>The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/merge-pointer-scrolling-2026-10-28.json">pointer-family checkpoint</a>
+records the actual implementation, validation and failures. It must be assessed
+separately from the earlier keyboard/menu family above. Full physical mouse,
+trackpad/momentum, keyboard-layout, VoiceOver, signed installation and upstream
+layout acceptance remain separate requirements.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

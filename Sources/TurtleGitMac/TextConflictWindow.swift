@@ -817,7 +817,8 @@ private enum MergeSourceSide {
         var next: [Bool:CGFloat] = [:]
         for reference in sourceScrolls.values {
             guard let scroll = reference.view, let view = scroll.documentView as? MergeTextView,
-                  view.model === self, view.window === window, let side = view.sourceSide else { continue }
+                  registeredPointerView(scroll) === view, !view.isHiddenOrHasHiddenAncestor,
+                  let side = view.sourceSide else { continue }
             next[side == .mine] = scroll.contentView.bounds.minX
         }
         if previewHorizontalOffsets != next { previewHorizontalOffsets = next }
@@ -1061,8 +1062,14 @@ private enum MergeSourceSide {
             text.scrollRangeToVisible(range);text.setSelectedRange(NSRange(location:range.location,length:0))
         }
     }
-    func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll;schedulePanePresentation() }
-    func registerBasePresentation(_ scroll:NSScrollView) {basePresentationScroll=scroll;schedulePanePresentation()}
+    func registerLocatorResult(_ scroll: NSScrollView) {
+        if let old = locatorResultScroll, old !== scroll { pointerOrigins.removeValue(forKey: ObjectIdentifier(old)) }
+        locatorResultScroll = scroll; registerPointerScroll(scroll); schedulePanePresentation()
+    }
+    func registerBasePresentation(_ scroll:NSScrollView) {
+        if let old = basePresentationScroll, old !== scroll { pointerOrigins.removeValue(forKey: ObjectIdentifier(old)) }
+        basePresentationScroll = scroll; registerPointerScroll(scroll); schedulePanePresentation()
+    }
     func invalidateLineRulers() {
         for reference in sourceScrolls.values { reference.view?.verticalRulerView?.needsDisplay = true }
         locatorResultScroll?.verticalRulerView?.needsDisplay = true
@@ -1124,6 +1131,7 @@ private enum MergeSourceSide {
         load(filterName: name)
     }
     func retire() {
+        pointerRetired = true
         externalReloadCoordinator?.retire()
         let sourceCompletion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];sourceCompletion?(false,sheets)
         retireFormatChoice()
@@ -1131,7 +1139,7 @@ private enum MergeSourceSide {
         saveChoices.cancel();saveFolderAccess.cancel()
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
-        lineWrapping.retire()
+        lineWrapping.retire(); pointerOrigins.removeAll()
         clearLinePreview(); previewHorizontalOffsets = [:]
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
         regexList?.retire(); regexList = nil
@@ -1369,7 +1377,93 @@ private enum MergeSourceSide {
     var onChanged: (String) -> Void = { _ in }
     private var sourceScrolls: [String: WeakMergeScroll] = [:]
     private var synchronizingScroll = false
-    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport(); refreshLinePreviewOffsets();schedulePanePresentation() }
+    private var pointerOrigins: [ObjectIdentifier: NSPoint] = [:]
+    private var pointerRetired = false
+    private func registerPointerScroll(_ scroll: NSScrollView) {
+        pointerOrigins[ObjectIdentifier(scroll)] = scroll.contentView.bounds.origin
+        guard let native = scroll as? MergePointerScrollView else { return }
+        native.pointerWheel = { [weak self] event, source in self?.scrollPointer(event, from: source) }
+        native.pointerIdentity = { [weak self, weak native] in
+            guard let self, let native, let view = self.registeredPointerView(native),
+                  self.pointerOwnershipAllowed(view) else { return nil }
+            // A queued reflow belongs to the old viewport. Settle it before
+            // admitting the next pointer input, then revalidate its exact pane.
+            self.lineWrapping.prepareForInput()
+            guard self.registeredPointerView(native) === view, self.pointerInputAllowed(view),
+                  let owner = view.window else { return nil }
+            return MergePointerScrollIdentity(owner: ObjectIdentifier(view), document: self.loadGeneration,
+                role: "\(view.presentationRole):\(self.sourceLayoutRevision):\(self.resultPresentationRevision):\(self.paneTabEpoch)",
+                wrapping: self.wrapLines, window: ObjectIdentifier(owner))
+        }
+    }
+    private func registeredPointerView(_ scroll: NSScrollView) -> MergeTextView? {
+        guard let owner = window, let view = scroll.documentView as? MergeTextView,
+              view.model === self, view.window === owner,
+              presentationView(view.presentationRole) === view else { return nil }
+        return view
+    }
+    private func pointerOwnershipAllowed(_ view: MergeTextView) -> Bool {
+        guard comparisonDefaults.bool(forKey: "TurtleGit.Comparison.CurvedInterface") == (view.p4Pane != nil),
+              view.presentationRole != .base || view.p4Pane != nil || showBase else { return false }
+        return !pointerRetired && sourceToolsAllowed && view.mergeSourceRowsReady &&
+        view.window?.isVisible == true && view.window?.isMiniaturized == false && !view.isHiddenOrHasHiddenAncestor
+    }
+    private func pointerInputAllowed(_ view: MergeTextView) -> Bool {
+        pointerOwnershipAllowed(view) && !lineWrapping.isGeometryPending
+    }
+    private var pointerScrolls: [NSScrollView] {
+        [TextConflictPaneRole.theirs, .mine, .base, .result].compactMap { role in
+            guard let view = presentationView(role), let scroll = view.enclosingScrollView,
+                  registeredPointerView(scroll) === view, pointerInputAllowed(view) else { return nil }
+            return scroll
+        }
+    }
+    /// P4/raw panes have no shared vertical row map. Preserve their independent
+    /// reading origins while retaining horizontal linkage across visible panes.
+    private func verticalPointerScrolls(from scroll: NSScrollView) -> [NSScrollView] {
+        guard let view = registeredPointerView(scroll), view.p4Pane == nil, view.sourceCells != nil else { return [scroll] }
+        return pointerScrolls.filter {
+            guard let peer = $0.documentView as? MergeTextView else { return false }
+            return peer.p4Pane == nil && peer.sourceCells != nil
+        }
+    }
+    private func refreshPointerViewport(from scroll: NSScrollView) {
+        // Base has no source-row alignment. Its independent raw Y position is
+        // not a new locator row in the aligned conflict map.
+        if (scroll.documentView as? MergeTextView)?.presentationRole == .base { refreshLocatorViewport() }
+        else { refreshLocatorViewport(from: scroll) }
+        refreshLinePreviewOffsets()
+    }
+    func scrollPointer(_ event: NSEvent, from scroll: NSScrollView) {
+        guard event.type == .scrollWheel, event.scrollingDeltaX.isFinite, event.scrollingDeltaY.isFinite,
+              !synchronizingScroll, let view = registeredPointerView(scroll),
+              pointerOwnershipAllowed(view), event.window == nil || event.window === window else { return }
+        view.beginUserNavigation()
+        guard registeredPointerView(scroll) === view, pointerInputAllowed(view) else { return }
+        let targets = pointerScrolls
+        synchronizingScroll = true; lineWrapping.beginViewportInput()
+        defer {
+            for target in targets { pointerOrigins[ObjectIdentifier(target)] = target.contentView.bounds.origin }
+            synchronizingScroll = false; lineWrapping.endViewportInput()
+            refreshPointerViewport(from: scroll)
+        }
+        MergePointerScrolling.wheel(event, targets: targets, horizontalEnabled: !wrapLines,
+            verticalTargets: verticalPointerScrolls(from: scroll))
+    }
+    func registerSourceScroll(_ scroll: NSScrollView, label: String) {
+        // A replacement can also change a role's caption (for example during
+        // rebase). Retain one native source owner per role, not one per caption.
+        if let side = (scroll.documentView as? MergeTextView)?.sourceSide {
+            for key in Array(sourceScrolls.keys) {
+                guard let old = sourceScrolls[key]?.view, old !== scroll,
+                      (old.documentView as? MergeTextView)?.sourceSide == side else { continue }
+                pointerOrigins.removeValue(forKey: ObjectIdentifier(old)); sourceScrolls.removeValue(forKey: key)
+            }
+        }
+        if let old = sourceScrolls[label]?.view, old !== scroll { pointerOrigins.removeValue(forKey: ObjectIdentifier(old)) }
+        sourceScrolls[label] = WeakMergeScroll(scroll); registerPointerScroll(scroll)
+        refreshLocatorViewport(); refreshLinePreviewOffsets(); schedulePanePresentation()
+    }
     var canScrollViewport:Bool {
         sourceToolsAllowed && !lineWrapping.isGeometryPending && !viewportScrolls.isEmpty
     }
@@ -1390,19 +1484,28 @@ private enum MergeSourceSide {
         for scroll in targets {MergeViewportScrolling.step(direction,in:scroll)}
     }
     func sourceDidScroll(_ scroll: NSScrollView) {
-        defer { refreshLocatorViewport(from:scroll); refreshLinePreviewOffsets() }
-        guard !synchronizingScroll else { return }
+        guard let view = registeredPointerView(scroll) else { return }
+        let point = scroll.contentView.bounds.origin
+        guard point.x.isFinite, point.y.isFinite else { return }
+        let previous = pointerOrigins.updateValue(point, forKey: ObjectIdentifier(scroll))
+        guard !synchronizingScroll, pointerInputAllowed(view) else { return }
+        defer { refreshPointerViewport(from: scroll) }
+        guard let previous else { return }
         synchronizingScroll = true; defer { synchronizingScroll = false }
-        var peers = sourceScrolls.values.compactMap { $0.view }
-        if (locatorResultScroll?.documentView as? MergeTextView)?.sourceCells != nil, let result = locatorResultScroll { peers.append(result) }
-        for peer in peers {
-            guard peer !== scroll else { continue }
-            let clip = peer.contentView
-            let desired = NSRect(origin: NSPoint(x: clip.bounds.minX, y: scroll.contentView.bounds.minY), size: clip.bounds.size)
-            let target = clip.constrainBoundsRect(desired).origin
-            if target != clip.bounds.origin { clip.scroll(to: target); peer.reflectScrolledClipView(clip) }
-            peer.verticalRulerView?.needsDisplay = true
+        let targets = pointerScrolls
+        if previous.x != point.x {
+            MergePointerScrolling.coupleHorizontal(from: scroll, targets: targets, horizontalEnabled: !wrapLines)
         }
+        if previous.y != point.y {
+            for peer in verticalPointerScrolls(from: scroll) where peer !== scroll {
+                let clip = peer.contentView
+                let desired = NSRect(origin: NSPoint(x: clip.bounds.minX, y: point.y), size: clip.bounds.size)
+                let target = clip.constrainBoundsRect(desired).origin
+                if target != clip.bounds.origin { clip.scroll(to: target); peer.reflectScrolledClipView(clip) }
+                peer.verticalRulerView?.needsDisplay = true
+            }
+        }
+        for target in targets { pointerOrigins[ObjectIdentifier(target)] = target.contentView.bounds.origin }
     }
     var blocks: [MergeConflictBlock] { resultPresentation.conflicts(document: document) }
     var hasUnresolvedConflicts: Bool { !blocks.isEmpty || MergeText.hasMarkers(result) }
@@ -2373,12 +2476,16 @@ private struct MergeEditor: NSViewRepresentable {
                 view.replaceMergeBlock(edit.range,with:edit.replacement,state:.resolved,sourceEdit:edit)
             }
         }
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
+        let scroll = MergePointerScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent; view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         scroll.documentView = view
         if p4Pane != nil {scroll.wantsLayer=true;scroll.layer?.masksToBounds=true}
         if (sourceCells != nil || p4Pane != nil) && !editable && sourceSide != nil { context.coordinator.attachSourceScroll(scroll, label: label) }
-        if !editable,sourceSide == nil {model.registerBasePresentation(scroll)}
+        if !editable,sourceSide == nil {
+            model.registerBasePresentation(scroll)
+            scroll.contentView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.locatorScrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        }
         if editable {
             model.registerLocatorResult(scroll)
             scroll.contentView.postsBoundsChangedNotifications = true
@@ -2518,11 +2625,10 @@ private struct MergeEditor: NSViewRepresentable {
         }
         @objc func locatorScrolled(_ notification: Notification) {
             guard let scroll = (notification.object as? NSClipView)?.enclosingScrollView else { return }
-            if (scroll.documentView as? MergeTextView)?.sourceCells != nil { model.sourceDidScroll(scroll) }
-            else { model.refreshLocatorViewport(from:scroll) }
+            model.sourceDidScroll(scroll)
         }
         @objc private func sourceScrolled(_ notification: Notification) { if let sourceScroll {
-            if (sourceScroll.documentView as? MergeTextView)?.p4Pane != nil {model.refreshLocatorViewport(from:sourceScroll)} else {model.sourceDidScroll(sourceScroll)}
+            model.sourceDidScroll(sourceScroll)
         } }
         deinit { NotificationCenter.default.removeObserver(self) }
         func textDidChange(_ notification: Notification) {
@@ -2604,7 +2710,11 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
     func beginUserNavigation() { model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.selectionRequest = nil }
-    override func scrollWheel(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; super.scrollWheel(with:event) }
+    override func scrollWheel(with event: NSEvent) {
+        // Route through the scroll view's gesture-identity latch exactly once.
+        // Calling super here as well would apply native wheel deltas a second time.
+        if let scroll = enclosingScrollView as? MergePointerScrollView { scroll.scrollWheel(with: event) }
+    }
     func didNavigateViewport() { model?.lineWrapping.recordViewportIntent() }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
     override func becomeFirstResponder() -> Bool {

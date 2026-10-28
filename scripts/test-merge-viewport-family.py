@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Grouped private Compare/Merge one-cell viewport commands and owner fencing."""
+"""Grouped private Compare/Merge one-cell viewport commands, linked pointer scrolling and owner fencing."""
 import argparse
 import os
 from pathlib import Path
@@ -8,6 +8,7 @@ from native_receiver import build_receiver, run_receiver
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--only', choices=('both', 'keyboard', 'pointer'), default='both')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 generated = root / 'build/qa/merge-viewport-native-sources'
@@ -27,7 +28,11 @@ private extension NSWindow {
   let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.turtleViewportHiddenOrder(_:relativeTo:)))!
   method_exchangeImplementations(original,hidden)
   defer{method_exchangeImplementations(original,hidden);DialogGeometry.install(preferences:.standard)}
-  do {try await MergeViewportVerification.verify()}
+  let scope=CommandLine.arguments.count>3 ? CommandLine.arguments[3]:"both"
+  do {
+   if scope != "pointer" {try await MergeViewportVerification.verify()}
+   if scope != "keyboard" {try await MergeLinkedPointerVerification.verify()}
+  }
   catch {
    let failure=error
    for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
@@ -41,7 +46,8 @@ private extension NSWindow {
 if not main.is_file() or main.read_text() != source:
     main.write_text(source)
 receiver = build_receiver(root, [root / 'docs/qa/merge-pane-input-native-2026-10-19.swift',
-                                 root / 'docs/qa/merge-viewport-native-2026-10-23.swift', main], generated)
+                                 root / 'docs/qa/merge-viewport-native-2026-10-23.swift',
+                                 root / 'docs/qa/merge-linked-pointer-native-2026-10-28.swift', main], generated)
 for git in args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']:
     with tempfile.TemporaryDirectory(prefix='turtlegit-merge-viewport-') as temporary:
         context = Path(temporary)
@@ -54,8 +60,8 @@ for git in args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/
         environment.update(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
                            CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(scratch) + '/',
                            DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'))
-        print('Checking Compare/Merge viewport commands with ' + str(git), flush=True)
-        result = run_receiver([str(receiver), str(fixture), str(git.absolute())], cwd=root,
+        print('Checking Compare/Merge viewport ' + args.only + ' with ' + str(git), flush=True)
+        result = run_receiver([str(receiver), str(fixture), str(git.absolute()), args.only], cwd=root,
                               env=environment, capture_output=True, text=True,
                               timeout_sample=context / 'timeout.sample.txt')
         print(result.stdout, end='')

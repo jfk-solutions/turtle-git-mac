@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-native-passed-pointer-both-engines-keyboard-cumulative-both-engines",
+  "scope": "Linked native Compare/Merge wheel and scrollbar workflow, retaining prior one-cell viewport commands",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_reference": "src/TortoiseMerge/BaseView.cpp:1049-1110,2275-2333",
+  "build_attempts": [
+    {
+      "log": "build/qa/merge-pointer-debug-2026-10-28.log",
+      "exit": 65,
+      "failure": "Compile-only notification array inferred NSNotification.Name static members; parent qualified NSWindow notification names."
+    },
+    {
+      "log": "build/qa/merge-pointer-debug-recheck-2026-10-28.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-pointer-hidden-pane-debug-2026-10-28.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-pointer-axis-debug-2026-10-28.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-pointer-final-help-debug-2026-10-28.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-pointer-leading-origin-debug-2026-10-28.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/merge-pointer-reflow-debug-2026-10-28.log",
+      "exit": 0
+    }
+  ],
+  "native_attempts": [
+    {
+      "log": "build/qa/merge-pointer-native-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "receiver_pid": 7549,
+      "result": "failed",
+      "failure": "Actual hidden document view still participated because only scroll-parent visibility was checked.",
+      "repair": "Compare visible viewport targets now also exclude a hidden document view; strict assertion retained."
+    },
+    {
+      "log": "build/qa/merge-pointer-hidden-pane-native-recheck-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "receiver_pid": 7692,
+      "result": "failed",
+      "failure": "Asymmetric font/inset absolute-horizontal assertion failed. Fixture font assignment had queued native reflow before attempted thumb movement.",
+      "repair": "Fixture drains production lineWrapping.prepareForInput and requires actual eligibility before beginning thumb movement; exact independent metric and inset assertions retained. This was not the complete explanation of the later discrepancy."
+    },
+    {
+      "log": "build/qa/merge-pointer-axis-native-recheck-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "receiver_pid": 7960,
+      "result": "failed",
+      "failure": "With native geometry ready, asymmetric inset test still showed actual X11.2 versus expected16.2, exactly5points.",
+      "repair": "Shared leading-origin query replaced enormous floating-point probe with a finite geometry-derived probe; independent fixture -1000000 probe and strict0.5point bound remain. The next run passed this assertion."
+    },
+    {
+      "log": "build/qa/merge-pointer-leading-origin-native-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "receiver_pid": 8211,
+      "result": "failed later case",
+      "passed_scope": "Independent asymmetric inset/font assertion passed after finite-probe repair.",
+      "failure": "Classic Base independent-vertical wheel test observed no movement.",
+      "repair": "Fixture now captures the actual registered Base accessor rather than guessing a newly created view; native TextConflict route drains pending reflow only after basic owner validation, then revalidates exact pane/geometry. Thumb expectations preserve peerX when the constrained source cannot moveX; long P4 sources must still exercise actual horizontal coupling."
+    },
+    {
+      "log": "build/qa/merge-pointer-reflow-native-2026-10-28.log",
+      "git": "/usr/bin/git",
+      "receiver_pid": 8418,
+      "result": "failed later independent-vertical assertion",
+      "failure": "Registered Classic Base received expected localY and all horizontal movement, but one peerY differed from captured baseline by15points.",
+      "repair": "Fixture identity preparation could drain queued reflow, and a live identity getter inside the assertion diagnostic also mutated layout before actual bounds were read. Setup now prepares and stores identity before establishing/capturing test origins; diagnostics use the immutable captured identity. The final affected receiver passed the exact unchanged peerY independence assertion."
+    }
+  ],
+  "additional_source_repair": "Upstream horizontal-wheel sign review corrected modified delivered-point mapping to (-nativeY,+nativeX); natural direction is already reflected by NSEvent. Explicit Control-horizontal direction assertion was added; ordinary axes and keyboard step remain independent.",
+  "core": "No Core implementation changed; no invented Core tests or repeated Core suite for this native family.",
+  "native_checkpoint": {
+    "status": "passed bounded grouped checks",
+    "pointer": {
+      "log": "build/qa/merge-pointer-prepared-baseline-native-2026-10-28.log",
+      "exit": 0,
+      "scope": "Pointer-only grouped receiver with system and bundled Git",
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receiver_pids": [
+        8589,
+        8599
+      ],
+      "cleanup": "Both receivers reaped; parent independently verified both absent."
+    },
+    "keyboard": {
+      "status": "passed cumulatively with both Git engines",
+      "system_evidence": [
+        "build/qa/merge-pointer-native-2026-10-28.log",
+        "build/qa/merge-pointer-hidden-pane-native-recheck-2026-10-28.log"
+      ],
+      "system_scope": "The existing keyboard family completed before later pointer failures in these original grouped attempts; those complete attempts remain failed, not converted to passes.",
+      "bundled_log": "build/qa/merge-pointer-bundled-keyboard-2026-10-28.log",
+      "bundled_exit": 0,
+      "bundled_receiver_pid": 8627,
+      "bundled_cleanup": "Owned receiver reaped; parent independently verified PID8627 absent."
+    },
+    "assertions": [
+      "Actual native scroll-view and text-responder routes consume private precise/coarse NSEvents once, including diagonal input and source-sign-correct Control/Shift remapping.",
+      "Relative wheel moves each eligible peer from its own origin; absolute thumb coupling uses per-pane logical columns, fonts and constrained leading insets. Strict asymmetric-font/inset and leading-edge checks pass.",
+      "Actual clip notifications do not feed back into a second movement. Exhausted source clamps do not stop peers with room.",
+      "Classic aligned Compare/Merge peers retain aligned vertical coupling; Classic Base and each P4 pane keep independent vertical reading positions while linking horizontal movement. Clamped sourceX preserves peerX; all three long P4 source panes actually exercise X coupling.",
+      "Wrapped horizontal suppression, hidden peer/Base refusal, foreign sources, replaced pane momentum, unknown/ended streams, no-event busy/sheet retirement and fresh-stream recovery pass.",
+      "Document text, source file bytes, selections, focus, Undo/Redo and dirty state remain unchanged by viewport input; line-preview horizontal offsets and locator viewport follow accepted movement.",
+      "Existing one-cell viewport keyboard commands retain their independent batch behavior and owner gates."
+    ]
+  },
+  "interaction_boundary": "Private CGEvent-backed NSEvents enter actual managed NSScrollView and text-responder wheel overrides; native clip-bounds notifications exercise thumb coupling. No system event posting, physical pointer/trackpad acceptance or screenshot/visual certification is claimed.",
+  "ownership": "Private fixture inputs/preferences/temp directories; prohibited activation, offscreen alpha-zero windows and actual close/drain cleanup. Parent independently verified failed receivers7549,7692,7960,8211,8418 and final receivers8589,8599,8627 absent.",
+  "limits": [
+    "No physical trackpad, mouse driver, natural-scroll setting matrix, momentum device stream, VoiceOver or pixel/visual parity acceptance.",
+    "No renewed signed installation; installed build21 remains prior frozen source.",
+    "No complete hosted CI or whole-port completion claim."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "993bb0007e75cba2ad396deaef5eb71c2a3a3ca0bef3423bea60a7bba5d65912",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "b8d3da0362b74e86889070dc3556bc7430698598f1f6f791beb513295def2d70",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "c48a5bdd5aa3ddf62b28c4a8dfbbed6547291a44c43dd748af970fb60a6cd8e2",
+    "docs/qa/merge-linked-pointer-native-2026-10-28.swift": "30966d6802a1ef5ef186dcc88d75ae06a500df5ed503817522304de384543eed",
+    "scripts/test-merge-viewport-family.py": "fe8f825460160b5922294c82246b5046af9e93e8eea65f67ca02b2215068198a"
+  }
+}

@@ -2127,18 +2127,50 @@ private extension FileComparisonDocument {
             scrolls.removeValue(forKey: other); viewportNavigation.removeValue(forKey: other)
             if editorOwners[other] == ObjectIdentifier(scroll) { editorOwners.removeValue(forKey: other); editorActions.removeValue(forKey: other) }
         }
-        scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport()
+        scrolls[base] = scroll
+        if let pointer=scroll as? MergePointerScrollView {
+            MergePointerScrolling.captureOrigin(pointer)
+            pointer.pointerIdentity={ [weak self,weak scroll] in guard let self,let scroll else{return nil};return self.pointerIdentity(for:scroll) }
+            pointer.pointerWheel={ [weak self] event,source in self?.scrollPointer(event,from:source) }
+        }
+        onRegisterScroll(scroll,base); refreshLocatorViewport()
     }
     var canScrollViewport:Bool {
         contextCommandsAllowed && !filtering && alignment != nil && !lineWrapping.isGeometryPending && !viewportScrolls.isEmpty
     }
     private var viewportScrolls:[NSScrollView] {
-        [true,false].compactMap {base in
+        guard let window,window.isVisible,!window.isMiniaturized else{return []}
+        return [true,false].compactMap {base in
             guard let scroll=scrolls[base],ownsViewport(scroll,base:base),ownsEditor(scroll,base:base),
                   !scroll.isHiddenOrHasHiddenAncestor,let view=scroll.documentView as? FileComparisonTextView,
-                  view.paneInputAllowed else{return nil}
+                  !view.isHiddenOrHasHiddenAncestor,view.paneInputAllowed else{return nil}
             return scroll
         }
+    }
+    func pointerIdentity(for source:NSScrollView)->MergePointerScrollIdentity? {
+        guard let window,window.isVisible,!window.isMiniaturized,
+              viewportScrolls.contains(where:{$0 === source}) else{return nil}
+        lineWrapping.prepareForInput()
+        guard canScrollViewport,viewportScrolls.contains(where:{$0 === source}),
+              let view=source.documentView as? FileComparisonTextView else{return nil}
+        return .init(owner:ObjectIdentifier(view),document:alignmentGeneration,
+                     role:"\(paneTabEpoch):\(view.baseSide):\(storageSide(view.baseSide)):\(onePaneActive):\(singleFileMode):\(source.contentView.bounds.size):\(view.font?.fontName ?? ""):\(view.font?.pointSize ?? 0)",
+                     wrapping:wrapLines,window:ObjectIdentifier(window))
+    }
+    func scrollPointer(_ event:NSEvent,from source:NSScrollView) {
+        guard event.type == .scrollWheel,event.window == nil || event.window === window,
+              event.scrollingDeltaX.isFinite,event.scrollingDeltaY.isFinite,
+              pointerIdentity(for:source) != nil,!synchronizing else{return}
+        (source.documentView as? FileComparisonTextView)?.beginUserNavigation()
+        let targets=viewportScrolls
+        guard targets.contains(where:{$0 === source}),!lineWrapping.isGeometryPending else{return}
+        synchronizing=true;lineWrapping.beginViewportInput()
+        defer {
+            synchronizing=false;lineWrapping.endViewportInput();refreshLocatorViewport()
+            let next=scrolls.mapValues{$0.contentView.bounds.minX}
+            if next != previewHorizontalOffsets {previewHorizontalOffsets=next}
+        }
+        MergePointerScrolling.wheel(event,targets:targets,horizontalEnabled:!wrapLines)
     }
     func scrollViewport(_ direction:MergeViewportScrollCommand) {
         guard canScrollViewport,!synchronizing else{return}
@@ -2154,13 +2186,17 @@ private extension FileComparisonDocument {
         if next != previewHorizontalOffsets {previewHorizontalOffsets=next}
     }
     func scrolled(_ source: NSScrollView) {
+        let changes=MergePointerScrolling.originChanges(in:source)
         defer {
             refreshLocatorViewport()
             let next = scrolls.mapValues { $0.contentView.bounds.minX }
             if next != previewHorizontalOffsets { previewHorizontalOffsets = next }
         }
-        guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
-        for target in scrolls.values where target !== source {
+        guard !synchronizing,canScrollViewport,viewportScrolls.contains(where:{$0 === source}) else { return }
+        synchronizing = true; defer { synchronizing = false }
+        let targets=viewportScrolls
+        if changes.horizontal {MergePointerScrolling.coupleHorizontal(from:source,targets:targets,horizontalEnabled:!wrapLines)}
+        for target in targets where target !== source && changes.vertical {
             var point = target.contentView.bounds.origin; point.y = source.contentView.bounds.origin.y
             let constrained = target.contentView.constrainBoundsRect(NSRect(origin: point, size: target.contentView.bounds.size)).origin
             if constrained != target.contentView.bounds.origin {
@@ -2459,7 +2495,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
         view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         view.setAccessibilityLabel(base ? "Base file" : "Destination file")
-        let scroll = NSScrollView(); scroll.documentView = view; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
+        let scroll = MergePointerScrollView(); scroll.documentView = view; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent
         scroll.hasVerticalRuler = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         scroll.contentView.postsBoundsChangedNotifications = true
@@ -2801,7 +2837,10 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
     func beginUserNavigation() { model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.cancelDeferredNavigation() }
-    override func scrollWheel(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; super.scrollWheel(with:event) }
+    override func scrollWheel(with event:NSEvent) {
+        if let scroll=enclosingScrollView as? MergePointerScrollView {scroll.scrollWheel(with:event);return}
+        beginUserNavigation();model?.lineWrapping.beginViewportInput();defer{model?.lineWrapping.endViewportInput()};super.scrollWheel(with:event)
+    }
     func didNavigateViewport() { model?.lineWrapping.recordViewportIntent() }
     @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
     @objc private func expandFoldedSection(_ sender: Any?) { _ = foldLayout.expandSelection(in: self) }

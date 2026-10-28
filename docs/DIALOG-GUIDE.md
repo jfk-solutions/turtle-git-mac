@@ -1188,6 +1188,14 @@ first. A context block retains the clicked wrapped subline. Resizing, font chang
 and wrapping retain the visible source row and reading position, while linked
 panes keep their common row heights.
 
+In text Compare and Merge, horizontal scrolling stays linked between the visible
+panes. Dragging a scrollbar shares its position; wheel and trackpad scrolling
+advance each pane from its own position and stop at its own edge. Hold Control
+or Shift to exchange the scrolling axes. Wrapped panes ignore horizontal
+movement. Scrolling keeps the text selection and Undo history unchanged.
+P4-style panes retain independent vertical scrolling because their source lines
+are not aligned; their horizontal scrolling is linked.
+
 
 Text comparison and merge margins use the original colored line-change icons.
 Hover an icon for its meaning: added, removed, conflicted, ignored conflict,

@@ -371,6 +371,117 @@ enum MergeViewportScrollCommand:String,CaseIterable,Hashable {
     }
 }
 
+/// A gesture belongs to one unchanged document, pane role and wrap mode. This
+/// intentionally excludes per-input caret/navigation revisions.
+struct MergePointerScrollIdentity:Hashable {
+    let owner:ObjectIdentifier,document:Int,role:String,wrapping:Bool,window:ObjectIdentifier
+}
+@MainActor final class MergePointerScrollView:NSScrollView {
+    var pointerWheel:((NSEvent,NSScrollView)->Void)?
+    var pointerIdentity:(()->MergePointerScrollIdentity?)?
+    var pointerObservedOrigin:NSPoint?
+    private var gestureIdentity:MergePointerScrollIdentity?
+    private var pointerWindowObservations:[NSObjectProtocol]=[]
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        for observer in pointerWindowObservations {NotificationCenter.default.removeObserver(observer)}
+        pointerWindowObservations=[];gestureIdentity=nil
+        guard let window else{return}
+        for name in [NSWindow.willBeginSheetNotification,NSWindow.willMiniaturizeNotification,NSWindow.willCloseNotification,NSWindow.didResizeNotification,NSWindow.didChangeOcclusionStateNotification] {
+            pointerWindowObservations.append(NotificationCenter.default.addObserver(forName:name,object:window,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.gestureIdentity=nil}})
+        }
+        contentView.postsFrameChangedNotifications=true
+        pointerWindowObservations.append(NotificationCenter.default.addObserver(forName:NSView.frameDidChangeNotification,object:contentView,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.gestureIdentity=nil}})
+    }
+    deinit {for observer in pointerWindowObservations {NotificationCenter.default.removeObserver(observer)}}
+    override func scrollWheel(with event:NSEvent) {
+        guard let pointerWheel else {super.scrollWheel(with:event);return}
+        guard event.type == .scrollWheel,event.window == nil || event.window === window,
+              event.scrollingDeltaX.isFinite,event.scrollingDeltaY.isFinite else{return}
+        guard let current=pointerIdentity?() else{gestureIdentity=nil;return}
+        let phase=event.phase,momentum=event.momentumPhase
+        if phase.contains(.cancelled) || momentum.contains(.cancelled) {gestureIdentity=nil;return}
+        let phased = !phase.isEmpty || !momentum.isEmpty
+        if phase.contains(.began) || phase.contains(.mayBegin) {gestureIdentity=current}
+        if phased {
+            guard gestureIdentity==current else{return}
+        } else {gestureIdentity=nil}
+        pointerWheel(event,self)
+        if momentum.contains(.ended) {gestureIdentity=nil}
+    }
+}
+
+/// Source BaseView.cpp:1049–1110 and 2275–2333: scrollbar positions are
+/// absolute character columns; wheel movements advance each pane independently.
+/// NSEvent.h:349–359 supplies native-point precise deltas, coarse units and
+/// already-applied natural scrolling direction. Never invert that direction again.
+@MainActor enum MergePointerScrolling {
+    static func captureOrigin(_ scroll:NSScrollView) {
+        (scroll as? MergePointerScrollView)?.pointerObservedOrigin=scroll.contentView.bounds.origin
+    }
+    static func originChanges(in scroll:NSScrollView)->(horizontal:Bool,vertical:Bool) {
+        guard let native=scroll as? MergePointerScrollView else{return (false,false)}
+        let old=native.pointerObservedOrigin,next=scroll.contentView.bounds.origin
+        native.pointerObservedOrigin=next
+        return old.map{($0.x != next.x,$0.y != next.y)} ?? (false,false)
+    }
+    private static func unique(_ scrolls:[NSScrollView])->[NSScrollView] {
+        var seen=Set<ObjectIdentifier>()
+        return scrolls.filter{seen.insert(ObjectIdentifier($0)).inserted}
+    }
+    private static func metrics(_ scroll:NSScrollView)->(cell:CGFloat,line:CGFloat) {
+        let view=scroll.documentView as? NSTextView,font=view?.font ?? NSFont.monospacedSystemFont(ofSize:NSFont.systemFontSize,weight:.regular)
+        return (max(1,("X" as NSString).size(withAttributes:[.font:font]).width),max(1,view?.layoutManager?.defaultLineHeight(for:font) ?? font.pointSize))
+    }
+    private static func move(_ scroll:NSScrollView,to point:NSPoint) {
+        guard point.x.isFinite,point.y.isFinite else{return}
+        let clip=scroll.contentView,next=clip.constrainBoundsRect(NSRect(origin:point,size:clip.bounds.size)).origin
+        if next != clip.bounds.origin {clip.scroll(to:next);scroll.reflectScrolledClipView(clip)}
+        scroll.verticalRulerView?.needsDisplay=true
+    }
+    static func wheel(_ event:NSEvent,targets:[NSScrollView],horizontalEnabled:Bool,verticalTargets:[NSScrollView]?=nil) {
+        guard event.type == .scrollWheel else{return}
+        var x=event.scrollingDeltaX,y=event.scrollingDeltaY
+        guard x.isFinite,y.isFinite else{return}
+        // Operate on the accepted NSEvent axes. There is no documented driver
+        // contract that permits guessing whether Shift previously remapped them.
+        // Win WM_MOUSEHWHEEL +delta means right (opposite native accepted X).
+        // Preserve source H-wheel→vertical direction: output axes are (Y,-X).
+        if !event.modifierFlags.intersection([.control,.shift]).isEmpty {
+            let horizontal=x;x=y;y = -horizontal
+        }
+        if !horizontalEnabled {x=0}
+        let vertical=Set((verticalTargets ?? targets).map{ObjectIdentifier($0)})
+        for scroll in unique(targets) {
+            let scale=metrics(scroll);var point=scroll.contentView.bounds.origin
+            point.x -= x*(event.hasPreciseScrollingDeltas ? 1:scale.cell)
+            if vertical.contains(ObjectIdentifier(scroll)) {point.y -= y*(event.hasPreciseScrollingDeltas ? 1:scale.line)}
+            move(scroll,to:point)
+        }
+    }
+    private static func leadingOrigin(_ scroll:NSScrollView)->CGFloat {
+        let clip=scroll.contentView
+        // Native rulers/content insets can make the leading origin negative.
+        // Ask the same clip constraint used for real movement; do not treat a
+        // gutter's leading padding as source text columns.
+        // An extreme floating-point probe loses small native padding terms in
+        // AppKit's constraint arithmetic. Step one viewport beyond both actual
+        // origins instead, retaining the ruler/inset contribution exactly.
+        var probe=clip.bounds
+        probe.origin.x=min(clip.documentRect.minX,clip.bounds.minX)-max(1,clip.bounds.width)-abs(clip.contentInsets.left)
+        return clip.constrainBoundsRect(probe).minX
+    }
+    static func coupleHorizontal(from source:NSScrollView,targets:[NSScrollView],horizontalEnabled:Bool) {
+        guard horizontalEnabled else{return}
+        let column=(source.contentView.bounds.minX-leadingOrigin(source))/metrics(source).cell
+        guard column.isFinite else{return}
+        for target in unique(targets) where target !== source {
+            var point=target.contentView.bounds.origin;point.x=leadingOrigin(target)+column*metrics(target).cell
+            move(target,to:point)
+        }
+    }
+}
+
 /// Native menu contributions have a focus lifetime independent of the editor.
 /// A previously retained item never becomes live again on a later focus cycle.
 @MainActor final class MergeEditorCommandMenu: NSObject, NSMenuItemValidation {
