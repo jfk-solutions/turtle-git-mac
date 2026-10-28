@@ -84,10 +84,26 @@ extension FinderSnapshot {
     /// unique canonical spelling when Finder supplies a filesystem alias.
     private func cachedPath(for url: URL) -> String? {
         let path = FileTransferPaths.lexicalPath(url.path)
-        let index = queries.paths {
+        let index = finderMenuPathIndex()
+        return (try? index.resolvingForIndex(String(path.dropFirst()))).map { "/" + $0 }
+    }
+
+    private func finderMenuPathIndex() -> FileTransferIndex {
+        queries.paths {
             FileTransferIndex(paths: GitPathSet(states.keys).union(GitPathSet(overlayEntries?.keys ?? [])).union(roots).union(repositories.keys).map { String($0.dropFirst()) }, caseSensitive: true)
         }
-        return (try? index.resolvingForIndex(String(path.dropFirst()))).map { "/" + $0 }
+    }
+    /// Prepare the immutable indexes on the publication worker before sharing a
+    /// snapshot with synchronous Finder menu callbacks. This changes no status
+    /// or authority; later queries reuse exactly the same lazy query storage.
+    public func prepareFinderMenuQueries(cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        _ = queries.rootIndex { FinderExactRootIndex(roots) }
+        try cancellation?.check()
+        _ = finderMenuPathIndex()
+        try cancellation?.check()
+        _ = finderMenuDescendantStates()
+        try cancellation?.check()
     }
 
     /// Nearest cached owner, so a nested checkout never falls back to its parent
@@ -146,11 +162,17 @@ extension FinderSnapshot {
         let owner=fileOperationOwner(path:path,root:root),entries=overlayEntries ?? states
         if let state=entries[path],statesToMatch.contains(state) {return true}
         guard includingDescendants else {return false}
+        let descendants = finderMenuDescendantStates()
+        guard let present=descendants[GitReferenceName(owner)]?[GitReferenceName(path)] else {return false}
+        return !present.isDisjoint(with:statesToMatch)
+    }
+    private func finderMenuDescendantStates() -> FinderSnapshotQueries.Descendants {
+        let entries = overlayEntries ?? states
         // Build from exact recorded entries, never alias filesystem names during
         // propagation. A child checkout's contents belong to that child; its
         // parent's gitlink remains a separately owned direct entry.
         let rootIndex=queries.rootIndex {FinderExactRootIndex(roots)}
-        let descendants=queries.descendants {
+        return queries.descendants {
             var result=FinderSnapshotQueries.Descendants()
             for (entry,state) in entries {
                 guard let root=rootIndex.root(for:entry) else {continue}
@@ -164,7 +186,5 @@ extension FinderSnapshot {
             }
             return result
         }
-        guard let present=descendants[GitReferenceName(owner)]?[GitReferenceName(path)] else {return false}
-        return !present.isDisjoint(with:statesToMatch)
     }
 }

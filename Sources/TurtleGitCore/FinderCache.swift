@@ -1031,6 +1031,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     }
     private struct LiveReadCache {
         let control: FileIdentity?, raw: FileIdentity?, state: Control
+        let ownerIDs: Set<UUID>
         var liveIDs: Set<UUID>, snapshot: FinderSnapshot
     }
     private var liveReadCache: LiveReadCache?
@@ -1375,6 +1376,22 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     /// Atomic file reads and lease probes never wait for a writer's store lock.
     /// A retained store (or FinderSnapshotLiveReader) reuses decoding/projection
     /// until an atomic file identity or the set of live lease owners changes.
+    /// Finder's synchronous callbacks never wait for an in-flight decoder and
+    /// never rebuild a projection. Nil means the caller must clear status until
+    /// an owned asynchronous read completes; it does not authorize stale data.
+    public func cachedLiveIfCurrent() -> FinderSnapshot? {
+        guard liveReadLock.try() else { return nil }
+        defer { liveReadLock.unlock() }
+        do {
+            guard let cached = liveReadCache,
+                  cached.control == (try identity(controlURL)), cached.raw == (try identity(url)) else { return nil }
+            var current = Set<UUID>()
+            for id in cached.ownerIDs { if try alive(id) { current.insert(id) } }
+            guard current == cached.liveIDs,
+                  cached.control == (try identity(controlURL)), cached.raw == (try identity(url)) else { return nil }
+            return cached.snapshot
+        } catch { return nil }
+    }
     public func readLive(cancellation: OperationCancellation? = nil) throws -> FinderSnapshot {
         try cancellation?.check();liveReadLock.lock();defer {liveReadLock.unlock()}
         do {
@@ -1382,7 +1399,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 let controlIdentity=try identity(controlURL),rawIdentity=try identity(url)
                 if var cached=liveReadCache,cached.control==controlIdentity,cached.raw==rawIdentity {
                     var current=Set<UUID>()
-                    for id in cached.liveIDs {if try alive(id) {current.insert(id)}}
+                    for id in cached.ownerIDs {if try alive(id) {current.insert(id)}}
                     if current != cached.liveIDs {
                         cached.snapshot=projection(cached.state.contributions.filter {current.contains($0.session)},id:cached.state.id,statusPolicyIdentity:cached.state.statusPolicyIdentity)
                         cached.liveIDs=current;liveReadCache=cached
@@ -1397,7 +1414,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 let snapshot: FinderSnapshot
                 if state.legacy || raw?.liveRevision == nil {snapshot=FinderSnapshot(roots:[],states:[:],updated:Date(timeIntervalSince1970:0))}
                 else {snapshot=projection(active,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)}
-                liveReadCache=LiveReadCache(control:controlIdentity,raw:rawIdentity,state:state,liveIDs:Set(active.map(\.session)),snapshot:snapshot)
+                liveReadCache=LiveReadCache(control:controlIdentity,raw:rawIdentity,state:state,ownerIDs:Set(state.contributions.map(\.session)),liveIDs:Set(active.map(\.session)),snapshot:snapshot)
                 return snapshot
             }
             throw POSIXError(.EAGAIN)
@@ -1428,12 +1445,16 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let name=try path(root)
         try locked(cancellation) { validation in var value=try control(validation:validation);guard value.counter<UInt64.max else{throw FinderPublicationFailure.corruptStore};value.counter+=1;value.sequences[name]=value.counter;_ = try writeLive(&value,validation:validation)}
     }
-    public func begin(root: URL, session supplied: FinderPublicationSession? = nil, cancellation: OperationCancellation? = nil, policy: FinderStatusPolicy? = nil) throws -> FinderPublicationTicket {
+    public func begin(root: URL, session supplied: FinderPublicationSession? = nil, cancellation: OperationCancellation? = nil, policy: FinderStatusPolicy? = nil, authorize: (@Sendable () throws -> Void)? = nil) throws -> FinderPublicationTicket {
         let root=try path(root)
         let session: FinderPublicationSession
         if let supplied {session=supplied} else {session=try defaultSession(cancellation:cancellation)}
         return try locked(cancellation) { validation in
             var state=try control(validation:validation);try owner(session,state:state);_ = try checkedRawSnapshot(validation:validation)
+            // Check immutable watch identity while claim ordering is locked.
+            // A queued retired watch cannot claim after its replacement began.
+            try authorize?()
+            try validation.check()
             if let policy {guard state.statusPolicyIdentity == nil || state.statusPolicyIdentity == policy.identity else {throw FinderPublicationFailure.policyChanged};state.statusPolicyIdentity=policy.identity}
             guard state.counter<UInt64.max else {throw FinderPublicationFailure.corruptStore}
             state.counter += 1;state.sequences[root]=state.counter;state.claims[root]=session.id
@@ -1547,6 +1568,54 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             return result
         }
     }
+    /// Retire one independently watched root without pruning nested or
+    /// ancestor watches that happen to share this publisher's process lease.
+    /// The broader remove API intentionally retains its subtree semantics.
+    public func removeWatchContribution(root: URL, session: FinderPublicationSession, expected: FinderPublicationTicket? = nil, cancellation: OperationCancellation? = nil) throws -> FinderSnapshot {
+        let root = try path(root)
+        return try locked(cancellation) { validation in
+            var state = try control(validation: validation)
+            try owner(session, state: state)
+            if let expected {
+                guard GitReferenceName.equal(expected.root, root), expected.session == session.id,
+                      expected.sequence <= state.counter else { throw FinderPublicationFailure.invalidUpdate }
+                guard expected.instance == instance, expected.store == state.id else { throw FinderPublicationFailure.retiredSession }
+            }
+            let through = expected?.sequence ?? UInt64.max
+            let removesContribution = state.contributions.contains {
+                $0.session == session.id && GitReferenceName.equal($0.root, root) && $0.sequence <= through
+            }
+            let revokesClaim = state.claims[root] == session.id &&
+                (expected == nil || state.sequences[root].map { $0 <= through } == true)
+            // A delayed old reader may drain after a new watch has begun or
+            // published under this same process lease. Retire only through the
+            // old owner's latest BEGIN, including an unpublished/cancelled one.
+            guard removesContribution || revokesClaim else {
+                return projection(try live(state), id: state.id, statusPolicyIdentity: state.statusPolicyIdentity)
+            }
+            guard state.counter < UInt64.max else { throw FinderPublicationFailure.corruptStore }
+            state.counter += 1
+            state.contributions.removeAll {
+                $0.session == session.id && GitReferenceName.equal($0.root, root) && $0.sequence <= through
+            }
+            if revokesClaim {
+                state.claims.removeValue(forKey: root)
+                state.consumed[root] = state.counter
+                // Do not advance this root's overlap sequence. A new ancestor
+                // sequence would also fence valid independent nested tickets.
+                // Removing the exact claim and consuming its epoch rejects all
+                // old root tickets while preserving earlier overlap fences.
+            }
+            state.warmMaintenance = nil
+            var result = try writeLive(&state, validation: validation)
+            result.persistenceFailure = warmWarning {
+                guard state.policy.cacheSave else { return }
+                let selected = result.subtree(root: FileTransferPaths.fileURL(root))
+                try mergeWarm(root: root, snapshots: selected.roots.isEmpty ? [] : [selected], enabled: true)
+            }
+            return result
+        }
+    }
     public func endSession(_ session: FinderPublicationSession, cancellation: OperationCancellation? = nil) throws -> FinderSnapshot {
         guard session.instance==instance else {throw FinderPublicationFailure.retiredSession}
         defer {session.closeLease();sessionLock.lock();owned.removeValue(forKey:session.id);if implicit?.id==session.id {implicit=nil};sessionLock.unlock()}
@@ -1566,5 +1635,6 @@ public final class FinderSnapshotStore: @unchecked Sendable {
 public final class FinderSnapshotLiveReader: @unchecked Sendable {
     private let store: FinderSnapshotStore
     public init(url: URL) {store=FinderSnapshotStore(url:url)}
-    public func read() throws -> FinderSnapshot {try store.readLive()}
+    public func read(cancellation: OperationCancellation? = nil) throws -> FinderSnapshot {try store.readLive(cancellation: cancellation)}
+    public func cachedLiveIfCurrent() -> FinderSnapshot? { store.cachedLiveIfCurrent() }
 }

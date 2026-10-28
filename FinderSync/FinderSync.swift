@@ -1,5 +1,6 @@
 import AppKit
 import FinderSync
+import Carbon
 import TurtleGitCore
 import os
 
@@ -20,6 +21,7 @@ import os
     private var badgeLookup = FinderOverlayBadgeLookup(badges: [:], caseSensitive: { _ in true })
     override init() {
         super.init()
+        FIFinderSyncController.default().directoryURLs = FinderContextDiscovery.commandDirectories
         reload()
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(reload), name: NSNotification.Name(FinderIntegration.notification), object: nil)
         for name in [FinderStatusPolicyPreferences.notification,FinderStatusOperationLease.notification] {DistributedNotificationCenter.default().addObserver(self,selector:#selector(statusPolicyChanged),name:NSNotification.Name(name),object:nil)}
@@ -27,57 +29,159 @@ import os
             NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(reload), name: name, object: nil)
         }
     }
-    deinit { statusQueries.retire();DistributedNotificationCenter.default().removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self) }
-    @objc private func reload() { install(try? liveReader?.read()) }
-    @objc private func statusPolicyChanged() {reload();for path in observedDirectories {requestStatus(path,force:true)}}
-    private func requestStatus(_ path:String,force:Bool=false) {
-        guard contextDiscovery.permitsStatus(path) else{return}
-        guard let policy=statusPolicy,policy.cacheMode == .shell || policy.cacheMode == .shellExtended else{return}
-        guard !policy.blockStatus || !FinderStatusOperationLease.isBlocked() else{return}
-        statusQueries.request(path,force:force)
-    }
-    override func beginObservingDirectory(at url:URL) {
-        guard contextDiscovery.permitsStatus(url.path) else{return}
-        if observedDirectories.count<4096 {observedDirectories.insert(url.path)};requestStatus(url.path,force:true)
-    }
-    override func endObservingDirectory(at url:URL) {observedDirectories.remove(url.path)}
-    private func revalidateLivePublication() {
-        let live = try? liveReader?.read()
-        // Live ownership can change without changing the stored timestamp.
-        if live?.liveRevision != snapshot?.liveRevision {
-            install(live)
+    deinit { refreshCancellation?.cancel();statusQueries.retire();DistributedNotificationCenter.default().removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self) }
+    private final class Publication: @unchecked Sendable {
+        let snapshot: FinderSnapshot?
+        let settings: FinderOverlaySettings
+        let policy: FinderStatusPolicy?
+        let fileSystem: FinderOverlayFileSystem
+        let badges: GitPathMap<FinderOverlayBadge>
+        let lookup: FinderOverlayBadgeLookup
+        let paths: [String], currentPaths: [String]
+        init(snapshot: FinderSnapshot?, debt: [ArraySlice<String>], cancellation: OperationCancellation) throws {
+            try cancellation.check()
+            self.snapshot = snapshot
+            try snapshot?.prepareFinderMenuQueries(cancellation: cancellation)
+            settings = FinderOverlaySettings.read(); policy = try? FinderStatusPolicy.read()
+            let fs = FinderOverlayFileSystem(); fileSystem = fs
+            if let snapshot, let policy,
+               !((policy.cacheMode == .shell || policy.cacheMode == .shellExtended) && policy.blockStatus && FinderStatusOperationLease.isBlocked()) {
+                badges = settings.overlayBadges(snapshot: snapshot, volume: { fs.volume($0).kind },
+                    isDirectory: fs.isDirectory, caseSensitive: { fs.volume($0).caseSensitive }, statusPolicy: policy)
+            } else { badges = [:] }
+            try cancellation.check()
+            lookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: {
+                snapshot?.overlayCaseSensitive(for: $0, fallback: fs.volume($0).caseSensitive) ?? fs.volume($0).caseSensitive
+            })
+            currentPaths = Array(badges.keys)
+            var pending = GitPathSet(currentPaths)
+            for batch in debt { for path in batch { pending.insert(path) } }
+            paths = Array(pending)
+            try cancellation.check()
         }
     }
-    private func install(_ live: FinderSnapshot?) {
-        let old = badges
-        snapshot = live
-        contextDiscovery=FinderContextDiscovery(snapshot:live)
-        let settings = FinderOverlaySettings.read(), changedIcons = iconSet != settings.iconSet
-        statusPolicy=try? FinderStatusPolicy.read()
-        let controller = FIFinderSyncController.default()
+    private var refreshGeneration = UUID()
+    private var refreshInFlight = false, refreshAgain = false
+    private var refreshCancellation: OperationCancellation?
+    private var knownBadgePaths: [String] = []
+    private var badgeUpdateBatches: [ArraySlice<String>] = []
+    private var badgeBatchGeneration = UUID()
+    private var badgeBatchScheduled = false
+    private var badgeImagesChanged = false
+    // The only synchronous store access below is the nonblocking validated
+    // cache receipt. JSON decoding, projection, filesystem classification and
+    // full badge-key preparation belong to this single owned worker.
+    @objc private func reload() {
+        refreshGeneration = UUID()
+        clearUnsafePublication()
+        if refreshInFlight { refreshAgain = true; refreshCancellation?.cancel() }
+        else { scheduleLiveRefresh() }
+    }
+    @objc private func statusPolicyChanged() { reload(); for path in observedDirectories { requestStatus(path, force: true) } }
+    private func requestStatus(_ path: String, force: Bool = false) {
+        guard contextDiscovery.permitsStatus(path) else { return }
+        guard let policy = statusPolicy, policy.cacheMode == .shell || policy.cacheMode == .shellExtended else { return }
+        guard !policy.blockStatus || !FinderStatusOperationLease.isBlocked() else { return }
+        statusQueries.request(path, force: force)
+    }
+    override func beginObservingDirectory(at url: URL) {
+        guard contextDiscovery.permitsStatus(url.path) else { return }
+        if observedDirectories.count < 4096 { observedDirectories.insert(url.path) }; requestStatus(url.path, force: true)
+    }
+    override func endObservingDirectory(at url: URL) { observedDirectories.remove(url.path) }
+    private func revalidateLivePublication() {
+        guard let live = liveReader?.cachedLiveIfCurrent() else {
+            clearUnsafePublication(); scheduleLiveRefresh(); return
+        }
+        if live.liveRevision != snapshot?.liveRevision {
+            clearUnsafePublication(); scheduleLiveRefresh()
+        }
+    }
+    private func clearUnsafePublication() {
+        guard snapshot != nil else { return }
+        snapshot = nil; contextDiscovery = FinderContextDiscovery(snapshot: nil)
+        badges = [:]; badgeLookup = FinderOverlayBadgeLookup(badges: [:], caseSensitive: { _ in true })
+        // Keep unfinished IPC paths plus the last installed namespace. Copying
+        // these immutable slices is constant in the number of file paths.
+        if !knownBadgePaths.isEmpty { badgeUpdateBatches.append(knownBadgePaths[...]) }
+        startBadgeBatches()
+    }
+    private func scheduleLiveRefresh() {
+        guard !refreshInFlight, let reader = liveReader else { return }
+        refreshInFlight = true
+        let generation = refreshGeneration, cancellation = OperationCancellation()
+        refreshCancellation = cancellation
+        let debt = badgeUpdateBatches + (knownBadgePaths.isEmpty ? [] : [knownBadgePaths[...]])
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let publication: Publication?
+            do { publication = try Publication(snapshot: reader.read(cancellation: cancellation), debt: debt, cancellation: cancellation) }
+            catch { publication = nil }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.refreshInFlight = false; self.refreshCancellation = nil
+                let repeatRead = self.refreshAgain; self.refreshAgain = false
+                if generation == self.refreshGeneration, !cancellation.isCancelled, let publication,
+                   let current = reader.cachedLiveIfCurrent(), current.liveRevision == publication.snapshot?.liveRevision {
+                    self.install(publication)
+                }
+                if repeatRead { self.scheduleLiveRefresh() }
+            }
+        }
+    }
+    private func install(_ publication: Publication) {
+        snapshot = publication.snapshot; contextDiscovery = FinderContextDiscovery(snapshot: publication.snapshot)
+        statusPolicy = publication.policy; fileSystem = publication.fileSystem
+        badges = publication.badges; badgeLookup = publication.lookup
+        let settings = publication.settings, controller = FIFinderSyncController.default()
         let menuSettings = FinderMenuSettings.read()
         let captions = FinderMenuCaptions(language: menuSettings.language, bundle: Bundle(for: FinderSync.self))
-        if changedIcons || badgeLanguage != menuSettings.language {
+        if iconSet != settings.iconSet || badgeLanguage != menuSettings.language {
+            badgeImagesChanged = true
             for state in FinderOverlayBadge.allCases {
                 guard let image = state.image(set: settings.iconSet) else { continue }
                 controller.setBadgeImage(image, label: captions.label(state.title), forBadgeIdentifier: state.rawValue)
             }
             iconSet = settings.iconSet; badgeLanguage = menuSettings.language
         }
-        let fileSystem = FinderOverlayFileSystem(); self.fileSystem = fileSystem
-        if let snapshot,let policy=statusPolicy,!((policy.cacheMode == .shell || policy.cacheMode == .shellExtended) && policy.blockStatus && FinderStatusOperationLease.isBlocked()) {
-            badges = settings.overlayBadges(snapshot: snapshot, volume: { fileSystem.volume($0).kind },
-                isDirectory: fileSystem.isDirectory, caseSensitive: { fileSystem.volume($0).caseSensitive },statusPolicy:policy)
-        } else { badges = [:] }
-        badgeLookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: { snapshot?.overlayCaseSensitive(for:$0,fallback:fileSystem.volume($0).caseSensitive) ?? fileSystem.volume($0).caseSensitive })
-        // This namespace enables first-use commands; it grants no repository access.
         controller.directoryURLs = FinderContextDiscovery.commandDirectories
-        observedDirectories=GitPathSet(observedDirectories.filter{contextDiscovery.permitsStatus($0)})
-        let paths = GitPathSet(old.keys).union(GitPathSet(badges.keys))
-        for path in paths where changedIcons || old[path] != badges[path] {
-            guard contextDiscovery.permitsStatus(path) else {controller.setBadgeIdentifier("",for:FileTransferPaths.fileURL(path));continue}
-            if changedIcons { controller.setBadgeIdentifier("", for: FileTransferPaths.fileURL(path)) }
-            controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: snapshot?.overlayCaseSensitive(for:path,fallback:fileSystem.volume(path).caseSensitive) ?? fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: FileTransferPaths.fileURL(path))
+        observedDirectories = GitPathSet(observedDirectories.filter { contextDiscovery.permitsStatus($0) })
+        knownBadgePaths = publication.currentPaths
+        badgeUpdateBatches = publication.paths.isEmpty ? [] : [publication.paths[...]]
+        startBadgeBatches()
+        for path in observedDirectories { requestStatus(path, force: true) }
+    }
+    private func startBadgeBatches() {
+        // Retire a queued old batch; unfinished paths remain in the current
+        // slices and are interpreted against the latest validated lookup.
+        badgeBatchGeneration = UUID(); badgeBatchScheduled = false
+        scheduleBadgeBatch()
+    }
+    private func scheduleBadgeBatch() {
+        guard !badgeBatchScheduled, !badgeUpdateBatches.isEmpty else { return }
+        badgeBatchScheduled = true
+        let generation = badgeBatchGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.badgeBatchGeneration == generation else { return }
+            self.badgeBatchScheduled = false
+            self.revalidateLivePublication()
+            guard self.badgeBatchGeneration == generation else { return }
+            let controller = FIFinderSyncController.default()
+            let blocked = self.statusPolicy.map { ($0.cacheMode == .shell || $0.cacheMode == .shellExtended) && $0.blockStatus && FinderStatusOperationLease.isBlocked() } ?? true
+            for _ in 0..<128 {
+                while self.badgeUpdateBatches.first?.isEmpty == true { self.badgeUpdateBatches.removeFirst() }
+                guard let path = self.badgeUpdateBatches.first?.first else { break }
+                self.badgeUpdateBatches[0] = self.badgeUpdateBatches[0].dropFirst()
+                let identifier: String
+                if !blocked, self.contextDiscovery.permitsStatus(path) {
+                    identifier = self.badgeLookup.badge(for: path, caseSensitive: self.snapshot?.overlayCaseSensitive(for: path, fallback: self.fileSystem.volume(path).caseSensitive) ?? self.fileSystem.volume(path).caseSensitive)?.rawValue ?? ""
+                } else { identifier = "" }
+                let url = FileTransferPaths.fileURL(path)
+                if self.badgeImagesChanged, !identifier.isEmpty { controller.setBadgeIdentifier("", for: url) }
+                controller.setBadgeIdentifier(identifier, for: url)
+            }
+            while self.badgeUpdateBatches.first?.isEmpty == true { self.badgeUpdateBatches.removeFirst() }
+            if self.badgeUpdateBatches.isEmpty { self.badgeImagesChanged = false }
+            self.scheduleBadgeBatch()
         }
     }
     override func requestBadgeIdentifier(for url: URL) {
@@ -115,7 +219,8 @@ import os
             sourceSelection: menuKind == .contextualMenuForItems ? selection : [],
             registrationCandidate: paths.count == 1 ? paths.first:nil,
             cloneDirectory: selection.count == 1 && selection[0].hasDirectoryPath ? selection[0]:targetURL,
-            clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [])
+            clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [],
+            registeredRoots: try? FinderRegisteredRoots.read())
         menuDispatch.install(menu)
         return menu
     }
@@ -144,7 +249,8 @@ import os
                 failureConfiguration.activates = true
                 failureConfiguration.createsNewApplicationInstance = false
                 failureConfiguration.arguments = unavailable.arguments
-                NSWorkspace.shared.open([unavailable.url], withApplicationAt: application, configuration: failureConfiguration) { _, failure in
+                failureConfiguration.appleEvent = Self.actionEvent(unavailable)
+                NSWorkspace.shared.openApplication(at: application, configuration: failureConfiguration) { _, failure in
                     if let failure { Self.handoffLog.error("Finder failure handoff failed: \((failure as NSError).code, privacy: .public)") }
                 }
                 return
@@ -152,12 +258,16 @@ import os
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = request.action != .registerRepository; configuration.createsNewApplicationInstance = false
             configuration.arguments = delivery.arguments
-            NSWorkspace.shared.open([delivery.url], withApplicationAt: application, configuration: configuration) { launched, error in
+            // Sandboxed callers cannot pass launch arguments (NSWorkspace's
+            // API contract). Supply the command as the explicit first event,
+            // before any default application-open/reopen event is requested.
+            configuration.appleEvent = Self.actionEvent(delivery)
+            NSWorkspace.shared.openApplication(at: application, configuration: configuration) { launched, error in
                 if let error {
                     Self.handoffLog.error("Finder application handoff failed: \((error as NSError).code, privacy: .public)")
-                    // The launch argv may already have been accepted even if
-                    // URL delivery failed. Do not revoke a live receiver's
-                    // clipboard capability based on the duplicate channel.
+                    // The first event may already have been accepted. Do not
+                    // revoke a live receiver's clipboard capability merely
+                    // because Launch Services also reported an error.
                     if launched == nil {
                         store?.discard(delivery)
                         if let receipt = captured.clipboardPatch, let store = FinderPatchHandoff.current { store.discard(receipt) }
@@ -165,6 +275,12 @@ import os
                 }
             }
         }
+    }
+    static func actionEvent(_ delivery: FinderActionDelivery) -> NSAppleEventDescriptor {
+        let event = NSAppleEventDescriptor(eventClass: AEEventClass(kInternetEventClass), eventID: AEEventID(kAEGetURL),
+            targetDescriptor: nil, returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
+        event.setParam(NSAppleEventDescriptor(string: delivery.url.absoluteString), forKeyword: AEKeyword(keyDirectObject))
+        return event
     }
 }
 
@@ -311,11 +427,14 @@ enum FinderMenuBuilder {
     }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
-                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, sourceSelection: [URL] = [], registrationCandidate:URL? = nil, cloneDirectory:URL? = nil, clipboardSources: [URL] = [], localizationBundle: Bundle? = nil) -> NSMenu {
+                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, sourceSelection: [URL] = [], registrationCandidate:URL? = nil, cloneDirectory:URL? = nil, clipboardSources: [URL] = [], localizationBundle: Bundle? = nil, registeredRoots: FinderRegisteredRoots? = nil) -> NSMenu {
         let captions = FinderMenuCaptions(language: settings.language, bundle: localizationBundle ?? Bundle(for: FinderSync.self))
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit"); menu.autoenablesItems = false
         defer { MenuImageVisibility.apply(to:menu) }
+        // Literal-path normalization intentionally discards URL resource hints.
+        // Keep Finder's directory bit separately for cold folder discovery.
+        let selectedDirectory = paths.count == 1 && paths[0].hasDirectoryPath
         let normalizedPaths = FinderRequest.normalizedSelection(paths)
         if normalizedPaths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
         // First-use discovery cannot depend on reading an ungranted directory,
@@ -323,6 +442,15 @@ enum FinderMenuBuilder {
         // receives the candidate and obtains its own folder grant before use.
         let candidate=registrationCandidate.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{candidate in normalizedPaths.count == 1 && GitReferenceName.equal(normalizedPaths[0].path,candidate.path) ? candidate:nil}
         let clone=cloneDirectory.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{!$0.pathComponents.contains(".git") && settings.allowsPath($0.path) ? $0:nil}
+        if normalizedPaths.count == 1, let selected = normalizedPaths.first,
+           snapshot?.repositoryRoot(for: selected) == nil,
+           let registered = registeredRoots?.root(for: selected),
+           selectedDirectory || GitReferenceName.equal(selected.path, registered.root),
+           settings.allowsPath(selected.path) {
+            return registeredMenu(selected: selected, registered: registered, settings: settings,
+                                  captions: captions, target: target, actionSelector: actionSelector,
+                                  extended: extended, toolbar: toolbar, candidate: candidate)
+        }
         if candidate != nil || clone != nil, !normalizedPaths.contains(where:{snapshot?.repositoryRoot(for:$0) != nil}) {
             guard normalizedPaths.allSatisfy({settings.allowsPath($0.path)}) else{return menu}
             let choices=NSMenu(title:"TurtleGit");choices.autoenablesItems=false
@@ -466,6 +594,54 @@ enum FinderMenuBuilder {
             guard let action = FinderShellMenuLayout.action(item), let entry = FinderShellMenuLayout.preferenceEntry(action) else { continue }
             if !settings.visible(entry, extended: extended) { submenu.removeItem(item) }
         }
+        return place(submenu, settings: settings, toolbar: toolbar)
+    }
+
+    /// Persisted registration supplies directory command discovery, never a
+    /// status snapshot, an index flag, or authority to read repository files.
+    /// File-specific/state-dependent commands await a live status publication.
+    private static func registeredMenu(selected: URL, registered: FinderRegisteredRoots.Entry,
+                                       settings: FinderMenuSettings, captions: FinderMenuCaptions,
+                                       target: AnyObject?, actionSelector: Selector,
+                                       extended: Bool, toolbar: Bool, candidate: URL?) -> NSMenu {
+        let submenu = NSMenu(title: "TurtleGit"); submenu.autoenablesItems = false
+        var flags: FinderShellFlags = [.folder, .onlyOne]
+        if extended { flags.insert(.extended) }
+        switch registered.kind {
+        case .workingTree:
+            flags.insert(.folderInGit)
+            if GitReferenceName.equal(selected.path, registered.root) { flags.insert(.workingTreeRoot) }
+        case .bare: flags.insert(.bare)
+        case .unknown: break
+        }
+        let generic: [RepositoryAction] = [
+            .clone, .pull, .fetch, .push, .synchronize, .commit,
+            .log, .reflog, .referenceBrowser, .daemon, .revisionGraph, .repositoryBrowser,
+            .status, .rebase, .clean, .switchBranch, .merge, .branch, .tag, .export,
+            .worktreeCreate, .worktreeList, .submoduleAdd, .formatPatch, .importPatch,
+            .properties, .settings, .help, .about
+        ]
+        let unknown: Set<RepositoryAction> = [.log, .reflog, .referenceBrowser, .daemon,
+            .revisionGraph, .repositoryBrowser, .fetch, .push, .settings, .help, .about]
+        func add(_ action: RepositoryAction, paths: [URL]) {
+            let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")
+            item.image = settings.showIcons ? action.icon.image() : nil
+            item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths)
+            submenu.addItem(item)
+        }
+        if let candidate { add(.registerRepository, paths: [candidate]) }
+        for action in generic {
+            if action == .worktreeCreate && !GitReferenceName.equal(selected.path, registered.root) { continue }
+            let eligible = registered.kind == .unknown ? unknown.contains(action) : FinderShellRules.allows(action, flags: flags)
+            guard eligible, let entry = FinderShellMenuLayout.preferenceEntry(action), settings.visible(entry, extended: extended) else { continue }
+            add(action, paths: [selected])
+        }
+        return place(submenu, settings: settings, toolbar: toolbar)
+    }
+
+    private static func place(_ submenu: NSMenu, settings: FinderMenuSettings, toolbar: Bool) -> NSMenu {
+        let menu = NSMenu(title: "TurtleGit"); menu.autoenablesItems = false
+        defer { MenuImageVisibility.apply(to: menu) }
         FinderShellMenuLayout.arrange(submenu)
         if toolbar { MenuImageVisibility.apply(to:submenu);return submenu }
         let firstLevel = NSMenu(title: "TurtleGit")
@@ -481,7 +657,7 @@ enum FinderMenuBuilder {
         if submenu.items.isEmpty { return menu }
         if !menu.items.isEmpty { menu.addItem(.separator()) }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
-        parent.image = image(.turtle)
+        parent.image = settings.showIcons ? MenuIcon.turtle.image() : nil
         parent.submenu = submenu; menu.addItem(parent)
         return menu
     }

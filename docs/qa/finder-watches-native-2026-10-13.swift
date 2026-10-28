@@ -27,6 +27,8 @@ import TurtleGitCore
         let folder=URL(fileURLWithPath:CommandLine.arguments[1]),engine=URL(fileURLWithPath:CommandLine.arguments[2]),provider=Bookmarks()
         let registry=folder.appendingPathComponent("private/watch-repositories.json"),permissions=try RepositoryAccessStore(storageURL:registry,provider:provider)
         let cache=FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json"))
+        let registeredURL=folder.appendingPathComponent("shared/registered-roots.json")
+        func registered()throws->FinderRegisteredRoots{try FinderRegisteredRoots.read(from:registeredURL)}
         var repositories:[GitRepository]=[]
         for name in ["Project A","Project B"] {
             let root=folder.appendingPathComponent(name);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
@@ -37,12 +39,15 @@ import TurtleGitCore
         func snapshot() -> FinderSnapshot? { guard let data=try? Data(contentsOf:cache.url) else { return nil };return try? JSONDecoder().decode(FinderSnapshot.self,from:data) }
         var notifications=0
         func manager(_ executable:URL = engine) -> FinderWatchManager {
-            FinderWatchManager(permissions:permissions,cache:cache,requireScope:true,scopeProvider:provider,repositoryFactory:{ GitRepository(root:$0,executable:executable) },notify:{ notifications += 1 })
+            FinderWatchManager(permissions:permissions,cache:cache,requireScope:true,scopeProvider:provider,repositoryFactory:{ GitRepository(root:$0,executable:executable) },registeredRootsURL:registeredURL,notify:{ notifications += 1 })
         }
         let first=manager()
         await first.add(repositories[0].root);await first.add(repositories[1].root)
         try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } && snapshot()?.roots.count==2 }
         try require(first.rows.count==2 && notifications>=2,"Add/publication")
+        let initialRegistered=try registered()
+        try require(Set(initialRegistered.entries.map(\.id))==Set(permissions.repositories.map(\.id)) && initialRegistered.entries.allSatisfy({$0.kind == .workingTree}),"Explicit watch IDs/kinds missing from private durable command catalog")
+        try require(!(try String(contentsOf:registeredURL)).contains(provider.marker),"Private bookmark entered durable command hints")
         do {
             let exported=try first.serviceAuthorization(provider:provider),received=try exported.acquire(provider:provider)
             try require(Set(received.map { $0.root.path })==Set(repositories.map { $0.root.path }),"Watcher export lost authorized roots")
@@ -79,12 +84,18 @@ import TurtleGitCore
             window.contentViewController=NSHostingController(rootView:FinderWatchedRepositoriesPage(manager:first));window.setContentSize(NSSize(width:900,height:500));window.contentView?.layoutSubtreeIfNeeded();try await capture(window);window.close()
         }
         await first.shutdown()
+        try require(try registered().entries.count==2,"Publisher shutdown erased explicit registered command context")
+        try require(FinderSnapshot.readLive(from:cache.url)?.roots.isEmpty==true,"Durable command hint retained live badge authority after shutdown")
         let moved=folder.appendingPathComponent("Moved Project A");try FileManager.default.moveItem(at:repositories[0].root,to:moved);provider.moves[repositories[0].root.path]=moved
         let relaunched=manager();relaunched.restore()
         try await wait { relaunched.pendingOperations==0 && relaunched.rows.count==2 && relaunched.rows.allSatisfy { $0.status=="Updated" } && snapshot()?.roots.contains(moved.path)==true }
         try require(!snapshot()!.roots.contains(repositories[0].root.path) && permissions.repositories.first { $0.id==aID }?.lastKnownPath==moved.path,"Moved root retained ghost cache/lost identity")
+        let movedRegistered=try registered()
+        try require(movedRegistered.root(for:moved)?.id==aID && movedRegistered.root(for:repositories[0].root)==nil,"Moved command context retained old root or lost watch identity")
         await relaunched.remove(aID);try await wait { relaunched.pendingOperations==0 }
         try require(relaunched.rows.count==1 && !snapshot()!.roots.contains(moved.path) && snapshot()!.roots.contains(repositories[1].root.path),"Remove dropped other roots")
+        let removedRegistered=try registered()
+        try require(removedRegistered.entries.count==1 && !removedRegistered.entries.contains(where:{$0.id==aID}),"Remove retained obsolete registered command context")
         await relaunched.shutdown()
         provider.available=false;let denied=manager();denied.restore()
         try await wait {denied.pendingOperations==0 && denied.rows.first?.status.contains("unavailable")==true}

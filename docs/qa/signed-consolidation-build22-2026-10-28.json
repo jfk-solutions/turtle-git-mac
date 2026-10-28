@@ -1,0 +1,285 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-local-consolidation-installed-physical-finder-persistence-failed",
+  "version": "0.1.0 (22)",
+  "source_commit": "9be589267fb14f3e3dba664516bde82fb549f26f",
+  "scope": [
+    "Frozen Finder cold receipt transport and deferred startup/authority workflow from 9be58926.",
+    "Linked Compare/Merge pointer scrolling and preceding native port families included by the frozen source."
+  ],
+  "build": {
+    "exit": 0,
+    "attempt_count": 1,
+    "source_input_sha256": "36cf14beb3762875f2aba24cbc40a4c18cdf35c62251d4e67a6f7bf355a609e1",
+    "application_sha256": "d955a9969e21e4d3df2f14c91ea38415491bb9244d9146fcc11aebb9d9ed4672",
+    "source_inputs_unchanged": true,
+    "inventory_members": 6378,
+    "strict_signature": true,
+    "signing_channel": "Apple Development, local testing; not App Store distribution",
+    "universal_owned_components": 8,
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "roles": {
+      "application": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.application-groups": [
+            "A49SCA5S8K.org.turtlegit.macos"
+          ],
+          "com.apple.security.automation.apple-events": true,
+          "com.apple.security.files.bookmarks.app-scope": true,
+          "com.apple.security.files.user-selected.read-write": true,
+          "com.apple.security.get-task-allow": true,
+          "com.apple.security.network.client": true,
+          "com.apple.security.network.server": true,
+          "com.apple.security.scripting-targets": {
+            "com.apple.mail": [
+              "com.apple.mail.compose"
+            ]
+          },
+          "com.apple.security.temporary-exception.apple-events": [
+            "com.microsoft.Word",
+            "com.microsoft.Excel",
+            "com.microsoft.Powerpoint"
+          ]
+        }
+      },
+      "finder": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.application-groups": [
+            "A49SCA5S8K.org.turtlegit.macos"
+          ],
+          "com.apple.security.get-task-allow": true
+        }
+      },
+      "cache": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.application-groups": [
+            "A49SCA5S8K.org.turtlegit.macos"
+          ],
+          "com.apple.security.files.bookmarks.app-scope": true,
+          "com.apple.security.get-task-allow": true
+        }
+      }
+    },
+    "inherited_runtime_representatives": {
+      "Git": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "LibGit2": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "Metafile": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "LSUIElement": true,
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 92,
+    "generated_apple_help_index": {
+      "kind": "file",
+      "size": 386416,
+      "mode": "0o644",
+      "sha256": "3e8952b27bc5e2a9e1bf41bdfe1fe59e3fa0206f6403f672748862e7907dacb4"
+    },
+    "contradictory_exit_zero_diagnostics": 0,
+    "focused_runtime_refresh": null,
+    "runtime_reexecution": "No new runtime execution/oracle pass claimed from this signed packaging/static checkpoint."
+  },
+  "installation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "main_sha256": "d955a9969e21e4d3df2f14c91ea38415491bb9244d9146fcc11aebb9d9ed4672",
+    "preserved_build21": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed22-displaced-installed-2026-10-28",
+    "launchservices_and_plugin_registration": [
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-m",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "exit": 0,
+        "stdout": "+    org.turtlegit.macos.finder(0.1.0)\n",
+        "stderr": ""
+      }
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "app_store_submission": false
+  },
+  "physical_finder": {
+    "result": "failed required registered-command persistence after application exit; full cold Commit acceptance not passed",
+    "performed_by": "Parent agent, deliberate CUA on the installed signed build; not an automated receiver inference.",
+    "extension_recovery": [
+      "Only TurtleGit Finder extension was reloaded; newly registered extension PID15693 received SIGTERM. Finder and Dock were not restarted.",
+      "The signed-checkout plugin registration was removed, and only org.turtlegit.macos.finder was toggled ignore/use to restore the installed menu."
+    ],
+    "sequence": [
+      {
+        "time_local": "2026-10-28 20:16:33 Europe/Berlin",
+        "observation": "Main app absent before actual Finder Add to TurtleGit on Ladybird; click started installed app PID15858; inbound URL log accepted count1."
+      },
+      {
+        "observation": "Full repository context commands appeared while the app remained alive, after initial large cache publication."
+      },
+      {
+        "observation": "Parent getApp inspection after the PID existed caused a workspace Reopen event. The resulting workspace must not be attributed to Add to TurtleGit."
+      },
+      {
+        "observation": "Parent quit the owned app via CUA, waited for actual drain, and confirmed PID15858 absent."
+      },
+      {
+        "observation": "Finder menu then returned to basic actions only; Commit was absent. No successful post-exit cold Commit invocation could be performed."
+      }
+    ],
+    "performance_observations": {
+      "sample": "Hot path was JSON cache publication on a worker while main thread was idle; no proven infinite hang.",
+      "approximate_files": {
+        "live_status": "about40 MB",
+        "writer_control": "about40 MB",
+        "warm_status": "about60 MB"
+      },
+      "limits": "Not a controlled cold/signed launch benchmark or proof that all startup latency is resolved."
+    },
+    "diagnosis": "Current readLive command context depends on a live owner. After the app drains and exits, durable registration does not independently retain full Finder command context. Badge freshness and registered-command discovery need separate authority."
+  },
+  "follow_up": {
+    "status": "Separate repair design in progress; not part of this frozen build22 source.",
+    "scope": "Persistent registered command hints independent of live badge/cache authority, followed by focused checks and renewed signed physical acceptance."
+  },
+  "evidence": {
+    "static": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed22-static-2026-10-28.json",
+    "installation": "build/qa/signed22-installed-2026-10-28.json",
+    "focused_startup_native": "finder-cold-start-2026-10-28.json"
+  },
+  "limits": [
+    "Static universal/signature/inventory checks do not certify helper runtime behavior, Intel execution or minimum-OS behavior.",
+    "The earlier focused native cold-start tests passed their bounded private scope; installed physical Finder persistence did not pass.",
+    "No complete hosted CI, full upstream visual/gesture parity, App Store submission or whole-port completion claim."
+  ]
+}

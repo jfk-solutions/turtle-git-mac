@@ -171,6 +171,7 @@
 		4B422236E62309BF7D58A1B6 /* Branding in Resources */ = {isa = PBXBuildFile; fileRef = 5EA3D2C0BDB5C223290C1E16 /* Branding */; };
 		4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */; };
 		4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428B46131B5378475891E94 /* FileComparison.swift */; };
+		4D663CB2C67D169294815408 /* FinderRegisteredRoots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4516BC556B63DB711ECB3E10 /* FinderRegisteredRoots.swift */; };
 		4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */; };
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */; };
@@ -753,6 +754,7 @@
 		3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuIcons.swift; sourceTree = "<group>"; };
 		42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailSMTP.swift; sourceTree = "<group>"; };
 		443A2A0BA4D3502CBF7EBE98 /* RepositoryBrowserTransferPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserTransferPolicy.swift; sourceTree = "<group>"; };
+		4516BC556B63DB711ECB3E10 /* FinderRegisteredRoots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRegisteredRoots.swift; sourceTree = "<group>"; };
 		455505E4DD9B9E7D6BBC31ED /* AboutWaterEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWaterEffect.swift; sourceTree = "<group>"; };
 		46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitConfigurationPermissions.swift; sourceTree = "<group>"; };
 		46967B22CDDBD6B32FA46BCF /* GitProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProperties.swift; sourceTree = "<group>"; };
@@ -1577,6 +1579,7 @@
 				9BA2413C2104D89DB7CAE240 /* FinderCacheTray.swift */,
 				534D2BCEF1E4DBDFF070E193 /* FinderContextMenuSettings.swift */,
 				EFA280FD82A687572025B806 /* FinderOverlaySettings.swift */,
+				4516BC556B63DB711ECB3E10 /* FinderRegisteredRoots.swift */,
 				BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */,
 				E720E3E9B15FDAFDB7661C03 /* FinderSelectionContext.swift */,
 				DDC0FDDF27A6D5E40A3A7447 /* FinderServiceAuthorization.swift */,
@@ -2240,6 +2243,7 @@
 				4B0B5DB397498EF493E58BE1 /* FinderCacheTray.swift in Sources */,
 				C6CCA1EF335DB4A2C8B07B25 /* FinderContextMenuSettings.swift in Sources */,
 				31EF8A4E8017B7CAE75B4113 /* FinderOverlaySettings.swift in Sources */,
+				4D663CB2C67D169294815408 /* FinderRegisteredRoots.swift in Sources */,
 				AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */,
 				BAE0AF0BB890C9C785B7904C /* FinderSelectionContext.swift in Sources */,
 				A30CC79EB958693A2C11F1E8 /* FinderServiceAuthorization.swift in Sources */,

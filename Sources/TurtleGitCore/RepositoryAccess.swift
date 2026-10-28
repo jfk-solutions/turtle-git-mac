@@ -232,6 +232,16 @@ public final class RepositoryAccessStore {
         }
         return true
     }
+    /// Before an automatic moved-root repair, refresh unrelated records without
+    /// replacing a target grant that another owner changed or removed. Native
+    /// callers use this only for that rare metadata repair; no scopes resolve.
+    @discardableResult public func reloadPreserving(_ expected: SavedRepository) throws -> Bool {
+        guard repositories.first(where: { $0.id == expected.id }) == expected else { return false }
+        let latest = try RepositoryAccessStore(storageURL: storageURL, provider: provider).repositories
+        guard latest.first(where: { $0.id == expected.id }) == expected else { return false }
+        repositories = latest
+        return true
+    }
     private func persist(_ updated: [SavedRepository]) throws {
         try FileManager.default.createDirectory(at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true,
                                                attributes: [.posixPermissions: 0o700])

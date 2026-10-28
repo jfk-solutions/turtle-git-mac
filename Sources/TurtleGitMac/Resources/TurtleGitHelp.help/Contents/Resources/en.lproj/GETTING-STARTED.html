@@ -57,6 +57,10 @@ in its context menu. <strong>Clone…</strong> opens the clone form with that de
 choose <strong>Add to TurtleGit…</strong>. The app requests folder access when needed, validates
 the repository and saves it in Open Recent and Watched Repositories. Registration
 runs without opening a workspace and does not replace a repository already open there.</p>
+<p>Registered repository folders retain their general Git commands when TurtleGit
+is closed. The app restores folder permission and validates the repository when
+you invoke a command. File-state commands require a current status publication;
+registered-folder hints alone do not supply badges or tracked-file status.</p>
 <p>A successful Clone also registers its resulting repository using the destination
 permission you already granted. A registration failure is reported separately from
 the successful Git clone, so you can retry registration without cloning again.

@@ -139,18 +139,19 @@ A Finder click must open its requested dialog even when the app is not running.
 The old extension supplied only `--turtlegit-action-only` as launch arguments;
 the actual command existed solely in a GetURL event during SwiftUI startup.
 Existing warm/direct-delegate checks did not establish that first event's
-delivery ordering. The current transport supplies the same single-use request
-through argv and the URL event, rather than relying on either arrival order.
+delivery ordering. The receipt protocol supports the same single-use request through unsandboxed
+launch arguments or URL Apple events. The following signed-SDK investigation
+separates those paths: sandboxed callers cannot supply launch arguments.
 
 The extension publishes the original validated FinderRequest URL into a separate
 private `ActionHandoffs-v1` directory. A bounded envelope carries only a random
-receipt ID and action, keeping long selections off argv. Both channels use that
+receipt ID and action, keeping long selections off argv. Both encodings use that
 envelope. Exclusive no-follow claiming permits one consumer, and the application
 remembers accepted attempt IDs so an argv/event duplicate cannot repeat a Git
 action or show a second error. Different menu clicks retain distinct IDs, even
 for the same command and path. Missing or malformed requests use the existing
 owned compact error presentation. A tool process forwards the unconsumed request
-to an independent application owner. Neither transport nor its private payload
+to an independent application owner using the explicit first event. Neither transport nor its private payload
 grants repository authority.
 
 The payload is bounded to 1 MiB and retains the existing private handoff
@@ -191,3 +192,58 @@ for every repository. The earlier Ladybird Core read profile remains a separate
 warm measurement. Commit start hooks, optional provider/network reads and a full
 signed physical Finder cold launch have their own observable costs and acceptance
 scope; this continuation does not silently skip them.
+
+## Registered commands after publisher exit — October 28, 2026
+
+[Installed build22](qa/signed-consolidation-build22-2026-10-28.json) passed its
+structural checks but failed complete cold Finder acceptance. Ladybird's full Git
+menu appeared while its publisher was alive and reverted to first-use commands
+after the app quit. `readLive` intentionally projects only living owners; menu
+discovery therefore shared the badge lifetime and could not start Commit after
+publisher exit. The observed large cache also contains roughly 40 MB live data,
+40 MB writer state and 60 MB warm data. Samples showed an idle app main thread
+and cache decoding on a worker; the extension sample was idle and does not prove
+the cause of every omitted menu.
+
+The following source repair introduces a small registered-root catalog containing
+watch UUID, lexical repository root and confirmed working-tree/bare kind. It has
+no bookmarks, status, index flags or badge authority. Registration publishes it
+before its heavy initial status publication; renewal, movement and removal update
+the same watch identity. It remains after the publisher exits. Finder uses it for
+single registered folder command discovery, preserving command artwork, source
+ordering and menu preferences. Unknown repository kinds expose only general
+history/remote utilities until confirmed. File-specific commands and commands selected by conflict, stash, bisect, LFS
+or submodule facts continue to require live metadata; hints do not manufacture
+those states. Dispatch reacquires actual saved authority
+and discovers the current repository.
+
+The catalog projects the current private watch archive under a separate keyed
+writer lock, with bounded reads and source identity checks before and after
+publication. Stale manager snapshots cannot restore removed catalog roots or
+erase a peer's added root. Kind observations match both watch UUID and root.
+Production watcher managers share their in-process archive store; arbitrary
+cross-process writes to the private policy archive remain a separate persistence
+boundary. The catalog itself carries no bookmark data.
+
+Finder callbacks use a nonblocking current-cache check that verifies atomic file
+identities and living owner leases without decoding or projection. Changed data
+is decoded and prepared on a coalesced worker. An invalid cache loses its status
+authority immediately; a late worker result must still match current identities
+before installation. Badge invalidations are bounded per main-loop turn, with
+on-demand lookup using the current accepted state. This separates command
+availability from expensive cache work without reviving dead-owner badges.
+
+The [registered-context checkpoint](qa/finder-registered-context-2026-10-28.json)
+records the affected checks, failed attempts and cleanup. It remains distinct
+from a complete signed physical cold launch and a general large-repository
+performance guarantee.
+
+The installed SDK's `NSWorkspace.OpenConfiguration.arguments` contract states
+that arguments are ignored when the caller is sandboxed. Finder is such a
+caller. Private argv receivers therefore establish only the unsandboxed protocol,
+not Finder's actual launch behavior. Finder now calls `openApplication` with an
+explicit first `kAEGetURL` Apple event containing the receipt. The tool-to-general
+workspace relay uses the same first-event path for a single Finder receipt;
+ordinary document handoffs retain their existing behavior. Unsandboxed launch
+arguments remain supported and deduplicated against events. Signed physical
+acceptance must exercise the actual extension sender.

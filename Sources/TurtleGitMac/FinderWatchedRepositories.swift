@@ -33,6 +33,15 @@ struct FinderWatchRow:Identifiable {
     private(set) var active=true
     private let permissions:RepositoryAccessStore
     private let cache:FinderSnapshotStore?
+    private let registeredRootsURL: URL?
+    private var registeredContextObservations: [UUID: FinderRegisteredRoots.Entry] = [:]
+    private var registeredContextPublication: Task<Void, Error>?
+    private var reconcileRegisteredContexts = false
+    private var registeredPolicyObserver: NSObjectProtocol?
+    private var registeredPolicyRead: Task<Void, Never>?
+    private var registeredPolicyReadRequested = false
+    private var policyRetirements: [ObjectIdentifier: Task<Void, Never>] = [:]
+    private var policyRetirementCancellations: [ObjectIdentifier: OperationCancellation] = [:]
     private var cacheSession:FinderPublicationSession?
     private var cacheSessionStartup:Task<FinderPublicationSession,Error>?
     private var cacheSessionStartupID: UUID?
@@ -63,7 +72,7 @@ struct FinderWatchRow:Identifiable {
     }
     private func removePublication(_ root:URL,cache:FinderSnapshotStore,cancellation:OperationCancellation) async throws {
         let session=try await publicationSession(cache,cancellation:cancellation)
-        let updated=try await Task.detached { try cache.remove(root:root,session:session,cancellation:cancellation) }.value
+        let updated=try await Task.detached { try cache.removeWatchContribution(root:root,session:session,cancellation:cancellation) }.value
         if let failure=updated.persistenceFailure { error="Finder live status updated, but saved cache could not be updated: "+failure }
     }
     private let requireScope:Bool
@@ -82,21 +91,31 @@ struct FinderWatchRow:Identifiable {
         let lease:RepositoryAccessLease
         var additionalLeases:[RepositoryAccessLease]=[]
         var repository:GitRepository
+        var policyRoot: String
         var active=true
         var permissionReady=false
         var collectionStarted=false
+        var lastAttemptedPublication: FinderPublicationTicket?
         var request:OperationCancellation?
         var monitor:RepositoryFileEventMonitor?
         var scheduler:RepositoryEventRefresh?
         var watched:[URL]=[]
-        init(id:UUID,lease:RepositoryAccessLease,repository:GitRepository) { self.id=id;self.lease=lease;self.repository=repository }
+        init(id:UUID,lease:RepositoryAccessLease,repository:GitRepository,policyRoot:String) { self.id=id;self.lease=lease;self.repository=repository;self.policyRoot=policyRoot }
         func retire() { active=false;request?.cancel();monitor?.stop();monitor=nil;scheduler?.retire();scheduler=nil }
     }
     init(permissions:RepositoryAccessStore,cache:FinderSnapshotStore?,requireScope:Bool = GitRuntime.isAppStoreBuild,scopeProvider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),
          repositoryFactory:@escaping (URL) throws -> GitRepository = { GitRepository(root:$0,executable:try GitRuntime.executable()) },
          statusPolicyProvider:(() throws -> FinderStatusPolicy)? = nil,
+         registeredRootsURL: URL? = nil,
          notify:@escaping ()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }) {
-        self.permissions=permissions;self.cache=cache;self.requireScope=requireScope;self.scopeProvider=scopeProvider;self.repositoryFactory=repositoryFactory;self.notify=notify;self.statusPolicyProvider=statusPolicyProvider;render()
+        self.permissions=permissions;self.cache=cache;self.registeredRootsURL=registeredRootsURL ?? cache?.url.deletingLastPathComponent().appendingPathComponent("registered-roots.json");self.requireScope=requireScope;self.scopeProvider=scopeProvider;self.repositoryFactory=repositoryFactory;self.notify=notify;self.statusPolicyProvider=statusPolicyProvider;render()
+        if let url = self.registeredRootsURL {
+            let path = url.standardizedFileURL.path
+            registeredPolicyObserver = NotificationCenter.default.addObserver(forName: NSNotification.Name(FinderRegisteredRoots.localChangeNotification), object: nil, queue: .main) { [weak self] notification in
+                guard let changed = notification.userInfo?["catalogPath"] as? String, GitReferenceName.equal(changed, path) else { return }
+                MainActor.assumeIsolated { self?.registeredPolicyChanged() }
+            }
+        }
         if statusPolicyProvider != nil {
             for (name,operation) in [(FinderStatusPolicyPreferences.notification,false),(FinderStatusOperationLease.notification,true)] {
                 statusPolicyObservers.append(DistributedNotificationCenter.default().addObserver(forName:NSNotification.Name(name),object:nil,queue:.main) { [weak self] _ in
@@ -105,20 +124,130 @@ struct FinderWatchRow:Identifiable {
             }
         }
     }
-    deinit {for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)}}
+    deinit {for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)};if let registeredPolicyObserver {NotificationCenter.default.removeObserver(registeredPolicyObserver)}}
+    private static var productionPermissionStore: RepositoryAccessStore?
     static func production(startup:Startup = .deferred) throws -> FinderWatchManager {
         let url=RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("watched-repositories.json")
-        let manager=try FinderWatchManager(permissions:RepositoryAccessStore(storageURL:url),cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) },statusPolicyProvider:{try FinderStatusPolicy.read()})
+        let permissions: RepositoryAccessStore
+        if let existing = productionPermissionStore { permissions = existing }
+        else { permissions = try RepositoryAccessStore(storageURL: url); productionPermissionStore = permissions }
+        let manager=FinderWatchManager(permissions:permissions,cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) },statusPolicyProvider:{try FinderStatusPolicy.read()})
         manager.backgroundService=FinderBackgroundService()
         if startup == .allSavedRepositories {manager.restore()}
         return manager
+    }
+    private func policyContains(_ policy: FinderRegisteredRoots, _ session: Session) -> Bool {
+        policy.entries.contains { $0.id == session.id && GitReferenceName.equal($0.root, session.policyRoot) }
+    }
+    /// Local notifications use the injected catalog path, never a production
+    /// singleton. Independent managers discard only their own obsolete sessions.
+    private func registeredPolicyChanged() {
+        guard active else { return }
+        registeredPolicyReadRequested = true
+        guard registeredPolicyRead == nil else { return }
+        pendingOperations += 1
+        registeredPolicyRead = Task { [self] in
+            defer { registeredPolicyRead = nil; pendingOperations -= 1 }
+            while active, registeredPolicyReadRequested {
+                registeredPolicyReadRequested = false
+                let archive = permissions.storageURL
+                do {
+                    let policy = try await Task.detached(priority: .utility) { try FinderRegisteredRoots.readWatchRoots(from: archive) }.value
+                    guard active else { return }
+                    if registeredPolicyReadRequested { continue }
+                    for session in Array(sessions.values) where !policyContains(policy, session) { retirePolicySession(session) }
+                } catch FinderRegisteredRoots.Failure.sourceChanged {
+                    guard active else { return }
+                    registeredPolicyReadRequested = true
+                    try? await Task.sleep(nanoseconds: 20_000_000)
+                } catch {
+                    guard active else { return }
+                    if registeredPolicyReadRequested { continue }
+                    self.error = "Watched repository policy unavailable: " + error.localizedDescription
+                    for session in Array(sessions.values) { retirePolicySession(session) }
+                }
+            }
+        }
+    }
+    private func requireCurrentWatch(_ session: Session, cancellation: OperationCancellation) async throws {
+        let archive = permissions.storageURL
+        let policy: FinderRegisteredRoots
+        do { policy = try await Task.detached(priority: .utility) { try FinderRegisteredRoots.readWatchRoots(from: archive) }.value }
+        catch FinderRegisteredRoots.Failure.sourceChanged { registeredPolicyChanged(); throw FinderRegisteredRoots.Failure.sourceChanged }
+        catch {
+            if active { self.error = "Watched repository policy unavailable: " + error.localizedDescription; retirePolicySession(session) }
+            throw error
+        }
+        try cancellation.check()
+        guard active, session.active, sessions[session.id] === session else { throw OperationCancellationFailure.cancelled }
+        guard policyContains(policy, session) else { retirePolicySession(session); throw OperationCancellationFailure.cancelled }
+    }
+    private func retirePolicySession(_ session: Session) {
+        let identity = ObjectIdentifier(session)
+        guard policyRetirements[identity] == nil else { return }
+        let cancellation = OperationCancellation()
+        session.retire()
+        if sessions[session.id] === session { sessions.removeValue(forKey: session.id); statuses[session.id] = nil; render() }
+        pendingOperations += 1
+        policyRetirementCancellations[identity] = cancellation
+        policyRetirements[identity] = Task { [self, session] in
+            defer {
+                policyRetirements.removeValue(forKey: identity); policyRetirementCancellations.removeValue(forKey: identity)
+                pendingOperations -= 1; withExtendedLifetime(session.lease) {}
+            }
+            // Retain every scope until the actual accepted reader/publication
+            // has settled. A late result cannot reattach this retired session.
+            while session.request != nil { try? await Task.sleep(nanoseconds: 10_000_000) }
+            guard active, !cancellation.isCancelled, let cache, let owner = cacheSession else { return }
+            do {
+                // A replacement watch can reuse this same path and publisher
+                // while the old reader drains. Retire only the old tickets,
+                // never the replacement's newer contribution or claim.
+                if let ticket = session.lastAttemptedPublication {
+                    let result = try await Task.detached(priority: .utility) {
+                        try cache.removeWatchContribution(root: FileTransferPaths.fileURL(ticket.root), session: owner, expected: ticket, cancellation: cancellation)
+                    }.value
+                    guard active, !cancellation.isCancelled else { return }
+                    if let failure = result.persistenceFailure { error = "Finder live status retired; saved cache unavailable: " + failure }
+                }
+                notify()
+            } catch { if active, !cancellation.isCancelled { self.error = "Finder watch retirement unavailable: " + error.localizedDescription } }
+        }
+    }
+    /// A separate tiny projection of accepted private watch records survives a
+    /// publisher's exit. It contains no bookmarks, file status or badge data.
+    private func publishRegisteredContexts(cancellation: OperationCancellation) async throws {
+        try cancellation.check(); guard active else { throw OperationCancellationFailure.cancelled }
+        guard let url = registeredRootsURL else { return }
+        NotificationCenter.default.post(name: NSNotification.Name(FinderRegisteredRoots.localChangeNotification), object: nil,
+            userInfo: ["catalogPath": url.standardizedFileURL.path])
+        let entries = permissions.repositories.map { record -> FinderRegisteredRoots.Entry in
+            let observed = registeredContextObservations[record.id]
+            let kind = observed.flatMap { GitReferenceName.equal($0.root, record.lastKnownPath) ? $0.kind : nil } ?? .unknown
+            return FinderRegisteredRoots.Entry(id: record.id, root: record.lastKnownPath, kind: kind)
+        }.sorted { $0.id.uuidString < $1.id.uuidString }
+        let prior = registeredContextPublication
+        pendingOperations += 1
+        defer { pendingOperations -= 1 }
+        let task = Task { [self] in
+            _ = try? await prior?.value
+            try cancellation.check(); guard active else { throw OperationCancellationFailure.cancelled }
+            let archive = permissions.storageURL
+            let changed = try await Task.detached(priority: .utility) {
+                try FinderRegisteredRoots.publish(watchArchive: archive, kindHints: entries, to: url, cancellation: cancellation)
+            }.value
+            guard active, !cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }
+            if changed { notify() }
+        }
+        registeredContextPublication = task
+        try await task.value
     }
     private func render() {
         rows=permissions.repositories.map { FinderWatchRow(id:$0.id,name:$0.name,path:$0.lastKnownPath,status:statuses[$0.id] ?? "Waiting") }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
     /// Workspace/Settings startup owns the complete local watcher set. Action
     /// routers instead retain the saved authority without crawling every root.
-    func restore() {guard active else{return};startup = .allSavedRepositories;restoreRequestedRepositories()}
+    func restore() {guard active else{return};startup = .allSavedRepositories;reconcileRegisteredContexts = true;restoreRequestedRepositories()}
     private func restoreRequestedRepositories() {
         guard active, !busy, startup == .allSavedRepositories, restoration == nil else { return }
         let requests = permissions.repositories.compactMap { value -> RepositoryAuthorityRequest? in
@@ -128,7 +257,8 @@ struct FinderWatchRow:Identifiable {
             }
             return try? permissions.captureAuthority(value.id)
         }
-        guard !requests.isEmpty else { return }
+        guard !requests.isEmpty || reconcileRegisteredContexts else { return }
+        reconcileRegisteredContexts = false
         let cancellation = OperationCancellation(), requireScope = self.requireScope
         restorationCancellation = cancellation
         pendingOperations += 1
@@ -137,6 +267,8 @@ struct FinderWatchRow:Identifiable {
                 restoration = nil; restorationCancellation = nil
                 pendingOperations -= 1
             }
+            do { try await publishRegisteredContexts(cancellation: cancellation) }
+            catch { if active, !cancellation.isCancelled { self.error = "Registered repository menus unavailable: " + error.localizedDescription } }
             // Resolve sequentially on a worker: a disconnected volume can be
             // slow, but cannot delay the window or another foreground action.
             for request in requests {
@@ -202,7 +334,8 @@ struct FinderWatchRow:Identifiable {
     private func installAuthority(_ id: UUID, lease: RepositoryAccessLease, additional: [RepositoryAccessLease], scheduleInitial: Bool = true) {
         guard active else { return }
         do {
-            let session = Session(id: id, lease: lease, repository: try repositoryFactory(lease.url))
+            guard let record = permissions.repositories.first(where: { $0.id == id }) else { throw RepositoryAccessFailure.unknownRepository }
+            let session = Session(id: id, lease: lease, repository: try repositoryFactory(lease.url), policyRoot: record.lastKnownPath)
             session.additionalLeases = additional
             sessions[id] = session
             session.scheduler = RepositoryEventRefresh(available: { [weak self, weak session] in
@@ -236,7 +369,16 @@ struct FinderWatchRow:Identifiable {
                 notify()
             }
             guard active,session.active,sessions[session.id] === session,!token.isCancelled else {throw OperationCancellationFailure.cancelled}
-            _=try permissions.replace(session.id,with:session.lease.url)
+            guard let acceptedRecord = permissions.repositories.first(where: { $0.id == session.id }) else { throw RepositoryAccessFailure.unknownRepository }
+            if !GitReferenceName.equal(acceptedRecord.lastKnownPath, root.path) {
+                guard try permissions.reloadPreserving(acceptedRecord) else { throw RepositoryAccessFailure.unknownRepository }
+                _ = try permissions.replace(session.id, with: session.lease.url)
+                session.policyRoot = permissions.repositories.first(where: { $0.id == session.id })?.lastKnownPath ?? session.policyRoot
+            }
+            let kind: FinderRegisteredRoots.Kind = try await session.repository.isBare(cancellation: token) ? .bare : .workingTree
+            registeredContextObservations[session.id] = .init(id: session.id, root: root.standardizedFileURL.resolvingSymlinksInPath().path, kind: kind)
+            try token.check();guard active,session.active,sessions[session.id] === session else {throw OperationCancellationFailure.cancelled}
+            try await publishRegisteredContexts(cancellation: token)
             session.permissionReady=true;serviceRevision += 1;render()
         }
         return root
@@ -272,16 +414,22 @@ struct FinderWatchRow:Identifiable {
     private func prepareServiceAuthority(_ session:Session,cancellation:OperationCancellation) async throws {
         session.request=cancellation;pendingOperations += 1
         defer {session.request=nil;pendingOperations -= 1;withExtendedLifetime(session.lease) {}}
+        try await requireCurrentWatch(session, cancellation: cancellation)
         _=try await prepareRepositoryAuthority(session,cancellation:cancellation)
+        try await requireCurrentWatch(session, cancellation: cancellation)
     }
     var canSynchronizeBackground:Bool {
-        active && !busy && pendingOperations==0 && rows.count==sessions.count && sessions.values.allSatisfy {$0.active && $0.permissionReady}
+        active && !busy && pendingOperations==0 && permissions.repositories.count==sessions.count && permissions.repositories.allSatisfy { record in
+            guard let session = sessions[record.id] else { return false }
+            return session.active && session.permissionReady && GitReferenceName.equal(session.policyRoot, record.lastKnownPath)
+        }
     }
     private func collect(_ session:Session,cancellation:OperationCancellation? = nil,requirePublication:Bool = false) async throws {
         guard active,session.active,sessions[session.id] === session,session.request==nil else { throw OperationCancellationFailure.cancelled }
         let token=cancellation ?? OperationCancellation();session.request=token;session.collectionStarted=true;pendingOperations += 1;statuses[session.id]="Refreshing…";render()
         defer { session.request=nil;pendingOperations -= 1;withExtendedLifetime(session.lease) {} }
         do {
+            try await requireCurrentWatch(session, cancellation: token)
             let policy=try statusPolicyProvider?()
             if let policy,policy.blockStatus,(policy.cacheMode == .shell || policy.cacheMode == .shellExtended),FinderStatusOperationLease.isBlocked() {
                 statuses[session.id]="Waiting for Git command completion";render();if requirePublication {throw FinderWatchFailure.initialPublication("Waiting for Git command completion. Retry Add to TurtleGit when the command finishes.")};return
@@ -290,8 +438,17 @@ struct FinderWatchRow:Identifiable {
             let cache=self.cache
             var ticket:FinderPublicationTicket?
             if let cache {
-                let session=try await publicationSession(cache,cancellation:token)
-                ticket=try await Task.detached { try cache.begin(root:root,session:session,cancellation:token,policy:policy) }.value
+                let owner=try await publicationSession(cache,cancellation:token)
+                let archive = permissions.storageURL, watchID = session.id, policyRoot = session.policyRoot
+                ticket=try await Task.detached {
+                    try cache.begin(root:root,session:owner,cancellation:token,policy:policy,authorize:{
+                        // This check runs under the cache writer lock, ordering
+                        // old claims with any replacement watch's begin ticket.
+                        let current = try FinderRegisteredRoots.readWatchRoots(from: archive)
+                        guard current.entries.contains(where: { $0.id == watchID && GitReferenceName.equal($0.root, policyRoot) }) else { throw OperationCancellationFailure.cancelled }
+                    })
+                }.value
+                session.lastAttemptedPublication = ticket
             }
             let watchReady:@Sendable ([URL]) async -> Void = { [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } }
             let result:FinderRepositoryCollection
@@ -301,8 +458,10 @@ struct FinderWatchRow:Identifiable {
                 result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),cancellation:token,watchReady:watchReady,policy:policy)
             }
             guard active,session.active,!token.isCancelled,sessions[session.id] === session else { throw OperationCancellationFailure.cancelled }
+            try await requireCurrentWatch(session, cancellation: token)
             if let cache,let ticket {
                 let published=try await Task.detached { try cache.publish(ticket,snapshots:result.snapshots,cancellation:token) }.value
+                try await requireCurrentWatch(session, cancellation: token)
                 guard active,session.active,!token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 if !published.published { statuses[session.id]="Refresh superseded";session.scheduler?.invalidate();if requirePublication {throw FinderWatchFailure.initialPublication("Refresh superseded. Retry Add to TurtleGit.")} }
                 else {
@@ -353,6 +512,10 @@ struct FinderWatchRow:Identifiable {
                 }
             }
             let saved=try id.map { try permissions.replace($0,with:root) } ?? permissions.remember(root)
+            let kind: FinderRegisteredRoots.Kind = try await repositoryFactory(root).isBare(cancellation: token) ? .bare : .workingTree
+            registeredContextObservations[saved.id] = .init(id: saved.id, root: root.standardizedFileURL.resolvingSymlinksInPath().path, kind: kind)
+            try token.check();guard active else{return}
+            try await publishRegisteredContexts(cancellation: token)
             serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire()
             guard active,!token.isCancelled else { return };attach(saved.id);render()
             withExtendedLifetime(lease) {}
@@ -387,6 +550,13 @@ struct FinderWatchRow:Identifiable {
             serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id);render()
             self.error=error.localizedDescription;throw error
         }
+        let kind: FinderRegisteredRoots.Kind = try await repositoryFactory(root).isBare(cancellation: cancellation) ? .bare : .workingTree
+        registeredContextObservations[saved.id] = .init(id: saved.id, root: discovered.standardizedFileURL.resolvingSymlinksInPath().path, kind: kind)
+        try cancellation.check();guard active else {throw FinderWatchFailure.unavailable}
+        // Menu discovery must not wait for full tracked-path enumeration or a
+        // large live cache publication. Successful registration still awaits
+        // that publication below, retaining its existing paired failure rules.
+        try await publishRegisteredContexts(cancellation: cancellation)
         serviceRevision += 1;sessions.removeValue(forKey:saved.id)?.retire();attach(saved.id,scheduleInitial:!awaitInitialPublication);render()
         // Finish any cancellable transfer preparation before the acknowledged
         // initial publication. Once that publication succeeds, registration's
@@ -409,7 +579,9 @@ struct FinderWatchRow:Identifiable {
                 try await removePublication(root,cache:cache,cancellation:token)
                 guard active,!token.isCancelled else { return };notify()
             }
-            try permissions.forget(id);serviceRevision += 1;statuses[id]=nil;render()
+            try permissions.forget(id);registeredContextObservations[id]=nil
+            try await publishRegisteredContexts(cancellation: token)
+            serviceRevision += 1;statuses[id]=nil;render()
         } catch { if active,!token.isCancelled { self.error=error.localizedDescription;attach(id) } }
     }
     func additionalPermissions(_ id:UUID) -> [SavedFolderPermission] { permissions.repositories.first { $0.id==id }?.additionalPermissions ?? [] }
@@ -443,6 +615,9 @@ struct FinderWatchRow:Identifiable {
         guard active else { return }
         pendingTargetRefreshes.removeAll()
         active=false
+        registeredPolicyReadRequested = false
+        if let registeredPolicyObserver { NotificationCenter.default.removeObserver(registeredPolicyObserver); self.registeredPolicyObserver = nil }
+        policyRetirementCancellations.values.forEach { $0.cancel() }
         restorationCancellation?.cancel()
         for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)};statusPolicyObservers=[]
         backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:]

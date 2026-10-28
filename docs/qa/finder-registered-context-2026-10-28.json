@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-28",
+  "status": "focused-core-and-native-passed-physical-signed-finder-pending",
+  "scope": "Durable explicit watched-root command discovery independent of live badge authority; asynchronous Finder cache/menu preparation and bounded badge publication.",
+  "limitations": [
+    "Native menu receiver uses actual source with private repositories/preferences and no visible windows; it does not prove physical Finder/NSWorkspace integration.",
+    "No private extension callback/badge IPC coordinator seam is available: generation cancellation and 128-path publication budget are source-reviewed, not asserted by copying their implementation into a fixture.",
+    "Signed build22 remains the prior frozen deployment; this receipt does not claim a new signed package, hosted CI pass or universal/Intel acceptance.",
+    "Descriptor assertions are not sandboxed NSWorkspace first-event acceptance; physical signed build23 Finder cold action remains pending.",
+    "This focused pass is not a complete Core suite or hosted CI result.",
+    "Both Git engine cases ran on the local native architecture; no Intel build23 or universal deployment claim."
+  ],
+  "validated_scope": {
+    "core": [
+      "FinderRegisteredRootsTests: limits, exact lexical identity, malformed/symlink refusal, cancellation, writer recovery, latest private archive Add/Remove/renew fencing",
+      "FinderCachedLiveTests: cold/changed/dead-owner fast receipt, malformed/future protocol refusal, menu query preparation equivalence",
+      "FinderWatchRetirementTests: exact parent retirement preserves nested/peer and held tickets; same-root replacement and latest canceled Begin; under-lock stale authorization leaves claim/counter bytes unchanged"
+    ],
+    "native": [
+      "scripts/test-finder-cold-menu.py: actual FinderMenuBuilder and private watch publishers, generic menus before status/after shutdown, conservative selection/kind flags, source menu/icons/preferences, two independent managers sharing private archive",
+      "Affected existing finder-watches native cases with explicit private catalog URL and unchanged original assertions",
+      "First GetURL descriptor class/ID/directObject and unsandboxed argv fallback; exact-root worktree creation; stale private watch contribution drains while replacement and independent workspace remain"
+    ]
+  },
+  "validation": {
+    "core": {
+      "status": "passed",
+      "methods": 53,
+      "failures": 0,
+      "runs": 1,
+      "log": "build/qa/finder-registered-context-core-2026-10-28.log",
+      "families": [
+        "FinderRegisteredRootsTests",
+        "FinderCachedLiveTests",
+        "FinderWatchRetirementTests",
+        "FinderPublicationTests",
+        "FinderSelectionContextTests",
+        "RepositoryAccessTests"
+      ]
+    },
+    "debug": {
+      "status": "passed-after-focused-repairs",
+      "initial_exit": 65,
+      "initial_log": "build/qa/finder-registered-context-debug-2026-10-28.log",
+      "initial_failure": "Swift compiler assertion while type checking restoreRequestedRepositories Task/catch; implicit catch error shadowed model property. Fixed assignment to self.error.",
+      "recheck_log": "build/qa/finder-registered-context-debug-recheck-2026-10-28.log",
+      "recheck_exit": 0,
+      "known_exit_zero_diagnostics": 32,
+      "final_log": "build/qa/finder-registered-context-debug-directory-2026-10-28.log",
+      "final_exit": 0
+    },
+    "native_cold_menu": {
+      "status": "passed-both-git-engines",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/finder-registered-context-native-directory-2026-10-28.log",
+      "exit": 0,
+      "receivers_reaped": [
+        19202,
+        19273
+      ],
+      "failed_attempts": [
+        {
+          "log": "build/qa/finder-registered-context-native-2026-10-28.log",
+          "receiver_reaped": 19047,
+          "failure": "Fixture constructed uppercase UUID receipt; protocol correctly refused it before workflow. Fixture now lowercases receipt; no product repair."
+        },
+        {
+          "log": "build/qa/finder-registered-context-native-recheck-2026-10-28.log",
+          "receiver_reaped": 19074,
+          "failure": "Actual descendant-folder generic Commit missing: normalization rebuilt URL and lost hasDirectoryPath. Product now captures original singleton URL directory bit before normalization; assertions retained."
+        }
+      ]
+    },
+    "affected_existing_watches": {
+      "status": "passed-both-git-engines",
+      "log": "build/qa/finder-registered-context-watches-2026-10-28.log",
+      "exit": 0,
+      "compiler_receiver_reaped": 19346,
+      "workflow_receivers_reaped": [
+        19350,
+        19536
+      ]
+    },
+    "generated_resources": {
+      "localizations_check": "passed",
+      "locales": 38,
+      "keys": 1325,
+      "help_check": "passed",
+      "help_documents": 60,
+      "help_topics": 51,
+      "help_files": 92,
+      "help_bytes": 8723882,
+      "website_documents": 492,
+      "fragment_failures": 0
+    }
+  },
+  "cleanup": {
+    "scope": "Owned receiver processes reaped by shared native runner; private temporary repositories/preferences/catalogs/pasteboards only; no windows created by new menu receiver.",
+    "pids": [
+      19047,
+      19074,
+      19202,
+      19273,
+      19346,
+      19350,
+      19536
+    ],
+    "physical_user_app_termination": false
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderRegisteredRoots.swift": "ce99629b0e753d83a99195d314d3f707c391af6694630fd0c6d7f340a7789e12",
+    "Sources/TurtleGitCore/FinderCache.swift": "e232be53f64932edc3e20f8b0de2ea461401fffe9da297e4c9a71d46a7960acf",
+    "Sources/TurtleGitCore/FinderSelectionContext.swift": "5cf529e7ab239e0fd826e164421069d010cde9726c5babc7560c65662f241f54",
+    "Sources/TurtleGitCore/RepositoryAccess.swift": "6945c77000a1cbfcdbd43d17ce4870b010c8e10fe1bd0f26a1cad711d5dd324d",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "e153720a5a60f330c89a4b4fb72cc8d3f3340526d8c49ba82378238dd0f91849",
+    "FinderSync/FinderSync.swift": "c014f0fd5651c1ea40675319443213af75dec05ce9a93010f2196354f7947159",
+    "Tests/TurtleGitCoreTests/FinderRegisteredRootsTests.swift": "b3cb00863904547a03c3e1317406ec083ef1b0418c4f29628565a2ca9b61a717",
+    "Tests/TurtleGitCoreTests/FinderCachedLiveTests.swift": "9d4c5ead28abac48fee9b1f6158d0b797138296f7bc17531335ea2c3775ac75b",
+    "Tests/TurtleGitCoreTests/FinderWatchRetirementTests.swift": "007111e061c602f80722394fcb1aa8529327bcbba2b7ecc65c146f179eff3b4f",
+    "docs/qa/finder-cold-menu-native-2026-10-28.swift": "aa44f4a956ae7175d268c2d809396f8fea61bcc8722dac4b718d7aef47baa227",
+    "docs/qa/finder-watches-native-2026-10-13.swift": "9af657ab1bfefd73d00bff60be2982948de0693e6f2e9675bc2436fa47886b55",
+    "scripts/test-finder-cold-menu.py": "02d297032c3cd6d6ecd5a569ba3bb185e2fa91d9fa8e2fa6421fa02ca4cefc4f"
+  }
+}

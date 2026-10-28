@@ -113,6 +113,28 @@ final class RepositoryAccessTests: XCTestCase {
         XCTAssertTrue(store.repositories.isEmpty)
     }
 
+    func testAutomaticMovedRootReloadPreservesPeerRowsAndRefusesReplacedOrRemovedGrant() throws {
+        let (folder, archive) = try fixture()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let provider = TestBookmarks(), old = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        let first = try old.remember(folder.appendingPathComponent("first"))
+        let peer = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        let second = try peer.remember(folder.appendingPathComponent("second"))
+        XCTAssertEqual(old.repositories.count, 1)
+        XCTAssertTrue(try old.reloadPreserving(first))
+        XCTAssertEqual(Set(old.repositories.map(\.id)), Set([first.id, second.id]))
+        let stale = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        _ = try old.replace(first.id, with: folder.appendingPathComponent("moved"))
+        XCTAssertFalse(try stale.reloadPreserving(first))
+        XCTAssertEqual(stale.repositories.first(where: { $0.id == first.id }), first)
+        XCTAssertEqual(try RepositoryAccessStore(storageURL: archive, provider: provider).repositories.count, 2)
+        let current = old.repositories.first(where: { $0.id == first.id })!
+        let remover = try RepositoryAccessStore(storageURL: archive, provider: provider)
+        try remover.forget(first.id)
+        XCTAssertFalse(try old.reloadPreserving(current))
+        XCTAssertEqual(try RepositoryAccessStore(storageURL: archive, provider: provider).repositories.map(\.id), [second.id])
+    }
+
     func testSettingsMarkerDiscoveryNeedsNoGitAndRespectsScopeBoundary() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("tg-settings-discovery-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)

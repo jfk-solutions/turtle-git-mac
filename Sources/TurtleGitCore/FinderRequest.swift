@@ -359,9 +359,9 @@ public struct FinderPatchHandoff: Sendable {
     }
 }
 
-/// One immutable Finder invocation, carried by both cold-launch argv and the
-/// ordinary URL event. Paths stay in a private bounded file, not command-line
-/// arguments. Neither this capability nor its payload grants repository access.
+/// One immutable Finder invocation encoded for URL Apple events or unsandboxed
+/// launch arguments. Sandboxed NSWorkspace callers must use an Apple event. Paths
+/// stay in a private bounded file; the capability grants no repository access.
 public struct FinderActionDelivery: Equatable, Sendable {
     public static let argumentFlag = "--turtlegit-finder-request"
     public let receipt: String

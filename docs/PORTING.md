@@ -2,20 +2,25 @@
 
 ## Current installed checkpoint
 
-[Build21](qa/signed-consolidation-build21-2026-10-28.json), version 0.1.0 (21),
-is installed from `9c87d343842cb46b16497b4c96a72017ce59d2dd`. It consolidates
-Commit staging tables, whole-file transfer and stable loading layout, provider
-callback continuation, Log working-tree LFS actions and Unified Diff caret modes.
-Measured inputs, strict signatures, eight universal owned components, bundled
-Help and the complete installed inventory pass. Build20 is preserved for recovery.
-The installation did not launch the app or restart Finder or Dock. Current signed
-UI, physical Finder/VoiceOver, Intel/minimum-macOS, full hosted and complete port
-acceptance remain separate gates.
+[Build22](qa/signed-consolidation-build22-2026-10-28.json), version 0.1.0 (22),
+is installed from `9be589267fb14f3e3dba664516bde82fb549f26f`. Its measured inputs,
+strict signatures, eight universal owned components, bundled Help and complete
+installed inventory pass. Build21 is preserved for recovery.
+
+The package includes the [cold launch receipt and deferred startup work](qa/finder-cold-start-2026-10-28.json)
+and linked pointer scrolling. The physical Finder check exposed a remaining
+command-discovery defect: the full Git menu disappears after its last live
+publisher exits. Cold Finder Commit acceptance therefore failed; the private
+launch checks do not supersede this observation. A following source repair
+separates durable registered-root command hints from live status and moves large
+Finder snapshot decoding away from its callbacks. See
+[the startup record](FINDER-STARTUP-PERFORMANCE.md).
 
 The unchanged Metafile runtime retains the separate focused signed-parent
-execution from [build20](qa/signed-consolidation-build20-2026-10-28.json). Build21
-checks its bundled identity and provenance; it does not repeat that execution or
-silently renew every older native workflow check.
+execution from [build20](qa/signed-consolidation-build20-2026-10-28.json).
+Build22 checks its bundled identity and provenance without repeating that
+execution. Physical input/VoiceOver, Intel/minimum-macOS, complete hosted and
+whole-port acceptance remain separate gates.
 
 ## Compare and Merge linked pointer scrolling
 
@@ -25,8 +30,8 @@ source modifier directions, independent pane limits and interruption ownership.
 Classic aligned panes share vertical movement; P4/Base previews retain their
 unaligned vertical policy. The [focused checkpoint](qa/merge-pointer-scrolling-2026-10-28.json)
 keeps the actual build, native outcomes, failures and remaining physical input
-scope explicit. This source continuation follows installed build21 and is not
-part of that frozen signed package.
+scope explicit. This continuation is included in installed build22; its remaining physical input
+acceptance is not established by static signing checks.
 
 ## Previous installed checkpoints
 
