@@ -1,0 +1,261 @@
+{
+  "date": "2026-10-28",
+  "status": "signed-arm64-installed-physical-streaming-log-selection-and-read-only-diff-observed",
+  "build": "26",
+  "source_commit": "5d34c2ef30ba9743d162bc0c1a23f5b853fc0039",
+  "source_input_sha256": "537fa091d19c44b1dbb1d5c6a92b77d3734754b39df559655e64e4cece9ec51c",
+  "source_inputs_unchanged": true,
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed26-static-2026-10-28.json",
+  "installation_receipt": "build/qa/signed26-installed-2026-10-28.json",
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "signing_identity": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "26",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "26"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "26"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "owned_component_count": 8,
+    "architecture_scope": "Apple Silicon local testing; universal/Intel execution and release packaging remain separate.",
+    "runtime_representatives": {
+      "Git": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "LibGit2": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "Metafile": {
+        "signature": {
+          "team": "A49SCA5S8K",
+          "authorities": [
+            "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+            "Apple Worldwide Developer Relations Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "entitlements": {
+          "com.apple.security.app-sandbox": true,
+          "com.apple.security.inherit": true
+        },
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "runtime_execution_repeated": false,
+    "application_sha256": "3d6cb14d6956b036701894edc54f60e4149db6786abb21c0328381351bcb3443",
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "main_sha256": "3d6cb14d6956b036701894edc54f60e4149db6786abb21c0328381351bcb3443",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "preserved_build25_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed26-displaced-installed-2026-10-28",
+    "launchservices_and_plugin_registration_exits": [
+      0,
+      0,
+      0
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "main_app_launched_by_installer": false,
+    "store_submission": false
+  },
+  "implementation_scope": {
+    "family": "Inspect streamed Log revisions without waiting for unlimited history to finish",
+    "change": "Native loaded-row selection, keyboard navigation and read-only comparisons work while history continues; stable selected hashes and details survive later prefixes and final publication.",
+    "ownership": "Cancel or failed refresh restores stable rows and a still-valid user selection; stale rendered-row actions and closed-owner replies are refused; repository mutation controls stay blocked during history loading.",
+    "rendering": "Bound automatic column sizing to a prefix and visible rows, preserve full-range explicit fitting and user-adjusted widths, and avoid rebuilding every row signature on progress updates.",
+    "history_default": "Pinned upstream No limitation default retained; no arbitrary history cap introduced."
+  },
+  "retained_focused_evidence": "docs/qa/log-native-selection-2026-10-28.json",
+  "focused_validation_scope": {
+    "status": "passed-system-and-bundled-git-before-signed-consolidation",
+    "repository": "Private actual 258-commit repository with notes metadata holds after 128 and 256 rows.",
+    "native_inputs": [
+      "Native NSTableView selection delegate and arrow keys",
+      "Installed revision doubleAction",
+      "Native changed-file selection and shared SwiftUI primary handler"
+    ],
+    "assertions": [
+      "Rendered message and changed-file details while loadingHistory",
+      "Selected commit/details retained across 256-row prefix and final 258 rows",
+      "Real held second refresh cancellation and owner close drain",
+      "HEAD/index/working bytes unchanged",
+      "Private preferences/pasteboard and invisible/offscreen windows",
+      "Owned receivers and held Git helpers reaped"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "production_source_repairs_after_first_check": false,
+    "fixture_only_repairs": "Early attempts lacked an actual notes reference for the hold, then used incorrect NSView hit-test coordinate space; private notes setup and parent-space conversion were repaired without removing assertions.",
+    "core_repeated": false,
+    "boundary": "Native selector and shared-handler acceptance does not prove physical mouse gestures, signed user-repository selection or every Log workflow."
+  },
+  "physical_acceptance": {
+    "normal_startup": {
+      "status": "cold-main-start-observed-via-actual-finder-show-log",
+      "main_absent_before": true,
+      "main_pid": 35512,
+      "cache_state": "Warm filesystem; one cold application-process sample, not a cache-cold benchmark."
+    },
+    "quit": {
+      "status": "normal-quit-requested-and-independently-ps-confirmed-absent",
+      "pid": 35512,
+      "normal_quit_requested": true,
+      "independent_verification": {
+        "command": "/bin/ps -p 35512 -o pid=,comm=",
+        "exit": 1,
+        "matched_rows": 0
+      },
+      "owned_windows": "All owned main-process windows disposed by process exit."
+    },
+    "cold_finder_menu": {
+      "status": "actual-show-log-command-invoked",
+      "cold_finder_show_log": true
+    },
+    "log_selection": {
+      "status": "actual-native-pointer-selection-and-details-during-streaming-observed",
+      "repository": "User-reported Ladybird repository",
+      "main_pid": 35512,
+      "sample_count": 1,
+      "selection_while_loading": true,
+      "actual_native_pointer_selection": true,
+      "native_revision_row_clicked": 37,
+      "visible_prefix_before_click": 8192,
+      "history_progress_before_click": 9044,
+      "visible_prefix_at_confirmed_details": 32768,
+      "history_progress_at_confirmed_details": 55268,
+      "full_message_observed": true,
+      "changed_files_observed": true,
+      "changed_file_count": 7,
+      "comparison": {
+        "actual_changed_file_double_click": true,
+        "native_turtlegitmerge_opened": true,
+        "correct_parent_and_selected_revision_headers": true,
+        "read_only_controls_confirmed": true,
+        "enable_editing_disabled": true,
+        "raw_revision_hashes_contents_and_paths_published": false
+      },
+      "integrity": {
+        "no_mutation_action_invoked": true,
+        "head_unchanged": true,
+        "index_unchanged": true,
+        "raw_user_integrity_hashes_published": false
+      },
+      "child_close": {
+        "attempted": true,
+        "subsequent_accessibility_request_timed_out": true,
+        "timeout_seconds": 5,
+        "individual_child_close_outcome": "Not independently established before normal Quit; the timeout is not classified as a product close failure."
+      },
+      "measurement_boundary": "One actual Finder/Log pointer-selection and read-only comparison observation while history was still loading. No Log latency measurement or new Commit timing was performed.",
+      "private_observation_receipt": "build/qa/signed26-physical-2026-10-28.json"
+    }
+  },
+  "follow_on": {
+    "status": "scoped-physical-streaming-inspection-observed-broader-acceptance-separate",
+    "scope": "Displayed commits and changed files were inspected while the actual user history continued streaming, and an actual changed-file double-click opened the correct read-only parent/selected comparison. Every Log command and mutation pipeline remain separate acceptance scope.",
+    "commit_timing": "Build25 timing evidence is inherited only; not repeated for build26."
+  },
+  "limitations": [
+    "The signed owned application components target arm64 local testing; universal runtime representatives do not establish Intel application compatibility.",
+    "Prior runtime helper execution evidence is inherited, not repeated for this consolidation.",
+    "The physical result is one cold-main, warm-filesystem user-repository observation; it is not a cache-cold benchmark or a Log latency measurement.",
+    "No Commit timing was repeated; prior build25 Commit results remain separately scoped evidence.",
+    "Read-only revision inspection and comparison were observed without invoking a mutation; no complete commit/push or other mutation pipeline acceptance is claimed.",
+    "The individual child-close outcome was not independently shown after the accessibility timeout; normal Quit and subsequent owned-process absence were verified.",
+    "No App Store submission, complete hosted CI, every Log command or whole-port visual parity claim."
+  ],
+  "documentation_validation": {
+    "site_docs": {
+      "completed_attempt": "Existing site Python environment scripts/test-site-docs.py",
+      "tests_passed": 2
+    },
+    "coverage_ledger": "Generated before documentation checkpoint; coverage bookkeeping is not a feature-completion percentage.",
+    "core_or_native_repeated_for_documentation": false
+  }
+}

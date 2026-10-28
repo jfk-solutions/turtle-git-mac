@@ -2912,6 +2912,11 @@ and detail persist at 256 rows and final completion; canceling a held refresh
 retains a valid new selection and drains the helper. Native revision double-action
 and the selected-file primary handler request the correct historical pair/path.
 Hit testing and selector dispatch are bounded native evidence, not physical mouse
-acceptance. Signed acceptance remains separate. Earlier fixtures that directly
+acceptance. The installed [signed build26](qa/signed-consolidation-build26-2026-10-28.json)
+was also opened from Finder with the main app closed on Ladybird. Selecting a
+visible commit while history continued loading displayed its full message and
+changed files; double-clicking a file opened the correct read-only parent-to-commit
+diff. This physical sample does not establish every command, repository or a Log
+latency benchmark. Earlier fixtures that directly
 seeded `model.select` did not establish that actual table selection notifications
 reached the model during loading.
