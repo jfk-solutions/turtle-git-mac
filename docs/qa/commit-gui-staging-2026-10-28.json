@@ -11,12 +11,12 @@
   ],
   "initial_native": {
     "log": "build/qa/commit-gui-staging-native-2026-10-28.log",
-    "result": "failed system Git after first actual stage operation",
+    "result": "failed system Git after synthetic activation attempt; index remained unchanged",
     "receiver_pid": 99047,
     "failure": "Exact destination-side selected-path continuity did not settle after moving a partially staged Unicode/tab path.",
     "retained_evidence": "build/qa/commit-gui-staging-failed-0-xd8jzeek",
     "cleanup": "Receiver reaped; strict owned helper cleanup verified.",
-    "diagnosis": "Initial destination selection assertion failed after an actual Stage operation; retained as failed automated evidence, superseded only by separately recorded later results."
+    "diagnosis": "Synthetic action delivery returned success but clickedRow was -1 and no Stage operation was accepted; empty activation correctly refused existing selection. The unchanged partial index was retained in evidence."
   },
   "debug_build": {
     "log": "build/qa/commit-gui-stable-preview-debug-2026-10-28.log",
@@ -29,7 +29,7 @@
       "git": "/usr/bin/git",
       "result": "failed",
       "receiver_pid": 99047,
-      "failure": "After an actual Stage operation, exact destination-side native selection did not settle.",
+      "failure": "Synthetic action delivery did not invoke an accepted transfer; clickedRow was -1 and index stayed at the original partial contents. The destination-side selection assertion consequently failed.",
       "retained_evidence": "build/qa/commit-gui-staging-failed-0-xd8jzeek",
       "cleanup": "Owned receiver reaped and owned helper cleanup verified by runner."
     },
