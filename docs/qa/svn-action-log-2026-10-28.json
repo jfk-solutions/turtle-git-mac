@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-28",
+  "base_commit": "721eb8b0f8637af68b90dfbbda23281c77155d93",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "SVN Fetch/DCommit/Ignore and Rebase progress-stage Action log persistence",
+  "implementation": [
+    "Retained per-source-stage command/parser/output/completion identity",
+    "Compare/Log, normal/automatic close and Retry persist once",
+    "Rebase Fetch/reset and DCommit-to-stash continuation save distinct intermediate records",
+    "Retired UI requests logging after owned worker and output pipes drain",
+    "Preflight/options-only exclusion; per-stage captured byte limits; retry releases previous stages",
+    "Existing source CSysProgress Stash Apply/Pop do not gain invented Action log entries"
+  ],
+  "validation": {
+    "core": "Not rerun: no Core implementation changed.",
+    "build": {
+      "unsigned_debug_initial": 0,
+      "unsigned_debug_after_source_footer_repair": 0
+    },
+    "native": {
+      "successful_case_engine_pairs": 4,
+      "new_action_log_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "existing_source_forms_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": [
+        "Retained Fetch and duplicate post-action/close",
+        "DCommit options-only exclusion and command identity",
+        "Failed Ignore followed by successful Retry",
+        "Separate Rebase Fetch/fast-forward reset",
+        "Actual private owned worker retirement and pipe drainage",
+        "Bounded UTF-8 and exact source cancellation suffix",
+        "Existing source forms, captured options/actions, question ownership and failed-load Retry"
+      ],
+      "initial_failure": "First system-Git Action log receiver failed its last cancellation-marker assertion. New per-stage record formatter had used a cancellation caption as well as ActionLogStore suffix.",
+      "repair": "ProgressDlg.cpp375\u2013384 uses a process-result footer; WriteLog632\u2013636 appends cancellation separately. Only new SVN record footer changed to that source behavior; shared ActionLogStore untouched. Fixture strengthened to exact recorded output plus one appended suffix, one entry and unchanged text after repeat record().",
+      "owned_pids_including_failed_attempt": [
+        64709,
+        65256,
+        65399,
+        65568,
+        65727
+      ],
+      "all_reaped": true,
+      "all_independently_absent": true,
+      "windows": "New receiver creates none; existing source receiver hides owned windows."
+    },
+    "resource_checks": "Help regenerated before build; localization check38locales/1325keys passed; final Help/whitespace/reconciliation checks recorded separately before commit."
+  },
+  "limitations": [
+    "No physical SVN server or authenticated remote transport.",
+    "No installed app replacement, signed sandbox persistence, Finder integration, Intel/minimum-OS or full hosted CI acceptance.",
+    "Separate spatial image work remains unaccepted; no image helper/Core/native validation in this checkpoint."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/SVNWindow.swift": "9c3583359f195be26e89889c21ac595a5e0d42363aad609cd3995b75e180e1a5",
+    "docs/qa/svn-action-log-native-2026-10-28.swift": "2702afa8fa6f210cde4f2544c14989dda2b1f8724f9927ce4c7817d3bf705022",
+    "scripts/test-svn-action-log.py": "1d1d8ec5375a2d649f668f45a96d39eab5d817ca3107228455a039975f051823"
+  },
+  "logs": [
+    {
+      "path": "build/qa/svn-action-log-debug-2026-10-28.log",
+      "sha256": "47dac3a9666db02fc99058f94010ccf2a2fc941aaab0653fd6b451a94b966482"
+    },
+    {
+      "path": "build/qa/svn-action-log-debug-recheck-2026-10-28.log",
+      "sha256": "cbf6532f465928353b98bb99d7bbdd3f1cfd838609894f916d131fb04e18eb0d"
+    },
+    {
+      "path": "build/qa/svn-action-log-native-2026-10-28.log",
+      "sha256": "ef161778fe52ea40e3cce274021eae24788db5f54e43f46b4aef2544ac239612"
+    },
+    {
+      "path": "build/qa/svn-action-log-native-recheck-2026-10-28.log",
+      "sha256": "81614b7452a1347d8ba6b160c97dd2d78056aba4c777eea604276e2f51f27805"
+    },
+    {
+      "path": "build/qa/svn-action-log-source-family-2026-10-28.log",
+      "sha256": "c381d37233ccfadc03594ae1f316297b4071d3f243d19e4b63f4c38f6410f38b"
+    }
+  ]
+}

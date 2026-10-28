@@ -7,7 +7,7 @@ Show opens the UTF-8 log in the system text viewer. Clear deletes this log only.
 
 The following native progress windows save their displayed output when closed:
 Clone, Commit, Push, Fetch, Pull, Merge, Abort Merge, Switch, Reset, Clean,
-Export, Format Patch, Stash Save, New Worktree, Worktree management progress, Bisect, and Daemon. Each entry starts with an empty separator line, the
+Export, Format Patch, Stash Save, New Worktree, Worktree management progress, Bisect, Daemon, and SVN command progress. Each entry starts with an empty separator line, the
 local date and time, and the repository path (Clone uses its destination).
 Cancelled results append **User cancelled**. Quiet operations still save the
 header. The stored text follows the visible output limit, rather than the full
@@ -46,8 +46,15 @@ and, after a Debug build, `python3 scripts/test-action-log.py`.
 
 The [Saved Data guide](SAVED-DATA.md) covers URL/message histories and stored
 decisions. Other saved-data groups remain to be ported.
-Other progress implementations, including replay and reference restoration,
-have not yet been wired to this persistent log. Physical Show/text-viewer UI,
+SVN Fetch, DCommit and Ignore retain their completed command until dismissal,
+Compare/Log, or Retry. SVN Rebase records Fetch and a subsequent fast-forward
+reset separately at their handoffs. Options-only and failed preflight pages do
+not create entries. Closing a running SVN owner requests a record after its
+worker and output pipes drain. See [SVN progress persistence](SVN-ACTION-LOG-PARITY.md).
+
+Interactive Rebase and Stash Apply/Pop use different upstream presentations:
+RebaseDlg and system progress do not write CProgressDlg's Action log, so the
+native app does not add invented records for them. Physical Show/text-viewer UI,
 signed sandbox persistence and App Store distribution remain unverified.
 
 

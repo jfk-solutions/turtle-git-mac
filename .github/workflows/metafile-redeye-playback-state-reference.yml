@@ -1,0 +1,152 @@
+name: Metafile RedEye state and Blur source ROI reference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyePlaybackStateReference.cpp'
+      - 'docs/qa/metafile-spatial-effects-reference-2026-10-27/BlurSourceRoiContractReference.cpp'
+      - 'docs/qa/metafile-spatial-effects-reference-2026-10-27/redeye-playback-state-inputs.json'
+      - '.github/workflows/metafile-redeye-playback-state-reference.yml'
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile bounded playback-only SDK observer
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-spatial-effects-reference-2026-10-27\RedEyePlaybackStateReference.cpp
+          /Fe:RedEyePlaybackStateReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Compile the bounded Blur source-region recorder
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-spatial-effects-reference-2026-10-27\BlurSourceRoiContractReference.cpp
+          /Fe:BlurSourceRoiContractReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Materialize and hash the three unchanged original metafiles
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          $asset = 'docs/qa/metafile-spatial-effects-reference-2026-10-27/redeye-playback-state-inputs.json'
+          $inputs = Get-Content -Raw $asset | ConvertFrom-Json
+          $expected = @('followup-solid-pure-red.emf','detector-color-pure-red.emf','redeye-17.emf')
+          if ($inputs.cases.Count -ne 3) { throw 'Unexpected retained wire inventory' }
+          for ($i = 0; $i -lt 3; $i++) {
+            $case = $inputs.cases[$i]
+            if ($case.file -cne $expected[$i]) { throw 'Unexpected wire name or order' }
+            $path = Join-Path 'reference-output' $case.file
+            [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($case.base64))
+            if ((Get-Item $path).Length -ne $case.bytes -or (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant() -cne $case.sha256) { throw "Retained wire hash mismatch: $path" }
+          }
+          Copy-Item $asset reference-output/retained-inputs.json
+      - name: Record five Blur source-region contracts and replay with Picture startup1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./BlurSourceRoiContractReference.exe reference-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $names = @('fully-outside','exact-touch','partial-right-bottom','negative-left-top','contained-control')
+          $recording = Get-Content -Raw reference-output/generate-blur-roi.json | ConvertFrom-Json
+          if ($recording.startupVersion -ne 2 -or $recording.caseCount -ne 5 -or $recording.plannedCaseCount -ne 4 -or $recording.controlCount -ne 1 -or $recording.cases.Count -ne 5 -or $recording.atlases.Count -ne 1) { throw 'Unexpected Blur recording inventory' }
+          $atlas = $recording.atlases[0]
+          if ($atlas.width -ne 32 -or $atlas.height -ne 32 -or -not $atlas.requestedMatchesObserved -or $atlas.rgba -cne 'atlas-blur-source-roi.rgba' -or $atlas.requestedRGBA -cne 'atlas-blur-source-roi-requested.rgba') { throw 'Unexpected Blur source dimensions/name/equality' }
+          $observed = 'reference-output/atlas-blur-source-roi.rgba'
+          $requested = 'reference-output/atlas-blur-source-roi-requested.rgba'
+          if ((Get-Item $observed).Length -ne 4096 -or (Get-Item $requested).Length -ne 4096 -or (Get-FileHash -Algorithm SHA256 $observed).Hash -cne (Get-FileHash -Algorithm SHA256 $requested).Hash) { throw 'Blur requested/observed source bytes differ' }
+          for ($i = 0; $i -lt $names.Count; $i++) {
+            $case = $recording.cases[$i]
+            if ($case.name -cne "blur-roi-$($names[$i])" -or $case.emf -cne "$($case.name).emf" -or $case.recordFrameWidth -ne 64 -or $case.recordFrameHeight -ne 64 -or $case.recordCompositing -cne 'SourceCopy' -or ($case.priorPaintRGBA -join ',') -cne '17,41,73,255') { throw 'Unexpected Blur source contract' }
+            foreach ($field in @('recordSetParametersStatus','recordCreateStatus','recordSentinelStatus')) {
+              if ($null -eq $case.$field -or $case.$field -ne 0) { throw "Blur recording setup failed: $field" }
+            }
+            if ($null -eq $case.recordStatus -or $null -eq $case.recordDrawReturnedOk -or $case.recordDrawReturnedOk -ne ($case.recordStatus -eq 0)) { throw 'Missing/inconsistent observed Blur draw status' }
+            if ($case.control -and $case.recordStatus -ne 0) { throw 'Contained Blur control failed' }
+          }
+          foreach ($name in $names) {
+            ./RedEyePlaybackStateReference.exe reference-output "blur-$name" "reference-output/blur-roi-$name.emf"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Nine fresh-process and six ordered-sequence playbacks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wires = @('reference-output/followup-solid-pure-red.emf','reference-output/detector-color-pure-red.emf','reference-output/redeye-17.emf')
+          for ($i = 0; $i -lt 3; $i++) {
+            for ($repeat = 1; $repeat -le 3; $repeat++) {
+              ./RedEyePlaybackStateReference.exe reference-output "fresh-$i-$repeat" $wires[$i]
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+          ./RedEyePlaybackStateReference.exe reference-output sequence-forward $wires[0] $wires[1] $wires[2]
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./RedEyePlaybackStateReference.exe reference-output sequence-reverse $wires[2] $wires[1] $wires[0]
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify exact process, status and full-buffer inventories
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wires = @('followup-solid-pure-red.emf','detector-color-pure-red.emf','redeye-17.emf')
+          $plans = @()
+          for ($i = 0; $i -lt 3; $i++) {
+            for ($repeat = 1; $repeat -le 3; $repeat++) {
+              $plans += [PSCustomObject]@{label="fresh-$i-$repeat"; files=@($wires[$i]); side=32}
+            }
+          }
+          $plans += [PSCustomObject]@{label='sequence-forward'; files=$wires; side=32}
+          $plans += [PSCustomObject]@{label='sequence-reverse'; files=@($wires[2],$wires[1],$wires[0]); side=32}
+          foreach ($name in @('fully-outside','exact-touch','partial-right-bottom','negative-left-top','contained-control')) {
+            $plans += [PSCustomObject]@{label="blur-$name"; files=@("blur-roi-$name.emf"); side=64}
+          }
+          $observations = 0
+          foreach ($plan in $plans) {
+            $manifest = Get-Content -Raw "reference-output/$($plan.label).json" | ConvertFrom-Json
+            if ($manifest.label -cne $plan.label -or $manifest.startupVersion -ne 1 -or $manifest.startupStatus -ne 0 -or $manifest.processID -le 0 -or $manifest.caseCount -ne $plan.files.Count -or $manifest.cases.Count -ne $plan.files.Count) { throw "Unexpected process manifest: $($plan.label)" }
+            for ($i = 0; $i -lt $plan.files.Count; $i++) {
+              $case = $manifest.cases[$i]
+              if ($case.file -cne $plan.files[$i] -or $case.order -ne $i -or $case.error -or $null -eq $case.bitmapLoadStatus -or $case.bitmapLoadStatus -ne 0 -or $null -eq $case.drawStatus -or $case.drawStatus -ne 0) { throw "Playback failed: $($plan.label)/$i" }
+              foreach ($stage in @('intrinsic','final')) {
+                $observed = $case.$stage
+                $stem = "$($plan.label)-$i"
+                if ($stage -eq 'intrinsic') { $stem += '-intrinsic' }
+                if ($observed.name -cne $stem -or $observed.width -ne $plan.side -or $observed.height -ne $plan.side -or $observed.rgba -cne "$stem.rgba" -or $observed.png -cne "$stem.png") { throw "Unexpected observation geometry/name: $($plan.label)/$i/$stage" }
+                if ((Get-Item "reference-output/$($observed.rgba)").Length -ne ($plan.side * $plan.side * 4) -or (Get-Item "reference-output/$($observed.png)").Length -le 0) { throw 'Missing full observation buffer' }
+              }
+              $observations++
+            }
+          }
+          if ($plans.Count -ne 16 -or $observations -ne 20) { throw 'Unexpected bounded playback count' }
+          [PSCustomObject]@{playbackProcessCount=16; playbackCount=20; fullRGBA=40; pngCount=40; playbackStartupVersion=1; blurRecordingStartupVersion=2} | ConvertTo-Json | Set-Content reference-output/inventory.json
+      - name: Record source, toolchain, module and member hashes
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          git rev-parse HEAD | Set-Content reference-output/source-revision.txt
+          cl 2>&1 | Out-File reference-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
+          if (Test-Path reference-output/fresh-0-1.json) {
+            $manifest = Get-Content -Raw reference-output/fresh-0-1.json | ConvertFrom-Json
+            Get-Item -LiteralPath $manifest.gdiplusModule | Select-Object -ExpandProperty VersionInfo | Select-Object FileName,FileVersion,ProductVersion | ConvertTo-Json | Set-Content reference-output/gdiplus-version.json
+          }
+          $inputs = @('docs/qa/metafile-spatial-effects-reference-2026-10-27/BlurSourceRoiContractReference.cpp','BlurSourceRoiContractReference.exe','docs/qa/metafile-spatial-effects-reference-2026-10-27/RedEyePlaybackStateReference.cpp','docs/qa/metafile-spatial-effects-reference-2026-10-27/redeye-playback-state-inputs.json','docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp','.github/workflows/metafile-redeye-playback-state-reference.yml','RedEyePlaybackStateReference.exe')
+          $inputs | Where-Object { Test-Path $_ } | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_
+            [PSCustomObject]@{file=$_; sha256=$hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/input-hashes.json
+          Get-ChildItem reference-output -File | Where-Object Name -ne 'hashes.json' | Sort-Object Name | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_.FullName
+            [PSCustomObject]@{file=$_.Name; bytes=$_.Length; sha256=$hash.Hash}
+          } | ConvertTo-Json | Set-Content reference-output/hashes.json
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-redeye-playback-state-native-windows
+          path: reference-output/
+          if-no-files-found: error

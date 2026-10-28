@@ -1,7 +1,7 @@
 {
   "files": {
-    "Contents/Info.plist": "3d592b8bbcb202d86ea3b3cb8705ae61620111cb30356a219370ef759d5235db",
-    "Contents/Resources/en.lproj/ACTION-LOG.html": "703014638c22c6b47a300c252bbdebf534ccb35304dbd5302d1d0b4729d5a3bf",
+    "Contents/Info.plist": "183cf64b2c65819b0a89e3fefec6a4f0bfdbf7623ee749a7e4f2f3235199c888",
+    "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "13ff8ab897b466cb1c125a45ba1d78f9df492e435ea6de95e63a18f7e0abf7ac",
@@ -93,7 +93,7 @@
     "Contents/Resources/en.lproj/topics.json": "be921c7c7ab337ed3f1b557be2b100bbf602360c458179ced2f9e8c283914e37"
   },
   "source_hashes": {
-    "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
+    "docs/ACTION-LOG.md": "9937342a24f0941393f484dc511cb570e5d2711a6f218bfab54324c76fb586d8",
     "docs/BISECT.md": "65d3e5b3a0cf096ecaea4f9c0ac6a4c87894f68049faa1d7080b70175f05d4ab",
     "docs/BLAME-FILE-OPEN.md": "4a045ab57370cfa323eaec189c891379a7582e679dda9377f15ad9c4f07e8e8b",
     "docs/BLAME-MENUS.md": "97bdba50e36168bc7fdf02319b13aef46d3758937d689eafbb07f313272b7c4e",

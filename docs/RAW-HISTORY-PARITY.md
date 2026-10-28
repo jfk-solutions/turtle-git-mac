@@ -48,10 +48,10 @@ process-group drainage, repository access and Quit protection.
 
 ## Historical comparison and file delivery continuation
 
-The new [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json)
-is **awaiting grouped validation**. Its implementation connects historical file
-comparison and Open/Save to the same exact byte identity as Log and Blame; the
-older successful history checkpoint below does not validate this continuation.
+The [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json)
+records its grouped validation separately from the earlier history checkpoint.
+It connects historical file comparison and Open/Save to the same exact byte
+identity as Log and Blame; the scope and original failures appear below.
 
 Browser **Mark for comparison** and **Compare with marked file**, Log parent or
 selected historical comparisons, and Blame's historical comparison callbacks

@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-28",
+  "scope": "One private filename capability probe on development host temporary volume; not a Core/native app suite or universal macOS filesystem claim",
+  "host": {
+    "system": "Darwin",
+    "release": "27.0.0",
+    "machine": "arm64"
+  },
+  "operation": "os.open(temp_directory_bytes + b\"/raw-\\xff\", O_WRONLY|O_CREAT|O_EXCL, 0o600)",
+  "observed": {
+    "created": false,
+    "errno": 92,
+    "description": "Illegal byte sequence"
+  },
+  "cleanup": "TemporaryDirectory context removed the private test directory; no repository, Finder or user application changed.",
+  "implication": "This observed host volume cannot materialize the original byte spelling. Git object reads and explicitly chosen safe output names remain distinct from original-path checkout.",
+  "limitations": [
+    "No claim for other filesystems, receiving apps, sandbox grants or signed deployment.",
+    "No pathname substitution is authorized by this probe."
+  ]
+}

@@ -119,13 +119,21 @@ receipts, held read refresh/close/Quit gates, and unchanged repository state.
 It uses the existing private receiver and invisible-window ownership policy.
 No physical receiving application or signed-sandbox acceptance is implied.
 
-Full raw-byte original-path checkout, working comparison and folder
-export/promise delivery remain unimplemented. Their explicit refusal prevents a
-replacement spelling from addressing another file. Single historical file
-materialization, comparison and output under a safe chosen name are implemented
-in the new continuation awaiting validation; the earlier namespace/stored-blob
-results above do not validate those new routes. Physical gestures, VoiceOver, signed sandbox grants,
-receiving-app delivery and complete upstream visual parity require separate
-acceptance. This review supplies no whole-port completion percentage.
-Earlier signed installation receipts do not validate this continuation; its
-new materialization/comparison grouped checkpoint remains pending.
+Original-path checkout, working comparison and folder promise delivery for raw
+names remain refused. A replacement spelling could address another file. A
+[private filesystem probe](qa/raw-host-filename-2026-10-28.json) on the development Mac rejected creation of a name
+containing byte FF with EILSEQ; this confirms a host-volume restriction in that
+observed environment, not support or failure on every filesystem. Git tree
+objects can still contain those bytes. Renaming them silently is not a faithful
+checkout. Other filesystem profiles and raw folder delivery remain unverified.
+
+Single historical file materialization, comparison and output under safe chosen
+names have a [separate successful grouped checkpoint](qa/raw-historical-materialization-2026-10-27.json):
+154 distinct Core methods cumulatively and seven native Browser cases with both
+system and bundled Git. The earlier namespace/stored-blob checks above are not
+its evidence. See [historical filename workflows](RAW-HISTORY-PARITY.md#materializationcomparison-checkpoint)
+for filters, external-tool boundaries and original fixture repairs.
+Physical gestures, VoiceOver, signed sandbox grants, receiving-app delivery and
+complete upstream visual parity require separate acceptance. Earlier signed
+installation receipts do not validate this continuation. This review supplies no
+whole-port completion percentage.

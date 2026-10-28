@@ -4,6 +4,48 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// Retained owner of one source CProgressDlg, including output after its
+/// composite SVN window retires. Fetch/reset stages never share a log identity.
+@MainActor final class SVNProgressActionRecord {
+    let parser: GitCliOutputParser
+    private let repository: URL
+    private let preferences: UserDefaults
+    private let began = ProcessInfo.processInfo.systemUptime
+    private var state: GitProgressOutputState
+    private(set) var output = ""
+    private(set) var finished = false
+    private(set) var cancelled = false
+    private var recordRequested = false
+    init(repository: URL, preferences: UserDefaults) {
+        self.repository=repository;self.preferences=preferences
+        state=GitProgressOutputState(preferences:preferences);parser=GitCliOutputParser(limit:state.limit)
+    }
+    func drain() {
+        guard !finished else {return}
+        state.consume(parser.processPending(),parser:parser)
+    }
+    func finish(error: Error?, cancelled: Bool) {
+        guard !finished else {return};finished=true;self.cancelled=cancelled
+        state.consume(parser.processPending(),parser:parser);state.consume(parser.finish(),parser:parser)
+        if let error {state.presentFailure(error)}
+        output=state.output
+        // CProgressDlg's terminal footer reports the process result; WriteLog
+        // appends its separate User cancelled line. The shared native display
+        // formatter's cancellation caption would otherwise duplicate that line.
+        let completion=SubmoduleProgressCompletion(success:error == nil && !cancelled,cancelled:false,
+            exitCode:(error as? GitCommandCancellationFailure)?.result.exitCode ?? (error as? GitFailure)?.code,
+            elapsed:ProcessInfo.processInfo.systemUptime-began,preferences:preferences)
+        var bytes=Data(output.utf8.prefix(max(0,state.limit-completion.text.utf8.count)))
+        while String(data:bytes,encoding:.utf8) == nil,!bytes.isEmpty {bytes.removeLast()}
+        output=String(decoding:bytes,as:UTF8.self);_=completion.append(to:&output)
+        if recordRequested {record()}
+    }
+    func record() {
+        recordRequested=true;guard finished else{return}
+        ProgressActionLog.record(owner:self,repository:repository,output:output,cancelled:cancelled)
+    }
+}
+
 @MainActor final class SVNWindowModel: ObservableObject {
     enum Phase: Equatable { case loading, options, progress, finished }
     static private(set) var activeOperations = 0
@@ -55,6 +97,26 @@ import TurtleGitCore
         let ignoreDestination:GitSVNIgnoreDestination
     }
     private var submitted:Options?
+    private var progressRecords:[SVNProgressActionRecord]=[]
+    func saveActionLog() {progressRecords.forEach {$0.record()}}
+    private func progressCommand<Value>(_ command: String, handoff: Bool = false,
+        _ operation: (@escaping @Sendable (GitOutputChunk)->Void) async throws -> Value) async throws -> Value {
+        let record=SVNProgressActionRecord(repository:repository.root,preferences:outputPreferences)
+        progressRecords.append(record)
+        let logParser=record.parser,displayParser=parser
+        let emit:@Sendable (GitOutputChunk)->Void={chunk in logParser.appendChunk(chunk.data);displayParser.appendChunk(chunk.data)}
+        emit(GitOutputChunk(stream:.stdout,data:Data((command+"\n\n").utf8)))
+        do {
+            let result=try await operation(emit)
+            record.finish(error:nil,cancelled:token.isCancelled)
+            if handoff || retired {record.record()}
+            return result
+        } catch {
+            record.finish(error:error,cancelled:token.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure || error is CancellationError)
+            if retired {record.record()}
+            throw error
+        }
+    }
     struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let phase:Phase}
     var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision,phase:phase)}
     private func accepts(_ context:FormContext)->Bool {!retired && context==formContext}
@@ -78,12 +140,12 @@ import TurtleGitCore
     func compare(_ result:GitSVNFetchResult,context:FormContext) { CommandProgressContext.perform(commandProgressScope) { compareInCommandScope(result,context:context) } }
     private func compareInCommandScope(_ result:GitSVNFetchResult,context:FormContext) {
         guard accepts(context),canShowFetched,fetched?.oldHash==result.oldHash,fetched?.newHash==result.newHash else{return}
-        onCompare(result.oldHash,result.newHash)
+        saveActionLog();onCompare(result.oldHash,result.newHash)
     }
     func log(_ result:GitSVNFetchResult,context:FormContext) { CommandProgressContext.perform(commandProgressScope) { logInCommandScope(result,context:context) } }
     private func logInCommandScope(_ result:GitSVNFetchResult,context:FormContext) {
         guard accepts(context),canShowFetched,fetched?.oldHash==result.oldHash,fetched?.newHash==result.newHash else{return}
-        onLog(result)
+        saveActionLog();onLog(result)
     }
     var title: String {
         switch operation { case .dcommit: return "SVN DCommit"; case .fetch: return "SVN Fetch"; case .rebase: return "SVN Rebase"; case .ignore: return "Import SVN Ignore" }
@@ -123,6 +185,7 @@ import TurtleGitCore
     }
     func retry() {
         guard canRetry else {return}
+        saveActionLog();progressRecords=[]
         token=OperationCancellation();parser=GitCliOutputParser(limit:visible.limit);visible.reset();output="";error=nil;fetched=nil
         let accepted=submitted
         launch {
@@ -179,13 +242,12 @@ import TurtleGitCore
               autoClosePolicy.shouldClose(success: success, postActionCount: operation == .fetch && fetched?.changed == true ? 2 : 0) else { return }
         close()
     }
-    private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output; currentWork = visible.currentWork; percentage = visible.percentage }
+    private func drain() { progressRecords.last?.drain();guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output; currentWork = visible.currentWork; percentage = visible.percentage }
     private func execute(_ accepted:Options) async throws {
         let repository=self.repository.capturingDiffBackend(preferences:outputPreferences)
         try checkAccess(); try await repository.checkGitSVNRuntime(cancellation: token)
         try checkAccess(); phase = .progress; status = "\(title) is running…"; error = nil
         let parser = parser
-        let emit: @Sendable (GitOutputChunk) -> Void = { parser.appendChunk($0.data) }
         if operation == .dcommit || operation == .rebase {
             if operation == .dcommit && accepted.remember { try await repository.rememberSVNCommitType(removeEmptyDirectories: accepted.removeEmptyDirectories, cancellation: token) }
             let dirty = try await repository.svnTrackedChanges(cancellation: token); try checkAccess()
@@ -199,21 +261,35 @@ import TurtleGitCore
         }
         switch operation {
         case .dcommit:
-            _ = try await repository.svnDCommit(removeEmptyDirectories: accepted.removeEmptyDirectories, cancellation: token, onOutput: emit)
+            _ = try await progressCommand("git svn dcommit"+(accepted.removeEmptyDirectories ? " --rmdir":""),handoff:stashHash != nil) {emit in
+                try await repository.svnDCommit(removeEmptyDirectories:accepted.removeEmptyDirectories,cancellation:self.token,onOutput:emit)
+            }
             try checkAccess(); status = "SVN DCommit completed."; onChanged(); try await restoreCreatedStash()
         case .fetch:
-            let result = try await repository.svnFetch(cancellation: token, onOutput: emit)
+            let upstream=try await repository.svnUpstream(cancellation:token)
+            _=try await repository.run(["rev-parse","--verify",upstream],cancellation:token)
+            try checkAccess()
+            let result = try await progressCommand("git svn fetch") {emit in
+                try await repository.svnFetch(cancellation:self.token,onOutput:emit)
+            }
             try checkAccess(); fetched = result
             status = fetched?.changed == true ? "SVN Fetch completed. Review the fetched changes." : "Everything is up to date."
             onChanged()
         case .rebase:
             let head = try await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: token).text.trimmingCharacters(in: .newlines)
-            let result = try await repository.svnFetch(cancellation: token, onOutput: emit); try checkAccess(); fetched = result
+            let upstream=try await repository.svnUpstream(cancellation:token)
+            _=try await repository.run(["rev-parse","--verify",upstream],cancellation:token)
+            try checkAccess()
+            let result = try await progressCommand("git svn fetch",handoff:true) {emit in
+                try await repository.svnFetch(cancellation:self.token,onOutput:emit)
+            }; try checkAccess(); fetched = result
             let plan = try await repository.svnRebasePlan(result, cancellation: token); try checkAccess()
             switch plan {
             case .upToDate: status = "Everything is up to date."; await confirmInformation(status)
             case .fastForward(let hash):
-                _ = try await repository.svnFastForward(to: hash, expectedHead: head, cancellation: token, onOutput: emit)
+                _ = try await progressCommand("git reset --hard "+hash+" --",handoff:true) {emit in
+                    try await repository.svnFastForward(to:hash,expectedHead:head,cancellation:self.token,onOutput:emit)
+                }
                 try checkAccess(); status = "Fast-forward completed."; onChanged(); await confirmInformation(status)
             case .rebase(let reference):
                 status = "Continue in the Rebase dialog."
@@ -232,7 +308,10 @@ import TurtleGitCore
                     excludeAccess = access
                 }
             }
-            let result = try await repository.svnImportIgnore(accepted.ignoreDestination, excludeAccess: excludeAccess, cancellation: token, onOutput: emit)
+            let command=accepted.ignoreDestination == .exclude ? "git svn show-ignore > "+(try await repository.svnIgnoreExcludeURL(cancellation:token)).path:"git svn create-ignore"
+            let result = try await progressCommand(command) {emit in
+                try await repository.svnImportIgnore(accepted.ignoreDestination,excludeAccess:excludeAccess,cancellation:self.token,onOutput:emit)
+            }
             try checkAccess()
             if accepted.ignoreDestination == .exclude { parser.appendChunk(Data(("\n" + result).utf8)) }; status = "SVN ignore patterns imported."; onChanged()
         }
@@ -256,7 +335,7 @@ import TurtleGitCore
         }
     }
     func retire() {
-        retired = true; token.cancel(); pump?.cancel(); pump = nil
+        retired = true; if busy {token.cancel()} else {pump?.cancel();pump=nil}; saveActionLog()
         confirmStash = { false }; confirmPop = { false }; confirmCancel = { false }; openRebase = { _ in false }
         onPhaseChanged = {}; onCompare = { _, _ in }; onLog = { _ in }; onChanged = {}; onRepositoryLog = {}; confirmInformation = { _ in }; close = {}
     }
