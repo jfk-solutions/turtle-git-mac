@@ -63,7 +63,10 @@ force.
 The full Windows witness comparison also exposed an existing canvas mismatch:
 classic EMF's natural inclusive Bitmap allocation gained an extra row/column,
 but synthetic white DC initialization filled that allocation too. Initialization
-now uses the recorded drawable device extent captured before allocation expands.
+uses a bounded logical DC. The [canvas-bounds continuation](METAFILE-CANVAS-BOUNDS-PARITY.md)
+corrects that continuation's original preinclusive-frame choice to the original
+inclusive device bounds, and distinguishes recorded EMF+ streams. The earlier
+DIB-only focused checkpoint did not cover the later hosted gradient/EMF+ failures.
 The complete natural canvas and pixel assertions remain intact; no output crop
 or profile-specific edge rewrite is used. Real painting still owns its pixels,
 and Boolean operations retain their existing logical white DC operands.

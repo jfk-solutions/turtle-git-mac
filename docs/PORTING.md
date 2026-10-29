@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+## Metafile canvas-bounds continuation
+
+[The canvas-bounds repair](METAFILE-CANVAS-BOUNDS-PARITY.md) addresses hosted
+source `c366f2b3`'s 326 assertions in the classic-gradient and image-effect families.
+Original inclusive device bounds, physical-frame allocation and recorded Plus
+streams retain distinct handling. Existing assertions and Windows reference bytes
+are unchanged; the local EMF+ unpainted-background profile remains explicit.
+
 ## Blame retained-byte encoding continuation
 
 [Blame encoding projection](BLAME-ENCODING-PROJECTION-PARITY.md) reinterprets

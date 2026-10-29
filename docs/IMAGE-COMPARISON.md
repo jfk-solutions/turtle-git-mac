@@ -185,3 +185,11 @@ rectangle and triangle gradients display interpolated vertex colors through the
 same panes. These additions preserve the original files and conflict stages;
 see the [scanline and gradient contract](METAFILE-SCANLINE-GRADIENT-PARITY.md)
 for format limits and actual validation. Graph export to WMF/EMF is separate.
+
+## Metafile canvas-bounds continuation — October 29, 2026
+
+[Device bounds and natural canvas](METAFILE-CANVAS-BOUNDS-PARITY.md) corrects the
+classic DC initialization extent while preserving the separate EMF+ background
+profile. This retains full Windows DIB RGBA assertions and existing gradient and
+image-effect expectations. It also records the hosted regression and the remaining
+EMF+ unpainted-alpha compatibility difference. Installed build31 predates this fix.

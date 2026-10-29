@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,559 @@
+@@ -0,0 +1,562 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -579,7 +579,11 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(format&&format!=='auto'&&format==='wmf'&&!/wmf/.test(parsed.fileType))fail('format mismatch');
 +    let bounds=parsed.header.bounds||parsed.header.placeableHeader;
 +    let width=bounds?bounds.right-bounds.left:0,height=bounds?bounds.bottom-bounds.top:0;
-+    let logicalGdiSurface=null;
++    // rclBounds is inclusive in device units. It is not the physical frame
++    // used for the file-backed Bitmap allocation. Keep the original extent
++    // before replacing parsed bounds with that independently sized canvas.
++    const classicGdiBounds=!child&&parsed.fileType==='emf'&&recordInfo.plusMode===null&&bounds?
++      {width:Math.max(0,bounds.right-bounds.left+1),height:Math.max(0,bounds.bottom-bounds.top+1)}:null;
 +    if((parsed.fileType==='emf'||parsed.fileType==='emf+')&&bounds){
 +      const header=parsed.header,frame=header.frame;
 +      // A file-backed GDI+ Bitmap has an inclusive natural canvas. Embedded
@@ -593,14 +597,12 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +        const inclusive=child?0:1;
 +        width=Math.round((frame.right-frame.left)*dx/2540);
 +        height=Math.round((frame.bottom-frame.top)*dy/2540);
-+        if(!child&&parsed.fileType==='emf')logicalGdiSurface={width,height};
 +        width+=inclusive;height+=inclusive;
 +        const left=frame.left*dx/2540,top=frame.top*dy/2540;
 +        parsed.header.bounds={left,top,right:left+width,bottom:top+height};
 +      } else if(!child) {
 +        // With no usable physical frame, the file Bitmap falls back to the
 +        // inclusive rclBounds. Embedded fallback bounds remain unchanged.
-+        if(parsed.fileType==='emf')logicalGdiSurface={width,height};
 +        width+=1;height+=1;
 +        parsed.header.bounds={left:bounds.left,top:bounds.top,right:bounds.left+width,bottom:bounds.top+height};
 +      }
@@ -613,10 +615,11 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(playback&&playback.inspectOnly)return {width,height};
 +    if(!child){if(typeof globalThis.__turtlePicturePlan!=='function')fail('native Picture document plan unavailable');globalThis.__turtlePicturePlan(width,height);}
 +    const context=new SvgContext();shareBudgets(context);context._turtleTransparentSurface=child;
-+    // The file Bitmap allocation is inclusive; its extra row/column is not
-+    // part of the recorded GDI DC. Keep the logical white DC separate from
-+    // transparent allocation pixels, which only actual paints may cover.
-+    context._turtleGdiSurface=logicalGdiSurface;
++    // Classic recorded bounds and file allocation are separate extents.
++    // Allocation beyond the inclusive GDI bounds starts transparent, and later
++    // actual paints can cover it. Recorded Plus streams use their own policy.
++    context._turtleGdiSurface=classicGdiBounds?
++      {width:Math.min(width,classicGdiBounds.width),height:Math.min(height,classicGdiBounds.height)}:null;
 +    const parent=playback&&playback.parent;
 +    if(parent){
 +      context.canvas=parent.ctx.canvas;context._turtleReplaySurface=true;

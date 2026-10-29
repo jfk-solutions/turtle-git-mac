@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-grouped-native-pass",
+  "source_base_commit": "4015465c",
+  "hosted_failure": {
+    "run": 40830336479,
+    "job": 123316997315,
+    "source": "c366f2b3",
+    "platform": "x86_64-apple-macos14.0",
+    "totalTests": 3234,
+    "skipped": 2,
+    "assertionFailures": 326,
+    "unexpectedFailures": 0,
+    "failedMethods": [
+      "2026-10-29T08:15:44.6723000Z Test Case '-[TurtleGitCoreTests.MetafileClassicGradientTests testClassicGradientTriangleRGBAlphaWindingSharedEdgesAndDrawingOrder]' failed (8.702 seconds).",
+      "2026-10-29T08:18:50.3070420Z Test Case '-[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels]' failed (2.786 seconds)."
+    ],
+    "firstFailures": [
+      "2026-10-29T08:15:44.6707880Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileClassicGradientTests.swift:53: error: -[TurtleGitCoreTests.MetafileClassicGradientTests testClassicGradientTriangleRGBAlphaWindingSharedEdgesAndDrawingOrder] : XCTAssertTrue failed - classic-gradient-degenerate should not paint a degenerate/empty primitive",
+      "2026-10-29T08:15:44.6716720Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileClassicGradientTests.swift:53: error: -[TurtleGitCoreTests.MetafileClassicGradientTests testClassicGradientTriangleRGBAlphaWindingSharedEdgesAndDrawingOrder] : XCTAssertTrue failed - classic-gradient-empty should not paint a degenerate/empty primitive",
+      "2026-10-29T08:15:44.6723000Z Test Case '-[TurtleGitCoreTests.MetafileClassicGradientTests testClassicGradientTriangleRGBAlphaWindingSharedEdgesAndDrawingOrder]' failed (8.702 seconds).",
+      "2026-10-29T08:16:29.5755960Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift:28: error: -[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels] : XCTAssertLessThanOrEqual failed: (\"255\") is greater than (\"3\") - state-seed.emf (8,63) channel0",
+      "2026-10-29T08:16:29.5766310Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift:28: error: -[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels] : XCTAssertLessThanOrEqual failed: (\"255\") is greater than (\"3\") - state-seed.emf (8,63) channel1"
+    ],
+    "lastFailures": [
+      "2026-10-29T08:18:50.3031270Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift:28: error: -[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels] : XCTAssertLessThanOrEqual failed: (\"255\") is greater than (\"3\") - pending-effect-container-before-E.emf (248,63) channel0",
+      "2026-10-29T08:18:50.3042050Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift:28: error: -[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels] : XCTAssertLessThanOrEqual failed: (\"255\") is greater than (\"3\") - pending-effect-container-before-E.emf (248,63) channel1",
+      "2026-10-29T08:18:50.3052860Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift:28: error: -[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels] : XCTAssertLessThanOrEqual failed: (\"255\") is greater than (\"3\") - pending-effect-container-before-E.emf (248,63) channel2",
+      "2026-10-29T08:18:50.3063030Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift:28: error: -[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels] : XCTAssertLessThanOrEqual failed: (\"255\") is greater than (\"3\") - pending-effect-container-before-E.emf (248,63) channel3",
+      "2026-10-29T08:18:50.3070420Z Test Case '-[TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels]' failed (2.786 seconds)."
+    ]
+  },
+  "source_fix": [
+    "Capture original inclusive device-bound extent before physical-frame natural-canvas overwrite",
+    "Clamp logical classic DC initialization to validated natural allocation",
+    "Use recorded Plus Header presence to exclude EMF+ containers from classic initialization",
+    "Preserve WMF/embedded initialization, actual paints, Boolean operands, whole allocation, byte inputs and pixel expectations"
+  ],
+  "primary_definition": "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-enhmetaheader",
+  "runtime": {
+    "exit": 0,
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "deployment_target": "macOS13",
+    "structure_check": "pass; does not prove physical Intel execution",
+    "cache_key": "a439b3888b412ef85163c89e7380f8be91705053f8709a24a95c6b811ed4e3a7",
+    "binary_sha256": "86773a1f6c7b59e7119333f9fa89e87dc4eddd5bd34868ca7c39473af423cac9",
+    "renderer_sha256": "6bad2ca13ae2dd89e10458e492f31bc35606ed8eff3ece0a23cfff4ca38420ee"
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'Metafile(ClassicGradient|ImageEffects|DibProfile|SourceCopy|RasterROI|DrawingState|EmbeddedImage|DirectScanline)Tests|MetafileImageTests/testClassic(Boolean|Mask|Plg|Transparent|Alpha)'",
+    "exit": 0,
+    "methods": 62,
+    "failures": 0,
+    "elapsed_test_seconds": 34.415,
+    "scope": "Includes the exact2 hosted-failing methods, complete originalWindows DIB RGBA and affected compositing, clipping, raster and embedded policies"
+  },
+  "native_build": {
+    "exit": 0,
+    "result": "BUILD SUCCEEDED",
+    "configuration": "Debug arm64 testability, signing disabled"
+  },
+  "native": {
+    "commands": [
+      "python3 scripts/test-metafile-image-effects.py --only image-effects --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "python3 scripts/test-metafile-workflows.py --only dib-profiles --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\""
+    ],
+    "exit": 0,
+    "results": {
+      "image-effects": [
+        {
+          "case": "image-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "image-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "dib-profiles": [
+        {
+          "case": "dib-profiles",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "dib-profiles",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ]
+    },
+    "receiver_pids": [
+      20106,
+      20266,
+      20434,
+      20746
+    ],
+    "all_reaped": true,
+    "independent_pid_absence_check": true,
+    "owned_helpers_retired_by_parent": true,
+    "runner_cleanup_needed": false,
+    "scope": "Existing private offscreen Compare/conflict decode/reload, image-effect/profile sources/refusals, cancellation/late result/session/grant/Quit boundaries and unchanged original/repository bytes"
+  },
+  "validation_attempts": [
+    {
+      "kind": "universal helper reconstruction",
+      "exit": 0
+    },
+    {
+      "kind": "focused Core",
+      "exit": 0
+    },
+    {
+      "kind": "Debug build",
+      "exit": 0
+    },
+    {
+      "kind": "grouped native4 case/engine pairs",
+      "exit": 0
+    }
+  ],
+  "unchanged_expectations": {
+    "verification": "git diff --exit-code -- Tests/TurtleGitCoreTests docs/qa/metafile-image-effects-reference-2026-10-27",
+    "exit": 0,
+    "note": "No test, generator, native raw RGBA, fixture JSON, assertion or tolerance was changed"
+  },
+  "documentation": {
+    "site_documents": 500,
+    "unresolved_fragments": 0,
+    "site_link_tests": 2,
+    "result": "pass",
+    "help": "Generated before app build; freshness pass60documents/51topics/92files",
+    "localization": "38languages/1325keys check pass; no native labels changed",
+    "dialog_ledger": "reconciled; unchanged counts are not feature completion"
+  },
+  "files_sha256": {
+    "patches/metafile-renderer.patch": "8b093fd570709417c53bfe96f12de1652edcb01e5a4289cbe3fa1c3be100f86a",
+    "Tests/TurtleGitCoreTests/MetafileClassicGradientTests.swift": "bb04ff5ad9ecf97391dd451cd00edc16d6d206eb6a0194fa909a157a2bf70430",
+    "Tests/TurtleGitCoreTests/MetafileImageEffectsTests.swift": "349b4029041a6fa5881e0cbff84da408f58b1102b34a5c043b5577ebf94880a7",
+    "Tests/TurtleGitCoreTests/MetafileDibProfileTests.swift": "14686613f1deb660c232ebdd2924debdc938879ed153269d7de6eb3ea756c268",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/ImageEffects/windows-reference.json": "a735c81739f4a31099873a91eb4201a02d0f6f12e64765b0ff0a6fa20aac4795",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/DIBProfileWindows/manifest.json": "e5daa54812485562bd8dba2091db5d4ec73802a0149638627bab0880846645da"
+  },
+  "log_sha256": {
+    "build/qa/metafile-canvas-bounds-runtime-2026-10-29.log": "49816a082b1fe733ae33448f5e5ed514d082a229eeef7ba14f06e50f36f70fe2",
+    "build/qa/metafile-canvas-bounds-core-2026-10-29.log": "c5b209b03ed677c7b3704a45977027a9dad0f6fd1fd3730c942716ba9f7151a3",
+    "build/qa/metafile-canvas-bounds-build-2026-10-29.log": "87f960a7d22e0804b1cfa9306e63fea870e586bf115dfd2319be2ed571914b1c",
+    "build/qa/metafile-canvas-bounds-native-2026-10-29.log": "301f08758a6b36ec6ccb25b12ede3edba23a633e8c040baa621475568a72fbc1",
+    "build/qa/metafile-canvas-bounds-site-2026-10-29.log": "8a0689ca93ab2928ad1fb1e06b42ff73ce8138af0f265430a408a750bce98835",
+    "build/qa/metafile-canvas-bounds-registration-2026-10-29.json": "c145cfe78f2560001b6ac6c83da5227592e534ff3ae772312121bc9ddf5ab327"
+  },
+  "installed_application": "Build31 unchanged; installed LS/Finder registration restored after Debug build; no user-app/window mutation.",
+  "remaining_limits": [
+    "Existing EMF+ uncovered pixels use opaque-white local compatibility expectations while retained raw Windows samples are transparent; this difference remains",
+    "No complete hosted pass on corrected source established",
+    "No current signed-parent/physical image-window, minimum macOS or physical Intel execution acceptance",
+    "No proof for every metafile coordinate origin, malformed input or undocumented drawing state",
+    "Installed build31 predates the fix",
+    "No App Store upload or notarization"
+  ],
+  "store_submission": false
+}
