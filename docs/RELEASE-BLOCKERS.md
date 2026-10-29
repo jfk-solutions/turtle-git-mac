@@ -5,6 +5,24 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Ready local testing package35
+
+[Signed build35](qa/signed-consolidation-build35-2026-10-29.json), `0.1.0 (35)`,
+is packaged from clean source `e0f1c559`. It adds source marked-screen-row status
+and caching, accepted Settings publication recovery, and branch/tag/worktree
+creation acceptance across late cancellation. The universal AppStore-configuration
+build, frozen inputs, strict seals, packaged Help and ZIP roundtrip inventory pass.
+Its disposable signed sandbox parent executes the sealed production Core and
+packaged Git, including the three new public contracts; it does not exercise the
+shipping AppKit UI or outside file grants.
+
+The package is ready but uninstalled. Build34's main process and Finder stayed
+running. Xcode's temporary candidate registrations were removed and the installed
+build34 registrations restored; macOS started its installed Finder extension host.
+No main app/Finder restart, signal, login preference change, public upload,
+notarization or Store submission occurred. All global acceptance and Store terms
+gates below remain open.
+
 ## Installed local testing build34
 
 [Signed build34](qa/signed-consolidation-build34-2026-10-29.json), version

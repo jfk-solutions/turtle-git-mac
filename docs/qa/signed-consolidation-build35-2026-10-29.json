@@ -1,0 +1,229 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-local-testing-package-ready-uninstalled",
+  "build": "0.1.0 (35)",
+  "source_commit": "e0f1c559e3f110e1f9ed59f19a7289f3f6beb481",
+  "source_input_sha256": "85d8a1ae719fed4445f256a0611b246ef3bad7f216a5cba9ec2285d9e4f56c6a",
+  "source_inputs_unchanged": true,
+  "implementation_scope": [
+    "Compare/Merge source displayed-row marked counts, full occurrence painting and caret/scroll cache reuse",
+    "Independent durable accepted Settings publication for Finder/cache/persistence, newer-choice/retirement/startup recovery and source field retention",
+    "Branch/tag/worktree accepted creation after late Cancel, bounded current identity verification, once-only captured parent refresh and explicit continuation without recreation"
+  ],
+  "focused_source_evidence": [
+    "docs/qa/merge-marked-screen-rows-2026-10-29.json",
+    "docs/qa/settings-publication-recovery-2026-10-29.json",
+    "docs/qa/creation-outcome-2026-10-29.json"
+  ],
+  "build_validation": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 615.94,
+        "log": "build/qa/signed35-build-2026-10-29.log"
+      }
+    ],
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "dfdb1a06ecfa674ce166f7e50fda1dbb9a84c7298d8d6dd6d01e245eee395ddd",
+    "same_signing_team_and_sandbox_groups": true,
+    "help_source_equal": true,
+    "help_members": 95,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "signed_parent_validation": {
+    "passed": true,
+    "requested_phases": [
+      "local-tools"
+    ],
+    "packaged_core_sha256": "0502630fa6b10ce0764a08c5d9e2b7d19da9b5ee12a525ed3a61b56cab9a6499",
+    "probe_source_sha256": "422eb2aeac3c01ab43998b6c3a144cfcd0f496b80147df90642bfc13ba17e869",
+    "probe_runner_sha256": "e22b18ac25b1b9b6345300f17c6f65aa05a4aa6bd35548dc72d3ce566aa1f84b",
+    "cases": [
+      {
+        "app_group_files_created": false,
+        "local_tools": {
+          "archive_sha256": "e4473aacdda6f2cb9ae4918a9d584b7423714db2911ed592eb9d3531a0d00f17",
+          "captured_revision_backend": true,
+          "creation_acceptance_receipts": true,
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-p7cmv4xk/Denied.app/Contents/Helpers/Git/bin/git",
+          "head_index_working_unchanged": true,
+          "image_original_bytes_selection": true,
+          "image_sha256": {
+            "animated.gif": "2f225b8d5b8938366447c4f805b24ea21ff14510e909f55b61c0b696a2f48683",
+            "opaque.bin": "8eb510b6a1a199cd6901cd6d87f5397235be90f7efa6a57e1d44742c4cf36849",
+            "vector.wmf": "f46f371a33e85e5cca76fa82e8529da3059fb0c177a78f5631007f137d08728e"
+          },
+          "marked_screen_row_status": true,
+          "native_ui_executed": false,
+          "observed_git": {
+            "executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-p7cmv4xk/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git",
+            "hash": "f440016325e65f00c7c09a9989ce0f099f443cdd",
+            "pid": 4260,
+            "reaped": true
+          },
+          "public_core_package_smoke": true,
+          "raw_blob_sha256": "94d02e56c39df698c16caa08de0b1961fac6e1cb50f1aa87b604abc381f1f287",
+          "raw_folder_archive": true,
+          "raw_individual_materialization": true,
+          "settings_publication_intents": true
+        },
+        "mode": "local-tools",
+        "outside_file_grants": false,
+        "passed": true,
+        "private_container_cleaned": true,
+        "shipping_gui_launched": false
+      }
+    ],
+    "reaped_parent_pid": 4202,
+    "reaped_observed_git_pid": 4260,
+    "scope": "Sealed production Core and packaged signed Git under disposable sandboxed parent; not shipping AppKit UI or external repository grants",
+    "cleanup_scope": "Private UUID fixture directory and owned process cleanup; OS-managed container roots may remain"
+  },
+  "package": {
+    "kind": "TurtleGitSignedLocalTestingPackage",
+    "created_utc": "2026-10-29T20:02:48.942196+00:00",
+    "version": "0.1.0",
+    "build": "35",
+    "source_commit": "e0f1c559e3f110e1f9ed59f19a7289f3f6beb481",
+    "build_input_sha256": "85d8a1ae719fed4445f256a0611b246ef3bad7f216a5cba9ec2285d9e4f56c6a",
+    "source_inputs_unchanged": true,
+    "signature_preserved": true,
+    "re_signing_performed": false,
+    "signer": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "dfdb1a06ecfa674ce166f7e50fda1dbb9a84c7298d8d6dd6d01e245eee395ddd",
+    "zip": "TurtleGit-for-Mac-0.1.0-build35-signed.zip",
+    "zip_bytes": 423144091,
+    "zip_sha256": "baf3c93ec8f620371f3b84984da1142a1b2d7385337f5dd752e0520ba41ed8a6",
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true,
+    "app_installed": false,
+    "gui_launched": false,
+    "store_submission": false,
+    "notarization": false,
+    "source_audit": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed35-static-2026-10-29.json"
+  },
+  "registration_restoration": {
+    "status": "restored-installed34-registration",
+    "installed_build": "34",
+    "installed_main_sha256": "63108281670daf25fea61fe1ac6d23f1e8d060e9ebfb16116edd2622a43f3d5d",
+    "preexisting_processes_preserved": true,
+    "processes_before": [
+      {
+        "pid": 1881,
+        "executable": "/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder"
+      },
+      {
+        "pid": 88077,
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+      }
+    ],
+    "processes_after": [
+      {
+        "pid": 1881,
+        "executable": "/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder"
+      },
+      {
+        "pid": 4088,
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      },
+      {
+        "pid": 88077,
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+      }
+    ],
+    "installed_plugin_listed": true,
+    "candidate_plugin_listed": false,
+    "main_app_restarted": false,
+    "finder_restarted": false,
+    "signals_sent": false,
+    "automatic_installed_extension_host_start": "macOS started installed Finder extension host4088 during registration refresh; no deliberate extension activation or login preference change"
+  },
+  "installation": {
+    "performed": false,
+    "current_installed_build": "34",
+    "preserved_build34_candidate": true
+  },
+  "limits": [
+    "Local Apple Development testing signature; no public binary upload, notarization or App Store submission",
+    "No complete hosted CI pass on release source",
+    "Physical shipping UI/external grants/Finder workflows, Intel/minimum-macOS execution and complete source/accessibility acceptance remain separate",
+    "Existing GPL/App Store terms gate remains unresolved"
+  ]
+}

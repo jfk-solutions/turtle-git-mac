@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+## Ready local testing package35
+
+[Signed build35](qa/signed-consolidation-build35-2026-10-29.json) consolidates the
+marked-row, accepted Settings publication and creation-outcome families below.
+Frozen source, strict signatures, all eight owned arm64/x86_64 components,
+packaged Help, sandboxed public Core/packaged Git and ZIP extraction/inventory
+checks pass. This is an uninstalled local testing package; build34 remains running.
+No public binary release, notarization, App Store submission or whole-port
+acceptance is inferred.
+
 ## Installed local testing build34
 
 [Signed build34](qa/signed-consolidation-build34-2026-10-29.json) consolidates the
