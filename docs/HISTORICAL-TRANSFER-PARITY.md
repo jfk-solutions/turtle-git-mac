@@ -5,6 +5,12 @@ RepositoryBrowser.cpp and GitDataObject.cpp. The native adaptation uses
 NSItemProvider and NSFilePromiseProvider while retaining immutable displayed
 revision/tree snapshots and original suggested file/folder names.
 
+The [raw individual-file continuation](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md)
+extends file providers and promises to historical names that cannot become native
+filenames. These files use explicit safe proposed leaves; ordinary names remain
+unchanged. Literal folder transfers retain their complete-inventory and original
+filename requirements. Its checkpoint is separate from the earlier results below.
+
 Transport definitions are independent of the browser window model. The folder
 button and its SwiftUI adapter live with the browser UI, while the standalone
 CI receiver compiles the production transport against Core only. This corrects

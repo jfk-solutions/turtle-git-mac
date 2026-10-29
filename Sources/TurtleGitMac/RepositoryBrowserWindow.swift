@@ -659,7 +659,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     private func makeTransfer(_ snapshot:RepositoryBrowserSnapshot,selected:[RepositoryBrowserEntry])->RepositoryBrowserSelectionDrag? {
         guard active,canUseMenu,!selected.isEmpty else{return nil}
-        guard selected.allSatisfy({requireRepresentable($0.path)}) else{return nil}
+        guard selected.filter({[.directory,.submodule].contains($0.kind)}).allSatisfy({requireRepresentable($0.path)}) else{return nil}
         do {try validateAccess()} catch {self.error=error.localizedDescription;return nil}
         var inventory=transferInventory
         if inventory==nil {
@@ -797,7 +797,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func dragProvider(_ entry: RepositoryBrowserEntry? = nil, directory: String? = nil) -> NSItemProvider? {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { return nil }
-        guard requireRepresentable(entry?.path ?? directory ?? snapshot.directory) else{return nil}
+        if entry==nil || entry?.kind == .directory || entry?.kind == .submodule {guard requireRepresentable(entry?.path ?? directory ?? snapshot.directory) else{return nil}}
         do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
         let folder = directory != nil || entry == nil || entry?.kind == .directory
         let name = entry?.name ?? (directory.map { $0.isEmpty ? repository.root.lastPathComponent : (try? RepositoryBrowserGitPath(key:$0).lastComponentDisplay) ?? "" } ?? repository.root.lastPathComponent)

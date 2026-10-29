@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-29",
+  "status": "raw-historical-individual-file-transfer-checkpoint-passed",
+  "starting_commit": "b78c5f584ed4c36e9909f6648e6a4a0c3b7f2470",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Historical Browser, Log and RevisionComparison raw individual-file drag providers/promises",
+    "Exact raw path identity with synchronous SHA256-based safe proposed filename/ASCII suffix; ordinary leaves and repeated occurrences retained",
+    "Aggregate drag pasteboard escaped text/promises, names-only keyboard/menu Copy unchanged",
+    "Captured endpoints/backend/lease, origin-close delivery, cancellation and exclusive receiver writes"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/FileListDrag.swift": "82a6d79caf13d0ad29b1fdbed8d55013358bcfc6ee8679ef8f518719915d3d9a",
+    "Sources/TurtleGitCore/HistoricalFileDeliveryName.swift": "9f98f6f39268f1c73392607633793236fcdbeace1a4551e034195f9d89aa5686",
+    "Sources/TurtleGitCore/RepositoryBrowserTransferPolicy.swift": "80a95a2b8e27195f62012482c003303cb41f47c8aae30e5bac41dd66e7ce6089",
+    "Sources/TurtleGitMac/FileListDrag.swift": "08b7cd74e74c4761ae9078cf7abb2334bdb53eba65e769b74c47bf11d7a94b47",
+    "Sources/TurtleGitMac/LogWindow.swift": "59cca77bfd8e30ef383f5c92d4717dbd413143e40aad59f9268b215820b2a13d",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "b4187961f63055cd085194b2b1fe8b7d33fb43e35f90bc95355c4d9f1f222fb8",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "4e01863c01243666eb9680eaf633f79fddc4dc2b505416ea38481739101e46db",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "f9db0d1f2f2f8fae0d9bfe5ecf16c7feca363da1ac1207700539142c55511597",
+    "Tests/TurtleGitCoreTests/RawHistoricalFileDragTests.swift": "162f06e4dc8909bb78b00cd88557cb143ac5e9deea602a9b46769ac522d96925",
+    "docs/qa/raw-historical-file-transfers-native-2026-10-29.swift": "ff7b2da9411531b6be568ded184514418a39acf02f28999822f21c40c2140c25",
+    "scripts/test-raw-historical-file-transfers.py": "5390922527769d7dac7515952ea24c3de6df7682f90351757847f55921eff81e"
+  },
+  "core": {
+    "log": "build/qa/raw-historical-file-transfers-core-2026-10-29.log",
+    "methods": 19,
+    "failures": 0,
+    "first_attempt": true,
+    "families": [
+      "RawHistoricalFileDragTests",
+      "FileListDragTests",
+      "HistoricalFileDeliveryTests",
+      "RepositoryBrowserNamespaceTransferTests"
+    ]
+  },
+  "build": {
+    "log": "build/qa/raw-historical-file-transfers-debug-2026-10-29.log",
+    "exit": 0,
+    "first_attempt": true
+  },
+  "native": {
+    "log": "build/qa/raw-historical-file-transfers-native-2026-10-29.log",
+    "exit": 0,
+    "first_attempt": true,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receivers_reaped": [
+      80679,
+      80956
+    ],
+    "actual_checks": [
+      "Real Browser/Log/Comparison model captures and actual NSItemProvider/NSFilePromise consumption",
+      "Raw path safe names, same-blob distinct paths and raw-parent file; exact bytes/type/mode and valid siblings",
+      "Browser names-only Copy versus aggregate drag pasteboard promises; no internal NUL text",
+      "Empty endpoint text-only/no working fallback; working raw refusal",
+      "Pinned revision/backend and origin-closed independent grant delivery",
+      "Exclusive receiver collision/refusal and queued/active retention",
+      "Actual held cat-file helper promise/provider cancellation and process drain",
+      "HEAD/index/private Git configuration/working bytes unchanged"
+    ],
+    "selection_injected_via_model": true,
+    "physical_gesture_claimed": false,
+    "signed_receiver_scope_claimed": false,
+    "receivers_absent_at_final_process_check": true
+  },
+  "log_sha256": {
+    "build/qa/raw-historical-file-transfers-core-2026-10-29.log": "73581c55dc048b9e084a2267f6ae2f9571242928b6e4e4bda8be4a4874ab4c3d",
+    "build/qa/raw-historical-file-transfers-debug-2026-10-29.log": "c27b6b36a8c8e4f726d6554688ff84e1b0de25ff21235b4613b67ff0ea2a6e52",
+    "build/qa/raw-historical-file-transfers-native-2026-10-29.log": "8eeb16a4c3cace52efb348eaede13296ebea18dbdbe3efd6d095384b6a824933",
+    "build/qa/raw-historical-file-transfers-debug-help-final-2026-10-29.log": "f5f8d80f471f7aca11c84508be3652402f05d794f0ced7941b36ee055bf700ec"
+  },
+  "resources": {
+    "new_native_ui_labels": false,
+    "localization_regeneration_needed": false,
+    "help_documents": 61,
+    "help_topics": 51,
+    "help_files": 95,
+    "manual_copy_policy_correction": "Clarified drag pasteboard versus names-only keyboard Copy; final resource-only app build after Help regeneration, no product source changes.",
+    "final_resource_build": {
+      "log": "build/qa/raw-historical-file-transfers-debug-help-final-2026-10-29.log",
+      "exit": 0,
+      "scope": "Resource-only final build after corrected manual Copy/drag-pasteboard wording; product source unchanged after first-pass native checks."
+    }
+  },
+  "remaining": [
+    "Raw working-tree URL/mutation/original-path checkout and raw submodule checkout remain restricted",
+    "Literal raw-name folder exports/promises retain full inventory refusal; archive export is a distinct route preserving member names",
+    "Proposed filename is a native adaptation, not the original raw spelling",
+    "Physical cross-application drag/paste, signed grants, Intel/minimum OS and current full hosted acceptance remain separate"
+  ],
+  "installed_app": {
+    "build": "33",
+    "replaced_by_batch": false,
+    "user_apps_signalled": false
+  }
+}

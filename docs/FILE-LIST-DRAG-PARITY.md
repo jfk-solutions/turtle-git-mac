@@ -6,6 +6,12 @@ Changed Files, Log's changed-file list, Rebase's Revision Files, and the incomin
 and outgoing Synchronization file lists. Repository Browser has a separate
 existing drag implementation.
 
+The [raw historical-file continuation](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md)
+connects raw namespace identities to safe native promised filenames across the
+historical Log/comparison consumers and Browser. Working-tree URL delivery remains
+strictly representable; an empty endpoint remains text-only. Its implementation
+and checkpoint are separate from the earlier ordinary-name evidence below.
+
 The October 23 continuation also connects the shared working-file list used by
 Commit, Working Tree and Add; its scope and evidence are recorded below.
 

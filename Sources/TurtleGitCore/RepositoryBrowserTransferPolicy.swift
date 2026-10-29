@@ -29,10 +29,24 @@ public enum RepositoryBrowserTransferPolicy {
             throw RepositoryBrowserTransferFailure.unrepresentablePath(entry.displayPath)
         }
     }
+    /// Historical files are independently delivered under safe proposed leaves;
+    /// a raw containing directory is not itself materialized by this admission.
+    public static func validateHistoricalFiles(_ snapshot:RepositoryBrowserSnapshot,entries:[RepositoryBrowserEntry])throws {
+        for entry in entries {
+            guard let object=snapshot.objectID,[40,64].contains(object.utf8.count),object.utf8.allSatisfy({(48...57).contains($0) || (97...102).contains($0)}),
+                  snapshot.entries.contains(entry),[.file,.executable,.symlink].contains(entry.kind) else {throw RepositoryBrowserFailure.selection}
+            _ = try HistoricalFileDeliveryName.transferLeaf(path:entry.path)
+        }
+    }
     /// Inventory can cover the entire root. A raw name in an unrelated folder
     /// must not prevent delivery of a valid selected sibling file or folder.
     public static func validateSelection(_ snapshot:RepositoryBrowserSnapshot,selected:[RepositoryBrowserEntry],inventory:[RepositoryBrowserEntry]?) throws {
-        try validate(snapshot,entries:selected)
+        let files=selected.filter{[.file,.executable,.symlink].contains($0.kind)}
+        try validateHistoricalFiles(snapshot,entries:files)
+        // Directory/gitlink delivery keeps the literal-name contract. A safe
+        // sibling file cannot silently rename an unsupported folder descendant.
+        let literal=selected.filter{![.file,.executable,.symlink].contains($0.kind)}
+        if !literal.isEmpty {try validate(snapshot,entries:literal)}
         let directories=selected.filter{$0.kind == .directory}
         guard !directories.isEmpty else{return}
         guard let inventory else{throw RepositoryBrowserTransferFailure.incompleteInventory}

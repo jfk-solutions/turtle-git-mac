@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+## Historical raw-file transfer continuation
+
+[Raw historical-file transfers](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md) connect
+Browser and shared Log/comparison providers, promises and drag pasteboards to
+safe native names while retaining original Git identity, pinned content and
+captured materialization policy. Empty endpoints remain text-only; working-tree
+and literal raw-folder restrictions remain. Installed build33 predates this family.
+
 ## Historical Browser folder archive continuation
 
 [Historical folder archives](BROWSER-ARCHIVE-PARITY.md) connect a pinned Browser

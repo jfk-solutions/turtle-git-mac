@@ -151,7 +151,7 @@ private final class FileListWeakExportRetention {
     let fileURLs:[URL]
     private let access:RepositoryAccessLease?
     fileprivate init(paths:[String],urls:[URL],writers:[NSPasteboardWriting],providers:[NSItemProvider],access:RepositoryAccessLease?) {
-        self.paths=paths;self.text=paths.joined(separator:"\r\n")+"\r\n";fileURLs=urls
+        self.paths=paths;self.text=paths.map{RepositoryBrowserGitPath.display(key:$0)}.joined(separator:"\r\n")+"\r\n";fileURLs=urls
         self.writers=writers;self.providers=providers;self.access=access
     }
     @discardableResult func write(to pasteboard:NSPasteboard)->Bool {
@@ -178,7 +178,7 @@ private final class FileListWeakExportRetention {
         let candidates=entries.map{CommitFile(path:$0.path,oldPath:$0.originalPath,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)}
         guard (try? FileListDragPlan(root:repository.root,revision:.workingTree,files:candidates,backend:backend)) != nil else{return nil}
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){return nil}
-        let paths=entries.map(\.path),text=paths.joined(separator:"\r\n")+"\r\n",marker=workingOriginType(origin)
+        let paths=entries.map(\.path),text=paths.map{RepositoryBrowserGitPath.display(key:$0)}.joined(separator:"\r\n")+"\r\n",marker=workingOriginType(origin)
         let files=entries.map{CommitFile(path:$0.path,oldPath:$0.originalPath,action:$0.state == .deleted ? "D":"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:directories.contains($0.path))}
         guard let plan=try? FileListDragPlan(root:repository.root,revision:.workingTree,files:files,backend:backend) else{return nil}
         var urls:[URL]=[],raw:[NSPasteboardWriting]=[]
@@ -233,16 +233,17 @@ private final class FileListWeakExportRetention {
         // Validate text-only occurrences as well, without duplicating the Core
         // path grammar or treating an excluded directory as a materialized file.
         let candidates=files.map{CommitFile(path:$0.path,oldPath:$0.oldPath,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)}
-        // A synthetic empty comparison endpoint has paths to copy as text,
-        // but no contents. Use the working plan only for its path validator;
-        // its empty item set prevents any URL or alternate-revision fallback.
+        // Empty endpoints offer text only. Validate exact Git namespace keys
+        // separately; an empty plan never fabricates a working URL or contents.
         let emptyEndpoint:Bool
         if case .emptyTree=revision {emptyEndpoint=true}else{emptyEndpoint=false}
         let validationRevision:ComparisonRevision=emptyEndpoint ? .workingTree:revision
-        guard (try? FileListDragPlan(root:repository.root,revision:validationRevision,files:candidates,backend:backend)) != nil,
-              let plan=try? FileListDragPlan(root:repository.root,revision:validationRevision,files:emptyEndpoint ? []:files,backend:backend) else{return nil}
+        if emptyEndpoint {
+            guard candidates.allSatisfy({(try? HistoricalFileDeliveryName.transferLeaf(path:$0.path)) != nil}) else{return nil}
+        }else{guard (try? FileListDragPlan(root:repository.root,revision:validationRevision,files:candidates,backend:backend)) != nil else{return nil}}
+        guard let plan=try? FileListDragPlan(root:repository.root,revision:validationRevision,files:emptyEndpoint ? []:files,backend:backend) else{return nil}
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){return nil}
-        self.paths=files.map(\.path);text=paths.joined(separator:"\r\n")+"\r\n";self.revision=revision;self.access=access
+        self.paths=files.map(\.path);text=paths.map{RepositoryBrowserGitPath.display(key:$0)}.joined(separator:"\r\n")+"\r\n";self.revision=revision;self.access=access
         let textWriter=FileListSelectionTextWriter(text:text,access:access)
         var writers:[NSPasteboardWriting]=[textWriter],providers:[NSItemProvider]=[],urls:[URL]=[]
         for index in plan.items.indices {

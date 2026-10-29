@@ -1234,7 +1234,7 @@ struct LogCommandRequest: Identifiable {
     /// still export the selected child hash. A combined multi-commit list has
     /// no single source revision and is deliberately not a drag source.
     func fileDragProvider(_ snapshot:LogFileMenuSnapshot)->NSItemProvider? {
-        guard !confirmingQuit,NSApp.modalWindow==nil,(selectedWorkingTree ? pendingHistoryLoads==0 : canInspectHistory),!fileNavigationReadPending,combineSelectionReads.isEmpty,hasRepresentableFilePaths(snapshot.ids) else{return nil}
+        guard !confirmingQuit,NSApp.modalWindow==nil,(selectedWorkingTree ? pendingHistoryLoads==0 : canInspectHistory),!fileNavigationReadPending,combineSelectionReads.isEmpty,(!selectedWorkingTree || hasRepresentableFilePaths(snapshot.ids)) else{return nil}
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         var provider:NSItemProvider?
         withFileMenu(snapshot,consume:false,inspection:!selectedWorkingTree) {
@@ -1254,7 +1254,7 @@ struct LogCommandRequest: Identifiable {
     var fileDragGeneration:UUID? { (selectedWorkingTree ? !isInvalidated && !busy && !confirmingQuit : canInspectHistory) ? fileDragEpoch:nil }
     func captureFileDrag(_ orderedIDs:[String])->LogFileListDrag? {
         guard !confirmingQuit,NSApp.modalWindow==nil,(selectedWorkingTree ? pendingHistoryLoads==0 : canInspectHistory),!fileNavigationReadPending,
-              combineSelectionReads.isEmpty,!orderedIDs.isEmpty,hasRepresentableFilePaths(orderedIDs),
+              combineSelectionReads.isEmpty,!orderedIDs.isEmpty,(!selectedWorkingTree || hasRepresentableFilePaths(orderedIDs)),
               GitPathSet(orderedIDs).count==orderedIDs.count,
               orderedIDs.allSatisfy({selectedFiles.contains($0)}) else{return nil}
         let rows=fileTableRows,lookup=GitPathMap(uniqueKeysWithValues:rows.compactMap { row in row.file.map{(row.rawID,$0)} })

@@ -4,6 +4,13 @@ This family extends the Browser namespace workflow against pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`. It is a partial workflow review,
 not certification of Browser, Log, Blame or the whole port.
 
+The [historical individual-file transfer continuation](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md)
+extends raw files to safe-named native providers, file promises and shared
+file-list clipboard delivery. This retains exact historical identities and
+captured checkout-filter behavior. It does not relax working-tree or literal
+folder filename requirements; archive export remains the way to deliver folders
+with their original Git member names.
+
 ## Source behavior and native adaptation
 
 `src/TortoiseProc/RepositoryBrowser.cpp:733–772,817–837` offers Show log for files

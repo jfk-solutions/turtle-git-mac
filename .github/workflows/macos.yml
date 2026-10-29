@@ -876,6 +876,8 @@ jobs:
         run: python3 scripts/test-repository-browser-namespace.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Repository Browser historical folder archives
         run: python3 scripts/test-browser-folder-archive.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Raw historical individual-file providers and promises
+        run: python3 scripts/test-raw-historical-file-transfers.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Captured reference menus and related native workflows
         run: python3 scripts/test-reference-menu-targets.py --only folders --only comparison --only tracking --only rename --only standalone --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Comparison savepoints, options, row edits and editor workflows

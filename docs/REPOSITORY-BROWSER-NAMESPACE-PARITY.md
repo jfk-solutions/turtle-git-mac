@@ -4,6 +4,12 @@ This is a partial workflow review against pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`, not certification of the whole Browser.
 The reviewed dialog is `src/Resources/TortoiseProcENG.rc / IDD_REPOSITORY_BROWSER`.
 
+The [raw historical-file transfer continuation](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md)
+adds safe-named providers/promises for individual files, including files inside
+raw-named directories. Literal folder transfer still preflights every descendant.
+The separate archive command preserves original member names inside a container;
+neither continuation enables raw working-tree paths or original-name checkout.
+
 ## Source behavior and native filename handling
 
 `src/TortoiseProc/RepositoryBrowser.cpp:368–425` enumerates tree entries, converts

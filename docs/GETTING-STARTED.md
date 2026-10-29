@@ -285,7 +285,13 @@ that cannot be displayed as UTF-8 have an escaped byte label; history and Blame
 still read the original Git path. You can compare historical versions and use
 **Open** or **Save revision to…** under a safe suggested filename. These outputs
 follow the selected backend's checkout-filter policy; the explicit stored-blob
-commands always deliver unfiltered contents. For a historical folder, **Save as
+commands always deliver unfiltered contents. You can also drag individual
+historical files into a receiving app. Undecodable names receive a usable Mac
+filename with their original extension where possible; ordinary filenames stay
+unchanged. A drag carries descriptive text alongside the promised file copies.
+**Copy to clipboard** and Copy Names continue to copy text. See
+[historical file transfer](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md).
+For a historical folder, **Save as
 archive…** preserves original member names inside a chosen ZIP or TAR, including
 folders absent from the current working tree. See [folder archives](REVISION-EXPORT.md#save-a-historical-browser-folder-as-an-archive).
 Working-tree comparison, original-name checkout and ordinary folder export remain

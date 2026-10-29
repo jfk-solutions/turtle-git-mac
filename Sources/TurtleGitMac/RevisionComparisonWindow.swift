@@ -668,14 +668,16 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
               let context=captureFileMenu(orderedPaths),claimFileMenu(context,consume:false),let snapshot else{return nil}
         let lookup=GitPathMap(uniqueKeysWithValues:context.files.map{($0.path,$0)})
         let files=orderedPaths.compactMap{lookup[$0]}
-        guard files.count==orderedPaths.count,files.allSatisfy(\.isPathRepresentable) else{return nil}
+        guard files.count==orderedPaths.count else{return nil}
+        if case .workingTree=snapshot.to {guard files.allSatisfy(\.isPathRepresentable) else{return nil}}
         return FileListSelectionDrag(repository:repository,access:access,files:files,
             revision:snapshot.to,backend:materializationBackend())
     }
     func fileDragProvider(_ context:FileMenuContext?)->NSItemProvider? {
         guard canStartFileDrag(),NSApp.modalWindow==nil,!hasOwnedPreparation,
-              claimFileMenu(context,consume:false),let context,context.files.allSatisfy(\.isPathRepresentable),let snapshot,
-              let plan=try? FileListDragPlan(root:repository.root,revision:snapshot.to,files:context.files,backend:materializationBackend()),
+              claimFileMenu(context,consume:false),let context,let snapshot else{return nil}
+        if case .workingTree=snapshot.to {guard context.files.allSatisfy(\.isPathRepresentable) else{return nil}}
+        guard let plan=try? FileListDragPlan(root:repository.root,revision:snapshot.to,files:context.files,backend:materializationBackend()),
               !plan.items.isEmpty else{return nil}
         return FileListDrag.provider(repository:repository,access:access,plan:plan,itemAt:0)
     }

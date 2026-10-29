@@ -36,12 +36,14 @@ public struct FileListDragPlan: Sendable {
             // missing/deleted rows or directories (including gitlinks).
             guard !file.isSubmodule, file.action.first != "D", file.action.first != "!",
                   file.newMode != 0o040000, file.newMode != 0o160000 else { continue }
-            guard RepositoryBrowserListing.validPath(file.path, allowRoot: false),
-                  !file.path.split(separator: "/").contains(where: { String($0).caseInsensitiveCompare(".git") == .orderedSame }),
-                  let name = file.path.split(separator: "/").last else { throw RevisionComparisonFailure.selection }
-            // The source's default stripLength=-1 uses the leaf name, not a
-            // directory hierarchy and not the old side of a rename/copy.
-            items.append(FileListDragItem(id: index, path: file.path, name: String(name)))
+            if case .workingTree=revision {
+                guard RepositoryBrowserListing.validPath(file.path,allowRoot:false) else {throw RevisionComparisonFailure.selection}
+            }
+            let name=try HistoricalFileDeliveryName.transferLeaf(path:file.path)
+            // Ordinary source stripLength=-1 retains the leaf. Raw historical
+            // items instead propose an explicit safe output name; their exact
+            // Git namespace key remains the immutable materialization identity.
+            items.append(FileListDragItem(id:index,path:file.path,name:name))
         }
         self.root = root.standardizedFileURL
         self.revision = revision

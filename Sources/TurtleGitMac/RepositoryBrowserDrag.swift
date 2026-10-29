@@ -51,14 +51,29 @@ private final class RepositoryBrowserWeakRetention {
 /// Never derive a native path from an escaped label or an opaque selection key.
 private enum RepositoryBrowserDelivery {
     static func name(repository:GitRepository,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry?,directory:String?) throws -> String {
+        if let entry,![.directory,.submodule].contains(entry.kind) {
+            try RepositoryBrowserTransferPolicy.validateHistoricalFiles(snapshot,entries:[entry])
+            return try HistoricalFileDeliveryName.transferLeaf(path:entry.path)
+        }
         try RepositoryBrowserTransferPolicy.validate(snapshot,entries:entry.map{[$0]} ?? [])
-        if let entry,let name=String(data:entry.rawName,encoding:.utf8) {return name}
         let key=directory ?? snapshot.directory
         try RepositoryBrowserTransferPolicy.validateDirectory(key)
         let path=try RepositoryBrowserGitPath(key:key)
         guard let value=path.utf8 else {throw RepositoryBrowserTransferFailure.unrepresentablePath(path.display)}
         return value.isEmpty ? repository.root.lastPathComponent : String(value.split(separator:"/").last!)
     }
+    @MainActor static func export(repository:GitRepository,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry?,cancellation:OperationCancellation?,backend:GitLibGit2Configuration)async throws->RepositoryBrowserExport {
+        guard snapshot.root==repository.root else{throw RepositoryBrowserFailure.selection}
+        if let entry,!entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind),let revision=snapshot.objectID {
+            try RepositoryBrowserTransferPolicy.validateHistoricalFiles(snapshot,entries:[entry])
+            let file=CommitFile(path:entry.path,oldPath:nil,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)
+            let plan=try FileListDragPlan(root:repository.root,revision:.revision(revision),files:[file],backend:backend)
+            guard case .historical(let value)=try await repository.materializeFileListDrag(plan,itemAt:0,cancellation:cancellation) else{throw RepositoryBrowserFailure.selection}
+            return value
+        }
+        return try await repository.exportRepositoryBrowser(snapshot,entry:entry,cancellation:cancellation,backend:backend)
+    }
+
 }
 
 /// The scope lease remains on the main actor; providers can request data from
@@ -82,7 +97,7 @@ private enum RepositoryBrowserDelivery {
             let current: RepositoryBrowserSnapshot
             if let directory { current = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) }
             else { current = snapshot }
-            let export = try await repository.exportRepositoryBrowser(current, entry: entry, cancellation: cancellation,backend:backend)
+            let export = try await RepositoryBrowserDelivery.export(repository:repository,snapshot:current,entry:entry,cancellation:cancellation,backend:backend)
             guard !cancellation.isCancelled else { export.discard(); throw OperationCancellationFailure.cancelled }
             retention.retain(export)
             progress.totalUnitCount = Int64(export.fileCount)
@@ -130,7 +145,7 @@ private enum RepositoryBrowserDelivery {
         _ = try RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:entry,directory:directory)
         let listing: RepositoryBrowserSnapshot
         if let directory { listing = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) } else { listing = snapshot }
-        let export = try await repository.exportRepositoryBrowser(listing, entry: entry, cancellation: cancellation,backend:backend)
+        let export = try await RepositoryBrowserDelivery.export(repository:repository,snapshot:listing,entry:entry,cancellation:cancellation,backend:backend)
         defer { export.discard(); withExtendedLifetime(access) {} }
         let source = export.item
         try await Task.detached(priority: .userInitiated) {
@@ -167,7 +182,7 @@ private enum RepositoryBrowserDelivery {
         }
         var paths:[String]=[],textBytes=0
         func append(_ entry:RepositoryBrowserEntry) -> Bool {
-            if entry.kind != .directory {textBytes += entry.path.utf8.count+2;guard paths.count<100_000,textBytes<=16_777_216 else{return false};paths.append(entry.path);return true}
+            if entry.kind != .directory {textBytes += RepositoryBrowserGitPath.display(key:entry.path).utf8.count+2;guard paths.count<100_000,textBytes<=16_777_216 else{return false};paths.append(entry.path);return true}
             guard inventory != nil else{return false}
             // CShadowFilesTree uses an ordinal CString map for each directory.
             for child in (children[entry.path] ?? []).sorted(by:{$0.name.utf16.lexicographicallyPrecedes($1.name.utf16)}) {
@@ -177,10 +192,10 @@ private enum RepositoryBrowserDelivery {
         }
         for entry in selected {guard append(entry) else{return nil}}
         guard !paths.isEmpty else{return nil}
-        self.paths=paths;self.text=paths.map{$0+"\r\n"}.joined();self.revision=revision;self.treeID=treeID;self.access=access
+        self.paths=paths;self.text=paths.map{RepositoryBrowserGitPath.display(key:$0)+"\r\n"}.joined();self.revision=revision;self.treeID=treeID;self.access=access
         let real=selected.filter{$0.kind != .submodule}
         self.promises=real.map{RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,entry:$0.kind == .directory ? nil : $0,directory:$0.kind == .directory ? $0.path : nil,backend:backend)}
-        self.names=real.map{String(data:$0.rawName,encoding:.utf8)!}
+        self.names=promises.map(\.name)
         let textItem=RepositoryBrowserTextWriter(text:text,access:access)
         self.writers=[textItem]+promises.map{$0.provider()}
         let textProvider=NSItemProvider()
@@ -188,7 +203,7 @@ private enum RepositoryBrowserDelivery {
             completion(Data(textItem.text.utf8),nil);withExtendedLifetime(textItem){};return nil
         }
         self.textProvider=textProvider
-        self.providers=real.map{RepositoryBrowserDrag.provider(repository:repository,access:access,snapshot:snapshot,entry:$0.kind == .directory ? nil : $0,directory:$0.kind == .directory ? $0.path : nil,name:String(data:$0.rawName,encoding:.utf8)!,folder:$0.kind == .directory,backend:backend)}
+        self.providers=real.map{RepositoryBrowserDrag.provider(repository:repository,access:access,snapshot:snapshot,entry:$0.kind == .directory ? nil : $0,directory:$0.kind == .directory ? $0.path : nil,name:(try? RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:$0.kind == .directory ? nil:$0,directory:$0.kind == .directory ? $0.path:nil)) ?? "historical-item",folder:$0.kind == .directory,backend:backend)}
     }
     func write(to pasteboard:NSPasteboard)->Bool {pasteboard.clearContents();return pasteboard.writeObjects(writers)}
 }
