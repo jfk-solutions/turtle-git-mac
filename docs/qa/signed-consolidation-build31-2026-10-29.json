@@ -1,11 +1,11 @@
 {
   "date": "2026-10-29",
-  "status": "signed-universal-installed-and-reopened",
+  "status": "historical-installed-build-preserved-for-rollback",
   "build": "0.1.0 (31)",
   "source_commit": "9d5912bee2716c4bb9a3b40f5e382a4e96f06ba1",
   "source_input_sha256": "54dc0af10318951d84b7f32ffcf89032abdf6f77a7477f9c50e141217f4e82c7",
   "source_inputs_unchanged": true,
-  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/preserved-build31-2026-10-29.app",
   "implementation_scope": [
     "Streamed historical Log file inspection and delivery",
     "Merge pane header activation ownership",
@@ -128,5 +128,9 @@
       }
     ],
     "diff_check": "pass"
-  }
+  },
+  "original_candidate_path": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "preserved_before_next_build": true,
+  "superseded_by": "signed-consolidation-build32-2026-10-29.json",
+  "current_installed": false
 }

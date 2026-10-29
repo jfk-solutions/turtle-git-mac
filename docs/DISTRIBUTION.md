@@ -9,15 +9,16 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 
 ## Current installed local checkpoint — 29 October 2026
 
-[Signed build31](qa/signed-consolidation-build31-2026-10-29.json), version
-`0.1.0 (31)`, is installed from clean source `9d5912be`. It includes streamed Log
-file inspection, Merge header activation, DIB color metadata and EMF border fixes,
-and current Commit screenshots in bundled Help. All eight app-owned components
-contain arm64 and x86_64; measured inputs, strict signatures and the complete
-installed inventory pass. The app was already closed at replacement and reopened
-successfully. Build30 is preserved for rollback. Universal structure does not
-establish physical Intel execution, current signed workflow acceptance or a full
-hosted CI pass. No App Store submission was made.
+[Signed build32](qa/signed-consolidation-build32-2026-10-29.json), version
+`0.1.0 (32)`, is installed from clean source `144fdf78`. It adds retained-byte
+Blame encoding, Finder returned-volume recovery and metafile canvas/source-alpha
+corrections. All eight app-owned components contain arm64 and x86_64; measured
+inputs, strict signatures and the complete installed inventory pass. The focused
+signed-parent Metafile check passed, including captured Windows alpha samples.
+With user approval, TurtleGit quit normally, was replaced and reopened to its
+workspace. Build31 is preserved for rollback. This does not establish physical
+Intel execution, every installed workflow, physical Finder badges or a complete
+hosted CI pass. No App Store submission or notarization was made.
 
 The older dated artifacts below remain historical evidence, not the current
 package to install or a certification of later source.

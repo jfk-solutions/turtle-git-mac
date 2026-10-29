@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-installed-and-reopened",
+  "build": "0.1.0 (32)",
+  "source_commit": "144fdf78601c3b8cf1d536551078020e12ec5fed",
+  "source_input_sha256": "61400b6f489fdb5ac2a75f71f8d6363978d070cc249ac9930463797905a2163a",
+  "source_inputs_unchanged": true,
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "implementation_scope": [
+    "Retained-byte Blame encoding projection",
+    "Finder returned-volume recovery",
+    "Inclusive metafile device bounds and EMF+ source alpha"
+  ],
+  "static_validation": {
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6378,
+    "help_source_equal": true,
+    "help_members": 92,
+    "application_sha256": "bcb7386ce090da75dfcd1f90e90edd9e9b6086806f30acd9cc7f126274b22cb8"
+  },
+  "signed_parent_validation": {
+    "passed": true,
+    "scope": "Metafile only; 18 fixtures through packaged helper under inherited sandbox, including zero/partial/opaque captured Windows alpha",
+    "probe_source_sha256": "9cfb15225e2a1dead3d6217ff8b562227fed6f296cd2d40afe843fe3b42d9924",
+    "qa_probe_changes_postdate_app_source": true,
+    "helpers_drained": true,
+    "forced_cleanup_needed": false,
+    "finder_activation": "not performed",
+    "service_registration": "not performed"
+  },
+  "installation": {
+    "source_commit": "144fdf78601c3b8cf1d536551078020e12ec5fed",
+    "build": "32",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed32-displaced-installed-2026-10-29.app",
+    "bundle_inventory_matches": true,
+    "bundle_file_count": 6378,
+    "codesign_deep_strict_exit": 0,
+    "application_sha256": "bcb7386ce090da75dfcd1f90e90edd9e9b6086806f30acd9cc7f126274b22cb8",
+    "registration": [
+      {
+        "args": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit": 0,
+        "output": ""
+      },
+      {
+        "args": [
+          "/usr/bin/pluginkit",
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "exit": 0,
+        "output": ""
+      },
+      {
+        "args": [
+          "/usr/bin/pluginkit",
+          "-m",
+          "-v",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "exit": 0,
+        "output": "+    org.turtlegit.macos.finder(0.1.0)\tC68F33D3-9094-4B51-A435-5D87EAAA3C25\t2026-10-29 12:00:41 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n"
+      }
+    ],
+    "registration_note": "Initial installation stopped after successful replacement and inventory check because the already-unregistered private candidate returned -10814. Focused installed app/extension registration then passed.",
+    "launch": "reopened",
+    "store_submission": false,
+    "reopened_pid": 31272,
+    "visible_state": "Workspace with recent repositories and no repository selected; observed through native accessibility; no repository modified"
+  },
+  "authorization": "User explicitly approved restart and update",
+  "limits": [
+    "No complete current hosted CI pass established",
+    "Universal structure does not prove physical Intel or minimum-macOS execution",
+    "Startup observation does not establish every installed workflow or physical Finder badge behavior",
+    "No App Store upload or notarization"
+  ]
+}

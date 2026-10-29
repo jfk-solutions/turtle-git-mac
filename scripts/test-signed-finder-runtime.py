@@ -15,15 +15,19 @@ def metafile_request():
     green=lambda x,y:{'point':[x,y],'min':[0,0.8,0],'max':[0.25,1,0.25]}
     blue=lambda x,y:{'point':[x,y],'min':[0,0,0.8],'max':[0.25,0.25,1]}
     white=lambda x,y:{'point':[x,y],'min':[0.9,0.9,0.9],'max':[1,1,1]}
+    # Authored even-odd hole is unpainted; raw_scene's explicit white backdrop
+    # remains opaque. Do not conflate display-on-white with decoded source RGBA.
+    clear=lambda x,y:{'point':[x,y],'min':[0,0,0],'max':[0,0,0],'rgba':[0,0,0,0],'tolerance':0}
+    painted_white=lambda x,y:{**white(x,y),'rgba':[255,255,255,255],'tolerance':0}
     cases=[
         {'name':'clip-vector.wmf','samples':[red(12,12),white(35,35)]},
         {'name':'classic-vector.emf','samples':[red(12,12),blue(58,12)]},
         {'name':'plus-bitmap-text.emf','samples':[red(12,12),green(28,12)],'svgContains':['Helvetica','TurtleGit','data:image/png;base64,']},
         {'name':'plus-gradient-blend.emf','samples':[red(16,24),blue(80,24),{'point':[48,24],'min':[0.35,0,0.35],'max':[1,0.25,1]}]},
-        {'name':'plus-region-path.emf','samples':[red(12,12),white(28,28),blue(64,16)]},
+        {'name':'plus-region-path.emf','samples':[red(12,12),clear(28,28),blue(64,16)]},
         {'name':'plus-hatch-atlas.emf','samples':[],'hatchCell':[2,2,8,8],'deadline':True},
         {'name':'plus-raw-indexed4-negative.emf','samples':[red(12,12),green(28,12),blue(44,12)]},
-        {'name':'plus-raw-texture-rgb565-positive.emf','samples':[red(12,12),green(28,12),blue(44,12),white(80,48)]},
+        {'name':'plus-raw-texture-rgb565-positive.emf','samples':[red(12,12),green(28,12),blue(44,12),painted_white(80,48)]},
         {'name':'unsupported-raw-palette-index.emf','samples':[],'refuse':True},
         # Recent outlined classic/WMF text exercises the actual packaged font
         # and in-process system libiconv path in the inherited sandbox.
@@ -36,9 +40,23 @@ def metafile_request():
         {'name':'unsupported-wmf-text-dbcs-johab-lead.wmf','samples':[],'refuse':True},
         {'name':'unsupported-wmf-bitmap16-bits-short.wmf','samples':[],'refuse':True},
     ]
+    effects=folder/'ImageEffects'
+    native=next(case for case in json.loads((effects/'windows-reference.json').read_text())['cases'] if case['file']=='state-seed.emf')
+    source_sha='96eab58020dddd6c1f64f2a1b0dbb65c2e77a6f301e20b5354128df6f95bb0f7'
+    raw_sha='100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3'
+    raw=(effects/native['windowsRGBA']['file']).read_bytes()
+    if native['sourceSHA256']!=source_sha or native['windowsRGBA']['sha256']!=raw_sha or hashlib.sha256(raw).hexdigest()!=raw_sha or len(raw)!=256*64*4:
+        raise ValueError('Original Windows alpha oracle changed')
+    alpha_samples=[]
+    for x,y,expected in [(8,4,[0,0,0,0]),(8,0,[36,8,8,191]),(8,8,[8,8,8,255])]:
+        offset=(y*256+x)*4
+        if list(raw[offset:offset+4])!=expected:raise ValueError('Original Windows alpha point changed')
+        alpha_samples.append({'point':[x,y],'min':[max(0,v-3)/255 for v in expected[:3]],'max':[min(255,v+3)/255 for v in expected[:3]],'rgba':expected,'tolerance':1})
+    cases.append({'name':'state-seed.emf','samples':alpha_samples,'width':256,'height':64,'windowsRGBAHash':raw_sha})
     originals={}
     for case in cases:
-        path=folder/case['name'];data=path.read_bytes();digest=hashlib.sha256(data).hexdigest();originals[path]=digest
+        path=(effects if case['name']=='state-seed.emf' else folder)/case['name'];data=path.read_bytes();digest=hashlib.sha256(data).hexdigest();originals[path]=digest
+        if case['name']=='state-seed.emf' and digest!=source_sha:raise ValueError('Original captured alpha EMF changed')
         case.update(bytes=base64.b64encode(data).decode(),sha256=digest)
         case.setdefault('width',97 if path.suffix.lower()=='.emf' else 96)
         case.setdefault('height',65 if path.suffix.lower()=='.emf' else 64)
@@ -256,6 +274,10 @@ def main():
                                 if image.get('source_sha256')!=expected[image['name']]:raise ValueError('Signed metafile receipt changed captured bytes')
                                 for key in ['source_bytes_unchanged','private_decoder_directories_removed']:
                                     if image.get(key) is not True:raise ValueError('Signed metafile receipt lacks '+key)
+                            alpha=next(image for image in images if image['name']=='state-seed.emf')
+                            if alpha.get('source_alpha_retained') is not True or alpha.get('windows_rgba_sha256')!='100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3':raise ValueError('Signed source-alpha proof missing original Windows oracle')
+                            observed={(tuple(item.get('point',[])),tuple(item.get('original_windows_rgba',[]))) for item in alpha.get('samples',[])}
+                            if observed!={((8,4),(0,0,0,0)),((8,0),(36,8,8,191)),((8,8),(8,8,8,255))}:raise ValueError('Signed source-alpha receipt lost transparent/partial/opaque points')
                             johab=next(image for image in images if image['name']=='wmf-text-dbcs-single-johab.wmf')
                             if johab.get('native_fallback_outline') is not True or johab.get('fallback_coverage',0)<=0.9:raise ValueError('Signed Johab did not paint the actual native fallback outline')
                     finally:

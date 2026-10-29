@@ -11,18 +11,19 @@ import TurtleGitCore
 @main struct SignedFinderRuntimeProbe {
     struct Failure: Error, CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String)throws { if !value { throw Failure(description:message) } }
-    struct PixelSample:Decodable {let point:[Int],min:[Double],max:[Double]}
+    struct PixelSample:Decodable {let point:[Int],min:[Double],max:[Double];let rgba:[Int]?,tolerance:Int?}
     struct MetafileCase:Decodable {
         let name:String,bytes:String,sha256:String,width:Int,height:Int,samples:[PixelSample]
         let refuse:Bool?,svgContains:[String]?,hatchCell:[Int]?,deadline:Bool?
         let minInk:Int?,clipMaxX:Int?,columnRuns:Int?,advance:Int?,nativeFallback:String?
+        let windowsRGBAHash:String?
     }
     static func digest(_ bytes:Data)->String {SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()}
     @MainActor static func metafiles(_ encoded:String)throws->[[String:Any]] {
         NSApplication.shared.setActivationPolicy(.prohibited)
         guard let payload=Data(base64Encoded:encoded),payload.count<=192*1024 else {throw Failure(description:"Invalid bounded metafile payload")}
         let inputs=try JSONDecoder().decode([MetafileCase].self,from:payload)
-        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf"]
+        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf","state-seed.emf"]
         try require(inputs.count==required.count && Set(inputs.map(\.name))==required,"Incomplete signed metafile family")
         let helper=try MetafileImageDecoder.executable(),resolved=helper.resolvingSymlinksInPath()
         try require(resolved.deletingLastPathComponent()==Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS"),"Metafile helper escaped the signed MacOS directory")
@@ -60,7 +61,17 @@ import TurtleGitCore
                     try require(sample.point.count==2 && sample.min.count==3 && sample.max.count==3,"Invalid sample contract")
                     let actual=try pixel(sample.point[0],sample.point[1])
                     for channel in 0..<3 {try require(actual[channel]>=sample.min[channel]-0.005 && actual[channel]<=sample.max[channel]+0.005,"Native colors changed for \(input.name) at \(sample.point): \(actual)")}
-                    samples.append(["point":sample.point,"rgba":actual])
+                    var observation:[String:Any]=["point":sample.point,"rgba":actual]
+                    if let expected=sample.rgba {
+                        let tolerance=sample.tolerance ?? 0
+                        try require(expected.count==4 && expected.allSatisfy{(0...255).contains($0)} && (0...3).contains(tolerance),"Invalid native RGBA contract")
+                        let offset=(sample.point[1]*width+sample.point[0])*4
+                        let associated=(0..<3).map{(expected[$0]*expected[3]+127)/255}+[expected[3]]
+                        let actualBytes=Array(pixels[offset..<(offset+4)]).map(Int.init)
+                        try require((0..<4).allSatisfy{abs(actualBytes[$0]-associated[$0])<=tolerance},"Native source alpha changed for \(input.name) at \(sample.point): \(actualBytes), expected \(associated)")
+                        observation["premultiplied_rgba"]=actualBytes;observation["original_windows_rgba"]=expected;observation["rgba_tolerance"]=tolerance
+                    }
+                    samples.append(observation)
                 }
                 if let cell=input.hatchCell {
                     try require(cell.count==4 && cell[2]>0 && cell[3]>0,"Invalid hatch-cell bounds")
@@ -116,6 +127,11 @@ import TurtleGitCore
                     }
                 }
                 entry["width"]=width;entry["height"]=height;entry["samples"]=samples;entry["svg_bytes"]=svg.count;entry["consumer_loaded"]=true
+                if let oracle=input.windowsRGBAHash {
+                    try require(input.name=="state-seed.emf" && oracle=="100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3","Unexpected Windows alpha oracle")
+                    try require(input.samples.count==3 && Set(input.samples.compactMap{$0.rgba?.last})==Set([0,191,255]),"Missing transparent/partial/opaque alpha samples")
+                    entry["windows_rgba_sha256"]=oracle;entry["source_alpha_retained"]=true
+                }
             }
             if input.deadline == true {
                 // A positive finite deadline passes preflight. The real Core
