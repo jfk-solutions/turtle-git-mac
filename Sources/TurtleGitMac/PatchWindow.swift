@@ -692,6 +692,7 @@ struct PatchTextView: NSViewRepresentable {
         init(model: PatchWindowModel) { self.model = model }
         func textDidChange(_ notification: Notification) {
             guard let text = notification.object as? NSTextView, !text.hasMarkedText(), model.canEditText else { return }
+            (text as? PatchText)?.resetViewportNavigation()
             (text.enclosingScrollView as? PatchScrollView)?.lineNumberGutter?.documentChanged()
             lastText = text.string; needsStyling = true; model.editDocument(text.string)
         }
@@ -724,12 +725,19 @@ struct PatchTextView: NSViewRepresentable {
         var overtypeRevision:Int?
         var overtypeEnabled=false
         var suppressOvertype=false
-        override func setSelectedRange(_ range: NSRange) { columnSelection?.externalSelectionChanged(); super.setSelectedRange(range) }
+        var viewportDesiredX:CGFloat?
+        var viewportLayoutSize:NSSize?
+        var viewportFont:NSFont?
+        var viewportRevision:UUID?
+        var viewportDocumentRevision:Int?
+        var applyingViewportSelection=false
+        func resetViewportNavigation() {if !applyingViewportSelection {viewportDesiredX=nil}}
+        override func setSelectedRange(_ range: NSRange) { resetViewportNavigation(); columnSelection?.externalSelectionChanged(); super.setSelectedRange(range) }
         override func setSelectedRange(_ range: NSRange, affinity: NSSelectionAffinity, stillSelecting: Bool) {
-            columnSelection?.externalSelectionChanged(); super.setSelectedRange(range, affinity: affinity, stillSelecting: stillSelecting)
+            resetViewportNavigation(); columnSelection?.externalSelectionChanged(); super.setSelectedRange(range, affinity: affinity, stillSelecting: stillSelecting)
         }
         override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
-            columnSelection?.externalSelectionChanged(); super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
+            resetViewportNavigation(); columnSelection?.externalSelectionChanged(); super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting)
         }
         override func mouseDown(with event: NSEvent) {
             if columnSelection?.mouseDown(with: event) == true { return }

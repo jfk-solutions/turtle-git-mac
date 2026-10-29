@@ -114,5 +114,15 @@
     "Universal structure does not prove physical Intel or minimum-macOS execution",
     "Startup observation does not establish every installed workflow or physical Finder badge behavior",
     "No App Store upload or notarization"
-  ]
+  ],
+  "local_testing_package": {
+    "zip": "TurtleGit-for-Mac-0.1.0-build32-signed.zip",
+    "zip_bytes": 422083436,
+    "zip_sha256": "3711d46287f0dd4a55b94209663c0a9509ad74ab5a26a353a6f9d52a73f89166",
+    "signature_preserved": true,
+    "re_signing_performed": false,
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true,
+    "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build32-signed/TurtleGit-for-Mac-0.1.0-build32-signed.zip"
+  }
 }

@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+## Unified Diff block navigation continuation
+
+[Block and viewport navigation](UNIFIED-DIFF-BLOCK-NAVIGATION-PARITY.md) connects
+source paragraph commands, selection extension and caret-aware line scrolling to
+the native Caret menus and keys. Its grouped checkpoint remains separate from
+installed build32.
+
 ## EMF+ untouched-alpha continuation
 
 [Initial source alpha](METAFILE-INITIAL-ALPHA-PARITY.md) removes the implicit Plus

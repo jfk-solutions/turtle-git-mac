@@ -98,3 +98,10 @@ This behavior description does not certify every Scintilla command, physical
 keyboard layout, VoiceOver, IME implementation, visual metric, signed file grant,
 hosted CI run or the complete port. Those acceptance scopes remain separate from
 the recorded focused checkpoint.
+
+## Text block and viewport continuation
+
+[Block navigation](UNIFIED-DIFF-BLOCK-NAVIGATION-PARITY.md) adds the source
+paragraph and line-scroll commands through the same focused Caret command routes.
+Its grouped checkpoint and selection rules are separate from the original
+word-part and Overtype evidence above.

@@ -85,7 +85,7 @@ private extension NSWindow {
     static func navigation(_ c:Context,_ s:Surface)async throws {
         let original=Data("myHTTPParser42_name\r\n雪🙂 e\u{301}".utf8)
         try await load(s,original);select(s,0)
-        let expected:[PatchCaretCommand]=[.toggleOvertype,.previousPart,.nextPart,.selectPreviousPart,.selectNextPart]
+        let expected:[PatchCaretCommand]=[.toggleOvertype,.previousPart,.nextPart,.selectPreviousPart,.selectNextPart,.previousBlock,.nextBlock,.selectPreviousBlock,.selectNextBlock,.scrollLineUp,.scrollLineDown]
         let menu=s.text.makeCaretCommandMenu()
         try require(menu.items.filter{!$0.isSeparatorItem}.map(\.title)==expected.map(\.title),"Caret menu source command order changed")
         try require(menu.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image != nil},"Caret menu source artwork missing")

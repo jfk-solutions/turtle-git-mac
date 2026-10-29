@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "b8c39f8c",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source paragraph/block movement and selection extension",
+    "Main-row rectangle-to-stream policy and primary selection",
+    "One-display-line scrolling with visible-caret retention and offscreen clamping",
+    "Owner-bound desired horizontal column across short rows",
+    "Focused keys, icon-bearing menus, read-only and lifecycle admission"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/PatchParagraphNavigation.swift": "85e46ab315a294552f73f0c57c1795e5049fa0ba40fdaa521d8f88fd7023076d",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "dc022e808872cfda8d92e3cdc83ae7ebde8aac4516af6e8a2cc82a35c7e88469",
+    "Sources/TurtleGitMac/PatchWindow.swift": "6bcd63006f03b13864ceeae4d1eb5b327b6f3707eaedf4d67d2d57f021eb738b",
+    "docs/qa/unified-block-navigation-native-2026-10-29.swift": "d865ed50634f0bcd9038797443061e7250c3567f52395b28b291f01bdb19c285",
+    "scripts/test-unified-block-navigation.py": "10abfe86240ccc0ce2984f534b9436dcdef0b3159e7a4db6de81a72d2df5fa76"
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'PatchParagraphNavigationTests|PatchCaretEditingTests|PatchLineIndexTests'",
+    "methods": 17,
+    "failures": 0,
+    "classes": [
+      "PatchParagraphNavigationTests",
+      "PatchCaretEditingTests",
+      "PatchLineIndexTests"
+    ],
+    "log": "build/qa/unified-block-core-2026-10-29.log",
+    "repeated_after_native_only_repairs": false
+  },
+  "build": {
+    "initial": "Interrupted explicitly (exit75, BUILD INTERRUPTED) to include source-review desired-column repair; not counted as a pass",
+    "initial_log": "build/qa/unified-block-debug-2026-10-29.log",
+    "final_exit": 0,
+    "final_log": "build/qa/unified-block-debug-final-2026-10-29.log",
+    "configuration": "Debug",
+    "app_rebuilt_after_fixture_repairs": false
+  },
+  "source_review_repairs_before_native_check": [
+    "Rectangle stream extension uses main row anchor after source DropAdditionalRanges",
+    "Line scroll preserves last desired X through own clamps and resets on actual caret/text/owner/layout change"
+  ],
+  "native": {
+    "command": "python3 scripts/test-unified-block-navigation.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+    "attempts": [
+      {
+        "log": "build/qa/unified-block-native-2026-10-29.log",
+        "exit": 1,
+        "receiver": 35280,
+        "result": "Block checks completed; long-document viewport setup timed out after direct NSTextView.sizeToFit."
+      },
+      {
+        "log": "build/qa/unified-block-native-extent-recheck-2026-10-29.log",
+        "exit": 1,
+        "receiver": 35560,
+        "result": "Unwrapped viewport passed; wrapped setup timed out. Diagnostic showed widthTracksTextView followed the 94607-point frame instead of the 555-point clip."
+      },
+      {
+        "log": "build/qa/unified-block-native-wrap-recheck-2026-10-29.log",
+        "exit": 0,
+        "receivers": [
+          35722,
+          35751
+        ],
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "All block, viewport, desired-column and ownership checks passed."
+      }
+    ],
+    "fixture_repairs": [
+      "Use production PatchScrollView.updateDocumentExtent after host layout instead of direct sizeToFit",
+      "Use fixed-width native text container for explicit wrapped-layout adapter case; do not claim a new Wrap preference"
+    ],
+    "behavioral_assertions_retained": true,
+    "private_repositories_preferences_pasteboard": true,
+    "invisible_offscreen_windows": true,
+    "owned_receivers_reaped_and_independently_absent": [
+      35280,
+      35560,
+      35722,
+      35751
+    ],
+    "document_bytes_undo_head_index_working_unchanged": true,
+    "installed_user_app_untouched": true,
+    "installed_user_pid": 31272
+  },
+  "documentation": {
+    "localizations": "write/check pass; missing source labels retain English fallback",
+    "help": "write/check pass: 60 documents, 51 topics, 92 files; regenerated before final app build",
+    "dialog_coverage": "reconciled",
+    "diff_check": "pass"
+  },
+  "existing_caret_fixture": "Expected menu order extended from original five commands to eleven; original behavioral assertions retained. Existing full caret native family was not rerun; CI retains it.",
+  "limits": [
+    "No full hosted CI pass claimed",
+    "Physical keyboard layouts, OS Control-arrow interception and VoiceOver remain separate",
+    "Installed signed build32 predates this source batch",
+    "No whole Unified Diff or application parity claim",
+    "No App Store upload or notarization"
+  ]
+}

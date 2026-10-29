@@ -809,6 +809,14 @@ composition retain their normal behavior. Undo restores the replaced bytes and
 selection. Opening a replacement document resets Overtype. See
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-CARET-PARITY.html">caret editing modes</a> for native Unicode boundaries,
 column-selection behavior and ownership details.</p>
+<p><strong>Control-[</strong> and <strong>Control-]</strong> move to the previous or next text block; add
+Shift to extend the selection. Blocks are separated by empty lines or lines
+containing only spaces and tabs. The same commands are in <strong>Edit → Caret</strong> and
+the text context menu. <strong>Control-Up/Down</strong> scrolls one displayed line; the caret
+stays in place while visible and moves to the nearest visible line if necessary.
+These commands also work in read-only previews and preserve the document bytes.
+macOS system shortcuts may intercept Control-arrow keys; the menus remain
+available. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-BLOCK-NAVIGATION-PARITY.html">block and viewport navigation</a>.</p>
 <p><img src="images/21aac1cf93c1-mac-unified-diff-light-2026-10-27.png" alt="Unified Diff line numbers and column selection in light appearance" /></p>
 <p><img src="images/bd6937300caa-mac-unified-diff-dark-2026-10-27.png" alt="Unified Diff patch colors and column selection in dark appearance" /></p>
 <p>In a Unified Diff window or attached partial-patch view, Command-F opens the

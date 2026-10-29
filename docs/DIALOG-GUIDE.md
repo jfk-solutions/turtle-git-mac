@@ -967,6 +967,15 @@ selection. Opening a replacement document resets Overtype. See
 [caret editing modes](UNIFIED-DIFF-CARET-PARITY.md) for native Unicode boundaries,
 column-selection behavior and ownership details.
 
+**Control-[** and **Control-]** move to the previous or next text block; add
+Shift to extend the selection. Blocks are separated by empty lines or lines
+containing only spaces and tabs. The same commands are in **Edit → Caret** and
+the text context menu. **Control-Up/Down** scrolls one displayed line; the caret
+stays in place while visible and moves to the nearest visible line if necessary.
+These commands also work in read-only previews and preserve the document bytes.
+macOS system shortcuts may intercept Control-arrow keys; the menus remain
+available. See [block and viewport navigation](UNIFIED-DIFF-BLOCK-NAVIGATION-PARITY.md).
+
 ![Unified Diff line numbers and column selection in light appearance](site/assets/mac-unified-diff-light-2026-10-27.png)
 
 ![Unified Diff patch colors and column selection in dark appearance](site/assets/mac-unified-diff-dark-2026-10-27.png)

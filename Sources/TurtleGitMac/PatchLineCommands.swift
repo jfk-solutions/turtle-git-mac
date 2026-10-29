@@ -49,13 +49,20 @@ enum PatchLineCommand: String, CaseIterable, Identifiable, Hashable {
 /// shortcut because many Apple keyboards have no Insert key.
 enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
     case toggleOvertype,previousPart,nextPart,selectPreviousPart,selectNextPart
+    case previousBlock,nextBlock,selectPreviousBlock,selectNextBlock,scrollLineUp,scrollLineDown
     var id:String {rawValue}
     var title:String {
-        switch self {case .toggleOvertype:return "Overtype";case .previousPart:return "Previous Word Part";case .nextPart:return "Next Word Part";case .selectPreviousPart:return "Select Previous Word Part";case .selectNextPart:return "Select Next Word Part"}
+        switch self {case .toggleOvertype:return "Overtype";case .previousPart:return "Previous Word Part";case .nextPart:return "Next Word Part";case .selectPreviousPart:return "Select Previous Word Part";case .selectNextPart:return "Select Next Word Part";case .previousBlock:return "Previous Text Block";case .nextBlock:return "Next Text Block";case .selectPreviousBlock:return "Select Previous Text Block";case .selectNextBlock:return "Select Next Text Block";case .scrollLineUp:return "Scroll One Line Up";case .scrollLineDown:return "Scroll One Line Down"}
     }
-    var backwards:Bool {self == .previousPart || self == .selectPreviousPart}
-    var extending:Bool {self == .selectPreviousPart || self == .selectNextPart}
-    var key:Character {self == .toggleOvertype ? "o":backwards ? "/":"\\"}
+    var backwards:Bool {self == .previousPart || self == .selectPreviousPart || self == .previousBlock || self == .selectPreviousBlock || self == .scrollLineUp}
+    var block:Bool {self == .previousBlock || self == .nextBlock || self == .selectPreviousBlock || self == .selectNextBlock}
+    var scrolling:Bool {self == .scrollLineUp || self == .scrollLineDown}
+    var extending:Bool {self == .selectPreviousPart || self == .selectNextPart || self == .selectPreviousBlock || self == .selectNextBlock}
+    var key:Character {
+        if scrolling {return backwards ? "\u{f700}":"\u{f701}"}
+        if block {return backwards ? "[":"]"}
+        return self == .toggleOvertype ? "o":backwards ? "/":"\\"
+    }
     var modifiers:NSEvent.ModifierFlags {self == .toggleOvertype ? [.command,.option]:extending ? [.control,.shift]:.control}
     var swiftModifiers:EventModifiers {self == .toggleOvertype ? [.command,.option]:extending ? [.control,.shift]:.control}
     var icon:MenuIcon {self == .toggleOvertype ? .mergeLineEdited:backwards ? .mergePreviousInline:.mergeNextInline}
@@ -66,7 +73,7 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
         let key=event.charactersIgnoringModifiers?.lowercased()
         return allCases.first{command in
             guard flags==command.modifiers else{return false}
-            return key==String(command.key) || command.extending && key==(command.backwards ? "?":"|")
+            return key==String(command.key) || command.extending && key==(command.block ? (command.backwards ? "{":"}"):(command.backwards ? "?":"|"))
         }
     }
 }
@@ -122,7 +129,19 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
             NotificationCenter.default.post(name:NSTextView.didChangeSelectionNotification,object:self)
             return true
         }
+        if command.scrolling {return scrollCaretViewport(backwards:command.backwards,owner:owner)}
         let snapshot=lineSelectionSnapshot,selection=snapshot.primary
+        if command.block {
+            let caret=snapshot.rectangular ? (snapshot.rectangleCaret ?? selection.caret):selection.caret
+            guard let target=PatchParagraphNavigation.position(text:string,caret:caret,backwards:command.backwards),lineOwnerCurrent(owner) else{return false}
+            // ParaUpOrDown moves the main caret. The source's default single-
+            // selection policy drops additional rectangle rows before extending
+            // the stream from the main row's existing anchor.
+            let originalAnchor=selection.anchor
+            applyLineSelection(.init(rows:[.init(id:selection.id,anchor:command.extending ? originalAnchor:target,caret:target)],primarySelectionID:selection.id,rectangular:false))
+            scrollRangeToVisible(NSRange(location:target,length:0))
+            return true
+        }
         // Editor::HorizontalMove switches a rectangle to a stream at its
         // directional outer limit before any non-rectangular word-part move.
         if snapshot.rectangular {
@@ -133,6 +152,53 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
         guard let target=PatchCaretEditing.wordPart(text:string,caret:selection.caret,backwards:command.backwards),lineOwnerCurrent(owner) else{return false}
         let anchor=command.extending ? selection.anchor:target
         applyLineSelection(.init(rows:[.init(id:selection.id,anchor:anchor,caret:target)],primarySelectionID:selection.id,rectangular:false))
+        return true
+    }
+    /// Editor::LineScrollUp/Down scrolls one display line, retaining the caret
+    /// and selection while visible. MoveCaretInsideView collapses to the closest
+    /// visible line only when that scroll would strand the main caret offscreen.
+    private func scrollCaretViewport(backwards:Bool,owner:PatchLineOwnerReceipt)->Bool {
+        guard let scroll=enclosingScrollView,let manager=layoutManager,let container=textContainer else{return false}
+        manager.ensureLayout(for:container)
+        let before=visibleRect,origin=textContainerOrigin
+        let local=NSPoint(x:max(0,before.minX-origin.x),y:max(0,before.minY-origin.y-(backwards ? 0.5:0)))
+        let glyph=manager.glyphIndex(for:local,in:container)
+        let fallback=manager.defaultLineHeight(for:font ?? .monospacedSystemFont(ofSize:12,weight:.regular))
+        let height=glyph<manager.numberOfGlyphs ? manager.lineFragmentRect(forGlyphAt:glyph,effectiveRange:nil).height:fallback
+        guard height>0,lineOwnerCurrent(owner) else{return false}
+        let point=scroll.contentView.constrainBoundsRect(NSRect(origin:.init(x:before.minX,y:before.minY+(backwards ? -height:height)),size:before.size)).origin
+        scroll.contentView.scroll(to:point);scroll.reflectScrolledClipView(scroll.contentView)
+        let state=lineSelectionSnapshot,caret=state.rectangular ? (state.rectangleCaret ?? state.primary.caret):state.primary.caret
+        let count=(string as NSString).length
+        guard caret>=0,caret<=count else{return true}
+        let caretRect:NSRect
+        if caret==count,manager.extraLineFragmentTextContainer != nil {
+            caretRect=manager.extraLineFragmentRect.offsetBy(dx:origin.x,dy:origin.y)
+        } else if manager.numberOfGlyphs>0 {
+            let g=manager.glyphIndexForCharacter(at:min(caret,max(0,count-1)))
+            var r=manager.lineFragmentRect(forGlyphAt:g,effectiveRange:nil)
+            r.origin.x += manager.location(forGlyphAt:g).x
+            caretRect=r.offsetBy(dx:origin.x,dy:origin.y)
+        } else {return true}
+        if viewportDesiredX==nil || viewportRevision != owner.revision || viewportDocumentRevision != owner.documentRevision || viewportLayoutSize != container.containerSize || viewportFont != font {
+            viewportDesiredX=caretRect.minX;viewportRevision=owner.revision;viewportDocumentRevision=owner.documentRevision
+            viewportLayoutSize=container.containerSize;viewportFont=font
+        }
+        let shown=visibleRect
+        guard caretRect.minY<shown.minY || caretRect.maxY>shown.maxY else{return true}
+        let y=caretRect.minY<shown.minY ? shown.minY+0.5:max(shown.minY+0.5,shown.maxY-max(1,caretRect.height)+0.5)
+        var target=characterIndexForInsertion(at:.init(x:viewportDesiredX ?? caretRect.minX,y:y))
+        let text=string as NSString
+        target=min(count,max(0,target))
+        if target<count {target=text.rangeOfComposedCharacterSequence(at:target).location}
+        guard lineOwnerCurrent(owner) else{return false}
+        let collapsed=PatchTextSelectionSnapshot(rows:[.init(id:state.primarySelectionID,anchor:target,caret:target)],primarySelectionID:state.primarySelectionID,rectangular:false)
+        applyingViewportSelection=true
+        if let columnSelection {_ = columnSelection.applySnapshot(collapsed)}
+        else {setSelectedRange(.init(location:target,length:0))}
+        applyingViewportSelection=false
+        // Selection updates must not undo the explicitly requested viewport.
+        scroll.contentView.scroll(to:point);scroll.reflectScrolledClipView(scroll.contentView)
         return true
     }
     func handleCaretTyping(_ replacement:String)->Bool {
