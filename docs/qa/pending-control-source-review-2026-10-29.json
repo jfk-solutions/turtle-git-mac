@@ -1,0 +1,3434 @@
+{
+  "date": "2026-10-29",
+  "status": "bounded-static-source-review",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "native_source_commit_at_review": "9879887b793bcc9d3535c7e7318f201e72607216",
+  "inputs": {
+    "docs/upstream-controls.csv": {
+      "sha256": "8cf05a9901a969dec132b535f682ed4ef9c00db0232b37c57279408984713f0f"
+    },
+    "docs/dialog-coverage.json": {
+      "sha256": "c5c787a6019468e1809e8f176af3212426439d44065d324b70a52cd91eaa51d3"
+    },
+    "docs/upstream.json": {
+      "sha256": "8d23b05af61e9694a237011fe3d1732d75fb81d71ee31b59d35eb92fd615f70a"
+    }
+  },
+  "scope": "Every existing pending-review/upstream-changed-needs-review control occurrence from generated ledger inputs, preserving original CSV row fields; no mapping or ledger edits.",
+  "summary": {
+    "reviewed_control_occurrences": 85,
+    "resource_dialog_pairs": 22,
+    "dispositions": {
+      "test-example": 13,
+      "Windows-specific": 56,
+      "native-shared-consumer": 6,
+      "dormant": 10
+    },
+    "new_missing_end_user_implementation_family_established": false
+  },
+  "limitations": [
+    "Static bounded source review only; no tests, builds, UI automation or runtime/visual verification executed.",
+    "Does not certify whole dialogs, feature completion, physical Finder integration, accessibility, localization, release readiness or App Store suitability.",
+    "Negative caller searches are bounded to pinned src and do not establish universal runtime reachability.",
+    "Unmapped counts are not a feature-completion percentage; existing compatibility and raw-filename limits remain separate.",
+    "Native references identify counterparts/context, not every operation-specific combination or Windows layout equivalence."
+  ],
+  "controls": [
+    {
+      "resource": "contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc",
+      "dialog": "IDD_WAITDIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc",
+        "dialog": "IDD_WAITDIALOG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "Please wait while the external process runs...",
+        "declaration": "LTEXT           \"Please wait while the external process runs...\",IDC_STATIC,7,7,174,34",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Contributed ExampleAtlPlugin external-command wait; not a core repository dialog.",
+      "pinned_source_references": [
+        {
+          "path": "contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc",
+          "line": 142,
+          "anchor": "LTEXT           \"Please wait while the external process runs...\",IDC_STATIC,7,7,174,34"
+        },
+        {
+          "path": "contrib/issue-tracker-plugins/ExampleAtlPlugin/Provider.cpp",
+          "line": 151,
+          "anchor": "CWaitDialog dlg"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDREPORTDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 49,
+          "anchor": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 129,
+          "anchor": "CBaseDlgT<IDD_SENDREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDREPORTDLG",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@Cancel",
+        "declaration": "PUSHBUTTON      \"@Cancel\",IDCANCEL,165,74,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 50,
+          "anchor": "PUSHBUTTON      \"@Cancel\",IDCANCEL,165,74,50,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 129,
+          "anchor": "CBaseDlgT<IDD_SENDREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDREPORTDLG",
+        "control": "IDC_HEADER_TEXT",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "@AppHasStoppedWorking",
+        "declaration": "CONTROL         \"@AppHasStoppedWorking\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,210,25",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 51,
+          "anchor": "CONTROL         \"@AppHasStoppedWorking\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,210,25"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 129,
+          "anchor": "CBaseDlgT<IDD_SENDREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDREPORTDLG",
+        "control": "IDC_TEXT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "@CheckingForSolution",
+        "declaration": "LTEXT           \"@CheckingForSolution\",IDC_TEXT,5,35,210,8,SS_NOPREFIX",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 52,
+          "anchor": "LTEXT           \"@CheckingForSolution\",IDC_TEXT,5,35,210,8,SS_NOPREFIX"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 129,
+          "anchor": "CBaseDlgT<IDD_SENDREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_PROGRESS",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDREPORTDLG",
+        "control": "IDC_PROGRESS",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_PROGRESS,\"msctls_progress32\",PBS_MARQUEE | WS_BORDER,5,49,210,10",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 53,
+          "anchor": "CONTROL         \"\",IDC_PROGRESS,\"msctls_progress32\",PBS_MARQUEE | WS_BORDER,5,49,210,10"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 129,
+          "anchor": "CBaseDlgT<IDD_SENDREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDREPORTDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "www.drdump.com",
+        "declaration": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,76,75,8,WS_DISABLED",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 54,
+          "anchor": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,76,75,8,WS_DISABLED"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 129,
+          "anchor": "CBaseDlgT<IDD_SENDREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDFULLDUMPDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,76",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 62,
+          "anchor": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,76"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 151,
+          "anchor": "CBaseDlgT<IDD_SENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDFULLDUMPDLG",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@Cancel",
+        "declaration": "PUSHBUTTON      \"@Cancel\",IDCANCEL,164,82,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 63,
+          "anchor": "PUSHBUTTON      \"@Cancel\",IDCANCEL,164,82,50,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 151,
+          "anchor": "CBaseDlgT<IDD_SENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDFULLDUMPDLG",
+        "control": "IDC_HEADER_TEXT",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "@AppHasStoppedWorking",
+        "declaration": "CONTROL         \"@AppHasStoppedWorking\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,209,25",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 64,
+          "anchor": "CONTROL         \"@AppHasStoppedWorking\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,209,25"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 151,
+          "anchor": "CBaseDlgT<IDD_SENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDFULLDUMPDLG",
+        "control": "IDC_TEXT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "@CollectingMoreInfo",
+        "declaration": "LTEXT           \"@CollectingMoreInfo\",IDC_TEXT,5,35,209,23,SS_NOPREFIX",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 65,
+          "anchor": "LTEXT           \"@CollectingMoreInfo\",IDC_TEXT,5,35,209,23,SS_NOPREFIX"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 151,
+          "anchor": "CBaseDlgT<IDD_SENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_PROGRESS",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDFULLDUMPDLG",
+        "control": "IDC_PROGRESS",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_PROGRESS,\"msctls_progress32\",PBS_MARQUEE | WS_BORDER,5,58,209,10",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 66,
+          "anchor": "CONTROL         \"\",IDC_PROGRESS,\"msctls_progress32\",PBS_MARQUEE | WS_BORDER,5,58,209,10"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 151,
+          "anchor": "CBaseDlgT<IDD_SENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDFULLDUMPDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "www.drdump.com",
+        "declaration": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,84,75,8,WS_DISABLED",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 67,
+          "anchor": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,84,75,8,WS_DISABLED"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 151,
+          "anchor": "CBaseDlgT<IDD_SENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDOK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDOK",
+        "occurrence": "1",
+        "kind": "DEFPUSHBUTTON",
+        "label": "@SendInformation",
+        "declaration": "DEFPUSHBUTTON   \"@SendInformation\",IDOK,96,74,65,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 76,
+          "anchor": "DEFPUSHBUTTON   \"@SendInformation\",IDOK,96,74,65,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@Cancel",
+        "declaration": "PUSHBUTTON      \"@Cancel\",IDCANCEL,166,74,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 77,
+          "anchor": "PUSHBUTTON      \"@Cancel\",IDCANCEL,166,74,50,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 78,
+          "anchor": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDC_HEADER_TEXT",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "@SendMoreInfoQuestion",
+        "declaration": "CONTROL         \"@SendMoreInfoQuestion\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,211,25",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 79,
+          "anchor": "CONTROL         \"@SendMoreInfoQuestion\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,211,25"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDC_TEXT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "@SendMotivation",
+        "declaration": "LTEXT           \"@SendMotivation\",IDC_TEXT,5,37,211,27,SS_NOPREFIX",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 80,
+          "anchor": "LTEXT           \"@SendMotivation\",IDC_TEXT,5,37,211,27,SS_NOPREFIX"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_DETAILS_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDC_DETAILS_TEXT",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_DETAILS_TEXT,\"RichEdit20W\",ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_NOHIDESEL | ES_READONLY | WS_BORDER | WS_VSCROLL | WS_TABSTOP,5,96,211,75",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 81,
+          "anchor": "CONTROL         \"\",IDC_DETAILS_TEXT,\"RichEdit20W\",ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_NOHIDESEL | ES_READONLY | WS_BORDER | WS_VSCROLL | WS_TABSTOP,5,96,211,75"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_DETAILS",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_ASKSENDFULLDUMPDLG",
+        "control": "IDC_DETAILS",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@Details",
+        "declaration": "PUSHBUTTON      \"@Details\",IDC_DETAILS,5,74,60,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 82,
+          "anchor": "PUSHBUTTON      \"@Details\",IDC_DETAILS,5,74,60,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 186,
+          "anchor": "CBaseDlgT<IDD_ASKSENDFULLDUMPDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 90,
+          "anchor": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@No",
+        "declaration": "PUSHBUTTON      \"@No\",IDCANCEL,165,74,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 91,
+          "anchor": "PUSHBUTTON      \"@No\",IDCANCEL,165,74,50,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDC_HEADER_TEXT",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "@AppHasStoppedWorking",
+        "declaration": "CONTROL         \"@AppHasStoppedWorking\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,210,25",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 92,
+          "anchor": "CONTROL         \"@AppHasStoppedWorking\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,210,25"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDC_TEXT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "@SolutionFound",
+        "declaration": "LTEXT           \"@SolutionFound\",IDC_TEXT,5,35,210,8,SS_NOPREFIX",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 93,
+          "anchor": "LTEXT           \"@SolutionFound\",IDC_TEXT,5,35,210,8,SS_NOPREFIX"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "www.drdump.com",
+        "declaration": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,76,75,8,WS_DISABLED",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 94,
+          "anchor": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,76,75,8,WS_DISABLED"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_QUESTION",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDC_QUESTION",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "@DoYouWantToReadIt",
+        "declaration": "LTEXT           \"@DoYouWantToReadIt\",IDC_QUESTION,5,49,210,8,SS_NOPREFIX",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 95,
+          "anchor": "LTEXT           \"@DoYouWantToReadIt\",IDC_QUESTION,5,49,210,8,SS_NOPREFIX"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDOK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SOLUTIONDLG",
+        "control": "IDOK",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@Yes",
+        "declaration": "PUSHBUTTON      \"@Yes\",IDOK,110,74,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 96,
+          "anchor": "PUSHBUTTON      \"@Yes\",IDOK,110,74,50,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 170,
+          "anchor": "CBaseDlgT<IDD_SOLUTIONDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDASSERTREPORTDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 104,
+          "anchor": "CONTROL         \"\",IDC_STATIC,\"Static\",SS_WHITERECT,-4,0,226,67"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 140,
+          "anchor": "CBaseDlgT<IDD_SENDASSERTREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDASSERTREPORTDLG",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "@Cancel",
+        "declaration": "PUSHBUTTON      \"@Cancel\",IDCANCEL,165,74,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 105,
+          "anchor": "PUSHBUTTON      \"@Cancel\",IDCANCEL,165,74,50,14"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 140,
+          "anchor": "CBaseDlgT<IDD_SENDASSERTREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDASSERTREPORTDLG",
+        "control": "IDC_HEADER_TEXT",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "@AppHasEncounteredProblem",
+        "declaration": "CONTROL         \"@AppHasEncounteredProblem\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,210,25",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 106,
+          "anchor": "CONTROL         \"@AppHasEncounteredProblem\",IDC_HEADER_TEXT,\"Static\",SS_LEFTNOWORDWRAP | SS_NOPREFIX | WS_GROUP,5,7,210,25"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 140,
+          "anchor": "CBaseDlgT<IDD_SENDASSERTREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_TEXT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDASSERTREPORTDLG",
+        "control": "IDC_TEXT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "@CheckingForSolution",
+        "declaration": "LTEXT           \"@CheckingForSolution\",IDC_TEXT,5,35,210,8,SS_NOPREFIX",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 107,
+          "anchor": "LTEXT           \"@CheckingForSolution\",IDC_TEXT,5,35,210,8,SS_NOPREFIX"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 140,
+          "anchor": "CBaseDlgT<IDD_SENDASSERTREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_PROGRESS",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDASSERTREPORTDLG",
+        "control": "IDC_PROGRESS",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_PROGRESS,\"msctls_progress32\",PBS_MARQUEE | WS_BORDER,5,49,210,10",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 108,
+          "anchor": "CONTROL         \"\",IDC_PROGRESS,\"msctls_progress32\",PBS_MARQUEE | WS_BORDER,5,49,210,10"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 140,
+          "anchor": "CBaseDlgT<IDD_SENDASSERTREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+        "dialog": "IDD_SENDASSERTREPORTDLG",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "www.drdump.com",
+        "declaration": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,76,75,8,WS_DISABLED",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "External Windows CrashServer SendRpt component; no native CrashServer equivalence claimed.",
+      "pinned_source_references": [
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+          "line": 109,
+          "anchor": "LTEXT           \"www.drdump.com\",IDC_STATIC,5,76,75,8,WS_DISABLED"
+        },
+        {
+          "path": "ext/CrashServer/CrashHandler/SendRpt/SendReportDlg.h",
+          "line": 140,
+          "anchor": "CBaseDlgT<IDD_SENDASSERTREPORTDLG>"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSMAIN",
+      "control": "IDC_CREATELIB",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSMAIN",
+        "control": "IDC_CREATELIB",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Create &Library",
+        "declaration": "PUSHBUTTON      \"Create &Library\",IDC_CREATELIB,212,59,72,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Create Library invokes EnsureGitLibrary for a Windows Shell Library.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 353,
+          "anchor": "PUSHBUTTON      \"Create &Library\",IDC_CREATELIB,212,59,72,14"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetMainPage.cpp",
+          "line": 213,
+          "anchor": "void CSetMainPage::OnBnClickedCreatelib()"
+        },
+        {
+          "path": "src/Utils/Libraries.cpp",
+          "line": 37,
+          "anchor": "Makes sure a library named"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/GeneralSettings.swift",
+          "line": 271,
+          "anchor": "struct GeneralSettings"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAY",
+      "control": "IDC_ONLYEXPLORER",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAY",
+        "control": "IDC_ONLYEXPLORER",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Show &overlays and context menu only in explorer",
+        "declaration": "CONTROL         \"Show &overlays and context menu only in explorer\",IDC_ONLYEXPLORER, \"Button\",BS_AUTOCHECKBOX | WS_TABSTOP,18,17,260,10",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "Finder Sync is the native shell surface; the Explorer-only process checkbox has no direct macOS control. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer-only process scope, Windows elevation bypass or A:/B: drive policy has no direct Finder process/elevation/drive-letter control.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 371,
+          "anchor": "CONTROL         \"Show &overlays and context menu only in explorer\",IDC_ONLYEXPLORER,"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayPage.cpp",
+          "line": 91,
+          "anchor": "DDX_Check(pDX, IDC_ONLYEXPLORER"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAY",
+      "control": "IDC_ONLYNONELEVATED",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAY",
+        "control": "IDC_ONLYNONELEVATED",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Disable status cache for elevated processes",
+        "declaration": "CONTROL         \"Disable status cache for elevated processes\",IDC_ONLYNONELEVATED, \"Button\",BS_AUTOCHECKBOX | WS_TABSTOP,18,59,261,9",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "Windows elevation/cache bypass has no direct Finder Sync control; signed execution acceptance remains open. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer-only process scope, Windows elevation bypass or A:/B: drive policy has no direct Finder process/elevation/drive-letter control.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 377,
+          "anchor": "CONTROL         \"Disable status cache for elevated processes\",IDC_ONLYNONELEVATED,"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayPage.cpp",
+          "line": 92,
+          "anchor": "DDX_Check(pDX, IDC_ONLYNONELEVATED"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAY",
+      "control": "IDC_FLOPPY",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAY",
+        "control": "IDC_FLOPPY",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Drives A: and B:",
+        "declaration": "CONTROL         \"Drives A: and B:\",IDC_FLOPPY,\"Button\",BS_AUTOCHECKBOX | WS_TABSTOP,18,114,137,10",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "Windows drive A:/B: selection has no native volume-name equivalent. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer-only process scope, Windows elevation bypass or A:/B: drive policy has no direct Finder process/elevation/drive-letter control.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 385,
+          "anchor": "CONTROL         \"Drives A: and B:\",IDC_FLOPPY,\"Button\",BS_AUTOCHECKBOX | WS_TABSTOP,18,114,137,10"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayPage.cpp",
+          "line": 97,
+          "anchor": "DDX_Check(pDX, IDC_FLOPPY"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "You can disable specific Overlay handlers here.\\nDisabled handlers won't use up an overlay slot and give other shell extensions a chance to show their overlays.",
+        "declaration": "LTEXT           \"You can disable specific Overlay handlers here.\\nDisabled handlers won't use up an overlay slot and give other shell extensions a chance to show their overlays.\",IDC_STATIC,14,18,270,32",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "Explorer slot/global-client informational copy needs native adaptation; not claimed as equivalent. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer global overlay-slot/registry controls and shared-Tortoise-client explanatory text; not the native badge-policy model.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 406,
+          "anchor": "LTEXT           \"You can disable specific Overlay handlers here.\\nDisabled handlers won't use up an overlay slot and give other shell extensions a chance to show their overlays.\",IDC_STATIC,14,18,270,32"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 72,
+          "anchor": "ON_BN_CLICKED(IDC_REGEDT"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 213,
+          "anchor": "SetDlgItemText(IDC_HANDLERHINT"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_STATIC",
+      "occurrence": 3,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+        "control": "IDC_STATIC",
+        "occurrence": "3",
+        "kind": "LTEXT",
+        "label": "Note: this affects all Tortoise clients, not just TortoiseGit!",
+        "declaration": "LTEXT           \"Note: this affects all Tortoise clients, not just TortoiseGit!\",IDC_STATIC,14,54,270,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "Explorer slot/global-client informational copy needs native adaptation; not claimed as equivalent. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer global overlay-slot/registry controls and shared-Tortoise-client explanatory text; not the native badge-policy model.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 407,
+          "anchor": "LTEXT           \"Note: this affects all Tortoise clients, not just TortoiseGit!\",IDC_STATIC,14,54,270,8"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 72,
+          "anchor": "ON_BN_CLICKED(IDC_REGEDT"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 213,
+          "anchor": "SetDlgItemText(IDC_HANDLERHINT"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_HANDLERHINT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+        "control": "IDC_HANDLERHINT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_HANDLERHINT,14,159,270,43",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "Explorer overlay-slot allocation/hints have no direct Finder equivalent. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer global overlay-slot/registry controls and shared-Tortoise-client explanatory text; not the native badge-policy model.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 416,
+          "anchor": "LTEXT           \"\",IDC_HANDLERHINT,14,159,270,43"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 72,
+          "anchor": "ON_BN_CLICKED(IDC_REGEDT"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 213,
+          "anchor": "SetDlgItemText(IDC_HANDLERHINT"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_REGEDT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+        "control": "IDC_REGEDT",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Start registry editor",
+        "declaration": "PUSHBUTTON      \"Start registry editor\",IDC_REGEDT,163,208,121,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": "No macOS registry editor or Explorer overlay-slot registry surface. See FINDER-OVERLAY-SETTINGS-PARITY.md."
+      },
+      "disposition": "Windows-specific",
+      "reason": "Explorer global overlay-slot/registry controls and shared-Tortoise-client explanatory text; not the native badge-policy model.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 417,
+          "anchor": "PUSHBUTTON      \"Start registry editor\",IDC_REGEDT,163,208,121,14"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 72,
+          "anchor": "ON_BN_CLICKED(IDC_REGEDT"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetOverlayHandlers.cpp",
+          "line": 213,
+          "anchor": "SetDlgItemText(IDC_HANDLERHINT"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderOverlaySettings.swift",
+          "line": 145,
+          "anchor": "struct FinderOverlaySettingsPage"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SVNPROGRESS",
+      "control": "IDC_LOGBUTTON",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SVNPROGRESS",
+        "control": "IDC_LOGBUTTON",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Show &log...",
+        "declaration": "PUSHBUTTON      \"Show &log...\",IDC_LOGBUTTON,237,143,79,14,NOT WS_VISIBLE | WS_DISABLED",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "native-shared-consumer",
+      "reason": "Static Show log caption is a generic active post-command menu dispatcher. Native progress families provide operation-specific post-actions; not certification of every combination.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 471,
+          "anchor": "PUSHBUTTON      \"Show &log...\",IDC_LOGBUTTON,237,143,79,14,NOT WS_VISIBLE | WS_DISABLED"
+        },
+        {
+          "path": "src/TortoiseProc/GitProgressDlg.cpp",
+          "line": 139,
+          "anchor": "void CGitProgressDlg::OnBnClickedLogbutton()"
+        },
+        {
+          "path": "src/TortoiseProc/GitProgressDlg.cpp",
+          "line": 266,
+          "anchor": "m_ProgList.m_Command->m_PostCmdCallback"
+        },
+        {
+          "path": "src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp",
+          "line": 40,
+          "anchor": "postCmdList.emplace_back(IDI_COMMIT"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/AddProgressWindow.swift",
+          "line": 195,
+          "anchor": "Add post-actions"
+        },
+        {
+          "path": "Sources/TurtleGitMac/ResolveWindow.swift",
+          "line": 544,
+          "anchor": "if model.success { Button { commit() }"
+        },
+        {
+          "path": "Sources/TurtleGitMac/ResetWindow.swift",
+          "line": 566,
+          "anchor": "enum ResetPostAction"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SVNPROGRESS",
+      "control": "IDC_TITLE_ANIMATE",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SVNPROGRESS",
+        "control": "IDC_TITLE_ANIMATE",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_TITLE_ANIMATE,\"SysAnimate32\",ACS_CENTER | ACS_TRANSPARENT | NOT WS_VISIBLE | WS_TABSTOP,100,50,208,31,WS_EX_TRANSPARENT",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "native-shared-consumer",
+      "reason": "Windows AVI activity decoration is replaced by native progress/activity presentation; exact AVI reproduction is not a missing Git action.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 477,
+          "anchor": "CONTROL         \"\",IDC_TITLE_ANIMATE,\"SysAnimate32\",ACS_CENTER | ACS_TRANSPARENT | NOT WS_VISIBLE | WS_TABSTOP,100,50,208,31,WS_EX_TRANSPARENT"
+        },
+        {
+          "path": "src/TortoiseProc/GitProgressDlg.cpp",
+          "line": 60,
+          "anchor": "DDX_Control(pDX, IDC_TITLE_ANIMATE"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/GitProgressOutputState.swift",
+          "line": 109,
+          "anchor": "struct LocalGitProgressIndicator"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationWindow.swift",
+          "line": 2784,
+          "anchor": "if actions.busy {HStack {ProgressView()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SIMPLEPROMPT",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SIMPLEPROMPT",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "CTEXT",
+        "label": "Requests a username and a password",
+        "declaration": "CTEXT           \"Requests a username and a password\",IDC_STATIC,7,38,206,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "native-shared-consumer",
+      "reason": "Explanatory credentials label is represented by native realm, username, password and save controls.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 486,
+          "anchor": "CTEXT           \"Requests a username and a password\",IDC_STATIC,7,38,206,8"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
+          "line": 65,
+          "anchor": "let realm = NSTextField"
+        },
+        {
+          "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
+          "line": 66,
+          "anchor": "username.stringValue = prompt.username"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDC_LABEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_URL",
+        "control": "IDC_LABEL",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "&URL:",
+        "declaration": "LTEXT           \"&URL:\",IDC_LABEL,7,14,35,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "CURLDlg definitions exist, but bounded pinned src search found no active construction/invocation outside URLDlg.cpp/.h; negative static-search evidence, not runtime proof.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 528,
+          "anchor": "LTEXT           \"&URL:\",IDC_LABEL,7,14,35,8"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.h",
+          "line": 30,
+          "anchor": "class CURLDlg"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.cpp",
+          "line": 67,
+          "anchor": "void CURLDlg::OnOK()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDC_URLCOMBO",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_URL",
+        "control": "IDC_URLCOMBO",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_URLCOMBO,\"ComboBoxEx32\",CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP,49,12,178,100",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "CURLDlg definitions exist, but bounded pinned src search found no active construction/invocation outside URLDlg.cpp/.h; negative static-search evidence, not runtime proof.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 529,
+          "anchor": "CONTROL         \"\",IDC_URLCOMBO,\"ComboBoxEx32\",CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP,49,12,178,100"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.h",
+          "line": 30,
+          "anchor": "class CURLDlg"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.cpp",
+          "line": 67,
+          "anchor": "void CURLDlg::OnOK()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDOK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_URL",
+        "control": "IDOK",
+        "occurrence": "1",
+        "kind": "DEFPUSHBUTTON",
+        "label": "OK",
+        "declaration": "DEFPUSHBUTTON   \"OK\",IDOK,120,34,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "CURLDlg definitions exist, but bounded pinned src search found no active construction/invocation outside URLDlg.cpp/.h; negative static-search evidence, not runtime proof.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 530,
+          "anchor": "DEFPUSHBUTTON   \"OK\",IDOK,120,34,50,14"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.h",
+          "line": 30,
+          "anchor": "class CURLDlg"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.cpp",
+          "line": 67,
+          "anchor": "void CURLDlg::OnOK()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_URL",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Cancel",
+        "declaration": "PUSHBUTTON      \"Cancel\",IDCANCEL,177,34,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "CURLDlg definitions exist, but bounded pinned src search found no active construction/invocation outside URLDlg.cpp/.h; negative static-search evidence, not runtime proof.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 531,
+          "anchor": "PUSHBUTTON      \"Cancel\",IDCANCEL,177,34,50,14"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.h",
+          "line": 30,
+          "anchor": "class CURLDlg"
+        },
+        {
+          "path": "src/TortoiseProc/URLDlg.cpp",
+          "line": 67,
+          "anchor": "void CURLDlg::OnOK()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_STATGRAPH",
+        "control": "IDC_FILECHANGESEACHWEEK",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "File changes each week:",
+        "declaration": "LTEXT           \"File changes each week:\",IDC_FILECHANGESEACHWEEK,7,158,115,8,NOT WS_VISIBLE",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "Unit label is adjusted, but all three numeric output updates are commented out. These resources do not form an active missing statistic.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 634,
+          "anchor": "LTEXT           \"File changes each week:\",IDC_FILECHANGESEACHWEEK,7,158,115,8,NOT WS_VISIBLE"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1080,
+          "anchor": "SetDlgItemText(IDC_FILECHANGESEACHWEEK,"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1101,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKAVG"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1103,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMAX"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1105,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMIN"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/StatisticsWindow.swift",
+          "line": 5,
+          "anchor": "@MainActor final class StatisticsWindowModel: ObservableObject {"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEKAVG",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_STATGRAPH",
+        "control": "IDC_FILECHANGESEACHWEEKAVG",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_FILECHANGESEACHWEEKAVG,250,158,38,8,0,WS_EX_RIGHT",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "Unit label is adjusted, but all three numeric output updates are commented out. These resources do not form an active missing statistic.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 635,
+          "anchor": "LTEXT           \"\",IDC_FILECHANGESEACHWEEKAVG,250,158,38,8,0,WS_EX_RIGHT"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1080,
+          "anchor": "SetDlgItemText(IDC_FILECHANGESEACHWEEK,"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1101,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKAVG"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1103,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMAX"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1105,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMIN"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/StatisticsWindow.swift",
+          "line": 5,
+          "anchor": "@MainActor final class StatisticsWindowModel: ObservableObject {"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEKMIN",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_STATGRAPH",
+        "control": "IDC_FILECHANGESEACHWEEKMIN",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_FILECHANGESEACHWEEKMIN,288,158,27,8,0,WS_EX_RIGHT",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "Unit label is adjusted, but all three numeric output updates are commented out. These resources do not form an active missing statistic.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 636,
+          "anchor": "LTEXT           \"\",IDC_FILECHANGESEACHWEEKMIN,288,158,27,8,0,WS_EX_RIGHT"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1080,
+          "anchor": "SetDlgItemText(IDC_FILECHANGESEACHWEEK,"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1101,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKAVG"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1103,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMAX"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1105,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMIN"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/StatisticsWindow.swift",
+          "line": 5,
+          "anchor": "@MainActor final class StatisticsWindowModel: ObservableObject {"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEKMAX",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_STATGRAPH",
+        "control": "IDC_FILECHANGESEACHWEEKMAX",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_FILECHANGESEACHWEEKMAX,315,158,37,8,0,WS_EX_RIGHT",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "Unit label is adjusted, but all three numeric output updates are commented out. These resources do not form an active missing statistic.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 637,
+          "anchor": "LTEXT           \"\",IDC_FILECHANGESEACHWEEKMAX,315,158,37,8,0,WS_EX_RIGHT"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1080,
+          "anchor": "SetDlgItemText(IDC_FILECHANGESEACHWEEK,"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1101,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKAVG"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1103,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMAX"
+        },
+        {
+          "path": "src/TortoiseProc/StatGraphDlg.cpp",
+          "line": 1105,
+          "anchor": "//SetDlgItemText(IDC_FILECHANGESEACHWEEKMIN"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/StatisticsWindow.swift",
+          "line": 5,
+          "anchor": "@MainActor final class StatisticsWindowModel: ObservableObject {"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_GITPROGRESS",
+      "control": "IDC_TITLE_ANIMATE",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_GITPROGRESS",
+        "control": "IDC_TITLE_ANIMATE",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_TITLE_ANIMATE,\"SysAnimate32\",ACS_TRANSPARENT | WS_TABSTOP,6,7,318,38,WS_EX_TRANSPARENT",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "native-shared-consumer",
+      "reason": "Windows AVI activity decoration is replaced by native progress/activity presentation; exact AVI reproduction is not a missing Git action.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 1147,
+          "anchor": "CONTROL         \"\",IDC_TITLE_ANIMATE,\"SysAnimate32\",ACS_TRANSPARENT | WS_TABSTOP,6,7,318,38,WS_EX_TRANSPARENT"
+        },
+        {
+          "path": "src/TortoiseProc/ProgressDlg.cpp",
+          "line": 87,
+          "anchor": "DDX_Control(pDX, IDC_TITLE_ANIMATE"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/GitProgressOutputState.swift",
+          "line": 109,
+          "anchor": "struct LocalGitProgressIndicator"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationWindow.swift",
+          "line": 2784,
+          "anchor": "if actions.busy {HStack {ProgressView()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SYNC",
+      "control": "IDC_ANIMATE_SYNC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SYNC",
+        "control": "IDC_ANIMATE_SYNC",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_ANIMATE_SYNC,\"SysAnimate32\",ACS_TRANSPARENT | NOT WS_VISIBLE | WS_TABSTOP,13,9,231,29,WS_EX_TRANSPARENT",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "native-shared-consumer",
+      "reason": "Windows AVI activity decoration is replaced by native progress/activity presentation; exact AVI reproduction is not a missing Git action.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 1685,
+          "anchor": "CONTROL         \"\",IDC_ANIMATE_SYNC,\"SysAnimate32\",ACS_TRANSPARENT | NOT WS_VISIBLE | WS_TABSTOP,13,9,231,29,WS_EX_TRANSPARENT"
+        },
+        {
+          "path": "src/TortoiseProc/SyncDlg.cpp",
+          "line": 68,
+          "anchor": "DDX_Control(pDX, IDC_ANIMATE_SYNC"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/GitProgressOutputState.swift",
+          "line": 109,
+          "anchor": "struct LocalGitProgressIndicator"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationWindow.swift",
+          "line": 2784,
+          "anchor": "if actions.busy {HStack {ProgressView()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_PATCH_VIEW",
+      "control": "IDC_PATCH",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_PATCH_VIEW",
+        "control": "IDC_PATCH",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Scintilla",
+        "declaration": "CONTROL         \"Scintilla\",IDC_PATCH,\"Scintilla\",WS_TABSTOP,0,0,248,195,WS_EX_STATICEDGE",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "native-shared-consumer",
+      "reason": "Scintilla host is replaced by the existing shared native Patch editor/viewer and its editing/navigation continuations.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 1743,
+          "anchor": "CONTROL         \"Scintilla\",IDC_PATCH,\"Scintilla\",WS_TABSTOP,0,0,248,195,WS_EX_STATICEDGE"
+        },
+        {
+          "path": "src/TortoiseProc/PatchViewDlg.cpp",
+          "line": 55,
+          "anchor": "DDX_Control(pDX, IDC_PATCH"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/PatchWindow.swift",
+          "line": 44,
+          "anchor": "final class PatchWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/PatchWindow.swift",
+          "line": 743,
+          "anchor": "final class PatchText"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSDIALOGS3",
+      "control": "IDC_KEEPFILELISTSENGLISH",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSDIALOGS3",
+        "control": "IDC_KEEPFILELISTSENGLISH",
+        "occurrence": "1",
+        "kind": "COMBOBOX",
+        "label": "",
+        "declaration": "COMBOBOX        IDC_KEEPFILELISTSENGLISH,113,79,63,15,CBS_DROPDOWNLIST | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "Both controls are NOT WS_VISIBLE; no active pinned src consumer of IDC_KEEPFILELISTSENGLISH was found.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2058,
+          "anchor": "COMBOBOX        IDC_KEEPFILELISTSENGLISH,113,79,63,15,CBS_DROPDOWNLIST | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP"
+        },
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2058,
+          "anchor": "COMBOBOX        IDC_KEEPFILELISTSENGLISH"
+        },
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2059,
+          "anchor": "keep the file lists in English"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/ProjectDialogSettings.swift",
+          "line": 28,
+          "anchor": "ProjectDialogSettingsModel"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSDIALOGS3",
+      "control": "IDC_STATIC",
+      "occurrence": 9,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSDIALOGS3",
+        "control": "IDC_STATIC",
+        "occurrence": "9",
+        "kind": "LTEXT",
+        "label": "keep the file lists in English",
+        "declaration": "LTEXT           \"keep the file lists in English\",IDC_STATIC,14,80,99,10,NOT WS_VISIBLE",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "dormant",
+      "reason": "Both controls are NOT WS_VISIBLE; no active pinned src consumer of IDC_KEEPFILELISTSENGLISH was found.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2059,
+          "anchor": "LTEXT           \"keep the file lists in English\",IDC_STATIC,14,80,99,10,NOT WS_VISIBLE"
+        },
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2058,
+          "anchor": "COMBOBOX        IDC_KEEPFILELISTSENGLISH"
+        },
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2059,
+          "anchor": "keep the file lists in English"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/ProjectDialogSettings.swift",
+          "line": 28,
+          "anchor": "ProjectDialogSettingsModel"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+      "control": "IDC_WORKAROUNDS",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+        "control": "IDC_WORKAROUNDS",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "I don't use Git for Windows and need special workarounds",
+        "declaration": "CONTROL         \"I don't use Git for Windows and need special workarounds\",IDC_WORKAROUNDS, \"Button\",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_DISABLED | WS_TABSTOP,17,136,289,11",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Cygwin/MSYS2 Git-for-Windows workaround selection; native setup has macOS runtime selection/validation.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2241,
+          "anchor": "CONTROL         \"I don't use Git for Windows and need special workarounds\",IDC_WORKAROUNDS,"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardGit.cpp",
+          "line": 113,
+          "anchor": "void CFirstStartWizardGit::ShowWorkarounds"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardGit.cpp",
+          "line": 208,
+          "anchor": "CGit::ms_bCygwinGit ="
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 184,
+          "anchor": "case .git:"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+      "control": "IDC_GITHACKS1",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+        "control": "IDC_GITHACKS1",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Enable special hack for Cygwin git",
+        "declaration": "CONTROL         \"Enable special hack for Cygwin git\",IDC_GITHACKS1, \"Button\",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_DISABLED,17,150,289,11",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Cygwin/MSYS2 Git-for-Windows workaround selection; native setup has macOS runtime selection/validation.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2243,
+          "anchor": "CONTROL         \"Enable special hack for Cygwin git\",IDC_GITHACKS1,"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardGit.cpp",
+          "line": 113,
+          "anchor": "void CFirstStartWizardGit::ShowWorkarounds"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardGit.cpp",
+          "line": 208,
+          "anchor": "CGit::ms_bCygwinGit ="
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 184,
+          "anchor": "case .git:"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+      "control": "IDC_GITHACKS2",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+        "control": "IDC_GITHACKS2",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Enable special hack for Msys2 git",
+        "declaration": "CONTROL         \"Enable special hack for Msys2 git\",IDC_GITHACKS2,\"Button\",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_DISABLED,17,164,289,11",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Cygwin/MSYS2 Git-for-Windows workaround selection; native setup has macOS runtime selection/validation.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2245,
+          "anchor": "CONTROL         \"Enable special hack for Msys2 git\",IDC_GITHACKS2,\"Button\",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_DISABLED,17,164,289,11"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardGit.cpp",
+          "line": 113,
+          "anchor": "void CFirstStartWizardGit::ShowWorkarounds"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardGit.cpp",
+          "line": 208,
+          "anchor": "CGit::ms_bCygwinGit ="
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 184,
+          "anchor": "case .git:"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "control": "IDC_LINK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+        "control": "IDC_LINK",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_LINK,17,110,289,10",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Download/refresh separately installed Windows language DLLs; native language resources ship with the app, with selection/help already present.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2274,
+          "anchor": "LTEXT           \"\",IDC_LINK,17,110,289,10"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardLanguage.cpp",
+          "line": 81,
+          "anchor": "GetDlgItem(IDC_LINK)->SetWindowText(DOWNLOAD_URL)"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardLanguage.cpp",
+          "line": 143,
+          "anchor": "CLangDll::GetInstalledLanguages(true)"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 376,
+          "anchor": "Select the language used by"
+        },
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 381,
+          "anchor": "Button(\"Language help\")"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "control": "IDC_REFRESH",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+        "control": "IDC_REFRESH",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Refresh",
+        "declaration": "PUSHBUTTON      \"Refresh\",IDC_REFRESH,245,80,61,13",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Download/refresh separately installed Windows language DLLs; native language resources ship with the app, with selection/help already present.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2275,
+          "anchor": "PUSHBUTTON      \"Refresh\",IDC_REFRESH,245,80,61,13"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardLanguage.cpp",
+          "line": 81,
+          "anchor": "GetDlgItem(IDC_LINK)->SetWindowText(DOWNLOAD_URL)"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardLanguage.cpp",
+          "line": 143,
+          "anchor": "CLangDll::GetInstalledLanguages(true)"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 376,
+          "anchor": "Select the language used by"
+        },
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 381,
+          "anchor": "Button(\"Language help\")"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "Download language packs:",
+        "declaration": "LTEXT           \"Download language packs:\",IDC_STATIC,17,100,289,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Download/refresh separately installed Windows language DLLs; native language resources ship with the app, with selection/help already present.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2276,
+          "anchor": "LTEXT           \"Download language packs:\",IDC_STATIC,17,100,289,8"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardLanguage.cpp",
+          "line": 81,
+          "anchor": "GetDlgItem(IDC_LINK)->SetWindowText(DOWNLOAD_URL)"
+        },
+        {
+          "path": "src/TortoiseProc/FirstStartWizardLanguage.cpp",
+          "line": 143,
+          "anchor": "CLangDll::GetInstalledLanguages(true)"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 376,
+          "anchor": "Select the language used by"
+        },
+        {
+          "path": "Sources/TurtleGitMac/FirstStartWizard.swift",
+          "line": 381,
+          "anchor": "Button(\"Language help\")"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "GROUPBOX",
+        "label": "Top context menu on Windows 11",
+        "declaration": "GROUPBOX        \"Top context menu on Windows 11\",IDC_STATIC,7,7,286,216",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Windows 11 shell registration/top-menu policy; Finder Sync uses its own platform integration.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2297,
+          "anchor": "GROUPBOX        \"Top context menu on Windows 11\",IDC_STATIC,7,7,286,216"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/Settings.cpp",
+          "line": 106,
+          "anchor": "AddPropPage(new CSetWin11ContextMenu()"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetWin11ContextMenu.h",
+          "line": 35,
+          "anchor": "enum { IDD = IDD_SETTINGSWIN11CONTEXTMENU }"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "line": 125,
+          "anchor": "func cancel()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "Unchecked items are not shown in the top menu but only in the original menu",
+        "declaration": "LTEXT           \"Unchecked items are not shown in the top menu but only in the original menu\",IDC_STATIC,12,16,274,18,SS_CENTERIMAGE",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Windows 11 shell registration/top-menu policy; Finder Sync uses its own platform integration.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2298,
+          "anchor": "LTEXT           \"Unchecked items are not shown in the top menu but only in the original menu\",IDC_STATIC,12,16,274,18,SS_CENTERIMAGE"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/Settings.cpp",
+          "line": 106,
+          "anchor": "AddPropPage(new CSetWin11ContextMenu()"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetWin11ContextMenu.h",
+          "line": 35,
+          "anchor": "enum { IDD = IDD_SETTINGSWIN11CONTEXTMENU }"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "line": 125,
+          "anchor": "func cancel()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_MENULIST",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+        "control": "IDC_MENULIST",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "",
+        "declaration": "CONTROL         \"\",IDC_MENULIST,\"SysListView32\",LVS_REPORT | LVS_SINGLESEL | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,12,37,274,146",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Windows 11 shell registration/top-menu policy; Finder Sync uses its own platform integration.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2299,
+          "anchor": "CONTROL         \"\",IDC_MENULIST,\"SysListView32\",LVS_REPORT | LVS_SINGLESEL | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,12,37,274,146"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/Settings.cpp",
+          "line": 106,
+          "anchor": "AddPropPage(new CSetWin11ContextMenu()"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetWin11ContextMenu.h",
+          "line": 35,
+          "anchor": "enum { IDD = IDD_SETTINGSWIN11CONTEXTMENU }"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "line": 125,
+          "anchor": "func cancel()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_SELECTALL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+        "control": "IDC_SELECTALL",
+        "occurrence": "1",
+        "kind": "CONTROL",
+        "label": "Select/deselect &all",
+        "declaration": "CONTROL         \"Select/deselect &all\",IDC_SELECTALL,\"Button\",BS_AUTO3STATE | WS_TABSTOP,12,187,106,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Windows 11 shell registration/top-menu policy; Finder Sync uses its own platform integration.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2300,
+          "anchor": "CONTROL         \"Select/deselect &all\",IDC_SELECTALL,\"Button\",BS_AUTO3STATE | WS_TABSTOP,12,187,106,14"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/Settings.cpp",
+          "line": 106,
+          "anchor": "AddPropPage(new CSetWin11ContextMenu()"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetWin11ContextMenu.h",
+          "line": 35,
+          "anchor": "enum { IDD = IDD_SETTINGSWIN11CONTEXTMENU }"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "line": 125,
+          "anchor": "func cancel()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_RESTORE",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+        "control": "IDC_RESTORE",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Restore Default",
+        "declaration": "PUSHBUTTON      \"Restore Default\",IDC_RESTORE,183,187,103,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Windows 11 shell registration/top-menu policy; Finder Sync uses its own platform integration.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2301,
+          "anchor": "PUSHBUTTON      \"Restore Default\",IDC_RESTORE,183,187,103,14"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/Settings.cpp",
+          "line": 106,
+          "anchor": "AddPropPage(new CSetWin11ContextMenu()"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetWin11ContextMenu.h",
+          "line": 35,
+          "anchor": "enum { IDD = IDD_SETTINGSWIN11CONTEXTMENU }"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "line": 125,
+          "anchor": "func cancel()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_REGISTER",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/Resources/TortoiseProcENG.rc",
+        "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+        "control": "IDC_REGISTER",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Register context menu",
+        "declaration": "PUSHBUTTON      \"Register context menu\",IDC_REGISTER,183,204,103,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "Windows 11 shell registration/top-menu policy; Finder Sync uses its own platform integration.",
+      "pinned_source_references": [
+        {
+          "path": "src/Resources/TortoiseProcENG.rc",
+          "line": 2302,
+          "anchor": "PUSHBUTTON      \"Register context menu\",IDC_REGISTER,183,204,103,14"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/Settings.cpp",
+          "line": 106,
+          "anchor": "AddPropPage(new CSetWin11ContextMenu()"
+        },
+        {
+          "path": "src/TortoiseProc/Settings/SetWin11ContextMenu.h",
+          "line": 35,
+          "anchor": "enum { IDD = IDD_SETTINGSWIN11CONTEXTMENU }"
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitMac/FinderContextMenuSettings.swift",
+          "line": 125,
+          "anchor": "func cancel()"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+      "dialog": "IDD_LOGIN",
+      "control": "IDOK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+        "dialog": "IDD_LOGIN",
+        "control": "IDOK",
+        "occurrence": "1",
+        "kind": "DEFPUSHBUTTON",
+        "label": "OK",
+        "declaration": "DEFPUSHBUTTON   \"OK\",IDOK,40,50,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "TortoisePlink Win32 password prompt; native OpenSSH/askpass is the counterpart, not this Plink dialog.",
+      "pinned_source_references": [
+        {
+          "path": "src/TortoisePlink/Windows/TortoisePlink.rc",
+          "line": 44,
+          "anchor": "DEFPUSHBUTTON   \"OK\",IDOK,40,50,50,14"
+        },
+        {
+          "path": "src/TortoisePlink/LoginDialog.cpp",
+          "line": 110,
+          "anchor": "DialogBoxParam("
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/PromptWindow.swift",
+          "line": 20,
+          "anchor": "final class GitAskpassWindowController"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+      "dialog": "IDD_LOGIN",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+        "dialog": "IDD_LOGIN",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Cancel",
+        "declaration": "PUSHBUTTON      \"Cancel\",IDCANCEL,100,50,50,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "TortoisePlink Win32 password prompt; native OpenSSH/askpass is the counterpart, not this Plink dialog.",
+      "pinned_source_references": [
+        {
+          "path": "src/TortoisePlink/Windows/TortoisePlink.rc",
+          "line": 45,
+          "anchor": "PUSHBUTTON      \"Cancel\",IDCANCEL,100,50,50,14"
+        },
+        {
+          "path": "src/TortoisePlink/LoginDialog.cpp",
+          "line": 110,
+          "anchor": "DialogBoxParam("
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/PromptWindow.swift",
+          "line": 20,
+          "anchor": "final class GitAskpassWindowController"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+      "dialog": "IDD_LOGIN",
+      "control": "IDC_LOGIN_PROMPT",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+        "dialog": "IDD_LOGIN",
+        "control": "IDC_LOGIN_PROMPT",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "Password",
+        "declaration": "LTEXT           \"Password\",IDC_LOGIN_PROMPT,7,7,190,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "TortoisePlink Win32 password prompt; native OpenSSH/askpass is the counterpart, not this Plink dialog.",
+      "pinned_source_references": [
+        {
+          "path": "src/TortoisePlink/Windows/TortoisePlink.rc",
+          "line": 46,
+          "anchor": "LTEXT           \"Password\",IDC_LOGIN_PROMPT,7,7,190,8"
+        },
+        {
+          "path": "src/TortoisePlink/LoginDialog.cpp",
+          "line": 110,
+          "anchor": "DialogBoxParam("
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/PromptWindow.swift",
+          "line": 20,
+          "anchor": "final class GitAskpassWindowController"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+      "dialog": "IDD_LOGIN",
+      "control": "IDC_LOGIN_PASSWORD",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+        "dialog": "IDD_LOGIN",
+        "control": "IDC_LOGIN_PASSWORD",
+        "occurrence": "1",
+        "kind": "EDITTEXT",
+        "label": "",
+        "declaration": "EDITTEXT        IDC_LOGIN_PASSWORD,7,26,185,14,ES_PASSWORD | ES_AUTOHSCROLL",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "Windows-specific",
+      "reason": "TortoisePlink Win32 password prompt; native OpenSSH/askpass is the counterpart, not this Plink dialog.",
+      "pinned_source_references": [
+        {
+          "path": "src/TortoisePlink/Windows/TortoisePlink.rc",
+          "line": 47,
+          "anchor": "EDITTEXT        IDC_LOGIN_PASSWORD,7,26,185,14,ES_PASSWORD | ES_AUTOHSCROLL"
+        },
+        {
+          "path": "src/TortoisePlink/LoginDialog.cpp",
+          "line": 110,
+          "anchor": "DialogBoxParam("
+        }
+      ],
+      "current_native_references": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/PromptWindow.swift",
+          "line": 20,
+          "anchor": "final class GitAskpassWindowController"
+        }
+      ],
+      "native_reference_scope": "Existing counterpart/context, not certification of Windows behavior or whole dialog."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDOK",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDOK",
+        "occurrence": "1",
+        "kind": "DEFPUSHBUTTON",
+        "label": "Run Status Test",
+        "declaration": "DEFPUSHBUTTON   \"Run Status Test\",IDOK,161,106,73,16",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 36,
+          "anchor": "DEFPUSHBUTTON   \"Run Status Test\",IDOK,161,106,73,16"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDCANCEL",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDCANCEL",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Cancel",
+        "declaration": "PUSHBUTTON      \"Cancel\",IDCANCEL,38,106,50,16",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 37,
+          "anchor": "PUSHBUTTON      \"Cancel\",IDCANCEL,38,106,50,16"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_STATIC",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "Getting Status for:",
+        "declaration": "LTEXT           \"Getting Status for:\",IDC_STATIC,7,35,81,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 38,
+          "anchor": "LTEXT           \"Getting Status for:\",IDC_STATIC,7,35,81,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_FILEPATH",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_FILEPATH",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_FILEPATH,88,35,225,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 39,
+          "anchor": "LTEXT           \"\",IDC_FILEPATH,88,35,225,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": 2,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_STATIC",
+        "occurrence": "2",
+        "kind": "LTEXT",
+        "label": "Done:",
+        "declaration": "LTEXT           \"Done:\",IDC_STATIC,7,50,81,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 40,
+          "anchor": "LTEXT           \"Done:\",IDC_STATIC,7,50,81,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_DONE",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_DONE",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_DONE,88,50,225,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 41,
+          "anchor": "LTEXT           \"\",IDC_DONE,88,50,225,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": 3,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_STATIC",
+        "occurrence": "3",
+        "kind": "LTEXT",
+        "label": "Start Time:",
+        "declaration": "LTEXT           \"Start Time:\",IDC_STATIC,7,66,81,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 42,
+          "anchor": "LTEXT           \"Start Time:\",IDC_STATIC,7,66,81,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STARTTIME",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_STARTTIME",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_STARTTIME,88,67,225,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 43,
+          "anchor": "LTEXT           \"\",IDC_STARTTIME,88,67,225,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": 4,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_STATIC",
+        "occurrence": "4",
+        "kind": "LTEXT",
+        "label": "End Time:",
+        "declaration": "LTEXT           \"End Time:\",IDC_STATIC,7,82,81,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 44,
+          "anchor": "LTEXT           \"End Time:\",IDC_STATIC,7,82,81,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_ENDTIME",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_ENDTIME",
+        "occurrence": "1",
+        "kind": "LTEXT",
+        "label": "",
+        "declaration": "LTEXT           \"\",IDC_ENDTIME,88,83,225,8",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 45,
+          "anchor": "LTEXT           \"\",IDC_ENDTIME,88,83,225,8"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_ROOTPATH",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_ROOTPATH",
+        "occurrence": "1",
+        "kind": "EDITTEXT",
+        "label": "",
+        "declaration": "EDITTEXT        IDC_ROOTPATH,7,7,306,14,ES_AUTOHSCROLL",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 46,
+          "anchor": "EDITTEXT        IDC_ROOTPATH,7,7,306,14,ES_AUTOHSCROLL"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_WATCHTESTBUTTON",
+      "occurrence": 1,
+      "ledger_input": {
+        "resource": "test/Cache/Cache.rc",
+        "dialog": "IDD_CACHE_DIALOG",
+        "control": "IDC_WATCHTESTBUTTON",
+        "occurrence": "1",
+        "kind": "PUSHBUTTON",
+        "label": "Run Watcher Test",
+        "declaration": "PUSHBUTTON      \"Run Watcher Test\",IDC_WATCHTESTBUTTON,244,108,69,14",
+        "status": "pending-review",
+        "native_mapping": "",
+        "notes": ""
+      },
+      "disposition": "test-example",
+      "reason": "Standalone test/Cache status/watcher exerciser, not a shipping repository workflow.",
+      "pinned_source_references": [
+        {
+          "path": "test/Cache/Cache.rc",
+          "line": 47,
+          "anchor": "PUSHBUTTON      \"Run Watcher Test\",IDC_WATCHTESTBUTTON,244,108,69,14"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 105,
+          "anchor": "void CCacheDlg::OnBnClickedOk()"
+        },
+        {
+          "path": "test/Cache/CacheDlg.cpp",
+          "line": 401,
+          "anchor": "void CCacheDlg::OnBnClickedWatchtestbutton()"
+        }
+      ],
+      "current_native_references": [],
+      "native_reference_scope": "No native consumer claimed for excluded Windows/test/example/dormant resource."
+    }
+  ]
+}

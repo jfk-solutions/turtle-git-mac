@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Current Finder acceptance and pending-control review
+
+The [installed build37 first-use check](qa/installed37-finder-first-use-2026-10-29.json)
+reached the private repository in Finder and observed the intended creation,
+registration and utility commands. Services contained only Open in TurtleGit.
+Menu invocation then met computer-control context guards and capture failures;
+registration, cold Commit and physical badges remain unverified. No product failure
+is inferred from the control-tool failures, and the owned test window needs safe
+cleanup after the pending Escape request.
+
+The [bounded pending-control review](qa/pending-control-source-review-2026-10-29.json)
+retains all85 exact original occurrences and matching pinned/native line references.
+It found Windows-specific, dormant, example/test and native shared-consumer cases;
+it established no new missing end-user workflow family from those entries.
+This static review neither changes ledger statuses nor certifies visual/runtime
+parity, accessibility or release readiness.
+
 ## Finder retirement and asynchronous tool startup checkpoint
 
 The [retirement continuation](qa/finder-retirement-and-startup-2026-10-29.json)

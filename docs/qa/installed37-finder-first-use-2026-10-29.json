@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-29",
+  "status": "partial-installed-finder-first-use-acceptance-control-tool-blocked",
+  "build": "0.1.0 (37)",
+  "fixture": {
+    "private": true,
+    "tracked_files": 10001,
+    "commits": 3,
+    "modified_files": 4,
+    "untracked_files": 1,
+    "head": "6b9f27e4ce2d19ec1f6fe98a59b180434a444065",
+    "original_head_status_and_empty_staging_preserved": true
+  },
+  "observed": [
+    "Created one owned Finder window while preserving preexisting Downloads window",
+    "Reached exact private fixture parent through Finder Go to Folder; selected repository folder",
+    "Actual Finder context-menu tree exposes TurtleGit Clone, Create repository here, Add to TurtleGit, Settings, Help and About for the unregistered folder",
+    "Services submenu contains Open in TurtleGit; no full duplicate command catalog appeared"
+  ],
+  "not_established": [
+    "Add registration completion or outside-folder permission prompt",
+    "Cold Finder Commit delivery and absence of unrelated workspace",
+    "Physical overlay image rendering and background refresh",
+    "Installed large-repository Commit latency"
+  ],
+  "control_tool_failure": "Native menu actions repeatedly rejected with changed-context guard; screenshot capture failed with SCStreamError -3811; one reconnect timed out and reset the control runtime. A fresh Finder connection read the owned menu but further actions still rejected. No product failure inferred from these control failures.",
+  "main_app_process_observed_after_attempt": false,
+  "cleanup": {
+    "owned_finder_window": "TurtleGit-Acceptance37-3aihxi82",
+    "owned_window_close": "pending safe control recovery",
+    "private_fixture": "retained unregistered for pending acceptance and scoped cleanup",
+    "user_request": "Async request asks Escape in test menu; no response yet",
+    "preexisting_downloads_window_untouched": true,
+    "finder_restarted": false,
+    "signals_sent": false
+  },
+  "limits": [
+    "Accessibility menu text is not proof of icon artwork or execution",
+    "No new app/Core/native suite was run for this physical observation",
+    "Source pending-control review separately classifies all85 existing pending occurrences without certifying full dialogs"
+  ]
+}

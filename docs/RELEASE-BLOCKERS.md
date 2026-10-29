@@ -31,6 +31,14 @@ missing source behavior, reported defect or failing check.
   distribution and the later App Store submission remain separate, including
   distribution signing and the unresolved GPL/App Store terms gate.
 
+The [current first-use Finder observation](qa/installed37-finder-first-use-2026-10-29.json)
+verified the intended unregistered-folder menu and reduced Services entry. The
+computer-control connection rejected invocation; cold Commit, registration and
+badges remain open. The [pending-control source review](qa/pending-control-source-review-2026-10-29.json)
+found no additional missing workflow family among the85 pending occurrences;
+Windows-only or dormant controls must not be counted as missing Mac dialogs.
+This is static evidence, not full dialog or release certification.
+
 ## Installed local testing build37
 
 [Signed build37](qa/signed-consolidation-build37-2026-10-29.json), `0.1.0 (37)`,
