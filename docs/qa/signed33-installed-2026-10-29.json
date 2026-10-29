@@ -1,0 +1,43 @@
+{
+  "build": "33",
+  "source_commit": "4daef1a36fcf725cd09254d1337d401cbc262fe0",
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed32-displaced-approved33-2026-10-29.app",
+  "complete_inventory_equal": true,
+  "inventory_members": 6378,
+  "main_sha256": "34e80d7aa60744c68c02050128a2a65986ee02885b21b7a803f7f04ea622177b",
+  "registration": [
+    {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-f",
+        "/Applications/TurtleGit for Mac.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/pluginkit",
+        "-a",
+        "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "running": [
+    "50246 /Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+  ],
+  "user_approved_restart": true,
+  "finder_restarted": false,
+  "dock_restarted": false,
+  "date": "2026-10-29",
+  "status": "installed-and-reopened",
+  "normal_quit": "Delayed AppleEvent/Command-Q completion; original PID exited before any signal was sent.",
+  "forced_termination": false,
+  "workspace_visually_confirmed": true,
+  "physical_workflows_verified": false
+}

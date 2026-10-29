@@ -11,6 +11,7 @@ import TurtleGitCore
     @Published private(set) var caretCommands=Set<PatchCaretCommand>()
     @Published private(set) var selectionCommands=Set<PatchSelectionCommand>()
     @Published private(set) var navigationCommands=Set<PatchNavigationCommand>()
+    @Published private(set) var zoomCommands=Set<PatchZoomCommand>()
     @Published private(set) var caretOvertype=false
     @Published private(set) var lineCommands = Set<PatchLineCommand>()
     @Published private(set) var columnSelectionAvailable = false
@@ -57,6 +58,8 @@ import TurtleGitCore
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil && NSApp.modalWindow == nil } ?? false
         if available != enabled { available = enabled }
         let text = controller?.window?.firstResponder as? PatchTextView.PatchText
+        let zoom=Set(PatchZoomCommand.allCases.filter{enabled && text?.canPerformZoomCommand($0)==true})
+        if zoomCommands != zoom {zoomCommands=zoom}
         let navigation=Set(PatchNavigationCommand.allCases.filter{enabled && text?.canPerformNavigationCommand($0)==true})
         if navigationCommands != navigation {navigationCommands=navigation}
         let selection=Set(PatchSelectionCommand.allCases.filter{enabled && text?.canPerformSelectionCommand($0)==true})
@@ -92,6 +95,12 @@ import TurtleGitCore
               text.coordinator?.model === controller.model else { return }
         _ = text.columnSelection?.extendRectangle(direction: direction)
         refresh()
+    }
+    func performZoomCommand(_ command:PatchZoomCommand) {
+        refresh()
+        guard zoomCommands.contains(command),let controller=current,
+              let text=controller.window?.firstResponder as? PatchTextView.PatchText,text.coordinator?.model === controller.model else{return}
+        _ = text.performZoomCommand(command);refresh()
     }
     func performNavigationCommand(_ command:PatchNavigationCommand) {
         refresh()

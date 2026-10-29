@@ -5,10 +5,10 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
-## Ready local testing candidate — build33
+## Installed local testing build33
 
 [Signed build33](qa/signed-consolidation-build33-2026-10-29.json), version
-`0.1.0 (33)`, is ready from clean source `4daef1a3`. It includes the three Unified
+`0.1.0 (33)`, was built from clean source `4daef1a3`. It includes the three Unified
 Diff navigation/editing batches and leading-scalar codec repairs. The unchanged
 source-input audit, strict signatures, eight app-owned arm64/x86_64 components,
 packaged Help and signature-preserving ZIP extraction/inventory checks pass.
@@ -19,15 +19,19 @@ exercise the shipping AppKit editor or NSUndoManager.
 The local package is `TurtleGit-for-Mac-0.1.0-build33-signed.zip` (SHA-256
 `e3a7ee07c20243747de3f07e9d8b851aaa0deb5bdef9bcd5721e6e15927818ff`).
 It is a local Apple Development testing artifact, not a public release download.
-Build32 remains installed and running, with its exact candidate preserved for
-rollback. No app/Finder restart, repository-permission change, App Store upload
-or notarization was performed. Physical installed workflows, Intel/minimum-macOS
-execution, complete hosted CI and full-port acceptance remain separate.
+[Build33 was installed and reopened with user approval](qa/signed33-installed-2026-10-29.json).
+The complete installed inventory matches the candidate and its strict signature
+passes. The original app exited after a delayed normal quit; no signal was sent.
+Build32 is preserved for rollback. Finder/Dock were not restarted and no
+repository-permission change, App Store upload or notarization was performed.
+The workspace was visually confirmed; physical installed workflows,
+Intel/minimum-macOS execution, complete hosted CI and full-port acceptance remain
+separate.
 
-## Installed local checkpoint
+## Earlier installed checkpoint
 
 [Signed build32](qa/signed-consolidation-build32-2026-10-29.json), version
-`0.1.0 (32)`, is installed from clean source `144fdf78`. It adds retained-byte
+`0.1.0 (32)`, was installed from clean source `144fdf78`. It adds retained-byte
 Blame encoding, Finder returned-volume recovery and metafile canvas/source-alpha
 corrections. All eight app-owned components contain arm64 and x86_64; measured
 inputs, strict signatures and the complete installed inventory pass. The focused

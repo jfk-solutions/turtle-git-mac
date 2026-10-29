@@ -990,6 +990,16 @@ These commands also work in read-only previews and do not change document bytes.
 See [boundary and page navigation](UNIFIED-DIFF-NAVIGATION-PARITY.md) for source
 selection rules and acceptance scope.
 
+Use **Edit → Zoom** or the text context menu for Zoom In, Zoom Out and Actual
+Size. **Command-Plus** (or Command-Equals), **Command-Minus** and **Command-0**
+change the current editor's temporary font size. Control with keypad Add,
+Subtract or Divide provides the source shortcuts. Control-wheel or Command-wheel
+over the patch also zooms; Shift and horizontal wheel input keep scrolling.
+The line numbers, tabs and rectangular selections adjust with the text. The
+level survives reloads in this editor, starts at zero in a new window and does
+not change the saved font preference. Printing uses the configured base size.
+See [temporary zoom](UNIFIED-DIFF-ZOOM-PARITY.md) for source and native input rules.
+
 **Control-[** and **Control-]** move to the previous or next text block; add
 Shift to extend the selection. Blocks are separated by empty lines or lines
 containing only spaces and tabs. The same commands are in **Edit → Caret** and

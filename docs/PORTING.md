@@ -1,25 +1,31 @@
 # TurtleGit for Mac — full port tracking
 
+## Unified Diff temporary zoom continuation
+
+[Temporary zoom and printer magnification](UNIFIED-DIFF-ZOOM-PARITY.md) connect
+source zoom bounds, native keys/wheel/menus, font and rectangle reflow, editor
+lifetime and unzoomed immutable printing. Installed build33 predates this batch;
+its grouped checkpoint remains separate.
+
 ## Unified Diff complete boundary navigation continuation
 
 [Word, boundary and page navigation](UNIFIED-DIFF-NAVIGATION-PARITY.md) connects
 logical/display/document endpoints, source word classes and caret-plus-viewport
 page commands, including source selection transitions and owned native menus.
-Its grouped checkpoint remains separate from installed build32.
+This family is included in installed build33.
 
 ## Unified Diff selection editing continuation
 
 [Selection transformations and boundary deletion](UNIFIED-DIFF-SELECTION-EDITING-PARITY.md)
 connect all six source edit commands to byte-backed transactions, native keys and
-menus, explicit rectangle ranges and Undo/Redo. Installed build32 predates this
-family; its grouped checkpoint is recorded separately.
+menus, explicit rectangle ranges and Undo/Redo. This family is included in
+installed build33; its grouped checkpoint is recorded separately.
 
 ## Unified Diff block navigation continuation
 
 [Block and viewport navigation](UNIFIED-DIFF-BLOCK-NAVIGATION-PARITY.md) connects
 source paragraph commands, selection extension and caret-aware line scrolling to
-the native Caret menus and keys. Its grouped checkpoint remains separate from
-installed build32.
+the native Caret menus and keys. This family is included in installed build33.
 
 ## EMF+ untouched-alpha continuation
 
@@ -62,10 +68,10 @@ and preserves unchanged file selections at final settlement. The family receipt
 separates native checks from installed-build and physical input acceptance.
 These changes are included in signed build31.
 
-## Ready local testing candidate — build33
+## Installed local testing build33
 
 [Signed build33](qa/signed-consolidation-build33-2026-10-29.json), version
-`0.1.0 (33)`, is ready from clean source `4daef1a3`. It includes the three Unified
+`0.1.0 (33)`, was built from clean source `4daef1a3`. It includes the three Unified
 Diff navigation/editing batches and leading-scalar codec repairs. The unchanged
 source-input audit, strict signatures, eight app-owned arm64/x86_64 components,
 packaged Help and signature-preserving ZIP extraction/inventory checks pass.
@@ -76,12 +82,16 @@ exercise the shipping AppKit editor or NSUndoManager.
 The local package is `TurtleGit-for-Mac-0.1.0-build33-signed.zip` (SHA-256
 `e3a7ee07c20243747de3f07e9d8b851aaa0deb5bdef9bcd5721e6e15927818ff`).
 It is a local Apple Development testing artifact, not a public release download.
-Build32 remains installed and running, with its exact candidate preserved for
-rollback. No app/Finder restart, repository-permission change, App Store upload
-or notarization was performed. Physical installed workflows, Intel/minimum-macOS
-execution, complete hosted CI and full-port acceptance remain separate.
+[Build33 was installed and reopened with user approval](qa/signed33-installed-2026-10-29.json).
+The complete installed inventory matches the candidate and its strict signature
+passes. The original app exited after a delayed normal quit; no signal was sent.
+Build32 is preserved for rollback. Finder/Dock were not restarted and no
+repository-permission change, App Store upload or notarization was performed.
+The workspace was visually confirmed; physical installed workflows,
+Intel/minimum-macOS execution, complete hosted CI and full-port acceptance remain
+separate.
 
-## Current installed checkpoint
+## Earlier installed checkpoints
 
 The later [DIB metadata family](METAFILE-DIB-PROFILES-PARITY.md) follows measured
 Windows Picture byte-RGB playback for V4/V5 color headers, embedded/linked
@@ -89,7 +99,7 @@ profile metadata and recorded ICM state across raster, brush and direct-band
 image consumers. It is included in installed build31.
 
 [Signed build32](qa/signed-consolidation-build32-2026-10-29.json), version
-`0.1.0 (32)`, is installed from clean source `144fdf78`. It adds retained-byte
+`0.1.0 (32)`, was installed from clean source `144fdf78`. It adds retained-byte
 Blame encoding, Finder returned-volume recovery and metafile canvas/source-alpha
 corrections. All eight app-owned components contain arm64 and x86_64; measured
 inputs, strict signatures and the complete installed inventory pass. The focused

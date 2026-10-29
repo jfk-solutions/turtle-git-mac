@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "1c9b265065bdde9f1b068b8bf8617df3c2d53e1b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Temporary editor-local source zoom bounds and reset",
+    "Mac and source keypad shortcuts with owned icon menus",
+    "Discrete/precise wheel accumulation, actual pointer admission and Find focus retention",
+    "Interruption/replacement/marked-text/phased/momentum fences",
+    "Font/gutter/tab/document and explicit rectangle reflow",
+    "Same-window persistence, independent new editor and unzoomed immutable printer snapshot"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/UnifiedDiffZoom.swift": "7867b88b4ad3a269e4657b574d839a274be179f6ad67bd33bf2b300241a7524b",
+    "Sources/TurtleGitMac/PatchZoomCommands.swift": "69c16eec786ff0c9bb4388932df11121b48fc594e5716b91a4ebd820280c7d8d",
+    "Sources/TurtleGitMac/PatchWindow.swift": "88bf8348994632562872db266a26b53716f4524a35e62a322c87c9b6f2860960",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "ea1c134beb8d5df74e06cdc4d41b3d9bab36bf8c891931386315dc635394e6bb",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "5a414900357f715892d3b10a06cb469376baab64d83558d8a6424fa36944626d",
+    "Tests/TurtleGitCoreTests/UnifiedDiffZoomTests.swift": "b728ea8de7763952f6e00b06dec6f69670f9993b1690871a770359a7a3ec7635",
+    "docs/qa/unified-zoom-native-2026-10-29.swift": "11b76805107954e36cf2de5ad4d29dea27c7d0a7912da62f6143e7e8f2a0c222",
+    "scripts/test-unified-zoom.py": "6e678df02618857214828d12a54698c43acc91365da09bdc5f4adf91e9aac516"
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter UnifiedDiffZoomTests",
+    "methods": 6,
+    "failures": 0,
+    "exit": 0,
+    "log": "build/qa/unified-zoom-core-2026-10-29.log",
+    "repeated": false
+  },
+  "debug_build": {
+    "exit": 0,
+    "log": "build/qa/unified-zoom-debug-2026-10-29.log",
+    "attempts": 1,
+    "repeated_for_fixture_repairs": false
+  },
+  "native": {
+    "planned_groups": [
+      "new zoom and print snapshot family with system and bundled Git",
+      "affected word/boundary/page navigation with system and bundled Git",
+      "existing PDF printing once"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/unified-zoom-native-2026-10-29.log",
+        "exit": 1,
+        "pid": 53122,
+        "cause": "Fixture supplied NSEvent phase bits directly to CoreGraphics fields. Public SDK phase/momentum mappings differ. Product source unchanged.",
+        "log_sha256": "996bd3ff8547a59a35204d86b3f7fbe87db415a35f5a300eecff4b8aa1bf6a70"
+      },
+      {
+        "log": "build/qa/unified-zoom-native-phase-diagnostic-2026-10-29.log",
+        "exit": 1,
+        "pid": 53311,
+        "cause": "Phase mapping passed. Actual Find-field lookup timed out because fixture assumed a SwiftUI accessibility identifier appears on underlying NSTextField.",
+        "log_sha256": "292aa7e2cc55a96fe4b1f3a789f31eb484d9fabac8b9f81f3126fa2f15389ed3"
+      },
+      {
+        "log": "build/qa/unified-zoom-native-find-diagnostic-2026-10-29.log",
+        "exit": 1,
+        "pid": 53463,
+        "cause": "Bounded diagnostic confirmed Find visible/canFind true, native field editor focused and underlying AppKit identifiers empty. Final fixture discovers the unique actual owning Find field and verifies exact responder before/after hover; no substitute field.",
+        "log_sha256": "c91d1d1cf1534015c17c4b07a7de4cbf9a955aedb562c3ac7672f40019015f4b"
+      },
+      {
+        "log": "build/qa/unified-zoom-native-find-repair-2026-10-29.log",
+        "exit": 0,
+        "pid": 53566,
+        "engine": "system Git",
+        "result": "All zoom assertions passed including actual key/wheel events, stale gestures, explicit rectangle reflow and Find responder preservation.",
+        "log_sha256": "69c9f7d0a1892250449d652af5cf3903cfeea0121aad7dff66985ba94ff7f5e2"
+      },
+      {
+        "log": "build/qa/unified-zoom-native-bundled-2026-10-29.log",
+        "exit": 0,
+        "pid": 53619,
+        "engine": "bundled Git",
+        "result": "Same final assertions passed using unchanged cached fixture.",
+        "log_sha256": "41ee648615ab7948d6b9d42dfcd9e6787773b39c0c1f3fa12bf7c58681eedcec"
+      },
+      {
+        "log": "build/qa/unified-zoom-navigation-2026-10-29.log",
+        "exit": 0,
+        "pids": [
+          53221,
+          53241
+        ],
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "Affected navigation, viewport, selection, bytes and ownership passed.",
+        "log_sha256": "7a5c65754744c5cccd00911416dc44ac2ee645e6e065f289102f8ed07ad92158"
+      },
+      {
+        "log": "build/qa/unified-zoom-print-2026-10-29.log",
+        "exit": 0,
+        "result": "Selected PDF1page; whole6pages; enlarged margins11pages; immutable text, pagination and impossible-area rejection passed.",
+        "log_sha256": "07c2b1825a5eb9c59f66e0cfcbd50450f1911e3f7f1de0f2b10a55ba33bef5d4"
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      53122,
+      53311,
+      53463,
+      53566,
+      53619,
+      53221,
+      53241
+    ],
+    "private_repositories_preferences_pasteboards": true,
+    "invisible_offscreen_owned_windows_closed": true,
+    "bytes_undo_head_index_working_unchanged": true,
+    "shared_app_receiver_cache_reused": true,
+    "product_changes_after_first_build": false
+  },
+  "generation": {
+    "localization_languages": 38,
+    "localization_keys": 1326,
+    "localization_check_exit": 0,
+    "help_documents": 60,
+    "help_topics": 51,
+    "help_files": 92,
+    "help_check_exit": 0,
+    "coverage_dialogs": 130,
+    "coverage_partial_family_audits": 120,
+    "coverage_pending_family_reviews": 10,
+    "coverage_certified_complete": 0
+  },
+  "installed_app": {
+    "build": "33",
+    "unchanged": true,
+    "pid": 50246,
+    "zoom_included": false,
+    "finder_registered_path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+  },
+  "remaining": [
+    "Physical trackpad/mouse sensitivity and keyboard layouts",
+    "VoiceOver/IME acceptance beyond injected composition fences",
+    "Physical printer hardware",
+    "Signed installed zoom execution",
+    "Complete hosted CI and full UDiff/full-port parity"
+  ]
+}

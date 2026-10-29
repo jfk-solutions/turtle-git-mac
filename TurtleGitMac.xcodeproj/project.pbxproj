@@ -213,6 +213,7 @@
 		5E4F774D88C8BB0C81D39836 /* GitDaemonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9058AE332FC66665066DAE81 /* GitDaemonWindow.swift */; };
 		5F1E4F6C734B656EB3B7AA2E /* SettingsSourceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = C600C63A341B132B35FD9A69 /* SettingsSourceControls.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
+		5F8128FD6DC3B7D1798F4207 /* PatchZoomCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0345FFD68A8E55FCACD9C7D /* PatchZoomCommands.swift */; };
 		5F90E01DF71FDA1D43ADF883 /* ImageEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DDEA3975817E5FBF96643C7 /* ImageEditorToolbar.swift */; };
 		5FC25E652DEC9F024AEA858C /* UnifiedDiffCaseFold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 985A594AD651C7899145A75C /* UnifiedDiffCaseFold.swift */; };
 		603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */; };
@@ -277,6 +278,7 @@
 		805E34A3C95926C9E1244C75 /* CommitFileDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA4675C4521ED35D847FB62 /* CommitFileDrop.swift */; };
 		807FEE29880D78AA1E998FC7 /* CommitCheckPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88E4B9E7A2D7EA1313E086BF /* CommitCheckPolicy.swift */; };
 		809097D262F02EC9DCE694C2 /* AppLanguages.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7738FB630AB0A69B82BECAB9 /* AppLanguages.generated.swift */; };
+		80CD8EA712081603A3A9E5D1 /* UnifiedDiffZoom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F69C2DA6F28704E07568D4D /* UnifiedDiffZoom.swift */; };
 		822CC35D20E9128856D97562 /* MergeSourceComparisonWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90AC260ECFB41503700BF84 /* MergeSourceComparisonWindows.swift */; };
 		827581DA51F1B9C0932E2982 /* TurtleGitHelp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C774F2364FC09D00A6FCE /* TurtleGitHelp.swift */; };
 		828742F77F4A7A8CC586389A /* NetworkSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9C491D545F62D715E5BDA1 /* NetworkSettings.swift */; };
@@ -665,6 +667,7 @@
 		0B5CA377E560923FE6C0F849 /* ClientHookRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientHookRuntime.swift; sourceTree = "<group>"; };
 		0B6BAF15EDEFC16EE8B836F4 /* GitResetNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitResetNotifications.swift; sourceTree = "<group>"; };
 		0D36E66F24DAED7F61A00764 /* MergeFolding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFolding.swift; sourceTree = "<group>"; };
+		0F69C2DA6F28704E07568D4D /* UnifiedDiffZoom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffZoom.swift; sourceTree = "<group>"; };
 		0FD3BA5200E9573B839D215E /* GitRemoteAuthenticationPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRemoteAuthenticationPrompt.swift; sourceTree = "<group>"; };
 		1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHAuthenticationStore.swift; sourceTree = "<group>"; };
 		102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolution.swift; sourceTree = "<group>"; };
@@ -993,6 +996,7 @@
 		AEF033FD709E38B51520EF19 /* BundledComparisonTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledComparisonTools.swift; sourceTree = "<group>"; };
 		AF511709D17C5FA99144748C /* FileListDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileListDrag.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
+		B0345FFD68A8E55FCACD9C7D /* PatchZoomCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchZoomCommands.swift; sourceTree = "<group>"; };
 		B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTransaction.swift; sourceTree = "<group>"; };
 		B08A5531A623CE06E1FBCCD8 /* SubversionInlineDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionInlineDiff.swift; sourceTree = "<group>"; };
 		B0ADAB5E1FCC13EE50B581A7 /* RebaseColumnLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseColumnLayout.swift; sourceTree = "<group>"; };
@@ -1365,6 +1369,7 @@
 				3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */,
 				07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */,
 				DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */,
+				B0345FFD68A8E55FCACD9C7D /* PatchZoomCommands.swift */,
 				CA84FDF422F71D741C28D6BA /* PathEntryField.swift */,
 				39BD0E5EF4DC8DCE92785121 /* PowerPointComparisonAutomation.swift */,
 				60A68277A7736DA72A50EB11 /* PresentationComparisonRendering.swift */,
@@ -1778,6 +1783,7 @@
 				548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */,
 				766198338B0BF88B62BC0C31 /* UnifiedDiffSearch.swift */,
 				AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */,
+				0F69C2DA6F28704E07568D4D /* UnifiedDiffZoom.swift */,
 				79C0E5814B5E3AC88F6511F4 /* WindowGeometry.swift */,
 				B281D161CBCA4A5CEFE45B0C /* WordComparison.swift */,
 				D47F77D286A7FCB5C673A934 /* WorkingCopyRevision.swift */,
@@ -2447,6 +2453,7 @@
 				2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */,
 				753A8B77C31169848F56EE3A /* UnifiedDiffSearch.swift in Sources */,
 				D7E9B06DF606B6A8A0488AF9 /* UnifiedDiffViewer.swift in Sources */,
+				80CD8EA712081603A3A9E5D1 /* UnifiedDiffZoom.swift in Sources */,
 				369DA51D3F695575992439FC /* WindowGeometry.swift in Sources */,
 				F6B1E446B5386DCEF1F9A9EA /* WordComparison.swift in Sources */,
 				50CED80A268D3933D37E244B /* WorkingCopyRevision.swift in Sources */,
@@ -2616,6 +2623,7 @@
 				FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */,
 				591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */,
 				241DD127E807673880A95899 /* PatchWindow.swift in Sources */,
+				5F8128FD6DC3B7D1798F4207 /* PatchZoomCommands.swift in Sources */,
 				E1AC81A38FAFEEBD46E31DC9 /* PathEntryField.swift in Sources */,
 				3FFB03A3066A6430145A490B /* PowerPointComparisonAutomation.swift in Sources */,
 				07A6C274B2CE9D8B7609FC78 /* PresentationComparisonRendering.swift in Sources */,

@@ -540,6 +540,13 @@ struct PatchLineEditingCommands: Commands {
                     }
                 }
             }
+            Menu("Zoom") {
+                ForEach(PatchZoomCommand.allCases) {command in
+                    Button {context.performZoomCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}
+                        .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers)
+                        .disabled(!context.zoomCommands.contains(command))
+                }
+            }
             Menu("Caret") {
                 ForEach(PatchCaretCommand.allCases) { command in
                     if command == .toggleOvertype {

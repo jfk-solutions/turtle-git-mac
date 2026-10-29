@@ -175,16 +175,23 @@ import UniformTypeIdentifiers
     let documentDirectory: URL
     private let access: RepositoryAccessLease?
     let appearancePreferences: UserDefaults
+    private(set) var zoomInputRevision=UUID()
+    @Published private(set) var zoomState=UnifiedDiffZoom()
+    var zoomLevel:Int {zoomState.level}
+    @discardableResult func applyZoom(_ command:UnifiedDiffZoomCommand)->Bool {
+        guard canFind,error==nil,zoomState.canPerform(command) else{return false}
+        return zoomState.perform(command)
+    }
     @Published var darkMode = false
     @Published private(set) var appearanceRevision = 0
     private var appearanceSettings:UnifiedDiffAppearance
     private var appearanceChanges:[AnyCancellable]=[]
-    @Published var document = GitPatch(text: "") { didSet { originalDiff = nil; findRevision=UUID() } }
+    @Published var document = GitPatch(text: "") { didSet { originalDiff = nil; findRevision=UUID();zoomInputRevision=UUID() } }
     private var originalDiff: UnifiedDiffDocument?
     var usesSourceFindBar = false
     @Published var allowsDocumentEditing = false
     @Published private(set) var documentDirty = false
-    @Published private(set) var documentResetRevision = 0
+    @Published private(set) var documentResetRevision = 0 {didSet {if oldValue != documentResetRevision {zoomInputRevision=UUID()}}}
     private var savedDocument: UnifiedDiffDocument?
     private var editBuffer:UnifiedDiffEditBuffer?
     private var approvedReplacementText: String?
@@ -242,9 +249,9 @@ import UniformTypeIdentifiers
     var customRefresh: (() -> Void)?
     var readOnlyInformation: String?
     var base: String?
-    @Published var busy = false {didSet {if oldValue != busy {findRevision=UUID()}}}
-    @Published var confirmingQuit = false {didSet {if oldValue != confirmingQuit {findRevision=UUID()}}}
-    @Published var error: String? { didSet { if error != nil { approvedReplacementText = nil } } }
+    @Published var busy = false {didSet {if oldValue != busy {findRevision=UUID();zoomInputRevision=UUID()}}}
+    @Published var confirmingQuit = false {didSet {if oldValue != confirmingQuit {findRevision=UUID();zoomInputRevision=UUID()}}}
+    @Published var error: String? { didSet { if oldValue != error {zoomInputRevision=UUID()};if error != nil { approvedReplacementText = nil } } }
     @Published var paths: [String] = []
     private var generation = 0
     private var readTask: Task<Void, Never>?
@@ -253,7 +260,7 @@ import UniformTypeIdentifiers
     private var applying = false
     var applyingChanges: Bool { applying }
     var externalAvailability: () -> Bool = { true }
-    private(set) var retired = false
+    private(set) var retired = false {didSet {if oldValue != retired {zoomInputRevision=UUID()}}}
     static private(set) var activeOperations = 0
     @Published private(set) var loading = false
     @Published private(set) var cancelling = false
@@ -280,7 +287,7 @@ import UniformTypeIdentifiers
         guard oldValue != sourceOwnerID else{return};sourceMoved(sourceOwnerID)
     }}
     func sourceMoved(_ identity:UUID?) {
-        guard sourceOwnerID==identity else{return};findRevision=UUID();sourceCallbackRevision=UUID()
+        guard sourceOwnerID==identity else{return};findRevision=UUID();sourceCallbackRevision=UUID();zoomInputRevision=UUID()
         // Registration/attachment may occur during a SwiftUI update. Refresh
         // the bar on the next turn, only while this registration still owns it.
         let owner=sourceOwnerID
@@ -628,11 +635,14 @@ struct PatchTextView: NSViewRepresentable {
         let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = colorScheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard !text.hasMarkedText() else { return }
-        guard cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
+        guard cache.lastZoomLevel != model.zoomLevel || cache.needsStyling || cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true) || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
         let contentChanged = cache.resetRevision != model.documentResetRevision || (cache.lastText.map {GitReferenceName.equal($0,model.document.text)} != true), selection = text.selectedRange(), selectionAffinity = text.selectionAffinity, selectionSnapshot = text.columnSelection?.snapshot(), scrollOrigin = scroll.contentView.bounds.origin
+        let fontLayoutChanged=cache.lastZoomLevel != model.zoomLevel || cache.lastAppearance?.fontSize != settings.fontSize || cache.lastAppearance?.fontName != settings.fontName || cache.lastAppearance?.tabSize != settings.tabSize
+        let viewportAnchor = !contentChanged && fontLayoutChanged ? text.zoomViewportAnchor():nil
+        cache.lastZoomLevel=model.zoomLevel
         cache.resetRevision = model.documentResetRevision; cache.needsStyling = false
         cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
-        let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
+        let font = Self.font(settings:settings,pointSize:model.zoomState.effectiveFontSize(base:settings.fontSize))
         let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
         paragraph.defaultTabInterval = max(1, (" " as NSString).size(withAttributes: [.font: font]).width * CGFloat(settings.tabSize))
         func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
@@ -665,12 +675,22 @@ struct PatchTextView: NSViewRepresentable {
         if contentChanged { text.undoManager?.removeAllActions(); scroll.resetToStart = true; text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
-            if let selectionSnapshot { _ = text.columnSelection?.applySnapshot(selectionSnapshot) }
+            if var selectionSnapshot {
+                if fontLayoutChanged,selectionSnapshot.rectangular {
+                    // RefreshStyleData calls SetRectangularRange using the new
+                    // font metrics, including a formerly explicit/dropped row set.
+                    selectionSnapshot.rectangleRowsExplicit=false;selectionSnapshot.rectangle=nil
+                }
+                _ = text.columnSelection?.applySnapshot(selectionSnapshot)
+            }
             else { text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)), affinity: selectionAffinity, stillSelecting: false) }
         }
         host.layoutSubtreeIfNeeded()
         scroll.updateDocumentExtent()
-        if !contentChanged {scroll.restoreDocumentOrigin(scrollOrigin)}
+        if !contentChanged {
+            if let viewportAnchor {text.restoreZoomViewport(viewportAnchor)}
+            else {scroll.restoreDocumentOrigin(scrollOrigin)}
+        }
     }
     static func dismantleNSView(_ host: PatchTextHost, coordinator: Coordinator) {
         let scroll = host.scroll
@@ -687,6 +707,7 @@ struct PatchTextView: NSViewRepresentable {
         var model: PatchWindowModel
         var lastText: String?
         var resetRevision = -1, needsStyling = true
+        var lastZoomLevel = 0
         var lastAppearance: UnifiedDiffAppearance?
         var dark = false, highContrast = false
         init(model: PatchWindowModel) { self.model = model }
@@ -725,6 +746,12 @@ struct PatchTextView: NSViewRepresentable {
         var overtypeRevision:Int?
         var overtypeEnabled=false
         var suppressOvertype=false
+        var zoomWheel=UnifiedDiffZoomWheelAccumulator()
+        var zoomWheelOwner:PatchLineOwnerReceipt?
+        var zoomWheelInputRevision:UUID?
+        var zoomWheelPhased=false
+        weak var zoomObservedWindow:NSWindow?
+
         var viewportDesiredX:CGFloat?
         var viewportLayoutSize:NSSize?
         var viewportFont:NSFont?
@@ -744,6 +771,7 @@ struct PatchTextView: NSViewRepresentable {
             columnSelection?.externalSelectionChanged(); super.mouseDown(with: event)
         }
         override func keyDown(with event: NSEvent) {
+            if let command=PatchZoomCommand.command(for:event) {_ = performZoomCommand(command);return}
             if let command=PatchNavigationCommand.command(for:event) {_ = performNavigationCommand(command);return}
             if let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return}
             if let command=PatchCaretCommand.command(for:event) {_ = performCaretCommand(command);return}
@@ -769,6 +797,7 @@ struct PatchTextView: NSViewRepresentable {
                 block.fill(using:.sourceOver);NSGraphicsContext.restoreGraphicsState()
             } else {setNeedsDisplay(block)}
         }
+        override func scrollWheel(with event:NSEvent) {if !handleZoomWheel(with:event) {super.scrollWheel(with:event)}}
         override func copy(_ sender: Any?) { if !handleColumnCopy(cutting: false) { super.copy(sender) } }
         override func cut(_ sender: Any?) { if !handleColumnCopy(cutting: true) { super.cut(sender) } }
         override func paste(_ sender: Any?) {
@@ -795,6 +824,7 @@ struct PatchTextView: NSViewRepresentable {
             super.insertNewline(sender)
         }
         override func setMarkedText(_ value: Any, selectedRange: NSRange, replacementRange: NSRange) {
+            invalidateZoomWheelInput()
             if !hasMarkedText(), hasColumnSelection, columnSelection?.available == true { columnSelection?.collapseToPrimary() }
             super.setMarkedText(value, selectedRange: selectedRange, replacementRange: replacementRange)
         }
@@ -882,7 +912,7 @@ struct PatchTextView: NSViewRepresentable {
         @objc func printPatch(_ sender: Any?) {
             guard let window, window.attachedSheet == nil, let model = coordinator?.model,
                   !model.retired, !model.busy, !model.confirmingQuit, printSession == nil else { return }
-            let snapshot = NSAttributedString(attributedString: attributedString())
+            let snapshot = printSnapshot()
             model.busy = true
             do {
                 printSession = try PatchPrintSession(snapshot: snapshot, selection: selectedRange(), title: window.title) { [weak self, weak model] in
@@ -894,6 +924,7 @@ struct PatchTextView: NSViewRepresentable {
         override func printView(_ sender: Any?) { printPatch(sender) }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); (window as? PatchNSWindow)?.patchText = self
+            installZoomWheelObservers()
             if let coordinator {coordinator.model.sourceMoved(coordinator.identity)}
         }
         func find(_ action: NSTextFinder.Action) {
@@ -916,10 +947,12 @@ struct PatchTextView: NSViewRepresentable {
             }
         }
         override func unmarkText() {
+            invalidateZoomWheelInput()
             super.unmarkText()
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if window?.firstResponder === self,let command=PatchZoomCommand.command(for:event) {_ = performZoomCommand(command);return true}
             if window?.firstResponder === self,let command=PatchNavigationCommand.command(for:event) {_ = performNavigationCommand(command);return true}
             if window?.firstResponder === self,let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return true}
             if window?.firstResponder === self,let command=PatchCaretCommand.command(for:event) {
@@ -1020,6 +1053,8 @@ struct PatchTextView: NSViewRepresentable {
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let zoomMenu=NSMenuItem(title:NSLocalizedString("Zoom",comment:"Unified Diff temporary zoom menu"),action:nil,keyEquivalent:"")
+            zoomMenu.image=MenuIcon.imageZoomIn.contextImage(defaults:defaults);zoomMenu.submenu=makeZoomCommandMenu();menu.addItem(zoomMenu)
             let navigationMenu=NSMenuItem(title:NSLocalizedString("Navigation",comment:"Unified Diff navigation menu"),action:nil,keyEquivalent:"")
             navigationMenu.image=MenuIcon.mergeNextInline.contextImage(defaults:defaults);navigationMenu.submenu=makeNavigationCommandMenu();menu.addItem(navigationMenu)
             let selectionMenu=NSMenuItem(title:NSLocalizedString("Selection Editing",comment:"Unified Diff selection editing menu"),action:nil,keyEquivalent:"")
