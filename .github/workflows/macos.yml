@@ -444,6 +444,8 @@ jobs:
         run: python3 scripts/test-inaccessible-repository.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Selected-file macOS Services and owned repository routing
         run: python3 scripts/test-finder-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Finder returned-volume recovery and authority ownership
+        run: python3 scripts/test-finder-volume-recovery.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder repository workflow Services
         run: python3 scripts/test-finder-service-workflows.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder selected-file workflow Services

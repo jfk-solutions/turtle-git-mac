@@ -75,3 +75,12 @@ recorded in [the batch evidence](qa/cache-tray-2026-10-16.json). Only the affect
 native case was repeated; Core was not rerun for that repair. The activity window
 captures are published in the guide; no real system menu-bar item or signed user
 service was installed by the native check.
+
+## Returned-volume recovery — October 29, 2026
+
+The [volume recovery family](FINDER-VOLUME-RECOVERY-PARITY.md) now reconnects
+existing unavailable grants and failed live sessions after mount, unmount or
+volume rename notifications. Immutable authority preparation leaves the main
+actor; healthy roots stay attached. Production startup and explicit background
+Retry use the same owned preparation/drain pipeline. The linked checkpoint
+separates native/private recovery from physical and signed service acceptance.

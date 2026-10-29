@@ -18,6 +18,14 @@ It does not open or replace a workspace. Clone registers its successful result
 automatically. Refresh after quitting remains a separate opt-in preference.
 See [first-use registration](FINDER-REGISTRATION-PARITY.md).
 
+If a saved repository's external or network volume was unavailable, reconnect
+the volume. TurtleGit retries its saved access and resumes status publication
+without adding the repository again. Other watched repositories keep running.
+If access has been revoked, use **Renew Access** in Watched Repositories.
+[Volume recovery](FINDER-VOLUME-RECOVERY-PARITY.md) describes the bounded retries
+and the remaining installed-service acceptance scope.
+
+
 Finder and command-line requests for About, Settings and Git dialogs use a
 retained action owner, so they do not need to show the workspace first. Direct
 links and patch documents also route independently when starting the application.

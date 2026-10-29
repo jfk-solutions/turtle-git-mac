@@ -15,6 +15,12 @@ publishes its status for badges and enables repository commands in the submenu.
 It does not open or replace a workspace. Clone registers its successful result
 automatically. Refresh after quitting remains a separate opt-in preference.
 See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-REGISTRATION-PARITY.html">first-use registration</a>.</p>
+<p>If a saved repository's external or network volume was unavailable, reconnect
+the volume. TurtleGit retries its saved access and resumes status publication
+without adding the repository again. Other watched repositories keep running.
+If access has been revoked, use <strong>Renew Access</strong> in Watched Repositories.
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-VOLUME-RECOVERY-PARITY.html">Volume recovery</a> describes the bounded retries
+and the remaining installed-service acceptance scope.</p>
 <p>Finder and command-line requests for About, Settings and Git dialogs use a
 retained action owner, so they do not need to show the workspace first. Direct
 links and patch documents also route independently when starting the application.

@@ -48,6 +48,13 @@ struct FinderWatchRow:Identifiable {
     private var publicationRetirement:Task<Void,Never>?
     private var restoration: Task<Void, Never>?
     private var restorationCancellation: OperationCancellation?
+    private var volumeRecovery:FinderVolumeRecovery?
+    private let volumeNotificationCenter:NotificationCenter
+    private var requestedRecoveryIDs=Set<UUID>()
+    var recoveryPending:Bool {restoration != nil || volumeRecovery?.isPending == true}
+    var resolveAuthority:(RepositoryAuthorityRequest,Bool,OperationCancellation) async throws -> RepositoryAuthorityRequest.Authority = {request,requireScope,cancellation in
+        try await Task.detached(priority:.utility) {try request.resolve(requireSecurityScope:requireScope,cancellation:cancellation)}.value
+    }
     var hasPendingFinderPublication:Bool { cacheSession != nil || pendingOperations>0 }
     private func publicationSession(_ cache:FinderSnapshotStore,cancellation:OperationCancellation) async throws -> FinderPublicationSession {
         guard active else { throw OperationCancellationFailure.cancelled }
@@ -95,6 +102,7 @@ struct FinderWatchRow:Identifiable {
         var active=true
         var permissionReady=false
         var collectionStarted=false
+        var needsRecovery=false
         var lastAttemptedPublication: FinderPublicationTicket?
         var request:OperationCancellation?
         var monitor:RepositoryFileEventMonitor?
@@ -107,7 +115,9 @@ struct FinderWatchRow:Identifiable {
          repositoryFactory:@escaping (URL) throws -> GitRepository = { GitRepository(root:$0,executable:try GitRuntime.executable()) },
          statusPolicyProvider:(() throws -> FinderStatusPolicy)? = nil,
          registeredRootsURL: URL? = nil,
+         volumeNotificationCenter:NotificationCenter? = nil,
          notify:@escaping ()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }) {
+        self.volumeNotificationCenter=volumeNotificationCenter ?? NSWorkspace.shared.notificationCenter
         self.permissions=permissions;self.cache=cache;self.registeredRootsURL=registeredRootsURL ?? cache?.url.deletingLastPathComponent().appendingPathComponent("registered-roots.json");self.requireScope=requireScope;self.scopeProvider=scopeProvider;self.repositoryFactory=repositoryFactory;self.notify=notify;self.statusPolicyProvider=statusPolicyProvider;render()
         if let url = self.registeredRootsURL {
             let path = url.standardizedFileURL.path
@@ -247,12 +257,33 @@ struct FinderWatchRow:Identifiable {
     }
     /// Workspace/Settings startup owns the complete local watcher set. Action
     /// routers instead retain the saved authority without crawling every root.
-    func restore() {guard active else{return};startup = .allSavedRepositories;reconcileRegisteredContexts = true;restoreRequestedRepositories()}
-    private func restoreRequestedRepositories() {
-        guard active, !busy, startup == .allSavedRepositories, restoration == nil else { return }
+    private func ensureVolumeRecovery() {
+        guard active,volumeRecovery==nil else{return}
+        volumeRecovery=FinderVolumeRecovery(retry:{[weak self] in await self?.recoverUnavailableRepositories() ?? false},notificationCenter:volumeNotificationCenter)
+    }
+    func restore() {guard active else{return};startup = .allSavedRepositories;reconcileRegisteredContexts = true;ensureVolumeRecovery();restoreRequestedRepositories()}
+    /// Retry only the saved authorities this manager already owns. Deferred
+    /// dialog routers do not start crawling unrelated saved repositories.
+    func recoverUnavailableRepositories() async -> Bool {
+        guard active else{return false}
+        if busy {return hasUnavailableRepositories}
+        restoreRequestedRepositories()
+        await restoration?.value
+        guard active else{return false}
+        return hasUnavailableRepositories
+    }
+    private var hasUnavailableRepositories:Bool {
+        permissions.repositories.contains {record in
+            guard startup == .allSavedRepositories || requestedRecoveryIDs.contains(record.id) else{return false}
+            return sessions[record.id].map {!$0.active || $0.needsRecovery} ?? true
+        }
+    }
+    private func restoreRequestedRepositories(only selected:Set<UUID>? = nil) {
+        guard active,!busy,restoration==nil,startup == .allSavedRepositories || !requestedRecoveryIDs.isEmpty else{return}
         let requests = permissions.repositories.compactMap { value -> RepositoryAuthorityRequest? in
-            if let session = sessions[value.id] {
-                if !session.collectionStarted { session.scheduler?.invalidate() }
+            guard selected?.contains(value.id) ?? true,startup == .allSavedRepositories || requestedRecoveryIDs.contains(value.id) else{return nil}
+            if let session=sessions[value.id],!session.needsRecovery {
+                if !session.collectionStarted {session.scheduler?.invalidate()}
                 return nil
             }
             return try? permissions.captureAuthority(value.id)
@@ -274,20 +305,29 @@ struct FinderWatchRow:Identifiable {
             for request in requests {
                 guard active, !cancellation.isCancelled else { return }
                 do {
-                    let authority = try await Task.detached(priority: .utility) {
-                        try request.resolve(requireSecurityScope: requireScope, cancellation: cancellation)
-                    }.value
+                    let authority=try await resolveAuthority(request,requireScope,cancellation)
                     guard active, !cancellation.isCancelled else { return }
                     // Add/Renew/Remove may have replaced this immutable request
                     // while the worker was resolving it. Never revive that grant.
-                    guard permissions.repositories.first(where: { $0.id == request.record.id }) == request.record,
-                          sessions[request.record.id] == nil else { continue }
-                    guard try permissions.adoptAuthority(authority, from: request) else { continue }
+                    guard permissions.repositories.first(where:{$0.id==request.record.id})==request.record,
+                          try permissions.reloadPreserving(request.record) else{continue}
+                    if let old=sessions[request.record.id] {
+                        // The root may have moved with its volume. Re-resolve
+                        // authority before retiring only this failed session;
+                        // keep both scopes until its accepted reader drains.
+                        guard old.needsRecovery else{continue}
+                        old.retire()
+                        while old.request != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                        guard active,!cancellation.isCancelled else{return}
+                        if sessions[request.record.id] === old {sessions.removeValue(forKey:request.record.id)}
+                    }
+                    guard try permissions.reloadPreserving(request.record),
+                          try permissions.adoptAuthority(authority,from:request) else{continue}
                     installAuthority(request.record.id, lease: authority.primary, additional: authority.additional)
                 } catch {
                     guard active, !cancellation.isCancelled else { return }
-                    if permissions.repositories.first(where: { $0.id == request.record.id }) == request.record,
-                       sessions[request.record.id] == nil {
+                    if permissions.repositories.first(where:{$0.id==request.record.id})==request.record,
+                       sessions[request.record.id]==nil || sessions[request.record.id]?.needsRecovery == true {
                         statuses[request.record.id] = "Permission or repository unavailable: " + error.localizedDescription
                         render()
                     }
@@ -324,7 +364,7 @@ struct FinderWatchRow:Identifiable {
         for root in pending {refresh(repository:root)}
     }
     private func attach(_ id:UUID,scheduleInitial:Bool = true,acceptedLease:RepositoryAccessLease? = nil) {
-        guard active else { return };sessions.removeValue(forKey:id)?.retire()
+        guard active else { return };requestedRecoveryIDs.insert(id);ensureVolumeRecovery();sessions.removeValue(forKey:id)?.retire()
         do {
             let lease = try acceptedLease ?? permissions.acquire(id, requireSecurityScope: requireScope, updatingRecord: false)
             let additional = try permissions.acquireAdditionalPermissions(id, requireSecurityScope: requireScope)
@@ -476,11 +516,23 @@ struct FinderWatchRow:Identifiable {
                     }
                 }
             } else { statuses[session.id]="Updated; Finder integration unavailable";if requirePublication {throw FinderWatchFailure.initialPublication("Finder integration is unavailable in this application.")} }
+            let firstPartialFailure = !session.needsRecovery && !result.failures.isEmpty
+            session.needsRecovery = !result.failures.isEmpty
+            if firstPartialFailure {ensureVolumeRecovery();if volumeRecovery?.isPending != true {volumeRecovery?.volumeChanged()}}
             render()
-        } catch { if active,session.active,!token.isCancelled { statuses[session.id]=error.localizedDescription;render() };throw error }
+        } catch {
+            if active,session.active,!token.isCancelled {
+                let firstFailure = !session.needsRecovery;session.needsRecovery=true
+                statuses[session.id]=error.localizedDescription;render()
+                if firstFailure {ensureVolumeRecovery();if volumeRecovery?.isPending != true {volumeRecovery?.volumeChanged()}}
+            }
+            throw error
+        }
     }
     func refresh(_ id:UUID) {
-        guard active,!busy else { return };if let session=sessions[id] { session.scheduler?.invalidate() } else { attach(id) }
+        guard active,!busy else{return}
+        if let session=sessions[id] {session.scheduler?.invalidate()}
+        else {requestedRecoveryIDs.insert(id);ensureVolumeRecovery();restoreRequestedRepositories(only:[id])}
     }
     func reloadStatusPolicy(operation:Bool=false) {
         guard active else{return}
@@ -579,7 +631,7 @@ struct FinderWatchRow:Identifiable {
                 try await removePublication(root,cache:cache,cancellation:token)
                 guard active,!token.isCancelled else { return };notify()
             }
-            try permissions.forget(id);registeredContextObservations[id]=nil
+            try permissions.forget(id);requestedRecoveryIDs.remove(id);registeredContextObservations[id]=nil
             try await publishRegisteredContexts(cancellation: token)
             serviceRevision += 1;statuses[id]=nil;render()
         } catch { if active,!token.isCancelled { self.error=error.localizedDescription;attach(id) } }
@@ -613,7 +665,8 @@ struct FinderWatchRow:Identifiable {
     }
     func retire() {
         guard active else { return }
-        pendingTargetRefreshes.removeAll()
+        pendingTargetRefreshes.removeAll();requestedRecoveryIDs.removeAll()
+        volumeRecovery?.retire()
         active=false
         registeredPolicyReadRequested = false
         if let registeredPolicyObserver { NotificationCenter.default.removeObserver(registeredPolicyObserver); self.registeredPolicyObserver = nil }
@@ -633,7 +686,7 @@ struct FinderWatchRow:Identifiable {
             }
         }
     }
-    func shutdown() async { retire();await publicationRetirement?.value;await backgroundService?.settle() }
+    func shutdown() async { retire();await publicationRetirement?.value;await volumeRecovery?.settle();await backgroundService?.settle() }
 }
 
 /// The page owns its chooser/question; the application owns accepted watches.

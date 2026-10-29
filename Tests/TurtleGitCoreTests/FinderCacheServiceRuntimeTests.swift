@@ -288,3 +288,149 @@ final class FinderCacheServiceRuntimeTests:XCTestCase {
     }
 
 }
+
+extension FinderCacheServiceRuntimeTests {
+    /// The injected provider owns its mutable state; worker admission/retirement
+    /// is tested without touching production bookmarks or application preferences.
+    private final class RecoveryProvider: RepositoryBookmarkProvider, RepositoryTransferBookmarkProvider, @unchecked Sendable {
+        private let lock=NSLock()
+        private var unavailable=Set<String>(),held:String?,entered=false
+        private var reads:[String:Int]=[:]
+        private let gate=DispatchSemaphore(value:0)
+        func deny(_ path:String,_ denied:Bool) { lock.lock();if denied {unavailable.insert(path)}else{unavailable.remove(path)};lock.unlock() }
+        func hold(_ path:String) { lock.lock();held=path;entered=false;lock.unlock() }
+        var isHeld:Bool {lock.lock();defer{lock.unlock()};return entered}
+        func release() {gate.signal()}
+        func count(_ path:String)->Int {lock.lock();defer{lock.unlock()};return reads[path,default:0]}
+        func create(for url:URL)throws->Data { Data(url.path.utf8) }
+        func resolve(_ bytes:Data)throws->ResolvedBookmark {
+            let path=String(decoding:bytes,as:UTF8.self)
+            lock.lock();reads[path,default:0]+=1;let wait=held==path
+            if wait {held=nil;entered=true};lock.unlock()
+            if wait {gate.wait()}
+            lock.lock();let denied=unavailable.contains(path);lock.unlock()
+            if denied {throw RepositoryAccessFailure.securityScopeUnavailable}
+            return .init(url:URL(fileURLWithPath:path,isDirectory:true),stale:false)
+        }
+        func createTransfer(for url:URL)throws->Data {Data(url.path.utf8)}
+        func resolveTransfer(_ bytes:Data)throws->ResolvedBookmark { .init(url:URL(fileURLWithPath:String(decoding:bytes,as:UTF8.self),isDirectory:true),stale:false) }
+        func startAccessing(_ url:URL)->Bool {true}
+        func stopAccessing(_ url:URL) {}
+    }
+    @MainActor func testVolumeRecoveryRestoresOnlyUnavailableSavedGrantAndKeepsHealthyPublication() async throws {
+        let folder=try FinderServicePermissionStoreTests().folder();defer{try? FileManager.default.removeItem(at:folder)}
+        let roots=[folder.appendingPathComponent("healthy"),folder.appendingPathComponent("returned")]
+        for root in roots {try await repository(root)}
+        let ids=[UUID(),UUID()],provider=RecoveryProvider()
+        let permissions=try FinderServicePermissionStore(url:folder.appendingPathComponent("private/grants.json"),provider:provider)
+        _ = try permissions.install(.init(grants:zip(ids,roots).map{.init(id:$0.0,bookmark:Data($0.1.path.utf8),repositoryComponents:[])}),transfer:provider)
+        provider.deny(roots[1].path,true)
+        let cache=FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json"))
+        let runtime=FinderCacheServiceRuntime(permissions:permissions,cache:cache)
+        do {
+            try await runtime.startPrepared()
+            try await awaitCache{runtime.report.roots.first(where:{$0.id==ids[0]})?.lastPublication != nil}
+            let healthyDate=runtime.report.roots.first(where:{$0.id==ids[0]})?.lastPublication,healthyReads=provider.count(roots[0].path)
+            XCTAssertTrue(runtime.needsVolumeRecovery)
+            provider.deny(roots[1].path,false)
+            _ = await runtime.recoverUnavailableGrants()
+            try await awaitCache{runtime.report.roots.first(where:{$0.id==ids[1]})?.lastPublication != nil}
+            XCTAssertEqual(provider.count(roots[0].path),healthyReads)
+            XCTAssertEqual(runtime.report.roots.first(where:{$0.id==ids[0]})?.lastPublication,healthyDate)
+            XCTAssertFalse(runtime.needsVolumeRecovery)
+            let live=try cache.readLive();XCTAssertTrue(live.roots.contains(roots[0].path));XCTAssertTrue(live.roots.contains(roots[1].path))
+            XCTAssertEqual(permissions.grants.map(\.id),ids)
+        } catch {await runtime.shutdown();throw error}
+        await runtime.shutdown()
+    }
+    @MainActor func testVolumeAuthorityCandidateCannotReviveRemovedOrReplacedGrant() async throws {
+        let folder=try FinderServicePermissionStoreTests().folder();defer{try? FileManager.default.removeItem(at:folder)}
+        let provider=RecoveryProvider(),id=UUID(),old=folder.appendingPathComponent("old"),new=folder.appendingPathComponent("new")
+        let store=try FinderServicePermissionStore(url:folder.appendingPathComponent("grants.json"),provider:provider)
+        func install(_ root:URL)throws { _ = try store.install(.init(grants:[.init(id:id,bookmark:Data(root.path.utf8),repositoryComponents:[])]),transfer:provider) }
+        try install(old)
+        let request=try XCTUnwrap(store.authorityRequests().first),token=OperationCancellation()
+        provider.hold(old.path)
+        let worker=Task.detached{try request.resolve(cancellation:token)}
+        try await awaitCache{provider.isHeld}
+        try store.remove(id);provider.release()
+        let candidate=try await worker.value
+        XCTAssertNil(try store.adopt(candidate));XCTAssertTrue(store.grants.isEmpty)
+        try install(old)
+        let replacementRequest=try XCTUnwrap(store.authorityRequests().first)
+        let stale=try await Task.detached{try replacementRequest.resolve(cancellation:OperationCancellation())}.value
+        try install(new)
+        XCTAssertNil(try store.adopt(stale));XCTAssertEqual(store.grants.first?.bookmark,Data(new.path.utf8))
+        XCTAssertTrue(store.authorityRequests(excluding:[id]).isEmpty)
+    }
+    @MainActor func testVolumeRecoveryShutdownCancelsButDrainsActualAuthorityWorker() async throws {
+        let folder=try FinderServicePermissionStoreTests().folder();defer{try? FileManager.default.removeItem(at:folder)}
+        let root=folder.appendingPathComponent("repo"),provider=RecoveryProvider(),id=UUID()
+        try await repository(root)
+        let store=try FinderServicePermissionStore(url:folder.appendingPathComponent("grants.json"),provider:provider)
+        _ = try store.install(.init(grants:[.init(id:id,bookmark:Data(root.path.utf8),repositoryComponents:[])]),transfer:provider)
+        provider.deny(root.path,true)
+        let runtime=FinderCacheServiceRuntime(permissions:store,cache:FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json")))
+        try await runtime.startPrepared();provider.deny(root.path,false);provider.hold(root.path)
+        let recovery=Task{await runtime.recoverUnavailableGrants()}
+        try await awaitCache{provider.isHeld && runtime.authorityPreparationPending}
+        var stopped=false
+        let shutdown=Task{await runtime.shutdown();stopped=true}
+        await Task.yield()
+        XCTAssertFalse(stopped);XCTAssertTrue(runtime.authorityPreparationPending)
+        provider.release();_ = await recovery.value;await shutdown.value
+        XCTAssertTrue(stopped);XCTAssertFalse(runtime.authorityPreparationPending);XCTAssertFalse(runtime.running)
+        XCTAssertNil(runtime.report.roots.first?.lastPublication)
+    }
+    @MainActor func testPreparedServiceStartupLeavesMainActorResponsiveAndTargetsOnlySavedIDs() async throws {
+        let folder=try FinderServicePermissionStoreTests().folder();defer{try? FileManager.default.removeItem(at:folder)}
+        let root=folder.appendingPathComponent("repo"),provider=RecoveryProvider(),id=UUID()
+        try await repository(root)
+        let store=try FinderServicePermissionStore(url:folder.appendingPathComponent("grants.json"),provider:provider)
+        _ = try store.install(.init(grants:[.init(id:id,bookmark:Data(root.path.utf8),repositoryComponents:[])]),transfer:provider)
+        provider.hold(root.path)
+        let runtime=FinderCacheServiceRuntime(permissions:store,cache:FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json")))
+        let start=Task{try await runtime.startPrepared()}
+        try await awaitCache{provider.isHeld}
+        XCTAssertTrue(runtime.authorityPreparationPending)
+        var heartbeat=false;await Task{@MainActor in heartbeat=true}.value;XCTAssertTrue(heartbeat)
+        provider.release()
+        do {try await start.value;try await awaitCache{runtime.report.roots.first?.lastPublication != nil}
+            let reads=provider.count(root.path)
+            let more=await runtime.recoverUnavailableGrants(UUID());XCTAssertFalse(more)
+            XCTAssertEqual(provider.count(root.path),reads);XCTAssertEqual(runtime.report.roots.map(\.id),[id])
+        } catch {await runtime.shutdown();throw error}
+        await runtime.shutdown()
+    }
+}
+
+extension FinderCacheServiceRuntimeTests {
+    @MainActor func testPartialCollectionFailureRemainsVolumeRecoveryTargetWithoutRetrySelfTrigger() async throws {
+        let folder=try FinderServicePermissionStoreTests().folder();defer{try? FileManager.default.removeItem(at:folder)}
+        let root=folder.appendingPathComponent("repo"),provider=RecoveryProvider(),id=UUID()
+        try await repository(root)
+        let store=try FinderServicePermissionStore(url:folder.appendingPathComponent("grants.json"),provider:provider)
+        _ = try store.install(.init(grants:[.init(id:id,bookmark:Data(root.path.utf8),repositoryComponents:[])]),transfer:provider)
+        let runtime=FinderCacheServiceRuntime(permissions:store,cache:FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json")))
+        var partial=true,kicks=0
+        runtime.recoveryRequested={kicks+=1}
+        runtime.collectionOverride={_,_,_ in
+            let snapshot=FinderSnapshot(roots:[root.path],states:[root.appendingPathComponent("file").path:.normal])
+            return FinderRepositoryCollection(root:root,bare:false,entries:[],branch:"main",conflictIsRebase:false,submodules:[],metadata:.init(),watchDirectories:[],snapshots:[snapshot],failures:partial ? [root.appendingPathComponent("child").path:"Volume unavailable"]:[:])
+        }
+        do {
+            try await runtime.startPrepared()
+            try await awaitCache{runtime.report.roots.first?.lastPublication != nil && !runtime.authorityPreparationPending}
+            XCTAssertTrue(runtime.needsVolumeRecovery)
+            let initialKicks=kicks
+            let needsMore=await runtime.recoverUnavailableGrants()
+            XCTAssertTrue(needsMore)
+            try await awaitCache{runtime.report.roots.first?.refreshing == false && runtime.report.roots.first?.lastPublication != nil}
+            XCTAssertEqual(kicks,initialKicks,"A failed retry must not reset its own bounded retry schedule")
+            partial=false;_ = await runtime.recoverUnavailableGrants()
+            try await awaitCache{!runtime.needsVolumeRecovery}
+            XCTAssertEqual(runtime.report.roots.map(\.id),[id])
+        } catch {await runtime.shutdown();throw error}
+        await runtime.shutdown()
+    }
+}

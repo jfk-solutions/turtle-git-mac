@@ -322,6 +322,7 @@
 		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
 		9AF25DFC2150DDD85C7DF7B2 /* SynchronizationReferenceResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9CB1F5743F536DB3F72DE3 /* SynchronizationReferenceResults.swift */; };
 		9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A118CF3A03416CA1144F4DE /* RequestPull.swift */; };
+		9C677E724C130451616AEA86 /* FinderVolumeRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 093BC7DBA1523309E45377D9 /* FinderVolumeRecovery.swift */; };
 		9C7EA96722550AE145D9D198 /* MessageEditorMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3DF679C54B8FB0DA5EE2457 /* MessageEditorMenuCommands.swift */; };
 		9E622C7C59E4097D00A01885 /* HookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6C7223527745421AF60617 /* HookSettings.swift */; };
 		9E86F9AB226AFE398D3E1F6E /* LFSLocksTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49FCBFED2C9CC4E19476062C /* LFSLocksTable.swift */; };
@@ -650,6 +651,7 @@
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
 		08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitContainingReferences.swift; sourceTree = "<group>"; };
 		0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleSyncWindow.swift; sourceTree = "<group>"; };
+		093BC7DBA1523309E45377D9 /* FinderVolumeRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderVolumeRecovery.swift; sourceTree = "<group>"; };
 		09F56DAEE49CAC83A3AF38D5 /* SettingsSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheetController.swift; sourceTree = "<group>"; };
 		0A48AB398ECFD8FB04FA6048 /* ReferenceFormControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceFormControls.swift; sourceTree = "<group>"; };
 		0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseReplayTable.swift; sourceTree = "<group>"; };
@@ -1587,6 +1589,7 @@
 				55A0B3EA9093FB6577B585FC /* FinderStatusOperationLease.swift */,
 				A333B80F3B2E462F38238928 /* FinderStatusPolicy.swift */,
 				EECCE7959BF8AB6672556218 /* FinderTransfer.swift */,
+				093BC7DBA1523309E45377D9 /* FinderVolumeRecovery.swift */,
 				0750171C26BC3934BA091775 /* FormatPatch.swift */,
 				9C0D58AA19D852666927E54D /* GitAskpassPrompt.swift */,
 				5EA1DF690F2B0A1AA6382752 /* GitAskpassRuntime.swift */,
@@ -2251,6 +2254,7 @@
 				55596DCA0B24730D0BD592B2 /* FinderStatusOperationLease.swift in Sources */,
 				5511945EC2CEDA6F840BFAE9 /* FinderStatusPolicy.swift in Sources */,
 				F985838996B74756D7DE40B9 /* FinderTransfer.swift in Sources */,
+				9C677E724C130451616AEA86 /* FinderVolumeRecovery.swift in Sources */,
 				08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */,
 				A15800C5D07FE7D8B87B6D79 /* GitAskpassPrompt.swift in Sources */,
 				5C8D10E11CCE21FCC9C66B7A /* GitAskpassRuntime.swift in Sources */,

@@ -135,15 +135,61 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
     }
 }
 
+/// Immutable authority work crosses the actor boundary; the mutable registry never does.
+fileprivate final class FinderServiceBookmarkProvider: RepositoryBookmarkProvider, @unchecked Sendable {
+    private let provider: any RepositoryBookmarkProvider
+    private let lock = NSRecursiveLock()
+    private let serialized: Bool
+    init(_ provider: any RepositoryBookmarkProvider) { self.provider=provider;serialized = !(provider is SystemRepositoryBookmarkProvider) }
+    private func access<T>(_ body: () throws -> T) rethrows -> T {
+        if serialized { lock.lock() };defer { if serialized { lock.unlock() } };return try body()
+    }
+    func create(for url:URL) throws -> Data { try access { try provider.create(for:url) } }
+    func resolve(_ bytes:Data) throws -> ResolvedBookmark { try access { try provider.resolve(bytes) } }
+    func startAccessing(_ url:URL) -> Bool { access { provider.startAccessing(url) } }
+    func stopAccessing(_ url:URL) { access { provider.stopAccessing(url) } }
+}
+public struct FinderServiceAuthorityRequest: Sendable {
+    public let grant: FinderServicePersistentGrant
+    private let provider: FinderServiceBookmarkProvider
+    fileprivate init(_ grant:FinderServicePersistentGrant,provider:FinderServiceBookmarkProvider) { self.grant=grant;self.provider=provider }
+    public struct Candidate: @unchecked Sendable {
+        public let access: FinderServicePersistentAccess
+        fileprivate let original: FinderServicePersistentGrant
+        fileprivate let renewed: FinderServicePersistentGrant
+    }
+    public func resolve(requireSecurityScope:Bool=true,cancellation:OperationCancellation) throws -> Candidate {
+        try cancellation.check()
+        let resolved=try provider.resolve(grant.bookmark)
+        try cancellation.check()
+        let lease=RepositoryAccessLease(url:resolved.url,provider:provider)
+        guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let root=grant.repositoryComponents.reduce(resolved.url) { $0.appendingPathComponent($1,isDirectory:true) }.standardizedFileURL
+        guard lease.contains(root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        var additional:[RepositoryAccessLease]=[],bookmarks:[Data]=[]
+        for bytes in grant.additionalBookmarks ?? [] {
+            try cancellation.check()
+            let value=try provider.resolve(bytes)
+            try cancellation.check()
+            let extra=RepositoryAccessLease(url:value.url,provider:provider)
+            guard !requireSecurityScope || extra.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+            additional.append(extra);bookmarks.append(value.stale ? try provider.create(for:value.url):bytes)
+        }
+        let renewed=FinderServicePersistentGrant(id:grant.id,bookmark:resolved.stale ? try provider.create(for:resolved.url):grant.bookmark,repositoryComponents:grant.repositoryComponents,additionalBookmarks:bookmarks.isEmpty ? grant.additionalBookmarks:bookmarks)
+        try cancellation.check()
+        return Candidate(access:FinderServicePersistentAccess(id:grant.id,root:root,lease:lease,additionalLeases:additional),original:grant,renewed:renewed)
+    }
+}
+
 /// Receiver-private durable grants. This file must not live in Finder's shared group.
 @MainActor public final class FinderServicePermissionStore {
     private struct Archive:Codable { let version:Int;let grants:[FinderServicePersistentGrant] }
     public let url:URL
     public private(set) var grants:[FinderServicePersistentGrant]
-    private let provider:any RepositoryBookmarkProvider
+    private let provider:FinderServiceBookmarkProvider
     public init(url:URL,provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) throws {
         guard url.isFileURL else { throw FinderServiceAuthorizationFailure.invalidRequest }
-        self.url=url;self.provider=provider
+        self.url=url;self.provider=FinderServiceBookmarkProvider(provider)
         if FileManager.default.fileExists(atPath:url.path) {
             let bytes=try Data(contentsOf:url)
             guard bytes.count<=16_777_216 else { throw FinderServiceAuthorizationFailure.invalidRequest }
@@ -195,6 +241,15 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
         // Failed entries remain available for explicit renewed authorization.
         if renewed != grants { try save(renewed) }
         return FinderServiceRestoration(accesses:accesses,failures:failures)
+    }
+    public func authorityRequests(excluding ids:Set<UUID> = []) -> [FinderServiceAuthorityRequest] {
+        grants.filter { !ids.contains($0.id) }.map { FinderServiceAuthorityRequest($0,provider:provider) }
+    }
+    /// An unavailable/replaced grant cannot be revived by a late volume event.
+    public func adopt(_ candidate:FinderServiceAuthorityRequest.Candidate) throws -> FinderServicePersistentAccess? {
+        guard let index=grants.firstIndex(of:candidate.original) else { return nil }
+        if candidate.renewed != candidate.original { var values=grants;values[index]=candidate.renewed;try save(values) }
+        return candidate.access
     }
     public func remove(_ id:UUID) throws { try save(grants.filter { $0.id != id }) }
 }
@@ -306,7 +361,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public var report: FinderCacheServiceReport {
         FinderCacheServiceReport(running: running, roots: permissions.grants.map { grant in
             let session = sessions[grant.id]
-            return .init(id: grant.id, refreshing: session?.token != nil, lastPublication: session?.lastPublication, failure: rootFailures[grant.id],policyIdentity:appliedStatusPolicy?.identity,caseSensitive:session?.effectiveCaseSensitive)
+            return .init(id: grant.id, refreshing: session?.token != nil || authorityIDs.contains(grant.id), lastPublication: session?.lastPublication, failure: rootFailures[grant.id],policyIdentity:appliedStatusPolicy?.identity,caseSensitive:session?.effectiveCaseSensitive)
         }.sorted { $0.id.uuidString < $1.id.uuidString }, cleanupFailures: Dictionary(uniqueKeysWithValues: cleanupFailures.map { ($0.key.uuidString, $0.value) }),
             cacheSave: appliedCacheSave, cacheFailure: cacheFailure)
     }
@@ -341,6 +396,13 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     private var generation=0
     private var shutdownTask:Task<Void,Never>?
     private var requireSecurityScope=true
+    private var authorityTask: Task<Bool,Never>?
+    private var authorityCancellation: OperationCancellation?
+    private var authorityIDs=Set<UUID>()
+    public var authorityPreparationPending:Bool { authorityTask != nil }
+    public var recoveryRequested:(()->Void)?
+    public var needsVolumeRecovery:Bool { running && permissions.grants.contains { sessions[$0.id]==nil || rootFailures[$0.id] != nil } }
+    public func settleAuthorityPreparation() async { _ = await authorityTask?.value }
     // A collector dependency permits deterministic ownership/cancellation checks
     // while production retains its authorized Git collection and watcher setup.
     var collectionOverride:((GitRepository,FinderServicePersistentAccess,OperationCancellation) async throws -> FinderRepositoryCollection)?
@@ -352,6 +414,16 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public func start(requireSecurityScope:Bool = true) throws {
         guard !running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
         let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
+        try start(restored,requireSecurityScope:requireSecurityScope)
+    }
+    /// Production startup leaves bookmark resolution off the service event loop.
+    public func startPrepared(requireSecurityScope:Bool=true) async throws {
+        guard !running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
+        try start(FinderServiceRestoration(accesses:[],failures:[:]),requireSecurityScope:requireSecurityScope)
+        _ = await recoverUnavailableGrants()
+        guard running,!transitioning,shutdownTask==nil else { throw OperationCancellationFailure.cancelled }
+    }
+    private func start(_ restored:FinderServiceRestoration,requireSecurityScope:Bool) throws {
         reloadCachePolicy();reloadStatusPolicy();retryRetiredPublications()
         do {
             let session = try cache.startSession()
@@ -368,6 +440,8 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public func replace(_ request:FinderServiceAuthorization,
                         transfer:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks(),
                         requireSecurityScope:Bool = true) async throws {
+        guard running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
+        authorityCancellation?.cancel();await settleAuthorityPreparation()
         guard running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
         let accesses=try permissions.install(request,transfer:transfer,requireSecurityScope:requireSecurityScope)
         self.requireSecurityScope = requireSecurityScope
@@ -436,17 +510,47 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public func refresh(_ id:UUID? = nil) {
         guard running,!transitioning else { return }
         reloadCachePolicy();reloadStatusPolicy();retryRetiredPublications();cleanup()
-        // Permission failures on launch are retriable without replacing the
-        // receiver's durable grant registry or interrupting healthy roots.
-        do {
-            let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
-            restorationFailure=nil
-            let missing=restored.accesses.filter { sessions[$0.id]==nil && (id==nil || id==$0.id) }
-            for (key,failure) in restored.failures where sessions[key]==nil { rootFailures[key]=failure }
-            for access in missing { rootFailures.removeValue(forKey:access.id) }
-            attach(missing)
-        } catch { restorationFailure=error.localizedDescription;changed() }
+        Task { [weak self] in _ = await self?.recoverUnavailableGrants(id) }
         for (key,session) in sessions where id==nil || id==key { session.refresh?.invalidate() }
+    }
+    /// Retry only missing or failed saved grants. Healthy roots and their
+    /// publication tickets survive; concurrent volume events join this worker.
+    @discardableResult public func recoverUnavailableGrants(_ id:UUID? = nil) async -> Bool {
+        if let task=authorityTask { return await task.value }
+        guard running,!transitioning,shutdownTask==nil else { return false }
+        let healthy=Set(sessions.keys.filter { rootFailures[$0]==nil })
+        let requests=permissions.authorityRequests(excluding:healthy).filter { id == nil || $0.grant.id == id }
+        guard !requests.isEmpty else { return false }
+        let token=OperationCancellation(),identity=generation,requireScope=requireSecurityScope
+        authorityCancellation=token;authorityIDs=Set(requests.map { $0.grant.id })
+        let task=Task { [self] () -> Bool in
+            defer { authorityTask=nil;authorityCancellation=nil;authorityIDs=[];changed() }
+            for request in requests {
+                guard running,!transitioning,generation==identity,!token.isCancelled else { return false }
+                do {
+                    let candidate=try await Task.detached(priority:.utility) { try request.resolve(requireSecurityScope:requireScope,cancellation:token) }.value
+                    guard running,!transitioning,generation==identity,!token.isCancelled else { return false }
+                    if permissions.grants.contains(request.grant) {
+                        // A concurrent normal collection may already have
+                        // recovered this session while authority was resolving.
+                        if sessions[request.grant.id] != nil,rootFailures[request.grant.id]==nil { continue }
+                        if let old=sessions[request.grant.id] {
+                            old.retire();await old.drain()
+                            guard running,!transitioning,generation==identity,!token.isCancelled else { return false }
+                            if sessions[request.grant.id] === old { sessions.removeValue(forKey:request.grant.id) }
+                        }
+                        if let access=try permissions.adopt(candidate) { attach([access]) }
+                    }
+                } catch {
+                    guard running,!transitioning,generation==identity,!token.isCancelled else { return false }
+                    if permissions.grants.contains(request.grant),sessions[request.grant.id]==nil || rootFailures[request.grant.id] != nil { rootFailures[request.grant.id]=error.localizedDescription }
+                }
+            }
+            restorationFailure=nil
+            return needsVolumeRecovery
+        }
+        authorityTask=task
+        return await task.value
     }
     private func retryRetiredPublications() {
         var failures:[String]=[],retained:[FinderPublicationSession]=[]
@@ -464,6 +568,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         if let shutdownTask { await shutdownTask.value;return }
         recordActivity("Stopping status cache…")
         running=false;generation += 1;transitioning=true
+        authorityCancellation?.cancel()
         let identity=generation,old=Array(sessions.values)+retiring
         sessions.removeAll();retiring=old
         // Capture and detach the ending lease before suspension. A second caller
@@ -471,6 +576,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         let endingPublication=publicationSession;publicationSession=nil
         for session in old { session.retire() }
         let operation=Task { [self] in
+            await settleAuthorityPreparation()
             for session in old { await session.drain() }
             if let endingPublication { retiredPublicationSessions.append(endingPublication) }
             retryRetiredPublications()
@@ -538,13 +644,19 @@ public struct FinderCacheServiceReport: Codable, Sendable {
                 }
                 session.cachedDirectories=directories
                 recordActivity("Updated path: " + session.access.root.path)
+                let hadFailure=rootFailures[session.access.id] != nil
                 rootFailures.removeValue(forKey:session.access.id)
-                if !collection.failures.isEmpty { rootFailures[session.access.id]=collection.failures.values.sorted().joined(separator:"\n") }
+                if !collection.failures.isEmpty {
+                    rootFailures[session.access.id]=collection.failures.values.sorted().joined(separator:"\n")
+                    if !hadFailure,!authorityPreparationPending { recoveryRequested?() }
+                }
                 notify();changed()
             } else { session.refresh?.invalidate() }
         } catch {
             guard running,session.active,!token.isCancelled else { return }
+            let firstFailure=rootFailures[session.access.id]==nil
             rootFailures[session.access.id]=error.localizedDescription;recordActivity("Error: " + session.access.root.path + " — " + error.localizedDescription)
+            if firstFailure,!authorityPreparationPending { recoveryRequested?() }
         }
     }
     private func watch(_ session:Session?,paths:[URL]) {
@@ -558,7 +670,11 @@ public struct FinderCacheServiceReport: Codable, Sendable {
                 }
             })
             session.monitor?.stop();session.monitor=monitor;session.directories=paths;session.watchFailure=nil
-        } catch { session.watchFailure=error.localizedDescription;rootFailures[session.access.id]=error.localizedDescription;changed() }
+        } catch {
+            let firstFailure=rootFailures[session.access.id]==nil
+            session.watchFailure=error.localizedDescription;rootFailures[session.access.id]=error.localizedDescription;changed()
+            if firstFailure,!authorityPreparationPending { recoveryRequested?() }
+        }
     }
     private func cleanup() {
         let active=GitPathSet(sessions.values.map { FileTransferPaths.lexicalPath($0.access.root.path) })

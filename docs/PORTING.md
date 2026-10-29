@@ -7,15 +7,14 @@ accepted annotation bytes without repeating Git/history reads, including recover
 from a failed codec in an opened or recent file. Its grouped checkpoint and
 remaining automatic-codepage policy boundary are separate from installed build31.
 
-## Next connected Finder recovery gap
+## Finder returned-volume recovery continuation
 
-Saved repositories that are unavailable when the background helper starts need
-an explicit refresh to reconnect today. `FinderCacheServiceRuntime.start` restores
-available grants; `refreshObserved` only refreshes existing sessions, while the
-missing-session retry lives in explicit `refresh`. Returning volumes therefore
-need a bounded saved-grant recovery path, with healthy watches preserved and
-owned asynchronous authorization/cancellation. This is an implementation gap,
-not evidence that the remaining Finder commands or physical acceptance are done.
+[Volume recovery](FINDER-VOLUME-RECOVERY-PARITY.md) now reconnects unavailable
+saved grants and re-resolves failed live roots after mount/rename events, without
+restarting healthy watches or widening a deferred dialog router's scope. Owned
+authority preparation, exact grant fences, moved-path publication cleanup and
+shutdown drain have their own grouped checkpoint. Installed build31 predates it;
+physical remounts and current signed helper acceptance remain separate.
 
 ## Log inspection continuation
 

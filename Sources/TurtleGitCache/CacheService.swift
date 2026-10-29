@@ -11,6 +11,8 @@ import TurtleGitCore
     private var signals:[DispatchSourceSignal]=[]
     private var tray:FinderCacheTrayController?
     private var stopTask:Task<Void,Never>?
+    private var startupTask:Task<Void,Never>?
+    private var volumeRecovery:FinderVolumeRecovery?
     private var policyObserver:NSObjectProtocol?
     private var statusObservers:[NSObjectProtocol]=[]
     init(configuration:Void) throws {
@@ -36,7 +38,29 @@ import TurtleGitCore
         changed = { [weak self] in self?.tray?.refresh() }
     }
     func start() throws {
-        try runtime.start();listener.resume();queryListener.resume();NSApp.delegate=self
+        listener.resume();queryListener.resume();NSApp.delegate=self
+        volumeRecovery=FinderVolumeRecovery(retry:{ [weak self] in
+            guard let self,self.stopTask==nil else{return false}
+            if let startup=self.startupTask { await startup.value }
+            guard self.stopTask==nil else{return false}
+            return await self.runtime.recoverUnavailableGrants()
+        })
+        runtime.recoveryRequested={ [weak self] in
+            guard let self,self.volumeRecovery?.isPending != true else{return}
+            self.volumeRecovery?.volumeChanged()
+        }
+        startupTask=Task { [weak self] in
+            guard let self,self.stopTask==nil else{return}
+            defer { self.startupTask=nil }
+            do {
+                try await self.runtime.startPrepared()
+                if self.runtime.needsVolumeRecovery { self.volumeRecovery?.volumeChanged() }
+            } catch {
+                guard self.stopTask==nil else{return}
+                fputs("TurtleGit cache service: \(error.localizedDescription)\n",stderr)
+                self.requestStop()
+            }
+        }
         policyObserver=DistributedNotificationCenter.default().addObserver(
             forName:NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil,queue:.main
         ) { [weak self] _ in
@@ -64,7 +88,9 @@ import TurtleGitCore
             tray?.beginStopping()
             if let policyObserver { DistributedNotificationCenter.default().removeObserver(policyObserver);self.policyObserver=nil }
             for observer in statusObservers {DistributedNotificationCenter.default().removeObserver(observer)};statusObservers=[]
+            volumeRecovery?.retire();runtime.recoveryRequested=nil
             listener.invalidate();queryListener.invalidate();await runtime.shutdown()
+            await startupTask?.value;await volumeRecovery?.settle();volumeRecovery=nil
             if let failure=runtime.report.cacheFailure { fputs("TurtleGit cache shutdown: \(failure)\n",stderr) }
             tray?.retire();exit(0)
         }
@@ -96,7 +122,7 @@ final class CacheServiceEndpoint:NSObject,FinderCacheServiceProtocol {
         }
     }
     func refresh(withReply reply:@escaping (String?)->Void) {
-        Task { @MainActor in runtime.refresh();reply(nil) }
+        Task { @MainActor in runtime.refresh();_ = await runtime.recoverUnavailableGrants();reply(nil) }
     }
     func status(withReply reply:@escaping (Data?,String?)->Void) {
         Task { @MainActor in

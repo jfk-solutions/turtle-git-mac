@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-grouped-native-pass",
+  "source_base_commit": "3bb82590",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation_scope": [
+    "Shared owned volume-event coordinator with immediate and1/3/10/30-second bounded retries and one coalesced pending cycle",
+    "App and helper retry saved missing/failed grants without restarting healthy peers or discovering new roots",
+    "Deferred routers retain only explicitly accepted watch scope",
+    "Immutable detached bookmark preparation; mutable stores stay with owner",
+    "Main exact on-disk record fences before adoption and after failed reader drain",
+    "Failed live session bookmark re-resolution and moved-path publication/catalog retirement",
+    "Background helper production startup, refresh reply settlement and report.refreshing during authority preparation",
+    "Ordered authority/collector/scheduler shutdown and retained leases until actual drain"
+  ],
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'FinderCacheServiceRuntimeTests|FinderServicePermissionStoreTests|FinderServiceAuthorizationTests|RepositoryAccessTests'",
+    "exit": 0,
+    "methods": 43,
+    "failures": 0,
+    "elapsed_test_seconds": 13.202,
+    "new_runtime_methods": 5,
+    "scope": "12 helper runtime,3 service authorization,4 permission-store and24 application authority methods"
+  },
+  "native_build": {
+    "command": "xcodebuild -jobs 4 -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath build CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES build",
+    "exit": 0,
+    "result": "BUILD SUCCEEDED",
+    "project": "xcodegen includes new Core source"
+  },
+  "native": {
+    "command": "python3 scripts/test-finder-volume-recovery.py",
+    "exit": 0,
+    "engines": [
+      {
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "receiver_pids": [
+      16642,
+      16958
+    ],
+    "all_reaped": true,
+    "independent_pid_absence_check": true,
+    "owned_helper_cleanup_verified": true,
+    "scope": [
+      "Private injected NSWorkspace mount notification recovers previously unavailable saved root after actual private directory returns",
+      "Healthy peer publication and traced Git calls unchanged",
+      "Previously published live root disappears and returns via remapped bookmark at a new path; new path publishes and old cache/catalog/lease retires",
+      "Deferred router cannot crawl unrelated saved roots",
+      "Held resolved real authorities reject same-owner Remove/Renew and independent archive-owner Remove/Renew",
+      "Shutdown cancels but awaits held authority, balances scope entries/exits and prevents late publication",
+      "Injected clock exercises finite retry schedule, concurrent event coalescing and retirement",
+      "Actual private HEAD/raw index/working content unchanged; all windows invisible/closed"
+    ]
+  },
+  "validation_attempts": [
+    {
+      "kind": "Core",
+      "exit": 0
+    },
+    {
+      "kind": "Debug build",
+      "exit": 0
+    },
+    {
+      "kind": "grouped native system and bundled Git",
+      "exit": 0
+    }
+  ],
+  "pre_validation_review_repairs": [
+    "Corrected provider wrapper assignments before compilation",
+    "Failed live sessions reauthorize bookmarks rather than retrying obsolete paths",
+    "Archive record reloaded before late adoption to preserve independent owner Remove/Renew",
+    "Failure callbacks do not extend an already active bounded retry sequence"
+  ],
+  "documentation": {
+    "site_documents": 499,
+    "unresolved_fragments": 0,
+    "site_link_tests": 2,
+    "site_result": "pass",
+    "help": "generated before build and --check pass:60documents,51topics,92files",
+    "localization": "--check pass:38languages,1325keys; no new native labels",
+    "dialog_ledger": "reconciled; unchanged counts are not completion percentage"
+  },
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/FinderVolumeRecovery.swift": "455de419779aa57d9e0192602b476903e8d036323d400e9474e33ea7dddf353b",
+    "Sources/TurtleGitCore/FinderServiceAuthorization.swift": "74235796531e3f4b0557185d9c6240c64e083c3ec0aea3bb01c565fff46b1338",
+    "Sources/TurtleGitCache/CacheService.swift": "5f989cb858131e901f8f0274e525c44c015b77869ef79cb8fd1925f28b75ca37",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "19da90e4b546fdb313575984122ce4660ccbb70393d0f4daf5db9470e817be80",
+    "Tests/TurtleGitCoreTests/FinderCacheServiceRuntimeTests.swift": "ad236d05a128a1a834d33964052b95f4f0737bf326fd185c6b9c0519a686acc9",
+    "docs/qa/finder-volume-recovery-native-2026-10-29.swift": "1b1eb43f4b6bb3da307d090f4efb9cdf8197c95a790473751655952f67ba537d",
+    "scripts/test-finder-volume-recovery.py": "a3188b1aa82b0c92581f454f30ec4cf8228b614ce1079ad1ee470320b3d4bf65",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "760e96abb39a978a3bcdfd12d97ee73c832a1977af8553f9556adddeafe141c9"
+  },
+  "log_sha256": {
+    "build/qa/finder-volume-recovery-core-2026-10-29.log": "8e0365ae8b5fae6143fb227e06504d3e1b95001ce58f52caac12c86469b79be1",
+    "build/qa/finder-volume-recovery-build-2026-10-29.log": "09f257f31a4ca3c24ef9386181c7bbd1c1c9534d76ae0f86beaa9687789bd3c1",
+    "build/qa/finder-volume-recovery-native-2026-10-29.log": "e4a10537d8c2db7c6e4474ca22116450622e1f612b4f458be9c342aba5d940b6",
+    "build/qa/finder-volume-recovery-site-2026-10-29.log": "c9a690e04cf99a885f8ec6700fa0d83ed9f80ca00a69dc444a20a56c9c981814",
+    "build/qa/finder-volume-recovery-registration-2026-10-29.json": "0e002287bd5f1c2cf9a3e6e1616ddfdffb9dc46bee3f2f8d377e94df660a3bf5"
+  },
+  "installed_application": "Build31 preserved; no app replacement, restart or user-window mutation. Installed LaunchServices/Finder registration restored after Debug build; one enabled installed extension.",
+  "limits": [
+    "Private directory moves and injected notifications do not prove physical removable/network volume remounts",
+    "No current signed bookmark/XPC/installed Finder workflow acceptance performed",
+    "No new Intel/minimum-macOS execution or complete hosted CI result established",
+    "No full Core rerun or unrelated native families",
+    "Installed build31 predates this family",
+    "Revoked/expired security authority still requires explicit user renewal",
+    "No App Store upload or notarization"
+  ],
+  "store_submission": false
+}
