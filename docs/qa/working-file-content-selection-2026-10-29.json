@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-both-native-git-engines-passed",
+  "scope": "Explicit selected working-file content, Commit amend base and Added/Deleted submodule DiffNull presentation",
+  "core_fixture": "Tests/TurtleGitCoreTests/WorkingFileContentSelectionTests.swift",
+  "native_fixture": "docs/qa/working-file-content-native-2026-10-29.swift",
+  "runner": "scripts/test-working-file-content.py",
+  "planned_assertions": [
+    "Real selected unchanged, modified, added binary, deleted and index-deleted-but-working-present files display exact intended base/destination bytes without changing HEAD/index/working storage.",
+    "Amend displays root empty base or pinned first parent, including merge first parent, unchanged working files and a parent-existing path re-added after HEAD deletion.",
+    "Rename and copy destinations retain their historical source bytes; selecting a modified copy source alongside its copy retains that source independently.",
+    "Unborn, submodule, missing/invalid/ordinary-directory and canceled requests preserve source capability/refusal boundaries and storage.",
+    "Actual Root unchanged request and Root-installed Working Tree explicit Compare on an MM row whose working bytes equal HEAD both open equal-content viewers.",
+    "Actual Root-created Commit owner, shared captured file menu and amend-to-parent comparison display parent versus current bytes using originating preferences.",
+    "Real Added submodule index gitlink differs from newer dirty child HEAD: Core and actual Root native adapter display index OID, structural New state and non-working target. Deleted/uninitialized native adapter retains historical-to-empty structural flags.",
+    "Every native window and sheet is invisible/offscreen, owned operations drain, helpers are cleaned and receivers reaped."
+  ],
+  "existing_assertion_update": {
+    "file": "Tests/TurtleGitCoreTests/RevisionComparisonTests.swift",
+    "method": "testOrdinaryDiffUnbornAndUnchangedSelection",
+    "reason": "Explicit unchanged file selection must retain one actual selected path and equal displayed sides; the old empty-files filter expectation contradicted this selected-file consumer contract. All unborn/storage assertions remain."
+  },
+  "validation": {
+    "core": {
+      "distinct_methods": 7,
+      "existing_method": {
+        "filter": "RevisionComparisonTests.testOrdinaryDiffUnbornAndUnchangedSelection",
+        "result": "Passed in initial focused seven-method group; not repeated after fixture-only null-flag repair or production read-only fix."
+      },
+      "null_side_fixture_recheck": {
+        "log": "build/qa/content-core-recheck-2026-10-29.log",
+        "methods": 6,
+        "failures": 0,
+        "seconds": 4.169
+      },
+      "final_readonly_recheck": {
+        "filter": "WorkingFileContentSelectionTests",
+        "log": "build/qa/content-core-readonly-repair-2026-10-29.log",
+        "methods": 6,
+        "failures": 0,
+        "seconds": 4.267,
+        "regression": "Includes MM selected path with different staged content but equal HEAD/working bytes and strict raw-index preservation."
+      },
+      "scope": "Seven distinct focused methods cumulatively pass; no full Core suite claim."
+    },
+    "debug": {
+      "initial": {
+        "log": "build/qa/content-debug-2026-10-29.log",
+        "exit": 0,
+        "result": "Parent-reported Debug build passed.",
+        "contradictory_exit_zero_diagnostics": 5,
+        "environment_note": "Xcode also reported simulator-service version mismatch and disabled simulator device support; this macOS checkpoint is not described as diagnostic-free."
+      },
+      "final": {
+        "log": "build/qa/content-debug-repair-2026-10-29.log",
+        "exit": 0,
+        "contradictory_exit_zero_diagnostics": 0,
+        "environment_note": "Simulator-service version mismatch warning remains; this macOS build is not claimed warning-free."
+      }
+    },
+    "system_git_native": {
+      "log": "build/qa/content-native-readonly-repair-2026-10-29.log",
+      "git": "/usr/bin/git",
+      "result": "passed",
+      "receiver_pid": 84055,
+      "receiver_cleanup": "Runner reports owned receiver reaped.",
+      "helper_cleanup": "Strict owned helper cleanup verified; no receiver leftovers requiring runner retirement."
+    },
+    "bundled_git_native": {
+      "log": "build/qa/content-native-readonly-repair-2026-10-29.log",
+      "git": "build/git-runtime/Git/bin/git",
+      "result": "passed",
+      "receiver_pid": 84279,
+      "receiver_cleanup": "Runner reports owned receiver reaped.",
+      "helper_cleanup": "Strict owned helper cleanup verified; no receiver leftovers requiring runner retirement."
+    }
+  },
+  "limits": [
+    "Native tests invoke actual bound comparison callbacks and real controllers, not synthetic pointer gestures.",
+    "Private setup intentionally creates commits/index states; inspection assertions compare storage before and after each tested operation.",
+    "No signed install, physical Finder acceptance, full hosted CI or whole-port visual parity claim."
+  ],
+  "attempts": [
+    {
+      "log": "build/qa/content-core-2026-10-29.log",
+      "scope": "Six new selected-content Core methods plus one strengthened existing method.",
+      "result": "Seven methods executed; six assertions failed in the new methods; existing method passed.",
+      "failure": "Read-only comparison null sides were incorrectly expected to set ComparisonFileContent.isDeleted. Existing comparisonFile returns empty bytes/nil mode using the selected CommitFile A/D action; isDeleted is a separate mutable output-save intent.",
+      "repair": "Six assertions now require actual empty bytes, nil mode and A/D selection. Live sides require regular mode. All content/index/HEAD/copy/submodule/refusal/cancellation assertions remain; production unchanged.",
+      "recheck": "Parent will run only affected six-method class; no execution by fixture owner."
+    },
+    {
+      "log": "build/qa/content-native-2026-10-29.log",
+      "result": "Native fixture compilation failed; no receiver or native behavior ran.",
+      "failure": "Context.setup factory referenced constructor-only git parameter outside its scope.",
+      "repair": "Capture local immutable repository.executable before creating repositoryFactory, avoiding an unintended strong Context capture. Production unchanged.",
+      "recheck": "Parent will rerun native group only; no Core/Debug repetition needed for this fixture-only repair."
+    },
+    {
+      "log": "build/qa/content-native-recheck-2026-10-29.log",
+      "receiver_pid": 83081,
+      "result": "Native runtime failed strict raw-index preservation during Status effective-equal selection.",
+      "cleanup": "Receiver reaped; strict owned helper cleanup verified.",
+      "diagnosis": "Private retained repository remained at parent selected content with MM row: Root unchanged case had completed, then Status comparison phase failed before Commit setup. Shared comparison diff lacked the existing display-statistics auto-refresh suppression policy; Root repaired diff.autoRefreshIndex=false plus GIT_OPTIONAL_LOCKS=0 in production.",
+      "fixture_refinement": "Actual compiled fixture captures the Status raw-index baseline after its initialization and verifies the intended staged blob immediately before comparison. Commit retains the stronger original raw-index baseline from before opening its dialog and metadata/options preparation. Strict equality remains, with phase-labeled before/after evidence on failure. Runner does not override optional locks to hide product behavior.",
+      "focused_core_regression": "Existing mixed test now includes a real MM selected row whose HEAD and working bytes equal while staged bytes differ; exact index bytes must remain unchanged.",
+      "source_repair": "Parent repaired shared comparisonArguments to disable diff.autoRefreshIndex and scoped comparison reads with GIT_OPTIONAL_LOCKS=0, consistent with existing read-only display statistics. No runner-wide optional-lock override masks the production behavior."
+    }
+  ],
+  "production_scope": [
+    "Explicit selected unchanged-file inclusion, empty-selection refusal, copy action/source preservation and existing null-side byte semantics.",
+    "Read-only comparison diff disables diff.autoRefreshIndex and optional index locks so effective-equal MM display does not rewrite index stat-cache bytes.",
+    "Added submodule DiffNull uses captured index gitlink rather than newer child checkout HEAD; native Added/Deleted structural null-side routing retains uninitialized metadata flags."
+  ],
+  "checkpoint_limits": [
+    "Native route acceptance uses actual Root/Working Tree/Commit callbacks and real comparison/submodule controllers; physical pointer/Finder and signed deployment were not rerun.",
+    "Existing comparison null-side representation was preserved. Initial isDeleted assertion failures were fixture mistakes, not a production null-side defect.",
+    "The strict raw-index failure was a real display-read stat-cache mutation; repaired source plus focused MM regression and both native Git engines passed.",
+    "Separate screenshot-placement failures belong to the deferred capture-family receipt; no replacement images or visual acceptance are claimed here.",
+    "No unrelated tests were rerun after the focused checks passed."
+  ],
+  "source_checkpoint": "Parent compared current fixture with the actual compiled LinkedFixture0 and identified two late unexecuted Commit baseline-reset lines. Those two lines were removed to restore the passed compiled fixture; no rerun was performed or needed. No claim is made that the removed late assertion ran."
+}

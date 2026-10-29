@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "authored_date": "2026-10-29",
+  "status": "failed-capture-setup-deferred",
+  "scope": "Planned four current Commit documentation screenshots: Classic and GitGui staging, light and dark",
+  "fixture": "docs/qa/manual-commit-captures-2026-10-29.swift",
+  "runner": "scripts/capture-manual-commit-2026-10-29.py",
+  "fixture_sha256": "72bf09f28b6136ee2d535501de3864528b20293476c6fe117cb9af9737db3b8e",
+  "runner_sha256": "487ae63ce5e79cc77a03279935432d16d909b423bc3f137773898cc973d99962",
+  "attempts": [
+    {
+      "receiver_pid": 82917,
+      "log": "build/qa/content-captures-2026-10-29.log",
+      "result": "Setup failed before capture: owned window intersected a screen after initial content-size placement.",
+      "evidence": "build/qa/manual-commit-captures-2026-10-29/failed-lcdliaj9",
+      "cleanup": "Runner reaped exact receiver; fixture closed one owned Commit window, reported no visible windows/sheets and actual workers drained."
+    },
+    {
+      "receiver_pid": 83263,
+      "log": "build/qa/content-captures-recheck-2026-10-29.log",
+      "result": "AppKit ordered the alpha-zero window at frame (0,83,1160,872) on screen (0,0,1728,1117); setup assertion stopped before compositor reveal.",
+      "evidence": "build/qa/manual-commit-captures-2026-10-29/failed-j5figaai",
+      "cleanup": "Runner reaped exact receiver; fixture closed one owned Commit window, reported no visible windows/sheets and actual workers drained."
+    },
+    {
+      "receiver_pid": 83419,
+      "log": "build/qa/content-captures-final-2026-10-29.log",
+      "result": "After transparent ordering, AppKit constrained the requested offscreen origin to (-1120,-757) for a 1160x872 frame, leaving a 40-point screen intersection. Strict setup assertion stopped before alpha-one compositor reveal.",
+      "evidence": "build/qa/manual-commit-captures-2026-10-29/failed-8t_58zsy",
+      "cleanup": "Runner reaped exact receiver; fixture closed one owned Commit window, reported no visible windows/sheets and actual workers drained."
+    }
+  ],
+  "published_assets": [],
+  "screenshots_updated": false,
+  "existing_images": "No new dated PNGs were produced or copied; historical documentation images remain unchanged by this capture family.",
+  "decision": "Stop this capture-only work for the current batch. Preserve fixture/runner and failure evidence. Future investigation may use an owned capture-window constraint override; no such override was implemented or validated here.",
+  "boundaries": [
+    "These failures concern private offscreen capture placement; they do not establish a failure of Commit behavior or a visual parity result.",
+    "The intended ScreenCaptureKit real-window compositor capture was not reached; no alpha-zero view bitmap was substituted.",
+    "Capture attempts used private Harbor repositories/preferences and no user pasteboard, Commit/stage/apply/save action, app Quit or installation.",
+    "No current screenshot, signed build, physical interaction or complete hosted pass is claimed by this receipt."
+  ]
+}

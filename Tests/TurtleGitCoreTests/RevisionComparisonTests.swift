@@ -233,7 +233,11 @@ final class RevisionComparisonTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
         let (other, otherRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: other) }
-        let clean = try await otherRepo.workingFileComparison(paths: [path]); XCTAssertTrue(clean.files.isEmpty)
+        let clean = try await otherRepo.workingFileComparison(paths: [path])
+        XCTAssertEqual(clean.files.map(\.path),[path])
+        let cleanDocument = try await otherRepo.comparisonFile(clean,path:path)
+        XCTAssertEqual(cleanDocument.base.bytes,cleanDocument.destination.bytes)
+        XCTAssertEqual(cleanDocument.destination.bytes,try Data(contentsOf:other.appendingPathComponent(path)))
     }
     func testCommitComparisonAmendUsesPinnedFirstParentAndRootEmptyBase() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()

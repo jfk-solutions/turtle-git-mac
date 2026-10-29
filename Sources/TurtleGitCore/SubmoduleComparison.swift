@@ -115,9 +115,10 @@ extension GitRepository {
     /// A renamed gitlink reads its historical From path while using the current
     /// checkout. Two working-copy prepared marks use the current index as From,
     /// like GitStatusListCtrl/CGitDiff's working-copy submodule comparison.
-    public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SubmoduleComparison {
+    public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, toIndex: Bool = false, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SubmoduleComparison {
         let selected = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
+        guard !toIndex || to == nil else { throw SubmoduleComparisonFailure.unsupported }
         let location = try restoreLocation(path)
         let oldPath = fromPath ?? path
         _ = try restoreLocation(oldPath)
@@ -146,7 +147,7 @@ extension GitRepository {
         // A directly invoked renamed checkout has no caller-supplied old path.
         // Reuse the existing read-only rename detection instead of treating its
         // historical gitlink as an addition. Never refresh/publish the index.
-        if fromHash == nil,fromPath == nil,!fromIndex,from != "Working tree",to == nil,
+        if fromHash == nil,fromPath == nil,!fromIndex,!toIndex,!from.isEmpty,from != "Working tree",to == nil,
            let rename = try workingTreeFiles(cancellation:cancellation).first(where:{GitReferenceName.equal($0.path,path) && $0.isSubmodule}),
            let original = rename.oldPath {
             fromHash = try gitlink(from,path:original)
@@ -161,7 +162,7 @@ extension GitRepository {
             let discovered = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().standardizedFileURL
             guard discovered == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
             checkout = location
-            if to == nil, toHash != nil { toHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+            if to == nil, !toIndex, toHash != nil { toHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
             if !fromIndex, from == "Working tree", fromHash != nil { fromHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
         }
         let dirty = try to == nil && checkout != nil && !run(["-C", location.path, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout.isEmpty
@@ -178,7 +179,12 @@ extension GitRepository {
         }
         let old = try metadata(fromHash), new = try metadata(toHash)
         var change = SubmoduleChangeType.unknown
-        if old.0.available && new.0.available {
+        // DiffNull presents a structural addition/deletion even when the
+        // checkout cannot supply the referenced commit's subject. An Added
+        // gitlink uses the index OID, not a later checkout HEAD.
+        if toIndex && from.isEmpty { change = .newSubmodule }
+        else if to == "" { change = .deleteSubmodule }
+        else if old.0.available && new.0.available {
             if fromHash == nil { change = .newSubmodule }
             else if toHash == nil { change = .deleteSubmodule }
             else if fromHash == toHash { change = .identical }
@@ -190,6 +196,6 @@ extension GitRepository {
             }
         }
         try cancellation?.check()
-        return SubmoduleComparison(path: path, checkout: checkout, from: old.0, to: new.0, toWorkingTree: to == nil, dirty: dirty, change: change)
+        return SubmoduleComparison(path: path, checkout: checkout, from: old.0, to: new.0, toWorkingTree: to == nil && !toIndex, dirty: dirty, change: change)
     }
 }

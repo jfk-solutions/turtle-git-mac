@@ -63,9 +63,9 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     var onBisect: (BisectOperation) -> Void = { _ in }
     private var pendingSheetAction: (() -> Void)?
     private let preferences: UserDefaults
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, toIndex: Bool = false, preferences: UserDefaults = .standard) {
         self.preferences = preferences
-        model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to, fromPath: fromPath, fromIndex: fromIndex, preferences: preferences)
+        model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to, fromPath: fromPath, fromIndex: fromIndex, toIndex: toIndex, preferences: preferences)
         let size = NSSize(width: 900, height: fromPath.map { !GitReferenceName.equal($0, path) } == true && !fromIndex ? 360:320)
         let window = SubmoduleDiffNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Diff", preferences: preferences); window.isReleasedWhenClosed = false
@@ -175,6 +175,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     let from: String
     let fromPath: String
     let fromIndex: Bool
+    let toIndex: Bool
     let to: String?
     enum ComparisonAction:String,CaseIterable {case showDiff="Show diff",compare="Compare"}
     struct ActionReceipt:Equatable {let generation:UUID}
@@ -205,10 +206,10 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     var onStatus: (GitRepository) -> Void = { _ in }
     var onCompare: (GitRepository, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var onUpdate: (@escaping () -> Void) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?, fromPath: String? = nil, fromIndex: Bool = false, toIndex: Bool = false, preferences: UserDefaults = .standard) {
         self.preferences = preferences
         self.repository = repository; self.access = access; self.path = path; self.from = from; self.to = to
-        self.fromPath = fromPath ?? path; self.fromIndex = fromIndex
+        self.fromPath = fromPath ?? path; self.fromIndex = fromIndex; self.toIndex = toIndex
     }
     @discardableResult func cancelRead() -> Bool { guard let token else { return false }; token.cancel(); return true }
     func invalidate() { retired = true; generation = UUID(); token?.cancel(); updateTicket = nil; hasUpdateChild = false }
@@ -231,7 +232,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let next: SubmoduleComparison
                 if let readDetails { next = try await readDetails(request) }
-                else { next = try await repository.submoduleComparison(path:path,from:from,to:to,fromPath:fromPath,fromIndex:fromIndex,cancellation:request) }
+                else { next = try await repository.submoduleComparison(path:path,from:from,to:to,fromPath:fromPath,fromIndex:fromIndex,toIndex:toIndex,cancellation:request) }
                 guard !retired, generation == epoch, !request.isCancelled else { return }
                 details = next
             } catch {
@@ -308,7 +309,7 @@ private struct SubmoduleDiffDialog: View {
     }
     private func section(_ side: SubmoduleComparisonSide, details: SubmoduleComparison, to: Bool) -> some View {
         let receipt=model.actionReceipt
-        return GroupBox(to ? "To" + (details.toWorkingTree ? " (Working tree)" : "") : "From" + (model.fromIndex ? " (Index)":"")) {
+        return GroupBox(to ? "To" + (model.toIndex ? " (Index)":details.toWorkingTree ? " (Working tree)" : "") : "From" + (model.fromIndex ? " (Index)":"")) {
             VStack(alignment: .leading, spacing: 9) {
                 if to {
                     HStack {

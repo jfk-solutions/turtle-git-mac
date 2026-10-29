@@ -57,8 +57,31 @@ the affected Browser file-action, Add/Revert file-flow and replay/Resolve
 regressions. The earlier fixture path-identity and synchronous cancellation
 assumptions are retained in the receipt rather than counted as product passes.
 
-A separate Core content-selection gap remains: `workingFileComparison` filters
-unchanged explicitly selected files, although the pinned status-list StartDiff
-normal-file route offers comparison. Amend/Added empty-base rules also require
-their connected content-selection review. This native intent/ownership batch
-preserves that existing Core behavior and does not certify those cases.
+## Selected content and null sides
+
+Explicit selected normal files now remain eligible even when unchanged. Mixed
+selections keep clean files alongside modified/added/deleted entries; a selection
+with no existing side fails explicitly. Destination identity wins over a rename
+alias, and a copy's source remains independently selectable. Copies retain their
+historical source and working destination rather than collapsing to modifications.
+
+Amend uses the first parent, or an empty base for a root commit. A file re-added
+after deletion in HEAD still compares with its parent content when that parent
+contains it; HEAD's Added status is not an empty-base override. Working bytes
+also take precedence over an index-only deletion when the file still exists.
+Comparison display commands suppress Git diff auto-refresh as well as optional
+locks, so an effective unchanged MM row does not rewrite index stat data while
+its equal HEAD/working sides are inspected.
+
+Pinned `src/TortoiseProc/GitDiff.cpp::SubmoduleDiffNull` reads an added working
+submodule from the index, even if its initialized checkout has moved to another
+commit. The native adapter now preserves that index target and labels it Index;
+the checkout can still contribute dirty status. Deleted gitlinks display the
+historical side against an explicit empty side. Structural New/Delete labels
+remain meaningful without initialized child metadata. Ordinary submodule
+working-tree comparisons continue to inspect the checkout HEAD.
+
+The [selected-content checkpoint](qa/working-file-content-selection-2026-10-29.json)
+records this family's actual focused results separately from the earlier
+ownership checkpoint. Neither establishes complete dialog or physical Finder
+acceptance.

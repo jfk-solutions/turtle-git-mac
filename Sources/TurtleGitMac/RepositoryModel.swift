@@ -3167,12 +3167,12 @@ private enum TransportBatchPresentationContext {
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     var submoduleDiffPresentation:((SubmoduleDiffWindowController)->Void)?
-    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
+    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, toIndex: Bool = false, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
         guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
-        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0git:" + repository.executable.path + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
+        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0to-index:" + String(toIndex) + "\0git:" + repository.executable.path + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
         let reusable=submoduleDiffWindows[key].flatMap{$0.canReuse ? $0:nil}
-        let controller = reusable ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:defaults)
+        let controller = reusable ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,toIndex:toIndex,preferences:defaults)
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.submoduleDiffWindows[key] === controller else { return }; self.submoduleDiffWindows.removeValue(forKey: key) }
         controller.model.onLog = CommandProgressContext.capture { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: defaults) }
         controller.model.onStatus = CommandProgressContext.capture { [weak self] child in self?.showStatus(repository: child, access: access, preferences: defaults) }
@@ -3515,7 +3515,14 @@ private enum TransportBatchPresentationContext {
             guard !retired, !confirmingQuit, !cancellation.isCancelled else { return }
             if let fileComparisonPresentation { fileComparisonPresentation(snapshot, file); continue }
             if file.isSubmodule {
-                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath,preferences:defaults,appearance:appearance,alpha:alpha)
+                let added=file.action.first=="A",deleted=file.action.first=="D"
+                // DiffNull reads a newly added working gitlink from the index,
+                // independently of a child checkout that may already have moved.
+                let from=added || snapshot.from == .emptyTree ? "":snapshot.from.label
+                let to:String?=deleted || snapshot.to == .emptyTree ? "":snapshot.to == .workingTree ? nil:snapshot.to.label
+                showSubmoduleDiff(repository:repository,access:access,path:file.path,from:from,to:to,
+                    fromPath:file.oldPath,toIndex:added && snapshot.to == .workingTree,
+                    preferences:defaults,appearance:appearance,alpha:alpha)
                 continue
             }
             let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0action\0" + file.action + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0preferences:" + String(describing: ObjectIdentifier(defaults)) + "\0runtime:" + runtime + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")

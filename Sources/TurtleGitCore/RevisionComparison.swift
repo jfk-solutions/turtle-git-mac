@@ -126,11 +126,11 @@ extension GitRepository {
         }
         let snapshot = try revisionComparison(from: from, to: .workingTree, cancellation: cancellation)
         let selected = try selectedFileComparison(snapshot, paths: paths, cancellation: cancellation)
-        // Keep this status-list route limited to changes, while explicit files
-        // absent from the base (including ignored paths) use an empty side.
-        let changed = Set(snapshot.files.map(\.path))
-        let files = selected.files.filter { changed.contains($0.path) || $0.action == "A" }
-        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options, scopePaths: snapshot.scopePaths, diffDetection: snapshot.diffDetection)
+        // StartDiff operates on the explicitly marked row, including an
+        // unchanged versioned file. A status-difference set is not an admission
+        // filter: doing so silently drops clean files from mixed selections.
+        guard !selected.files.isEmpty else { throw RevisionComparisonFailure.selection }
+        return selected
     }
     /// Selected-file comparisons also display unchanged files. Working bytes
     /// take precedence over an index deletion when the path exists on disk.
@@ -168,14 +168,23 @@ extension GitRepository {
         var files: [CommitFile] = []
         for path in GitPathSet(paths).sorted(by: { $0.utf8.lexicographicallyPrecedes($1.utf8) }) {
             try cancellation?.check()
-            let existing = snapshot.files.first { GitReferenceName.equal($0.path,path) || GitReferenceName.equal(path,$0.oldPath) }
+            // An explicit destination wins over a rename/copy source alias.
+            // In particular a modified copy source remains a separately marked
+            // file when the copy destination happens to sort before it.
+            let existing = snapshot.files.first { GitReferenceName.equal($0.path,path) }
+                ?? snapshot.files.first { GitReferenceName.equal(path,$0.oldPath) && $0.action.hasPrefix("R") }
             let destination = existing?.path ?? path, original = existing?.oldPath ?? path
             guard !files.contains(where: { GitReferenceName.equal($0.path,destination) }) else { continue }
             let oldMode = try mode(snapshot.from, original), newMode = try mode(snapshot.to, destination)
             guard oldMode != nil || newMode != nil else { continue }
             let isSubmodule = oldMode == "160000" || newMode == "160000"
             guard newMode != "160000" || oldMode == "160000" || existing?.isSubmodule == true else { throw RevisionComparisonFailure.selection }
-            let action = oldMode == nil ? "A" : newMode == nil ? "D" : existing?.action.hasPrefix("R") == true ? "R" : "M"
+            let action: String
+            if oldMode == nil { action = "A" }
+            else if newMode == nil { action = "D" }
+            else if existing?.action.hasPrefix("R") == true { action = "R" }
+            else if existing?.action.hasPrefix("C") == true { action = "C" }
+            else { action = "M" }
             files.append(CommitFile(path: destination, oldPath: existing?.oldPath, action: action, added: existing?.added, removed: existing?.removed, hasStatistics: existing?.hasStatistics ?? false, isSubmodule: isSubmodule))
         }
         return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options, scopePaths: snapshot.scopePaths, diffDetection: snapshot.diffDetection)
@@ -211,7 +220,7 @@ extension GitRepository {
         func scoped(_ flags:[String])throws->Data {
             var arguments=args+flags+["--"],overrides:[Int:Data]=[:]
             for key in scope {let path=try HistoricalGitPath.argument(key);overrides[arguments.count]=path.bytes;arguments.append(path.caption)}
-            return try run(arguments,argumentBytes:overrides,cancellation:token).stdout
+            return try run(arguments,argumentBytes:overrides,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:token).stdout
         }
         let files=CommitFile.parse(names:try scoped(["--name-status","-z"]),statistics:try scoped(["--numstat","-z"]),raw:try scoped(["--raw","-z"])).filter {$0.hasStatistics || $0.isSubmodule}
         return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: resolvedOld.1, toDetails: resolvedNew.1, files: files, options: options, scopePaths: scope, diffDetection: diffDetection)
@@ -242,7 +251,9 @@ extension GitRepository {
             switch side { case .revision(let value): return value; case .emptyTree: return try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines); case .workingTree: throw RevisionComparisonFailure.range }
         }
         let detection = detection ?? diffDetection
-        var args = ["-c", "core.precomposeunicode=false", "diff", "--no-ext-diff", "--no-color", detection.renameArgument] + options.arguments(detection: detection)
+        // Display reads must not refresh the real index's stat cache. Git's
+        // diff auto-refresh is separate from its optional-lock setting.
+        var args = ["-c", "core.precomposeunicode=false", "-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color", detection.renameArgument] + options.arguments(detection: detection)
         if from == .workingTree { args += ["-R", try hash(to)] }
         else if to == .workingTree { args += [try hash(from)] }
         else { args += [try hash(from), try hash(to)] }

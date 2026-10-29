@@ -5,7 +5,7 @@
   "source_commit": "6219c088d689d6f00071a215f2d151e870e33adb",
   "source_input_sha256": "61b7a70527938eae2f8d01f4948bbcbd4a9652e41b6baa9954fdf886e909404a",
   "source_inputs_unchanged": true,
-  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/preserved-build29-2026-10-29.app",
   "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed29-static-2026-10-29.json",
   "implementation_scope": [
     "Displayed Log commit selection across accepted-but-unrendered history projections; blocked native highlight reconciliation",
@@ -87,5 +87,6 @@
     "Apple Silicon local testing build; Intel/minimum-macOS execution remains separate.",
     "No complete hosted CI, full-dialog/whole-port certification, App Store submission or notarization claimed.",
     "Synthetic invisible mouse delivery was unavailable; actual AppKit row/delegate, keys and matching message/files passed as recorded."
-  ]
+  ],
+  "candidate_preservation": "Exact bundle cloned and inventory verified before consolidated build30; still uninstalled."
 }
