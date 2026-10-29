@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-29",
+  "scope": "Branch/tag/worktree accepted creation across late cancellation, bounded identity verification and explicit owned follow-up",
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "AppUtils.cpp:1200-1210 successful branch/tag command followed by Switch/description/Push",
+    "AppUtils.cpp:1217 onward CreateWorktree and successful post-command Submodule Update"
+  ],
+  "implementation": [
+    "Local exit-zero cancellation adoption; generic Git runner unchanged",
+    "Typed accepted receipts with exact target, actual identity, separate successful verification diagnostics and warnings",
+    "Fresh bounded five-second verification independent of cancelled UI token",
+    "Native adoption and once-only captured parent refresh before owner/cancellation guards",
+    "No recreation on explicit retry; optional phases stop on cancelled attempt",
+    "Explicit verified worktree Submodule Update after drain; no automatic close after late Cancel",
+    "Public sealed-Core package smoke extended for marked rows, publication intents and creation receipts"
+  ],
+  "validation": {
+    "core": {
+      "status": "passed",
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'CreationAcceptanceTests|ReferenceCreationTests|ReferenceCreationPlanTests|ReferenceCreationUnicodeTests|GitWorktreeTests'",
+      "tests": 37,
+      "failures": 0,
+      "log": "build/qa/creation-outcome-core-2026-10-29.log"
+    },
+    "build": {
+      "status": "passed",
+      "log": "build/qa/creation-outcome-build-2026-10-29.log"
+    },
+    "native": {
+      "status": "passed: 8 scoped case/engine receivers across focused repairs",
+      "commands": [
+        "python3 scripts/test-creation-outcomes.py",
+        "python3 scripts/test-branch-tag-plan-family.py --only source-retained --only completion-retained --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "python3 scripts/test-worktree-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+      ],
+      "attempts": [
+        {
+          "status": "fixture compile failure; no receiver launched",
+          "repair": "Explicit @MainActor on nested Context and symmetric operator whitespace",
+          "evidence": "Compiler diagnostics observed in tool output; private wrapper overwrote original compiler log on recheck, so no full first-log retention claimed"
+        },
+        {
+          "status": "fixture omitted normal initial load; tag defaults were not initialized",
+          "log": "build/qa/creation-outcome-native-outcomes-first-runtime-failure-2026-10-29.log",
+          "reaped_receivers": [
+            98896
+          ],
+          "repair": "Call actual BranchTag.model.load and Worktree.model.load before readiness/edits, matching production callers; assertions and runtime gates retained. No production changes, Core rerun or app rebuild."
+        },
+        {
+          "status": "fixture path oracle failure; actual receipt verified and parent refresh once",
+          "log": "build/qa/creation-outcome-native-outcomes-worktree-first-failure-2026-10-29.log",
+          "reaped_receivers": [
+            99049
+          ]
+        },
+        {
+          "status": "diagnostic proves correct acceptance; URL alias/hint comparison still failed",
+          "log": "build/qa/creation-outcome-native-worktree-diagnostic-2026-10-29.log",
+          "reaped_receivers": [
+            99302
+          ]
+        },
+        {
+          "status": "resolved URL equality still compared directory hints; fixture-only failure",
+          "log": "build/qa/creation-outcome-native-outcomes-final-2026-10-29.log",
+          "reaped_receivers": [
+            99560
+          ],
+          "repair": "Use independent lstat device/inode identity for actual private directory comparisons; do not change production canonical path handling or weaken HEAD/receipt/count assertions."
+        },
+        {
+          "status": "passed both Git engines",
+          "log": "build/qa/creation-outcome-native-outcomes-physical-identity-2026-10-29.log",
+          "reaped_receivers": [
+            99791,
+            109
+          ]
+        },
+        {
+          "status": "retained completion fixture timed out waiting for an owned continuation to finish before its question was answered",
+          "log": "build/qa/creation-outcome-native-branch-retained-first-failure-2026-10-29.log",
+          "reaped_receivers": [
+            354,
+            427,
+            499
+          ],
+          "passed": "source-retained both Git engines",
+          "repair": "Await actual created ref and stopped Git helpers while the continuation and question remain separately owned (exact count 2); answer then await drain. Retired-description check now requires one accepted-creation notification before retirement and no duplicate after, preserving closure/error fences."
+        },
+        {
+          "status": "both retained completion engines passed",
+          "log": "build/qa/creation-outcome-native-branch-completion-final-2026-10-29.log",
+          "reaped_receivers": [
+            868,
+            1202
+          ]
+        },
+        {
+          "status": "both retained Worktree engines passed",
+          "log": "build/qa/creation-outcome-native-worktree-retained-2026-10-29.log",
+          "reaped_receivers": [
+            1617,
+            1625,
+            1840
+          ]
+        }
+      ],
+      "scope": "Real Core/native creation and retained dialog paths with private repositories/preferences and owned helper drainage; optional child handoff callbacks are injected in the new fixture, not signed external UI acceptance."
+    },
+    "resources": {
+      "localizations": "--write before build; --check passed",
+      "help": "DIALOG-GUIDE regenerated before build; --check passed",
+      "dialog_coverage": "reconciled; mappings remain partial",
+      "whitespace": "git diff --check passed"
+    }
+  },
+  "limits": [
+    "Installed build34 predates this family",
+    "Acceptance proves command exit zero, not exclusion of concurrent external writers",
+    "Bounded verification failure retains accepted outcome and refuses blind recreation/unsafe continuation",
+    "Physical prompts/gestures, signed outside grants, full hosted integration, Intel/minimum-OS and complete source layout/accessibility remain separate",
+    "Signed package validation is a later consolidation checkpoint, not implied by authored smoke code"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/ReferenceCreation.swift": "f1ebde9e48fa49ffa3b14644c9b301b45b029676ce33970d5943a2ab75a39be2",
+    "Sources/TurtleGitCore/GitWorktrees.swift": "29e5fea25fd9bea2de303a8c8f777ad46b0bd1a46513173e5fb9a429c24ca45a",
+    "Sources/TurtleGitMac/BranchTagWindow.swift": "98f2c7dfe438db6f09cf3defa2c61ac8449fb95752d2b22ccf959ba565ec1909",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "33ce7c74f57b8b0fe1b29b7778399f7c7be43072fad40f8e978b5c12c279cfdc",
+    "Tests/TurtleGitCoreTests/CreationAcceptanceTests.swift": "1aaf228d9a9359a5608186352212bfdb5d50722ee6aab16b5e8310134278f52a",
+    "docs/qa/creation-outcome-native-2026-10-29.swift": "af5a1e940364c54a0420afd03a58bb32b77d4a4db1a21dedc49d6175a7c0e548",
+    "docs/qa/branch-tag-completion-native-2026-10-16.swift": "2fb9a120ede02a1413ce11ca7b5ba1c916fae30a018689644aee71d196f5a6c0",
+    "scripts/test-creation-outcomes.py": "581ce8ff401aca656c31060352249c3efd92e57f1508a22e2428d4647dc674fb",
+    "docs/qa/signed-finder-runtime-probe-2026-10-17.swift": "422eb2aeac3c01ab43998b6c3a144cfcd0f496b80147df90642bfc13ba17e869",
+    "scripts/test-signed-finder-runtime.py": "e22b18ac25b1b9b6345300f17c6f65aa05a4aa6bd35548dc72d3ce566aa1f84b"
+  }
+}

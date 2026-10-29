@@ -52,6 +52,19 @@ public struct GitWorktree: Equatable, Sendable, Identifiable {
     }
 }
 
+public struct WorktreeCreationReceipt: Sendable {
+    public let output:String
+    public let path:URL
+    public let worktree:GitWorktree?
+    public let cancelledAfterCreation:Bool
+    public let verificationError:String?
+    public var verified:Bool {worktree != nil && verificationError == nil}
+    public init(output:String,path:URL,worktree:GitWorktree?=nil,cancelledAfterCreation:Bool=false,verificationError:String?=nil) {
+        self.output=output;self.path=path;self.worktree=worktree
+        self.cancelledAfterCreation=cancelledAfterCreation;self.verificationError=verificationError
+    }
+}
+
 public struct WorktreeCreationOptions: Sendable {
     public var checkout = true
     public var force = false
@@ -142,6 +155,9 @@ extension GitRepository {
     /// Matches CreateWorktreeDlg / CAppUtils::CreateWorktree: Force is --force,
     /// never -B; HEAD is omitted so Git uses its directory-name branch behavior.
     public func createWorktree(at path: URL, options: WorktreeCreationOptions = .init(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+        try createWorktreeAccepted(at:path,options:options,cancellation:cancellation,onOutput:onOutput).output
+    }
+    public func createWorktreeAccepted(at path: URL, options: WorktreeCreationOptions = .init(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> WorktreeCreationReceipt {
         try cancellation?.check()
         guard path.isFileURL, !path.path.isEmpty, !path.path.contains("\0") else { throw WorktreeFailure.invalidPath }
         guard !(options.detach && options.newBranch != nil) else { throw WorktreeFailure.conflictingOptions }
@@ -164,7 +180,16 @@ extension GitRepository {
         if let name = options.newBranch { args += ["-b", name] }
         args += ["--", path.standardizedFileURL.path]
         if options.revision != "HEAD" { args.append(options.revision) }
-        return try run(args, cancellation: cancellation, onOutput: onOutput).text
+        let result=try acceptedCreationResult {try run(args,cancellation:cancellation,onOutput:onOutput)}
+        var record:GitWorktree?,issue:String?
+        do {
+            record=try boundedCreationVerification {token in
+                let expected=canonicalWorktreePath(path).path
+                guard let current=try worktrees(cancellation:token).first(where:{GitReferenceName.equal(canonicalWorktreePath($0.path).path,expected)}),!current.isMain else {throw WorktreeFailure.notLinkedWorktree}
+                return current
+            }
+        }catch {issue="Creation completed, but the current worktree could not be verified: "+error.localizedDescription}
+        return .init(output:result.text,path:path.standardizedFileURL,worktree:record,cancelledAfterCreation:cancellation?.isCancelled == true,verificationError:issue)
     }
 
     private func linkedWorktreePath(_ path: URL, cancellation:OperationCancellation?) throws -> String {

@@ -10,6 +10,15 @@ reopened with the owner's authorization. Public Core and packaged Git pass the f
 check; no shipping GUI, physical Finder/external grants, complete hosted pass or
 Store release is inferred. See [current release gates](RELEASE-BLOCKERS.md).
 
+## Branch, tag and worktree creation outcomes
+
+[Creation acceptance and recovery](CREATION-OUTCOME-PARITY.md) retain actual
+successful Git mutations across late cancellation, separate bounded verification
+from command acceptance, refresh captured parents once and reuse accepted results
+for explicit follow-up work. Failed/pre-command cancelled operations are not
+adopted. Installed build34 predates this continuation; its grouped evidence is
+recorded separately.
+
 ## Accepted Settings publication continuation
 
 [Settings publication recovery](SETTINGS-PUBLICATION-RECOVERY-PARITY.md) keeps

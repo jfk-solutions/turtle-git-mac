@@ -144,20 +144,22 @@ import TurtleGitCore
         tag.confirmCancellation = { answer = $0 }; tag.onPushTag = { pushed.append($0) }; tag.close = { tagCloses += 1 }
         try gate("hold-tag"); tag.create(); try await wait { FileManager.default.fileExists(atPath: marker.path) }; let completedPIDs = try pids()
         tag.cancel(); try require(answer != nil, "Captured kill question missing"); _ = kill(completedPIDs[0], SIGUSR1)
-        try await wait { !tag.busy && stopped(completedPIDs) }
-        try require(tag.confirmingCancellation && pushed.isEmpty && tagCloses == 0 && BranchTagWindowModel.activeCreations == 1, "Natural success bypassed pending question")
+        try await wait { tag.createdBranch == "completed-tag" && stopped(completedPIDs) }
+        try require(tag.confirmingCancellation && pushed.isEmpty && tagCloses == 0 && BranchTagWindowModel.activeCreations == 2, "Natural success bypassed pending question or lost its owned continuation")
         answer?(false); answer?(true)
+        try await wait { !tag.busy && BranchTagWindowModel.activeCreations == 0 }
         try require(pushed == ["refs/tags/completed-tag"] && tagCloses == 1 && BranchTagWindowModel.activeCreations == 0, "Delayed answer lost or repeated captured Push/close")
         // Forced retirement while a description Git process is alive retains
         // the reference, fences callbacks and holds Quit until the worker drains.
         prefs.set(false, forKey: "ConfirmKillProcess")
         let retired = make(); try await ready(retired); retired.options.name = "retired"; retired.options.message = "unsaved description"
-        retired.switchAfterCreation = false; retired.onCreated = { _ in preconditionFailure("Retired description callback") }; retired.close = { preconditionFailure("Retired description close") }
+        var retiredNotifications=0
+        retired.switchAfterCreation = false; retired.onCreated = { _ in retiredNotifications += 1 }; retired.close = { preconditionFailure("Retired description close") }
         try gate("hold-description"); retired.create(); try await wait { FileManager.default.fileExists(atPath: marker.path) }; let retiredPIDs = try pids()
-        try require(retired.createdBranch == "retired", "Description did not follow creation")
+        try require(retired.createdBranch == "retired" && retiredNotifications == 1, "Description did not follow accepted creation and its parent refresh")
         retired.invalidate(); try require(BranchTagWindowModel.activeCreations == 1, "Forced retirement released creation lifetime too early")
         try await wait { BranchTagWindowModel.activeCreations == 0 && stopped(retiredPIDs) }
-        let retained = try await exists("refs/heads/retired"); try require(retained && retired.error == nil, "Forced close lost completed reference or published late error")
+        let retained = try await exists("refs/heads/retired"); try require(retained && retired.error == nil && retiredNotifications == 1, "Forced close lost completed reference, repeated parent refresh or published late error")
         // A pending Switch acknowledgement settles once when its owner retires.
         // The production adapter supplies the child's independent close/cancel.
         let switching = make(); try await ready(switching); switching.options.name = "handoff"; switching.options.message = "must not write"; switching.switchAfterCreation = true

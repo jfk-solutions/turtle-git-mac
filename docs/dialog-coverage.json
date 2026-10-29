@@ -2768,6 +2768,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/BRANCH-TAG-PARITY.md",
+        "docs/CREATION-OUTCOME-PARITY.md",
         "docs/HELP-PARITY.md",
         "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
@@ -2777,6 +2778,7 @@
         "docs/qa/branch-tag-creation-family-2026-10-19.json",
         "docs/qa/branch-tag-handoff-2026-10-08.json",
         "docs/qa/branch-tag-source-family-2026-10-17.json",
+        "docs/qa/creation-outcome-2026-10-29.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
@@ -4657,9 +4659,11 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/CREATION-OUTCOME-PARITY.md",
         "docs/WORKTREE-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/creation-outcome-2026-10-29.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/reference-groups-2026-10-15.json",
         "docs/qa/workspace-metadata-access-2026-10-15.json",
@@ -4688,6 +4692,7 @@
         "docs/WORKTREE-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/creation-outcome-2026-10-29.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/reference-groups-2026-10-15.json",
         "docs/qa/workspace-metadata-access-2026-10-15.json",

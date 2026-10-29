@@ -464,3 +464,14 @@ frame has retired and its onClosed callback settled, including manager-owned Add
 implementation from actual grouped results and retains earlier failed attempts.
 Signed/physical Finder, full input/layout/VoiceOver and current complete hosted
 acceptance remain separate requirements.
+
+## Accepted creation after late Cancel — October 29, 2026
+
+The connected [creation outcome family](CREATION-OUTCOME-PARITY.md) preserves
+a successfully registered checkout when cancellation arrives after Git exits.
+The captured parent refreshes once, progress retains the accepted target, and
+creation cannot repeat through Back/Retry. Automatic continuation stops; a new
+explicit Submodule Update request remains available for a verified checkout.
+Verification warnings retain the accepted outcome without enabling an unsafe
+handoff. See the [grouped evidence](qa/creation-outcome-2026-10-29.json) for the
+actual validation scope. Installed build34 predates this continuation.

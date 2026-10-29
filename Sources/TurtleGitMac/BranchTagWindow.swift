@@ -255,7 +255,18 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     var onSwitch: ((String, @escaping () -> Void) -> Void)?
     var prepareForm:(ReferenceCreationOptions,OperationCancellation) async throws->ReferenceCreationForm
     var prepareReference:(ReferenceCreationForm,OperationCancellation) async throws->ReferenceCreationPlan
-    var performReference:(ReferenceCreationPlan,OperationCancellation) async throws->String
+    private var legacyReferenceExecutor=false
+    var performReference:(ReferenceCreationPlan,OperationCancellation) async throws->String {didSet{legacyReferenceExecutor=true}}
+    var performReferenceAccepted:((ReferenceCreationPlan,OperationCancellation) async throws->ReferenceCreationReceipt)?
+    private(set) var acceptedCreation:ReferenceCreationReceipt?
+    private var acceptedCreationCallback:((String)->Void)?
+    var canContinueAcceptedCreation:Bool {acceptedCreation?.verified != false}
+    var creationActionTitle:String {
+        if retryDescription{return "Retry description"}
+        guard createdOptions != nil else{return "OK"}
+        if createdShouldSwitch{return "Retry checkout"}
+        return createdWritesDescription ? "Retry description":"Continue"
+    }
     func invalidate() {
         guard !invalidated else { return }; invalidated = true; formRevision = UUID()
         loadToken?.cancel(); creationToken?.cancel(); conflictSnapshot = nil;nameConflict=false
@@ -309,7 +320,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     private func complete(push: String? = nil) {
         finished = true; completionReady = true; pendingPush = push
     }
-    private func notifyCreated() { if !notifiedCreation,!confirmingQuit,interactionGeneration==creationGeneration { notifiedCreation = true; onCreated(createdOutput) } }
+    private func notifyCreated() {if !notifiedCreation {notifiedCreation=true;(acceptedCreationCallback ?? onCreated)(createdOutput)}}
     private func handoffSwitch(_ reference: String, using route: (String, @escaping () -> Void) -> Void) async {
         awaitingSwitch = true
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -374,6 +385,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
         prepareForm={ [weak self] options,token in guard let self else{throw OperationCancellationFailure.cancelled};return try await self.acceptedRepository.prepareReferenceCreationForm(options,cancellation:token)}
         prepareReference={ [weak self] form,token in guard let self else{throw OperationCancellationFailure.cancelled};return try await self.acceptedRepository.prepareReferenceCreation(form,cancellation:token)}
         performReference={ [weak self] plan,token in guard let self else{throw OperationCancellationFailure.cancelled};return try await self.acceptedRepository.createReference(plan,writeDescription:false,cancellation:token)}
+        legacyReferenceExecutor=false
     }
     func load(revision: String?, name: String? = nil) {
         guard presentationAvailable(),error == nil,chooser.error == nil,!confirmingQuit,!busy,!hasPendingWork, !chooser.busy, chooser.pickerTarget == nil, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
@@ -418,7 +430,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func create(allowNameConflict: Bool = false) {
-        guard presentationAvailable(),!confirmingQuit,error == nil,chooser.error == nil,!busy,!hasPendingWork, !chooser.busy, chooser.pickerTarget == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
+        guard presentationAvailable(),canContinueAcceptedCreation,!confirmingQuit,error == nil,chooser.error == nil,!busy,!hasPendingWork, !chooser.busy, chooser.pickerTarget == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
         if let snapshot = descriptionSnapshot { saveDescription(snapshot); return }
         var snapshot = options; snapshot.revision = useHead ? "HEAD" : chooser.revision; snapshot.allowNameConflict = allowNameConflict
         snapshot.name = snapshot.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -430,11 +442,13 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
             snapshot = createdOptions; shouldSwitch = createdShouldSwitch; shouldPush = createdShouldPush
         }
         if !allowNameConflict,createdOptions==nil {acceptedRepository=chooser.repository.capturingDiffBackend(preferences:preferences)}
-        let repository=acceptedRepository
+        let repository=acceptedRepository,creationCallback=onCreated,acceptedExecutor=performReferenceAccepted,legacyExecutor=legacyReferenceExecutor,executeLegacy=performReference
         let routedSwitch = shouldSwitch ? onSwitch : nil
         let generation=interactionGeneration
+        creationGeneration=generation
         formRevision = UUID();error = nil;let token = OperationCancellation();creationToken=token;beginWork()
         Task {
+            var acceptedInThisAttempt=false
             defer {if creationToken === token {creationToken=nil};endWork();withExtendedLifetime(access) {}}
             guard !invalidated,!confirmingQuit,interactionGeneration==generation,!token.isCancelled else{return}
             do {
@@ -448,14 +462,24 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
                     let plan=try await prepareReference(accepted,token)
                     guard !confirmingQuit,interactionGeneration==generation,!invalidated,creationToken === token,!token.isCancelled else{return}
                     snapshot=plan.options;creationGeneration=generation
-                    let output=try await performReference(plan,token)
-                    guard !invalidated, creationToken === token, !token.isCancelled else { return }
+                    let receipt:ReferenceCreationReceipt?,output:String
+                    if let acceptedExecutor {let value=try await acceptedExecutor(plan,token);receipt=value;output=value.output}
+                    else if legacyExecutor {receipt=nil;output=try await executeLegacy(plan,token)}
+                    else {let value=try await repository.createReferenceAccepted(plan,cancellation:token);receipt=value;output=value.output}
+                    // An accepted Git mutation survives cancellation or owner
+                    // retirement. Record and refresh its captured parent first.
+                    acceptedCreation=receipt;acceptedCreationCallback=creationCallback;acceptedInThisAttempt=true
                     createdOutput = output; createdShouldSwitch = shouldSwitch; createdShouldPush = shouldPush;createdWritesDescription=plan.writesBranchDescription
-                    // Remember the mutation before any later suspension or phase.
-                    // Retrying checkout/description must never create it again.
-                    createdOptions = snapshot; createdBranch = snapshot.name
+                    createdOptions = snapshot;notifyCreated()
+                    guard !invalidated else{return}
+                    createdBranch=snapshot.name
+                    if let receipt,!receipt.verified {self.error="The reference was created, but its current identity could not be verified. Review the repository before continuing.\n\n"+(receipt.verificationError ?? "");return}
                 }
-                guard !invalidated, creationToken === token, !token.isCancelled, let created = createdOptions else { return }
+                // A creation can finish while the owned Cancel question is
+                // still open. Do not launch checkout/description/push until its
+                // answer has either preserved or cancelled this exact request.
+                while confirmingCancellation,!invalidated,!confirmingQuit,creationToken === token {try? await Task.sleep(nanoseconds:5_000_000)}
+                guard !invalidated,!confirmingQuit,interactionGeneration==generation,creationToken === token,!token.isCancelled,!(acceptedInThisAttempt && acceptedCreation?.cancelledAfterCreation == true),let created = createdOptions else { return }
                 var checkoutFailure:String?
                 if let routedSwitch,!confirmingQuit,interactionGeneration==generation {
                     notifyCreated()
@@ -473,7 +497,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
                 guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 if createdWritesDescription {
                     descriptionSnapshot = created
-                    do { try checkAccess(); try await repository.updateBranchDescription(created.name, message: created.message, cancellation: token); descriptionSnapshot = nil }
+                    do { try checkAccess(); try await repository.updateBranchDescription(created.name, message: created.message, cancellation: token,expectedHash:acceptedCreation?.actualObjectID); descriptionSnapshot = nil }
                     catch {
                         guard !invalidated, creationToken === token, !token.isCancelled else { return }
                         notifyCreated(); self.error = "Branch \(created.name) was created, but its description could not be saved. Retry the description or close this dialog.\n\n" + error.localizedDescription; return
@@ -492,7 +516,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
             defer {if creationToken === token {creationToken=nil};endWork();withExtendedLifetime(access) {}}
             guard !invalidated,!confirmingQuit,interactionGeneration==generation,!token.isCancelled else{return}
             do {
-                try checkAccess(); try await acceptedRepository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token)
+                try checkAccess(); try await acceptedRepository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token,expectedHash:acceptedCreation?.actualObjectID)
                 guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 descriptionSnapshot = nil; notifyCreated(); guard !invalidated else { return }; complete()
             } catch { if !confirmingQuit,interactionGeneration==generation,!invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
@@ -560,7 +584,7 @@ struct BranchTagDialog: View {
             }.padding(8) }.disabled(model.createdBranch != nil || model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation)
             GroupBox(model.isTag ? "Message" : "Description") { TextEditor(text: model.option(\.message,context:context)).accessibilityLabel(model.isTag ? "Tag message":"Branch description").accessibilityIdentifier("ReferenceForm.message").font(.system(.body, design: .monospaced)).frame(minHeight: 75) }.disabled(model.createdBranch != nil || model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation)
             HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
-                Button(model.retryDescription ? "Retry description" : model.createdBranch == nil ? "OK" : "Retry checkout") { model.create() }.keyboardShortcut(.defaultAction).disabled(model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation || model.options.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button(model.creationActionTitle) { model.create() }.keyboardShortcut(.defaultAction).disabled(model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation || !model.canContinueAcceptedCreation || model.options.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 Button("Help") { TurtleGitHelp.show(.branchTag) }
             }

@@ -388,7 +388,11 @@ switch, signing and push options depend on the operation and reference type.
 Cancel stops active creation or loading and waits for its processes to finish;
 when configured, confirm the running-process question first. A branch or tag
 already created is retained. If only its description failed, **Retry description**
-saves that description without recreating the branch or switching again.
+saves that description without recreating the branch or switching again. If
+Cancel arrives after Git already succeeded, the created reference is still
+reported and the remaining actions stop. Continuing an accepted creation reuses
+that reference; it does not create it again. A verification warning requires
+reviewing the repository before continuing.
 
 If a branch and tag would share the same name, review Continue/Abort; Abort is
 the default. Cancelling that warning or entering an invalid name leaves the saved
@@ -892,7 +896,11 @@ working tree; the creation dialog appends the repository name and removes a
 trailing `.git`. Review the path and options before OK creates anything.
 Completed progress keeps its status and elapsed time visible. If the checkout
 has submodules, **Submodule Update…** closes that progress window before opening
-the update dialog for the new checkout.
+the update dialog for the new checkout. A late Cancel also retains a worktree
+that Git finished creating. Its completed result remains visible; no automatic
+follow-up starts. A new explicit **Submodule Update…** request uses that verified
+checkout and retained access. Failed identity verification is reported separately
+and does not silently retry worktree creation.
 Choose its path, target revision and branch options. Worktree List offers the
 applicable management actions. macOS may require additional parent-folder access
 for creation, movement or removal. See [repository folder access](REPOSITORY-FOLDER-ACCESS.md).

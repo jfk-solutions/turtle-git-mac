@@ -284,3 +284,12 @@ post-action is added to this source direct-Git creation workflow.
 [The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
 keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
 split controls, with owned state and remaining acceptance kept explicit.
+
+## Accepted creation after late Cancel — October 29, 2026
+
+The connected [creation outcome family](CREATION-OUTCOME-PARITY.md) separates
+actual Git acceptance from subsequent cancellation and identity verification.
+Captured parents refresh once, completed refs are retained before owner guards,
+and explicit continuation does not repeat creation. Fresh direct/peeled identity
+reads keep successful diagnostics separate. See the [grouped evidence](qa/creation-outcome-2026-10-29.json);
+this continuation does not establish full physical or signed dialog acceptance.

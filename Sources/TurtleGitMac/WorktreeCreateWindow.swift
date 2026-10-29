@@ -173,7 +173,7 @@ import TurtleGitCore
     var commandsAvailable: Bool { active && !confirmingQuit && externalAvailability() && !handoffPending }
     @Published private(set) var handoffPending = false
     var finishAndPerform: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var canUpdateSubmodules: Bool { commandsAvailable && success && hasSubmodules && !busy && !confirmingCancellation && !chooser.busy && chooser.pickerTarget == nil && createdPath != nil }
+    var canUpdateSubmodules: Bool { commandsAvailable && acceptedCreation?.verified == true && success && hasSubmodules && !busy && !confirmingCancellation && !chooser.busy && chooser.pickerTarget == nil && createdPath != nil }
     let chooser: SwitchWindowModel
     let access: RepositoryAccessLease?
     var destinationAccess: RepositoryAccessLease?
@@ -208,7 +208,10 @@ import TurtleGitCore
     var canPickBase: Bool { commandsAvailable && !busy && !progress && !useHead }
     func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; chooser.invalidate() }
     private var cancellation: OperationCancellation?
-    private var createdPath: URL?
+    private(set) var createdPath: URL?
+    private(set) var acceptedCreation:WorktreeCreationReceipt?
+    private var notifiedCreation=false,acceptedLateCancellation=false
+    var performCreation:((GitRepository,URL,WorktreeCreationOptions,OperationCancellation)async throws->WorktreeCreationReceipt)?
     private var shortHashLength = 7
     var close: () -> Void = {}
     var chooseDirectory: () -> Void = {}
@@ -268,7 +271,7 @@ import TurtleGitCore
         CommandProgressContext.perform(commandProgressScope) { createInCommandProgressScope() }
     }
     private func createInCommandProgressScope() {
-        guard commandsAvailable, !busy, !chooser.busy, !progress, chooser.pickerTarget == nil else { return }
+        guard commandsAvailable,acceptedCreation==nil,!busy,!chooser.busy,!progress,chooser.pickerTarget==nil else{return}
         guard !directory.isEmpty, directory.hasPrefix("/"), !directory.contains("\0") else { error = "Enter an absolute worktree directory."; return }
         let path = URL(fileURLWithPath: directory, isDirectory: true).standardizedFileURL
         var options = WorktreeCreationOptions()
@@ -282,7 +285,7 @@ import TurtleGitCore
             if !ambiguous { options.revision = reference.label }
         }
         let token = OperationCancellation(); cancellation = token
-        let capturedOptions = options
+        let capturedOptions = options,repository=chooser.repository,creationCallback=onCreated,perform=performCreation
         var destinationLease = destinationAccess
         var startedAt: TimeInterval = 0
         busy = true; authorizingDestination = true; error = nil; cancelled = false; success = false
@@ -309,15 +312,22 @@ import TurtleGitCore
                 currentWork = ""; percentage = nil; completionRange = nil; cancelling = false; confirmingCancellation = false
                 progress = true; success = false; output = ""
                 LocalGitCommandProgress.begin(); startedProgress = true; startedAt = ProcessInfo.processInfo.systemUptime
-                let repository = chooser.repository
-                let text = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
+                let receipt = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
                     guard let self, self.active, self.cancellation === token else { return }
                     self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
-                }, resultText: { $0 }, operation: { emit in try await repository.createWorktree(at: path, options: capturedOptions, cancellation: token, onOutput: emit) })
-                guard active else { return }
-                success = true; createdPath = path
-                hasSubmodules = capturedOptions.checkout && FileManager.default.fileExists(atPath: path.appendingPathComponent(".gitmodules").path)
-                finishOutput(startedAt: startedAt); onCreated(text)
+                }, resultText: { $0.output }, operation: { emit in
+                    if let perform{return try await perform(repository,path,capturedOptions,token)}
+                    return try await repository.createWorktreeAccepted(at:path,options:capturedOptions,cancellation:token,onOutput:emit)
+                })
+                acceptedCreation=receipt;createdPath=receipt.path
+                acceptedLateCancellation=token.isCancelled || receipt.cancelledAfterCreation
+                if !notifiedCreation {notifiedCreation=true;creationCallback(receipt.output)}
+                guard active else{return}
+                success=true;cancelled=false
+                hasSubmodules=receipt.verified && capturedOptions.checkout && FileManager.default.fileExists(atPath:path.appendingPathComponent(".gitmodules").path)
+                if !receipt.verified {output += "\nWorktree created, but its current identity could not be verified. Review the repository before continuing.\n"+(receipt.verificationError ?? "")}
+                else if acceptedLateCancellation {output += "\nWorktree created. Cancellation stopped further actions.\n"}
+                finishOutput(startedAt:startedAt)
             } catch let failure as GitCommandCancellationFailure { guard active else { return }; cancelled = true; output = LocalGitCommandProgress.failure(failure, existing: output, preferences: preferences); finishOutput(startedAt: startedAt) }
             catch OperationCancellationFailure.cancelled { guard active else { return }; cancelled = true; output = "Cancelled before worktree creation."; if startedProgress { finishOutput(startedAt: startedAt) } }
             catch { if active { if startedProgress { output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences); finishOutput(startedAt: startedAt, exitCode: (error as? GitFailure)?.code) } else { self.error = error.localizedDescription } } }
@@ -329,7 +339,7 @@ import TurtleGitCore
         currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
     }
     private func finishAutomaticClose() {
-        guard commandsAvailable, !busy, !confirmingCancellation, success else { return }
+        guard commandsAvailable,!busy,!confirmingCancellation,success,!acceptedLateCancellation,acceptedCreation?.verified == true else{return}
         if autoClosePolicy.shouldClose(success: true, postActionCount: hasSubmodules ? 1 : 0) { saveActionLog(); close() }
     }
     func cancel() {
@@ -340,12 +350,13 @@ import TurtleGitCore
                 guard !answered else { return }; answered = true; Self.activeOperations -= 1
                 guard let self else { return }; self.confirmingCancellation = false
                 guard self.commandsAvailable else { return }
+                if accepted,self.acceptedCreation != nil {self.acceptedLateCancellation=true}
                 if self.busy, self.cancellation === token, accepted { self.cancelling = true; token.cancel() }
                 self.finishAutomaticClose()
             }
         } else { cancelling = true; token.cancel() }
     }
-    func returnToOptions() { guard commandsAvailable, !busy, !confirmingCancellation else { return }; saveActionLog(); progress = false }
+    func returnToOptions() { guard commandsAvailable,acceptedCreation==nil,!busy,!confirmingCancellation else { return }; saveActionLog(); progress = false }
     func updateSubmodules() {
         CommandProgressContext.perform(commandProgressScope) { updateSubmodulesInCommandProgressScope() }
     }

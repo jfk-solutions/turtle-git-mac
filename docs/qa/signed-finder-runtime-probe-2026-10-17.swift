@@ -475,10 +475,31 @@ import TurtleGitCore
             }
             try require(!FileManager.default.fileExists(atPath:export.item.path),"Historical export survived explicit release")
         }
+        // Current consolidation: exercise the exported production Core APIs,
+        // with no shipping AppKit owner or App Group entitlement.
+        try require(MergeMarkedWord.screenRowCount("alpha",fragments:["alpha alpha","al","pha","alpha"])==2,"Packaged marked status counted occurrences or joined wrap fragments")
+        let preferenceSuite="TurtleGit.SignedSettings."+UUID().uuidString
+        guard let preferences=UserDefaults(suiteName:preferenceSuite) else{throw Failure(description:"Private packaged Settings preferences unavailable")}
+        defer{preferences.removePersistentDomain(forName:preferenceSuite)}
+        let intents=SettingsPublicationIntents(defaults:preferences)
+        let old=intents.request(.finderMenu),new=intents.request(.finderMenu)
+        try require(!intents.complete(.finderMenu,request:old) && intents.pending(.finderMenu)==new,"Packaged Settings lost superseding publication request")
+        try require(intents.complete(.finderMenu,request:new) && intents.pending(.finderMenu)==nil,"Packaged Settings could not complete current request")
+        var create=ReferenceCreationOptions();create.name="runtime-accepted-branch";create.revision=first
+        let branchPlan=try await repository.prepareReferenceCreation(create)
+        let branch=try await repository.createReferenceAccepted(branchPlan)
+        try require(branch.verified && branch.reference=="refs/heads/runtime-accepted-branch" && branch.actualObjectID==first,"Packaged branch creation receipt lost actual identity")
+        create.isTag=true;create.name="runtime-accepted-tag"
+        let tagPlan=try await repository.prepareReferenceCreation(create)
+        let tag=try await repository.createReferenceAccepted(tagPlan)
+        try require(tag.verified && tag.reference=="refs/tags/runtime-accepted-tag" && tag.peeledObjectID==first,"Packaged tag creation receipt lost target")
+        var worktreeOptions=WorktreeCreationOptions();worktreeOptions.newBranch="runtime-linked";worktreeOptions.revision=first;worktreeOptions.checkout=false
+        let linked=try await repository.createWorktreeAccepted(at:directory.appendingPathComponent("runtime-linked"),options:worktreeOptions)
+        try require(linked.verified && linked.worktree?.head==first,"Packaged worktree creation receipt lost registered checkout")
         let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterConfig=try Data(contentsOf:root.appendingPathComponent(".git/config")),afterWorking=try Data(contentsOf:sentinelURL)
         try require(afterHead==head && afterIndex==index && afterConfig==config && afterWorking==sentinel,"Local-tools smoke changed HEAD/index/config/worktree")
         try require(try FileManager.default.contentsOfDirectory(atPath:root.path).sorted()==[".git","sentinel.txt"],"Historical raw files leaked into checkout")
-        return ["public_core_package_smoke":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
+        return ["public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
     }
 
     static func main() async throws {

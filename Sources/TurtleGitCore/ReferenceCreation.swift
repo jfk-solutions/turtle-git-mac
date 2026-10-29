@@ -28,6 +28,45 @@ public struct ReferenceCreationPlan:Sendable {
     public let arguments:[String]
     fileprivate let repositoryRoot:URL
 }
+/// Exit zero is an accepted mutation even if the originating UI subsequently
+/// cancels. Verification observes current state; concurrent external writers
+/// cannot be excluded, and a moved remote base need not equal the prepared OID.
+public struct ReferenceCreationReceipt: Sendable {
+    public let output:String,reference:String
+    public let actualObjectID:String?,peeledObjectID:String?
+    public let cancelledAfterCreation:Bool
+    public let verificationError:String?
+    public let verificationDiagnostics:String
+    public var verified:Bool {actualObjectID != nil && peeledObjectID != nil && verificationError == nil}
+    public init(output:String,reference:String,actualObjectID:String?=nil,peeledObjectID:String?=nil,cancelledAfterCreation:Bool=false,verificationError:String?=nil,verificationDiagnostics:String="") {
+        self.output=output;self.reference=reference;self.actualObjectID=actualObjectID;self.peeledObjectID=peeledObjectID
+        self.cancelledAfterCreation=cancelledAfterCreation;self.verificationError=verificationError;self.verificationDiagnostics=verificationDiagnostics
+    }
+}
+/// Description is a separate post-creation operation. Its failure must not make
+/// a caller retry the already accepted branch/tag mutation.
+public struct ReferenceCreationPostCreationFailure:LocalizedError {
+    public let receipt:ReferenceCreationReceipt
+    public let underlying:Error
+    public var errorDescription:String? {"The reference was created, but its description could not be saved: " + underlying.localizedDescription}
+}
+
+/// Deliberately local to creation APIs: other Git mutations retain their existing
+/// cancellation semantics. Never turn a nonzero or pre-spawn failure into success.
+func acceptedCreationResult(_ operation:()throws->GitResult)throws->GitResult {
+    do {return try operation()}
+    catch let failure as GitCommandCancellationFailure where failure.result.exitCode == 0 {return failure.result}
+}
+
+/// Verification owns a fresh cancellation scope, independent of a cancelled UI,
+/// and cannot wait indefinitely for a wrapper/config/metadata read to finish.
+func boundedCreationVerification<Value>(_ body:(OperationCancellation)throws->Value)throws->Value {
+    let token=OperationCancellation()
+    let deadline=DispatchWorkItem {token.cancel()}
+    DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+5,execute:deadline)
+    defer {deadline.cancel()}
+    return try body(token)
+}
 public enum ReferenceCreationFailure: LocalizedError {
     case invalidName, invalidRevision, exists, nameConflict, signingMessageRequired, preparedRepositoryMismatch
     public var errorDescription: String? {
@@ -103,12 +142,36 @@ extension GitRepository {
     /// Uses the accepted submission without re-reading mutable native form state.
     /// As in Git/source, a captured remote base may move before branch creation.
     public func createReference(_ plan:ReferenceCreationPlan,writeDescription:Bool=true,cancellation:OperationCancellation?=nil) throws -> String {
+        let receipt=try createReferenceAccepted(plan,cancellation:cancellation)
+        if writeDescription,plan.writesBranchDescription {
+            do {try updateBranchDescription(plan.options.name,message:plan.options.message,cancellation:cancellation)}
+            catch {throw ReferenceCreationPostCreationFailure(receipt:receipt,underlying:error)}
+        }
+        return receipt.output
+    }
+    /// Creation and bounded verification only; branch description remains a
+    /// separate native phase after optional Switch, matching source ordering.
+    public func createReferenceAccepted(_ plan:ReferenceCreationPlan,cancellation:OperationCancellation?=nil) throws -> ReferenceCreationReceipt {
         try cancellation?.check()
         guard root.path.utf8.elementsEqual(plan.repositoryRoot.path.utf8) else {throw ReferenceCreationFailure.preparedRepositoryMismatch}
-        let options=plan.options
-        let output = try creationCommand(plan.arguments, cancellation: cancellation).text
-        if writeDescription,plan.writesBranchDescription {try updateBranchDescription(options.name,message:options.message,cancellation:cancellation)}
-        return output
+        let result=try acceptedCreationResult {try creationCommand(plan.arguments,cancellation:cancellation)}
+        let reference=(plan.options.isTag ? "refs/tags/":"refs/heads/")+plan.options.name
+        var actual:String?,peeled:String?,issue:String?,diagnostics=""
+        do {
+            (actual,peeled)=try boundedCreationVerification {token in
+                let direct=try creationCommand(["show-ref","--verify","--hash",reference],cancellation:token)
+                diagnostics=String(decoding:direct.stderr,as:UTF8.self)
+                let dereferenced=try creationCommand(["rev-parse","--verify","--end-of-options",reference+"^{}"],cancellation:token)
+                diagnostics+=String(decoding:dereferenced.stderr,as:UTF8.self)
+                // Successful Git warnings belong to stderr, never an OID.
+                let actual=String(decoding:direct.stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+                let peeled=String(decoding:dereferenced.stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+                func valid(_ value:String)->Bool {[40,64].contains(value.utf8.count) && value.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }}
+                guard valid(actual),valid(peeled) else {throw ReferenceCreationFailure.invalidRevision}
+                return (actual,peeled)
+            }
+        }catch {issue="Creation completed, but the current reference could not be verified: "+error.localizedDescription}
+        return .init(output:result.text,reference:reference,actualObjectID:actual,peeledObjectID:peeled,cancelledAfterCreation:cancellation?.isCancelled == true,verificationError:issue,verificationDiagnostics:diagnostics)
     }
     /// Source CreateBranchTag writes the description after PerformSwitch returns,
     /// even when checkout failed. Keep this phase separable for native ownership.
