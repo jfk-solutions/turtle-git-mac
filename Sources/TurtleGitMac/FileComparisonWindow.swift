@@ -473,15 +473,17 @@ private extension FileComparisonDocument {
         return storageSide(base) ? invocation.baseReflectedName : invocation.mineReflectedName
     }
     @Published private(set) var focusedPresentationPane:Bool?
+    private var panePresentationViews:[ObjectIdentifier?]=[]
     @Published private(set) var paneStatusColumn=1
     @Published private(set) var paneStatusMarked:[MergePaneMarkCount]=[]
     var panePresentationAvailable:Bool {!retired && !busy && !filtering && !confirmingQuit && !hasPendingEditorChoice && window?.attachedSheet==nil}
     func paneModified(base:Bool)->Bool {drafts?.isDirty(base:base)==true || base==mergeToolResultSide && (mergeToolSaveRequired || mergeToolNeedsOutput)}
-    func panePresentationAction(base:Bool)->()->Void {
-        let epoch=paneTabEpoch,generation=alignmentGeneration,physical=storageSide(base),preferences=comparisonDefaults
-        return {[weak self] in
-            guard let self,self.paneTabEpoch==epoch,self.storageSide(base)==physical,self.comparisonDefaults === preferences else{return}
-            self.focusPresentationPane(base:base,generation:generation)
+    func panePresentationAction(base:Bool)->()->Bool {
+        let identity=headerIdentity(base:base),physical=storageSide(base),preferences=comparisonDefaults,owner=window
+        return {[weak self,weak owner] in
+            guard let self,let owner,self.window === owner,self.headerIdentity(base:base)==identity,
+                  self.storageSide(base)==physical,self.comparisonDefaults === preferences else{return false}
+            return self.focusPresentationPane(base:base,generation:identity.generation)
         }
     }
     var revealPaneInFinder:(URL)->Void = {NSWorkspace.shared.activateFileViewerSelecting([$0])}
@@ -505,17 +507,27 @@ private extension FileComparisonDocument {
         }
         return .init(identity:identity,commands:commands)
     }
-    func focusPresentationPane(base:Bool,generation:Int) {
-        guard panePresentationAvailable,alignmentGeneration==generation,(!onePaneActive || !base),let window,
-              let scroll=scrolls[base],ownsViewport(scroll,base:base),let view=scroll.documentView as? FileComparisonTextView else{return}
-        _ = window.makeFirstResponder(view);refreshPaneStatus()
+    @discardableResult func focusPresentationPane(base:Bool,generation:Int)->Bool {
+        guard panePresentationAvailable,alignmentGeneration==generation,(!onePaneActive || !base),let window,NSApp.modalWindow==nil,
+              let scroll=scrolls[base],ownsViewport(scroll,base:base),ownsEditor(scroll,base:base),
+              !scroll.isHiddenOrHasHiddenAncestor,let view=scroll.documentView as? FileComparisonTextView,
+              view.blockGeneration==generation else{return false}
+        guard window.makeFirstResponder(view),window.firstResponder === view,
+              scrolls[base] === scroll,scroll.documentView === view else{return false}
+        refreshPaneStatus();return true
     }
     func refreshPaneStatus() {
         guard !retired else{return}
-        let focused=scrolls.first{side,scroll in ownsViewport(scroll,base:side) && window?.firstResponder === scroll.documentView && (!onePaneActive || !side)}
+        let attached:[ObjectIdentifier?]=[true,false].map {base in
+            guard let scroll=scrolls[base],ownsViewport(scroll,base:base),ownsEditor(scroll,base:base),
+                  !scroll.isHiddenOrHasHiddenAncestor,let view=scroll.documentView else{return nil}
+            return ObjectIdentifier(view)
+        }
+        if panePresentationViews != attached {panePresentationViews=attached;objectWillChange.send()}
+        let focused=scrolls.first{side,scroll in ownsViewport(scroll,base:side) && ownsEditor(scroll,base:side) && !scroll.isHiddenOrHasHiddenAncestor && window?.firstResponder === scroll.documentView && (!onePaneActive || !side)}
         let side=focused?.key,column=MergePanePresentation.column(in:focused?.value.documentView as? NSTextView)
         func liveView(_ base:Bool)->NSTextView? {
-            guard let scroll=scrolls[base],ownsViewport(scroll,base:base),(!onePaneActive || !base) else{return nil}
+            guard let scroll=scrolls[base],ownsViewport(scroll,base:base),ownsEditor(scroll,base:base),!scroll.isHiddenOrHasHiddenAncestor,(!onePaneActive || !base) else{return nil}
             return scroll.documentView as? NSTextView
         }
         let marked:[MergePaneMarkCount]

@@ -103,7 +103,8 @@ import TurtleGitCore
             try await MergePatchCapture.save(window,"compare-pane-status")
             let retained=model.panePresentationAction(base:true)
             model.confirmingQuit=true;model.confirmingQuit=false
-            retained();try require(window.firstResponder === mine,"Retained pane activation revived after Quit")
+            try require(!retained(),"Retired Compare activation falsely reported success")
+            try require(window.firstResponder === mine,"Retained pane activation revived after Quit")
             // Palette role remains a displayed-position property when sides swap.
             let leftBefore=model.document?.base.path,rightBefore=model.document?.destination.path
             model.presentProjectionQuestion={alert,_,answer in

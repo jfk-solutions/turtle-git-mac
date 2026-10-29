@@ -65,7 +65,7 @@ struct MergePaneHeader:NSViewRepresentable {
     var font:NSFont
     var enabled:Bool
     var preferences:UserDefaults
-    var activate:()->Void
+    var activate:()->Bool
     var actions:MergePaneHeaderActions? = nil
     var compact=false
     func makeNSView(context:Context)->MergePaneHeaderView{MergePaneHeaderView()}
@@ -83,7 +83,7 @@ struct MergePaneHeader:NSViewRepresentable {
     private weak var originalWindow:NSWindow?
     private var closeObserver:NSObjectProtocol?
     private var bound=false,retired=false,enabled=false,active=false
-    private var activate:()->Void={}
+    private var activate:()->Bool={false}
     private var actions:MergePaneHeaderActions?
     private var actionRevision=0
     private var compact=false
@@ -103,7 +103,7 @@ struct MergePaneHeader:NSViewRepresentable {
         }
     }
     private var canPerformHeaderAction:Bool {
-        !retired && enabled && window != nil && window === originalWindow && window?.attachedSheet==nil && NSApp.modalWindow==nil
+        !retired && enabled && !isHiddenOrHasHiddenAncestor && window != nil && window === originalWindow && window?.attachedSheet==nil && NSApp.modalWindow==nil
     }
     /// A fresh menu owns its exact action receipts; later role/configuration
     /// changes invalidate retained rows without retargeting them.
@@ -164,7 +164,7 @@ struct MergePaneHeader:NSViewRepresentable {
             closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.retire()}}
         }else if window !== originalWindow{retire()}}
     }
-    func configure(title:String,location:String,modified:Bool,active:Bool,kind:MergePaneHeader.Kind,font:NSFont,enabled:Bool,preferences:UserDefaults,activate:@escaping()->Void,actions:MergePaneHeaderActions?=nil,compact:Bool=false){
+    func configure(title:String,location:String,modified:Bool,active:Bool,kind:MergePaneHeader.Kind,font:NSFont,enabled:Bool,preferences:UserDefaults,activate:@escaping()->Bool,actions:MergePaneHeaderActions?=nil,compact:Bool=false){
         guard !retired else{return};self.active=active;self.enabled=enabled;self.activate=activate
         if self.actions?.identity != actions?.identity {actionRevision &+= 1}
         self.actions=actions;actionPreferences=preferences;self.compact=compact
@@ -187,8 +187,8 @@ struct MergePaneHeader:NSViewRepresentable {
         setAccessibilityHelp(location);setAccessibilityEnabled(enabled);needsDisplay=true
     }
     private func performActivation()->Bool {
-        guard !retired,enabled,let window,window === originalWindow,window.attachedSheet==nil,NSApp.modalWindow==nil else{return false}
-        activate();return true
+        guard canPerformHeaderAction else{return false}
+        return activate()
     }
     override func accessibilityPerformPress()->Bool{performActivation()}
     override func hitTest(_ point:NSPoint)->NSView? {super.hitTest(point) == nil ? nil:self}
@@ -199,7 +199,7 @@ struct MergePaneHeader:NSViewRepresentable {
         (active ? NSColor.controlAccentColor:NSColor.separatorColor).setStroke()
         let border=NSBezierPath(rect:bounds.insetBy(dx:0.5,dy:0.5));border.lineWidth=active ? 2:1;border.stroke()
     }
-    func retire(){retired=true;enabled=false;setAccessibilityEnabled(false);activate={};actions=nil;actionRevision &+= 1;originalWindow=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil}
+    func retire(){retired=true;enabled=false;setAccessibilityEnabled(false);activate={false};actions=nil;actionRevision &+= 1;originalWindow=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil}
 }
 
 /// Native fields keep the status observable without depending on SwiftUI's

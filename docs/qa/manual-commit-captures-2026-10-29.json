@@ -1,13 +1,10 @@
 {
-  "schema_version": 1,
-  "authored_date": "2026-10-29",
-  "status": "deferred-locked-desktop-session",
-  "scope": "Planned four current Commit documentation screenshots: Classic and GitGui staging, light and dark",
-  "fixture": "docs/qa/manual-commit-captures-2026-10-29.swift",
-  "runner": "scripts/capture-manual-commit-2026-10-29.py",
-  "fixture_sha256": "234c3dece8db484d8b76fb982f55ecf4ca91093bd886e5171871ce753b1bce04",
-  "runner_sha256": "623e4cde8c78b2e309503d607e980e3d5440912713f2840942638aec855755fe",
-  "attempts": [
+  "source_commit": "e26106734a21070147201afba67f8c1c260c390d",
+  "validation_date": "2026-10-29",
+  "scope": "Four current Commit screenshots: Classic and GitGui staging, each light/dark",
+  "build": "Current unsigned Debug objects; independent of the installed user app and signed consolidation",
+  "status": "captured-reviewed-and-integrated",
+  "prior_capture_attempts": [
     {
       "receiver_pid": 82917,
       "log": "build/qa/content-captures-2026-10-29.log",
@@ -48,30 +45,91 @@
       "cleanup": "Runner reaped exact receiver; fixture closed one owned Commit window and reported no visible windows/sheets and actual workers drained."
     }
   ],
-  "published_assets": [],
-  "screenshots_updated": false,
-  "existing_images": "No new dated PNGs were produced or copied; historical documentation images remain unchanged by this capture family.",
-  "decision": "Stop all further captures. Keep normal native visible-capture strategy for a later unlocked session; no runtime overrides. Existing images retained honestly; no current screenshots produced or published.",
-  "boundaries": [
-    "All six attempts failed before an accepted PNG; no alpha-zero bitmap or fabricated image substituted.",
-    "Current screenshots have not been updated; no visual parity acceptance or signed/hosted claim.",
-    "Fourth receiver85057 aborted and did not execute successful fixture cleanup; the other reported cleanup runs and exact runner reaping are recorded individually.",
-    "Capture family used private Harbor demo data and did not Quit, install, or terminate any user-owned app."
-  ],
   "prior_failed_fixture_sha256": "72bf09f28b6136ee2d535501de3864528b20293476c6fe117cb9af9737db3b8e",
   "prior_failed_runner_sha256": "487ae63ce5e79cc77a03279935432d16d909b423bc3f137773898cc973d99962",
-  "rejected_adaptation": "Changing the Swift/KVO native window isa is not used after attempt85057.",
-  "rejected_adaptations": [
-    "Swift/KVO window isa replacement: attempt85057 aborted; removed.",
-    "Marker-scoped offscreen constrainFrameRect method adaptation: offscreen compositor attempt85334 returned ScreenCaptureKit -3811; all runtime adaptation removed."
+  "capture_presentation": "Deliberate brief visual acceptance using normal native window class/geometry. Exactly one owned window contained on screen; orderFront without activation or makeKey; compositor capture then immediately orderOut/close. No runtime overrides.",
+  "method": "ScreenCaptureKit SCScreenshotManager desktopIndependentWindow for actual screen-contained alpha-one native window; original PNG bytes, no view.cacheDisplay or postprocessing",
+  "repository": "Private offline Harbor demo with staged/unstaged/deleted/unversioned files and changelists; synthetic author, issue catalog/ID and draft",
+  "native_presentation": "Production compact DialogTitles preference, actual Compact Commit layout dropdown and colored source icons; 1160x840 content points, compositor retains actual native frame aspect ratio",
+  "preserved": "HEAD, index tree, raw index/config and porcelain working status after setup; no Commit/stage/apply/save action during capture",
+  "preferences": "Private suite removed; private CFFIXED_USER_HOME/TMPDIR/XDG and explicit global Git config; no user pasteboard or Keychain",
+  "session_preflight": "CGSessionCopyCurrentDictionary refuses a locked desktop before demo Git repository/window creation; an unlocked desktop is required for ScreenCaptureKit.",
+  "network": false,
+  "desktop": "Deliberate visible visual capture, four own windows one at a time; each screen-contained and sole visible receiver window, then immediately hidden/closed. No app activation, no user-owned app close/Quit/install",
+  "owned_receiver_pids": [
+    99235
   ],
-  "capture_presentation": "Normal NSWindow class and geometry. Deliberate brief visual acceptance: four own windows one at a time, centered inside visibleFrame, alpha one/orderFront without activation/makeKey, actual ScreenCaptureKit compositor capture then immediately orderOut and close. Exactly one receiver-owned visible window and native frame containment asserted.",
-  "locked_session_evidence": {
-    "method": "Parent authoritative read-only Swift CGSessionCopyCurrentDictionary query after sixth attempt",
-    "sessionAvailable": true,
-    "screenLocked": true,
-    "onConsole": true,
-    "interpretation": "Locked desktop explains the observed ScreenCaptureKit -3811 failures. Earlier JXA empty-key output was inconclusive and did not establish an unlocked session. Initial placement assertions and the fourth isa crash remain distinct failed causes."
+  "owned_receiver_reaped_independently": true,
+  "window_ids": [
+    79930,
+    79934,
+    79935,
+    79936
+  ],
+  "fixture_sha256": "234c3dece8db484d8b76fb982f55ecf4ca91093bd886e5171871ce753b1bce04",
+  "runner_sha256": "d462d7b0e7aecece01115ede844315d712fcfe69f945fd5218419928afe964c9",
+  "receiver_sha256": "b5e137bff1990820bc8e1ff43f6f0e94bf8cb8fc63e0f35ac5f4c384ccdc5f1d",
+  "stdout_sha256": "5270d1bd5138dad858eb4383659f4cbf14a9e2f47ae71b4ef8ae60b42ccc6b8d",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "production_sources_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "1c072d872defb56afef5de50e40ba9fcd6dbae862fa9291a73159c1baad4f047",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "0eb3ea033ab217cda59480880baf0a33336746e0cdd470bec469a4b8fa3c2b8f",
+    "Sources/TurtleGitMac/PatchWindow.swift": "f800f90226ed396bfe007703fec13ec3dba252f7846a29168ef3858be73f7e0f"
   },
-  "session_preflight": "Prepared requireUnlockedSession() uses CGSessionCopyCurrentDictionary and throws a clear screenshot-wait error when CGSSessionScreenIsLocked is NSNumber true, before creating the Harbor Git repository or any Commit window. This new guard has not been run."
+  "review": "All four actual composited PNGs inspected by assistant: full native window retained, populated tables/icons/status colors legible, shared branch/issue/message/author-date/author/signoff controls and compact layout picker visible; GUI contains unstaged/staged lists plus real colored patch. No cropped controls observed. Inactive window title controls and naturally abbreviated provider button are retained as captured, without postprocessing. This is documentation visual review, not full upstream visual or physical interaction acceptance.",
+  "assets": [
+    {
+      "path": "docs/site/assets/mac-commit-classic-light-2026-10-29.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-29/mac-commit-classic-light-2026-10-29.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 459932,
+      "sha256": "3363ed324c9ee692a64af40d2f5b7a4d7d63db96078ee87ef575b462d51b703b"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-classic-dark-2026-10-29.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-29/mac-commit-classic-dark-2026-10-29.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 440248,
+      "sha256": "8708f8765c8151063b682563b5243429849e0d8ae446f12c608998f82d81a694"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-light-2026-10-29.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-29/mac-commit-staging-light-2026-10-29.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 504689,
+      "sha256": "ba888755a2dbdf5a5ce62fd1f65514cb3b5f69f859acbc60a71ad5aa6e4b21c6"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-dark-2026-10-29.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-29/mac-commit-staging-dark-2026-10-29.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 503046,
+      "sha256": "32be20cb69f6f981931149a83da498dbf623a9966e0bd239ea53a0959172c7c5"
+    }
+  ],
+  "capture_log": "build/qa/manual-commit-unlocked-capture-2026-10-29.log",
+  "published_assets": [
+    "docs/site/assets/mac-commit-classic-light-2026-10-29.png",
+    "docs/site/assets/mac-commit-classic-dark-2026-10-29.png",
+    "docs/site/assets/mac-commit-staging-light-2026-10-29.png",
+    "docs/site/assets/mac-commit-staging-dark-2026-10-29.png"
+  ],
+  "screenshots_updated": true,
+  "documentation_references": [
+    "docs/GETTING-STARTED.md",
+    "docs/DIALOG-GUIDE.md",
+    "docs/site/index.html"
+  ],
+  "session_observation": "Parent authoritative CGSessionCopyCurrentDictionary query reported screenLocked=false before release. Receiver preflight logged available=true, screenLocked=unknown (key absent), then all four SCK captures succeeded. Do not describe receiver as independently proving false.",
+  "limits": [
+    "Current unsigned Debug source captures, not a new signed app deployment.",
+    "No Commit/stage/apply/save operation during capture; private fixture baseline preserved.",
+    "No physical mouse/keyboard workflow acceptance or every upstream dialog visual parity claim.",
+    "Prior six failed attempts retained including abort without graceful fixture cleanup.",
+    "User-owned installed app was not quit, relaunched or modified by capture."
+  ]
 }

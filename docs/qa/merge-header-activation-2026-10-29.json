@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-native-passed-both-engines",
+  "scope": "Compare and three-way Merge native header focus/admission, mounted pane ownership, passive status identity and retained patch policies",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_evidence": {
+    "run": 40801565372,
+    "job": 123217418892,
+    "source_commit": "adbf6be7",
+    "core_methods": 3222,
+    "core_skips": 2,
+    "core_failures": 0,
+    "native_failure": "Actual source header refused activation",
+    "later_hosted_pass_claimed": false
+  },
+  "production_changes": [
+    "Header activation returns actual focus admission instead of reporting success after a rejected model callback.",
+    "Captured activation binds full pane identity, exact native pane, window and preferences; hidden, detached, unready or replaced panes refuse.",
+    "Compare publishes native attachment identity changes independently of caret/marks; status excludes unowned or hidden editors.",
+    "Readonly inspection remains allowed; existing mutation, context-menu one-use, modal and retirement fences remain."
+  ],
+  "fixture_changes": [
+    "Await actual rendered native AX enabled header before the existing single press assertion. Model readiness alone is insufficient on the hosted SDK.",
+    "Retain all prior assertions and add explicit false-result assertions for retained Base/replaced/Quit actions.",
+    "On refusal print bounded current header/model/window readiness diagnostics.",
+    "Remove HOME override; keep private CFFIXED_USER_HOME/TMPDIR/XDG and explicit private Git config."
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/merge-header-activation-debug-2026-10-29.log",
+      "contradictory_exit_zero_diagnostics": 3
+    },
+    "native": {
+      "exit": 0,
+      "runner": "python3 scripts/test-merge-patch-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "cases": [
+        "compare",
+        "conflict",
+        "patch"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/merge-header-activation-native-2026-10-29.log",
+      "reaped_pids": [
+        98456,
+        98471,
+        98487,
+        98498,
+        98509,
+        98834
+      ],
+      "completion_markers": 6
+    },
+    "core": "No Core changes; no local full Core repeat.",
+    "documentation": {
+      "dialog_ledger": "reconciled",
+      "localizations": "check passed",
+      "help": "regenerated and check passed, 60 documents/51 topics/92 files",
+      "site": "496 documents, no unresolved fragments",
+      "site_links_tests": 2,
+      "local_search": "passed",
+      "screenshots": "Four actual native Commit captures integrated; see manual-commit-captures-2026-10-29.json",
+      "resource_build": {
+        "exit": 0,
+        "log": "build/qa/merge-header-guide-resources-debug-2026-10-29.log",
+        "all_packaged_source_help_bytes_equal": true,
+        "source_help_members": 92,
+        "packaged_help_members": 93,
+        "additional_generated_members": [
+          "Contents/Resources/en.lproj/TurtleGitHelp.helpindex"
+        ],
+        "inventory_probe": "Initial strict source/package identity assertion detected the Xcode-generated helpindex. All92 source members then verified unchanged, with exactly that one additional generated index.",
+        "contradictory_exit_zero_diagnostics": 0
+      }
+    }
+  },
+  "limits": [
+    "Hosted refusal occurred before invoking the model callback; the readiness race is distinct from the separate production activation-result defect.",
+    "Owned offscreen native receiver calls do not prove physical mouse/keyboard, VoiceOver, signed Finder or complete source parity.",
+    "User-approved installed build30 is from source06e3de29 and does not contain this later header batch.",
+    "No App Store upload, notarization, Intel/minimum-macOS or complete hosted pass claimed."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/MergePanePresentation.swift": "38e7d77a2b3a908c730685cc17459d7f8b342c68354ef231dc5741dbcf7a8821",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "be01d24c3971c90fb0b595f80da5bb59edc3fc1123cd8ee1cfb00e66f2d3fa68",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "49864c14cda6e3f9e3e7773bb0df68e7aadfee973a5bf92796e2a5079bee870e",
+    "docs/qa/merge-conflict-presentation-native-2026-10-21.swift": "2b2aea743526d5cf2c151c5b79280c8e64d39ff8d6892f426e5bfcf314213611",
+    "docs/qa/merge-pane-presentation-native-2026-10-21.swift": "0b56ed9e7043e6625e52d764e5bc251c487d4ad4b600ff34750a5cffe44fc2e0",
+    "scripts/test-merge-patch-family.py": "d2641011fa66431bdd81eccbdbedb93338b7c91e482c51678ad025476fff2c41"
+  }
+}

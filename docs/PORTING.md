@@ -13,14 +13,17 @@ These later changes are not included in signed candidate30.
 ## Current installed checkpoint
 
 [Signed build30](qa/signed-consolidation-build30-2026-10-29.json) is the newer
-uninstalled Apple Silicon test candidate from `06e3de29`, consolidating the recent
+installed Apple Silicon local test build from `06e3de29`, consolidating the recent
 Commit, comparison, Log-selection and Merge recovery work with updated guides and
 bundled Help. Measured inputs, strict signatures and package inventory pass.
-The user-owned build27 session remains running. Fresh Commit screenshots await
-an unlocked desktop; later source work and physical acceptance are separate.
+The user authorized normal Quit, installation and reopening of build30; build27
+is preserved for rollback. Four current native Commit screenshots now cover
+Classic and staging in light/dark appearance in the guides and homepage; these
+newer documentation assets are separate from build30’s packaged Help. Later source
+work and physical acceptance remain separate.
 
 [Build27](qa/signed-consolidation-build27-2026-10-28.json), version 0.1.0 (27),
-is installed from `3d0cf270` for Apple Silicon local testing. Measured inputs,
+was installed from `3d0cf270` and is now preserved for rollback. Measured inputs,
 strict signatures, eight owned components containing arm64, bundled Help and
 complete installed inventory pass. Build26 and universal build22 are preserved.
 

@@ -81,6 +81,28 @@ Git operation, repository adoption or permission bypass is introduced.
 Implementation: `MergePanePresentation.swift`, `FileComparisonWindow.swift`,
 `TextConflictWindow.swift` and `MergeSourceComparisonWindows.swift`.
 
+## Activation result and mounted-pane ownership — October 29, 2026
+
+Header activation now returns actual focus success. A retained activation binds
+the exact native pane, window, model, preferences and presentation identity;
+replacing a pane cannot redirect an old action to its replacement. Hidden,
+detached, unready and retired panes refuse activation. The native header keeps
+its rendered enabled-state guard and reports refusal through accessibility
+instead of reporting success when the model rejected the callback. Compare
+refreshes mounted-pane identities independently of caret and marked-word changes;
+status reads exclude hidden or foreign editors. Readonly panes remain inspectable,
+with their existing mutation restrictions.
+
+Hosted run [40801565372](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40801565372)
+on older source `adbf6be7` passed 3,222 Core methods with two skips and no
+failures, then stopped at the conflict presentation check's first header press.
+That fixture awaited model readiness before the native header's enabled state
+had necessarily rendered. It now awaits the actual enabled header and attempts
+activation once; refusal remains a failure with bounded diagnostics. This
+readiness correction is distinct from the production admission-result repair.
+The [dated receipt](qa/merge-header-activation-2026-10-29.json) records the
+affected grouped validation and its limits.
+
 ## Verification and remaining scope
 
 The new receiver `qa/merge-pane-header-native-2026-10-25.swift` and cached runner

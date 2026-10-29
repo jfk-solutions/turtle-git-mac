@@ -874,9 +874,14 @@ private enum MergeSourceSide {
     private var panePresentationScheduled=false
     private var panePresentationViews:[ObjectIdentifier?]=[]
     fileprivate func presentationView(_ role:TextConflictPaneRole)->MergeTextView? {
-        if role == .result {return locatorResultScroll?.documentView as? MergeTextView}
-        if role == .base {guard let view=basePresentationScroll?.documentView as? MergeTextView,view.window === window else{return nil};return view}
-        return sourceScrolls.values.compactMap{$0.view?.documentView as? MergeTextView}.first{$0.presentationRole == role && $0.window === window && !$0.isHiddenOrHasHiddenAncestor}
+        func current(_ view:MergeTextView?)->MergeTextView? {
+            guard let view,let window,view.window === window,view.model === self,
+                  view.presentationRole==role,!view.isHiddenOrHasHiddenAncestor else{return nil}
+            return view
+        }
+        if role == .result {return current(locatorResultScroll?.documentView as? MergeTextView)}
+        if role == .base {return current(basePresentationScroll?.documentView as? MergeTextView)}
+        return sourceScrolls.values.lazy.compactMap {current($0.view?.documentView as? MergeTextView)}.first
     }
     fileprivate func refreshPanePresentation() {
         guard !retired else{return}
@@ -902,15 +907,19 @@ private enum MergeSourceSide {
         guard !retired,!panePresentationScheduled else{return};panePresentationScheduled=true
         DispatchQueue.main.async{[weak self] in guard let self else{return};self.panePresentationScheduled=false;self.refreshPanePresentation()}
     }
-    func focusPresentationPane(_ role:TextConflictPaneRole) {
-        guard sourceToolsAllowed,let view=presentationView(role),let window,view.window === window else{return}
-        if window.makeFirstResponder(view) {refreshPanePresentation()}
+    @discardableResult func focusPresentationPane(_ role:TextConflictPaneRole)->Bool {
+        guard sourceToolsAllowed,let view=presentationView(role),view.mergeSourceRowsReady,
+              let window,NSApp.modalWindow==nil else{return false}
+        guard window.makeFirstResponder(view),window.firstResponder === view,
+              presentationView(role) === view else{return false}
+        refreshPanePresentation();return true
     }
-    func paneHeaderAction(_ role:TextConflictPaneRole)->()->Void {
-        let epoch=paneTabEpoch,generation=loadGeneration,preferences=comparisonDefaults
-        return {[weak self] in
-            guard let self,self.paneTabEpoch==epoch,self.loadGeneration==generation,self.comparisonDefaults === preferences else{return}
-            self.focusPresentationPane(role)
+    func paneHeaderAction(_ role:TextConflictPaneRole)->()->Bool {
+        let identity=headerIdentity(role),preferences=comparisonDefaults,owner=window
+        return {[weak self,weak owner] in
+            guard let self,let owner,self.window === owner,self.headerIdentity(role)==identity,
+                  self.comparisonDefaults === preferences else{return false}
+            return self.focusPresentationPane(role)
         }
     }
     var revealPaneInFinder:(URL)->Void = {NSWorkspace.shared.activateFileViewerSelecting([$0])}

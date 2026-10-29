@@ -55,10 +55,18 @@ import TurtleGitCore
             let original=model.result,originalDirty=model.dirty
             try require(views(window.contentView).compactMap{$0 as? MergePaneHeaderView}.count==4,"Source and optional Base headers missing")
             let rightHeader=try header(window,"Mine"),resultHeader=try header(window,"Merged")
+            // Model readiness is published before SwiftUI updates the native
+            // header's enabled state on older SDKs. Await that rendered state;
+            // activation itself is still attempted exactly once below.
+            try await wait(window){rightHeader.window === window && rightHeader.isAccessibilityEnabled()}
             try require(rightHeader.toolTip?.contains(mine.path)==true && resultHeader.toolTip?.contains(output.path)==true,"Raw pane paths were rewritten in tooltip")
             try require(!resultHeader.titleField.stringValue.contains("\n") && resultHeader.titleField.stringValue.contains("↵"),"Native result title contains a raw line break")
             try require(resultHeader.frame.height>20 && resultHeader.frame.height<60 && resultHeader.titleField.maximumNumberOfLines==1,"Merge header lost bounded single-line geometry")
-            try require(rightHeader.accessibilityPerformPress(),"Actual source header refused activation")
+            let headerAccepted=rightHeader.accessibilityPerformPress()
+            if !headerAccepted {
+                print("Merge header activation diagnostic: enabled=\(rightHeader.isAccessibilityEnabled()) attached=\(rightHeader.window === window) hidden=\(rightHeader.isHiddenOrHasHiddenAncestor) frame=\(rightHeader.frame) tools=\(model.sourceToolsAllowed) busy=\(model.busy) sheet=\(String(describing:window.attachedSheet)) modal=\(String(describing:NSApp.modalWindow))")
+            }
+            try require(headerAccepted,"Actual source header refused activation")
             try await wait(window){model.activePresentationPane == .mine && window.firstResponder === right}
             guard let range=right.string.range(of:"\t😀 alpha") else {throw Failure(description:"Actual aligned source lost tab/emoji")}
             let start=NSRange(range,in:right.string).location
@@ -69,7 +77,8 @@ import TurtleGitCore
             let staleBase=model.paneHeaderAction(.base)
             model.showBase=false;model.showBase=true
             try await wait(window){(try? pane(window,.base)) != nil}
-            model.focusPresentationPane(.result);staleBase()
+            model.focusPresentationPane(.result)
+            try require(!staleBase(),"Replaced Base activation falsely reported success")
             try require(model.activePresentationPane == .result,"Old optional Base action survived pane replacement")
             model.focusPresentationPane(.base)
             try await wait(window){model.activePresentationPane == .base}
@@ -91,7 +100,8 @@ import TurtleGitCore
             try await wait(window){model.dirty==originalDirty && model.result==original && model.canRedo}
             try require((try header(window,"Merged")).titleField.stringValue.hasPrefix("* ")==originalDirty,"Undo did not restore the original result dirty indicator")
             let stale=model.paneHeaderAction(.mine)
-            model.confirmingQuit=true;model.confirmingQuit=false;stale()
+            model.confirmingQuit=true;model.confirmingQuit=false
+            try require(!stale(),"Retired Merge activation falsely reported success")
             try require(window.firstResponder === bottom,"Header callback revived across Quit epoch")
             model.setStatusBarVisible(false)
             try await wait(window){!views(window.contentView).contains{$0.identifier?.rawValue=="Merge.Status.Column"}}

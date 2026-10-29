@@ -1,6 +1,6 @@
 {
   "date": "2026-10-29",
-  "status": "signed-arm64-candidate-ready-installed-build27-retained",
+  "status": "signed-arm64-installed-and-reopened",
   "build": "30",
   "source_commit": "06e3de2971a8f5da72e7f44eb950fed45f34f3e7",
   "source_input_sha256": "752982315117a711fed81d853714bf06dabb6a7e570283500494cbab7b8c92a0",
@@ -82,10 +82,53 @@
     "contradictory_exit_zero_diagnostics": 0
   },
   "installation": {
-    "status": "not-installed-running-app-preserved",
-    "existing_build": "27",
-    "existing_main_sha256": "bf6b2f1199da04834afaac8c9e0bed329228b7ee7285ecbf7959b7ab8983810d",
-    "reason": "User-owned installed app still running; no restart/update authorization received."
+    "status": "installed-and-reopened",
+    "authorization": "User explicitly approved restart and update; verified build30 supersedes build29 named in the earlier request.",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "application_sha256": "c604871c4dc7df3a7aaa99ceea2ca6c4be04b747e0f6313a52f5285ab442102a",
+    "candidate_staged_installed_inventory_equal": true,
+    "inventory_members": 6378,
+    "previous_build": "27",
+    "previous_build_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed30-displaced-installed-2026-10-29",
+    "previous_session_quit": "normal application Quit; no force termination or discarded-draft action",
+    "reopened_pid": 97571,
+    "registration": [
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/usr/bin/pluginkit",
+          "-m",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "exit": 0,
+        "stdout": "+    org.turtlegit.macos.finder(0.1.0)\n",
+        "stderr": ""
+      }
+    ],
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "attempts": "Initial idle checks refused replacement while an app process was running. Recovery reused the verified staged copy, requested normal Quit after validation and installed only after the process exited.",
+    "strict_deep_installed_signature_exit": 0
   },
   "physical_acceptance": {
     "status": "not-performed-for-build30",
@@ -96,7 +139,7 @@
     "Apple Silicon local testing build; Intel/minimum-macOS execution remains separate.",
     "No complete hosted CI, full-dialog/whole-port certification, App Store submission or notarization claimed.",
     "Synthetic invisible mouse delivery was unavailable; actual AppKit row/delegate, keys and matching message/files passed as recorded.",
-    "Fresh composited Commit screenshots await an unlocked desktop; no new images or current signed physical acceptance claimed."
+    "At candidate freeze fresh composited Commit screenshots were deferred by the locked desktop. Four later captures now exist in source documentation; they do not establish signed build30 physical acceptance or update its packaged Help."
   ],
   "documentation_validation": {
     "site_build": "passed",
@@ -104,8 +147,8 @@
     "site_links_seconds": 3.458,
     "local_search": "passed",
     "help": "regenerated and checked before signed build",
-    "images": "Fresh captures deferred: authoritative CGSession screenLocked=true. All six attempts retained; historical images remain unchanged."
+    "images": "Candidate retained historical images at freeze. Subsequent actual four-image capture is recorded in docs/qa/manual-commit-captures-2026-10-29.json; these newer assets are outside this signed source."
   },
   "build_elapsed_seconds": 430.44,
-  "excluded_later_work": "The later Log streamed-file inspection family (qa/log-streamed-file-navigation-2026-10-29.json) is not part of source06e3de29 or this signed candidate."
+  "excluded_later_work": "The later Log streamed-file inspection and Merge header-activation families are not part of source06e3de29 or this signed installed build."
 }

@@ -50,7 +50,7 @@ manifest={
     'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
     'validation_date':'2026-10-29',
     'scope':'Four current Commit screenshots: Classic and GitGui staging, each light/dark',
-    'build':'Current unsigned Debug objects; not installed user app27 or signed build30',
+    'build':'Current unsigned Debug objects; independent of the installed user app and signed consolidation',
     'status':'captured-visual-review-pending',
     'prior_capture_attempts':previous.get('attempts',previous.get('prior_capture_attempts',[])),
     'prior_failed_fixture_sha256':previous.get('prior_failed_fixture_sha256',previous.get('fixture_sha256')),
