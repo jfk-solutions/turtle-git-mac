@@ -150,10 +150,13 @@ offers the corresponding Unstage actions. The working file is preserved.
 
 The alternative workspace commits the Git index, including staged changes outside
 the displayed scope. It shares the classic commit checks and progress workflow.
-It exposes the essential staging, message and Amend controls without duplicating
-Git Gui's menus. Switch back to Classic for author/date, branch and issue-provider
-controls. Changing the interface preserves the message and index; switching back
-restores the repository's classic staging preference.
+Both layouts provide the same branch, issue/provider, author/date, Amend and
+sign-off controls. The **Commit** menu and its commit/message/focus shortcuts
+also work in either layout. File context menus retain Compare, Open, Resolve,
+Revert, ignore, changelist and other commands when the selected files allow them.
+Space stages or unstages the selection in the focused staging list. Changing the
+interface preserves the draft, options and index; switching back restores the
+repository's classic staging preference.
 
 ![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-10-27.png)
 

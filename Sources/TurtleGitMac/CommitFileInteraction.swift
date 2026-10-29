@@ -308,6 +308,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     var leadingColumnCount = 1
     var selectionLabelInset:CGFloat = 24
     var keyboardDeleteEnabled = true
+    var keyboardCheckWithoutColumn = false
     var captureWorkingDrag: (([String]) -> WorkingFileListDrag?)? = nil
     var workingDragOrigin: String? = nil
     var nativeColumns = StatusListColumn.allCases
@@ -343,7 +344,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.preferences=preferences
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         view.uniformRowGeometry=uniformRowGeometry
-        view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled
+        view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled; view.keyboardCheckWithoutColumn = keyboardCheckWithoutColumn
         view.captureWorkingDrag = captureWorkingDrag; view.workingDragOrigin = workingDragOrigin
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
         view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.captureColumnCopy = captureColumnCopy; view.toggleCheckIDs = toggleCheckIDs
@@ -366,6 +367,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         var leadingColumnCount = 1
         var selectionLabelInset:CGFloat = 24
         var keyboardDeleteEnabled = true
+        var keyboardCheckWithoutColumn = false
         var captureWorkingDrag: (([String]) -> WorkingFileListDrag?)?
         var workingDragOrigin: String?
         private struct WorkingDragPress {
@@ -914,7 +916,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                     guard let target=StatusListGroups.nextFileRow(after:anchor,forward:forward,in:rows) else {return nil}
                     CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:target));table.scrollRowToVisible(target);focusedPath?.wrappedValue=itemIDs[target];return nil
                 }
-                if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0,
+                if event.keyCode == 49, flags.isEmpty, enabled, (leadingColumnCount > 0 || keyboardCheckWithoutColumn),
                    let mark = selected.first(where: { GitReferenceName.equal($0,focusedPath?.wrappedValue) }) ?? selected.first {
                     toggleCheckIDs?(selected, mark); return nil
                 }
@@ -929,7 +931,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 }
                 return event
             }
-            if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0 {
+            if event.keyCode == 49, flags.isEmpty, enabled, (leadingColumnCount > 0 || keyboardCheckWithoutColumn) {
                 let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
                 let mark = selected.first { GitReferenceName.equal($0.path,focusedPath?.wrappedValue) } ?? selected.first
                 if let mark { toggleCheck(selected, mark); return nil }

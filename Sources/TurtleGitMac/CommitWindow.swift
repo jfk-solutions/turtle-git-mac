@@ -66,14 +66,19 @@ import TurtleGitCore
         if window?.attachedSheet==nil {model.supersedeFocusIntent()}
         cancelFormFocus();commandMenu?.remove()
     }
-    var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && model.messageFocusAvailable}
-    var refreshCommandAvailable:Bool {!closingCommit && !hasMessagePicker && model.canRefresh && window?.attachedSheet==nil}
+    var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && NSApp.modalWindow==nil && model.messageFocusAvailable}
+    var refreshCommandAvailable:Bool {!closingCommit && !hasMessagePicker && model.canRefresh && window?.attachedSheet==nil && NSApp.modalWindow==nil}
     func messageEditor(in view:NSView? = nil)->CommitMessageTextView? {
         guard let view=view ?? window?.contentView else {return nil}
         if let editor=view as? CommitMessageTextView {return editor}
         return view.subviews.compactMap {messageEditor(in:$0)}.first
     }
     func fileTable(in view:NSView? = nil)->NSTableView? {
+        if model.gitGuiInterface {
+            guard let table=model.fileListTable(key:model.guiStaged ? "staged":"unstaged"),table.window===window,!table.isHiddenOrHasHiddenAncestor else{return nil}
+            if let view,table !== view,!table.isDescendant(of:view){return nil}
+            return table
+        }
         guard let view=view ?? window?.contentView else{return nil}
         if let table=view as? NSTableView,table.tableColumns.count>1 {return table}
         return view.subviews.compactMap{fileTable(in:$0)}.first
@@ -332,7 +337,7 @@ import TurtleGitCore
             guard let self else { return }; if self.model.gitGuiInterface { self.model.refreshGuiPatch() } else { self.reloadPartial() }
         }
         model.interfaceChanged = { [weak self] in
-            guard let self else { return }; self.commandMenu?.remove(); if !self.model.gitGuiInterface { self.commandMenu?.install() }
+            guard let self else { return }; self.commandMenu?.remove(); self.commandMenu?.install()
         }
         model.closePartial = { [weak self] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil else { return }
@@ -413,10 +418,13 @@ import TurtleGitCore
         }
         model.onFocusConflictedFile={ [weak self] key,path in
             guard let self else{return}
-            let receipt=self.model.fileCheckReceipt
+            if self.model.gitGuiInterface {self.model.refreshGuiPatch()}
+            self.cancelFormFocus()
+            let receipt=self.model.fileCheckReceipt,focus=self.model.supersedeFocusIntent(),gui=self.model.gitGuiInterface
             Task{@MainActor [weak self] in
                 for _ in 0..<200 {
                     guard let self,!self.closingCommit,!self.model.confirmingQuit,self.model.messageFocusAvailable,
+                          self.model.gitGuiInterface==gui,self.model.acceptsFocusIntent(focus),
                           self.model.fileCheckReceipt==receipt,self.model.selection==GitPathSet([path]) else{return}
                     if self.commandsAvailable,self.model.focusConflictFile(key:key,path:path) {return}
                     try? await Task.sleep(nanoseconds:5_000_000)
@@ -825,7 +833,7 @@ import TurtleGitCore
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) {guard canReuse else{return};if !model.gitGuiInterface {commandMenu?.install()};showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
+    func windowDidBecomeKey(_ notification: Notification) {guard canReuse else{return};commandMenu?.install();showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -912,7 +920,7 @@ import TurtleGitCore
         // Selection, button, menu and double-click all use one captured path
         // batch. Partial staging stays a separate hunk operation in the preview.
         guiStaged = snapshot.staged; stagedDiff = snapshot.staged; selection = targets
-        let captured = fileMenu(targets, orderedEntries: snapshot.entries)
+        let captured = fileMenu(targets, orderedEntries: snapshot.entries, gui: snapshot)
         pendingGuiStageSelection = (targets, snapshot.staged)
         withFileMenu(captured) { moveToStage(targets, staged: !snapshot.staged) }
     }
@@ -1025,7 +1033,7 @@ import TurtleGitCore
         case .amendComparison:return amend && hasParent && replaySplit==nil && historyCombine==nil
         case .resetDate:return amend && setAuthorDate && !loadingAuthorDate
         case .wholeProject:return !scopePaths.isEmpty
-        case .staging:return loadedPreferences
+        case .staging:return loadedPreferences && !gitGuiInterface
         default:return true
         }
     }
@@ -1164,7 +1172,7 @@ import TurtleGitCore
     @Published var creatingChangelist = false
     @Published var changelistName = ""
     private var changelistPaths: [String] = []
-    private var changelistMenu: StatusFileMenuSnapshot?
+    private var changelistMenu: FileMenuSnapshot?
     @Published var branch = ""
     private(set) var branchFocusIntent=UUID()
     @Published var createBranch = false {didSet{if createBranch != oldValue{retireFormReceipts();branchFocusIntent=supersedeFocusIntent()}}}
@@ -1378,6 +1386,11 @@ import TurtleGitCore
     var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private let conflictFocusProbes=NSMapTable<NSString,CommitFileInteraction.Probe>(keyOptions:.strongMemory,valueOptions:.weakMemory)
     func registerFileList(_ probe:CommitFileInteraction.Probe,key:String) {conflictFocusProbes.setObject(probe,forKey:key as NSString)}
+    func fileListTable(key:String)->NSTableView? {
+        guard messageFocusAvailable,let table=conflictFocusProbes.object(forKey:key as NSString)?.nativeTable,
+              table.window===comparisonWindow,!table.isHiddenOrHasHiddenAncestor else{return nil}
+        return table
+    }
     func focusConflictFile(key:String,path:String)->Bool {conflictFocusProbes.object(forKey:key as NSString)?.focusFile(path) ?? false}
     var onFocusConflictedFile:(String,String)->Void={_,_ in}
     var confirmConflictedSelection:(([String],OperationCancellation)async->(ignore:Bool,remember:Bool)?)?
@@ -1437,6 +1450,9 @@ import TurtleGitCore
     private func focusConflictedFile(_ conflicts:[StatusEntry]) {
         guard let first=visibleEntries.first(where:{ $0.state == .conflicted }) ?? conflicts.first else { return }
         if !visibleEntries.contains(where:{ GitReferenceName.equal($0.path,first.path) }) { showWholeProject=true }
+        // Unresolved paths are not staged entries. The GUI must activate the
+        // real list containing the conflict before its captured native focus.
+        if gitGuiInterface {guiStaged=false;stagedDiff=false}
         selection=[first.id];focusedFiles[fileListFocusKey]=first.id
     }
     var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
@@ -1686,6 +1702,17 @@ import TurtleGitCore
         if fileColumns != next { fileColumns = next; fileColumns.save(to: dialogDefaults) }
         return true
     }
+    @discardableResult func saveGuiFileColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
+        let columns: Set<StatusListColumn> = [.path, .status]
+        let requested = order.filter { columns.contains($0) }
+        guard requested.count == columns.count, Set(requested) == columns else { return false }
+        // A two-column staging pane must not discard the Classic report's
+        // remaining column order or widths when its native header is resized.
+        var combined = fileColumns.order
+        let slots = combined.indices.filter { columns.contains(combined[$0]) }
+        for (slot, column) in zip(slots, requested) { combined[slot] = column }
+        return saveFileColumnLayout(order: combined, widths: fileColumns.widths.merging(widths) { _, new in new })
+    }
     func setFileColumn(_ column: StatusListColumn, visible: Bool) {
         guard messageFocusAvailable, column != .path, availableFileColumns.contains(column), !inputsBlocked else { return }
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
@@ -1775,11 +1802,26 @@ import TurtleGitCore
     private(set) var pendingFileOperations=0
     var fileWorkPending:Bool {pendingFileOperations>0}
     private var fileMenuGeneration = UUID()
-    private var activeFileMenu: StatusFileMenuSnapshot?
+    struct FileMenuSnapshot {
+        let status: StatusFileMenuSnapshot
+        let gitGui: Bool
+        let guiList: GuiFileListSnapshot?
+        var generation: UUID { status.generation }
+        var entries: [StatusEntry] { status.entries }
+        var mark: StatusEntry? { status.mark }
+        var commands: [StatusFileCommand] { status.commands }
+        var offersAdd: Bool { status.offersAdd }
+        var offersCompare: Bool { status.offersCompare }
+        var offersRevert: Bool { status.offersRevert }
+        var offersResolve: Bool { status.offersResolve }
+        var offersIgnore: Bool { status.offersIgnore }
+        func addModes(extended: Bool) -> [WorkingFileAddMode] { status.addModes(extended: extended) }
+    }
+    private var activeFileMenu: FileMenuSnapshot?
     private var fileOperationToken: OperationCancellation?
     @Published private(set) var fileOperationTitle = ""
     @Published private(set) var fileOperationCancelling = false
-    func fileMenu(_ ids: some Sequence<String>, mark: String? = nil, orderedEntries: [StatusEntry]? = nil) -> StatusFileMenuSnapshot { let ids = GitPathSet(ids);
+    func fileMenu(_ ids: some Sequence<String>, mark: String? = nil, orderedEntries: [StatusEntry]? = nil, gui: GuiFileListSnapshot? = nil) -> FileMenuSnapshot { let ids = GitPathSet(ids);
         let selected = (orderedEntries ?? visibleEntries).filter { ids.contains($0.id) }
         let focused = entries.first { GitReferenceName.equal($0.id,mark) } ?? selected.first
         func directory(_ entry: StatusEntry) -> Bool { submodules.contains(entry.path) || fileMetadata[entry.path]?.isDirectory == true }
@@ -1795,15 +1837,23 @@ import TurtleGitCore
         if let entry = selected.first, selected.count == 1, entry.state != .deleted, entry.worktree != "D", !directory(entry) { commands += [.editor, .open, .openWith] }
         if let entry = selected.first, selected.count == 1, entry.index != "D" { commands.append(.reveal) }
         if focused?.canDeleteFromStatusList == true { commands.append(.delete) }
-        return StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands, markIsDirectory: focused.map(directory) ?? false)
+        let status = StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands, markIsDirectory: focused.map(directory) ?? false)
+        return FileMenuSnapshot(status: status, gitGui: gitGuiInterface, guiList: gui)
     }
-    private func acceptsFileMenu(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
+    private func acceptsFileMenu(_ snapshot: FileMenuSnapshot, duringOperation: Bool = false) -> Bool {
         guard !messageOnly,messageFocusAvailable,!savingPreferences,!mergeHintVisible,!stagingHintVisible,!unversionedPromptVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
-              snapshot.generation == fileMenuGeneration, !snapshot.entries.isEmpty else { return false }
+              snapshot.gitGui == gitGuiInterface, snapshot.generation == fileMenuGeneration, !snapshot.entries.isEmpty,
+              guiPatch?.applyingChanges != true else { return false }
+        if let gui = snapshot.guiList {
+            let available = gui.staged ? stagedEntries : unstagedEntries
+            guard gitGuiInterface, gui.generation == guiFileListGeneration, available == gui.entries,
+                  available.map({ stagingState($0).rawValue }) == gui.states,
+                  GitPathSet(snapshot.entries.map(\.id)).isSubset(of: GitPathSet(available.map(\.id))) else { return false }
+        }
         let current = GitPathMap(entries.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
     }
-    func withFileMenu(_ snapshot: StatusFileMenuSnapshot, perform: () -> Void) {
+    func withFileMenu(_ snapshot: FileMenuSnapshot, perform: () -> Void) {
         guard acceptsFileMenu(snapshot) else { return }
         let previous = activeFileMenu; activeFileMenu = snapshot
         defer { activeFileMenu = previous }; perform()
@@ -1815,7 +1865,7 @@ import TurtleGitCore
         guard let fileOperationToken else { return false }
         fileOperationCancelling = true; fileOperationToken.cancel(); return true
     }
-    private func runFileOperation(_ title: String, operation: @escaping (OperationCancellation, StatusFileMenuSnapshot?) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
+    private func runFileOperation(_ title: String, operation: @escaping (OperationCancellation, FileMenuSnapshot?) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
         guard messageFocusAvailable, !inputsBlocked else { return }
         let snapshot = activeFileMenu
         guard snapshot.map({ acceptsFileMenu($0) }) ?? true else { return }
@@ -1844,10 +1894,10 @@ import TurtleGitCore
         guard fileOperationToken === token else { return }
         fileOperationToken = nil; busy = false; fileOperationCancelling = false; fileOperationTitle = ""
     }
-    private func acceptsPendingFileMenu(_ snapshot: StatusFileMenuSnapshot?, token: OperationCancellation) -> Bool {
+    private func acceptsPendingFileMenu(_ snapshot: FileMenuSnapshot?, token: OperationCancellation) -> Bool {
         isFileOperationLive(token) && (snapshot.map { acceptsFileMenu($0, duringOperation: true) } ?? true)
     }
-    func fileAction(_ command: StatusFileCommand, snapshot: StatusFileMenuSnapshot, permanently: Bool = false) {
+    func fileAction(_ command: StatusFileCommand, snapshot: FileMenuSnapshot, permanently: Bool = false) {
         guard snapshot.commands.contains(command) else { return }
         withFileMenu(snapshot) {
             let paths = snapshot.entries.map(\.path)
@@ -3184,7 +3234,7 @@ import TurtleGitCore
             fileListReportInEnglish ? raw:NSLocalizedString(raw,comment:"")
         })
     }
-    private var operationInputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || mergeHintVisible || stagingHintVisible || unversionedPromptVisible}
+    private var operationInputsBlocked:Bool {loadingImportedMessage || busy || guiPatch?.applyingChanges == true || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || mergeHintVisible || stagingHintVisible || unversionedPromptVisible}
     var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
     var canRefresh:Bool {messageFocusAvailable && !operationInputsBlocked}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
@@ -3472,38 +3522,20 @@ struct CommitDialog: View {
     @State private var initialFocusIntent:UUID?
     @State private var initialIssueFocusApplied = false
     var body: some View {
-        let receipt=model.formReceipt,branchFocus=model.branchFocusIntent
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Spacer(minLength: 0)
+                if model.gitGuiInterface {Button("Refresh") {model.reload()}.controlSize(.small).disabled(model.inputsBlocked)}
                 Picker("Commit window", selection: Binding(get: { model.gitGuiInterface }, set: { model.setCommitInterface($0) })) {
                     Text("Classic").tag(false); Text("Git Gui-style staging").tag(true)
                 }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
                     .accessibilityLabel("Commit window")
                     .disabled(model.inputsBlocked || model.guiPatch?.applyingChanges == true)
             }
+            destinationSection.disabled(model.inputsBlocked)
+            if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             if model.gitGuiInterface { guiWorkspace } else {
             Group {
-                CommitDestinationLayout {
-                    HStack(spacing:8) {
-                        Text("Commit to:").fixedSize()
-                        if model.createBranch { CommitNewBranchField(name:$model.newBranch,acceptsChanges:{model.acceptsFormReceipt(receipt) && model.nativeNewBranchInputAvailable},focusAllowed:{model.acceptsFocusIntent(branchFocus)}).frame(width:250) }
-                        else { CommitDestinationLabel(branch:model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).frame(minWidth:30,idealWidth:100,maxWidth:250) }
-                        Toggle("new branch",isOn:formBinding(.newBranch,\.createBranch)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.newBranch))
-                    }
-                    HStack(spacing:8) {
-                        if let provider = model.nativeIssueProvider {
-                            Button { model.selectProviderIssues() } label: { CommandLabel(title:provider.linkText,icon:.settingsIssueTracker,localized:false).lineLimit(1).truncationMode(.tail) }
-                                .frame(maxWidth:200).help(provider.linkText).disabled(model.inputsBlocked)
-                        }
-                        if model.issueProperties.showsIssueField {
-                            Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
-                            CommitNewBranchField(name:Binding(get:{model.issueID},set:{if model.acceptsFormReceipt(receipt){model.issueID=$0}}),acceptsChanges:{model.acceptsFormReceipt(receipt) && !model.inputsBlocked},fieldIdentifier:"Commit issue",fieldLabel:model.issueProperties.label,automaticFocus:false,onSubmit:{model.focusMessage()}).frame(width:140)
-                        }
-                        if model.busy { ProgressView().controlSize(.small) }
-                    }
-                }
-                if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
                 if let status = model.fileListLoadingStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
                 if !model.fileOperationTitle.isEmpty { HStack { Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption); Spacer(); Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling) } }
                 GeometryReader { geometry in
@@ -3568,13 +3600,31 @@ struct CommitDialog: View {
         .sheet(isPresented: $model.creatingChangelist) { CreateChangelistSheet(model: model) }
 
     }
+    private var destinationSection:some View {
+        let receipt=model.formReceipt,branchFocus=model.branchFocusIntent
+        return CommitDestinationLayout {
+            HStack(spacing:8) {
+                Text("Commit to:").fixedSize()
+                if model.createBranch { CommitNewBranchField(name:$model.newBranch,acceptsChanges:{model.acceptsFormReceipt(receipt) && model.nativeNewBranchInputAvailable},focusAllowed:{model.acceptsFocusIntent(branchFocus)}).frame(width:250) }
+                else { CommitDestinationLabel(branch:model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).frame(minWidth:30,idealWidth:100,maxWidth:250) }
+                Toggle("new branch",isOn:formBinding(.newBranch,\.createBranch)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.newBranch))
+            }
+            HStack(spacing:8) {
+                if let provider = model.nativeIssueProvider {
+                    Button { model.selectProviderIssues() } label: { CommandLabel(title:provider.linkText,icon:.settingsIssueTracker,localized:false).lineLimit(1).truncationMode(.tail) }
+                        .frame(maxWidth:200).help(provider.linkText).disabled(model.inputsBlocked)
+                }
+                if model.issueProperties.showsIssueField {
+                    Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
+                    CommitNewBranchField(name:Binding(get:{model.issueID},set:{if model.acceptsFormReceipt(receipt){model.issueID=$0}}),acceptsChanges:{model.acceptsFormReceipt(receipt) && !model.inputsBlocked},fieldIdentifier:"Commit issue",fieldLabel:model.issueProperties.label,automaticFocus:false,onSubmit:{model.focusMessage()}).frame(width:140)
+                }
+                ProgressView().controlSize(.small).frame(width:18,height:18).opacity(model.busy ? 1:0)
+                    .accessibilityHidden(!model.busy).allowsHitTesting(false)
+            }
+        }
+    }
     private var guiWorkspace: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Commit to: " + (model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch)).font(.headline)
-                Spacer()
-                Button("Refresh") { model.reload() }.disabled(model.inputsBlocked)
-            }
             // Reserve the operation band so starting/stopping Git never moves
             // either native file list beneath the pointer.
             HStack(spacing: 8) {
@@ -3597,13 +3647,13 @@ struct CommitDialog: View {
                     if let patch = model.guiPatch { GuiCommitPatch(model: patch) }
                     else { Text("Select a file to review its changes.").frame(maxWidth: .infinity, maxHeight: .infinity) }
                     GroupBox("Commit message") {
-                        CommitMessageEditor(model: model).frame(minHeight: 110, idealHeight: 150)
-                    }
-                    HStack {
-                        Toggle("Amend Last Commit", isOn: formBinding(.amend, \.amend)).toggleStyle(.checkbox)
-                            .disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.formOptionViewChanged(.amend) }
-                        Spacer(); CommitMessagePositionIndicator(model: model)
-                    }
+                        VStack(alignment:.leading,spacing:8) {
+                            CommitMessageEditor(model:model).frame(minHeight:100,idealHeight:130,maxHeight:.infinity)
+                            HStack {Spacer();CommitMessagePositionIndicator(model:model)}
+                            messageMetadata
+                        }.padding(4)
+                    }.frame(minHeight:245,idealHeight:280)
+                        .disabled(model.inputsBlocked)
                 }.frame(minWidth: 450, maxHeight: .infinity)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -3640,11 +3690,20 @@ struct CommitDialog: View {
                 }.width(min: 75, ideal: 105)
             }
             .tableStyle(.bordered(alternatesRowBackgrounds: true)).fileListFont()
-            .contextMenu(forSelectionType: String.self) { ids in
-                Button { model.activateGuiFiles(ids, snapshot: snapshot) } label: {
-                    CommandLabel(title: staged ? "Unstage files" : "Stage files", icon: staged ? .revert : .add)
-                }.disabled(!model.canMoveGuiFiles(ids, snapshot: snapshot))
+            .contextMenu(forSelectionType: String.self) { nativeIDs in
+                let ids = GitPathSet(nativeIDs).intersection(GitPathSet(entries.map(\.id)))
+                let mark = StatusListSelection.mark(entries: entries, requested: ids, highlighted: selectedIDs, focusedPath: model.focusedFiles[staged ? "staged" : "unstaged"])
+                let menu = model.fileMenu(ids, mark: mark?.id, orderedEntries: entries, gui: snapshot)
+                TurtleGitContextMenu {
+                    Button { model.activateGuiFiles(ids, snapshot: snapshot) } label: {
+                        CommandLabel(title: staged ? "Unstage files" : "Stage files", icon: staged ? .revert : .add)
+                    }.disabled(!model.canMoveGuiFiles(ids, snapshot: snapshot))
+                    Divider()
+                    fileMenuActions(menu, ids: ids, staged: staged)
+                }
             } primaryAction: { ids in model.activateGuiFiles(ids, snapshot: snapshot) }
+            .background(guiFileInteraction(entries: entries, staged: staged, snapshot: snapshot))
+            .onDrop(of: [UTType.fileURL], delegate: CommitFileDropDelegate(model: model, targets: dropTargets, key: staged ? "staged" : "unstaged"))
             .disabled(model.inputsBlocked || model.guiPatch?.applyingChanges == true)
             .overlay {
                 if entries.isEmpty, let message = model.guiFileListMessage(staged: staged) {
@@ -3673,39 +3732,73 @@ struct CommitDialog: View {
             }.frame(height: 24)
         }.padding(8)
     }
+    private func guiFileInteraction(entries: [StatusEntry], staged: Bool, snapshot: CommitWindowModel.GuiFileListSnapshot) -> some View {
+        let key = staged ? "staged" : "unstaged"
+        let focus = Binding<String?>(get: { model.focusedFiles[key] }, set: { model.focusedFiles[key] = $0 })
+        let columns: Set<StatusListColumn> = [.path, .status]
+        return CommitFileInteraction(rows: entries.map(StatusListRow.file), uniformRowGeometry: reportGeometry,
+            leadingColumnCount: 0, selectionLabelInset: 0, keyboardCheckWithoutColumn: true,
+            captureWorkingDrag: { model.captureWorkingDrag($0) }, workingDragOrigin: model.workingDragOrigin,
+            nativeColumns: [.path, .status],
+            configureRefresh: { probe in
+                dropTargets.set(probe, for: key); model.registerFileList(probe, key: key); model.fileListRefresh.attach(probe)
+            }, preferences: model.colorPreferences, visibleColumns: Set(model.visibleFileColumns).intersection(columns), availableColumns: columns,
+            columnText: { entry, column in
+                column == .path ? model.fileListDisplayedPath(entry) : FileListLabels.caption(model.guiFileStatus(entry, staged: staged))
+            }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
+            saveLayout: { model.saveGuiFileColumnLayout(order: $0, widths: $1) },
+            setColumnVisible: { model.setFileColumn($0, visible: $1) },
+            resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) },
+            focusedPath: focus, enabled: model.fileListAvailable && model.guiPatch?.applyingChanges != true,
+            delete: { files, mark, permanent in
+                let menu = model.fileMenu(files.map(\.id), mark: mark.id, orderedEntries: entries, gui: snapshot)
+                model.withFileMenu(menu) { model.deleteFiles(files, selectionMark: mark, permanently: permanent) }
+            }, copy: { files, status in
+                let menu = model.fileMenu(files.map(\.id), orderedEntries: entries, gui: snapshot)
+                model.withFileMenu(menu) { model.copyFileText(files, statistics: staged ? model.stagedStatistics : model.unstagedStatistics, copy: status ? .pathsAndStatus : .relativePaths) }
+            }, copyColumn: { files, column in
+                let menu = model.fileMenu(files.map(\.id), orderedEntries: entries, gui: snapshot)
+                model.withFileMenu(menu) { model.copyFileText(files, statistics: staged ? model.stagedStatistics : model.unstagedStatistics, copy: .column(column)) }
+            }, toggleCheck: { files, _ in model.activateGuiFiles(files.map(\.id), snapshot: snapshot) })
+    }
     private func formBinding(_ option:CommitWindowModel.FormOption,_ keyPath:ReferenceWritableKeyPath<CommitWindowModel,Bool>)->Binding<Bool> {
         let receipt=model.formReceipt
         return Binding(get:{model[keyPath:keyPath]},set:{model.setFormOption(option,value:$0,receipt:receipt)})
     }
     private var messageSection: some View {
-        let receipt=model.formReceipt
         return GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack { Spacer(); CommitMessagePositionIndicator(model: model) }
-                    // IDD_COMMITDLG keeps the conditional comparison control
-                    // anchored to the right edge of the Amend option band.
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.formOptionViewChanged(.amend) }
-                        Spacer(minLength: 12)
-                        if model.amend { Toggle("Show diff to last commit", isOn:formBinding(.amendComparison,\.amendDiffToLastCommit)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amendComparison)) }
-                    }
-                    DialogCommandRows {
-                        Toggle("Set author date", isOn:formBinding(.authorDate,\.setAuthorDate)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
-                        if model.setAuthorDate {
-                            CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorDateInputAvailable}).frame(width: 130, height: 24)
-                            CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorDateInputAvailable}).frame(width: 115, height: 24)
-                            if model.amend { Toggle("Reset", isOn:formBinding(.resetDate,\.resetAuthorDate)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.resetDate)) }
-                        }
-                    }
-                    DialogCommandRows {
-                        Toggle("Set author", isOn:formBinding(.author,\.setAuthor)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
-                        CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity, acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorInputAvailable})
-                            .frame(minWidth:220,idealWidth:280).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
-                        Button("Add Signed-off-by") { model.addSignOff(receipt: receipt) }
-                    }
+                    messageMetadata
                 }.padding(4)
             }
+    }
+    private var messageMetadata:some View {
+        let receipt=model.formReceipt
+        return VStack(alignment:.leading,spacing:8) {
+            // IDD_COMMITDLG keeps the conditional comparison control
+            // anchored to the right edge of the Amend option band.
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.formOptionViewChanged(.amend) }
+                Spacer(minLength: 12)
+                if model.amend { Toggle("Show diff to last commit", isOn:formBinding(.amendComparison,\.amendDiffToLastCommit)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amendComparison)) }
+            }
+            DialogCommandRows {
+                Toggle("Set author date", isOn:formBinding(.authorDate,\.setAuthorDate)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
+                if model.setAuthorDate {
+                    CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorDateInputAvailable}).frame(width: 130, height: 24)
+                    CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorDateInputAvailable}).frame(width: 115, height: 24)
+                    if model.amend { Toggle("Reset", isOn:formBinding(.resetDate,\.resetAuthorDate)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.resetDate)) }
+                }
+            }
+            DialogCommandRows {
+                Toggle("Set author", isOn:formBinding(.author,\.setAuthor)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
+                CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity, acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorInputAvailable})
+                    .frame(minWidth:220,idealWidth:280).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
+                Button("Add Signed-off-by") { model.addSignOff(receipt: receipt) }
+            }
+        }
     }
     private var changesSection: some View {
 GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
@@ -3823,119 +3916,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                     Button("Check group") { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: true) } }.disabled(model.busy || model.confirmingQuit)
                     Button("Uncheck group") { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: false) } }.disabled(model.busy || model.confirmingQuit)
                 } else {
-                    let selected = entries.filter { ids.contains($0.id) }
-                    let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
-                    let selectionMark = menuSnapshot.mark
-                    if menuSnapshot.offersResolve {
-                        ResolveSelectionMenu(paths:selected.map(\.path), rebase:model.conflictRebase, canEdit:selected.count == 1, action: { action, paths in model.withFileMenu(menuSnapshot) { model.onResolve(action, paths) } })
-                        Divider()
-                    }
-                    if menuSnapshot.offersAdd {
-                        ForEach(menuSnapshot.addModes(extended:NSEvent.modifierFlags.contains(.shift)), id: \.self) { mode in
-                            Button { model.withFileMenu(menuSnapshot) { model.addFiles(selected, mode:mode) } } label: { CommandLabel(title:mode.rawValue, icon:.add) }.disabled(model.busy || model.confirmingQuit)
-                        }
-                        Divider()
-                    }
-                    if menuSnapshot.offersCompare {
-                        Button { model.withFileMenu(menuSnapshot) { model.compare(paths: ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }
-                        if model.hasHead {
-                            Button { model.withFileMenu(menuSnapshot) { model.diff(paths: ids, staged: staged, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(model.busy || model.confirmingQuit)
-                        }
-                        Divider()
-                    }
-                    if selected.count == 2, selected.allSatisfy({ !model.submodules.contains($0.path) }) {
-                        Button { model.fileAction(.compareTwo, snapshot: menuSnapshot) } label: { CommandLabel(title: "Compare two files", icon: .compare) }
-                            .disabled(model.busy || model.confirmingQuit)
-                        Divider()
-                    }
-                    if menuSnapshot.offersRevert {
-                        Button { model.withFileMenu(menuSnapshot) { model.revertFiles(selected) } } label: { CommandLabel(title: "Revert", icon: .revert) }
-                    }
-                    if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
-                        if let first = selected.first, model.restoreCopies[first.path] != nil {
-                            Button { model.withFileMenu(menuSnapshot) { model.restoreNow(ids) } } label: { CommandLabel(title: "Restore", icon: .restore) }
-                        } else {
-                            Button { model.withFileMenu(menuSnapshot) { model.markForRestore(ids) } } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
-                        }
-                    }
-                    ForEach(model.lfsActions(selected), id: \.self) { action in
-                        Button { model.withFileMenu(menuSnapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
-                    }
-                    if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { GitReferenceName.equal($0.id,selectionMark?.id) }) {
-                        IndexFlagsMenu(files: flagFiles, selectionMark: mark) { action in model.withFileMenu(menuSnapshot) { model.setFlags(action, files: flagFiles, selectionMark: mark) } }
-                    }
-                    if !selected.isEmpty, selected.allSatisfy({ $0.state != .deleted }) {
-                        Button { model.withFileMenu(menuSnapshot) { FileTransferClipboard.copy(selected.map { model.repository.root.appendingPathComponent($0.path) }) } } label: { CommandLabel(title: "Copy files", icon: .copy) }
-                        Button { model.withFileMenu(menuSnapshot) { model.onCopyAdd(selected.map(\.path)) } } label: { CommandLabel(title: "Copy and Add…", icon: .add) }
-                    }
-                    Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(menuSnapshot) { model.onPasteFiles(true, urls) } } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }
-                    Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(menuSnapshot) { model.onPasteFiles(false, urls) } } label: { CommandLabel(title: "Paste Move…", icon: .rename) }
-                    if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
-                        Button { model.withFileMenu(menuSnapshot) { model.onMove(selected.map(\.path)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
-                    }
-                    if selected.count == 1, let entry = selected.first {
-                        Divider()
-                        if entry.state != .untracked && entry.state != .ignored {
-                            Button { model.fileAction(.log, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show log", icon: .log) }
-                            if model.submodules.contains(entry.path) { Button { model.fileAction(.submoduleLog, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show submodule log", icon: .log) } }
-                            if entry.state != .deleted {
-                                Button { model.withFileMenu(menuSnapshot) { model.onRename(entry.path) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
-                            }
-                            if entry.originalPath != nil {
-                                Button { model.fileAction(.oldNameLog, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
-                            }
-                            if menuSnapshot.commands.contains(.blame) {
-                                Button { model.fileAction(.blame, snapshot: menuSnapshot) } label: { CommandLabel(title: "Blame", icon: .blame) }
-                            }
-                        }
-                    }
-                    if menuSnapshot.commands.contains(.export) {
-                        Button { model.fileAction(.export, snapshot: menuSnapshot) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
-                    }
-                    if selected.count == 1 {
-                        if menuSnapshot.commands.contains(.reveal) {
-                            if menuSnapshot.commands.contains(.open) {
-                                Button { model.fileAction(.editor, snapshot: menuSnapshot) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.confirmingQuit)
-                                Button { model.fileAction(.open, snapshot: menuSnapshot) } label: { CommandLabel(title: "Open", icon: .open) }
-                                Button { model.fileAction(.openWith, snapshot: menuSnapshot) } label: { CommandLabel(title: "Open With…", icon: .open) }
-                            }
-                            Button { model.fileAction(.reveal, snapshot: menuSnapshot) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
-                        }
-                    }
-                    if !selected.isEmpty && selectionMark?.canDeleteFromStatusList == true {
-                        Button { model.fileAction(.delete, snapshot: menuSnapshot, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
-                    }
-                    if menuSnapshot.offersIgnore {
-                        Divider()
-                        IgnoreSelectionMenu(paths: selected.map(\.path), action: { action, paths in model.withFileMenu(menuSnapshot) { model.onIgnore(action, paths) } })
-                    }
-                    if !selected.isEmpty {
-                        Divider()
-                        Menu {
-                            ForEach(CommitWindowModel.CopyFileInformation.allCases, id: \.self) { information in
-                                Button { model.withFileMenu(menuSnapshot) { model.copyFiles(selected, information: information, staged: staged) } } label: { CommandLabel(title: information.rawValue, icon: .copy) }
-                            }
-                        } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
-                    }
-                    // The pinned upstream gate compares legacy status values to action
-                    // bits: only a pure Added action (1) is excluded, not UNVER (0x80000000).
-                    if !selected.isEmpty, let mark = selectionMark, !(mark.index == "A" && mark.worktree == " ") {
-                        Divider()
-                        if selected.contains(where: { model.changelists.name(for: $0.path) != nil }) {
-                            Button("Remove from changelist") { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: nil) } }
-                        }
-                        Menu("Move to changelist") {
-                            Button("<new changelist>") { model.withFileMenu(menuSnapshot) { model.newChangelist(selected) } }
-                            Divider()
-                            Button(GitChangelists.ignored) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) } }
-                            let names = model.changelistNameIdentities.filter { $0.rawValue != GitChangelists.ignored }
-                            if !names.isEmpty {
-                                Divider()
-                                ForEach(names, id: \.self) { name in Button(name.rawValue) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: name.rawValue) } }.help(changelistNameHelp(name, names: names)).accessibilityLabel(changelistNameHelp(name, names: names)) }
-                            }
-                        }
-                        Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.saveKeepChangelists($0) }))
-                    }
+                    fileMenuActions(menuSnapshot, ids: ids, staged: staged)
                 }
             }
         } primaryAction: { nativeIDs in
@@ -3957,6 +3938,122 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if files.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = files.first }
         }
     }
+    @ViewBuilder private func fileMenuActions(_ menuSnapshot: CommitWindowModel.FileMenuSnapshot, ids: GitPathSet, staged: Bool?) -> some View {
+        let selected = menuSnapshot.entries
+        let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
+        let selectionMark = menuSnapshot.mark
+        if menuSnapshot.offersResolve {
+            ResolveSelectionMenu(paths:selected.map(\.path), rebase:model.conflictRebase, canEdit:selected.count == 1, action: { action, paths in model.withFileMenu(menuSnapshot) { model.onResolve(action, paths) } })
+            Divider()
+        }
+        if menuSnapshot.offersAdd {
+            ForEach(menuSnapshot.addModes(extended:NSEvent.modifierFlags.contains(.shift)), id: \.self) { mode in
+                Button { model.withFileMenu(menuSnapshot) { model.addFiles(selected, mode:mode) } } label: { CommandLabel(title:mode.rawValue, icon:.add) }.disabled(model.busy || model.confirmingQuit)
+            }
+            Divider()
+        }
+        if menuSnapshot.offersCompare {
+            Button { model.withFileMenu(menuSnapshot) { model.compare(paths: ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }
+            if model.hasHead {
+                Button { model.withFileMenu(menuSnapshot) { model.diff(paths: ids, staged: staged, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(model.busy || model.confirmingQuit)
+            }
+            Divider()
+        }
+        if selected.count == 2, selected.allSatisfy({ !model.submodules.contains($0.path) }) {
+            Button { model.fileAction(.compareTwo, snapshot: menuSnapshot) } label: { CommandLabel(title: "Compare two files", icon: .compare) }
+                .disabled(model.busy || model.confirmingQuit)
+            Divider()
+        }
+        if menuSnapshot.offersRevert {
+            Button { model.withFileMenu(menuSnapshot) { model.revertFiles(selected) } } label: { CommandLabel(title: "Revert", icon: .revert) }
+        }
+        if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
+            if let first = selected.first, model.restoreCopies[first.path] != nil {
+                Button { model.withFileMenu(menuSnapshot) { model.restoreNow(ids) } } label: { CommandLabel(title: "Restore", icon: .restore) }
+            } else {
+                Button { model.withFileMenu(menuSnapshot) { model.markForRestore(ids) } } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
+            }
+        }
+        ForEach(model.lfsActions(selected), id: \.self) { action in
+            Button { model.withFileMenu(menuSnapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
+        }
+        if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { GitReferenceName.equal($0.id,selectionMark?.id) }) {
+            IndexFlagsMenu(files: flagFiles, selectionMark: mark) { action in model.withFileMenu(menuSnapshot) { model.setFlags(action, files: flagFiles, selectionMark: mark) } }
+        }
+        if !selected.isEmpty, selected.allSatisfy({ $0.state != .deleted }) {
+            Button { model.withFileMenu(menuSnapshot) { FileTransferClipboard.copy(selected.map { model.repository.root.appendingPathComponent($0.path) }) } } label: { CommandLabel(title: "Copy files", icon: .copy) }
+            Button { model.withFileMenu(menuSnapshot) { model.onCopyAdd(selected.map(\.path)) } } label: { CommandLabel(title: "Copy and Add…", icon: .add) }
+        }
+        Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(menuSnapshot) { model.onPasteFiles(true, urls) } } label: { CommandLabel(title: "Paste Copy and Add…", icon: .copy) }
+        Button { let urls = FileTransferClipboard.urls(); model.withFileMenu(menuSnapshot) { model.onPasteFiles(false, urls) } } label: { CommandLabel(title: "Paste Move…", icon: .rename) }
+        if !selected.isEmpty, selected.allSatisfy({ ![FileState.untracked, .ignored, .deleted].contains($0.state) }) {
+            Button { model.withFileMenu(menuSnapshot) { model.onMove(selected.map(\.path)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
+        }
+        if selected.count == 1, let entry = selected.first {
+            Divider()
+            if entry.state != .untracked && entry.state != .ignored {
+                Button { model.fileAction(.log, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show log", icon: .log) }
+                if model.submodules.contains(entry.path) { Button { model.fileAction(.submoduleLog, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show submodule log", icon: .log) } }
+                if entry.state != .deleted {
+                    Button { model.withFileMenu(menuSnapshot) { model.onRename(entry.path) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
+                }
+                if entry.originalPath != nil {
+                    Button { model.fileAction(.oldNameLog, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
+                }
+                if menuSnapshot.commands.contains(.blame) {
+                    Button { model.fileAction(.blame, snapshot: menuSnapshot) } label: { CommandLabel(title: "Blame", icon: .blame) }
+                }
+            }
+        }
+        if menuSnapshot.commands.contains(.export) {
+            Button { model.fileAction(.export, snapshot: menuSnapshot) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
+        }
+        if selected.count == 1 {
+            if menuSnapshot.commands.contains(.reveal) {
+                if menuSnapshot.commands.contains(.open) {
+                    Button { model.fileAction(.editor, snapshot: menuSnapshot) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.confirmingQuit)
+                    Button { model.fileAction(.open, snapshot: menuSnapshot) } label: { CommandLabel(title: "Open", icon: .open) }
+                    Button { model.fileAction(.openWith, snapshot: menuSnapshot) } label: { CommandLabel(title: "Open With…", icon: .open) }
+                }
+                Button { model.fileAction(.reveal, snapshot: menuSnapshot) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
+            }
+        }
+        if !selected.isEmpty && selectionMark?.canDeleteFromStatusList == true {
+            Button { model.fileAction(.delete, snapshot: menuSnapshot, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
+        }
+        if menuSnapshot.offersIgnore {
+            Divider()
+            IgnoreSelectionMenu(paths: selected.map(\.path), action: { action, paths in model.withFileMenu(menuSnapshot) { model.onIgnore(action, paths) } })
+        }
+        if !selected.isEmpty {
+            Divider()
+            Menu {
+                ForEach(CommitWindowModel.CopyFileInformation.allCases, id: \.self) { information in
+                    Button { model.withFileMenu(menuSnapshot) { model.copyFiles(selected, information: information, staged: staged) } } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+                }
+            } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
+        }
+        // The pinned upstream gate compares legacy status values to action
+        // bits: only a pure Added action (1) is excluded, not UNVER (0x80000000).
+        if !selected.isEmpty, let mark = selectionMark, !(mark.index == "A" && mark.worktree == " ") {
+            Divider()
+            if selected.contains(where: { model.changelists.name(for: $0.path) != nil }) {
+                Button("Remove from changelist") { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: nil) } }
+            }
+            Menu("Move to changelist") {
+                Button("<new changelist>") { model.withFileMenu(menuSnapshot) { model.newChangelist(selected) } }
+                Divider()
+                Button(GitChangelists.ignored) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) } }
+                let names = model.changelistNameIdentities.filter { $0.rawValue != GitChangelists.ignored }
+                if !names.isEmpty {
+                    Divider()
+                    ForEach(names, id: \.self) { name in Button(name.rawValue) { model.withFileMenu(menuSnapshot) { model.moveToChangelist(selected.map(\.path), name: name.rawValue) } }.help(changelistNameHelp(name, names: names)).accessibilityLabel(changelistNameHelp(name, names: names)) }
+                }
+            }
+            Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { value in model.withFileMenu(menuSnapshot) { model.saveKeepChangelists(value) } }))
+        }
+    }
+
     @ViewBuilder private func lineCount(_ row: StatusListRow, statistics: GitPathMap<CommitFile>, selected: some Sequence<String>, added: Bool) -> some View { let selected = GitPathSet(selected);
         if let entry = row.entry {
             let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
@@ -4314,7 +4411,7 @@ private struct CommitProgressDialog: View {
         observations.append(owner.model.objectWillChange.sink { [weak self] _ in self?.schedule() })
         observations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.schedule(retiring:false) })
     }
-    private var active:Bool {!retired && owner?.model.gitGuiInterface == false && owner?.model.messageFocusAvailable==true && keyWindow() === owner?.window}
+    private var active:Bool {!retired && owner?.canReuse==true && owner?.model.messageFocusAvailable==true && keyWindow() === owner?.window}
     private var ready:Bool {active && owner?.commandsAvailable==true}
     private func schedule(retiring:Bool=true) {
         guard !retired else{return}
@@ -4331,7 +4428,7 @@ private struct CommitProgressDialog: View {
         let root=NSMenuItem(title:NSLocalizedString("Commit",comment:""),action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands");root.image=MenuIcon.commit.contextImage(defaults:owner?.presentationPreferences ?? .standard)
         let menu=NSMenu(title:NSLocalizedString("Commit",comment:""));menu.delegate=self;root.submenu=menu;self.root=root
         func append(_ commands:[Command],to menu:NSMenu) {
-            for command in commands {
+            for command in commands where presented(command) {
                 let binding=shortcut(command),item=NSMenuItem(title:NSLocalizedString(command.rawValue,comment:""),action:#selector(invoke(_:)),keyEquivalent:binding?.0 ?? "")
                 item.keyEquivalentModifierMask=binding?.1 ?? [];item.target=self;item.representedObject=Invocation(command,epoch)
                 item.identifier = .init("TurtleGit.Commit.Form."+String(describing:command))
@@ -4388,8 +4485,18 @@ private struct CommitProgressDialog: View {
         default: return nil
         }
     }
+    /// Both presentations share the same captured Commit actions. The GUI
+    /// already owns an embedded patch and requires staging, so Classic-only
+    /// windows/toggles must not expose commands with no valid GUI consumer.
+    private func presented(_ command:Command)->Bool {
+        guard owner?.model.gitGuiInterface==true else{return true}
+        switch command {
+        case .staging,.patch,.partialStage,.partialUnstage:return false
+        default:return true
+        }
+    }
     private func enabled(_ command:Command)->Bool {
-        guard active,let owner else{return false}
+        guard active,presented(command),let owner else{return false}
         if command == .refresh {return owner.refreshCommandAvailable}
         guard ready else{return false};let model=owner.model
         if let option = formOption(command) { return model.canChangeFormOption(option) }
@@ -4470,10 +4577,10 @@ private struct CommitProgressDialog: View {
         }
     }
     func performKeyEquivalent(_ event:NSEvent)->Bool {
-        guard !retired,let owner,owner.model.messageFocusAvailable,keyWindow() === owner.window else {return false}
+        guard !retired,let owner,owner.model.messageFocusAvailable,keyWindow() === owner.window,event.window === owner.window else {return false}
         let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
-        // Refresh belongs to both Commit presentations, including Git Gui where
-        // the Classic command menu is intentionally absent.
+        // Refresh and the captured Commit shortcuts belong to both native
+        // presentations; their shared admission still owns loading and sheets.
         if event.keyCode==96,flags.isEmpty {if owner.refreshCommandAvailable {owner.model.reload()};return true}
         guard active else {return false};install()
         if [36,76].contains(event.keyCode),flags == .control {if enabled(.current) {perform(.current)};return true}
@@ -4536,7 +4643,7 @@ private struct GuiCommitPatch: View {
                 Button(model.staged ? "Unstage lines" : "Stage lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
                 Button(model.staged ? "Unstage chunks" : "Stage chunks") { model.apply(entireHunks: true) }.disabled(!model.canApplyHunks)
             }
-            PatchDialog(model: model, reservesLoadingStatus: true)
+            PatchDialog(model: model, reservesLoadingStatus: true, minimumTextHeight:120)
             Text(model.information).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 .help(model.information).frame(maxWidth: .infinity, alignment: .leading).frame(height: 32, alignment: .topLeading)
                 .accessibilityHidden(model.information.isEmpty)

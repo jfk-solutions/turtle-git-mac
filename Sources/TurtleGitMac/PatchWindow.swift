@@ -468,6 +468,7 @@ import UniformTypeIdentifiers
 struct PatchDialog: View {
     @ObservedObject var model: PatchWindowModel
     var reservesLoadingStatus = false
+    var minimumTextHeight:CGFloat = 360
     @Environment(\.colorScheme) private var colorScheme
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -479,7 +480,7 @@ struct PatchDialog: View {
                 Button { model.printDiff() } label: { Label("Print…", systemImage: "printer") }.disabled(model.busy)
                 if model.refreshAvailable { Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy) }
             } }
-            PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
+            PatchTextView(model: model).frame(minWidth: 430, minHeight: minimumTextHeight)
             if model.findVisible { PartialPatchFindBar(model: model) }
             if reservesLoadingStatus {
                 loadingStatus.frame(height: 24).opacity(model.loading ? 1 : 0)

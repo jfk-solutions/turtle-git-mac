@@ -124,7 +124,15 @@ pane. Double-clicking a selected row transfers the selected group. The matching
 buttons and context-menu actions perform the same operation. A partly staged
 file can appear in both panes; selecting it previews that side, while whole-file
 transfer and hunk staging keep their separate meanings. Classic mode retains its
-ordinary double-click Diff action.
+ordinary double-click Diff action. Space performs the same stage/unstage transfer
+in the focused staging list. Both layouts share file context-menu actions,
+including Compare, Resolve, Open, Revert, ignore and changelist commands as
+applicable. Each menu acts on its captured paths and index/working-tree side.
+
+Branch, issue/provider, author/date/time, sign-off and Amend controls remain
+available in both layouts. The native **Commit** menu offers the same commit,
+message and focus shortcuts. Git Gui mode keeps its embedded patch controls;
+the separate Classic patch-window and staging-toggle commands are omitted.
 
 Read-only previews can be cancelled by selecting another file or changing the
 interface. An active hunk write must finish first. An empty selection displays

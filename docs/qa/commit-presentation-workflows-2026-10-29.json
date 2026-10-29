@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-native-passed-both-git-engines-installed-acceptance-separate",
+  "scope": "Commit shared destination/message metadata, native command menu and side-captured file workflows across Classic and Git Gui presentations",
+  "fixture": "docs/qa/commit-presentation-workflows-native-2026-10-29.swift",
+  "runner": "scripts/test-commit-presentation-workflows.py",
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/commit-presentation-debug-2026-10-29.log",
+      "known_exit_zero_diagnostic_entries": 5
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/commit-presentation-native-shared-field-2026-10-29.log",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "reaped_pids": [
+        70942,
+        71245
+      ]
+    },
+    "regressions": [
+      {
+        "argv": [
+          "python3",
+          "scripts/test-primary-parity-family.py",
+          "--only",
+          "commit",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "log": "build/qa/commit-presentation-options-regression-2026-10-29.log",
+        "exit": 0,
+        "seconds": 40.64
+      },
+      {
+        "argv": [
+          "python3",
+          "scripts/test-commit-gui-staging.py"
+        ],
+        "log": "build/qa/commit-presentation-staging-regression-2026-10-29.log",
+        "exit": 0,
+        "seconds": 20.48
+      }
+    ],
+    "core": {
+      "repeated": false,
+      "reason": "No Core implementation changed; native presentation and ownership workflow only."
+    },
+    "failed_attempts": [
+      {
+        "log": "build/qa/commit-presentation-native-2026-10-29.log",
+        "phase": "fixture compilation",
+        "failure": "Nested Context lacked explicit MainActor isolation; annotated without changing production."
+      },
+      {
+        "log": "build/qa/commit-presentation-native-actor-repair-2026-10-29.log",
+        "receiver_reaped": 70723,
+        "failure": "Fixture treated the common still-attached destination field as discarded after a layout change. Corrected to verify live shared control edits and stale form receipts; detached conditional fields must still refuse old delegates."
+      }
+    ],
+    "hosted_ci": "No complete hosted pass claimed",
+    "signed_installation": "Build29 remains a separately verified earlier source candidate; this Commit family is not installed.",
+    "resources": {
+      "localization_check": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1325
+      },
+      "help_check": {
+        "exit": 0,
+        "documents": 60,
+        "topics": 51,
+        "files": 92,
+        "bytes": 8726267
+      },
+      "site_docs": {
+        "exit": 0,
+        "tests": 2,
+        "seconds": 2.363
+      },
+      "dialog_ledger_reconciled": true
+    }
+  },
+  "limits": [
+    "Captured transfer adapter is identified as such; invisible synthetic button/double-click dispatch is not claimed.",
+    "Space delivery calls the actual installed Probe local-monitor entry point with an owned NSEvent, not desktop input.",
+    "GUI header persistence uses the actual layout callback and checks resulting native columns; this does not claim a physical header-drag acceptance.",
+    "No signed installation, physical Finder/pointer acceptance, complete hosted CI or complete visual parity claim follows from this focused group.",
+    "SwiftUI file context-menu tracking is not physically exercised; the shared view and its captured model policy/actions are covered separately from actual native Commit menu dispatch.",
+    "Alpha-zero view-cache appearance captures omit composited SwiftUI content; they are structural QA artifacts, not publishable screenshots or visual-parity evidence. Existing manual illustrations retain their earlier dated source; updated composited Commit screenshots remain part of the next signed consolidation."
+  ],
+  "source_parent": "c3d26a92b514d6b66bd9e147df9c03b6e7c8a0d0",
+  "validated_assertions": [
+    "Real native destination/new-branch, issue, author, separate date/time and message controls appear and update the shared draft in GUI; switching Classic and back preserves exact options and text.",
+    "GUI metadata, message/preview scrolls and both native file lists remain inside 900x680 and 900x760 content with author/date/new-branch/issue controls enabled.",
+    "The actual CommitCommandMenu installs in GUI, retains icons/live checked and enabled states, refuses obsolete Quit-owned actions, routes local message/file focus shortcuts to the owned native editor/registered active table, and excludes Classic-only windows/staging toggle.",
+    "Shared tracked/untracked/deleted and multi-file captured menus retain source eligibility, exact literal path actions and correct staged/working patch data.",
+    "Real repository stage/unstage through captured transfer adapter and production GUI Space-monitor route preserve unrelated index and working bytes, selected destination and matching details.",
+    "Opposite-side selection, refresh, data mutation, presentation switch and retirement invalidate retained file-menu actions.",
+    "GUI two-column layout callback persists native header order/width without erasing other Classic report columns.",
+    "Real unmerged index entries: declining actual Commit conflict warning while staged list is active selects/previews/focuses the unstaged conflict; deferred focus cannot target a replaced presentation.",
+    "Every owned window/sheet is hidden before presentation; owned workers/processes drain and runner verifies helper cleanup and receiver reaping."
+  ],
+  "cleanup": {
+    "receiver_pids": [
+      70723,
+      70942,
+      71245,
+      71563,
+      72144,
+      72746,
+      73069
+    ],
+    "all_reaped": true,
+    "scope": "Private repositories/preferences/configuration, no clipboard mutation in new fixture; owned windows hidden/offscreen, exact helper cleanup and worker drain; user-owned app retained."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "948498ad5133e262e3b8df57a550a69e19204ca61058c27e8847bb20ca83497b",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "4c02a0e901d83b7429f44d3645dfedffe81454cea422f61edf22114e1f30b33a",
+    "Sources/TurtleGitMac/PatchWindow.swift": "f800f90226ed396bfe007703fec13ec3dba252f7846a29168ef3858be73f7e0f",
+    "docs/qa/commit-presentation-workflows-native-2026-10-29.swift": "6e320b8302909c935843896ae59a8b5781138d171179642b95e0b48b121d5625",
+    "scripts/test-commit-presentation-workflows.py": "b56c63ea056e6eb57ead687e7336ffdf3ab75c3195ef75a093eea0b366fb98c9"
+  }
+}
