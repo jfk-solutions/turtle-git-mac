@@ -52,7 +52,8 @@ public enum PatchSelectionEditing {
                     target=max(caret,end)
                 }
             } else {
-                target=wordTarget(text:text,caret:caret,left:left)
+                guard let boundary=PatchBoundaryNavigation.position(text:text,caret:caret,boundary:left ? .previousWord:.nextWord) else{return nil}
+                target=boundary
             }
             edits=[Edit(range:NSRange(location:min(caret,target),length:abs(caret-target)),text:"")]
         }
@@ -100,30 +101,5 @@ public enum PatchSelectionEditing {
             primarySelectionID:primarySelectionID,rectangular:rectangular,
             rectangleAnchor:rectangleAnchor.map(moved),rectangleCaret:rectangleCaret.map(moved),rectangleIsThin:rectangleIsThin,
             rectangleRowsExplicit:rectangular)
-    }
-    private static func classification(_ cp:UInt32)->Int {
-        let ranges=UnifiedDiffCaseMapping.wordClasses
-        var low=0,high=ranges.count
-        while low+1<high {let mid=(low+high)/2;if ranges[mid].0<=cp {low=mid}else{high=mid}}
-        return ranges[low].1
-    }
-    private static func wordTarget(text:String,caret:Int,left:Bool)->Int {
-        let scalars=Array(text.unicodeScalars)
-        var positions=[0];positions.reserveCapacity(scalars.count+1)
-        for scalar in scalars {positions.append(positions.last!+scalar.utf16.count)}
-        var at=positions.firstIndex(of:caret)!
-        if left {
-            while at>0 && classification(scalars[at-1].value)==0 {at-=1}
-            if at>0 {let kind=classification(scalars[at-1].value);while at>0 && classification(scalars[at-1].value)==kind {at-=1}}
-        } else if at<scalars.count {
-            let kind=classification(scalars[at].value)
-            while at<scalars.count && classification(scalars[at].value)==kind {at+=1}
-            while at<scalars.count && classification(scalars[at].value)==0 {at+=1}
-        }
-        var result=positions[at];let source=text as NSString
-        // Native text cannot leave half a composed sequence or CRLF behind.
-        if result>0 && result<source.length && source.character(at:result-1)==13 && source.character(at:result)==10 {result+=left ? -1:1}
-        if result<source.length {let part=source.rangeOfComposedCharacterSequence(at:result);if part.location != result {result=left ? part.location:NSMaxRange(part)}}
-        return result
     }
 }

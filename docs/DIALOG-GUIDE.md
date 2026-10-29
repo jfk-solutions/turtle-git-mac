@@ -978,6 +978,18 @@ selection. Opening a replacement document resets Overtype. See
 [caret editing modes](UNIFIED-DIFF-CARET-PARITY.md) for native Unicode boundaries,
 column-selection behavior and ownership details.
 
+**Edit → Navigation** groups Words, Lines and Document, and Pages. Option-Left/Right
+moves by source word classes; add Shift to extend. Command-Left or Home toggles
+between the first non-indentation character and the logical line start.
+Command-Right or End moves before the line ending. Command-Up/Down reaches the
+document endpoints; Control-Home/End provides the source aliases. Shift extends
+these moves. Option-Home/End reaches the actual displayed fragment boundaries.
+Page Up/Down moves both the caret and viewport by the visible line count minus
+one; add Shift to extend. The desired column survives shorter destination lines.
+These commands also work in read-only previews and do not change document bytes.
+See [boundary and page navigation](UNIFIED-DIFF-NAVIGATION-PARITY.md) for source
+selection rules and acceptance scope.
+
 **Control-[** and **Control-]** move to the previous or next text block; add
 Shift to extend the selection. Blocks are separated by empty lines or lines
 containing only spaces and tabs. The same commands are in **Edit → Caret** and

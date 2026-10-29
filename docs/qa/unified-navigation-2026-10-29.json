@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "87c6104a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "All18 active word/boundary/document/display/page commands and extensions",
+    "Shared exact word boundaries with deletion and local context scanning",
+    "Source horizontal vs document/page rectangle transitions",
+    "Desired-X, EOF and manually hidden caret visibility",
+    "Grouped native menus, aliases, responder methods and retired receipts"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/PatchBoundaryNavigation.swift": "30acc0fb4e2a9d7a9582011ea479d8d2eb8abfdb1cd25df66296e0fd31f77485",
+    "Sources/TurtleGitCore/PatchSelectionEditing.swift": "35b9cc1cca8c32abc362fe64a57577c52216714ad69f7f3a8a43b86d50c12f2d",
+    "Sources/TurtleGitMac/PatchNavigationCommands.swift": "54f6d7043f772fd685ecb3064eaccf224de6dc1878a4d27737a728997d66ba0d",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "b9031a6b4c6be1bd5e95559894af14ce86fe701591f48a13db8bf47b0b99aa21",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "f503620e0eba9510bc5b3989d22dd89305577d0ab6502f019fe371238263839b",
+    "Sources/TurtleGitMac/PatchWindow.swift": "2f3de14f6d51eba7a731d875074bf779b36b62a036fc547d1b7a4c81a8173e4c",
+    "docs/qa/unified-navigation-native-2026-10-29.swift": "9b8c89b3b604ecb838eb1bfbe29cedcb95e8289d75f6060a27a6962aab2d4eb6"
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'PatchBoundaryNavigationTests|PatchSelectionEditingTests|PatchParagraphNavigationTests'",
+    "methods": 20,
+    "failures": 0,
+    "log": "build/qa/unified-navigation-core-2026-10-29.log",
+    "source_tables_changed": false,
+    "repeated_for_native_only_repairs": false
+  },
+  "build": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/unified-navigation-debug-2026-10-29.log",
+    "native_geometry_repair_exit": 0,
+    "native_geometry_repair_log": "build/qa/unified-navigation-debug-insertion-recheck-2026-10-29.log",
+    "source_scope": "Full Debug app build includes current Core and prior codec repairs; no signed or installed update."
+  },
+  "native": {
+    "planned_groups": [
+      "new navigation family",
+      "affected existing block/line-scroll regression"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "attempts": [
+      {
+        "log": "unified-navigation-native-2026-10-29.log",
+        "exit": 1,
+        "result": "Fixture incorrectly skipped the separate newline character class after a word. Expected sequence now asserts punctuation, CRLF start and next line separately."
+      },
+      {
+        "log": "unified-navigation-native-newline-recheck-2026-10-29.log",
+        "exit": 1,
+        "result": "Actual EOF Ctrl-Up failed to clamp the caret."
+      },
+      {
+        "log": "unified-navigation-native-eof-diagnostic-2026-10-29.log",
+        "exit": 1,
+        "result": "Redundant diagnostic retry: intended fixture text replacement did not match and added no evidence; retained rather than counted as progress."
+      },
+      {
+        "log": "unified-navigation-native-eof-details-2026-10-29.log",
+        "exit": 1,
+        "result": "Actual geometry diagnostic: firstRect was valid before scroll but nil after caret left clip; desiredX stayed nil. Production now uses layout-manager line-fragment insertion points independent of visibility and captures before clip movement."
+      },
+      {
+        "log": "unified-navigation-native-insertion-recheck-2026-10-29.log",
+        "exit": 1,
+        "result": "EOF and offscreen paths passed after repair; wrapped rectangle fixture assumed pre-normalization main caret."
+      },
+      {
+        "log": "unified-navigation-native-rectangle-diagnostic-2026-10-29.log",
+        "exit": 1,
+        "result": "Diagnostic confirmed wrapped=true main caret starts in first visual subline after source logical-row rectangle normalization, not visual row4. Verified against Editor::SetRectangularRange570 and EditView::SPositionFromLineX767."
+      },
+      {
+        "log": "unified-navigation-native-logical-rectangle-recheck-2026-10-29.log",
+        "exit": 0,
+        "receivers": [
+          43752,
+          43772
+        ],
+        "result": "All18 commands, keys, nested menus, stream/rectangle/reverse selection, wrapped/unwrapped pages, manually hidden caret, EOF line-scroll/PageUp column12, owned admission and bytes/Undo passed."
+      },
+      {
+        "log": "unified-navigation-block-regression-2026-10-29.log",
+        "exit": 0,
+        "receivers": [
+          43803,
+          43823
+        ],
+        "result": "Existing block/viewport/desired-column/ownership and exact byte/Undo regression passed with both engines."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      42197,
+      42358,
+      42429,
+      42474,
+      43214,
+      43414,
+      43752,
+      43772,
+      43803,
+      43823
+    ],
+    "private_repositories_preferences_pasteboards": true,
+    "invisible_offscreen_windows": true,
+    "bytes_undo_head_index_working_unchanged": true,
+    "behavioral_assertions_retained": true,
+    "installed_user_session_untouched": true
+  },
+  "documentation": {
+    "localizations": "write/check pass:38 languages,1326 source keys; no full localization claim",
+    "help": "regenerated before build; write/check pass:60 documents,51 topics,92 files",
+    "dialog_coverage": "reconciled",
+    "diff_check": "pass"
+  },
+  "ci_observation_before_batch": {
+    "pages_87c6104a": "success",
+    "macos_run": 40863559740,
+    "macos_source": "59351fd7",
+    "status_at_observation": "in_progress",
+    "active_step": "Git integration tests",
+    "current_source_full_pass_claimed": false
+  },
+  "limits": [
+    "No current complete hosted CI, full UDiff or whole-app parity claim",
+    "Physical keyboards/IME/VoiceOver and complete layout acceptance remain separate",
+    "Installed signed build32 predates this family",
+    "Wrapped layout checks do not introduce a Wrap preference",
+    "No signed distribution refresh, App Store upload or notarization"
+  ]
+}

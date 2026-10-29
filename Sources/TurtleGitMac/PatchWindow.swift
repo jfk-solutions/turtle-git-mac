@@ -744,6 +744,7 @@ struct PatchTextView: NSViewRepresentable {
             columnSelection?.externalSelectionChanged(); super.mouseDown(with: event)
         }
         override func keyDown(with event: NSEvent) {
+            if let command=PatchNavigationCommand.command(for:event) {_ = performNavigationCommand(command);return}
             if let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return}
             if let command=PatchCaretCommand.command(for:event) {_ = performCaretCommand(command);return}
             if let direction = PatchColumnDirection.direction(for: event), columnSelection?.available == true {
@@ -799,6 +800,26 @@ struct PatchTextView: NSViewRepresentable {
         }
         override func deleteBackward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: true) { super.deleteBackward(sender) } }
         override func deleteForward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: false) { super.deleteForward(sender) } }
+        override func moveWordLeft(_ sender:Any?) {_ = performNavigationCommand(.previousWord)}
+        override func moveWordRight(_ sender:Any?) {_ = performNavigationCommand(.nextWord)}
+        override func moveWordBackward(_ sender:Any?) {_ = performNavigationCommand(.previousWord)}
+        override func moveWordForward(_ sender:Any?) {_ = performNavigationCommand(.nextWord)}
+        override func moveWordLeftAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectPreviousWord)}
+        override func moveWordRightAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectNextWord)}
+        override func moveWordBackwardAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectPreviousWord)}
+        override func moveWordForwardAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectNextWord)}
+        override func moveToBeginningOfLine(_ sender:Any?) {_ = performNavigationCommand(.smartLineStart)}
+        override func moveToEndOfLine(_ sender:Any?) {_ = performNavigationCommand(.lineEnd)}
+        override func moveToBeginningOfLineAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectSmartLineStart)}
+        override func moveToEndOfLineAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectLineEnd)}
+        override func moveToBeginningOfDocument(_ sender:Any?) {_ = performNavigationCommand(.documentStart)}
+        override func moveToEndOfDocument(_ sender:Any?) {_ = performNavigationCommand(.documentEnd)}
+        override func moveToBeginningOfDocumentAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectDocumentStart)}
+        override func moveToEndOfDocumentAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectDocumentEnd)}
+        override func pageUp(_ sender:Any?) {_ = performNavigationCommand(.pageUp)}
+        override func pageDown(_ sender:Any?) {_ = performNavigationCommand(.pageDown)}
+        override func pageUpAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectPageUp)}
+        override func pageDownAndModifySelection(_ sender:Any?) {_ = performNavigationCommand(.selectPageDown)}
         override func lowercaseWord(_ sender:Any?) {_ = performSelectionCommand(.lowerCase)}
         override func uppercaseWord(_ sender:Any?) {_ = performSelectionCommand(.upperCase)}
         override func deleteWordBackward(_ sender:Any?) {_ = performSelectionCommand(.deleteWordLeft)}
@@ -899,6 +920,7 @@ struct PatchTextView: NSViewRepresentable {
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if window?.firstResponder === self,let command=PatchNavigationCommand.command(for:event) {_ = performNavigationCommand(command);return true}
             if window?.firstResponder === self,let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return true}
             if window?.firstResponder === self,let command=PatchCaretCommand.command(for:event) {
                 _ = performCaretCommand(command);return true
@@ -998,6 +1020,8 @@ struct PatchTextView: NSViewRepresentable {
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let navigationMenu=NSMenuItem(title:NSLocalizedString("Navigation",comment:"Unified Diff navigation menu"),action:nil,keyEquivalent:"")
+            navigationMenu.image=MenuIcon.mergeNextInline.contextImage(defaults:defaults);navigationMenu.submenu=makeNavigationCommandMenu();menu.addItem(navigationMenu)
             let selectionMenu=NSMenuItem(title:NSLocalizedString("Selection Editing",comment:"Unified Diff selection editing menu"),action:nil,keyEquivalent:"")
             selectionMenu.image=MenuIcon.mergeLineEdited.contextImage(defaults:defaults);selectionMenu.submenu=makeSelectionCommandMenu();menu.addItem(selectionMenu)
             let caretMenu=NSMenuItem(title:NSLocalizedString("Caret",comment:"Unified Diff caret menu"),action:nil,keyEquivalent:"")

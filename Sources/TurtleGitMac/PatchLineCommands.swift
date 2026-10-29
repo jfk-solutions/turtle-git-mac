@@ -115,7 +115,7 @@ enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
         }
     }
 }
-@MainActor private struct PatchLineOwnerReceipt {
+@MainActor struct PatchLineOwnerReceipt {
     let identity: UUID, revision: UUID
     let documentRevision: Int
     let model: ObjectIdentifier
@@ -142,7 +142,7 @@ enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
 }
 
 @MainActor extension PatchTextView.PatchText {
-    private var lineOwner: PatchLineOwnerReceipt? {
+    var lineOwner: PatchLineOwnerReceipt? {
         guard let coordinator, let window, window.firstResponder === self,
               window.attachedSheet == nil, NSApp.modalWindow == nil,
               !hasMarkedText(), coordinator.model.canFind, coordinator.model.error == nil,
@@ -152,7 +152,7 @@ enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
         return .init(identity: coordinator.identity, revision: model.sourceCallbackRevision,
                      documentRevision: model.documentResetRevision, model: ObjectIdentifier(model))
     }
-    private func lineOwnerCurrent(_ receipt: PatchLineOwnerReceipt) -> Bool {
+    func lineOwnerCurrent(_ receipt: PatchLineOwnerReceipt) -> Bool {
         guard let current = lineOwner else { return false }
         return current.identity == receipt.identity && current.revision == receipt.revision &&
             current.documentRevision == receipt.documentRevision && current.model == receipt.model
@@ -209,23 +209,15 @@ enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
         let height=glyph<manager.numberOfGlyphs ? manager.lineFragmentRect(forGlyphAt:glyph,effectiveRange:nil).height:fallback
         guard height>0,lineOwnerCurrent(owner) else{return false}
         let point=scroll.contentView.constrainBoundsRect(NSRect(origin:.init(x:before.minX,y:before.minY+(backwards ? -height:height)),size:before.size)).origin
-        scroll.contentView.scroll(to:point);scroll.reflectScrolledClipView(scroll.contentView)
         let state=lineSelectionSnapshot,caret=state.rectangular ? (state.rectangleCaret ?? state.primary.caret):state.primary.caret
         let count=(string as NSString).length
         guard caret>=0,caret<=count else{return true}
-        let caretRect:NSRect
-        if caret==count,manager.extraLineFragmentTextContainer != nil {
-            caretRect=manager.extraLineFragmentRect.offsetBy(dx:origin.x,dy:origin.y)
-        } else if manager.numberOfGlyphs>0 {
-            let g=manager.glyphIndexForCharacter(at:min(caret,max(0,count-1)))
-            var r=manager.lineFragmentRect(forGlyphAt:g,effectiveRange:nil)
-            r.origin.x += manager.location(forGlyphAt:g).x
-            caretRect=r.offsetBy(dx:origin.x,dy:origin.y)
-        } else {return true}
+        guard let caretRect=navigationCaretRect(at:caret) else{return false}
         if viewportDesiredX==nil || viewportRevision != owner.revision || viewportDocumentRevision != owner.documentRevision || viewportLayoutSize != container.containerSize || viewportFont != font {
             viewportDesiredX=caretRect.minX;viewportRevision=owner.revision;viewportDocumentRevision=owner.documentRevision
             viewportLayoutSize=container.containerSize;viewportFont=font
         }
+        scroll.contentView.scroll(to:point);scroll.reflectScrolledClipView(scroll.contentView)
         let shown=visibleRect
         guard caretRect.minY<shown.minY || caretRect.maxY>shown.maxY else{return true}
         let y=caretRect.minY<shown.minY ? shown.minY+0.5:max(shown.minY+0.5,shown.maxY-max(1,caretRect.height)+0.5)
@@ -320,7 +312,7 @@ enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
                                                rectangular: selected.rectangular, command: command, tabWidth: tab, useTabs: true, lineEnding: "\n", rectangleIsThin: selected.rectangleIsThin) else { return false }
         return performLinePlan(plan, title: title, owner: owner)
     }
-    private var lineSelectionSnapshot: PatchTextSelectionSnapshot {
+    var lineSelectionSnapshot: PatchTextSelectionSnapshot {
         if let columnSelection { return columnSelection.snapshot() }
         let range = selectedRange(), reverse = selectionAffinity == .upstream
         return .init(rows: [.init(id: 0, anchor: reverse ? NSMaxRange(range) : range.location,
@@ -330,7 +322,7 @@ enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
         .init(rows: plan.selections, primarySelectionID: plan.primarySelectionID, rectangular: plan.rectangular,
               rectangleAnchor: plan.rectangleAnchor, rectangleCaret: plan.rectangleCaret, rectangleIsThin: plan.rectangleIsThin, rectangleRowsExplicit:plan.rectangleRowsExplicit)
     }
-    private func applyLineSelection(_ selection: PatchTextSelectionSnapshot) {
+    func applyLineSelection(_ selection: PatchTextSelectionSnapshot) {
         if let columnSelection { _ = columnSelection.applySnapshot(selection) }
         else { setSelectedRange(selection.primary.range, affinity: selection.primary.isReversed ? .upstream : .downstream, stillSelecting: false) }
         scrollRangeToVisible(selection.primary.range)
@@ -535,6 +527,17 @@ struct PatchLineEditingCommands: Commands {
                     Button {context.performSelectionCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}
                         .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers)
                         .disabled(!context.selectionCommands.contains(command))
+                }
+            }
+            Menu("Navigation") {
+                ForEach(PatchNavigationGroup.allCases,id:\.self) {group in
+                    Menu(group.title) {
+                        ForEach(group.commands) {command in
+                            Button {context.performNavigationCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}
+                                .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers)
+                                .disabled(!context.navigationCommands.contains(command))
+                        }
+                    }
                 }
             }
             Menu("Caret") {

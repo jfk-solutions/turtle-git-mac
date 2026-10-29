@@ -819,6 +819,17 @@ composition retain their normal behavior. Undo restores the replaced bytes and
 selection. Opening a replacement document resets Overtype. See
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-CARET-PARITY.html">caret editing modes</a> for native Unicode boundaries,
 column-selection behavior and ownership details.</p>
+<p><strong>Edit → Navigation</strong> groups Words, Lines and Document, and Pages. Option-Left/Right
+moves by source word classes; add Shift to extend. Command-Left or Home toggles
+between the first non-indentation character and the logical line start.
+Command-Right or End moves before the line ending. Command-Up/Down reaches the
+document endpoints; Control-Home/End provides the source aliases. Shift extends
+these moves. Option-Home/End reaches the actual displayed fragment boundaries.
+Page Up/Down moves both the caret and viewport by the visible line count minus
+one; add Shift to extend. The desired column survives shorter destination lines.
+These commands also work in read-only previews and do not change document bytes.
+See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-NAVIGATION-PARITY.html">boundary and page navigation</a> for source
+selection rules and acceptance scope.</p>
 <p><strong>Control-[</strong> and <strong>Control-]</strong> move to the previous or next text block; add
 Shift to extend the selection. Blocks are separated by empty lines or lines
 containing only spaces and tabs. The same commands are in <strong>Edit → Caret</strong> and

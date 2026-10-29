@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+## Unified Diff complete boundary navigation continuation
+
+[Word, boundary and page navigation](UNIFIED-DIFF-NAVIGATION-PARITY.md) connects
+logical/display/document endpoints, source word classes and caret-plus-viewport
+page commands, including source selection transitions and owned native menus.
+Its grouped checkpoint remains separate from installed build32.
+
 ## Unified Diff selection editing continuation
 
 [Selection transformations and boundary deletion](UNIFIED-DIFF-SELECTION-EDITING-PARITY.md)
