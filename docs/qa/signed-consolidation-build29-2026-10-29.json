@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-arm64-candidate-ready-installed-build27-retained",
+  "build": "29",
+  "source_commit": "6219c088d689d6f00071a215f2d151e870e33adb",
+  "source_input_sha256": "61b7a70527938eae2f8d01f4948bbcbd4a9652e41b6baa9954fdf886e909404a",
+  "source_inputs_unchanged": true,
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed29-static-2026-10-29.json",
+  "implementation_scope": [
+    "Displayed Log commit selection across accepted-but-unrendered history projections; blocked native highlight reconciliation",
+    "Merge/Compare missing nested output folders, ordinary new-output AutoAdd intent and saved-but-pending recovery",
+    "Owned off-MainActor saved-source/reinterpretation/result preparation",
+    "Unresolved Save Anyway confirmation, repository and standalone saved-output Resolve/Retry Resolve with owned Git authority and actual index publication",
+    "Stable native Log/Rebase message semantics alongside canonical reference buttons; removal of workspace development footer"
+  ],
+  "retained_focused_evidence": [
+    "docs/qa/log-native-selection-delivery-2026-10-29.json",
+    "docs/qa/merge-output-preparation-2026-10-29.json",
+    "docs/qa/commit-loading-caption-2026-10-29.json",
+    "docs/qa/merge-saved-resolve-2026-10-29.json",
+    "docs/qa/log-message-accessibility-2026-10-29.json"
+  ],
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "application_sha256": "5e85f4213b5eeee1200121d16ff072df339fd9d45c7669d05aa3683aeac0c199",
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "29",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "29"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "29"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "status": "not-installed-running-app-preserved",
+    "existing_build": "27",
+    "reason": "User-owned installed build27 still running; restart/update approval requested after candidate verified."
+  },
+  "physical_acceptance": {
+    "status": "not-repeated-for-build29",
+    "previous_build27_receipt": "docs/qa/signed-consolidation-build27-2026-10-29.json",
+    "boundary": "Focused native checks prove the recorded cases. Earlier build27 signed observations do not certify build29 pointer behavior or the complete port."
+  },
+  "limits": [
+    "Apple Silicon local testing build; Intel/minimum-macOS execution remains separate.",
+    "No complete hosted CI, full-dialog/whole-port certification, App Store submission or notarization claimed.",
+    "Synthetic invisible mouse delivery was unavailable; actual AppKit row/delegate, keys and matching message/files passed as recorded."
+  ]
+}
