@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-29",
+  "status": "historical-folder-archive-batch-passed",
+  "starting_commit": "5fecc687656d7275b2065b660ebdf90e3dece609",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Explicit Browser historical folder archive entry in row/background/tree menus",
+    "Raw namespace scope, deleted folders and bare repositories with exact member names and commit archive attributes",
+    "Pinned revision/tree ownership, exact output grant, destination CAS and process/grant cancellation drain"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/RevisionArchive.swift": "a029e83d47d2bb8b3e05d06871ad4eda993077a97d70de877066b1f732ec262a",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "ac85087877ae8378b38fb0b4b473b7effb2c94f51026275e809201df6005641d",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "dbb31e115e880193cb916b3109f0ed367b607d562367cf63dd198c5d5167a63e",
+    "Tests/TurtleGitCoreTests/RepositoryBrowserArchiveTests.swift": "efbd6576b17045483e2c661e4107876a064e552026d917b7887fb67f073765db",
+    "docs/qa/repository-browser-folder-archive-native-2026-10-29.swift": "7862adc689e80944b7cedfaa14a566eb0d1d43e3c4946e6acc5cd1a5c7c41a50",
+    "scripts/test-browser-folder-archive.py": "b1251347c48c9dbb2efa1df0fd94e01fe792b7911ec94bf6c24d003cf489c551"
+  },
+  "core": {
+    "initial": {
+      "log": "build/qa/browser-folder-archive-core-2026-10-29.log",
+      "methods": 11,
+      "failures": 4,
+      "cause": "New scoped archive included a post-tree-ish -- separator; Git parsed it as a literal filename. Existing six archive compatibility methods passed."
+    },
+    "pathspec_recheck": {
+      "log": "build/qa/browser-folder-archive-core-pathspec-recheck-2026-10-29.log",
+      "methods": 5,
+      "failures": 1,
+      "cause": "TAR fixture expected0755 but default Git archive tar.umask produced0775. All other new methods passed."
+    },
+    "tar_policy_recheck": {
+      "log": "build/qa/browser-folder-archive-core-tar-policy-recheck-2026-10-29.log",
+      "methods": 1,
+      "failures": 0,
+      "repair": "Fixture explicitly sets private tar.umask0022; executable0755 assertion unchanged. Product unchanged."
+    },
+    "distinct_methods_passing_cumulatively": 11,
+    "unchanged_existing_six_rerun": false,
+    "assertions_removed": false
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/browser-folder-archive-debug-2026-10-29.log"
+  },
+  "native": {
+    "initial": {
+      "log": "build/qa/browser-folder-archive-native-2026-10-29.log",
+      "result": "Fixture compile failed: async oracle evaluated inside && autoclosure; no receiver launched."
+    },
+    "final": {
+      "log": "build/qa/browser-folder-archive-native-fixture-recheck-2026-10-29.log",
+      "exit": 0,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receivers_reaped": [
+        78443,
+        78774
+      ]
+    },
+    "scope": [
+      "Actual native row/background/tree menu eligibility/source icons",
+      "Complete archive byte oracle incl raw names, attrs, modes/symlinks and selected prefix",
+      "Deleted historical folders, current directory/root and bare snapshots",
+      "Moved named reference preserves accepted old object/tree",
+      "Stale menu/panel selection/revision/retirement/cancel and duplicate response refusal",
+      "Denied/wrong output grants prevent executor entry",
+      "Changed destination identity/content/mode preserved with diagnostic",
+      "Actual held archive Git process cancellation/close, child settlement and destination preservation",
+      "Unchanged HEAD/index/config/working bytes and all owned owners closed"
+    ],
+    "physical_picker_acceptance": false,
+    "signed_scope_acceptance": false
+  },
+  "log_sha256": {
+    "build/qa/browser-folder-archive-core-2026-10-29.log": "f23b15d1d1d294ea32ae3338709564dc2103bffdc3f7f7b2f6004dd2ba2ed077",
+    "build/qa/browser-folder-archive-core-pathspec-recheck-2026-10-29.log": "c16d164cbe45d33a06f5f86e928b3bb8c74ba18ff55a2389e0e2af7fab427034",
+    "build/qa/browser-folder-archive-core-tar-policy-recheck-2026-10-29.log": "1169d72a6661a23fbc04dbd89687c506173b3bf89d0868a179fcbf9e33fc3baf",
+    "build/qa/browser-folder-archive-debug-2026-10-29.log": "e77c37ca819b0a680bd808c622e9113468f7506631d7607ae7dd408d579477ec",
+    "build/qa/browser-folder-archive-native-2026-10-29.log": "0e355cf219d7dfa9c040a08a7abe2a41e68c88badec2387825bf224a8805a473",
+    "build/qa/browser-folder-archive-native-fixture-recheck-2026-10-29.log": "69558fafc254f51ddc253408b097709879ab67d0357d09d5f6d7c32aeaffa060"
+  },
+  "resources": {
+    "localization_write": true,
+    "languages": 38,
+    "keys": 1326,
+    "complete_localization_claimed": false,
+    "help_documents": 61,
+    "help_topics": 51,
+    "help_files": 95,
+    "dialog_coverage_reconciled": true
+  },
+  "installed_app": {
+    "build": "33",
+    "unchanged_by_batch": true,
+    "user_instance_signalled": false,
+    "prior_user_pid50246_present_at_final_check": false
+  },
+  "remaining": [
+    "No original-path checkout or raw working mutation enabled",
+    "Literal raw-name folder/file promises remain restricted",
+    "Extraction depends on receiving filesystem/tool",
+    "No bounded-memory large-existing-output claim for full-byte CAS receipts",
+    "No current whole hosted, physical, signed or App Store acceptance claim"
+  ]
+}

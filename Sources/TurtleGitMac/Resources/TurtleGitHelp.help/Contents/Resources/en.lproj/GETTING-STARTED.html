@@ -221,8 +221,11 @@ that cannot be displayed as UTF-8 have an escaped byte label; history and Blame
 still read the original Git path. You can compare historical versions and use
 <strong>Open</strong> or <strong>Save revision to…</strong> under a safe suggested filename. These outputs
 follow the selected backend's checkout-filter policy; the explicit stored-blob
-commands always deliver unfiltered contents. Working-tree comparison, original-name
-checkout and folder export remain unavailable for these names. See
+commands always deliver unfiltered contents. For a historical folder, <strong>Save as
+archive…</strong> preserves original member names inside a chosen ZIP or TAR, including
+folders absent from the current working tree. See <a href="REVISION-EXPORT.html#save-a-historical-browser-folder-as-an-archive">folder archives</a>.
+Working-tree comparison, original-name checkout and ordinary folder export remain
+unavailable for these names. See
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/RAW-HISTORY-PARITY.html">historical filename handling</a>.</p>
 <p>Select two commit rows to open <strong>Compare revisions</strong>, a unified diff, or one of
 three <strong>Show log of</strong> ranges. The menu labels identify the endpoints:</p>

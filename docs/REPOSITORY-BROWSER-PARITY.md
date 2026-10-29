@@ -11,6 +11,13 @@ current missing-command inventory; later continuations supersede them. Physical,
 full visual and signed acceptance and the explicit raw filesystem boundaries
 remain separate.
 
+The [historical folder archive continuation](BROWSER-ARCHIVE-PARITY.md) adds an
+explicit Save as archive entry for selected folders, the displayed directory and
+the folder tree. It uses the pinned historical namespace and Git archive rather
+than requiring native filesystem spellings for every member. Original-path
+checkout and literal raw-name transfers retain their documented restrictions.
+See the [user guide](REVISION-EXPORT.md#save-a-historical-browser-folder-as-an-archive).
+
 This is a partial native replacement, not complete TortoiseGit parity.
 The pinned source is TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 The [Git filename continuation](REPOSITORY-BROWSER-NAMESPACE-PARITY.md) covers

@@ -285,8 +285,11 @@ that cannot be displayed as UTF-8 have an escaped byte label; history and Blame
 still read the original Git path. You can compare historical versions and use
 **Open** or **Save revision to…** under a safe suggested filename. These outputs
 follow the selected backend's checkout-filter policy; the explicit stored-blob
-commands always deliver unfiltered contents. Working-tree comparison, original-name
-checkout and folder export remain unavailable for these names. See
+commands always deliver unfiltered contents. For a historical folder, **Save as
+archive…** preserves original member names inside a chosen ZIP or TAR, including
+folders absent from the current working tree. See [folder archives](REVISION-EXPORT.md#save-a-historical-browser-folder-as-an-archive).
+Working-tree comparison, original-name checkout and ordinary folder export remain
+unavailable for these names. See
 [historical filename handling](RAW-HISTORY-PARITY.md).
 
 Select two commit rows to open **Compare revisions**, a unified diff, or one of

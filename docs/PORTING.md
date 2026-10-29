@@ -1,5 +1,14 @@
 # TurtleGit for Mac — full port tracking
 
+## Historical Browser folder archive continuation
+
+[Historical folder archives](BROWSER-ARCHIVE-PARITY.md) connect a pinned Browser
+directory to a safe chosen archive, including raw descendants, historical-only
+folders and bare repositories. Full Git-relative member names and commit archive
+attributes remain intact. This does not enable original-path checkout, raw
+working mutation or literal raw-name folder promises; their filesystem boundaries
+remain explicit. Installed build33 predates this family.
+
 ## Standalone IDiff selection and local entry continuation
 
 [Local image selection](IMAGE-TOOL-SELECTION-PARITY.md) connects dedicated startup,

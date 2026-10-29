@@ -1,5 +1,33 @@
 # Revision Export
 
+## Save a historical Browser folder as an archive
+
+In Repository Browser, use **Save as archive…** for a selected folder or the
+displayed directory. Choose an outer filename, such as `sources.zip`, `sources.tar`
+or `sources.tar.gz`. The filename selects Git's archive format. The archive
+contains the displayed historical revision and keeps full Git-relative paths,
+including the selected folder's prefix.
+
+This works for folders deleted from the current working tree, bare repositories
+and historical names that macOS cannot create as individual files. Their original
+name bytes remain inside the archive. Extraction still depends on the receiving
+tool and filesystem. This is an explicit archive command; ordinary folder export,
+checkout and drag delivery retain their own filename requirements.
+
+Git applies archive attributes, including `export-ignore` and commit-based
+`export-subst`. The command reads committed content, preserves executable/symlink
+metadata and follows Git's submodule archive behavior. It does not include dirty
+working files or recursively fetch submodule repositories. An accepted request
+keeps its captured revision and folder even if another branch moves.
+
+Cancel leaves an existing output unchanged. If the destination changes while an
+archive is being prepared, publication fails for review. The Browser retains its
+owned chooser, process and grants until the operation has finished. See the
+[historical folder archive record](BROWSER-ARCHIVE-PARITY.md) for its source
+mapping and explicit limits.
+
+## Export a revision from Log or Finder
+
 TurtleGit for Mac now provides **Export this version…** in the single-revision
 Log menu, with TortoiseGit's original Export icon. It is available in bare
 repositories too; stash entries do not offer it. A selected tag is preferred

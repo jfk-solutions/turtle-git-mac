@@ -173,7 +173,9 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
                 if !pathAvailable {entry.toolTip=RepositoryBrowserWindowModel.rawPathReason}
                 menu.addItem(entry)
             }
+            if values.isEmpty,model.canSaveArchive(){item("Save as archive…",#selector(saveArchive),.saveAs,requiresPath:false)}
             if values.count==1,let entry=values.first,model.snapshot?.objectID != nil {
+                if entry.kind == .directory {item("Save as archive…",#selector(saveArchive),.saveAs,enabled:model.canSaveArchive(directory:entry.path),requiresPath:false);menu.addItem(.separator())}
                 item("Open",#selector(open),.open,requiresPath:entry.kind == .submodule)
                 if !entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind) {
                     item("View stored blob",#selector(inspectStoredBlob),.open,requiresPath:false)
@@ -213,6 +215,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             if invocation.command == #selector(revert) { model.revert(entries); return }
             if invocation.command == #selector(copyNames) { model.copy(entries:entries); return }
             if invocation.command == #selector(copyHashes) { model.copy(hashes:true,entries:entries); return }
+            if invocation.command == #selector(saveArchive) {guard model.acceptsArchiveMenu(invocation.target) else{return};model.saveArchive(directory:entries.first?.path);return}
             guard entries.count == 1, let entry=entries.first else { return }
             switch invocation.command {
             case #selector(inspectStoredBlob): model.inspectStoredBlob(entry)
@@ -234,6 +237,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             }
         }
         private func one(_ operation:(RepositoryBrowserEntry)->Void) { guard available,selected.count==1,let entry=selected.first else { return };operation(entry) }
+        @objc func saveArchive() {model.saveArchive(directory:selected.first?.path)}
         @objc func inspectStoredBlob() {one{model.inspectStoredBlob($0)}}
         @objc func openStoredBlob() {one{model.openStoredBlob($0)}}
         @objc func openStoredBlobWith() {one{model.openStoredBlob($0,action:.openWith)}}

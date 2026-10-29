@@ -103,6 +103,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var selectedApplication:(NSOpenPanel)->URL? = {$0.url}
     var defaultApplication:(URL)->URL? = {NSWorkspace.shared.urlForApplication(toOpen:$0)}
     var launchDocument:ExternalDocumentApplication.Launch?
+    var requiresArchiveOutputScope=GitRuntime.isAppStoreBuild
+    var makeArchiveOutputLease:(URL)->RepositoryAccessLease = {RepositoryAccessLease(url:$0)}
+    var archiveDirectory:(GitRepository,RepositoryBrowserSnapshot,String,URL,OperationCancellation)async throws->Void = {repository,snapshot,directory,destination,token in
+        _ = try await repository.archiveRepositoryBrowser(snapshot,directory:directory,to:destination,cancellation:token)
+    }
     var writeDocument:(Data,URL,OperationCancellation)async throws->Void = {bytes,url,token in
         try await Task.detached {try token.check();try bytes.write(to:url,options:.atomic)}.value
     }
@@ -126,6 +131,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             DispatchQueue.main.async { [weak self] in self?.focusInitialContentsIfNeeded() }
         }
         model.chooseRevision = { [weak self] in self?.chooseRevision() }
+        model.onSaveArchive = { [weak self] context in self?.saveArchive(context) }
         model.onCancelFileDelivery = { [weak self] in self?.cancelFilePanel?() }
         model.presentFile = { [weak self] content, action in
             guard let self,let context=self.model.presentedFileContext else{return}
@@ -225,6 +231,35 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         configureLogPicker(controller.model)
         guard canReuse,pickerIdentity==identity,picker === controller,let child=controller.window else{controller.close();return}
         child.appearance=window.appearance;child.alphaValue=window.alphaValue;window.beginSheet(child)
+    }
+    private func saveArchive(_ context:RepositoryBrowserWindowModel.ArchiveContext) {
+        guard !retired,model.acceptsArchive(context),fileOperation==nil,let window,window.attachedSheet==nil,NSApp.modalWindow==nil else{model.finishArchive(context.cancellation);return}
+        let operation=RepositoryBrowserFileOperation(cancellation:context.cancellation)
+        fileOperation=operation;model.handlingFile=true
+        let panel=NSSavePanel();panel.title="Save as archive…";panel.nameFieldStringValue="Repository-"+String((context.snapshot.objectID ?? context.snapshot.treeID ?? "tree").prefix(12))+".zip"
+        panel.directoryURL=model.repository.root;panel.canCreateDirectories=true;ownedSheet=panel
+        var answered=false
+        let current:()->Bool = { [weak self] in guard let self else{return false};return !self.retired && self.fileOperation === operation && self.model.acceptsArchive(context)}
+        let reply:(NSApplication.ModalResponse)->Void = { [self] response in
+            guard !answered,fileOperation === operation else{return};answered=true;cancelFilePanel=nil;operation.working=true
+            let destination=saveDestination(panel),execute=archiveDirectory,repository=model.repository.capturingBackend(context.backend),access=model.access,makeGrant=makeArchiveOutputLease,requiresScope=requiresArchiveOutputScope
+            Task { [self,operation,access] in
+                defer {model.finishArchive(context.cancellation);finishFile(operation);withExtendedLifetime(access){}}
+                panel.sheetParent?.endSheet(panel,returnCode:response);panel.orderOut(nil)
+                while panel.sheetParent != nil{try? await Task.sleep(nanoseconds:5_000_000)}
+                if ownedSheet === panel{ownedSheet=nil}
+                guard response == .OK,current(),let destination,destination.isFileURL else{return}
+                let grant=makeGrant(destination)
+                defer {withExtendedLifetime(grant){}}
+                do {
+                    guard grant.contains(destination),!requiresScope || grant.hasSecurityScope else{throw RepositoryAccessFailure.securityScopeUnavailable}
+                    try model.validateArchiveAccess();try operation.cancellation.check()
+                    try await execute(repository,context.snapshot,context.directory,destination,operation.cancellation)
+                }catch{if current(){model.error=error.localizedDescription}}
+            }
+        }
+        cancelFilePanel={reply(.cancel)};panel.appearance=window.appearance;panel.alphaValue=window.alphaValue
+        if let presentSavePanel{presentSavePanel(panel,window,reply)}else{panel.beginSheetModal(for:window,completionHandler:reply)}
     }
     private func presentFile(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction,context:RepositoryBrowserWindowModel.FileReadContext) {
         guard !retired,model.acceptsFileContext(context),context.action==action,fileOperation == nil,
@@ -343,7 +378,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
 @MainActor final class RepositoryBrowserWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
-    @Published var revision: String
+    @Published var revision: String {didSet{if revision != oldValue{archiveCancellation?.cancel()}}}
     @Published private(set) var revisionLabel:String
     @Published var choosingRevision=false {didSet{transferEpoch=UUID()}}
     @Published var handlingFile=false {didSet{transferEpoch=UUID()}}
@@ -351,7 +386,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published private(set) var snapshot: RepositoryBrowserSnapshot?
     @Published private(set) var directories: RepositoryBrowserPathMap<[RepositoryBrowserEntry]> = [:]
     @Published var expanded: RepositoryBrowserPathSet = [""]
-    @Published var selection = Set<String>()
+    @Published var selection = Set<String>() {didSet{if selection != oldValue{archiveCancellation?.cancel()}}}
     @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)] {didSet{transferEpoch=UUID()}}
     @Published var busy = false {didSet{transferEpoch=UUID()}}
     @Published var mutating = false {didSet{transferEpoch=UUID()}}
@@ -436,6 +471,31 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onCompare: (String, String) -> Void = { _, _ in }
     var onSubmodule: (SubmoduleComparison, RepositoryBrowserEntry, Bool) -> Void = { _, _, _ in }
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
+    struct ArchiveContext {
+        fileprivate let owner:ObjectIdentifier,generation:UUID,navigation:UUID,revision:String,selection:Set<String>,displayedDirectory:String
+        let snapshot:RepositoryBrowserSnapshot,directory:String,backend:GitLibGit2Configuration,cancellation:OperationCancellation
+    }
+    private var archiveCancellation:OperationCancellation?
+    var onSaveArchive:(ArchiveContext)->Void = {_ in}
+    private func archiveSnapshot(directory:String?)->RepositoryBrowserSnapshot? {
+        guard let snapshot,snapshot.objectID != nil else{return nil}
+        let scope=directory ?? snapshot.directory
+        if scope.isEmpty || RepositoryBrowserPathIdentity.equal(scope,snapshot.directory) || snapshot.entries.contains(where:{$0.kind == .directory && RepositoryBrowserPathIdentity.equal($0.path,scope)}) {return snapshot}
+        guard let listing=listings[parentPath(scope)],listing.objectID==snapshot.objectID,listing.treeID==snapshot.treeID,listing.entries.contains(where:{$0.kind == .directory && RepositoryBrowserPathIdentity.equal($0.path,scope)}) else{return nil}
+        return listing
+    }
+    func canSaveArchive(directory:String?=nil)->Bool {canUseMenu && archiveSnapshot(directory:directory) != nil}
+    func saveArchive(directory:String?=nil) {
+        guard canSaveArchive(directory:directory),let displayed=snapshot,let snapshot=archiveSnapshot(directory:directory) else{return}
+        do{try validateAccess()}catch{self.error=error.localizedDescription;return}
+        let token=OperationCancellation(),context=ArchiveContext(owner:ObjectIdentifier(self),generation:generation,navigation:menuGeneration,revision:revision,selection:selection,displayedDirectory:displayed.directory,snapshot:snapshot,directory:directory ?? snapshot.directory,backend:materializationBackend(),cancellation:token)
+        archiveCancellation=token;onSaveArchive(context)
+    }
+    func acceptsArchive(_ context:ArchiveContext)->Bool {
+        active && !confirmingQuit && !context.cancellation.isCancelled && archiveCancellation === context.cancellation && context.owner==ObjectIdentifier(self) && context.generation==generation && context.navigation==menuGeneration && GitReferenceName.equal(context.revision,revision) && context.selection==selection && snapshot?.objectID==context.snapshot.objectID && snapshot?.treeID==context.snapshot.treeID && snapshot.map{RepositoryBrowserPathIdentity.equal($0.directory,context.displayedDirectory)}==true
+    }
+    func finishArchive(_ token:OperationCancellation){if archiveCancellation === token{archiveCancellation=nil}}
+    func validateArchiveAccess()throws{try validateAccess()}
     enum FileAction:Equatable { case open, openWith, alternativeEditor, save }
     struct FileReadContext {
         fileprivate let owner:ObjectIdentifier,request:UUID,generation:UUID,navigation:UUID
@@ -454,6 +514,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     /// A preflight read reserves the same native owner as its eventual chooser.
     /// Cancelling never releases that reservation until the actual read drains.
     func cancelFileRead() {
+        archiveCancellation?.cancel()
         if let openRequest {requests[openRequest]?.cancel()}
         fileDeliveryCancellation?.cancel();onCancelFileDelivery()
     }
@@ -850,14 +911,16 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         let revision: String
         let directory: String
         let entries: [RepositoryBrowserEntry]
+        let selection:Set<String>
         let comparisonMark: PreparedFileComparisonMark?
         let comparisonMarkRevision:UUID
     }
     func menuTarget(_ entries: [RepositoryBrowserEntry] = []) -> MenuTarget? {
         guard canUseMenu, let snapshot, let revision = snapshot.objectID,
               entries.allSatisfy({ snapshot.entries.contains($0) }) else { return nil }
-        return MenuTarget(owner:ObjectIdentifier(self),generation:generation,navigation:menuGeneration,revision:revision,directory:snapshot.directory,entries:entries,comparisonMark:comparisonMark,comparisonMarkRevision:comparisonMarkRevision)
+        return MenuTarget(owner:ObjectIdentifier(self),generation:generation,navigation:menuGeneration,revision:revision,directory:snapshot.directory,entries:entries,selection:selection,comparisonMark:comparisonMark,comparisonMarkRevision:comparisonMarkRevision)
     }
+    func acceptsArchiveMenu(_ target:MenuTarget)->Bool{acceptsMenu(target) && target.selection==selection}
     func acceptsComparisonMark(_ target:MenuTarget)->Bool{acceptsMenu(target) && target.comparisonMarkRevision==comparisonMarkRevision}
     func acceptsMenu(_ target: MenuTarget) -> Bool {
         canUseMenu && target.owner == ObjectIdentifier(self) && target.generation == generation && target.navigation == menuGeneration &&
@@ -1178,7 +1241,8 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
         func menuNeedsUpdate(_ menu:NSMenu) {
             menu.removeAllItems()
             guard available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node,model.folderObjectID(item.path) != nil,let target=model.menuTarget() else { return }
-            for (index,title,icon) in [(0,"Open",MenuIcon.open),(1,"Show log",.log),(2,"Copy to clipboard",.copy),(3,"Copy hash",.copy)] {
+            for (index,title,icon) in [(0,"Open",MenuIcon.open),(1,"Show log",.log),(4,"Save as archive…",.saveAs),(2,"Copy to clipboard",.copy),(3,"Copy hash",.copy)] {
+                if index==4 && !model.canSaveArchive(directory:item.path){continue}
                 if index==1 || index==2 { menu.addItem(.separator()) }
                 let caption=index==2 && (try? RepositoryBrowserGitPath(key:item.path).isRepresentable)==false ? "Copy displayed name (escaped)":title
                 let entry=NSMenuItem(title:caption,action:#selector(invoke(_:)),keyEquivalent:"");entry.target=self
@@ -1188,8 +1252,9 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
         }
         @objc func invoke(_ sender:NSMenuItem) {
             guard available,let action=sender.representedObject as? Invocation,!action.used,model.acceptsMenu(action.target) else { return }
+            if action.command==4 {guard model.acceptsArchiveMenu(action.target),let outline,let selected=outline.item(atRow:outline.selectedRow) as? Node,RepositoryBrowserPathIdentity.equal(selected.path,action.path) else{return}}
             action.used=true
-            switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);default:break }
+            switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);case 4:model.saveArchive(directory:action.path);default:break }
         }
         func outlineView(_ outlineView:NSOutlineView,writeItems items:[Any],to pasteboard:NSPasteboard)->Bool {
             guard let outline=outlineView as? RepositoryBrowserFolderOutline,outline.acceptsDragGesture,items.count==1,let node=items.first as? Node,let transfer=captureDrag(node.path),transfer.write(to:pasteboard) else{return false}
