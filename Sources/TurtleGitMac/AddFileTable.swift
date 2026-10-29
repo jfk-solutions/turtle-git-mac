@@ -278,7 +278,7 @@ struct AddFileTable: NSViewRepresentable {
             guard canAct else { return }
             if let mark = markedRow, model.checked.contains(mark.path) { uncheck() } else { check() }
         }
-        @objc func preview() { guard canAct, selectedRows.count == 1, let row = selectedRows.first else { return }; model.onPreview(row.path) }
+        @objc func preview() { guard canAct, selectedRows.count == 1, let row = selectedRows.first else { return }; model.primaryFileAction(row) }
         func openSelected(_ action: AddFileOpenAction) { guard canAct, selectedIsFile, let row = selectedRows.first else { return }; model.onOpen(row.path, action) }
         @objc func open() { openSelected(.open) }
         @objc func openWith() { openSelected(.openWith) }

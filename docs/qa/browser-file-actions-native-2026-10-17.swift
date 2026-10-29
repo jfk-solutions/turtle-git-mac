@@ -52,9 +52,12 @@ import TurtleGitCore
         try require(model.handlingFile && !model.canUseMenu && RepositoryBrowserFileOperation.activeRequests==1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel && savedPanels[0].nameFieldStringValue==entry.name,"Save modal lacks ownership/source filename")
         let generation=model.generation;model.refresh();model.loadDirectory("",select:true);model.open(entry,action:.save)
         try require(model.generation==generation && saves.count==1 && model.snapshot?.directory=="folder","Competing action replaced Save context")
-        saves[0](.cancel);saves[0](.OK);try require(!model.handlingFile && !fm.fileExists(atPath:destination.path) && RepositoryBrowserFileOperation.activeRequests==0,"Cancelled/repeated Save adopted")
+        saves[0](.cancel);saves[0](.OK)
+        try await wait {!model.handlingFile && !model.hasPendingWork && RepositoryBrowserFileOperation.activeRequests==0}
+        try require(!fm.fileExists(atPath:destination.path),"Cancelled/repeated Save adopted")
         model.open(entry,action:.save);try await wait {saves.count==2};model.revision="changed-request";saves[1](.OK)
-        try require(!model.handlingFile && !fm.fileExists(atPath:destination.path),"Changed revision wrote a stale Save reply");model.revision=pinned
+        try await wait {!model.handlingFile && !model.hasPendingWork && RepositoryBrowserFileOperation.activeRequests==0}
+        try require(!fm.fileExists(atPath:destination.path),"Changed revision wrote a stale Save reply");model.revision=pinned
         model.open(entry,action:.save);try await wait {saves.count==3};saves[2](.OK);saves[2](.OK)
         try await wait {!model.handlingFile && RepositoryBrowserFileOperation.activeRequests==0};try require(try Data(contentsOf:destination)==content.bytes && content.bytes==bytes,"Atomic Save changed historical bytes")
         // Close during an authorized writer that ignores cancellation; Quit lasts until drain.
@@ -80,7 +83,8 @@ import TurtleGitCore
         }
         let openEntry=opening.model.entries.first {$0.name=="example.bin"}!
         opening.model.open(openEntry,action:.openWith);try await wait {apps.count==1};apps[0](.cancel);apps[0](.OK)
-        try require(!opening.model.handlingFile && launches==0,"Cancelled Open With launched")
+        try await wait {!opening.model.handlingFile && !opening.model.hasPendingWork && RepositoryBrowserFileOperation.activeRequests==0}
+        try require(launches==0,"Cancelled Open With launched")
         opening.model.open(openEntry,action:.openWith);try await wait {apps.count==2};apps[1](.OK);apps[1](.OK);try await wait {launchReply != nil || opening.model.error != nil}
         try require(launchReply != nil && opening.model.error==nil,"Open With launch failed: \(opening.model.error ?? "no receipt")")
         opening.close();try require(launches==1 && RepositoryBrowserFileOperation.activeRequests==1 && ExternalDocumentApplication.activeRequests==1 && fm.fileExists(atPath:preview!.path) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Pending launch lost preview/Quit ownership")

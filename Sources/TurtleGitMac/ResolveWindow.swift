@@ -773,6 +773,19 @@ extension ResolveWindowModel {
         }
         return ResolveFileMenuSnapshot(epoch:fileMenuEpoch,entries:selected,commands:commands,alternate:ComparisonToolInvocation.capture,mark:mark,permanently:permanently ?? NSEvent.modifierFlags.contains(.shift))
     }
+    func captureComparisonOwner(paths:[String])->()->Bool {
+        let requested=GitPathSet(paths),epoch=fileMenuEpoch,ownerGeneration=generation,selected=selection
+        let records=entries.enumerated().compactMap {index,entry in requested.contains(entry.path) ? (index,entry):nil}
+        let request=cancellation
+        let complete = !requested.isEmpty && records.count==requested.count
+        return { [weak self] in
+            guard let self,complete,self.active,!self.confirmingQuit,!self.handoffPending,!self.hasQuestion,!self.hasChild,
+                !self.showingProgress,!self.confirmingCancellation,self.fileMenuEpoch==epoch,self.generation==ownerGeneration,
+                self.selection==selected,request?.isCancelled != true else{return false}
+            guard !self.busy || request != nil && self.cancellation === request else{return false}
+            return records.allSatisfy {index,entry in self.entries.indices.contains(index) && self.entries[index]==entry}
+        }
+    }
     private func acceptsFileMenu(_ menu:ResolveFileMenuSnapshot,during token:OperationCancellation? = nil)->Bool {
         active && (token.map{live($0) && !$0.isCancelled} ?? (canInteract && !usedFileMenus.contains(menu.id))) && menu.epoch == fileMenuEpoch && !menu.entries.isEmpty && menu.entries.allSatisfy{entries.contains($0)}
     }

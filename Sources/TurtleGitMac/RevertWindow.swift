@@ -150,7 +150,7 @@ private final class RevertNativeWindow:NSWindow {
         get {highlightedPaths}
         set {let ids = Set(newValue.map(GitPathRowIdentity.encode));if ids != nativeSelection {nativeSelection = ids}}
     }
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false { didSet { if busy && !oldValue { comparisonOwnerEpoch = UUID() } } }
     @Published var confirmingQuit = false {didSet {commands.confirmingQuit = confirmingQuit;if !confirmingQuit {resumePendingRefresh()}}}
     @Published var error:String?
     @Published private(set) var hasUnversionedItems = false
@@ -184,6 +184,7 @@ private final class RevertNativeWindow:NSWindow {
     var onCompare:(([String])->Void)?
     @Published private(set) var comparisonMark:PreparedFileComparisonMark?
     private var comparisonGeneration = UUID()
+    private var comparisonOwnerEpoch = UUID()
     private var lastImportedWorkingMark:UUID?
     var onPreparedFileCompare:((PreparedFileComparisonMark,PreparedFileComparisonMark)->Void)?
     var chooseSaveFile:(String) async -> URL? = {_ in nil}
@@ -312,8 +313,27 @@ private final class RevertNativeWindow:NSWindow {
         let ids = GitPathSet(paths)
         guard canInteract,!ids.isEmpty else {return}
         let snapshot = commands.fileMenu(ids)
-        guard !snapshot.entries.isEmpty else {return}
-        if let onCompare {onCompare(snapshot.entries.map(\.path))} else {commands.unifiedDiff(ids,alternate:ComparisonToolInvocation.capture)}
+        guard snapshot.entries.count==ids.count else {return}
+        commands.withFileMenu(snapshot) {
+            if let onCompare {onCompare(snapshot.entries.map(\.path))} else {commands.unifiedDiff(ids,alternate:ComparisonToolInvocation.capture)}
+        }
+    }
+    func captureComparisonOwner(paths:[String])->()->Bool {
+        let acceptedRows=commands.captureComparisonOwner(paths:paths)
+        let epoch=comparisonOwnerEpoch
+        return { [weak self] in
+            guard let self,!self.retired,!self.accepted,!self.busy,!self.hasChild,!self.confirmingQuit,self.comparisonOwnerEpoch==epoch else{return false}
+            return acceptedRows()
+        }
+    }
+    func primaryFileAction(_ paths:some Sequence<String>) {
+        let ids=GitPathSet(paths)
+        guard canInteract,!ids.isEmpty else{return}
+        let snapshot=commands.fileMenu(ids)
+        guard snapshot.entries.count==ids.count else{return}
+        if snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {
+            commands.withFileMenu(snapshot) {onAction(.editConflict,[entry.path])}
+        } else {diff(ids)}
     }
     @discardableResult func addDropped(_ urls:[URL])->Bool {
         guard !retired,!commands.busy,!confirmingQuit,!hasChild,!exclusiveAction,!closeAfterRead,window?.attachedSheet == nil,!urls.isEmpty else {return false}
@@ -510,7 +530,7 @@ private struct RevertDialog:View {
                         } label:{CommandLabel(title:"Copy to Clipboard",icon:.copy)}
                     }
                 }.disabled(!model.canInteract)
-            } primaryAction:{model.diff(GitPathRowIdentity.paths($0))}
+            } primaryAction:{model.primaryFileAction(GitPathRowIdentity.paths($0))}
             HStack {
                 SelectionAllCheckbox(checked:model.checked.count,total:model.entries.count,checkedCount:{model.checked.count}) {model.setChecked(GitPathSet(model.entries.map(\.path)),value:$0)}.frame(width:190,height:22).disabled(!model.canInteract)
                 Spacer()

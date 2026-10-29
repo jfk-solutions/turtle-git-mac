@@ -255,6 +255,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: GitPathMap<CommitFile> = [:]
     private var menuGeneration = UUID()
+    private var comparisonEpoch = UUID()
     func invalidateFileMenus() {menuGeneration = UUID()}
     private var selectedPaths = GitPathSet()
     @Published var nativeFileSelection = Set<String>() {
@@ -276,7 +277,7 @@ final class StatusNativeWindow: NSWindow {
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
     @Published private(set) var hasHead = false
-    @Published var busy = false
+    @Published var busy = false { didSet { if busy && !oldValue { comparisonEpoch = UUID() } } }
     @Published var confirmingQuit = false { didSet { if oldValue && !confirmingQuit && refreshRequested && !busy && !retired { reload() } } }
     @Published var error: String?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
@@ -603,12 +604,25 @@ final class StatusNativeWindow: NSWindow {
             try await repository.setIndexFlags(action, paths: files.map(\.id), markedPath: selectionMark?.id, cancellation: token)
         }, completed: { [self] in reload(); onChanged() }, failed: { [self] in reload(); onChanged() })
     }
+    /// Source default activation edits a single conflict; an explicit Compare
+    /// command always compares the captured paths, independent of that status.
+    func primaryFileAction(_ ids:some Sequence<String>) {
+        let ids=GitPathSet(ids),snapshot=fileMenu(ids)
+        guard !ids.isEmpty,snapshot.entries.count==ids.count else{return}
+        withFileMenu(snapshot) {
+            if snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {
+                onAction(.editConflict,[entry.path])
+            } else {onAction(.diff,snapshot.entries.map(\.path))}
+        }
+    }
     func diff(_ ids: some Sequence<String>, saving: Bool = false) { let ids = GitPathSet(ids);
         let repository=self.repository.capturingDiffBackend(preferences:defaults)
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         if !saving {
-            let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
-            guard !paths.isEmpty else { return }; onAction(.diff, paths); return
+            let snapshot=fileMenu(ids)
+            guard !ids.isEmpty,snapshot.entries.count==ids.count else{return}
+            withFileMenu(snapshot) {onAction(.diff,snapshot.entries.map(\.path))}
+            return
         }
         let paths = filter.wholeProject ? [] : filter.paths
         runOperation("Preparing unified diff…", operation: { [self] token in
@@ -678,6 +692,22 @@ final class StatusNativeWindow: NSWindow {
     func addSelection(_ snapshot: StatusFileMenuSnapshot, mode: WorkingFileAddMode) {
         guard accepts(snapshot), snapshot.addModes(extended:true).contains(mode) else { return }
         onAddFiles(snapshot.entries.map(\.path), mode)
+    }
+    /// A comparison read owns these accepted rows while its own warning sheet
+    /// may temporarily make ordinary action admission unavailable. Retain the
+    /// content/selection generation without borrowing that sheet's gate.
+    func captureComparisonOwner(paths:[String])->()->Bool {
+        let requested=GitPathSet(paths),snapshot=fileMenu(paths),epoch=comparisonEpoch
+        let records=files.enumerated().compactMap {index,file in requested.contains(file.id) ? (index,file.entry):nil}
+        let complete = !requested.isEmpty && snapshot.entries.count==requested.count && records.count==requested.count
+        return { [weak self] in
+            guard let self,complete,!self.retired,!self.confirmingQuit,!self.busy,!self.unifiedViewerBusy,
+                self.menuGeneration==snapshot.generation,self.comparisonEpoch==epoch else{return false}
+            // The watcher is O(selected), not an all-files dictionary rebuild
+            // on every main-actor cancellation poll. Refresh/selection retires
+            // the generation; unexpected storage replacement also refuses it.
+            return records.allSatisfy {index,entry in self.files.indices.contains(index) && self.files[index].entry==entry}
+        }
     }
     private func accepts(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
         guard !retired, !confirmingQuit, actionOwnerAvailable(), (duringOperation || !busy), snapshot.generation == menuGeneration,
@@ -1023,8 +1053,7 @@ struct StatusDialog: View {
             } primaryAction: { nativeIDs in
                 let ids = GitPathRowIdentity.paths(nativeIDs)
                 if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.row.id) })?.row.group { model.selectGroup(group); return }
-                if ids.count == 1, let entry = model.files.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onAction(.editConflict, [entry.id]) }
-                else { model.diff(ids) }
+                model.primaryFileAction(ids)
             }
             .frame(minHeight: 300)
             .overlay {

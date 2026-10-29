@@ -59,8 +59,11 @@ answers; completed repository contents remain on disk.
 Working Tree lists changes and offers the same kinds of status filters as
 TortoiseGit. Show Whole Project expands a file/folder invocation to the repository.
 Show unversioned, ignored, unmodified and staged files as needed. F5 refreshes;
-double-click a file to compare it. Select rows for context-menu actions. Checking
-files and selecting rows are separate operations.
+double-click a file to compare it, or to edit its conflict when it is conflicted.
+The explicit **Compare with base** menu command remains a two-way comparison,
+even for a conflicted file; **Edit conflicts** opens conflict resolution. These
+actions stay with the repository belonging to that dialog. Select rows for
+context-menu actions. Checking files and selecting rows are separate operations.
 
 Context **Commit…** passes the selected rows; the footer Commit follows the
 invoked scope and Whole Project. For an unversioned or ignored focused row,
@@ -341,6 +344,14 @@ submodule log** opens that revision's history. An unavailable child revision can
 offer **Update**. Its question closes before opening Update. Child Log, Browser,
 Update and comparisons keep the originating browser's preferences, appearance
 and repository access.
+
+Opening or saving a historical file keeps the selected revision, path and
+application settings for the complete read and chooser. While it is preparing,
+other file opens, folder navigation and Refresh wait. Cancel closes the Browser
+and cancels its read; the app waits for work already started to drain. A Quit
+attempt also cancels its pending Save/Open With chooser, so refusing Quit does
+not leave an inactive sheet behind. Already launched receiving applications keep
+their own document ownership.
 
 ## Branch, tag and checkout
 

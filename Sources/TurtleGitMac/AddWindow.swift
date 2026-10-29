@@ -323,6 +323,14 @@ private final class AddNativeWindow: NSWindow {
     private(set) var acceptedBackend: GitLibGit2Configuration?
     private var accepted = false
     var onPreview: (String) -> Void = { _ in }
+    var onEditConflict: (String) -> Void = { _ in }
+    func primaryFileAction(_ row:AddDialogEntry) {
+        guard captureComparisonOwner(paths:[row.path])(),NSApp.modalWindow==nil,
+            let current=entries.first(where:{$0.path.utf8.elementsEqual(row.path.utf8)}),
+            current.state==row.state,current.status==row.status,current.isDirectory==row.isDirectory,
+            current.size==row.size,current.modified==row.modified else{return}
+        if current.state == .conflicted {onEditConflict(current.path)} else {onPreview(current.path)}
+    }
     var onCompare: ([String]) -> Void = { _ in }
     var onCompareTwo: ([String]) -> Void = { _ in }
     var unifiedViewerBusy: () -> Bool = { false }
@@ -550,6 +558,23 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     func invalidateFileMenus() {fileMenuGeneration = UUID()}
+    /// Keep an accepted comparison tied to its entries/selection generation,
+    /// without rejecting the comparison's own warning sheet as a foreign owner.
+    func captureComparisonOwner(paths:[String])->()->Bool {
+        let requested=GitPathSet(paths),generation=fileMenuGeneration
+        let records=entries.enumerated().compactMap {index,entry in requested.contains(entry.path) ? (index,entry):nil}
+        let complete = !requested.isEmpty && records.count==requested.count
+        return { [weak self] in
+            guard let self,complete,!self.retired,!self.accepted,!self.busy,!self.confirmingQuit,!self.unifiedViewerBusy(),
+                self.fileMenuGeneration==generation else{return false}
+            return records.allSatisfy {index,entry in
+                guard self.entries.indices.contains(index) else{return false}
+                let current=self.entries[index]
+                return current.path.utf8.elementsEqual(entry.path.utf8) && current.state==entry.state && current.status==entry.status &&
+                    current.isDirectory==entry.isDirectory && current.size==entry.size && current.modified==entry.modified
+            }
+        }
+    }
     func setScope(_ paths: [String]) { guard !retired, !busy else { return }; self.paths = paths.isEmpty ? ["."] : paths; loaded = false;accepted = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
     private func validateAccess() throws {
         guard !retired, !cancellation.isCancelled else { throw OperationCancellationFailure.cancelled }

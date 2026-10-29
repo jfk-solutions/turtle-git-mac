@@ -23,6 +23,9 @@ enum ComparisonToolInvocation {
     private var alert: NSAlert?
     private var started = false
     var confirmation: ((Int) async -> Bool)?
+    // Row/document replacement can retire a request without closing its window.
+    // This check excludes the session's own confirmation sheet.
+    var isOwnerCurrent: () -> Bool = { true }
 
     init(window: NSWindow?, preferences: UserDefaults = .standard, cancellation: OperationCancellation = OperationCancellation(), alternateTool: Bool? = nil) {
         self.window = window; self.preferences = preferences; self.cancellation = cancellation
@@ -40,7 +43,9 @@ enum ComparisonToolInvocation {
         }
     }
     func check() throws {
-        guard !cancellation.isCancelled, !Task.isCancelled else { throw OperationCancellationFailure.cancelled }
+        guard isOwnerCurrent(), !cancellation.isCancelled, !Task.isCancelled else {
+            cancel(); throw OperationCancellationFailure.cancelled
+        }
     }
     func run(selectedCount: Int, operation: (OperationCancellation) async throws -> Void) async throws {
         guard !started else { throw OperationCancellationFailure.cancelled }
@@ -51,7 +56,7 @@ enum ComparisonToolInvocation {
         let watcher = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                if self.cancellation.isCancelled { self.cancel(); return }
+                if self.cancellation.isCancelled || !self.isOwnerCurrent() { self.cancel(); return }
                 try? await Task.sleep(nanoseconds: 10_000_000)
             }
         }

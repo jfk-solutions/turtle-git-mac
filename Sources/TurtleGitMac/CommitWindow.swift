@@ -1858,6 +1858,26 @@ import TurtleGitCore
         let previous = activeFileMenu; activeFileMenu = snapshot
         defer { activeFileMenu = previous }; perform()
     }
+    func captureComparisonOwner(paths: [String]) -> () -> Bool {
+        let snapshot = activeFileMenu ?? fileMenu(paths)
+        let requested = GitPathSet(paths), accepted = acceptsFileMenu(snapshot), form = formRevision
+        let records = entries.enumerated().compactMap { index, entry in
+            requested.contains(entry.id) ? (index, entry, stagingState(entry).rawValue) : nil
+        }
+        // The comparison session owns its own warning sheet; menu/row and
+        // lifecycle receipts remain authoritative while that sheet is attached.
+        return { [weak self] in
+            guard let self, accepted, records.count == requested.count,
+                  self.messageFocusAvailable, !self.inputsBlocked, self.formRevision == form,
+                  self.gitGuiInterface == snapshot.gitGui, self.fileMenuGeneration == snapshot.generation,
+                  snapshot.guiList.map({ $0.generation == self.guiFileListGeneration }) ?? true else { return false }
+            // Poll only the captured rows. Rebuilding a complete status map
+            // on every cancellation check stalls large Commit dialogs.
+            return records.allSatisfy { index, entry, state in
+                self.entries.indices.contains(index) && self.entries[index] == entry && self.stagingState(entry).rawValue == state
+            }
+        }
+    }
     private func isFileOperationLive(_ token: OperationCancellation) -> Bool {
         messageFocusAvailable && fileOperationToken === token && !token.isCancelled && !Task.isCancelled
     }

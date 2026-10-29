@@ -65,11 +65,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
 /// launch callbacks retain their own Quit lifetime until they settle.
 @MainActor final class RepositoryBrowserFileOperation {
     static private(set) var activeRequests=0
-    let cancellation=OperationCancellation()
+    let cancellation:OperationCancellation
     var working=false
     private var finished=false
     var hasPendingWork:Bool {!finished}
-    init() {Self.activeRequests += 1}
+    init(cancellation:OperationCancellation = OperationCancellation()) {self.cancellation=cancellation;Self.activeRequests += 1}
     func finish() {guard !finished else {return};finished=true;Self.activeRequests -= 1}
     func retire() {cancellation.cancel();if !working {finish()}}
 }
@@ -92,6 +92,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private var initialContentsFocusPending=true
     private var ownedSheet:NSWindow?
     private var fileOperation:RepositoryBrowserFileOperation?
+    private var cancelFilePanel:(()->Void)?
     private var submoduleUpdateReply:((NSApplication.ModalResponse)->Void)?
     private(set) var storedBlobWindows:[RepositoryBrowserStoredBlobWindow]=[]
     var presentStoredBlobWindow:(RepositoryBrowserStoredBlobWindow)->Void = {$0.showWindow(nil)}
@@ -125,9 +126,14 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             DispatchQueue.main.async { [weak self] in self?.focusInitialContentsIfNeeded() }
         }
         model.chooseRevision = { [weak self] in self?.chooseRevision() }
-        model.presentFile = { [weak self] content, action in self?.presentFile(content,action:action) }
+        model.onCancelFileDelivery = { [weak self] in self?.cancelFilePanel?() }
+        model.presentFile = { [weak self] content, action in
+            guard let self,let context=self.model.presentedFileContext else{return}
+            self.presentFile(content,action:action,context:context)
+        }
         model.presentStoredBlob = { [weak self] bytes,entry in
-            guard let self,self.model.canUseMenu else{return}
+            guard let self,let context=self.model.presentedFileContext,self.model.acceptsFileContext(context),context.entry==entry,context.action==nil,
+                  self.model.canUseMenu,self.window?.attachedSheet==nil,NSApp.modalWindow==nil else{return}
             let child=RepositoryBrowserStoredBlobWindow(bytes:bytes,path:entry.displayPath,objectID:entry.objectID)
             child.window?.appearance=self.window?.effectiveAppearance;child.window?.alphaValue=self.window?.alphaValue ?? 1
             child.onClosed={ [weak self,weak child] in self?.storedBlobWindows.removeAll{$0 === child} }
@@ -220,13 +226,13 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard canReuse,pickerIdentity==identity,picker === controller,let child=controller.window else{controller.close();return}
         child.appearance=window.appearance;child.alphaValue=window.alphaValue;window.beginSheet(child)
     }
-    private func presentFile(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction) {
-        guard model.active,fileOperation == nil,let window,window.attachedSheet == nil else {return}
-        let generation=model.generation,revision=model.revision,object=model.snapshot?.objectID,directory=model.snapshot?.directory
-        let operation=RepositoryBrowserFileOperation();fileOperation=operation;model.handlingFile=true
+    private func presentFile(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction,context:RepositoryBrowserWindowModel.FileReadContext) {
+        guard !retired,model.acceptsFileContext(context),context.action==action,fileOperation == nil,
+              let window,window.attachedSheet == nil,NSApp.modalWindow==nil else{return}
+        let operation=RepositoryBrowserFileOperation(cancellation:context.cancellation);fileOperation=operation;model.handlingFile=true
         let current:()->Bool = { [weak self,weak window] in
             guard let self else {return false}
-            return self.fileOperation === operation && self.model.active && !operation.cancellation.isCancelled && self.window === window && window != nil && self.model.generation==generation && Data(self.model.revision.utf8)==Data(revision.utf8) && self.model.snapshot?.objectID==object && Data((self.model.snapshot?.directory ?? "").utf8)==Data((directory ?? "").utf8)
+            return self.fileOperation === operation && self.model.acceptsFileContext(context) && !operation.cancellation.isCancelled && self.window === window && window != nil && window?.attachedSheet==nil && NSApp.modalWindow==nil
         }
         if action == .save {
             let name:String
@@ -235,6 +241,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             var answered=false
             let reply:(NSApplication.ModalResponse)->Void = { [weak self] response in
                 guard !answered,let self,self.fileOperation === operation,self.ownedSheet === panel else {return};answered=true
+                self.cancelFilePanel=nil
                 let destination=self.saveDestination(panel)
                 operation.working=true
                 let writer=self.writeDocument
@@ -250,31 +257,36 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                     catch {if current() {self.model.error=error.localizedDescription}}
                 }
             }
+            cancelFilePanel = {reply(.cancel)}
+            panel.appearance=window.appearance;panel.alphaValue=window.alphaValue
             if let presentSavePanel {presentSavePanel(panel,window,reply)} else {panel.beginSheetModal(for:window,completionHandler:reply)}
         } else if action == .openWith {
             let panel=NSOpenPanel();panel.title="Open With";panel.prompt="Open";panel.allowedContentTypes=[.applicationBundle];panel.directoryURL=URL(fileURLWithPath:"/Applications");panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;ownedSheet=panel
             var answered=false
             let reply:(NSApplication.ModalResponse)->Void = { [weak self] response in
                 guard !answered,let self,self.fileOperation === operation,self.ownedSheet === panel else {return};answered=true
+                self.cancelFilePanel=nil
                 let app=self.selectedApplication(panel);operation.working=true
                 Task { [self,operation] in
                     panel.sheetParent?.endSheet(panel,returnCode:response);panel.orderOut(nil)
                     while panel.sheetParent != nil {try? await Task.sleep(nanoseconds:5_000_000)}
                     if self.ownedSheet === panel {self.ownedSheet=nil}
                     guard response == .OK,current(),!self.model.confirmingQuit,let app else {self.finishFile(operation);return}
-                    self.open(content,action:action,application:app,operation:operation,current:current)
+                    self.open(content,action:action,application:app,operation:operation,editor:context.editorSettings,current:current)
                 }
             }
+            cancelFilePanel = {reply(.cancel)}
+            panel.appearance=window.appearance;panel.alphaValue=window.alphaValue
             if let presentApplicationPanel {presentApplicationPanel(panel,window,reply)} else {panel.beginSheetModal(for:window,completionHandler:reply)}
-        } else {open(content,action:action,operation:operation,current:current)}
+        } else {open(content,action:action,operation:operation,editor:context.editorSettings,current:current)}
     }
     private func finishFile(_ operation:RepositoryBrowserFileOperation) {
-        operation.finish()
-        if fileOperation === operation {fileOperation=nil;model.handlingFile=false}
+        operation.finish();model.finishFileDelivery(operation.cancellation)
+        if fileOperation === operation {cancelFilePanel=nil;fileOperation=nil;model.handlingFile=false}
     }
-    private func open(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction,application:URL? = nil,operation:RepositoryBrowserFileOperation,current:@escaping ()->Bool) {
+    private func open(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction,application:URL? = nil,operation:RepositoryBrowserFileOperation,editor:AlternativeEditorPreferences,current:@escaping ()->Bool) {
         guard current() else {finishFile(operation);return};operation.working=true
-        let launch=launchDocument,editor=model.materializationEditorSettings ?? .load(from:model.preferences),permissions=model.access.map {[$0]} ?? [],defaultApplication=self.defaultApplication,cancellation=operation.cancellation
+        let launch=launchDocument,permissions=model.access.map {[$0]} ?? [],defaultApplication=self.defaultApplication,cancellation=operation.cancellation
         let applicationGrant=application.map {RepositoryAccessLease(url:$0)}
         Task { [self,operation,permissions,applicationGrant] in
             defer {withExtendedLifetime(permissions) {};withExtendedLifetime(applicationGrant) {};self.finishFile(operation)}
@@ -343,7 +355,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)] {didSet{transferEpoch=UUID()}}
     @Published var busy = false {didSet{transferEpoch=UUID()}}
     @Published var mutating = false {didSet{transferEpoch=UUID()}}
-    @Published var confirmingQuit = false {didSet{transferEpoch=UUID()}}
+    @Published var confirmingQuit = false {didSet{transferEpoch=UUID();if confirmingQuit {cancelFileRead()}}}
     @Published var error: String?
     @Published var comparisonMark: PreparedFileComparisonMark? {didSet{comparisonMarkRevision=UUID()}}
     private var lastImportedWorkingMark: UUID?
@@ -380,7 +392,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         if requests.removeValue(forKey:id) != nil { Self.activeOperations -= 1 }
         if openRequest == id { openRequest = nil }
     }
-    private func cancelRequests() { requests.values.forEach { $0.cancel() } }
+    private func cancelRequests() { requests.values.forEach { $0.cancel() };cancelFileRead() }
     var handleRevertFailure: (String) async -> Bool = { _ in false }
     var showRevertResult: (String) -> Void = { _ in }
     var onChanged: () -> Void = {}
@@ -424,9 +436,36 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onCompare: (String, String) -> Void = { _, _ in }
     var onSubmodule: (SubmoduleComparison, RepositoryBrowserEntry, Bool) -> Void = { _, _, _ in }
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
-    enum FileAction { case open, openWith, alternativeEditor, save }
+    enum FileAction:Equatable { case open, openWith, alternativeEditor, save }
+    struct FileReadContext {
+        fileprivate let owner:ObjectIdentifier,request:UUID,generation:UUID,navigation:UUID
+        fileprivate let revision:String,snapshot:RepositoryBrowserSnapshot
+        let entry:RepositoryBrowserEntry,action:FileAction?
+        let backend:GitLibGit2Configuration,editorSettings:AlternativeEditorPreferences
+        let cancellation:OperationCancellation
+    }
+    private enum FileReadKind:Equatable {case materialized,stored,inspection}
+    private(set) var presentedFileContext:FileReadContext?
+    private var fileDeliveryCancellation:OperationCancellation?
+    var onCancelFileDelivery:()->Void = {}
+    func finishFileDelivery(_ cancellation:OperationCancellation) {
+        if fileDeliveryCancellation === cancellation {fileDeliveryCancellation=nil}
+    }
+    /// A preflight read reserves the same native owner as its eventual chooser.
+    /// Cancelling never releases that reservation until the actual read drains.
+    func cancelFileRead() {
+        if let openRequest {requests[openRequest]?.cancel()}
+        fileDeliveryCancellation?.cancel();onCancelFileDelivery()
+    }
+    func acceptsFileContext(_ context:FileReadContext)->Bool {
+        active && !confirmingQuit && !context.cancellation.isCancelled && context.owner==ObjectIdentifier(self) &&
+        (openRequest==context.request || fileDeliveryCancellation === context.cancellation) && generation==context.generation && menuGeneration==context.navigation && GitReferenceName.equal(revision,context.revision) &&
+        snapshot?.objectID==context.snapshot.objectID && snapshot?.treeID==context.snapshot.treeID &&
+        snapshot.map{RepositoryBrowserPathIdentity.equal($0.directory,context.snapshot.directory) && $0.entries.contains(context.entry)}==true
+    }
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
     var presentStoredBlob:(Data,RepositoryBrowserEntry)->Void = {_,_ in}
+    var readFile:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->ComparisonFileContent)?
     var readStoredBlob:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->Data)?
     var readStoredFile:((RepositoryBrowserSnapshot,RepositoryBrowserEntry,OperationCancellation)async throws->ComparisonFileContent)?
     static let rawPathReason="This Git pathname cannot be represented as a macOS text path. Historical Open, Save and comparison use safe temporary files. Working-tree filesystem and mutation actions are unavailable."
@@ -469,7 +508,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     /// One-shot file context supplied by Blame or another historical file view.
     var initialFile: String?
     func refresh() {
-        guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision,!handlingFile else { return }
+        guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision,!handlingFile,openRequest==nil else { return }
         cancelRequests()
         let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
         transferInventory=nil;transferInventoryError=nil;transferInventoryBusy=false
@@ -626,65 +665,72 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func open(_ entry: RepositoryBrowserEntry, action: FileAction = .open) {
-        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, snapshot.entries.contains(entry) else { return }
-        do { try validateAccess() } catch { self.error = error.localizedDescription; return }
-        if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path,select:true); return }
-        if entry.kind == .submodule, !requireRepresentable(entry.path) {return}
-        if entry.kind == .submodule && action == .open && !snapshot.bare { loadSubmodule(snapshot,entry:entry,showLog:false); return }
-        if let openRequest { requests[openRequest]?.cancel() }
-        let (request,cancellation) = startRequest(), identity = generation,backend=materializationBackend()
-        openRequest = request;materializationEditorSettings = .load(from:preferences)
-        Task { [self, repository, access] in
-            defer { finishRequest(request); withExtendedLifetime(access) {} }
-            do {
-                try validateAccess()
-                let content = try await repository.materializedRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation,backend:backend)
-                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-                guard active, generation == identity, openRequest == request else { return }
-                presentFile(content,action)
-            } catch { if active && generation == identity && openRequest == request && !cancellation.isCancelled { self.error = error.localizedDescription } }
-        }
+        guard canUseMenu,let snapshot,snapshot.entries.contains(entry) else{return}
+        do {try validateAccess()}catch{self.error=error.localizedDescription;return}
+        if entry.kind == .directory {expanded.insert(entry.path);loadDirectory(entry.path,select:true);return}
+        if entry.kind == .submodule,!requireRepresentable(entry.path){return}
+        if entry.kind == .submodule,action == .open,!snapshot.bare {loadSubmodule(snapshot,entry:entry,showLog:false);return}
+        performFileRead(entry,action:action,kind:.materialized)
     }
     static let maximumStoredBlobBytes:Int64=8*1024*1024
-    /// Object delivery needs no native representation of the original name.
-    /// Keep its captured row/tree identity through the read, then hand off to
-    /// the same owned panels, cancellation and preview lifecycle as normal Open.
+    /// Object delivery uses a safe temporary namespace without requiring a
+    /// native representation of the original Git filename.
     func openStoredBlob(_ entry:RepositoryBrowserEntry,action:FileAction = .open) {
-        guard canUseMenu,let snapshot,snapshot.objectID != nil,snapshot.entries.contains(entry),![.directory,.submodule].contains(entry.kind) else{return}
-        let identity=generation,navigation=menuGeneration,(request,cancellation)=startRequest(),read=readStoredFile
-        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
-        materializationEditorSettings = .load(from:preferences)
-        busy=true
-        Task { [self,repository,access] in
-            defer{finishRequest(request);if active,generation==identity{busy=false};withExtendedLifetime(access){}}
-            do {
-                try validateAccess()
-                let content:ComparisonFileContent
-                if let read {content=try await read(snapshot,entry,cancellation)}
-                else {content=try await repository.storedRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation)}
-                guard active,generation==identity,menuGeneration==navigation,!confirmingQuit,!cancellation.isCancelled else{return}
-                busy=false;presentFile(content,action)
-            } catch {if active,generation==identity,!cancellation.isCancelled{self.error=error.localizedDescription}}
-        }
+        performFileRead(entry,action:action,kind:.stored)
     }
     func inspectStoredBlob(_ entry:RepositoryBrowserEntry) {
         guard canUseMenu,let snapshot,snapshot.entries.contains(entry),![.directory,.submodule].contains(entry.kind) else{return}
         guard let size=entry.size,size<=Self.maximumStoredBlobBytes else{error="Stored blob inspection is limited to 8 MiB. This object is too large to display.";return}
-        let identity=generation,navigation=menuGeneration,(request,cancellation)=startRequest(),read=readStoredBlob
-        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
-        busy=true
+        performFileRead(entry,action:nil,kind:.inspection)
+    }
+    private func performFileRead(_ entry:RepositoryBrowserEntry,action:FileAction?,kind:FileReadKind) {
+        guard canUseMenu,openRequest==nil,let snapshot,snapshot.objectID != nil,snapshot.entries.contains(entry) else{return}
+        if kind != .materialized,[.directory,.submodule].contains(entry.kind){return}
+        let backend=kind == .materialized ? materializationBackend():(snapshot.acceptedBackend ?? materializationBackend())
+        let (request,cancellation)=startRequest()
+        let context=FileReadContext(owner:ObjectIdentifier(self),request:request,generation:generation,navigation:menuGeneration,
+            revision:revision,snapshot:snapshot,entry:entry,action:action,backend:backend,
+            editorSettings:.load(from:preferences),cancellation:cancellation)
+        let repository=self.repository.capturingBackend(backend),fileReader=readFile,storedReader=readStoredFile,blobReader=readStoredBlob
+        openRequest=request;materializationEditorSettings=context.editorSettings;busy=true
         Task { [self,repository,access] in
-            defer{finishRequest(request);if active,generation==identity{busy=false};withExtendedLifetime(access){}}
+            defer {
+                let ownsRead=openRequest==request
+                finishRequest(request)
+                if ownsRead,active,generation==context.generation {busy=false}
+                withExtendedLifetime(access) {}
+            }
             do {
-                try validateAccess()
-                let bytes:Data
-                if let read{bytes=try await read(snapshot,entry,cancellation)}
-                else{bytes=try await repository.storedRepositoryBrowserBlob(snapshot,entry:entry,cancellation:cancellation)}
-                guard bytes.count<=Self.maximumStoredBlobBytes else{throw CocoaError(.fileReadTooLarge)}
-                guard active,generation==identity,menuGeneration==navigation,!confirmingQuit,!cancellation.isCancelled else{return}
-                // Clear this read's busy state before the controller's live-menu gate.
-                busy=false;presentStoredBlob(bytes,entry)
-            } catch {if active,generation==identity,!cancellation.isCancelled{self.error=error.localizedDescription}}
+                try validateAccess();try cancellation.check()
+                let content:ComparisonFileContent?,bytes:Data?
+                switch kind {
+                case .materialized:
+                    if let fileReader {content=try await fileReader(snapshot,entry,cancellation)}
+                    else {content=try await repository.materializedRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation,backend:backend)}
+                    bytes=nil
+                case .stored:
+                    if let storedReader {content=try await storedReader(snapshot,entry,cancellation)}
+                    else {content=try await repository.storedRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation)}
+                    bytes=nil
+                case .inspection:
+                    if let blobReader {bytes=try await blobReader(snapshot,entry,cancellation)}
+                    else {bytes=try await repository.storedRepositoryBrowserBlob(snapshot,entry:entry,cancellation:cancellation)}
+                    guard (bytes?.count ?? 0)<=Self.maximumStoredBlobBytes else{throw CocoaError(.fileReadTooLarge)}
+                    content=nil
+                }
+                guard openRequest==request,acceptsFileContext(context) else{return}
+                // Transfer synchronously: chooser/preview ownership starts before
+                // this request's accounting or captured access lease can release.
+                busy=false;presentedFileContext=context;fileDeliveryCancellation=cancellation
+                defer {
+                    presentedFileContext=nil
+                    if !handlingFile {finishFileDelivery(cancellation)}
+                }
+                if let content,let action {presentFile(content,action)}
+                else if let bytes {presentStoredBlob(bytes,entry)}
+            }catch{
+                if openRequest==request,acceptsFileContext(context){self.error=error.localizedDescription}
+            }
         }
     }
     func dragProvider(_ entry: RepositoryBrowserEntry? = nil, directory: String? = nil) -> NSItemProvider? {

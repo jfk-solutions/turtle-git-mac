@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-native-passed-both-git-engines-signed-acceptance-separate",
+  "scope": "Working-file comparison intent/repository ownership and Browser materialization-to-presentation lifetime",
+  "fixture": "docs/qa/file-comparison-browser-ownership-native-2026-10-29.swift",
+  "runner": "scripts/test-file-comparison-browser-ownership.py",
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/file-comparison-browser-debug-repair-2026-10-29.log",
+      "known_exit_zero_diagnostic_entries": 10,
+      "failed_attempt": {
+        "exit": 65,
+        "log": "build/qa/file-comparison-browser-debug-2026-10-29.log",
+        "repair": "Root Rebase callbacks use its revisionMenuLog.confirmingQuit gate; RebaseWindowModel has no direct confirmingQuit property."
+      }
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/file-comparison-browser-native-path-repair-2026-10-29.log",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receiver_pids": [
+        75837,
+        76352
+      ]
+    },
+    "regressions": [
+      {
+        "argv": [
+          "python3",
+          "scripts/test-browser-file-actions.py",
+          "--only",
+          "source",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "log": "build/qa/file-comparison-browser-files-regression-repair-2026-10-29.log",
+        "exit": 0,
+        "seconds": 11.87
+      },
+      {
+        "argv": [
+          "python3",
+          "scripts/test-add-revert-file-flow.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "log": "build/qa/file-comparison-add-revert-regression-2026-10-29.log",
+        "exit": 0,
+        "seconds": 11.68
+      },
+      {
+        "argv": [
+          "python3",
+          "scripts/test-replay-inspection-native.py",
+          "--only",
+          "replay",
+          "--only",
+          "resolve",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "log": "build/qa/file-comparison-replay-resolve-regression-2026-10-29.log",
+        "exit": 0,
+        "seconds": 67.91
+      }
+    ],
+    "failed_regression_attempt": {
+      "log": "build/qa/file-comparison-browser-files-regression-2026-10-29.log",
+      "receiver_pid": 76887,
+      "failure": "Existing injected Cancel/stale panel assertions expected synchronous owner release. Await actual sheet/task drain before original no-write/no-launch/duplicate checks; no production change."
+    },
+    "core": {
+      "repeated": false,
+      "reason": "No Core implementation changes in this native intent/owner family."
+    },
+    "hosted_ci": "No complete hosted pass on this source claimed",
+    "signed_installation": "This source family is newer than signed candidate29 and installed27.",
+    "resources": {
+      "localizations": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1325
+      },
+      "help": {
+        "exit": 0,
+        "documents": 60,
+        "topics": 51,
+        "files": 92,
+        "bytes": 8727066
+      },
+      "site_docs": {
+        "exit": 0,
+        "tests": 2,
+        "seconds": 1.97
+      },
+      "dialog_ledger_reconciled": true
+    }
+  },
+  "limits": [
+    "No physical native gesture, signed deployment, complete hosted CI or whole-port parity claim.",
+    "Delayed reads use actual private historical content; injected gates alter timing and cancellation delivery only.",
+    "All windows and sheets remain invisible/offscreen, and the runner verifies receiver reaping and strict helper cleanup.",
+    "Native menu/primary targets and local model comparison callbacks are exercised; no synthetic pointer gesture is claimed."
+  ],
+  "attempts": [
+    {
+      "log": "build/qa/file-comparison-browser-native-2026-10-29.log",
+      "result": "failed at native Browser primary launch settlement",
+      "receiver_pid": 75374,
+      "cleanup": "Owned receiver reaped; strict helper cleanup verified.",
+      "scope": "Browser prefix through picker cancellation executed. Working-file/root/sibling cases execute after Browser and were not reached.",
+      "repair": "Fixture application assertion now uses exact standardized UTF8 filesystem path identity, preserving documents/arguments/byte assertions. Production reconstructs a .app URL from its path after directory creation; directory-hint URL representation is not filesystem identity. Added bounded dynamic action/read/presentation diagnostics. No production change or test reexecution by fixture owner."
+    },
+    {
+      "log": "build/qa/file-comparison-browser-native-url-repair-2026-10-29.log",
+      "result": "failed at actual workspace root-settlement wait",
+      "receiver_pid": 75582,
+      "cleanup": "Owned receiver reaped; strict helper cleanup verified.",
+      "scope": "Complete Browser prefix including actual panels and held writer reached Working Tree setup; working/sibling assertions were not yet reached.",
+      "repair": "All filesystem URL identity assertions now use exact symlink-resolved standardized UTF8 filesystem path equality (including macOS /var versus /private/var aliases), preserving nil refusal and source/preferences/backend/content assertions. Source inspection confirms Root discovery produces a directory URL, whose directory hint need not equal the pre-creation fixture URL. The failed wait did not record its final actual root/busy/error state, so the causal diagnosis remains bounded until recheck; new dynamic workspace root/path/URL/pending/error/entry diagnostics retain those facts on failure. Application launch retains separate exact standardized UTF8 app path comparison. No production change or test reexecution by fixture owner."
+    }
+  ],
+  "source_parent": "adbf6be764d58bfad06f202e54a1b3fd0ae5feb3",
+  "validated_assertions": [
+    "Actual Browser contents table selection and NSMenuItem Save dispatch reserve read ownership; normal/changed/retired source delivery is fenced by exact captured context.",
+    "Read-to-panel transfer retains backend, editor settings, entry, action and continuous actual AppDelegate Quit refusal; panel cancellation admits no write/helper.",
+    "Explicit Cancel keeps busy and worker/Quit ownership until actual held read drains; requested revision change and Close suppress late panel/error.",
+    "Actual Browser native doubleAction target receives selected historical source and launches injected application request with exact bytes; Open With cancellation launches nothing.",
+    "Actual native Save/Open With sheets detach from explicit Cancel or Quit; stale OK replay cannot write/launch. An accepted held writer keeps cancellation and Quit ownership until actual drain.",
+    "Requesting repository A remains two-way despite workspace repository B containing a conflicted same-named literal path; original backend/preferences/source appearance are retained.",
+    "Real Root workspace.open/activate(.status) installs production callbacks. Retained B Working Tree explicit Compare stays B two-way after actual workspace switches to A; primary conflict action reads/presents B conflict without workspace activation. Quit blocks both.",
+    "Actual captured Working Tree comparison owner is invalidated by selection change; held read token is canceled, actual worker drains, no stale viewer or diagnostic appears.",
+    "Actual four-file comparison warning with NumDiffWarning=0 keeps its captured Working Tree owner live during its own invisible sheet; decline tears down before any materialization/viewer.",
+    "Multi-selection retains modified/deleted/untracked/gitlink capabilities; unborn requested file retains empty-tree base.",
+    "Actual Add direct conflict/ordinary primary handlers distinguish Edit Conflict/Preview and reject changed native row metadata and retired owner; Revert explicit Compare and primary conflict routes remain distinct.",
+    "Actual Resolve and Replay file-menu callbacks capture source authority during their own busy request, retain it after drain, permanently reject a later request and changed selection.",
+    "Private HEAD/index/working bytes remain unchanged by inspections; every owned window/sheet closes, workers drain and helpers/receiver are reaped."
+  ],
+  "cleanup": {
+    "receiver_pids": [
+      75374,
+      75582,
+      75837,
+      76352,
+      76887,
+      77022,
+      77133,
+      77253,
+      77322,
+      77406,
+      78704,
+      80010,
+      80400
+    ],
+    "all_reaped": true,
+    "scope": "Private repositories/preferences/Finder snapshot and comparison-mark stores; invisible/offscreen owned windows/sheets, read/launch/write holds released, worker drain and strict owned helper cleanup; user-owned installed app retained."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/RepositoryModel.swift": "737a6ba450817b2552ba2208726753bdc22691367da88db240add41e0b086fb7",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "28a4c5321e0d0bf3b461344b2addb430c66b13b89d5a914f895982bf1fb2bd66",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "0eb3ea033ab217cda59480880baf0a33336746e0cdd470bec469a4b8fa3c2b8f",
+    "Sources/TurtleGitMac/StatusWindow.swift": "769b8eda63741c44d2eb87bb5ebed09fa1e782b2a1cb6ddb6695323e9bda1a87",
+    "Sources/TurtleGitMac/RevertWindow.swift": "f570773c04487f68274b338893b81d5cdc3beb646a49819c92b3daa43fa81074",
+    "Sources/TurtleGitMac/AddWindow.swift": "c59c23736da0a7f8959f8473b3691352b31989d3cfc5fde07faa19a9a4e36dff",
+    "Sources/TurtleGitMac/AddFileTable.swift": "7a5d3f46f63dcdd8ed7bff5a9e257d2dce02a885f0193fc7e2d735db51aaa519",
+    "Sources/TurtleGitMac/CommitWindow.swift": "1c072d872defb56afef5de50e40ba9fcd6dbae862fa9291a73159c1baad4f047",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "9456b5507f73ac459e1f063b523440f33e37bdca35ccddf560a0b29dd43eae55",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "d4d6da97b2a4338d780d828c99f3efac1c919f3019a491af0e3bfd792c045eff",
+    "docs/qa/file-comparison-browser-ownership-native-2026-10-29.swift": "95c2a99a8f195b3d6ce9c1df12ebec26b3f99e703435ec95daf3ce80d04a2d93",
+    "scripts/test-file-comparison-browser-ownership.py": "9aabaf2259d23e7f8584b4d6f310aeeb7191dc0d165a16d8032a9c0d4e35bfbe",
+    "docs/qa/browser-file-actions-native-2026-10-17.swift": "a81392ea8dc6a9637a6cdc86fa081374b666c8ed2326d9f26948b3c6bdd7f29c"
+  },
+  "remaining_content_selection": "Core workingFileComparison still filters unchanged explicitly selected files; source StartDiff normal-file and Amend/Added base rules need their next connected content-selection batch.",
+  "prior_hosted_evidence": {
+    "run": 40781174821,
+    "job": 123157980063,
+    "head": "1b9a97cc1ca68c5b85e8c5a44a9d0bcb6f07fba2",
+    "status": "completed",
+    "conclusion": "failure",
+    "core_tests": 3201,
+    "core_skips": 2,
+    "core_failures": 0,
+    "native_failure": "Initial empty read did not show loading",
+    "existing_later_repair": "docs/qa/commit-loading-caption-2026-10-29.json",
+    "scope": "Prior source full Core pass followed by known outdated caption assertion; not a hosted pass on the current source."
+  }
+}

@@ -726,6 +726,7 @@ struct RebaseReferenceRequest {
     @Published private(set) var preparingConflictFiles = false
     private var conflictFileCancellation: OperationCancellation?
     private var conflictMenuGeneration = UUID()
+    private var conflictComparisonEpoch=UUID()
     var onConflictAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     @Published var conflictPatch: String?
     @Published var selectedFiles = Set<String>()
@@ -1142,6 +1143,25 @@ struct RebaseReferenceRequest {
         let rows = conflictTableRows.map(\.entry).filter { ids.contains($0.id) }
         return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{GitReferenceName.equal($0.id,id)}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
     }
+    func captureComparisonOwner(paths:[String])->()->Bool {
+        let requested=GitPathSet(paths),menu=conflictFileMenu(paths),selection=selectedConflicts
+        let records=conflictRows.enumerated().compactMap {index,entry in requested.contains(entry.path) ? (index,entry):nil}
+        let conflictRecords=conflicts.enumerated().compactMap {index,entry in requested.contains(entry.path) ? (index,entry):nil}
+        let request=conflictFileCancellation,comparisonEpoch=conflictComparisonEpoch
+        let complete = !requested.isEmpty && records.count==requested.count
+        return { [weak self] in
+            guard let self,complete,!self.retired,!self.revisionMenuLog.confirmingQuit,self.fileRecovery,
+                self.pendingConfirmation==nil,self.confirmation==nil,!self.hasReplayQuestion,!self.selectingSplit,
+                !self.viewingConflictBase,!self.preparingConflictDiff,!self.refreshingSession,!self.revisionFiles.busy,
+                self.conflictComparisonEpoch==comparisonEpoch,self.conflictMenuGeneration==menu.generation,self.conflictIdentity==menu.identity,self.conflictHead==menu.head,
+                self.selectedConflicts==selection,request?.isCancelled != true else{return false}
+            // The callback is invoked before its original menu request drains.
+            // That specific busy interval is allowed, never a later operation.
+            guard !self.busy || request != nil && self.conflictFileCancellation === request else{return false}
+            return records.allSatisfy {index,entry in self.conflictRows.indices.contains(index) && self.conflictRows[index]==entry} &&
+                conflictRecords.allSatisfy {index,entry in self.conflicts.indices.contains(index) && self.conflicts[index]==entry}
+        }
+    }
     private func acceptsConflictFileMenu(_ menu: ConflictFileMenu, duringRequest: Bool = false) -> Bool {
         !retired && pendingConfirmation == nil && (duringRequest || !busy) && !viewingConflictBase && !selectingSplit && fileRecovery &&
         menu.generation == conflictMenuGeneration && menu.identity == conflictIdentity && menu.head == conflictHead &&
@@ -1180,6 +1200,7 @@ struct RebaseReferenceRequest {
     private func runConflictFileMenu(_ menu: ConflictFileMenu, operation: @escaping (OperationCancellation) async throws -> Void) {
         guard acceptsConflictFileMenu(menu) else { return }
         let alternate=ComparisonToolInvocation.capture
+        conflictComparisonEpoch=UUID()
         let token = OperationCancellation(); conflictFileCancellation = token; preparingConflictFiles = true; cancellingPreparation = false; busy = true; error = nil
         Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
