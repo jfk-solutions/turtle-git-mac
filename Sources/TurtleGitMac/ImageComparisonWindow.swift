@@ -22,6 +22,9 @@ import TurtleGitCore
     @Published var nativeToolbarInstalled = false
     var commandsAllowed: () -> Bool = { true }
     static private(set) var activeFileReads = 0
+    private(set) var activeDropReads = 0
+    var hasPendingFileRead:Bool {activeDropReads > 0}
+    @Published var titleOverrides:[Bool:String] = [:]
     @Published private(set) var receivingDrop = false
     @Published private(set) var droppedFiles: [Bool:ComparisonFileContent] = [:]
     @Published private(set) var dropError: String?
@@ -55,10 +58,10 @@ import TurtleGitCore
         }
         let token = OperationCancellation(),generation = UUID(),read = readDroppedFile,decode=decodeDroppedImage
         dropCancellation = token;dropGeneration = generation;receivingDrop = true;dropError = nil;stopImageTimers()
-        Self.activeFileReads += 1
+        Self.activeFileReads += 1;activeDropReads += 1
         Task { [self] in
             defer {
-                Self.activeFileReads -= 1;withExtendedLifetime(permission) {}
+                Self.activeFileReads -= 1;activeDropReads -= 1;withExtendedLifetime(permission) {}
                 if dropGeneration == generation {dropCancellation = nil;receivingDrop = false}
             }
             do {
@@ -398,7 +401,7 @@ import TurtleGitCore
         let heading = (content.path.isEmpty ? (base ? "Left image":"Right image"):content.path) + " — " + content.revision.label
         let tooltip = heading + "\n" + model.information(base:base,bytes:content.bytes.count).joined(separator:"\n") + (model.overlay ? "\n\n" + (model.droppedFiles[false]?.path ?? document.destination.path) + "\n" + model.information(base:false,bytes:document.destination.bytes.count).joined(separator:"\n"):"")
         return VStack(alignment: .leading, spacing: 0) {
-            Text((content.path.isEmpty ? (base ? "Left image" : "Right image") : content.path) + " — " + content.revision.label).font(.caption).lineLimit(1).truncationMode(.middle)
+            Text(model.droppedFiles[base] == nil ? (model.titleOverrides[base] ?? heading) : heading).font(.caption).lineLimit(1).truncationMode(.middle)
                 .help(tooltip)
                 .padding(7).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .controlBackgroundColor))
             ImageFrameControls(model: model, base: base, label: base ? "Base" : "Second image")

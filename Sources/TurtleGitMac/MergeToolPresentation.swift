@@ -179,11 +179,13 @@ enum NativeDialogStartupTrace {
 /// but malformed Merge request still belongs to the tool, so its error exits
 /// without briefly opening a repository workspace.
 enum TurtleGitLaunchMode: Equatable {
-    case workspace, mergeTool, unifiedDiff, actionOnly
+    case workspace, mergeTool, imageTool, unifiedDiff, actionOnly
     static func resolve(arguments: [String], currentDirectory: String) -> Self {
         // Recognize malformed private envelopes too, so they report an action
         // error instead of accidentally becoming a default workspace launch.
         if arguments.contains(FinderActionDelivery.argumentFlag) { return .actionOnly }
+        do { if try ImageToolInvocation.parse(arguments:arguments,currentDirectory:currentDirectory) != nil {return .imageTool} }
+        catch {return .imageTool}
         do { if try UnifiedDiffInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) != nil { return .unifiedDiff } }
         catch { return .unifiedDiff }
         do { if try MergeToolInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) != nil { return .mergeTool } }

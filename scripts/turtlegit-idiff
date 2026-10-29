@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+if [ -n "${TURTLEGIT_IDIFF_EXECUTABLE:-}" ]; then
+    task_image_binary=$TURTLEGIT_IDIFF_EXECUTABLE
+else
+    task_image_app=${TURTLEGIT_APP:-/Applications/TurtleGit for Mac.app}
+    task_image_binary=$task_image_app/Contents/MacOS/TurtleGitMac
+fi
+if [ ! -x "$task_image_binary" ]; then
+    printf 'TurtleGitIDiff executable not found: %s\n' "$task_image_binary" >&2
+    exit 127
+fi
+exec "$task_image_binary" --image-tool "$@"

@@ -1,5 +1,9 @@
 # Native dialog command-line entry
 
+For local image comparison and three-image selection, use the dedicated
+[`turtlegit-idiff` entry](IMAGE-TOOL.md). It opens image tools without a repository
+workspace and documents its waiting caller and selected-side return values.
+
 TurtleGit accepts the primary TortoiseProc dialog commands through its macOS app
 executable. These open the existing native dialogs with the same Git operations,
 menus, original command icons, review steps and cancellation ownership as normal

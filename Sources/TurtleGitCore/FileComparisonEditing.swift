@@ -766,7 +766,16 @@ extension GitRepository {
         guard allowUnresolvedConflicts || !receipt.unresolvedConflicts else { throw TextConflictFailure.markers }
         try publishSavedMergeOutput(receipt, resolving: true, cancellation: cancellation)
     }
-    private func publishSavedMergeOutput(_ receipt: MergeSavedOutputReceipt, resolving: Bool, cancellation: OperationCancellation?) throws {
+    /// Explicit image selection resolves original binary container bytes. Its
+    /// conflict-stage witness is rechecked in the private captured index before
+    /// Add, without treating image data as text or inferring marker consent.
+    public func resolveSelectedImageOutput(_ target:MergeToolOutputTarget,expectedConflict:ConflictEntry,cancellation:OperationCancellation?=nil)throws {
+        try cancellation?.check();try target.validate()
+        guard !target.content.isDeleted else {throw FileComparisonEditFailure.unsupported}
+        let receipt=try MergeSavedOutputReceipt.capture(after:target.content,at:target.url)
+        try publishSavedMergeOutput(receipt,resolving:true,expectedConflict:expectedConflict,cancellation:cancellation)
+    }
+    private func publishSavedMergeOutput(_ receipt: MergeSavedOutputReceipt, resolving: Bool, expectedConflict:ConflictEntry?=nil, cancellation: OperationCancellation?) throws {
         try cancellation?.check()
         let prefix = root.standardizedFileURL.path + "/", location = receipt.url.standardizedFileURL.path
         guard location.utf8.starts(with: prefix.utf8), RepositoryAccessLease.pathIsContained(receipt.url, by: root) else { throw FileComparisonEditFailure.unsupported }
@@ -794,6 +803,17 @@ extension GitRepository {
         else { _ = try run(["read-tree", "--empty"], environmentOverrides: environment, cancellation: cancellation) }
         _ = try run(["-c", "core.splitIndex=false", "update-index", "--no-split-index"], environmentOverrides: environment, cancellation: cancellation)
         let prior = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout
+        if let expectedConflict {
+            guard resolving,GitReferenceName.equal(expectedConflict.path,path),!expectedConflict.stages.isEmpty,
+                  Set(expectedConflict.stages.map(\.number)).count==expectedConflict.stages.count,
+                  expectedConflict.stages.allSatisfy({(1...3).contains($0.number) && ["100644","100755"].contains($0.mode)}) else {throw ResolveFailure.stale}
+            var expected=Data()
+            for stage in expectedConflict.stages.sorted(by:{$0.number<$1.number}) {
+                expected.append(Data((stage.mode+" "+stage.object+" "+String(stage.number)+"\t").utf8))
+                expected.append(Data(path.utf8));expected.append(0)
+            }
+            guard prior==expected else {throw ResolveFailure.stale}
+        }
         try receipt.validate()
         let arguments = ["add"] + (resolving ? ["-f"] : []) + ["--pathspec-from-file=-", "--pathspec-file-nul"]
         _ = try run(arguments, environmentOverrides: environment, cancellation: cancellation, input: literalPathPacket([path]))

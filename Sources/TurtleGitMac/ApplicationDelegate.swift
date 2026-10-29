@@ -164,7 +164,7 @@ import TurtleGitCore
         guard acceptingOpenURLs,!finderServicesProvider.retired,!confirmingQuit else {throw TurtleGitFinderServicesProvider.Failure.unavailable}
         guard let command=FinderServiceCommand(rawValue:request.action.rawValue) else {throw TurtleGitFinderServicesProvider.Failure.command}
         let captured=try command.request(paths:request.paths,alternateTool:request.alternateTool)
-        if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff {
+        if startupLaunchMode == .mergeTool || startupLaunchMode == .imageTool || startupLaunchMode == .unifiedDiff {
             workspaceOpenHandoff.submit([try command.serviceURL(paths:captured.paths,alternateTool:captured.alternateTool)]);return
         }
         guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
@@ -264,7 +264,7 @@ import TurtleGitCore
     func application(_ application: NSApplication, open urls: [URL]) {
         guard acceptingOpenURLs else { return }
         if urls.contains(where: WorkspaceOpenHandoff.accepts) { receivedExternalLaunchIntent = true }
-        if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit(urls) }
+        if startupLaunchMode == .mergeTool || startupLaunchMode == .imageTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit(urls) }
         else {
             for url in urls {
                 if let delivery = FinderActionDelivery(url: url) {
@@ -591,14 +591,14 @@ import TurtleGitCore
               generalApplicationConfigured || startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
         // Empty/default workspace launch can present its native host first.
         // Actual CLI/tool reads wait without blocking the application event loop.
-        if !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
+        if startupLaunchMode != .imageTool && !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
             guard configurationReadsReady() else { return }
         }
         startupDelivered = true
         if startupArguments.contains(FinderActionDelivery.argumentFlag) {
             receivedExternalLaunchIntent = true
             if let delivery = FinderActionDelivery.parse(arguments: startupArguments) {
-                if startupLaunchMode == .mergeTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit([delivery.url]) }
+                if startupLaunchMode == .mergeTool || startupLaunchMode == .imageTool || startupLaunchMode == .unifiedDiff { workspaceOpenHandoff.submit([delivery.url]) }
                 else { acceptFinderAction(delivery) }
             } else { pendingFinderServiceError = FinderActionLaunchFailure.invalid.localizedDescription }
             deliverPendingOpenURLs(); deliverPendingFinderService(); return
@@ -606,6 +606,10 @@ import TurtleGitCore
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {
           if startupArguments == ["--turtlegit-action-only"] {deliverPendingOpenURLs();deliverPendingFinderService();return}
+          if startupLaunchMode == .imageTool {
+            startupMergeToolActive=repositoryModel.handleImageToolCommandLine(arguments:startupArguments,currentDirectory:startupDirectory,completion:{[weak self] status in self?.finishMergeToolStartup(status)})
+            return
+          }
           if startupLaunchMode == .unifiedDiff {
             // Unified Diff uses ordinary document Quit decisions. The Merge
             // flag instead drains MergeToolLaunchSession's accepted outputs.
@@ -806,6 +810,7 @@ import TurtleGitCore
         if sender.windows.compactMap({ $0.delegate as? ImageLoadWindowController }).contains(where: { !$0.retired }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CommitWindowController }).contains(where: { $0.hasMessagePicker || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? ImageConflictWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if ImageSelectionWindowModel.activeOperations > 0 || sender.windows.compactMap({$0.delegate as? ImageSelectionWindowController}).contains(where:{$0.model.hasPendingWork || $0.model.busy || $0.window?.attachedSheet != nil}) {return .terminateCancel}
         if sender.windows.compactMap({ $0.delegate as? RemoteSettingsWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({$0.delegate as? AddRemoteWindowController}).contains(where:{$0.model.error != nil || $0.window?.attachedSheet != nil}) || sender.windows.compactMap({$0.delegate as? RemoteReferenceWindowController}).contains(where:{$0.model.error != nil || $0.window?.attachedSheet != nil}) {return .terminateCancel}
         if sender.windows.compactMap({ $0.delegate as? RemoteTagWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }

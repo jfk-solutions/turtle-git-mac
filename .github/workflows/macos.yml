@@ -512,6 +512,8 @@ jobs:
         run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Standalone local image entry and three-image selection
+        run: python3 scripts/test-image-tool-selection.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: EMF+ serialized image effects and native consumer ownership
         run: python3 scripts/test-metafile-image-effects.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: WMF and EMF native comparison consumers and colors

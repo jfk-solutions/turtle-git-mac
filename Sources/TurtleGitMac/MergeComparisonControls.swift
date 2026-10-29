@@ -1099,6 +1099,13 @@ enum MergeUnresolvedSaveChoice: Sendable {
         try await addOutput(authorized.0,receipt,cancellation)
         return authorized.1
     }
+    /// Discover/read an already saved image's conflict state only after the
+    /// same repository and linked-metadata authority used for explicit Resolve.
+    func prepareSavedResolution(file:URL,permissions:[RepositoryAccessLease],window:NSWindow?,cancellation:OperationCancellation) async throws -> (GitRepository,[RepositoryAccessLease])? {
+        guard let authority=try await authorize(file:file,repository:nil,permissions:permissions,window:window,action:.resolve,cancellation:cancellation) else{return nil}
+        guard case let .repository(repository,acquired)=authority else{return nil}
+        return (repository,acquired)
+    }
     func resolveSaved(_ receipt: MergeSavedOutputReceipt, repository: GitRepository? = nil,
         permissions: [RepositoryAccessLease], window: NSWindow?, allowUnresolvedConflicts: Bool = false,
         cancellation: OperationCancellation, validate: (() throws -> Void)? = nil) async throws -> (permissions: [RepositoryAccessLease], repository: GitRepository)? {

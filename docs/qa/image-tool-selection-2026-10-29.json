@@ -1,0 +1,208 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "e0ba6688321276e2c65abb603cc71a96b897efc3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Standalone two-image local entry, native chooser and owned replacement",
+    "Mine/Base/Theirs image selection with original container bytes, captured input/output replacement and side return values",
+    "Optional binary-safe Git conflict resolution after accepted copy, scoped authority and cancellation/cleanup drain"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "b29a4b3683a9469ecab0c4ca1ecf7a88aa344026fcd8a114beb505368bbf2efe",
+    "Sources/TurtleGitCore/ImageSelectionDocument.swift": "4c25fb8e5acfac4315d0cabf874a4744a676cff6edb55728808ca2fd450c07bb",
+    "Sources/TurtleGitCore/ImageToolInvocation.swift": "9789a6a87675b77724121600c6e8f572a317ac9313cbc1ef3ae01b9f8b6c4327",
+    "Sources/TurtleGitCore/MergeToolInvocation.swift": "44af547af55f9a244b86932ef67e4d3129bd4cb9f9b1d3bcd02aca5e1b2756f6",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "5944bc4f158f2e278ed2668b38db62435bca4d866aa5af8b09a086c6946aaf00",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "d75258c8a53a0cc2f2a6b284f6fde37e14646bc45d6d6bd8e471514427b8e644",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "6ee4630f04435c80e9cac6c2b2e02eec9d05c40b112dca5cbec9919a757dc3f6",
+    "Sources/TurtleGitMac/ImageConflictWindow.swift": "9f382dda813c8db39e29cbc98cae1494eee19de4015710ad8f526d090165a0b2",
+    "Sources/TurtleGitMac/ImageEditorToolbar.swift": "48b7e79568ed59df8e990a6f2e7fd1ec93960f568ecbb7f5b27679e8683b2e4d",
+    "Sources/TurtleGitMac/ImageSelectionWindow.swift": "5b97cbf7c3e053c90668970941e89817cc9be15852f5344cd54443476ecf41a6",
+    "Sources/TurtleGitMac/ImageToolLaunchSession.swift": "2a0d42cc23acd24c4152a81813188034953e9e06299b21d2d40fc6ea2ba6e6c8",
+    "Sources/TurtleGitMac/ImageToolPresentation.swift": "ba9bf327b81d014e7924cd0376b8c55d53a878f4d8b5dfa59e7880de38f3ad94",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "f50efa6a3a237fd1a8f41a4e0a8576de9d990e7aa6639232d72a1cd238e1f406",
+    "Sources/TurtleGitMac/MergeToolPresentation.swift": "f3b4fc6d1e1c1f76aba46f7058ba4fb3e6b1e1a1c5afdecce5f32df3543a4c4b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e6dd04592ea36920a644cdbe9adaa566f517f4e44b260fd10b9a9413cfb7e716",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "b0023902dadcbe8d47ef8f4f62731ce624e54c0319585898da343e13bd6f9bf9",
+    "Tests/TurtleGitCoreTests/ImageSelectionDocumentTests.swift": "b28b9302e500e6bdf3737a128db9c356ba118a55960e04589d07606dba86e378",
+    "Tests/TurtleGitCoreTests/ImageSelectionResolveTests.swift": "eef9468682d2364b3893481673b81462b3a9c577aa9bba06ab1cf10cf7a25d0d",
+    "Tests/TurtleGitCoreTests/ImageToolInvocationTests.swift": "943c23e98889d224f2e8b15a56753b8dec08268d58399bca89d109daa1027072",
+    "docs/qa/image-tool-selection-native-2026-10-29.swift": "a1d75e296a8189fda3d827bd02e7f0a068850e6d19d0296ef41ab510baa10b38",
+    "scripts/test-image-command-family.py": "fdd4c4dcc5749bc792a438afac326b869a43eb9eb90868ed6716fd06703b3430",
+    "scripts/test-image-tool-selection.py": "18a67b098dbd27ab840067c4df7a293b4aaf0875cb025ad01e8d709ba7bc96a8",
+    "scripts/turtlegit-idiff": "61aeba05cf5a7ac30c93e02535ab1b3a61f8b53f74d55003b2b7517a1dd17d46"
+  },
+  "core": {
+    "methods": 37,
+    "failures": 0,
+    "log": "build/qa/image-tool-selection-core-2026-10-29.log",
+    "scope": [
+      "ImageToolInvocationTests",
+      "ImageSelectionDocumentTests",
+      "ImageSelectionResolveTests",
+      "MergeToolInvocationTests",
+      "MergeNewOutputSaveTests"
+    ],
+    "rerun_after_native_only_repairs": false
+  },
+  "native": {
+    "assertions_removed": false,
+    "prior_affected_image_consumers": {
+      "cases": [
+        "toolbar",
+        "conflict",
+        "drop"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "passes": 6,
+      "receivers_reaped": [
+        68979,
+        69074,
+        69243,
+        69244,
+        69333,
+        69455
+      ],
+      "log": "build/qa/image-tool-selection-image-regression-2026-10-29.log",
+      "timing": "Passed on initial compiled native source before later selection Quit guard, original-path tooltip and dedicated standalone title/Open repairs; existing default routes unchanged."
+    },
+    "repair_history": [
+      {
+        "attempt": "native",
+        "result": "fixture compile failed: private helper type exposed by provider; no receiver launched"
+      },
+      {
+        "attempt": "native-fixture-access-recheck",
+        "result": "fixture compile failed: provider inaccessible to enclosing fixture; no receiver launched"
+      },
+      {
+        "attempt": "native-fixture-fileprivate-recheck",
+        "receiver_reaped": 68981,
+        "result": "Actual selection color-sheet Quit guard missing; product guard added"
+      },
+      {
+        "attempt": "native-quit-recheck",
+        "receiver_reaped": 70036,
+        "result": "Fixture NSBitmap.setColor produced identical colors; replaced fixture source construction with actual raw RGBA pixels and distinct input assertion"
+      },
+      {
+        "attempt": "native-source-pixels-recheck",
+        "receiver_reaped": 70213,
+        "result": "Selection, ownership and four real Git cases reached launch2; actual async load reset title and Open continuation; model-owned captions and continuation added"
+      },
+      {
+        "attempt": "native-title-recheck",
+        "receiver_reaped": 71023,
+        "result": "Titles/flags passed. Menu-owner timeout isolated to inactive invisible receiver having no real key window under either prohibited or accessory activation policies. Product owner guard retained; receiver-only key witness used for menu ownership assertions."
+      },
+      {
+        "attempt": "native-key-witness-recheck",
+        "receiver_reaped": 71730,
+        "result": "Earlier toolbar menu sampled stale enabled state immediately after reload; actual NSMenu.update plus bounded native-enabled wait added, same source icon/target/action assertions retained. Key witness narrowed to the specific launch menu-owner scope."
+      },
+      {
+        "attempt": "native-menu-ready-recheck",
+        "receiver_reaped": 71981,
+        "result": "Original assertions reached launch key-owner timeout even with correct injected key; preserved for focused predicate isolation."
+      },
+      {
+        "attempt": "native-launch-predicates",
+        "receiver_reaped": 72329,
+        "result": "Focused launches only. Exact key identity/visibility/modal/sheet/owner predicates valid; comparison pending eventually drained but context awaited app update. Async test receiver lacks normal NSApplication.run update cycle; native update delivery tested next, with no source guard change."
+      },
+      {
+        "attempt": "native-launch-update-recheck",
+        "receiver_reaped": 72558,
+        "result": "Focused native AppKit update delivered initial readiness and foreign-owner refusal; restored-owner assertion required same normal app-update delivery after that injected key change. No product edits."
+      }
+    ],
+    "key_ownership_scope": "Inactive invisible receivers inject a key-window witness/native key notifications and explicitly deliver NSApp.updateWindows lifecycle for menu gating. Production owner guards unchanged; physical desktop focus remains separate.",
+    "focused_launch_repair": {
+      "log": "build/qa/image-tool-selection-native-launch-update-cycle-recheck-2026-10-29.log",
+      "exit": 0,
+      "receiver_reaped": 72756,
+      "scope": "Only launches, system Git. Final full both-engine result recorded separately.",
+      "injection": "Receiver-only key witness/native notifications and explicit NSApp.updateWindows lifecycle; production unchanged."
+    },
+    "final": {
+      "log": "build/qa/image-tool-selection-native-final-2026-10-29.log",
+      "exit": 0,
+      "scope": "Complete default native workflow, including actual Git conflict resolution and local image entry/selection",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receivers_reaped": [
+        72815,
+        73011
+      ],
+      "content_captures": "docs/qa/image-tool-selection-captures-2026-10-29.json",
+      "physical_focus_acceptance": false,
+      "signed_permission_panel_acceptance": false
+    }
+  },
+  "limitations": [
+    "No full hosted CI pass inferred",
+    "No installed-build or signed/physical permission-panel acceptance inferred",
+    "Content captures exclude native frame and toolbar",
+    "Symbolic-link inputs/results, partial two-role selection and Windows HWND notifications remain explicit boundaries",
+    "Report-header context-menu icon gaps remain queued"
+  ],
+  "installed_app": {
+    "version": "0.1.0",
+    "build": "33",
+    "unchanged_by_this_batch": true,
+    "user_process_preserved": 50246,
+    "user_process_still_running": 50246
+  },
+  "builds": [
+    {
+      "log": "build/qa/image-tool-selection-debug-2026-10-29.log",
+      "exit": 65,
+      "cause": "New model grouped @Published declarations; split into separate declarations."
+    },
+    {
+      "log": "build/qa/image-tool-selection-debug-state-recheck-2026-10-29.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-tool-selection-debug-quit-recheck-2026-10-29.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-tool-selection-debug-title-recheck-2026-10-29.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/image-tool-selection-debug-help-final-2026-10-29.log",
+      "exit": 0,
+      "scope": "Resource-only final build after frozen documentation and regenerated Help; product sources unchanged since native pass."
+    }
+  ],
+  "captures_reviewed": {
+    "light": true,
+    "dark": true,
+    "scope": "Actual content-only native panes, captions, Select buttons and output path; excludes frame/toolbar; no physical desktop capture."
+  },
+  "resources": {
+    "help_documents": 61,
+    "help_topics": 51,
+    "help_files": 95,
+    "localization_keys": 1326,
+    "languages": 38,
+    "complete_localization_claimed": false,
+    "dialog_ledger": "130 resource/id pairs, 120 partial family reviews, 10 pending; no certified complete dialogs or feature completion percentage inferred."
+  },
+  "log_sha256": {
+    "build/qa/image-tool-selection-core-2026-10-29.log": "cce12fa3fc5af54e472c6e30c15add9c0c8c0c493755da19310d7214f13cf363",
+    "build/qa/image-tool-selection-image-regression-2026-10-29.log": "36af574f5ca42b50fa4c69ef2537bb70fc62acc6de3fa5a69acda7c63b796ee7",
+    "build/qa/image-tool-selection-native-launch-update-cycle-recheck-2026-10-29.log": "7ca5ad5b91b91e84d7c8854d92e004d10ef735e53cb4819832ad9dd6e468dff5",
+    "build/qa/image-tool-selection-native-final-2026-10-29.log": "bc2905961dd3dc1446747e591bdec617c6dbe78ba580a654e8870828dad7fa27",
+    "build/qa/image-tool-selection-debug-help-final-2026-10-29.log": "d1467cac352c746564ee1376474fb5f9943003c9bdc9dacca9adac037004a49d"
+  },
+  "all_owned_receivers_absent_at_final_process_check": true
+}

@@ -144,16 +144,16 @@ public struct MergeToolOutputTarget:Sendable {
     }
     /// Unified patches may contain arbitrary original bytes. Never decode and
     /// re-encode them merely to write a command-line output.
-    public func save(bytes:Data,options:MergeFileSaveOptions = .init(),cancellation:OperationCancellation?=nil)throws->Self {
-        try write(bytes:bytes,encoding:nil,options:options,cancellation:cancellation)
+    public func save(bytes:Data,options:MergeFileSaveOptions = .init(),cancellation:OperationCancellation?=nil,validatingInputs:(()throws->Void)?=nil)throws->Self {
+        try write(bytes:bytes,encoding:nil,options:options,cancellation:cancellation,validatingInputs:validatingInputs)
     }
-    private func write(bytes:Data,encoding:ComparisonTextEncoding?,options:MergeFileSaveOptions,cancellation:OperationCancellation?)throws->Self {
-        try cancellation?.check(); try validate()
+    private func write(bytes:Data,encoding:ComparisonTextEncoding?,options:MergeFileSaveOptions,cancellation:OperationCancellation?,validatingInputs:(()throws->Void)?=nil)throws->Self {
+        try cancellation?.check(); try validate();try validatingInputs?()
         guard options.emptyResult != .delete || bytes.isEmpty else{throw MergeFileSaveFailure.nonemptyDeletion}
         guard !MergePaneSaveAs.requiresSaveAs(at:url,permissions:content.permissions,absent:content.isDeleted) else{throw FileComparisonEditFailure.readOnly}
         let deleting=options.emptyResult == .delete
         try MergeWorkingFileSave.write(at:url,original:content.isDeleted ? nil:content.bytes,permissions:content.permissions ?? 0o644,bytes:bytes,delete:deleting,backup:options.backupOriginal,outputDirectories:options.outputDirectories) {
-            try cancellation?.check(); try validate()
+            try cancellation?.check(); try validate();try validatingInputs?()
         }
         // Publication has succeeded. Always return its owned receipt, even if
         // cancellation arrives now; callers must adopt a completed disk write.

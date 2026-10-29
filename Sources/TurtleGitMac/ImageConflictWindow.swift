@@ -243,7 +243,7 @@ struct ImageConflictDialog: View {
                           model: model.panes[side]!, info: model.showInfo) { model.select(side) }
     }
 }
-private struct ImageConflictPane: View {
+struct ImageConflictPane: View {
     let side: ImageConflictSide
     let image: ComparisonImage?
     let bytes: Int
@@ -252,19 +252,22 @@ private struct ImageConflictPane: View {
     let emptyBase: Bool
     @ObservedObject var model: ImageComparisonViewModel
     let info: Bool
+    var originalPath:String?=nil
+    var previewNotice="Preview only — Select uses the original conflict revision."
+    var unavailableNotice:String?=nil
     let select: () -> Void
     var body: some View {
         let current = model.currentImage(base: true)
         VStack(spacing: 0) {
-            Text(model.droppedFiles[true]?.path ?? title).font(.caption).lineLimit(1).truncationMode(.middle).help((model.droppedFiles[true]?.path ?? title) + "\n" + model.information(base:true,bytes:bytes).joined(separator:"\n")).padding(7).frame(maxWidth: .infinity).background(Color(nsColor: .controlBackgroundColor))
+            Text(model.droppedFiles[true]?.path ?? title).font(.caption).lineLimit(1).truncationMode(.middle).help((model.droppedFiles[true]?.path ?? originalPath ?? title) + "\n" + model.information(base:true,bytes:bytes).joined(separator:"\n")).padding(7).frame(maxWidth: .infinity).background(Color(nsColor: .controlBackgroundColor))
             ImageFrameControls(model: model, base: true, label: side.rawValue)
             if model.receivingDrop {ProgressView("Loading dropped image…").controlSize(.small).padding(4)}
-            if model.droppedFiles[true] != nil {Text("Preview only — Select uses the original conflict revision.").font(.caption).foregroundStyle(.secondary).padding(4)}
+            if model.droppedFiles[true] != nil {Text(LocalizedStringKey(previewNotice)).font(.caption).foregroundStyle(.secondary).padding(4)}
             if let error = model.dropError {Text(error).font(.caption).foregroundStyle(.red).padding(4)}
             ZStack(alignment: .bottomLeading) {
                 ImageComparisonScroll(model: model, image: current, second: nil, base: true)
                 if current == nil {
-                    Text(emptyBase && model.droppedFiles[true] == nil ? "No base revision — Select copies an empty file" : "Unable to decode image — Select copies the original bytes")
+                    Text(unavailableNotice ?? (emptyBase && model.droppedFiles[true] == nil ? "No base revision — Select copies an empty file" : "Unable to decode image — Select copies the original bytes"))
                         .foregroundStyle(.secondary).multilineTextAlignment(.center).padding(20)
                         .frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)
                 }

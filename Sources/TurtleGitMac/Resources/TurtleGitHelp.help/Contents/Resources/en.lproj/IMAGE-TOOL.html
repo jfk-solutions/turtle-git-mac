@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Use TurtleGitIDiff with local images</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="use-turtlegitidiff-with-local-images">Use TurtleGitIDiff with local images</h1>
+<p>TurtleGitIDiff compares local images and lets you select one of three inputs.
+A Git repository is optional. Run the installed application through the waiting
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/scripts/turtlegit-idiff"><code>scripts/turtlegit-idiff</code></a> wrapper, or invoke
+<code>TurtleGitMac --image-tool</code> directly. The wrapper uses
+<code>/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac</code>; set
+<code>TURTLEGIT_APP</code> or <code>TURTLEGIT_IDIFF_EXECUTABLE</code> for a different local installation.
+It forwards literal arguments and waits for the window and its owned work.</p>
+<h2 id="compare-two-images">Compare two images</h2>
+<pre><code class="language-sh">scripts/turtlegit-idiff --left '/path/original.png' --right '/path/changed.png'
+</code></pre>
+<p>Two positional paths also work. Without files, the native <strong>Load Images</strong> dialog
+lets you choose them. A Base-only request opens that chooser with the file seeded
+as the left input, following the source entry route. Open replaces the current
+comparison in its existing frame. <strong>Left title</strong> and <strong>Right title</strong> arguments
+change captions while the real paths remain in the tooltips and permissions.
+Use <code>--left-title</code>, <code>--right-title</code>, <code>--overlay</code>, <code>--fit</code>, <code>--fit-widths</code>,
+<code>--fit-heights</code> or <code>--show-info</code> for the corresponding comparison presentation.
+The <a href="IMAGE-COMPARISON.html">image controls guide</a> explains zoom, blending, frames,
+position linking and display colors.</p>
+<h2 id="choose-one-of-three-images">Choose one of three images</h2>
+<pre><code class="language-sh">scripts/turtlegit-idiff \
+  --base '/path/base.png' --mine '/path/mine.png' --theirs '/path/theirs.png' \
+  --result '/path/result.png' \
+  --base-title 'Common version' --mine-title 'My version' --theirs-title 'Incoming version'
+</code></pre>
+<p>The panes appear <strong>Mine / Base / Theirs</strong>. Each has its own <strong>Select</strong> button,
+frame controls, zoom and information. Arrange vertical stacks those panes. The
+source three-pane mode has no cross-pane position/dimension link, even though
+its general command handler accepts those comparison flags. Overlay remains a
+two-image comparison control.</p>
+<p><img src="images/c9095421d390-image-tool-selection-light-2026-10-29.png" alt="Local image selection in light appearance, with Mine, Base and Theirs panes and individual Select buttons" /></p>
+<p><img src="images/f3513ca58c37-image-tool-selection-dark-2026-10-29.png" alt="The same three-image selection in dark appearance" /></p>
+<p>These native content captures show the panes and output path; the window frame
+and toolbar are outside the captures.</p>
+<p>Select copies the complete captured input container to the result. Selecting a
+frame of a GIF or TIFF does not export only that frame; WMF/EMF are copied as
+original records, not as preview rasters. An existing empty or undecodable file
+can still be selected as original bytes. A missing or unreadable side cannot.
+Dropped images are previews; they do not retarget the source Select buttons.</p>
+<p>Without <code>--result</code>, Select returns the chosen side without creating a file.
+With a result, an accepted copy outside Git completes immediately. If an already
+authorized repository contains unmerged stages for that result, TurtleGit asks
+whether to mark it resolved. <strong>No</strong> keeps the copied file and the window open,
+as upstream does. <strong>Yes</strong> stages that exact saved image without committing or
+continuing a merge/rebase. A staging failure leaves the copied image available
+with <strong>Retry Mark as resolved</strong>; retry validates the output and original
+conflict stages without rewriting the image.</p>
+<table>
+<thead>
+<tr>
+<th>Process result</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Comparison closed, chooser cancelled, or selection window closed without an accepted choice</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Mine selected</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>Theirs selected</td>
+</tr>
+<tr>
+<td><code>3</code></td>
+<td>Base selected</td>
+</tr>
+<tr>
+<td><code>64</code></td>
+<td>Invalid request or startup/authorization failure; no accepted choice</td>
+</tr>
+<tr>
+<td><code>127</code></td>
+<td>Wrapper could not find the application executable</td>
+</tr>
+</tbody>
+</table>
+<p>These are selection-protocol values. Git mergetool's ordinary zero/nonzero exit
+convention needs an adapter if you use this selection protocol directly.</p>
+<h2 id="file-access-and-replacement">File access and replacement</h2>
+<p>The sandboxed app asks for the actual inputs and the folder needed for an
+atomic result write. A file path or descriptive title grants no access. Closing
+or cancelling a pending chooser/decoder keeps its authority owned until the real
+work drains. A narrow output grant does not permit an upward Git search; if a
+repository cannot be discovered within current grants, the image choice can
+still complete without optional Git resolution.</p>
+<p>Inputs and result snapshots are revalidated before publication. Outside changes,
+replaced files and changed conflict stages require review rather than silent
+overwrite. An explicit result matching an input path is supported: owned writes
+advance that path's validation snapshot while each pane retains its originally
+displayed bytes. Reload adopts current disk inputs. A distinct hard-linked result
+is replaced atomically, preserving the other source names.</p>
+<p><code>--delete-inputs-on-close</code> implements the source temporary-input cleanup flag.
+It removes only the originally captured, unchanged inputs after accepted work
+has drained. Replaced or edited inputs remain. Cleanup cannot target an explicit
+same-path result; choose a separate output for that combination. Regular-file
+receipts currently refuse symbolic-link inputs/results. Partial two-role selection
+requests and Windows HWND notification flags remain explicit unsupported cases;
+use all three named inputs or the two-file comparison entry.</p>
+</main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

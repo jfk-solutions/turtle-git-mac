@@ -15,7 +15,9 @@ import UniformTypeIdentifiers
         OperationSounds.enabled = true
         DialogGeometry.install()
         let launch = TurtleGitLaunchMode.resolve(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath)
-        if launch == .unifiedDiff {
+        if launch == .imageTool {
+            TurtleGitImageToolApp.main()
+        } else if launch == .unifiedDiff {
             TurtleGitUnifiedDiffApp.main()
         } else if launch == .mergeTool {
             TurtleGitMergeToolApp.main()

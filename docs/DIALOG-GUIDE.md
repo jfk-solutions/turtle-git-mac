@@ -1265,6 +1265,12 @@ IDiff. Use **Load Images** to view image content with arbitrary filenames; this
 explicit command does not invoke configured external diff programs. Explicit
 Merge Open/source comparisons stay in the Merge editor.
 
+[Standalone TurtleGitIDiff](IMAGE-TOOL.md) also opens two local images or three
+selection inputs without requiring a repository. Its Mine / Base / Theirs Select
+buttons copy full original containers or return the chosen side to a waiting
+caller. Optional Git resolution follows the accepted copy; declining resolution
+keeps the window open. Preview drops and frame choice do not retarget Select.
+
 In image comparison, Ctrl-wheel zooms around the pointer. Drag pans the image;
 Shift-drag leaves a linked peer in place. In overlay mode, Shift-drag moves only
 the first image and Ctrl-drag only the second. Ctrl-Shift-wheel adjusts blend

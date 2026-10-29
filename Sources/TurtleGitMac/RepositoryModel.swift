@@ -408,9 +408,22 @@ private enum TransportBatchPresentationContext {
         }
     }
     private var mergeOpener: MergeOpenWindowController?
+    private(set) var imageToolLaunches: [UUID: ImageToolLaunchSession] = [:]
+    var configureImageToolLaunch: (ImageToolLaunchSession) -> Void = { _ in }
+    @discardableResult func handleImageToolCommandLine(arguments:[String],currentDirectory:String,completion:((Int32)->Void)?=nil)->Bool {
+        do {
+            guard let invocation=try ImageToolInvocation.parse(arguments:arguments,currentDirectory:currentDirectory) else{return false}
+            guard !retired,!confirmingQuit else{completion?(64);return true}
+            let id=UUID(),session=ImageToolLaunchSession(invocation:invocation,preferences:fileComparisonPreferences,owner:workspaceWindow,permissions:activeAccess.map{[$0]} ?? [])
+            configureImageToolLaunch(session)
+            session.onError=CommandProgressContext.capture{[weak self] message in self?.error=message;if completion != nil{fputs("TurtleGitIDiff: "+message+"\n",stderr)}}
+            session.onFinished=CommandProgressContext.capture{[weak self,weak session] status in guard let self,let session,self.imageToolLaunches[id] === session else{return};self.imageToolLaunches.removeValue(forKey:id);completion?(status)}
+            imageToolLaunches[id]=session;session.start();return true
+        }catch{self.error=error.localizedDescription;if completion != nil{fputs("TurtleGitIDiff: "+error.localizedDescription+"\n",stderr)};completion?(64);return true}
+    }
     private(set) var mergeToolLaunches: [UUID: MergeToolLaunchSession] = [:]
     var configureMergeToolLaunch: (MergeToolLaunchSession) -> Void = { _ in }
-    func closeMergeToolLaunchesAfterApprovedQuit() { for session in Array(mergeToolLaunches.values) { session.closeAfterApprovedQuit() } }
+    func closeMergeToolLaunchesAfterApprovedQuit() { for session in Array(imageToolLaunches.values) {session.closeAfterApprovedQuit()}; for session in Array(mergeToolLaunches.values) { session.closeAfterApprovedQuit() } }
     @discardableResult func handleMergeToolCommandLine(arguments: [String], currentDirectory: String, completion: ((Int32) -> Void)? = nil) -> Bool {
         do {
             guard let invocation = try MergeToolInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return false }
@@ -778,7 +791,7 @@ private enum TransportBatchPresentationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { !finderAuthorityPreparations.isEmpty || !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { !finderAuthorityPreparations.isEmpty || !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || imageToolLaunches.values.contains { $0.hasPendingWork } || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -873,7 +886,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true;for token in finderAuthorityPreparations.values { token.cancel() };workspaceServicesCancellation?.cancel();for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;for token in finderAuthorityPreparations.values { token.cancel() };workspaceServicesCancellation?.cancel();for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() };for session in imageToolLaunches.values {session.cancel()}; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -5584,6 +5597,7 @@ private enum TransportBatchPresentationContext {
     func handleCommandLine(arguments: [String], currentDirectory: String) {
         guard !confirmingQuit else { return }
         if handleUnifiedDiffCommandLine(arguments: arguments, currentDirectory: currentDirectory) { return }
+        if handleImageToolCommandLine(arguments:arguments,currentDirectory:currentDirectory) {return}
         if handleMergeToolCommandLine(arguments: arguments, currentDirectory: currentDirectory) { return }
         do {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }

@@ -21,10 +21,15 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-image-commands-') as temporar
     main=inputs/'ImageCommandMain.swift'
     main.write_text('import AppKit\n@main struct ImageCommandMain { @MainActor static func main() async throws { NSApplication.shared.setActivationPolicy(.prohibited); switch ProcessInfo.processInfo.environment["TURTLEGIT_IMAGE_COMMAND_CASE"]! {\n' + ''.join('case "'+case+'": try await '+kind+'.verify()\n' for case,kind in cases.items()) + 'default: fatalError("Unknown image case")\n}; print("PASS: Image command case completed") } }\n')
     fixtures.append(main); receiver=build_receiver(root,fixtures,folder)
-    env=os.environ.copy(); env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1')
+    env={key:value for key,value in os.environ.items() if not key.startswith('GIT_')}
+    env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
         for case in args.only or cases:
             fixture=folder/(str(index)+'-'+case);fixture.mkdir()
+            isolated=folder/(str(index)+'-'+case+'-environment');isolated.mkdir(mode=0o700)
+            for name in ['home','temporary','xdg']:(isolated/name).mkdir(mode=0o700)
+            (isolated/'home/Library/Preferences').mkdir(parents=True,mode=0o700)
+            env.update(HOME=str(isolated/'home'),CFFIXED_USER_HOME=str(isolated/'home'),TMPDIR=str(isolated/'temporary')+'/',XDG_CONFIG_HOME=str(isolated/'xdg'))
             env['TURTLEGIT_IMAGE_COMMAND_CASE']=case
             env.pop('TURTLEGIT_IMAGE_TOOLBAR_CAPTURE',None)
             env.pop('TURTLEGIT_IMAGE_CONFLICT_CAPTURE',None)

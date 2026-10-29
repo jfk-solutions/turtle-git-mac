@@ -436,10 +436,24 @@ private extension FileComparisonDocument {
         configureSourceLine(invocation.line); useInternalMergeViewer()
     }
     private var sourceComparisonTitles:[Bool:String]=[:]
+    private var imageToolTitles:[Bool:String]=[:]
+    private var imageToolOpenImages:(()->Void)?
+    /// Standalone IDiff captions survive accepted asynchronous reads. They never
+    /// replace document paths, access grants or comparison-side identity.
+    func configureStandaloneImageTool(leftTitle:String?,rightTitle:String?,openImages:@escaping()->Void) {
+        guard standaloneImages != nil,!retired else{return}
+        imageToolTitles=[:];imageToolTitles[true]=leftTitle;imageToolTitles[false]=rightTitle
+        imageViewerModel.titleOverrides=imageToolTitles
+        imageToolOpenImages=openImages;imagePresentation.openImages=openImages
+        window?.title=windowTitle
+    }
     /// One title policy for initial presentation and every accepted reload or
     /// side swap. Captured descriptive names follow physical input identity;
     /// private storage paths remain exclusively document/location authority.
     var windowTitle:String {
+        if let images=standaloneImages,!imageToolTitles.isEmpty {
+            return [imageToolTitles[true] ?? images.base?.lastPathComponent,imageToolTitles[false] ?? images.destination?.lastPathComponent].compactMap{$0}.joined(separator:" — ")+" — TurtleGitIDiff"
+        }
         guard !sourceComparisonTitles.isEmpty,standaloneImages==nil,imageComparison==nil else {
             let name=standaloneImages == nil ? (sidesReversed ? document?.destination.path ?? path:path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")
             return displayedComparisonPath(name)+" – "+(imageComparison == nil ? "TurtleGitMerge":"TurtleGitIDiff")
@@ -1808,7 +1822,8 @@ private extension FileComparisonDocument {
                     let content=storageSide(true)==physical ? adapted.base:adapted.destination
                     if let encoding=content.encoding {inputEncodingOverrides[physical]=encoding}
                 }
-                imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
+                if let imageToolOpenImages {imagePresentation.openImages=imageToolOpenImages}
+                else {imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }}
                 // Source dispatch chooses the viewer before decoding. Failed/empty
                 // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
                 imageComparison = decodedImages

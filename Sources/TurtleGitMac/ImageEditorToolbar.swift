@@ -186,6 +186,10 @@ extension ImageEditorToolbar {
                 }
             },preferences:model.comparisonDefaults)
     }
+    static func selection(_ owner:ImageSelectionWindowController)->ImageEditorToolbar? {
+        guard let window=owner.window else{return nil};let model=owner.model
+        return ImageEditorToolbar(window:window,selection:true,changes:[model.objectWillChange.eraseToAnyPublisher(),model.presentation.objectWillChange.eraseToAnyPublisher()],visible:{[weak model] in model?.retired==false},state:{[weak model] in model?.commandState($0)},action:{[weak model] in model?.perform($0)},installed:{[weak model] value in if model?.nativeToolbarInstalled != value {model?.nativeToolbarInstalled=value}},preferences:model.presentationPreferences)
+    }
     static func conflict(_ owner: ImageConflictWindowController) -> ImageEditorToolbar? {
         guard let window = owner.window else { return nil }; let model = owner.model
         return ImageEditorToolbar(window: window, selection: true, changes: [model.objectWillChange.eraseToAnyPublisher(), model.presentation.objectWillChange.eraseToAnyPublisher()],

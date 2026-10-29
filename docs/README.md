@@ -57,6 +57,8 @@ for baseline and update rules.
 - [TurtleGit for Mac — full port tracking](PORTING.md)
 - [UI comparison requirements](UI-PARITY.md)
 - [Comparing images](IMAGE-COMPARISON.md)
+- [Standalone image comparison and selection](IMAGE-TOOL.md)
+- [Standalone image entry and selection parity](IMAGE-TOOL-SELECTION-PARITY.md)
 - [PowerPoint presentation comparison](POWERPOINT-COMPARISON.md)
 - [PowerPoint comparison source family](POWERPOINT-COMPARISON-PARITY.md)
 - [Image comparison parity](IMAGE-COMPARISON-PARITY.md)

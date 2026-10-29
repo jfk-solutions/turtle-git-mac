@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+## Standalone IDiff selection and local entry continuation
+
+[Local image selection](IMAGE-TOOL-SELECTION-PARITY.md) connects dedicated startup,
+source arguments and side results, actual byte-preserving selection, native
+three panes, input/output authority, optional binary conflict resolution and
+owned completion/cleanup. Installed build33 predates this family; its grouped
+checkpoint remains separate.
+
 ## Merge saved-output AutoAdd completion continuation
 
 [Automatic Add discovery and completion](MERGE-AUTOADD-COMPLETION-PARITY.md)
