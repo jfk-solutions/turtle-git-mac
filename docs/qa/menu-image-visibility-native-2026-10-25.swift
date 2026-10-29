@@ -79,6 +79,24 @@ import TurtleGitCore
         let commands = all(popup).filter { !$0.isSeparatorItem }
         try require(commands.count > 15,"Actual Log context menu unexpectedly narrow")
         for command in commands { try require(command.image != nil,"Actual Log action has no artwork: " + command.title); try visible(command) }
+        guard let header=coordinator.headerMenu,let author=table.tableColumn(withIdentifier:.init("author")) else {throw Failure(description:"Actual Log column menu missing")}
+        coordinator.menuNeedsUpdate(header)
+        for command in all(header) where !command.isSeparatorItem {try require(command.image != nil,"Actual Log header has no artwork: "+command.title);try visible(command)}
+        let originalHidden=author.isHidden
+        prefs.set(false,forKey:"ShowAppContextMenuIcons");coordinator.menuNeedsUpdate(header)
+        try require(all(header).filter{!$0.isSeparatorItem}.allSatisfy{$0.image==nil},"Header ignored private icon preference")
+        guard let toggle=header.items.first(where:{$0.identifier?.rawValue=="Log.Columns.author"}),let action=toggle.action else {throw Failure(description:"Author column command missing")}
+        try require(toggle.isEnabled && toggle.target != nil && toggle.representedObject != nil,"Icon preference changed column action ownership")
+        _=NSApp.sendAction(action,to:toggle.target,from:toggle)
+        try await wait{author.isHidden != originalHidden}
+        try require(prefs.bool(forKey:"Log.Column.Visible.author")==originalHidden,"Column visibility did not persist in owner preferences")
+        _=NSApp.sendAction(action,to:toggle.target,from:toggle)
+        try require(author.isHidden != originalHidden,"Consumed header action replayed")
+        prefs.set(true,forKey:"ShowAppContextMenuIcons");coordinator.menuNeedsUpdate(header)
+        guard let restore=header.items.first(where:{$0.identifier?.rawValue=="Log.Columns.author"}),let restoreAction=restore.action else {throw Failure(description:"Fresh author column command missing")}
+        try require(restore.image != nil && restore.state == (author.isHidden ? .off:.on),"Rebuilt header lost icon or column state")
+        _=NSApp.sendAction(restoreAction,to:restore.target,from:restore)
+        try await wait{author.isHidden==originalHidden}
         prefs.set(false,forKey:"ShowAppContextMenuIcons"); coordinator.menuNeedsUpdate(popup)
         try require(all(popup).filter { !$0.isSeparatorItem }.allSatisfy { $0.image == nil },"Actual Log ignored private icon preference")
         prefs.set(true,forKey:"ShowAppContextMenuIcons"); coordinator.menuNeedsUpdate(popup)
@@ -87,6 +105,6 @@ import TurtleGitCore
         try await wait { LogWindowModel.activeHistoryLoads == 0 && LogWindowModel.activeReferenceReads == 0 && LogWindowModel.activeActionReads == 0 }
         try require(try await repo.run(["rev-parse","HEAD"]).stdout == head,"Menu checks changed HEAD")
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Menu checks changed index")
-        print("PASS: native menu visibility, lazy images, preference isolation, observer retirement and actual Log command tree")
+        print("PASS: native menu visibility, lazy images, preference isolation, observer retirement, actual Log command tree and column action persistence/replay guards")
     }
 }

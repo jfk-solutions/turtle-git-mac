@@ -191,6 +191,7 @@ struct LFSLocksTable: NSViewRepresentable {
             _ = model.saveColumnLayout(order:model.fileColumns.order,widths:saved); refresh(); return true
         }
         private final class Item: NSMenuItem {
+            var columnIcon:MenuIcon?
             private let invoke: () -> Void
             init(_ title: String, icon: NSImage? = nil, invoke: @escaping () -> Void) {
                 self.invoke = invoke; super.init(title:NSLocalizedString(title,comment:""),action:#selector(run),keyEquivalent:""); target = self; image = icon
@@ -199,18 +200,18 @@ struct LFSLocksTable: NSViewRepresentable {
             @objc private func run() { invoke() }
         }
         func columnMenu() -> NSMenu {
-            let menu = NSMenu(); menu.autoenablesItems = false
-            let reset = Item("Reset columns") { [weak self] in self?.resetColumns() }; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
+            let menu = NSMenu(); menu.autoenablesItems = false;menu.delegate=self
+            let reset = Item("Reset columns",icon:MenuIcon.reset.contextImage(defaults:model.presentationPreferences)) { [weak self] in self?.resetColumns() };reset.columnIcon = .reset; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
             if let definition = columnDefinition(atNativeIndex:headerColumn) {
                 let index = headerColumn
                 for (title, original) in [("Size column to fit",false),("Restore default width",true)] {
-                    let item = Item(title) { [weak self] in guard self?.columnDefinition(atNativeIndex:index) == definition else { return }; _ = self?.fitColumn(atNativeIndex:index,useDefault:original) }; item.isEnabled = enabled; menu.addItem(item)
+                    let item = Item(title,icon:MenuIcon.settingsDialogs.contextImage(defaults:model.presentationPreferences)) { [weak self] in guard self?.columnDefinition(atNativeIndex:index) == definition else { return }; _ = self?.fitColumn(atNativeIndex:index,useDefault:original) };item.columnIcon = .settingsDialogs; item.isEnabled = enabled; menu.addItem(item)
                 }
                 menu.addItem(.separator())
             }
             for definition in nativeColumns {
-                let item = Item(FileListLabels.caption(definition.rawValue)) { [weak model] in guard let model else { return }; model.setColumn(definition,visible:!model.fileColumns.visible.contains(definition)) }
-                item.state = model.fileColumns.visible.contains(definition) ? .on : .off; item.isEnabled = enabled && definition != .path; menu.addItem(item)
+                let item = Item(FileListLabels.caption(definition.rawValue),icon:MenuIcon.settingsDialogs.contextImage(defaults:model.presentationPreferences)) { [weak model] in guard let model else { return }; model.setColumn(definition,visible:!model.fileColumns.visible.contains(definition)) }
+                item.columnIcon = .settingsDialogs;item.state = model.fileColumns.visible.contains(definition) ? .on : .off; item.isEnabled = enabled && definition != .path; menu.addItem(item)
             }
             return menu
         }
@@ -239,6 +240,14 @@ struct LFSLocksTable: NSViewRepresentable {
             }
         }
         func menuNeedsUpdate(_ menu:NSMenu) {
+            // A retained header menu keeps its captured sizing/column actions;
+            // only decoration is refreshed from this owner's current preference.
+            if menu.items.contains(where:{($0 as? Item)?.columnIcon != nil}) {
+                for case let item as Item in menu.items {
+                    if let icon=item.columnIcon {item.image=icon.contextImage(defaults:model.presentationPreferences)}
+                }
+                return
+            }
             menu.removeAllItems()
             guard enabled, let target = model.menuTarget(model.selection) else { return }
             for action in target.actions {

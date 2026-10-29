@@ -4,6 +4,41 @@ Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 This ports the application icon preference; complete menu content, native popup
 interaction and signed Finder acceptance remain pending.
 
+## Report-header follow-up — 2026-10-29
+
+Log, Reflog, Repository Browser, Browse References, both synchronization lists,
+Rebase and LFS Locks now decorate their column menus with the existing source
+`dialogs` artwork. Reset uses the source `reset` icon. LFS sizing and default-width
+actions also use `dialogs`; sizing gestures in other headers remain unchanged.
+The reference/tag synchronization result headers use the same artwork for their
+Hide unchanged control. All use the owning window's preferences rather than a
+global override.
+
+Pinned `TortoiseProc/ColumnManager.cpp:561–633` supplies the reset/column-choice
+behavior. Its ordinary CMenu does not establish a distinct icon for each column;
+these macOS decorations fulfill the requested application-wide icon treatment
+using the existing Commit/Add column-menu convention. No new commands, artwork
+or column layouts are introduced. Existing captured action guards, selection,
+width/order/visibility persistence and reset confirmation remain in place.
+Rebase's persistent header and retained LFS header menus refresh decoration on
+their menu-update callback without rebuilding the captured actions. Other header
+builders read preferences when constructing or rebuilding the menu. This does
+not claim immediate external preference updates while a popup is tracking.
+
+The inventory also checked the existing Commit/Add, Blame and Worktree headers
+and Import Patch's row-menu builder. It is an audit of the named native report
+menus, not proof that every application or system-provided context menu has
+identical upstream content. Remaining full-port and physical acceptance work is
+tracked separately.
+
+The [batch receipt](qa/report-header-icons-2026-10-29.json) records the successful
+Debug build and grouped native check. An actual private Log window exercises
+both revision and header menus, false/true icon preferences, a real column
+hide/restore, saved visibility and consumed-action refusal, with unchanged HEAD
+and index. The remaining named headers were source-reviewed and compiled; this
+does not establish physical popup acceptance for each of them. No Core suite was
+rerun for these native decoration changes.
+
 ## Source behavior
 
 `src/Utils/MiscUI/IconMenu.cpp` (`35f66245c6176381bbf7355c92065c10b25dedd1`)

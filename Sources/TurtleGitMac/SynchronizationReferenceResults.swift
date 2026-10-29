@@ -206,7 +206,7 @@ struct SynchronizationReferenceResults:NSViewRepresentable {
         func headerMenu()->NSMenu {
             let menu=NSMenu();menu.autoenablesItems=false;let captured=receipt()
             let hide=kind == .references ? model.hideUnchangedReferences:model.hideEqualTags
-            let item=SynchronizationResultMenuItem(title:NSLocalizedString(kind == .references ? "Hide unchanged refs":"Hide unchanged",comment:""),id:"hideUnchanged",preferences:model.preferences,enabled:captured != nil){[weak self] in
+            let item=SynchronizationResultMenuItem(title:NSLocalizedString(kind == .references ? "Hide unchanged refs":"Hide unchanged",comment:""),id:"hideUnchanged",icon:.settingsDialogs,preferences:model.preferences,enabled:captured != nil){[weak self] in
                 guard let self,let captured,self.claim(captured) else{return}
                 if self.kind == .references {self.model.hideUnchangedReferences.toggle()} else {self.model.hideEqualTags.toggle()}
             };item.state=hide ? .on:.off;menu.addItem(item);return menu

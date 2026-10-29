@@ -5090,6 +5090,7 @@ struct RevisionTable: NSViewRepresentable {
                 for definition in LogRevisionColumns.definitions where definition.id != "graph" {
                     if definition.id=="bugs" && !model.issueProperties.showsBugIDColumn || definition.id=="svn" && !model.hasGitSVN {continue}
                     let item=NSMenuItem(title:definition.title,action:#selector(columnCommand(_:)),keyEquivalent:"")
+                    item.image=MenuIcon.settingsDialogs.contextImage(defaults:model.colorPreferences)
                     item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil
                     if let columnReceipt{item.representedObject=ColumnCommand(columnReceipt,definition.id)}
                     item.state=table?.tableColumn(withIdentifier:.init(definition.id))?.isHidden==false ? .on:.off;menu.addItem(item)

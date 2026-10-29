@@ -1028,7 +1028,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             }
             add("Reset column order",enabled:true,icon:.reset) { $0.model.resetColumns() };menu.addItem(.separator())
             for (id,title,_) in ReferenceBrowserColumnLayout.definitions where id != "name" {
-                add(title,enabled:true,state:model.columnLayout.visible.contains(id) ? .on:.off) { coordinator in
+                add(title,enabled:true,state:model.columnLayout.visible.contains(id) ? .on:.off,icon:.settingsDialogs) { coordinator in
                     var value = coordinator.model.columnLayout
                     if value.visible.contains(id) {value.visible.remove(id)} else {value.visible.insert(id)}
                     coordinator.model.saveColumns(value)

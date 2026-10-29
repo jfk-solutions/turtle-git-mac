@@ -618,7 +618,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumns), keyEquivalent: ""); reset.image=MenuIcon.reset.contextImage(defaults:model.preferences);reset.target = self; menu.addItem(reset); menu.addItem(.separator())
             for definition in SynchronizationHistoryColumns.definitions where definition.id != "graph" && columnAvailable(definition.id) {
                 let item = NSMenuItem(title: definition.title, action: #selector(toggleColumn(_:)), keyEquivalent: "")
-                item.target = self; item.representedObject = definition.id
+                item.target = self; item.image=MenuIcon.settingsDialogs.contextImage(defaults:model.preferences); item.representedObject = definition.id
                 item.state = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(definition.id))?.isHidden == false ? .on : .off
                 menu.addItem(item)
             }

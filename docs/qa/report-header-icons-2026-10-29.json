@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-29",
+  "status": "native-report-header-batch-passed",
+  "starting_commit": "609d22def158dc326dfd9cede80a08dbb100f602",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contract": "TortoiseProc/ColumnManager.cpp:561\u2013633; macOS icons follow existing Commit/Add source-art convention, not invented per-column upstream artwork.",
+  "scope": [
+    "Column toggle/reset icons in Log, Reflog, Repository Browser, Browse References, synchronization commit/file lists, Rebase and LFS Locks",
+    "LFS fit/default-width icons",
+    "Reference/tag synchronization Hide unchanged header icons",
+    "Owner-specific icon preference and retained Rebase/LFS menu decoration refresh without rebuilding action closures"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitMac/ReferenceLogNativeTable.swift": "8bc18abd00ffe47576280e91f21c1b73b0f3ab9a526bfe1a1d34efee02eec736",
+    "Sources/TurtleGitMac/SynchronizationReferenceResults.swift": "13bedf150eee30c159dbf040019e2582e7bb39219dc6ec8c63decd74f4afeb72",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "efd242889f16496717efb9835ab942cf4232a602ca16f3aa7f9f4e1788008de0",
+    "Sources/TurtleGitMac/SynchronizationCommitList.swift": "71354f257bbceaf9762e70a33e3f18d53966246f2879de17d6f7676d6d471cd3",
+    "Sources/TurtleGitMac/RebaseColumnLayout.swift": "8a648244904c9786f262fe64c10fdf2e586e6a6ace023971c59503e7d3f13a91",
+    "Sources/TurtleGitMac/SynchronizationFileList.swift": "0c31b13420afa0ca2a22a1ea3c23c6cac63e330a95b521151006061630f7313c",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "1a4b31492b7c9e30b426bdb9bd826637e59c18fdaa278135203f61f3c9c4b6b9",
+    "Sources/TurtleGitMac/LFSLocksTable.swift": "a2ad866c7eeab67ec4189b089bdb74230c5f095cedbc5dcbcecf3283148922db",
+    "Sources/TurtleGitMac/LogWindow.swift": "a9eff5c7428cb4d91f08bb51f59f66328a048e500a76c76847cf24fc5c9598f3",
+    "docs/qa/menu-image-visibility-native-2026-10-25.swift": "4e4dfa476c6176b971d0efc5258d86cf6437c36506fb58383530b797595f66a6"
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/report-header-icons-debug-2026-10-29.log"
+  },
+  "native": {
+    "exit": 0,
+    "receiver_reaped": 74684,
+    "log": "build/qa/report-header-icons-native-2026-10-29.log",
+    "actual_owner": "LogWindowController with private repository, preferences and offscreen alpha-zero window",
+    "checks": [
+      "Lazy native source images, AppKit explicit image visibility and observer retirement",
+      "Existing complete actual Log revision command tree",
+      "Actual Log header icons, private preference false/true, check state and selectors/targets/receipts",
+      "Real Author column hide/restore, owner preference persistence and consumed action replay refusal",
+      "Unchanged HEAD and index; owned window closed and loads drained"
+    ],
+    "not_claimed": [
+      "Physical popup appearance for every audited header",
+      "Physical Finder integration",
+      "Signed or App Store deployment",
+      "Whole hosted CI pass",
+      "Complete upstream dialog parity"
+    ]
+  },
+  "core_tests": "Not rerun: no Core/Git behavior changed; native artwork and menu decoration only.",
+  "resources": "No UI labels or bundled Help guides changed; no localization or Help regeneration needed. Dialog coverage reconciled.",
+  "log_sha256": {
+    "build/qa/report-header-icons-debug-2026-10-29.log": "84291649f5d1b328d2e00b299e15fb93e70bd6e5e5d37ec6cac02dcfab3a0501",
+    "build/qa/report-header-icons-native-2026-10-29.log": "b04eeebe55edc748a7d0d8f0beb458bb253478fd31e0c5d016561fd62d8d6003"
+  },
+  "external_evidence": {
+    "prior_source_pages_run": 40915198875,
+    "prior_source_pages_conclusion": "success",
+    "prior_source_macos_run": 40915198759,
+    "prior_source_macos_status_at_read": "pending",
+    "prior_source_commit": "609d22def158dc326dfd9cede80a08dbb100f602"
+  },
+  "installed_app": {
+    "build": "33",
+    "unchanged": true,
+    "user_process_preserved": 50246
+  },
+  "remaining": "Full-port source parity, physical acceptance and unverified boundary behavior remain; header icon count is not a feature completion percentage."
+}

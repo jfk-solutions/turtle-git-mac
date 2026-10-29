@@ -143,13 +143,13 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             let menu = NSMenu();menu.autoenablesItems = false
             columnMenuSession = UUID()
             let session = columnMenuSession,revision = model.columnsRevision,generation = model.generation
-            func add(_ title:String,state:NSControl.StateValue = .off,icon:MenuIcon?=nil,action:@escaping (Coordinator)->Void) {
+            func add(_ title:String,state:NSControl.StateValue = .off,icon:MenuIcon = .settingsDialogs,action:@escaping (Coordinator)->Void) {
                 let command = RepositoryBrowserColumnCommand { [weak self] in
                     guard let self,self.available,self.columnMenuSession == session,self.model.columnsRevision == revision,self.model.generation == generation else {return}
                     self.columnMenuSession = UUID();action(self)
                 }
                 let item = NSMenuItem(title:title,action:#selector(RepositoryBrowserColumnCommand.invoke(_:)),keyEquivalent:"")
-                item.image=icon?.contextImage(defaults:model.preferences);item.target = command;item.representedObject = command;item.isEnabled = available;item.state = state;menu.addItem(item)
+                item.image=icon.contextImage(defaults:model.preferences);item.target = command;item.representedObject = command;item.isEnabled = available;item.state = state;menu.addItem(item)
             }
             add("Reset column order",icon:.reset) {$0.model.requestResetColumns()};menu.addItem(.separator())
             for (id,title,_) in Self.definitions where id != "name" {

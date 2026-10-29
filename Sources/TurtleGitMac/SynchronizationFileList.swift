@@ -395,10 +395,10 @@ struct SynchronizationFiles:NSViewRepresentable {
             let captured=state.menuEpoch
             for column in SynchronizationFileListState.availableColumns {
                 let visible=state.columns.visible.contains(column)
-                let item=SynchronizationFileMenuItem(column.rawValue,id:"column."+column.rawValue,preferences:model.preferences,enabled:state.available && column != .path){[weak state] in guard let state,state.menuEpoch==captured else{return};state.setColumn(column,visible:!visible)}
+                let item=SynchronizationFileMenuItem(column.rawValue,id:"column."+column.rawValue,icon:.settingsDialogs,preferences:model.preferences,enabled:state.available && column != .path){[weak state] in guard let state,state.menuEpoch==captured else{return};state.setColumn(column,visible:!visible)}
                 item.state=visible ? .on:.off;menu.addItem(item)
             }
-            menu.addItem(.separator());menu.addItem(SynchronizationFileMenuItem("Reset column order",id:"columns.reset",preferences:model.preferences,enabled:state.available){[weak state] in guard let state,state.menuEpoch==captured else{return};state.resetColumns()});return menu
+            menu.addItem(.separator());menu.addItem(SynchronizationFileMenuItem("Reset column order",id:"columns.reset",icon:.reset,preferences:model.preferences,enabled:state.available){[weak state] in guard let state,state.menuEpoch==captured else{return};state.resetColumns()});return menu
         }
     }
 }

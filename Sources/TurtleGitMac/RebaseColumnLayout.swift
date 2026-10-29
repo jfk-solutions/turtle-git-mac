@@ -10,7 +10,7 @@ struct RebaseColumnLayout: NSViewRepresentable {
     func makeNSView(context: Context) -> Probe { Probe() }
     func updateNSView(_ view: Probe, context: Context) { view.model = model; view.configure() }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.retire() }
-    @MainActor final class Probe: NSView {
+    @MainActor final class Probe: NSView, NSMenuDelegate {
         static let names = ["REBASE", "ID", "SHA-1", "Message", "Author", "Date", "Email", "Commit Name", "Commit Email", "Commit Date", "Bug-ID", "SVN Rev"]
         weak var model: RebaseWindowModel?
         weak var table: NSTableView?
@@ -90,15 +90,21 @@ struct RebaseColumnLayout: NSViewRepresentable {
             model.columnPreferences.set(Dictionary(uniqueKeysWithValues: columns.enumerated().map { (Self.names[$0.offset],Double($0.element.width)) }),forKey:"Rebase.Columns.Widths")
         }
         func headerMenu() -> NSMenu {
-            let menu = NSMenu(); menu.autoenablesItems = false
+            let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
             let reset = NSMenuItem(title:"Reset columns",action:#selector(requestReset(_:)),keyEquivalent:""); reset.image=MenuIcon.reset.contextImage(defaults:model?.columnPreferences ?? .standard); reset.target = self; reset.isEnabled = available; menu.addItem(reset); menu.addItem(.separator())
             for (index,name) in Self.names.enumerated() where columnAvailable(index) {
-                let item = NSMenuItem(title:name,action:#selector(toggle(_:)),keyEquivalent:""); item.target = self; item.tag = index
+                let item = NSMenuItem(title:name,action:#selector(toggle(_:)),keyEquivalent:""); item.target = self; item.tag = index; item.image=MenuIcon.settingsDialogs.contextImage(defaults:model?.columnPreferences ?? .standard)
                 item.state = columns.indices.contains(index) && !columns[index].isHidden ? .on : .off
                 item.isEnabled = available && (item.state == .off || columns.filter { !$0.isHidden }.count > 1)
                 menu.addItem(item)
             }
             return menu
+        }
+        func menuNeedsUpdate(_ menu:NSMenu) {
+            let preferences=model?.columnPreferences ?? .standard
+            for item in menu.items where !item.isSeparatorItem {
+                item.image=(item.action == #selector(requestReset(_:)) ? MenuIcon.reset:.settingsDialogs).contextImage(defaults:preferences)
+            }
         }
         @objc func toggle(_ sender: NSMenuItem) {
             guard available, columns.indices.contains(sender.tag), columnAvailable(sender.tag), let model else { return }
