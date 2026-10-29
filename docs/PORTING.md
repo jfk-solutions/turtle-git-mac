@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed local testing build34
+
+[Signed build34](qa/signed-consolidation-build34-2026-10-29.json) consolidates the
+recent Unified Diff, Merge AutoAdd, image-tool, report-menu and historical
+archive/file-delivery batches. It is installed with an exact signed inventory
+match and recoverable build33 copies. The app remains closed after its idle-only
+atomic update. Public Core and packaged Git pass the focused private sandbox
+check; no shipping GUI, physical Finder/external grants, complete hosted pass or
+Store release is inferred. See [current release gates](RELEASE-BLOCKERS.md).
+
 ## Historical raw-file transfer continuation
 
 [Raw historical-file transfers](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md) connect

@@ -411,6 +411,30 @@ import TurtleGitCore
         let git=try GitRuntime.executable(bundle:.main,appStore:true)
         try require(git.path.hasPrefix(Bundle.main.bundleURL.path+"/Contents/"),"Local-tools Git escaped packaged clone")
         let root=directory.appendingPathComponent("repository");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        // Keep one real packaged Git helper blocked on its owned stdin long
+        // enough for the independent OS observer; fast repository calls alone
+        // can all complete between ps snapshots.
+        let observedGit=Process(),observedInput=Pipe(),observedOutput=Pipe(),observedErrors=Pipe()
+        let observedExecutable=git.resolvingSymlinksInPath()
+        observedGit.executableURL=git;observedGit.arguments=["hash-object","--stdin"];observedGit.currentDirectoryURL=root
+        observedGit.standardInput=observedInput;observedGit.standardOutput=observedOutput;observedGit.standardError=observedErrors
+        try observedGit.run()
+        let observedPID=observedGit.processIdentifier
+        defer {
+            try? observedInput.fileHandleForWriting.close()
+            if observedGit.isRunning{observedGit.terminate()}
+            observedGit.waitUntilExit()
+        }
+        try await Task.sleep(nanoseconds:750_000_000)
+        try require(observedGit.isRunning,"Packaged Git did not remain waiting for owned stdin")
+        try observedInput.fileHandleForWriting.write(contentsOf:Data("signed packaged Git observation\n".utf8))
+        try observedInput.fileHandleForWriting.close()
+        for _ in 0..<300 {if !observedGit.isRunning{break};try await Task.sleep(nanoseconds:10_000_000)}
+        try require(!observedGit.isRunning,"Packaged Git stdin request did not drain")
+        observedGit.waitUntilExit()
+        let observedHash=String(decoding:try observedOutput.fileHandleForReading.readToEnd() ?? Data(),as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines)
+        let observedError=try observedErrors.fileHandleForReading.readToEnd() ?? Data()
+        try require(observedGit.terminationStatus==0 && observedHash=="f440016325e65f00c7c09a9989ce0f099f443cdd" && observedError.isEmpty,"Packaged Git stdin hash request failed")
         let repository=GitRepository(root:root,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
         func oid(_ arguments:[String],input:Data?=nil)async throws->String{try await repository.run(arguments,input:input).text.trimmingCharacters(in:.whitespacesAndNewlines)}
         func tree(_ entries:[(String,String,String,Data)])async throws->String {
@@ -454,7 +478,7 @@ import TurtleGitCore
         let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterConfig=try Data(contentsOf:root.appendingPathComponent(".git/config")),afterWorking=try Data(contentsOf:sentinelURL)
         try require(afterHead==head && afterIndex==index && afterConfig==config && afterWorking==sentinel,"Local-tools smoke changed HEAD/index/config/worktree")
         try require(try FileManager.default.contentsOfDirectory(atPath:root.path).sorted()==[".git","sentinel.txt"],"Historical raw files leaked into checkout")
-        return ["public_core_package_smoke":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
+        return ["public_core_package_smoke":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
     }
 
     static func main() async throws {

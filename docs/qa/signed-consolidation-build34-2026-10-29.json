@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-installed-idle-for-local-testing",
+  "build": "0.1.0 (34)",
+  "source_commit": "b7085d24345ab8b1080ea9c5e02bff4bb743d316",
+  "source_input_sha256": "3432f5381f1ba55c1a7605aa88cf0ffa176ed36dc737e67ba03f93c6b57ba1a4",
+  "source_inputs_unchanged": true,
+  "implementation_scope": [
+    "Unified Diff temporary zoom/reflow/base-size printing and source basic character/display-line movement",
+    "Plain-folder Merge AutoAdd discovery and accepted index-publication adoption",
+    "Standalone two-image and original-byte three-image selection workflow",
+    "Source icons across report headers",
+    "Pinned Browser historical-folder archives incl raw members/bare/deleted folders",
+    "Historical raw individual-file providers/promises across Browser/Log/Comparison"
+  ],
+  "build_validation": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 516.25,
+        "log": "build/qa/signed34-build-2026-10-29.log"
+      }
+    ],
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "63108281670daf25fea61fe1ac6d23f1e8d060e9ebfb16116edd2622a43f3d5d",
+    "same_signing_team_and_sandbox_groups": true,
+    "help_source_equal": true,
+    "help_members": 95
+  },
+  "signed_parent_validation": {
+    "passed": true,
+    "requested_phases": [
+      "local-tools"
+    ],
+    "public_core_package_smoke": true,
+    "packaged_core_sha256": "c6e0346b7b612310b8c70a21fdc7121566340062de833e3ca173cbcd3f31e1b1",
+    "probe_source_sha256": "e7bc13aa59ce52df434a0a1313b1a66423148f9f70d2ee17da919b6df4b6fcc8",
+    "probe_runner_sha256": "46cc685c14ffa1a75bed71cd66eb376246a5e5911dc6f594b561205aa5c228a9",
+    "probe_repair_postdates_frozen_app_source": true,
+    "scope": "Current sealed production Core and packaged signed Git in disposable sandboxed parent; not shipping AppKit UI or outside repository grants",
+    "cases": [
+      {
+        "app_group_files_created": false,
+        "local_tools": {
+          "archive_sha256": "03bfcf0b60e9effeb24d6d99c35a63d5cb337fafb708d29be78240ee96aba76a",
+          "captured_revision_backend": true,
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-xz7tyv56/Denied.app/Contents/Helpers/Git/bin/git",
+          "head_index_working_unchanged": true,
+          "image_original_bytes_selection": true,
+          "image_sha256": {
+            "animated.gif": "2f225b8d5b8938366447c4f805b24ea21ff14510e909f55b61c0b696a2f48683",
+            "opaque.bin": "8eb510b6a1a199cd6901cd6d87f5397235be90f7efa6a57e1d44742c4cf36849",
+            "vector.wmf": "f46f371a33e85e5cca76fa82e8529da3059fb0c177a78f5631007f137d08728e"
+          },
+          "native_ui_executed": false,
+          "observed_git": {
+            "executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-xz7tyv56/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git",
+            "hash": "f440016325e65f00c7c09a9989ce0f099f443cdd",
+            "pid": 84346,
+            "reaped": true
+          },
+          "public_core_package_smoke": true,
+          "raw_blob_sha256": "94d02e56c39df698c16caa08de0b1961fac6e1cb50f1aa87b604abc381f1f287",
+          "raw_folder_archive": true,
+          "raw_individual_materialization": true
+        },
+        "mode": "local-tools",
+        "outside_file_grants": false,
+        "passed": true,
+        "private_container_cleaned": true,
+        "shipping_gui_launched": false
+      }
+    ],
+    "children": {
+      "observed_helper_processes": 1,
+      "owned_helper_pids": [
+        84346
+      ],
+      "owned_helper_groups": [
+        84346
+      ],
+      "observed_helper_roles": {
+        "git": 1
+      },
+      "own_process_group_required_roles": [],
+      "observed_processes": [
+        {
+          "pid": 84346,
+          "ppid": 84299,
+          "pgid": 84346,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-xz7tyv56/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        }
+      ],
+      "kernel_executable_identity_required": true,
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "receiver_reaped": 84299,
+    "app_group_entitled": false,
+    "shipping_gui_launched": false,
+    "first_attempt": {
+      "receiver_reaped": 83841,
+      "core_checks_passed": true,
+      "validation_failed": "No actual packaged Git helper sampled by argv-only monitor; required ownership assertion retained."
+    },
+    "repair": "Held packaged Git hash-object request plus proc_pidpath exact clone-image identity, PID membership and drain proof. No product/candidate rebuild or relaxed assertion."
+  },
+  "local_testing_package": {
+    "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build34-signed/TurtleGit-for-Mac-0.1.0-build34-signed.zip",
+    "zip_sha256": "0dfa6bffd0c2fedf74a6b1b71cdd0419bc96c1f1e0099b2b8a58c2928f667fa4",
+    "zip_bytes": 423059466,
+    "signature_preserved": true,
+    "re_signing_performed": false,
+    "copied_and_extracted_inventory_equal": true
+  },
+  "installed": true,
+  "installed_receipt": "signed34-installed-2026-10-29.json",
+  "installed_app_launched": false,
+  "rollback_build": "33",
+  "registration_cleanup": {
+    "status": "restored-installed33-registration",
+    "finder_pid_preserved": true,
+    "old_extension_pid_preserved": false,
+    "scope": "Xcode candidate registrations removed; installed33 reasserted before packaging/install. macOS reloaded extension host while Finder stayed running. No explicit signal."
+  },
+  "retained_source_native_evidence": [
+    "unified-zoom-2026-10-29.json",
+    "unified-cursor-2026-10-29.json",
+    "merge-autoadd-completion-2026-10-29.json",
+    "image-tool-selection-2026-10-29.json",
+    "report-header-icons-2026-10-29.json",
+    "browser-folder-archive-2026-10-29.json",
+    "raw-historical-file-transfers-2026-10-29.json"
+  ],
+  "limits": [
+    "No complete current-source hosted pass established; older f388 run at step99 and latest source queued at last read",
+    "Universal binary structure is not physical Intel/minimum-macOS execution",
+    "No shipping native GUI/physical Finder/provider interaction performed by this consolidation",
+    "No outside repository file grants, authentication/network or App Store submission/notarization",
+    "Full-port source/control/layout acceptance remains open"
+  ],
+  "ci_compatibility_repair": {
+    "fixture": "docs/qa/repository-browser-namespace-native-2026-10-25.swift",
+    "cause": "Older actions case still expected every raw file drag to be refused; safe individual-file delivery is now implemented.",
+    "scope": "Only the actions case, both Git engines, passed; raw-folder and working-boundary assertions retained.",
+    "receivers_reaped": [
+      84758,
+      84816
+    ],
+    "log": "build/qa/repository-browser-namespace-raw-actions-recheck-2026-10-29.log",
+    "product_candidate_rebuilt": false
+  },
+  "validation_probe_files_postdate_candidate": [
+    "scripts/test-signed-finder-runtime.py",
+    "docs/qa/signed-finder-runtime-probe-2026-10-17.swift"
+  ],
+  "validation_source_sha256": {
+    "scripts/test-signed-finder-runtime.py": "46cc685c14ffa1a75bed71cd66eb376246a5e5911dc6f594b561205aa5c228a9",
+    "docs/qa/signed-finder-runtime-probe-2026-10-17.swift": "e7bc13aa59ce52df434a0a1313b1a66423148f9f70d2ee17da919b6df4b6fcc8",
+    "docs/qa/repository-browser-namespace-native-2026-10-25.swift": "dfc231a2ab47147f3094e42a387e2950b9842aeab940e5df36cdee3ea6c80382"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "build": "34",
+  "created_utc": "2026-10-29T18:10:53.161968+00:00",
+  "finished_utc": "2026-10-29T18:12:29.500990+00:00",
+  "status": "installed-build34-kept-closed",
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed33-displaced-idle34-2026-10-29.app",
+  "source_commit": "b7085d24345ab8b1080ea9c5e02bff4bb743d316",
+  "source_input_sha256": "3432f5381f1ba55c1a7605aa88cf0ffa176ed36dc737e67ba03f93c6b57ba1a4",
+  "zip_sha256": "0dfa6bffd0c2fedf74a6b1b71cdd0419bc96c1f1e0099b2b8a58c2928f667fa4",
+  "complete_inventory_equal": true,
+  "inventory_members": 6381,
+  "main_sha256": "63108281670daf25fea61fe1ac6d23f1e8d060e9ebfb16116edd2622a43f3d5d",
+  "preserved_build33_inventory_equal": true,
+  "atomic_swap": true,
+  "app_launched": false,
+  "signals_sent": false,
+  "finder_restarted": false,
+  "dock_restarted": false,
+  "login_item_preferences_changed": false,
+  "service_preferences_changed": false,
+  "re_signing_performed": false,
+  "staging_preserved": false,
+  "displaced_build33_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed33-swapped-idle34-2026-10-29.app",
+  "registration_after": "+    org.turtlegit.macos.finder(0.1.0)\t68AC2128-BADB-4F2E-85A6-B60CE3D23333\t2026-10-29 18:12:27 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n",
+  "operations": [
+    {
+      "argv": [
+        "/usr/bin/pluginkit",
+        "-m",
+        "-v",
+        "-i",
+        "org.turtlegit.macos.finder"
+      ],
+      "exit": 0,
+      "stdout": "+    org.turtlegit.macos.finder(0.1.0)\t30BB860B-D930-4ACC-9E4F-7D0D92509BA9\t2026-10-29 17:55:26 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-f",
+        "/Applications/TurtleGit for Mac.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-f",
+        "/Applications/TurtleGit for Mac.app/Contents/Library/LaunchServices/TurtleGitCache.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/pluginkit",
+        "-a",
+        "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/pluginkit",
+        "-m",
+        "-v",
+        "-i",
+        "org.turtlegit.macos.finder"
+      ],
+      "exit": 0,
+      "stdout": "+    org.turtlegit.macos.finder(0.1.0)\t68AC2128-BADB-4F2E-85A6-B60CE3D23333\t2026-10-29 18:12:27 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n",
+      "stderr": ""
+    }
+  ],
+  "preflight_repair": "Initial preflight assumed framework root binary was a file; it is a standard Versions/Current symlink. Resolve its exact in-bundle inventory target before comparing probe SHA. No app mutation occurred on that failed attempt.",
+  "processes_before": [
+    {
+      "pid": 1881,
+      "executable": "/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder"
+    },
+    {
+      "pid": 83739,
+      "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+    }
+  ],
+  "processes_after": [
+    {
+      "pid": 1881,
+      "executable": "/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder"
+    }
+  ],
+  "installation_scope": "Idle-only reversible atomic update preserving the closed app state; no app launch, quit or signal."
+}

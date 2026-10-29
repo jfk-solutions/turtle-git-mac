@@ -55,8 +55,8 @@ private extension NSWindow {
         }
         func cleanup()async{
             releases.forEach{$0()};releases=[];owners.forEach{$0.close()};logs.forEach{$0.close()};blames.forEach{$0.close()};comparisons.forEach{$0.close()}
-            for _ in 0..<3000{if owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeFileOpenReads==0 && LogWindowModel.activeActionReads==0 && BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && comparisons.allSatisfy({!$0.model.mergeToolHasPendingWork}) && DiffToolApplication.activeRequests==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
-            previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[];DiffToolApplication.discardAll()
+            for _ in 0..<3000{if RepositoryBrowserExportFiles.activeLoads==0 && FileListDrag.activeLoads==0 && owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeFileOpenReads==0 && LogWindowModel.activeActionReads==0 && BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && comparisons.allSatisfy({!$0.model.mergeToolHasPendingWork}) && DiffToolApplication.activeRequests==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
+            previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[];DiffToolApplication.discardAll();RepositoryBrowserExportFiles.discardAll()
             UserDefaults.standard.removePersistentDomain(forName:suite)
         }
     }
@@ -94,8 +94,23 @@ private extension NSWindow {
         m.markForComparison(raw);try await wait{!m.busy && !m.hasPendingWork};m.revert([raw])
         try require(dispatches==3 && m.comparisonMark?.path==raw.path && m.comparisonMark?.revision==c.revision && !m.mutating && m.error==RepositoryBrowserWindowModel.rawPathReason,"Raw historical delivery or filesystem boundary changed")
         m.comparisonMark=nil
+        m.error=nil // The filesystem refusal above was already asserted.
         m.selection=[raw.id]
-        try require(m.dragProvider(raw)==nil && m.captureTransfer([raw.id])==nil,"Raw drag offered")
+        guard let rawProvider=m.dragProvider(raw),let rawTransfer=m.captureTransfer([raw.id]),let rawPromise=rawTransfer.promises.first else{throw Failure(description:"Safe individual raw-file delivery unavailable")}
+        let rawName="Git-path-365963acba3863622ba68f851c94ff4f7b4a438db7c9d6441e080035263e485e.txt"
+        try require(rawTransfer.paths==[raw.path] && rawTransfer.names==[rawName] && rawProvider.suggestedName==rawName && !rawTransfer.text.contains("\0") && !rawName.contains("\0"),"Raw transfer lost original identity or exposed opaque key")
+        let rawDelivered=c.folder.deletingLastPathComponent().appendingPathComponent(rawName)
+        defer{try? FileManager.default.removeItem(at:rawDelivered)}
+        try await rawPromise.write(to:rawDelivered)
+        let rawProviderBytes:Data=try await withCheckedThrowingContinuation{continuation in
+            _=rawProvider.loadFileRepresentation(forTypeIdentifier:"public.plain-text"){url,error in
+                if let error{continuation.resume(throwing:error);return}
+                guard let url else{continuation.resume(throwing:Failure(description:"Raw provider omitted URL"));return}
+                do{continuation.resume(returning:try Data(contentsOf:url))}catch{continuation.resume(throwing:error)}
+            }
+        }
+        let rawPromiseBytes=try Data(contentsOf:rawDelivered)
+        try require(rawPromise.name==rawName && rawPromiseBytes==c.text && rawProviderBytes==c.text,"Safe raw-file promise/provider changed exact stored bytes")
         m.error=nil;m.showEntryLog(valid);try require(dispatches==4,"Valid sibling Log suppressed")
         let badFolder=m.entries.first{$0.name=="valid-folder"}!
         m.error=nil;m.selection=[badFolder.id];try require(m.captureTransfer([badFolder.id])==nil && m.error?.contains("cannot be delivered")==true,"Representable folder with raw descendant offered a transfer")

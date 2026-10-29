@@ -2,7 +2,7 @@
 """Exercise actual sandboxed App Group sharing and packaged Git with an installed signing identity.
 Clones are run directly, with unique QA bundle IDs; no launch/Finder service is registered.
 """
-import argparse,base64,hashlib,json,os,platform,plistlib,re,signal,subprocess,sys,tempfile,threading,time,uuid
+import argparse,base64,ctypes,hashlib,json,os,platform,plistlib,re,signal,subprocess,sys,tempfile,threading,time,uuid
 from pathlib import Path
 from finder_group_identity import app_group,mach_service,query_mach_service
 from native_receiver import run_receiver,signal_receiver_group
@@ -76,10 +76,17 @@ def local_tools_request():
 
 class OwnedRuntimeChildren:
     """Observe/retire only the unique disposable clone's actual helper path."""
-    def __init__(self,executables,required,acknowledgements=None):
+    def __init__(self,executables,required,acknowledgements=None,resolve_process_paths=False):
         self.executables={name:{str(path),str(path.resolve(strict=True))} for name,path in executables.items()}
         self.required=set(required);self.own_group_roles=set(executables)&{'libgit2','metafile'};self.seen={};self.errors=[];self.stop=threading.Event()
         self.acknowledgements=acknowledgements
+        self.resolve_process_paths=resolve_process_paths
+        self.process_path=None
+        if resolve_process_paths:
+            library=ctypes.CDLL('/usr/lib/libproc.dylib')
+            self.process_path=library.proc_pidpath
+            self.process_path.argtypes=[ctypes.c_int,ctypes.c_void_p,ctypes.c_uint32]
+            self.process_path.restype=ctypes.c_int
         self.worker=threading.Thread(target=self.observe,daemon=True)
     def scan(self):
         result=subprocess.run(['/bin/ps','-axo','pid=,ppid=,pgid=,stat=,command='],capture_output=True,text=True,check=True,timeout=5)
@@ -87,9 +94,19 @@ class OwnedRuntimeChildren:
         for line in result.stdout.splitlines():
             fields=line.split(None,4)
             if len(fields)!=5:continue
-            pid,parent,group=map(int,fields[:3]);rows.append((pid,parent,group,fields[3],fields[4]))
+            pid,parent,group=map(int,fields[:3])
+            executable=''
+            if self.process_path is not None:
+                buffer=ctypes.create_string_buffer(4096)
+                if self.process_path(pid,buffer,len(buffer))>0:executable=os.fsdecode(buffer.value)
+            rows.append((pid,parent,group,fields[3],fields[4],executable))
         return rows
-    def roles(self,row):return [name for name,paths in self.executables.items() if any(row[4]==path or row[4].startswith(path+' ') for path in paths)]
+    def roles(self,row):
+        if self.resolve_process_paths:
+            # Git may replace argv[0] with its basename. Kernel executable path,
+            # not the display command, must still match this exact clone.
+            return [name for name,paths in self.executables.items() if row[5] in paths]
+        return [name for name,paths in self.executables.items() if any(row[4]==path or row[4].startswith(path+' ') for path in paths)]
     def owned(self,row):return bool(self.roles(row))
     def observe(self):
         try:
@@ -129,7 +146,8 @@ class OwnedRuntimeChildren:
                      'owned_helper_groups':[row[2] for row in self.seen.values()],
                      'observed_helper_roles':{name:sum(name in self.roles(row) for row in self.seen.values()) for name in self.executables},
                      'own_process_group_required_roles':sorted(self.own_group_roles),
-                     'observed_processes':[{'pid':row[0],'ppid':row[1],'pgid':row[2],'roles':self.roles(row)} for row in self.seen.values()],
+                     'observed_processes':[{'pid':row[0],'ppid':row[1],'pgid':row[2],'roles':self.roles(row),'actual_executable':row[5]} for row in self.seen.values()],
+                     'kernel_executable_identity_required':self.resolve_process_paths,
                      'helper_processes_and_groups_drained':not leftovers and groups_drained and pids_drained,'forced_cleanup_needed':needed_cleanup,'observer_errors':self.errors}
         if leftovers and kind is None:raise RuntimeError('Owned signed runtime helper survived cleanup')
         if kind is None:
@@ -293,7 +311,7 @@ def main():
                     local_binary=clones[1]
                     clone_core=local_binary.parent.parent/'Frameworks/TurtleGitCore.framework/TurtleGitCore'
                     if hashlib.sha256(clone_core.read_bytes()).hexdigest()!=record['packaged_core_sha256']:raise ValueError('Local-tools clone changed production Core')
-                    children=OwnedRuntimeChildren({'git':local_binary.parent.parent/'Helpers/Git/bin/git'},required={'git'})
+                    children=OwnedRuntimeChildren({'git':local_binary.parent.parent/'Helpers/Git/bin/git'},required={'git'},resolve_process_paths=True)
                     try:
                         with children:
                             receipt=run(local_binary,'local-tools',payload)
@@ -302,6 +320,9 @@ def main():
                                 if value.get(key) is not True:raise ValueError('Signed local-tools smoke missing '+key)
                             if value.get('native_ui_executed') is not False or any(receipt.get(key) is not False for key in ['outside_file_grants','shipping_gui_launched','app_group_files_created']) or receipt.get('private_container_cleaned') is not True:raise ValueError('Signed local-tools scope/cleanup incorrect')
                             if Path(value.get('git','')).resolve()!= (local_binary.parent.parent/'Helpers/Git/bin/git').resolve(strict=True):raise ValueError('Local-tools used external Git')
+                            observed=value.get('observed_git',{})
+                            if observed.get('pid') not in children.seen or observed.get('reaped') is not True or observed.get('hash')!='f440016325e65f00c7c09a9989ce0f099f443cdd':raise ValueError('Local-tools packaged Git stdin observation/reaping missing')
+                            if Path(observed.get('executable','')).resolve()!=(local_binary.parent.parent/'Helpers/Git/bin/git').resolve(strict=True):raise ValueError('Observed Git escaped packaged clone')
                             if set(value.get('image_sha256',{}))!={'animated.gif','vector.wmf','opaque.bin'}:raise ValueError('Local-tools image byte receipts incomplete')
                             expected_images={name:originals[path] for name,path in {'animated.gif':ROOT/'Tests/TurtleGitCoreTests/Fixtures/Metafile/compressed-raster-source-gif-two-frames.gif','vector.wmf':ROOT/'Tests/TurtleGitCoreTests/Fixtures/Metafile/clip-vector.wmf'}.items()}
                             if any(value['image_sha256'].get(name)!=digest for name,digest in expected_images.items()):raise ValueError('Signed image smoke changed original containers')

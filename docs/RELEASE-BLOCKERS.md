@@ -5,7 +5,35 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
-## Installed local testing build33
+## Installed local testing build34
+
+[Signed build34](qa/signed-consolidation-build34-2026-10-29.json), version
+`0.1.0 (34)`, is installed from clean source `b7085d24`. It consolidates Unified
+Diff zoom/cursor work, Merge AutoAdd completion, standalone image tools,
+report-header icons, historical folder archives and safe raw-file transfers.
+All eight app-owned components contain arm64/x86_64 code. Frozen inputs, strict
+signatures, packaged Help and ZIP extraction/inventory checks pass.
+
+The focused signed parent exercises the sealed production Core framework and
+packaged Git for image selection and raw historical archive/file delivery in a
+private sandbox container. A deterministic held Git request is independently
+identified by its PID and kernel executable path, then reaped. This does not
+exercise the shipping AppKit UI, outside repository grants or physical drag/drop.
+
+[The idle installation receipt](qa/signed34-installed-2026-10-29.json) records a
+verified atomic swap, complete installed inventory equality and preserved build33
+rollback copies. The app was closed before replacement and remains closed; no
+app process was launched, quit or signalled. Finder/Dock and login/service
+preferences were not restarted or changed. Registration refresh caused macOS to
+reload the extension host while the Finder process stayed running.
+
+The local package is `TurtleGit-for-Mac-0.1.0-build34-signed.zip` (SHA-256
+`0dfa6bffd0c2fedf74a6b1b71cdd0419bc96c1f1e0099b2b8a58c2928f667fa4`).
+It is a local Apple Development testing artifact. No public binary release,
+notarization or App Store submission was performed. Complete hosted, source,
+physical, signed external-grant, Intel/minimum-macOS and Store gates remain open.
+
+## Previous installed build33
 
 [Signed build33](qa/signed-consolidation-build33-2026-10-29.json), version
 `0.1.0 (33)`, was built from clean source `4daef1a3`. It includes the three Unified
@@ -67,7 +95,7 @@ Both owned app processes exited, and repository HEAD/index were unchanged.
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
 | Startup and large repositories | [Finder publication](qa/finder-publication-pipeline-2026-10-27.json) and [shared Commit reads](qa/commit-shared-display-read-2026-10-27.json) have measured improvements. Complete installed startup/status latency and representative large repositories remain separate measurements; synthetic command counts are not an end-user timing guarantee. |
 | Text, image and document compatibility | [Comparison](IMAGE-COMPARISON.md), [metafile compatibility](IMAGE-METAFILE-PARITY.md), [formatted text](METAFILE-TEXT-PARITY.md) and the document-tool records retain unsupported formats, encodings, font/locale differences and external application boundaries. Explicit refusals must remain visible; a passed corpus is not universal format support. |
-| Historical filename boundaries | [Historical materialization/comparison](RAW-HISTORY-PARITY.md#materializationcomparison-checkpoint) is implemented and separately checked. Raw original-path checkout, working-tree mutation/comparison, folders with raw descendants and submodule checkout resolution retain the explicit [namespace boundaries](REPOSITORY-BROWSER-NAMESPACE-PARITY.md). A native-host filename probe does not establish every filesystem's capabilities. |
+| Historical filename boundaries | [Historical materialization/comparison](RAW-HISTORY-PARITY.md#materializationcomparison-checkpoint), [folder archives](BROWSER-ARCHIVE-PARITY.md) and [safe individual-file transfers](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md) are implemented and separately checked. Raw original-path checkout, working-tree mutation/comparison, literal folder promises/exports with raw descendants and submodule checkout resolution retain the explicit [namespace boundaries](REPOSITORY-BROWSER-NAMESPACE-PARITY.md). A native-host filename probe does not establish every filesystem's capabilities. |
 | Provider and external transport acceptance | Native issue adapters, credentials, SSH, hooks, Git/LFS/SVN and Office adapters have their own bounded records. Authenticated public services, vendor-specific providers, receiving applications and real external permissions remain separate from private loopback/stub tests. |
 | Intel and minimum macOS | Universal binary and deployment-target checks establish structure. Execution on Intel and the minimum supported macOS, including UI, helper and Finder workflows, remains unverified by those checks. |
 | Localization and accessibility | The generated catalog retains English fallback where source translations cannot be used safely. Label counts do not establish every dialog's translation, VoiceOver reading order, IME behavior or keyboard usability. |
