@@ -31,6 +31,21 @@ missing source behavior, reported defect or failing check.
   distribution and the later App Store submission remain separate, including
   distribution signing and the unresolved GPL/App Store terms gate.
 
+## Installed local testing build37
+
+[Signed build37](qa/signed-consolidation-build37-2026-10-29.json), `0.1.0 (37)`,
+is installed from source `a25f65ab`. It includes the Finder retirement continuation
+and the repaired asynchronous Merge startup check. The single universal build,
+strict signatures, frozen inputs, sealed public Core/packaged Git probe, bundled
+Help and ZIP/inventory round trip pass. The full installed inventory matches;
+build36 rollback copies remain available. Installation left the app closed and
+restarted no Finder/Dock process or login/service preference.
+
+The repaired macOS workflow has four validation lanes running concurrently after
+its SVN producer passed. A complete hosted result and physical Finder cold command,
+badge and real large-repository latency acceptance remain open. No public upload,
+notarization or Store submission occurred.
+
 ## Installed local testing build36
 
 [Signed build36](qa/signed-consolidation-build36-2026-10-29.json), `0.1.0 (36)`,

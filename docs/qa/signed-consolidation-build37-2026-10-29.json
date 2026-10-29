@@ -1,0 +1,282 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-local-testing-build-installed-kept-closed",
+  "build": "0.1.0 (37)",
+  "source_commit": "a25f65abf6e889c0ffa09a81798e5fe906ba3a22",
+  "source_input_sha256": "a1fe8f7ebb090a97417ce64098aec9f8c6f39fb6e3a91b3b9f6746cb47fe5b9c",
+  "source_inputs_unchanged": true,
+  "scope": [
+    "Finder retirement current-archive reuse and one required warm write for multiple departing repositories",
+    "Exact Unicode metadata comparison, expired/nested publisher fences and empty retirement reuse",
+    "Asynchronous Merge startup fixture repair; eight dependency-complete CI lanes"
+  ],
+  "focused_source_evidence": [
+    "docs/qa/finder-retirement-and-startup-2026-10-29.json"
+  ],
+  "build_validation": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 699.52,
+        "log": "build/qa/signed37-build-2026-10-29.log"
+      }
+    ],
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "60963af2322b51f8304f4110781286dccb7d64cc2c0f95f16da034698f88b956",
+    "packaged_help_source_equal": true,
+    "packaged_help_members": 95,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "signed_parent_validation": {
+    "passed": true,
+    "requested_phases": [
+      "local-tools"
+    ],
+    "packaged_core_sha256": "ce591a2cd85d0de7518bb0ee20cfe1d2a1aad135768b749d2f102bd9fc0cb07d",
+    "probe_source_sha256": "baf88d61e9b189bde81b5c2b9b648db7b11b38a119ff6f33c013fd9766de64a8",
+    "cases": [
+      {
+        "app_group_files_created": false,
+        "local_tools": {
+          "archive_sha256": "f5593bbb4882c119df8745c2c8e64faa6690beeffc932448db2b53098a9d83b3",
+          "auxiliary_setup_separate": true,
+          "captured_revision_backend": true,
+          "checkout_reset_acceptance": true,
+          "clone_acceptance_receipt": true,
+          "creation_acceptance_receipts": true,
+          "finder_cache_exact_unicode": true,
+          "finder_cache_retained_claims": true,
+          "finder_cache_stale_ticket_fence": true,
+          "finder_cache_v4_wire": true,
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-jcp0i2ma/Denied.app/Contents/Helpers/Git/bin/git",
+          "head_index_working_unchanged": true,
+          "image_original_bytes_selection": true,
+          "image_sha256": {
+            "animated.gif": "2f225b8d5b8938366447c4f805b24ea21ff14510e909f55b61c0b696a2f48683",
+            "opaque.bin": "8eb510b6a1a199cd6901cd6d87f5397235be90f7efa6a57e1d44742c4cf36849",
+            "vector.wmf": "f46f371a33e85e5cca76fa82e8529da3059fb0c177a78f5631007f137d08728e"
+          },
+          "marked_screen_row_status": true,
+          "native_ui_executed": false,
+          "observed_git": {
+            "executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-jcp0i2ma/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git",
+            "hash": "f440016325e65f00c7c09a9989ce0f099f443cdd",
+            "pid": 24842,
+            "reaped": true
+          },
+          "public_core_package_smoke": true,
+          "raw_blob_sha256": "94d02e56c39df698c16caa08de0b1961fac6e1cb50f1aa87b604abc381f1f287",
+          "raw_folder_archive": true,
+          "raw_individual_materialization": true,
+          "repository_initialization_acceptance": true,
+          "settings_publication_intents": true,
+          "submodule_add_exercised": false
+        },
+        "mode": "local-tools",
+        "outside_file_grants": false,
+        "passed": true,
+        "private_container_cleaned": true,
+        "shipping_gui_launched": false
+      }
+    ],
+    "children": {
+      "observed_helper_processes": 4,
+      "owned_helper_pids": [
+        24842,
+        24862,
+        25026,
+        25027
+      ],
+      "owned_helper_groups": [
+        24842,
+        24862,
+        25026,
+        25026
+      ],
+      "observed_helper_roles": {
+        "git": 4
+      },
+      "own_process_group_required_roles": [],
+      "observed_processes": [
+        {
+          "pid": 24842,
+          "ppid": 24787,
+          "pgid": 24842,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-jcp0i2ma/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        },
+        {
+          "pid": 24862,
+          "ppid": 24787,
+          "pgid": 24862,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-jcp0i2ma/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        },
+        {
+          "pid": 25026,
+          "ppid": 24787,
+          "pgid": 25026,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-jcp0i2ma/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        },
+        {
+          "pid": 25027,
+          "ppid": 25026,
+          "pgid": 25026,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-jcp0i2ma/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        }
+      ],
+      "kernel_executable_identity_required": true,
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "independently_absent_parent_and_helper_pids": [
+      24787,
+      24842
+    ],
+    "attempts": 1,
+    "shipping_ui_exercised": false,
+    "outside_file_grants": false,
+    "app_group_entitled": false
+  },
+  "package": {
+    "kind": "TurtleGitSignedLocalTestingPackage",
+    "created_utc": "2026-10-29T22:26:54.711771+00:00",
+    "version": "0.1.0",
+    "build": "37",
+    "source_commit": "a25f65abf6e889c0ffa09a81798e5fe906ba3a22",
+    "build_input_sha256": "a1fe8f7ebb090a97417ce64098aec9f8c6f39fb6e3a91b3b9f6746cb47fe5b9c",
+    "source_inputs_unchanged": true,
+    "signature_preserved": true,
+    "re_signing_performed": false,
+    "signer": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "60963af2322b51f8304f4110781286dccb7d64cc2c0f95f16da034698f88b956",
+    "zip": "TurtleGit-for-Mac-0.1.0-build37-signed.zip",
+    "zip_bytes": 423295910,
+    "zip_sha256": "770e1d26c8e67d4dac876138c24e6bacc7011eba2ef761760e27c7b697a4ab1c",
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true,
+    "app_installed": false,
+    "gui_launched": false,
+    "store_submission": false,
+    "notarization": false,
+    "source_audit": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed37-static-2026-10-29.json"
+  },
+  "installation": {
+    "status": "installed-build37-kept-closed",
+    "source_commit": "a25f65abf6e889c0ffa09a81798e5fe906ba3a22",
+    "complete_inventory_equal": true,
+    "inventory_members": 6381,
+    "main_sha256": "60963af2322b51f8304f4110781286dccb7d64cc2c0f95f16da034698f88b956",
+    "atomic_swap": true,
+    "preserved_build36_inventory_equal": true,
+    "finished_utc": "2026-10-29T22:29:05.796427+00:00",
+    "app_launched": false,
+    "signals_sent": false,
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "login_item_preferences_changed": false,
+    "service_preferences_changed": false
+  },
+  "hosted_ci": {
+    "run": 40964073622,
+    "source": "a25f65ab",
+    "observed": "SVN producer passed; core, commit-repository, history-references and replay-transport lanes running concurrently; remaining lanes queued",
+    "complete_pass": false,
+    "superseded_serial_run_cancelled": 40956001328,
+    "reason": "Older serial source contains known stale startup fixture and blocks repaired parallel source; cancelled intentionally, not on an observation timeout"
+  },
+  "limits": [
+    "Physical installed Finder cold commands/badges and real large-repository latency remain open",
+    "No complete hosted current-source macOS CI pass",
+    "Universal structure does not prove Intel/minimum-macOS execution",
+    "No public binary upload, notarization or App Store submission; GPL/App Store terms gate unresolved"
+  ]
+}
