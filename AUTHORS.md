@@ -14,5 +14,5 @@ component contributors retain their attribution and applicable rights. See the
 bundled component source/notices for the relevant credits and license terms.
 
 The application's About windows credit the macOS port author separately from
-original tool contributors. The same port credit appears in README and the
-project website source.
+original tool contributors. README and the project website link to these
+full credits.

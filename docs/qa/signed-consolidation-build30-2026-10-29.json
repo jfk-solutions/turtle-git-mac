@@ -5,7 +5,7 @@
   "source_commit": "06e3de2971a8f5da72e7f44eb950fed45f34f3e7",
   "source_input_sha256": "752982315117a711fed81d853714bf06dabb6a7e570283500494cbab7b8c92a0",
   "source_inputs_unchanged": true,
-  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/preserved-build30-2026-10-29.app",
   "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed30-static-2026-10-29.json",
   "implementation_scope": [
     "Displayed Log commit selection across accepted-but-unrendered history projections; blocked native highlight reconciliation",
@@ -150,5 +150,7 @@
     "images": "Candidate retained historical images at freeze. Subsequent actual four-image capture is recorded in docs/qa/manual-commit-captures-2026-10-29.json; these newer assets are outside this signed source."
   },
   "build_elapsed_seconds": 430.44,
-  "excluded_later_work": "The later Log streamed-file inspection and Merge header-activation families are not part of source06e3de29 or this signed installed build."
+  "excluded_later_work": "The later Log streamed-file inspection and Merge header-activation families are not part of source06e3de29 or this signed installed build.",
+  "original_candidate_path": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "preserved_before_next_build": true
 }

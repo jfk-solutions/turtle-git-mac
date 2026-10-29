@@ -7,7 +7,21 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Current measured local artifacts — 23 October 2026
+## Current installed local checkpoint — 29 October 2026
+
+[Signed build 30](qa/signed-consolidation-build30-2026-10-29.json), version `0.1.0`,
+is installed from clean source `06e3de29` for Apple Silicon local testing. After
+the user's approval it replaced build 27 and reopened normally; build 27 remains
+available for rollback. The installed inventory matches the measured signed
+candidate and its strict deep signature check passes. Later source batches and
+newer documentation assets are separate from that installed source. See
+[release gates](RELEASE-BLOCKERS.md) for current acceptance limits and
+[port tracking](PORTING.md) for subsequent implementation checkpoints.
+
+The older dated artifacts below remain historical evidence, not the current
+package to install or a certification of later source.
+
+## Historical measured local artifacts — 23 October 2026
 
 The Release preview and unsigned AppStore archive are version `0.1.0`, build `3`.
 Application, Finder extension and cache service versions/builds agree. Their
@@ -27,7 +41,7 @@ records the actual reports, diagnostics and probes.
   Its 6,354-member signed bundle inventory matches the extracted ZIP, and both
   deep strict ad-hoc code-seal checks pass.
 - Release source audit: `build/preview-2026-10-15/distribution-audit.json`.
-  The directory name is historical; the report is the current measured build.
+  The directory name is historical; the report describes that dated build.
   Its application inventory has 6,349 members and eight app-owned universal
   components. Release build/audit commands exited zero.
 - Archive: `build/archives/TurtleGit-AppStore-2ba5f945-build3.xcarchive`, with
@@ -115,7 +129,7 @@ pass, every dialog's appearance, Intel execution, distribution signing or an App
 Store export/submission. The compiler warnings remain recorded. Earlier preview
 ZIPs and unsigned archive receipts remain separate artifacts.
 
-## October 26 installed build 13
+## Historical installed build 13 — 26 October 2026
 
 The [build13 receipt](qa/signed-consolidation-build13-2026-10-26.json) records
 version `0.1.0`, build `13`, from clean source `a3a38c07`. Its measured input

@@ -95,7 +95,7 @@
     "documentation_attempts": [
       {
         "scope": "Help freshness",
-        "result": "initial check failed because the included raster parity guide changed after generation; regenerated after docs freeze, with final check pending",
+        "result": "initial check failed because the included raster parity guide changed after generation; the subsequent regeneration and passed final check are recorded below",
         "followup": "Help regenerated; final freshness check passed before final app build."
       }
     ],

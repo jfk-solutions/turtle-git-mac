@@ -7,7 +7,7 @@ Windows color-management or metafile operation.
 
 ## Source and independently observed paint policy
 
-Pinned `src/Utils/MiscUI/Picture.cpp:415` loads `Bitmap(file,FALSE)`. Natural-size
+Pinned `src/Utils/MiscUI/Picture.cpp:418` loads `Bitmap(file,FALSE)`. Natural-size
 painting at 545–556 uses default interpolation, PixelOffsetHalf and TileFlipXY.
 Automatic loader correction and a metafile's recorded ICM settings are distinct
 stages, so the implementation does not assume that an ICC profile authorizes a
