@@ -505,8 +505,13 @@ import TurtleGitCore
             defer{_ = try? store.endSession(owner)}
             let cachedRoot=cacheFolder.appendingPathComponent("registered-repository",isDirectory:true)
             try FileManager.default.createDirectory(at:cachedRoot,withIntermediateDirectories:true)
-            let composed=cachedRoot.appendingPathComponent("café.txt").path,decomposed=cachedRoot.appendingPathComponent("cafe\u{301}.txt").path
-            let cached=FinderSnapshot(roots:[cachedRoot.path],states:[cachedRoot.path:.normal,composed:.added,decomposed:.conflicted],repositories:[cachedRoot.path:.init()])
+            // These are exact Git namespace keys, not filesystem URL paths.
+            // Foundation's URL path conversion can precompose the spelling.
+            let composed=cachedRoot.path+"/caf\u{e9}.txt",decomposed=cachedRoot.path+"/cafe\u{301}.txt"
+            try require(!GitReferenceName.equal(composed,decomposed),"Private NFC/NFD cache keys lost their distinct UTF-8 spelling")
+            var cachedStates=GitPathMap<FileState>()
+            cachedStates[cachedRoot.path] = .normal;cachedStates[composed] = .added;cachedStates[decomposed] = .conflicted
+            let cached=FinderSnapshot(roots:[cachedRoot.path],states:cachedStates,repositories:[cachedRoot.path:.init()])
             let initial=try store.begin(root:cachedRoot,session:owner)
             try require(try store.publish(initial,snapshots:[cached]).published,"Packaged private cache did not publish")
             let warm=URL(fileURLWithPath:store.url.path+".warm"),control=URL(fileURLWithPath:store.url.path+".writers")
@@ -578,7 +583,14 @@ import TurtleGitCore
             guard args.count==5 else{throw Failure(description:"Missing local-tools payload")}
             let directory=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/TurtleGitSignedLocalTools-"+uuid.uuidString,isDirectory:true)
             try require(!FileManager.default.fileExists(atPath:directory.path),"Local-tools UUID directory already exists")
-            let value=try await localTools(directory,payload:args[4])
+            let value:[String:Any]
+            do {value=try await localTools(directory,payload:args[4])}
+            catch {
+                // Report a normal probe failure after localTools has
+                // run its cleanup defers, instead of an opaque async-main trap.
+                FileHandle.standardError.write(Data(("TURTLEGIT_SIGNED_QA_FAILURE "+String(describing:error)+"\n").utf8))
+                exit(1)
+            }
             try require(!FileManager.default.fileExists(atPath:directory.path),"Private local-tools directory survived cleanup")
             let receipt:[String:Any]=["mode":mode,"passed":true,"local_tools":value,"outside_file_grants":false,"shipping_gui_launched":false,"app_group_files_created":false,"private_container_cleaned":true]
             print("TURTLEGIT_SIGNED_QA "+String(decoding:try JSONSerialization.data(withJSONObject:receipt,options:.sortedKeys),as:UTF8.self));return

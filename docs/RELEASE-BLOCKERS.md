@@ -17,8 +17,9 @@ missing source behavior, reported defect or failing check.
   selecting a Log commit and inspecting its files; Settings OK/Cancel and remotes.
   The [partial build35 check](qa/installed35-workflows-2026-10-29.json) verified
   staging transfers, Log inspection and Remote selection. It found live cache
-  contention; Finder cold launch, Settings close and fixture-registration cleanup
-  remain unverified after computer-control errors.
+  contention. Build36 verified Settings OK/Cancel and Remote selection; Finder
+  cold launch remains open, and retirement still performed a costly warm-cache
+  rewrite. The private fixture permission was removed and test apps quit normally.
 - [ ] Obtain a complete hosted macOS CI pass on the release source and repair
   concrete failures without repeatedly running unrelated local suites.
 - [ ] Close the explicit source/layout gaps in the family records and establish
@@ -29,6 +30,24 @@ missing source behavior, reported defect or failing check.
 - [ ] Deliver the signed local testing package for owner acceptance. Public
   distribution and the later App Store submission remain separate, including
   distribution signing and the unresolved GPL/App Store terms gate.
+
+## Installed local testing build36
+
+[Signed build36](qa/signed-consolidation-build36-2026-10-29.json), `0.1.0 (36)`,
+is installed from frozen source `939ea9fe`. It includes accepted repository setup
+and transition outcomes, retained Finder claim reuse and Settings watch ownership.
+The universal build, strict signatures, sealed public Core/packaged Git probe,
+Help and ZIP inventory pass. A probe-only Unicode fixture repair was required;
+the sealed application did not change. Build35 rollback copies remain available.
+
+The private physical check loaded all five changes and reached Finder cache Ready.
+Settings Git OK and Remote Cancel both closed and reopened correctly. Shutdown
+sampling still found a costly warm-cache retirement rewrite, so large-cache
+lifecycle performance and Finder cold menus/badges remain acceptance gates.
+Test apps quit normally; the private saved repository permission was removed.
+No Finder/Dock restart, public upload, notarization or Store submission occurred.
+The later CI split into eight dependency-complete lanes is source `54168b21`;
+a complete hosted result remains required.
 
 ## Installed local testing build35
 

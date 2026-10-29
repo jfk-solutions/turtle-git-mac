@@ -18,6 +18,21 @@ repository identity. Pure parent refresh remains tied to the accepted attempt;
 automatic opening and child actions require a live owner and explicit continuation
 after cancellation. Build35 predates this batch. The [grouped checkpoint](qa/repository-setup-transitions-2026-10-29.json) passes 65 distinct Core methods and ten native case/engine pairs after the recorded fixture and callback repairs.
 
+## Installed local testing build36
+
+[Signed build36](qa/signed-consolidation-build36-2026-10-29.json) installs the
+repository setup/transition and Finder/Settings continuation above. Frozen inputs,
+universal components, strict seals, private signed public Core/packaged Git,
+Help and ZIP inventory pass. The signed probe required a Unicode fixture-only
+repair against the unchanged production bundle. Build35 is preserved for rollback.
+
+The physical private check reached all five changes and Finder cache Ready;
+Settings OK/Cancel and Remote selection worked. A retirement stack sample still
+showed expensive warm-cache encoding/sorting, which requires a source continuation.
+Finder cold command/badge acceptance and the complete hosted CI result remain open.
+The private saved permission was removed, the owned apps quit normally, and Finder
+was not restarted. No public or Store release occurred.
+
 ## Installed local testing build35
 
 [Signed build35](qa/signed-consolidation-build35-2026-10-29.json) consolidates the

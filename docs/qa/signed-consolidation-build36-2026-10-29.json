@@ -1,0 +1,264 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-local-testing-build-installed-partial-physical-acceptance",
+  "build": "0.1.0 (36)",
+  "source_commit": "939ea9fe5511abe5b014ba1318a7a13aa7076646",
+  "source_input_sha256": "512a8f4c6af57b81c84ac351e8744bef33de94760290b8358d1cbd03b9399372",
+  "source_inputs_unchanged": true,
+  "implementation_scope": [
+    "Accepted Clone/Init/Submodule Add/Switch/Reset outcomes and bounded recovery without repeating successful mutations",
+    "Finder cache retained claim publication, local writer sequencing and exact Unicode v4 contribution reuse",
+    "Settings watch actions own their pending lifetime independently of unrelated background refresh"
+  ],
+  "focused_source_evidence": [
+    "docs/qa/repository-setup-transitions-2026-10-29.json",
+    "docs/qa/finder-large-cache-2026-10-29.json"
+  ],
+  "build_validation": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 505.33,
+        "log": "build/qa/signed36-build-2026-10-29.log"
+      }
+    ],
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "2dcb8c5145c07b124c1d640d2380bda4f59d2e3c9f878d7cbf796b5ce3ba8632",
+    "same_signing_team_and_sandbox_groups": true,
+    "help_source_equal": true,
+    "help_members": 95,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "signed_parent_validation": {
+    "passed": true,
+    "requested_phases": [
+      "local-tools"
+    ],
+    "packaged_core_sha256": "d5193b20bdf54e2984e58fe2ac68c74cb60ae34ae0978c1c2309ba70a4cc89fc",
+    "probe_source_sha256": "baf88d61e9b189bde81b5c2b9b648db7b11b38a119ff6f33c013fd9766de64a8",
+    "cases": [
+      {
+        "app_group_files_created": false,
+        "local_tools": {
+          "archive_sha256": "a8896d2ec19047d2d89c8cf36ae68255dd7cd7ce37818b65ecda7c4a1195348b",
+          "auxiliary_setup_separate": true,
+          "captured_revision_backend": true,
+          "checkout_reset_acceptance": true,
+          "clone_acceptance_receipt": true,
+          "creation_acceptance_receipts": true,
+          "finder_cache_exact_unicode": true,
+          "finder_cache_retained_claims": true,
+          "finder_cache_stale_ticket_fence": true,
+          "finder_cache_v4_wire": true,
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-6v_iuk4t/Denied.app/Contents/Helpers/Git/bin/git",
+          "head_index_working_unchanged": true,
+          "image_original_bytes_selection": true,
+          "image_sha256": {
+            "animated.gif": "2f225b8d5b8938366447c4f805b24ea21ff14510e909f55b61c0b696a2f48683",
+            "opaque.bin": "8eb510b6a1a199cd6901cd6d87f5397235be90f7efa6a57e1d44742c4cf36849",
+            "vector.wmf": "f46f371a33e85e5cca76fa82e8529da3059fb0c177a78f5631007f137d08728e"
+          },
+          "marked_screen_row_status": true,
+          "native_ui_executed": false,
+          "observed_git": {
+            "executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-6v_iuk4t/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git",
+            "hash": "f440016325e65f00c7c09a9989ce0f099f443cdd",
+            "pid": 18961,
+            "reaped": true
+          },
+          "public_core_package_smoke": true,
+          "raw_blob_sha256": "94d02e56c39df698c16caa08de0b1961fac6e1cb50f1aa87b604abc381f1f287",
+          "raw_folder_archive": true,
+          "raw_individual_materialization": true,
+          "repository_initialization_acceptance": true,
+          "settings_publication_intents": true,
+          "submodule_add_exercised": false
+        },
+        "mode": "local-tools",
+        "outside_file_grants": false,
+        "passed": true,
+        "private_container_cleaned": true,
+        "shipping_gui_launched": false
+      }
+    ],
+    "children": {
+      "observed_helper_processes": 1,
+      "owned_helper_pids": [
+        18961
+      ],
+      "owned_helper_groups": [
+        18961
+      ],
+      "observed_helper_roles": {
+        "git": 1
+      },
+      "own_process_group_required_roles": [],
+      "observed_processes": [
+        {
+          "pid": 18961,
+          "ppid": 18914,
+          "pgid": 18961,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed-finder-6v_iuk4t/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        }
+      ],
+      "kernel_executable_identity_required": true,
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "independently_absent_parent_and_helper_pids": [
+      18914,
+      18961
+    ],
+    "initial_failure": "Probe fixture URL path construction canonicalized NFC/NFD keys into duplicate bytes and hit GitPathMap dictionary literal precondition (SIGTRAP). Production bundle unchanged.",
+    "repair": "Construct raw byte-distinct suffix strings, assert byte inequality, assign metadata explicitly; report thrown local-tools errors cleanly after defers. All behavioral assertions retained.",
+    "recheck": "One affected signed local-tools retry passed against unchanged sealed build36. Probe-only repair is later than frozen source939ea9fe.",
+    "failed_attempt_cleanup": "Only the exact nonce-owned failed fixture tree was removed after container identity/ancestry/no-symlink checks; OS container metadata retained; parent18426/helper18479 absent."
+  },
+  "package": {
+    "kind": "TurtleGitSignedLocalTestingPackage",
+    "created_utc": "2026-10-29T21:37:17.187410+00:00",
+    "version": "0.1.0",
+    "build": "36",
+    "source_commit": "939ea9fe5511abe5b014ba1318a7a13aa7076646",
+    "build_input_sha256": "512a8f4c6af57b81c84ac351e8744bef33de94760290b8358d1cbd03b9399372",
+    "source_inputs_unchanged": true,
+    "signature_preserved": true,
+    "re_signing_performed": false,
+    "signer": {
+      "team": "A49SCA5S8K",
+      "authorities": [
+        "Apple Development: jochen.kuehner@gmx.de (HESPM93968)",
+        "Apple Worldwide Developer Relations Certification Authority",
+        "Apple Root CA"
+      ]
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6381,
+    "application_sha256": "2dcb8c5145c07b124c1d640d2380bda4f59d2e3c9f878d7cbf796b5ce3ba8632",
+    "zip": "TurtleGit-for-Mac-0.1.0-build36-signed.zip",
+    "zip_bytes": 423286080,
+    "zip_sha256": "5d91dac5210cdea663ebcbd825cfe654618085b9bd68c4b1696bf767ba7e1123",
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true,
+    "app_installed": false,
+    "gui_launched": false,
+    "store_submission": false,
+    "notarization": false,
+    "source_audit": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed36-static-2026-10-29.json"
+  },
+  "installation": {
+    "performed": true,
+    "idle_atomic_swap": true,
+    "complete_inventory_equal": true,
+    "inventory_members": 6381,
+    "installed_main_sha256": "2dcb8c5145c07b124c1d640d2380bda4f59d2e3c9f878d7cbf796b5ce3ba8632",
+    "completed_utc": "2026-10-29T21:43:50.352082+00:00",
+    "preserved_build35_inventory_equal": true,
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "login_item_preferences_changed": false,
+    "service_preferences_changed": false
+  },
+  "physical_acceptance": {
+    "fixture": "private10001-file16-commitRepository",
+    "observed": [
+      "Workspace loaded main and all5changes with Finder cache updated/Ready; prior lock error not observed",
+      "Settings Git OK closed; next Cmd-comma opened fresh General",
+      "Settings Remote table displays origin and selecting it populated exact private example.invalid URL",
+      "Remote Cancel closed; next Cmd-comma opened fresh General; no Git config edit/network",
+      "Removed only private acceptance repository saved permission via its Recent xmark; Watched Repositories list did not include that private fixture",
+      "Finder Window menu lists only user-owned Downloads; test Recents window no longer present"
+    ],
+    "limits": [
+      "Cold Finder Commit/menu/badges route not completed after computer-control focus/timeouts",
+      "CUA launch observations are not controlled latency benchmarks",
+      "Settings-close AX timeout alone did not establish a UI hang; main thread sampled idle",
+      "Owned app19705 spent CPU retiring a Finder session through mergeWarm/save/JSONEncoder and GitPathMap ordered sorting; continuation required for large warm-cache retirement cost"
+    ],
+    "shipping_ui_launched": true,
+    "no_test_app_force_termination": true,
+    "owned_app_pids_normally_exited": [
+      19705,
+      20332
+    ],
+    "fixture_preservation": "Original HEAD c98e1e482f72ed9cc359acfb968daee53344871b, four modified files, one untracked file and empty index restored; permission removed; fixture data retained for any affected recheck."
+  },
+  "limits": [
+    "No full current hosted macOS CI pass; split-lane workflow54168b21 pushed separately after sealed build",
+    "Physical Finder cold integration, outside grants/authentication, Intel/minimum-macOS execution and complete source/accessibility acceptance remain open",
+    "Local Apple Development signature; no public upload, notarization or Store submission",
+    "GPL/App Store terms gate remains unresolved"
+  ]
+}
