@@ -1,0 +1,53 @@
+{
+  "app_build": "35",
+  "status": "partial-shipping-ui-acceptance-found-cache-contention",
+  "tracked_files": 10001,
+  "commits": 16,
+  "cold_launch_observation_ms": 1620,
+  "cold_launch_limit": "CUA launch call including initial AX observation, not a controlled startup benchmark",
+  "observed": [
+    "Opened sandbox repository chooser and selected private10001-file/16commit repository",
+    "Classic Commit populated all5changedfiles and numstats",
+    "Compact Commit layout dropdown switches to GitGui staging and back",
+    "Native staging lists have borders/header columns and distinct empty state",
+    "Actual row double-click staged and then unstaged one modified file; both listcounts and patchsource updated",
+    "Original Classic preference restored; empty Commit Cancel confirmed and closed",
+    "Log loaded16commits; selecting historicalcommit updated SHA/message/changedfilelist",
+    "Double-click history.txt opened read-only comparison between revisions12 and13; comparison and Log closed",
+    "Settings Remote native table displays origin and selection populates exact captured URL"
+  ],
+  "unresolved": [
+    "Finder cold menu path not reached: CUA cgWindowNotFound after GoToFolder opened",
+    "Settings Cancel sent, but subsequent CUA AX/screenshot reads timeout; MainThread sampled idle, so actual UI hang not established",
+    "Settings OK not yet exercised",
+    "Own fixture watch/bookmark/recent and test Finder window cleanup pending UI recovery"
+  ],
+  "repository_head_status_and_empty_index_restored": true,
+  "test_app_cleanup": {
+    "owned_main_pid": 12342,
+    "normal_quit_requested_via_CUA": true,
+    "independently_absent": true,
+    "signals_sent": false,
+    "main_children_at_quit": []
+  },
+  "date": "2026-10-29",
+  "installed_source": "e0f1c559e3f110e1f9ed59f19a7289f3f6beb481",
+  "finder_defect": {
+    "visible_workspace_message": "Finder cache unavailable: Another Finder cache writer did not release its lock.",
+    "readonly_sample": "build/qa/finder-cache-writer35-sample-2026-10-29.txt",
+    "settings_timeout_sample": "build/qa/finder-cache-settings35-sample-2026-10-29.txt",
+    "observed_main_pid": 12342,
+    "only_lock_owner": "main app; multiple independent file descriptors",
+    "approx_snapshot_and_control_bytes": 74000000,
+    "cause": "Live sameprocess full-snapshot JSON work under writerlock exceeds5secondwait; not abandoned-lock-file proof",
+    "repair_in_progress": true
+  },
+  "evidence_limits": [
+    "Actual installed shipping AppKit exercised through CUA; not the newly edited source",
+    "Cold launch/tool action durations include automation and observation; no controlled latency benchmark",
+    "No physical Finder menu/badge acceptance established",
+    "No Settings Cancel/OK pass inferred from tool timeouts; sampled main thread was idle",
+    "Private fixture watch/recent/bookmark and Finder test-window cleanup remain pending tool recovery",
+    "No user repository was staged, committed, reset, or otherwise modified; no network transport requested"
+  ]
+}

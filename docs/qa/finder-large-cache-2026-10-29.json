@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "64b16f4317e2b6715bc9e8d4e6d638798989bf16",
+  "scope": [
+    "Reproduced installed35 live same-process74MB cache writer contention",
+    "Cancellable same-store local serialization before cross-process deadline",
+    "Exact-file-identity immutable control/raw/warm memo and contribution encoding reuse",
+    "Claim-only sequence persistence without unchanged live/warm rewrite; v4 wire retained",
+    "Settings-owned watch actions gate dismissal; unrelated application registrations do not"
+  ],
+  "shipping_evidence": "installed35-workflows-2026-10-29.json",
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "b8072cb7f4e8945970674b93b5b8962297a8d503625080547bd12ee340e2c9fa",
+    "Tests/TurtleGitCoreTests/FinderPublicationClaimTests.swift": "505b962b24c91124d8a9655eb885b26eade74974b322e049b2c5a1dc38b956cb",
+    "Sources/TurtleGitMac/FinderWatchedRepositories.swift": "451dd851210309ada0bfa4cf076034a167142eccc71e8b8e9427c2efb8fa5488",
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "042afcf8118f7dcdbff01bcc2cdf5184dfd37fc9f7e8bfb845dea18aa24413e4",
+    "docs/qa/settings-completion-native-2026-10-24.swift": "7c2adc2670fd46cf004b4c5aa2f3ca5077f60c7847f1c07f4716e453775b8a88"
+  },
+  "core": {
+    "filter": "FinderPublicationClaimTests|FinderPublicationTests|FinderPublicationPipelineTests|FinderCachePersistenceTests|FinderSnapshotQueryTests|FinderRootIdentityTests|FinderDirectoryPublicationTests|FinderExactCacheTests|FinderCacheServiceIdentityTests|FinderStatusPublicationTests",
+    "initial_log": "build/qa/finder-large-cache-core-2026-10-29.log",
+    "initial_methods": 68,
+    "initial_failed_methods": 2,
+    "initial_failures": 2,
+    "failure": "Early nonlegacy migration return skipped optional warm-archive validation and warning reporting.",
+    "repair": "Restore optional warm validation ahead of legacy-only migration, with exact-file-identity warm memo. Original assertions unchanged.",
+    "affected_recheck_log": "build/qa/finder-large-cache-core-warm-recheck-2026-10-29.log",
+    "rechecked_methods": 2,
+    "recheck_failures": 0,
+    "distinct_methods_passed_cumulatively": 68,
+    "already_passed_methods_repeated": false,
+    "large_private_claim_observation": "Finder claim cost (private10001 files; no wall-clock threshold): cold=3.0369945000857115s retained5=0.009012291673570871s; coldCounters=FinderPublicationWorkCounters(controlDecodes: 2, rawDecodes: 3, contributionEncodes: 2, controlWrites: 4, projections: 2, localWaits: 0) retainedCounters=FinderPublicationWorkCounters(controlDecodes: 2, rawDecodes: 3, contributionEncodes: 2, controlWrites: 9, projections: 2, localWaits: 0)",
+    "timing_limit": "Private10001-file fixture; no wall-clock threshold and no installed Git/Commit latency inference",
+    "cache_lifetime": "Global registry contains weak coordinators only; memo released after last live store; no permanent per-path payload retention"
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/finder-large-cache-debug-2026-10-29.log",
+    "configuration": "Debug; CODE_SIGNING_ALLOWED=NO"
+  },
+  "native": {
+    "groups": [
+      {
+        "log": "build/qa/finder-large-cache-native-persistence-2026-10-29.log",
+        "exit": 0,
+        "cases": [
+          "settings",
+          "lifecycle",
+          "roots"
+        ],
+        "git": "/usr/bin/git",
+        "assertions": [
+          "PASS: CacheSave native row, saved/durable retry, reopened Apply, Cancel/default reset, current live badges, authorized warm/cold claims and foreground close/quit with unchanged Git state",
+          "PASS: Finder cache persistence workflow completed: settings",
+          "PASS: CacheSave separate-process crash fencing, live writer fallback, stale ticket refusal, helper stop/restart, disabled cold scan, warm failure with live badges, native diagnostics/retry and retained grants/Git bytes",
+          "PASS: Finder cache persistence workflow completed: lifecycle",
+          "PASS: Finder cache persistence workflow completed: roots"
+        ]
+      },
+      {
+        "log": "build/qa/finder-large-cache-native-settings-2026-10-29.log",
+        "exit": 0,
+        "cases": [
+          "close",
+          "ownership"
+        ],
+        "git": "/usr/bin/git",
+        "assertions": [
+          "PASS: settings completion close",
+          "PASS: settings completion ownership"
+        ]
+      }
+    ],
+    "owned_receivers_and_explicit_workers_reaped_independently_absent": [
+      15580,
+      15641,
+      15653,
+      15704,
+      15705,
+      15706,
+      15802,
+      15827
+    ],
+    "private_stores_repositories_preferences": true,
+    "invisible_offscreen_windows": true,
+    "actual_crossprocess_publication_and_crash_fences": true,
+    "held_external_registration_permits_unrelated_settings_cancel": true,
+    "held_page_owned_add_blocks_cancel_and_survives_forced_retirement_until_drain": true,
+    "cache_file_corruption_and_warm_warning_contract_retained": true,
+    "scope_limit": "System Git for store/ownership regressions; no new physical Finder or signed AppStore check"
+  },
+  "generation": {
+    "localization_check_exit": 0,
+    "help_check_exit": 0,
+    "help_documents": 61,
+    "help_topics": 51,
+    "help_files": 95,
+    "coverage_reconciled": true
+  },
+  "installed_app": {
+    "build": "35",
+    "source_fix_installed": false,
+    "test_owned_main12342_quit_normally": true,
+    "user_apps_signalled": false,
+    "finder_restarted": false,
+    "user_shared_cache_manually_changed": false
+  },
+  "remaining": [
+    "Physical Finder cold menu and badge acceptance after computer-control recovery",
+    "Test fixture watch/recent/bookmark and Finder window cleanup after tool recovery",
+    "Installed fixed-source latency and Settings close/OK acceptance",
+    "Current-source full hosted CI and signed consolidation",
+    "Complete source/layout/accessibility parity and later distribution/AppStore terms"
+  ]
+}

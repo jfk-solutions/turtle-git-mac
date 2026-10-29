@@ -1162,6 +1162,11 @@ a missing or mismatched grant requires selecting the script again.
 
 ## Finder and permissions
 
+Settings waits for watch changes started from its own page before closing.
+Registering a repository elsewhere in TurtleGit does not prevent unrelated
+Settings pages from closing. A busy cache writer does not require deleting its
+lock file; Finder status publication retains ownership and ordering across writers.
+
 Open **Settings → Icon Overlays → Manage Finder Extension…** to enable the
 installed extension in macOS. The page shows its activation status when you return.
 **Apply** saves badge preferences; it does not activate a disabled extension.

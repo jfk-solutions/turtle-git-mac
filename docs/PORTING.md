@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed workflow acceptance and large-cache publication
+
+The installed build35 private UI check verified Classic and staging lists, actual
+double-click Stage/Unstage, historical Log selection/file comparison and Remote
+list selection. It exposed a live same-process Finder cache contention error;
+physical Finder cold launch and Settings close acceptance remain unresolved after
+computer-control errors. The related [publication continuation](FINDER-PUBLICATION-PARITY.md#large-live-cache-claim-and-publication-work--october-29-2026) removes redundant large-cache work and separates Settings-owned watch actions. The [grouped checkpoint](qa/finder-large-cache-2026-10-29.json) passes 68 distinct Core methods and the native cache persistence/Settings ownership groups after restoring optional warm-cache warnings. Build35 predates this source repair.
+
 ## Repository setup and transition completion batch
 
 Current source retains accepted Clone, Init, Submodule Add, Switch and Reset

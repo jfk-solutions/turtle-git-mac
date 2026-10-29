@@ -975,6 +975,10 @@ also dismisses an owned pending question and waits for script work to end.</p>
 A stale grant can be renewed only when it resolves to the same selected path;
 a missing or mismatched grant requires selecting the script again.</p>
 <a name="topic-finder"></a><h2 id="finder-and-permissions">Finder and permissions</h2>
+<p>Settings waits for watch changes started from its own page before closing.
+Registering a repository elsewhere in TurtleGit does not prevent unrelated
+Settings pages from closing. A busy cache writer does not require deleting its
+lock file; Finder status publication retains ownership and ordering across writers.</p>
 <p>Open <strong>Settings → Icon Overlays → Manage Finder Extension…</strong> to enable the
 installed extension in macOS. The page shows its activation status when you return.
 <strong>Apply</strong> saves badge preferences; it does not activate a disabled extension.

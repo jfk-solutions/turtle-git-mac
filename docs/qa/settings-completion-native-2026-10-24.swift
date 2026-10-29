@@ -21,7 +21,7 @@ extension NSWindow {
   let base=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])
   let suite="TurtleGit.SettingsCompletion."+UUID().uuidString,prefs:UserDefaults
   var root:URL{base.appendingPathComponent("repository")};var wrapper:URL{base.appendingPathComponent("settings-git")};var hold:URL{base.appendingPathComponent("hold")};var started:URL{base.appendingPathComponent("started")};var release:URL{base.appendingPathComponent("release")}
-  var repo:GitRepository!,workspace:RepositoryModel!,host:NSWindow!,owners:[SettingsSheetController]=[],results:[ObjectIdentifier:[Bool]]=[:],releases:[()->Void]=[]
+  var repo:GitRepository!,workspace:RepositoryModel!,host:NSWindow!,owners:[SettingsSheetController]=[],results:[ObjectIdentifier:[Bool]]=[:],releases:[()->Void]=[],managers:[FinderWatchManager]=[]
   init(){prefs=UserDefaults(suiteName:suite)!;prefs.set(false,forKey:"UseLibgit2");prefs.set(true,forKey:"HintHierarchicalConfig")}
   func prepare()async throws{
    try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
@@ -50,7 +50,7 @@ extension NSWindow {
   }
   func remote(_ owner:SettingsSheetController)async throws->RemoteSettingsWindowModel{guard let remote=owner.navigation.remote else{throw Failure(description:"Remote page not realized")};try await wait{!remote.busy && !remote.hasPendingWork};return remote}
   func closed(_ owner:SettingsSheetController,normal:Bool=true)async throws{try await wait{self.results[ObjectIdentifier(owner)]?.count==1 && owner.window?.sheetParent==nil && self.host.attachedSheet==nil};try require(results[ObjectIdentifier(owner)]==[normal],"Settings completion Bool/exactly-once semantics changed")}
-  func clean()async{try? Data().write(to:release);let unblock=releases;releases=[];unblock.forEach{$0()};for owner in owners.reversed(){owner.retire()};for window in NSApp.windows{if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.close()};workspace?.stopMonitoringForTermination();for _ in 0..<3000{if drained(){break};try? await Task.sleep(nanoseconds:10_000_000)};prefs.removePersistentDomain(forName:suite)}
+  func clean()async{try? Data().write(to:release);let unblock=releases;releases=[];unblock.forEach{$0()};for owner in owners.reversed(){owner.retire()};for window in NSApp.windows{if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.close()};workspace?.stopMonitoringForTermination();for manager in managers{await manager.shutdown()};for _ in 0..<3000{if drained(){break};try? await Task.sleep(nanoseconds:10_000_000)};prefs.removePersistentDomain(forName:suite)}
  }
  static func close(_ c:Context)async throws{
   let before=try Data(contentsOf:c.root.appendingPathComponent(".git/config"))
@@ -110,6 +110,56 @@ extension NSWindow {
   try await click("OK",pending);try await wait{entered};pending.retire();finish?.resume(returning:true);finish=nil;try await c.closed(pending,normal:false)
   try require(c.results[ObjectIdentifier(pending)]==[false],"Retired transaction emitted a late normal completion")
  }
+ static func watchOwnership(_ c:Context)async throws{
+  let hold=c.base.appendingPathComponent("watch-hold"),started=c.base.appendingPathComponent("watch-started"),release=c.base.appendingPathComponent("watch-release")
+  let script="""
+  #!/bin/sh
+  match=false
+  for word in "$@";do if test "$word" = --show-toplevel;then match=true;fi;done
+  if test "$match" = true && test -f \(quote(hold.path));then : > \(quote(started.path));while ! test -f \(quote(release.path));do /bin/sleep .02;done;fi
+  exec \(quote(c.git.path)) "$@"
+  """
+  try Data(script.utf8).write(to:c.wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:c.wrapper.path)
+  c.releases.append{try? Data().write(to:release)}
+  let permissions=try RepositoryAccessStore(storageURL:c.base.appendingPathComponent("private-watch-permissions.json"))
+  let manager=FinderWatchManager(permissions:permissions,cache:nil,requireScope:false,repositoryFactory:{url in GitRepository(root:url,executable:c.wrapper,askpass:nil,libgit2Configuration:.init(enabled:false))},volumeNotificationCenter:NotificationCenter(),notify:{})
+  c.managers.append(manager)
+  c.workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,finderWatches:manager);c.workspace.root=c.root;c.workspace.settingsContextOverride=(c.repo,RepositoryAccessLease(url:c.root),true)
+  let remoteOwner=try await c.open(),remote=try await c.remote(remoteOwner)
+  remote.select(GitReferenceName("origin"));try await wait{!remote.busy && !remote.hasPendingWork}
+  try Data().write(to:hold)
+  let external=Task{await manager.add(c.root)}
+  try await wait{manager.busy && FileManager.default.fileExists(atPath:started.path)}
+  try require(remoteOwner.navigation.canDismiss,"Unrelated watch registration blocked Remote Settings dismissal")
+  try await click("Cancel",remoteOwner);try await c.closed(remoteOwner)
+  try require(manager.busy,"Closing Settings canceled an application-owned registration")
+  try Data().write(to:release);await external.value
+  try require(!manager.busy,"External registration did not drain")
+  try FileManager.default.removeItem(at:hold);try FileManager.default.removeItem(at:started);try FileManager.default.removeItem(at:release)
+  let owned=try await c.open(.watchedRepositories)
+  guard let controls=owned.navigation.watchControls else{throw Failure(description:"Actual watched-page owner missing")}
+  try await wait{controls.canInteract && !manager.recoveryPending && manager.pendingOperations==0}
+  try Data().write(to:hold)
+  controls.chooseFolder={_,_,answer in answer(c.root)}
+  controls.chooseRoot(renew:false,context:controls.context)
+  try await wait{controls.hasPendingWork && manager.busy && FileManager.default.fileExists(atPath:started.path)}
+  try require(!owned.navigation.canDismiss && !(try button("Cancel",owned)).isEnabled,"Accepted Settings watch action did not retain its own completion")
+  let cancel=try button("Cancel",owned);_=NSApp.sendAction(cancel.action!,to:cancel.target,from:cancel)
+  try require(c.results[ObjectIdentifier(owned)]?.isEmpty==true && owned.window?.sheetParent === c.host,"Cancel bypassed accepted page-owned work")
+  try Data().write(to:release);try await wait{!controls.hasPendingWork && !manager.busy && owned.navigation.canDismiss}
+  try await click("Cancel",owned);try await c.closed(owned)
+  // Forced retirement hides the Settings owner, while the accepted application
+  // mutation and its retained page lifetime still drain independently.
+  try FileManager.default.removeItem(at:hold);try FileManager.default.removeItem(at:started);try FileManager.default.removeItem(at:release)
+  let retiring=try await c.open(.watchedRepositories)
+  guard let retained=retiring.navigation.watchControls else{throw Failure(description:"Replacement watched-page owner missing")}
+  try await wait{retained.canInteract && !manager.recoveryPending && manager.pendingOperations==0};try Data().write(to:hold);retained.chooseFolder={_,_,answer in answer(c.root)};retained.chooseRoot(renew:false,context:retained.context)
+  try await wait{retained.hasPendingWork && manager.busy && FileManager.default.fileExists(atPath:started.path)}
+  retiring.retire();try await c.closed(retiring,normal:false)
+  try require(retained.hasPendingWork && manager.busy,"Forced Settings retirement released accepted watch work early")
+  try Data().write(to:release);try await wait{!retained.hasPendingWork && !manager.busy}
+  try require(c.results[ObjectIdentifier(retiring)]==[false],"Retired watch completion reopened or re-completed Settings")
+ }
  static func layout(_ c:Context)async throws{
   for page in [SettingsPageID.git,.remote]{let owner=try await c.open(page);if page == .remote{_=try await c.remote(owner)}
    try await wait{GitConfigurationSettingsModel.activeReads==0}
@@ -133,6 +183,6 @@ extension NSWindow {
  static func main()async{
   NSApp.setActivationPolicy(ProcessInfo.processInfo.environment["TURTLEGIT_SETTINGS_CAPTURE_DIR"] == nil ? .prohibited:.accessory);let pairs=[(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.settingsCompletionFrame(_:to:)))),(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.settingsCompletionOrder(_:relativeTo:))))];for(a,b)in pairs{if let a,let b{method_exchangeImplementations(a,b)}};defer{for(a,b)in pairs.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
   let c=Context();DialogGeometry.install(preferences:c.prefs);defer{DialogGeometry.install(preferences:.standard)}
-  do{try await c.prepare();let mode=CommandLine.arguments[3];switch mode{case "close":try await close(c);case "apply":try await apply(c);case "ownership":try await ownership(c);default:try await layout(c)};await c.clean();try require(drained(),"Settings owned work survived cleanup");print("PASS: settings completion "+mode)}catch{await c.clean();fputs("Settings completion failure: \(error)\n",stderr);exit(1)}
+  do{try await c.prepare();let mode=CommandLine.arguments[3];switch mode{case "close":try await close(c);case "apply":try await apply(c);case "ownership":try await ownership(c);try await watchOwnership(c);default:try await layout(c)};await c.clean();try require(drained(),"Settings owned work survived cleanup");print("PASS: settings completion "+mode)}catch{await c.clean();fputs("Settings completion failure: \(error)\n",stderr);exit(1)}
  }
 }

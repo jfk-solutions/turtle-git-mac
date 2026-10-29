@@ -168,6 +168,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
+    private(set) var watchControls:FinderWatchPageModel?
     private var settingsLifetimesIdle: Bool {
         GitConfigurationSettingsModel.activeSheetReleases == 0 && CredentialSettingsModel.activeSheetReleases == 0 && NetworkSettingsModel.activeSheetReleases == 0 && HookSettingsModel.activeReads == 0 && HookConfigurationController.activeReleases == 0 && HookConfigurationController.activeChoosers == 0 && RemoteSettingsWindowModel.activeRetirements == 0 && SettingsTransaction.activeRetirements == 0
     }
@@ -176,7 +177,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         else { remote?.invalidate() }
         remote = nil
     }
-    var canDismiss: Bool { settingsLifetimesIdle && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && remote?.hasPendingWork != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 && view.window?.attachedSheet == nil }
+    var canDismiss: Bool { settingsLifetimesIdle && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !retired && watchControls?.hasPendingWork != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && remote?.hasPendingWork != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !retired, !completionPending, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
@@ -323,7 +324,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
     private var canRealizePage: Bool {
-        settingsLifetimesIdle && !retired && !completionPending && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && view.window?.attachedSheet == nil && remote?.busy != true && remote?.hasChild != true && remote?.hasPendingWork != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0
+        settingsLifetimesIdle && watchControls?.hasPendingWork != true && !retired && !completionPending && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && view.window?.attachedSheet == nil && remote?.busy != true && remote?.hasChild != true && remote?.hasPendingWork != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0
     }
     private func cancelDeferredPage() {
         pageRequest = UUID(); deferredPage?.cancel(); deferredPage = nil
@@ -386,7 +387,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
                 guard let context = try? workspace.gitConfigurationContext(globalOnly: globalOnly) else { return }
                 controller = host(NetworkSettingsPage(model: NetworkSettingsModel(repository: context.repository, access: context.access, localAvailable: context.localAvailable, preferences: preferences)))
             case .watchedRepositories:
-                if let manager=workspace.finderWatches { controller=host(FinderWatchedRepositoriesPage(manager:manager)) }
+                if let manager=workspace.finderWatches {let controls=FinderWatchPageModel(manager:manager);watchControls=controls;controller=host(FinderWatchedRepositoriesPage(manager:manager,controls:controls))}
                 else { controller=host(Text("Watched repositories are unavailable.").padding(20)) }
             case .overlays: controller = host(FinderOverlaySettingsPage(model: overlayDraft))
             case .overlayHandlers: controller = host(FinderOverlaySettingsPage(model: overlayDraft, handlersOnly: true))
@@ -444,6 +445,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         readinessWatch?.cancel(); readinessWatch = nil
         appearanceDraft.endPreview();appearanceUpdates=nil
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
+        watchControls?.suspend()
         retireRemotePage()
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()

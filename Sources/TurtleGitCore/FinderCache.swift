@@ -1018,6 +1018,11 @@ public struct FinderPublicationResult: Sendable {
 /// Serializes policy, publication tickets and lease ownership under one store
 /// lock. Contributions remain separate so retiring one publisher reveals other
 /// active publishers rather than deleting their roots or trusting restart data.
+/// Internal operation diagnostics for focused cost/ownership regression checks;
+/// these count actual work and never change cache authority or wire records.
+struct FinderPublicationWorkCounters:Equatable,Sendable {
+    var controlDecodes=0,rawDecodes=0,contributionEncodes=0,controlWrites=0,projections=0,localWaits=0
+}
 public final class FinderSnapshotStore: @unchecked Sendable {
     public let url: URL
     public var warmURL: URL { URL(fileURLWithPath: url.path + ".warm") }
@@ -1050,6 +1055,14 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let revision: UInt64
         let snapshots: [FinderSnapshot]
         let restored: Bool
+        private let encodingLock=NSLock()
+        private var encodedBody:Data?
+        func encoding() throws -> (Data,Bool) {
+            encodingLock.lock();defer{encodingLock.unlock()}
+            if let encodedBody{return (encodedBody,false)}
+            let encoder=JSONEncoder();encoder.outputFormatting = [.sortedKeys]
+            let bytes=try encoder.encode(self);encodedBody=bytes;return (bytes,true)
+        }
         init(root: String, session: UUID, sequence: UInt64, revision: UInt64? = nil, snapshots: [FinderSnapshot], restored: Bool) {
             self.root=root;self.session=session;self.sequence=sequence;self.revision=revision ?? sequence
             self.snapshots=snapshots;self.restored=restored
@@ -1097,11 +1110,45 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             warmMaintenance=try? values.decodeIfPresent(WarmMaintenance.self,forKey:.warmMaintenance)
         }
         func encode(to encoder: Encoder) throws {
+            try encode(to:encoder,includePayload:true)
+        }
+        func encode(to encoder:Encoder,includePayload:Bool)throws {
             var values=encoder.container(keyedBy:CodingKeys.self)
-            try values.encode(4,forKey:.version);try values.encodeIfPresent(statusPolicyIdentity,forKey:.statusPolicyIdentity);try values.encode(id,forKey:.id);try values.encode(counter,forKey:.counter);try values.encode(sequences,forKey:.sequences);try values.encode(consumed,forKey:.consumed);try values.encode(claims,forKey:.claims);try values.encode(contributions,forKey:.contributions);try values.encode(policy,forKey:.policy);try values.encode(warmResetRequired,forKey:.warmResetRequired);try values.encodeIfPresent(warmMaintenance,forKey:.warmMaintenance)
+            try values.encode(4,forKey:.version);try values.encodeIfPresent(statusPolicyIdentity,forKey:.statusPolicyIdentity);try values.encode(id,forKey:.id);try values.encode(counter,forKey:.counter);try values.encode(sequences,forKey:.sequences);try values.encode(consumed,forKey:.consumed);try values.encode(claims,forKey:.claims);try values.encode(includePayload ? contributions:[],forKey:.contributions);try values.encode(policy,forKey:.policy);try values.encode(warmResetRequired,forKey:.warmResetRequired);try values.encodeIfPresent(warmMaintenance,forKey:.warmMaintenance)
         }
     }
-    public init(url: URL) { self.url=url }
+    /// Instances in one process share immutable decoded/encoded contributions.
+    /// Every reuse is fenced by the actual atomic control-file identity; another
+    /// process or noncooperating replacement always forces fresh validation.
+    private final class Coordination:@unchecked Sendable {
+        let writer=NSRecursiveLock(),cacheLock=NSLock()
+        var control:(FileIdentity?,Control)?
+        var raw:(FileIdentity?,FinderSnapshot?)?
+        var warm:(FileIdentity?,FinderSnapshot?)?
+        var projection:(String,[Contribution],FinderSnapshot)?
+        var work=FinderPublicationWorkCounters()
+    }
+    private struct ControlHeader:Encodable {
+        let state:Control
+        func encode(to encoder:Encoder)throws{try state.encode(to:encoder,includePayload:false)}
+    }
+    private final class WeakCoordination {weak var value:Coordination?;init(_ value:Coordination){self.value=value}}
+    private final class CoordinationRegistry:@unchecked Sendable {
+        let lock=NSLock();var values:[GitReferenceName:WeakCoordination]=[:]
+    }
+    private static let coordinationRegistry=CoordinationRegistry()
+    private static func coordination(for url:URL)->Coordination {
+        let registry=coordinationRegistry;registry.lock.lock();defer{registry.lock.unlock()}
+        let key=GitReferenceName(url.standardizedFileURL.resolvingSymlinksInPath().path)
+        if let existing=registry.values[key]?.value{return existing}
+        registry.values=registry.values.filter{$0.value.value != nil}
+        let value=Coordination();registry.values[key]=WeakCoordination(value);return value
+    }
+    private let coordination:Coordination
+    var publicationWorkCounters:FinderPublicationWorkCounters {
+        coordination.cacheLock.lock();defer{coordination.cacheLock.unlock()};return coordination.work
+    }
+    public init(url: URL) { self.url=url;coordination=Self.coordination(for:url) }
     deinit { for session in owned.values {session.closeLease()} }
     private var controlURL: URL { URL(fileURLWithPath:url.path + ".writers") }
     private var leasesURL: URL { URL(fileURLWithPath:url.path + ".sessions",isDirectory:true) }
@@ -1116,17 +1163,74 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         var attributes=stat()
         if lstat(warmURL.path,&attributes) != 0 {if errno==ENOENT{return (nil,false)};throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
         guard attributes.st_mode & S_IFMT == S_IFREG,attributes.st_size>=0,attributes.st_size<=268435456 else {throw FinderPublicationFailure.corruptStore}
-        let data=try Data(contentsOf:warmURL)
-        do {return (try JSONDecoder().decode(FinderSnapshot.self,from:data),false)}
+        do {return (try checkedWarmSnapshot(),false)}
         catch {if rebuildCorrupt {return (nil,true)};throw FinderPublicationFailure.corruptStore}
+    }
+    /// Session startup must still report a damaged optional restart archive.
+    /// Reuse only an unchanged, successfully decoded regular file; malformed
+    /// reads and foreign replacements never acquire a memoized success.
+    private func checkedWarmSnapshot()throws->FinderSnapshot? {
+        for _ in 0..<3 {
+            let before=try identity(warmURL)
+            if let before {guard before.size>=0,before.size<=268435456 else{throw FinderPublicationFailure.corruptStore}}
+            coordination.cacheLock.lock();let known=coordination.warm;coordination.cacheLock.unlock()
+            if let known,known.0==before,before == (try identity(warmURL)){return known.1}
+            let value=try read(FinderSnapshot.self,warmURL)
+            guard before == (try identity(warmURL)) else{continue}
+            coordination.cacheLock.lock();coordination.warm=(before,value);coordination.cacheLock.unlock()
+            return value
+        }
+        throw POSIXError(.EAGAIN)
     }
     private func save<T: Encodable>(_ value: T, _ location: URL) throws {
         var attributes=stat()
         if lstat(location.path,&attributes)==0 {guard attributes.st_mode & S_IFMT == S_IFREG else {throw FinderPublicationFailure.corruptStore}}
         else if errno != ENOENT {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
         let encoder=JSONEncoder();encoder.outputFormatting = [.sortedKeys]
-        let bytes=try encoder.encode(value);guard bytes.count<=268435456 else {throw FinderPublicationFailure.corruptStore}
-        try bytes.write(to:location,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)
+        let bytes:Data
+        if let state=value as? Control {
+            let header=try encoder.encode(ControlHeader(state:state)),placeholder=Data("\"contributions\":[]".utf8)
+            guard let range=header.range(of:placeholder) else{throw FinderPublicationFailure.corruptStore}
+            var bodies:[Data]=[],total=header.count
+            for item in state.contributions {
+                let (bytes,encoded)=try item.encoding()
+                if encoded {coordination.cacheLock.lock();coordination.work.contributionEncodes += 1;coordination.cacheLock.unlock()}
+                let extra=bytes.count+(bodies.isEmpty ? 0:1)
+                guard extra<=268435456-total else{throw FinderPublicationFailure.corruptStore}
+                total+=extra;bodies.append(bytes)
+            }
+            guard total<=268435456 else{throw FinderPublicationFailure.corruptStore}
+            var combined=Data();combined.reserveCapacity(total)
+            combined.append(header.prefix(range.upperBound-1))
+            for (index,body) in bodies.enumerated(){if index>0{combined.append(44)};combined.append(body)}
+            combined.append(header.suffix(from:range.upperBound-1));bytes=combined
+        }else{bytes=try encoder.encode(value)}
+        guard bytes.count<=268435456 else {throw FinderPublicationFailure.corruptStore}
+        if let state=value as? Control {
+            // Bind the memoized state to our actual staged inode. A foreign
+            // replacement between rename and stat must not authenticate it.
+            let staged=location.deletingLastPathComponent().appendingPathComponent(".finder-control-"+UUID().uuidString)
+            let fd=Darwin.open(staged.path,O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,mode_t(0o600))
+            guard fd>=0 else{throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+            defer{Darwin.close(fd);_ = unlink(staged.path)}
+            try bytes.withUnsafeBytes {buffer in
+                var offset=0
+                while offset<buffer.count {
+                    let count=Darwin.write(fd,buffer.baseAddress!.advanced(by:offset),buffer.count-offset)
+                    if count<0,errno==EINTR{continue}
+                    guard count>0 else{throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+                    offset+=count
+                }
+            }
+            var stagedInfo=stat();guard fstat(fd,&stagedInfo)==0 else{throw POSIXError(.EIO)}
+            guard rename(staged.path,location.path)==0 else{throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+            coordination.cacheLock.lock();coordination.work.controlWrites += 1;coordination.cacheLock.unlock()
+            let witness=try identity(location)
+            if let witness,witness.device==stagedInfo.st_dev,witness.inode==stagedInfo.st_ino,witness.size==stagedInfo.st_size,
+               witness.modifiedSeconds==stagedInfo.st_mtimespec.tv_sec,witness.modifiedNanoseconds==stagedInfo.st_mtimespec.tv_nsec {
+                coordination.cacheLock.lock();coordination.control=(witness,state);coordination.cacheLock.unlock()
+            }
+        }else{try bytes.write(to:location,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)}
     }
     /// Trust is scoped to this one locked operation (or atomic read attempt).
     /// Immutable contribution identities are retained strongly so allocator
@@ -1153,6 +1257,15 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     }
     private func locked<T>(_ cancellation: OperationCancellation?, validation supplied: ValidationContext? = nil, _ operation: (ValidationContext) throws -> T) throws -> T {
         let validation=supplied ?? ValidationContext(cancellation:cancellation)
+        // Queue local owners before starting the cross-process deadline. A live
+        // writer in this process is not a stale external lock; cancellation still
+        // interrupts queued work without claiming or mutating the cache.
+        var queued=false
+        while !coordination.writer.try(){
+            if !queued {coordination.cacheLock.lock();coordination.work.localWaits += 1;coordination.cacheLock.unlock();queued=true}
+            try validation.check();usleep(10_000)
+        }
+        defer{coordination.writer.unlock()}
         try validation.check();try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         let descriptor=Darwin.open(url.path + ".lock",O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC,mode_t(0o600))
         guard descriptor>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)};defer {Darwin.close(descriptor)}
@@ -1170,17 +1283,37 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             try validation.check()
             let before=try identity(url)
             if let known=validation.rawSnapshot,known.identity==before {return known.value}
+            coordination.cacheLock.lock();let shared=coordination.raw;coordination.cacheLock.unlock()
+            if let shared,shared.0==before,before == (try identity(url)) {
+                validation.rawSnapshot=(before,shared.1);return shared.1
+            }
             let value=try read(FinderSnapshot.self,url)
+            coordination.cacheLock.lock();coordination.work.rawDecodes += 1;coordination.cacheLock.unlock()
             guard before == (try identity(url)) else {continue}
             validation.rawSnapshot=(before,value)
+            coordination.cacheLock.lock();coordination.raw=(before,value);coordination.cacheLock.unlock()
             return value
         }
         throw POSIXError(.EAGAIN)
     }
     private func control(validation: ValidationContext) throws -> Control {
+        let before=try identity(controlURL)
+        coordination.cacheLock.lock();let cached=coordination.control;coordination.cacheLock.unlock()
+        if let cached,cached.0==before,before == (try identity(controlURL)) {
+            // Payload objects are immutable and were namespace-validated for
+            // precisely this file identity. Mutable counters are still checked.
+            for item in cached.1.contributions {validation.contributions[ObjectIdentifier(item)]=item}
+            try checkControl(cached.1,validation:validation);return cached.1
+        }
         var value=try read(Control.self,controlURL) ?? Control()
-        if !FileManager.default.fileExists(atPath:controlURL.path),try checkedRawSnapshot(validation:validation) != nil {value.legacy=true}
-        try checkControl(value,validation:validation);return value
+        coordination.cacheLock.lock();coordination.work.controlDecodes += 1;coordination.cacheLock.unlock()
+        if before==nil,try checkedRawSnapshot(validation:validation) != nil {value.legacy=true}
+        try checkControl(value,validation:validation)
+        guard before == (try identity(controlURL)) else{throw POSIXError(.EAGAIN)}
+        // Do not memoize a missing control: a new UUID belongs to its first
+        // committed writer, never to an uncommitted read-only observation.
+        if before != nil {coordination.cacheLock.lock();coordination.control=(before,value);coordination.cacheLock.unlock()}
+        return value
     }
     private func checkControl(_ value: Control, validation: ValidationContext) throws {
         try validation.check()
@@ -1240,12 +1373,15 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         }
     }
     private func projection(_ contributions: [Contribution], id: UUID, statusPolicyIdentity: String?) -> FinderSnapshot {
-        var result=FinderSnapshot(roots:[],states:[:],updated:Date(timeIntervalSince1970:0))
         let sorted=contributions.sorted {a,b in a.root.utf8.count==b.root.utf8.count ? a.sequence<b.sequence : a.root.utf8.count<b.root.utf8.count}
-        var revisions: [String] = []
+        let revisions=sorted.map {Data($0.root.utf8).base64EncodedString()+":"+$0.session.uuidString+":"+String($0.sequence)+":"+String($0.revision)}
+        let revision=id.uuidString+"/"+(statusPolicyIdentity ?? "legacy")+"/"+revisions.joined(separator:"/")
+        coordination.cacheLock.lock();let cached=coordination.projection;coordination.cacheLock.unlock()
+        if let cached,cached.0==revision,cached.1.count==sorted.count,zip(cached.1,sorted).allSatisfy({pair in pair.0 === pair.1}) {return cached.2}
+        var result=FinderSnapshot(roots:[],states:[:],updated:Date(timeIntervalSince1970:0))
+        coordination.cacheLock.lock();coordination.work.projections += 1;coordination.cacheLock.unlock()
         for item in sorted {
             result.replaceSubtree(root:FileTransferPaths.fileURL(item.root),snapshots:item.snapshots)
-            revisions.append(Data(item.root.utf8).base64EncodedString()+":"+item.session.uuidString+":"+String(item.sequence)+":"+String(item.revision))
         }
         if let identity=statusPolicyIdentity {
             let accepted=GitPathSet(result.overlayPolicies.filter {$0.value.identity==identity}.keys)
@@ -1254,7 +1390,9 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             result.overlayPolicies=result.overlayPolicies.filter {$0.value.identity==identity}
         }
         result.updated=contributions.flatMap(\.snapshots).map(\.updated).max() ?? Date(timeIntervalSince1970:0)
-        result.liveRevision=id.uuidString+"/"+(statusPolicyIdentity ?? "legacy")+"/"+revisions.joined(separator:"/");return result
+        result.liveRevision=revision
+        coordination.cacheLock.lock();coordination.projection=(revision,sorted,result);coordination.cacheLock.unlock()
+        return result
     }
     private func writeLive(_ state: inout Control, validation: ValidationContext) throws -> FinderSnapshot {
         // Read the legacy projection for corruption/type checks, but never use
@@ -1279,7 +1417,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     }
     private func migrateWarm(_ state: Control, validation:ValidationContext) throws {
         guard state.policy.cacheSave else {return}
-        let existing=try read(FinderSnapshot.self,warmURL)
+        let existing=try checkedWarmSnapshot()
         guard state.legacy,existing==nil,let legacy=try checkedRawSnapshot(validation:validation) else {return}
         var warm=legacy;warm.liveRevision=nil;warm.persistenceFailure=nil;try save(warm,warmURL)
     }
@@ -1289,7 +1427,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     public func startSession(cancellation: OperationCancellation? = nil) throws -> FinderPublicationSession {
         sessionLock.lock();defer {sessionLock.unlock()}
         return try locked(cancellation) { validation in
-            var state=try control(validation:validation);_ = try checkedRawSnapshot(validation:validation)
+            var state=try control(validation:validation);let raw=try checkedRawSnapshot(validation:validation)
             let warning=warmWarning {try migrateWarm(state,validation:validation)}
             try FileManager.default.createDirectory(at:leasesURL,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
             var attributes=stat();guard lstat(leasesURL.path,&attributes)==0,attributes.st_mode & S_IFMT == S_IFDIR else {throw FinderPublicationFailure.corruptStore}
@@ -1297,7 +1435,13 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             guard descriptor>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
             guard flock(descriptor,LOCK_EX | LOCK_NB)==0 else {let code=errno;Darwin.close(descriptor);throw POSIXError(POSIXErrorCode(rawValue:code) ?? .EIO)}
             let session=FinderPublicationSession(id:id,store:state.id,instance:instance,descriptor:descriptor,leaseURL:location,warning:warning)
-            do {_ = try writeLive(&state,validation:validation);owned[id]=session;return session} catch {session.closeLease();throw error}
+            do {
+                let retained=try live(state)
+                if state.legacy || raw?.liveRevision == nil || retained.count != state.contributions.count {
+                    state.contributions=retained;_ = try writeLive(&state,validation:validation)
+                }
+                try validation.check();owned[id]=session;return session
+            } catch {session.closeLease();throw error}
         }
     }
     private func defaultSession(cancellation: OperationCancellation?) throws -> FinderPublicationSession {
@@ -1450,7 +1594,8 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         let session: FinderPublicationSession
         if let supplied {session=supplied} else {session=try defaultSession(cancellation:cancellation)}
         return try locked(cancellation) { validation in
-            var state=try control(validation:validation);try owner(session,state:state);_ = try checkedRawSnapshot(validation:validation)
+            var state=try control(validation:validation);try owner(session,state:state);let raw=try checkedRawSnapshot(validation:validation)
+            let oldContributions=state.contributions.map(ObjectIdentifier.init),oldPolicy=state.statusPolicyIdentity
             // Check immutable watch identity while claim ordering is locked.
             // A queued retired watch cannot claim after its replacement began.
             try authorize?()
@@ -1463,7 +1608,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             let alreadyLive=state.contributions.contains { FinderSnapshot.contains(root,root:$0.root) }
             if !alreadyLive && state.policy.cacheSave && !state.contributions.contains(where:{$0.session==session.id && GitReferenceName.equal($0.root,root)}) {
                 warning=warmWarning {
-                    if let warm=try read(FinderSnapshot.self,warmURL) {
+                    if let warm=try checkedWarmSnapshot() {
                         let selected=warm.subtree(root:FileTransferPaths.fileURL(root))
                         if selected.roots.contains(where:{GitReferenceName.equal($0,root)}) {
                             // Restart data is optional. Validate its claimed
@@ -1479,7 +1624,14 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                     }
                 }
             }
-            _ = try writeLive(&state,validation:validation)
+            if state.legacy || raw?.liveRevision == nil || oldPolicy != state.statusPolicyIdentity || oldContributions != state.contributions.map(ObjectIdentifier.init) {
+                _ = try writeLive(&state,validation:validation)
+            }else {
+                // A new claim fences later publications but does not change
+                // existing live badge authority. Commit only ordering metadata;
+                // retain immutable payload bytes and the existing raw snapshot.
+                try validation.check();try save(state,controlURL)
+            }
             return .init(root:root,persistenceFailure:warning,store:state.id,instance:instance,session:session.id,sequence:state.counter,policyIdentity:policy?.identity)
         }
     }

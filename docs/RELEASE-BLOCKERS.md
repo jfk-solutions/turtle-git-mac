@@ -15,7 +15,10 @@ missing source behavior, reported defect or failing check.
 - [ ] Accept the installed everyday workflows: Finder cold Commit launch and
   registration/badges; responsive Commit loading and stable staging lists;
   selecting a Log commit and inspecting its files; Settings OK/Cancel and remotes.
-  Earlier focused repairs exist, but current installed behavior needs observation.
+  The [partial build35 check](qa/installed35-workflows-2026-10-29.json) verified
+  staging transfers, Log inspection and Remote selection. It found live cache
+  contention; Finder cold launch, Settings close and fixture-registration cleanup
+  remain unverified after computer-control errors.
 - [ ] Obtain a complete hosted macOS CI pass on the release source and repair
   concrete failures without repeatedly running unrelated local suites.
 - [ ] Close the explicit source/layout gaps in the family records and establish

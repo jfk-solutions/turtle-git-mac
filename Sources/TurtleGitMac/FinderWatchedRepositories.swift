@@ -692,6 +692,8 @@ struct FinderWatchRow:Identifiable {
 /// The page owns its chooser/question; the application owns accepted watches.
 @MainActor final class FinderWatchPageModel: ObservableObject {
     let manager: FinderWatchManager
+    @Published private(set) var pendingOperations=0
+    var hasPendingWork:Bool{pendingOperations>0}
     @Published private(set) var selected = Set<UUID>()
     @Published private(set) var selectedPermission: UUID?
     @Published private(set) var hasSheet = false
@@ -714,7 +716,7 @@ struct FinderWatchRow:Identifiable {
     init(manager: FinderWatchManager) { self.manager = manager }
     deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
     var context: Context { .init(owner: ObjectIdentifier(self), revision: revision, roots: selected, permission: selectedPermission, serviceRevision: manager.serviceRevision) }
-    var canInteract: Bool { active && manager.active && !manager.busy && !hasSheet && window != nil }
+    var canInteract: Bool { active && manager.active && !manager.busy && !hasPendingWork && !hasSheet && window != nil }
     func attach(to owner: NSWindow?) {
         guard !retired, let owner, window !== owner || ownerObserver == nil else { return }
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
@@ -748,6 +750,13 @@ struct FinderWatchRow:Identifiable {
             guard value == nil || self.manager.additionalPermissions(id).contains(where: { $0.id == value }) else { return }
             self.selectedPermission = value; self.revision = UUID()
         })
+    }
+    /// Settings waits for actions accepted by this page, independently of
+    /// registrations and cache refreshes owned by another application window.
+    func perform(_ operation:@escaping () async->Void){
+        guard canInteract else{return}
+        pendingOperations += 1
+        Task{[self] in defer{pendingOperations -= 1};await operation()}
     }
     func refresh(context: Context) {
         guard accepts(context) else { return }; for id in context.roots { manager.refresh(id) }
@@ -784,26 +793,26 @@ struct FinderWatchRow:Identifiable {
         guard accepts(context), !renew || context.roots.count == 1 else { return }
         let id = renew ? context.roots.first : nil
         let initial = id.flatMap { target in manager.rows.first { $0.id == target }.map { URL(fileURLWithPath: $0.path, isDirectory: true) } }
-        choose(title: renew ? "Renew Access" : "Watch Repository", initial: initial, context: context) { [manager] url in Task { await manager.add(url, replacing: id) } }
+        choose(title: renew ? "Renew Access" : "Watch Repository", initial: initial, context: context) { [self,manager] url in perform{await manager.add(url,replacing:id)} }
     }
     func choosePermission(renew: Bool, context: Context) {
         guard accepts(context), context.roots.count == 1, let id = context.roots.first, !renew || context.permission != nil else { return }
         let permission = renew ? context.permission : nil
         let initial = permission.flatMap { target in manager.additionalPermissions(id).first { $0.id == target }.map { URL(fileURLWithPath: $0.path, isDirectory: true) } }
-        choose(title: renew ? "Renew Folder Access" : "Grant Folder Access", initial: initial, context: context) { [manager] url in Task { await manager.changePermission(id, url: url, replacing: permission) } }
+        choose(title: renew ? "Renew Folder Access" : "Grant Folder Access", initial: initial, context: context) { [self,manager] url in perform{await manager.changePermission(id,url:url,replacing:permission)} }
     }
     func remove(context: Context) {
         guard accepts(context), !context.roots.isEmpty else { return }
         let rows = manager.rows.filter { context.roots.contains($0.id) }, ids = rows.map(\.id)
         guard ids.count == context.roots.count else { return }
-        confirm(title: ids.count == 1 ? "Remove watched repository?" : "Remove watched repositories?", message: rows.map(\.path).joined(separator: "\n") + "\n\nStop these watches and remove their cached subtrees. Repository files remain unchanged.", context: context) { [manager] in
-            Task { for id in ids { await manager.remove(id); if manager.error != nil { break } } }
+        confirm(title: ids.count == 1 ? "Remove watched repository?" : "Remove watched repositories?", message: rows.map(\.path).joined(separator: "\n") + "\n\nStop these watches and remove their cached subtrees. Repository files remain unchanged.", context:context){[self,manager] in
+            perform{for id in ids{await manager.remove(id);if manager.error != nil{break}}}
         }
     }
     func removePermission(context: Context) {
         guard accepts(context), context.roots.count == 1, let id = context.roots.first, let permission = context.permission,
               let grant = manager.additionalPermissions(id).first(where: { $0.id == permission }) else { return }
-        confirm(title: "Remove additional folder access?", message: grant.path + "\n\nRefresh may stop until access is granted again. Files remain unchanged.", context: context) { [manager] in Task { await manager.changePermission(id, removing: permission) } }
+        confirm(title: "Remove additional folder access?", message: grant.path + "\n\nRefresh may stop until access is granted again. Files remain unchanged.", context:context){[self,manager] in perform{await manager.changePermission(id,removing:permission)} }
     }
 }
 
@@ -817,7 +826,7 @@ struct FinderWatchedRepositoriesPage: View {
         let context = controls.context
         VStack(alignment:.leading,spacing:12) {
             Text("Keep these repositories refreshed for Finder.")
-            if let service=manager.backgroundService { FinderBackgroundServiceControls(service:service,manager:manager) }
+            if let service=manager.backgroundService { FinderBackgroundServiceControls(service:service,manager:manager,controls:controls) }
             Table(manager.rows,selection:controls.selection(context: context)) {
                 TableColumn("Repository") { row in HStack { Image(nsImage:MenuIcon.repositoryBrowser.image() ?? NSImage()).frame(width:16,height:16);Text(row.name) } }
                 TableColumn("Path",value:\.path)
@@ -886,11 +895,12 @@ private struct FinderBackgroundRootStatus: View {
 private struct FinderBackgroundServiceControls: View {
     @ObservedObject var service: FinderBackgroundService
     @ObservedObject var manager: FinderWatchManager
+    @ObservedObject var controls:FinderWatchPageModel
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Toggle("Refresh after TurtleGit quits", isOn: Binding(get: { service.enabled }, set: { value in Task { if value { await service.enable(manager) } else { await service.disable() } } }))
-                    .disabled(service.busy || manager.busy || manager.pendingOperations > 0)
+                Toggle("Refresh after TurtleGit quits", isOn: Binding(get: { service.enabled }, set: {value in controls.perform{if value{await service.enable(manager)}else{await service.disable()}}}))
+                    .disabled(service.busy || manager.busy || manager.pendingOperations > 0 || controls.hasPendingWork)
                 Spacer()
                 Button("Login Items…") { SMAppService.openSystemSettingsLoginItems() }
             }
@@ -899,7 +909,7 @@ private struct FinderBackgroundServiceControls: View {
                 Button { service.checkStatus(manager, retry: true) } label: { CommandLabel(title: "Retry Background Refresh", icon: .refresh) }
                 Button("Synchronize") { service.requestSync(manager, force: true) }
                 if service.busy { ProgressView().controlSize(.small) }
-            }.disabled(!service.enabled || service.busy || manager.busy || manager.pendingOperations > 0)
+            }.disabled(!service.enabled || service.busy || manager.busy || manager.pendingOperations > 0 || controls.hasPendingWork)
             Text(service.message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled).id(service.message)
             if let checked = service.lastChecked { Text("Status checked " + checked.formatted(date: .omitted, time: .standard)).font(.caption).foregroundStyle(.secondary) }
             if let failure = service.failure { Text(failure).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }

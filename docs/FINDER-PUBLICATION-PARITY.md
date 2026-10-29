@@ -66,3 +66,34 @@ subtree claims. Readers cache projection work and probe kernel leases without
 waiting for writer locks. Earlier file-survival evidence does not establish live
 ownership; updated native workers remain alive during concurrent-root checks and
 are then released/reaped before stale-root assertions.
+
+## Large live-cache claim and publication work — October 29, 2026
+
+Installed build35 exposed a live-writer contention error while opening a private
+10,001-file repository. Read-only samples showed multiple descriptors in the same
+app competing for the store, with full snapshot/control encoding under the lock.
+The sampled writer files were about 74 MB. The error did not establish an abandoned
+lock, and the lock file must not be removed to work around it.
+
+Current source sequences writers for the same physical store within the process
+before starting the existing cross-process lock deadline. Waiting remains
+cancellable. Immutable contribution bodies and exact-file-identity decode results
+are reused without changing the version-four wire format. A claim-only operation
+still persists its ordering fence, but does not rewrite an unchanged live snapshot.
+Policy and live-owner changes continue to rebuild the authoritative projection.
+The first cold decode remains real work; this is not a promise of zero-cost startup.
+
+Settings dismissal now waits for watch actions accepted by that Settings page,
+rather than unrelated workspace registration. Actual Add/Renew/Remove, permission
+and background-service actions retain their page ownership until their work drains.
+This source correction is separate from the computer-control tool's observed
+Settings timeout, which did not prove a blocked application main thread.
+
+The [grouped checkpoint](qa/finder-large-cache-2026-10-29.json) passes 68 distinct
+Core methods and native persistence, separate-process lease/removal, Settings close
+and retained watch-action cases. Two initial warm-warning regressions were repaired
+without removing assertions; only those affected methods were repeated. A private
+10,001-file cold claim took about three seconds, while five retained claims took
+about nine milliseconds together and repeated no payload work. Those observations
+are not an installed startup benchmark. The installed app remains build35, and
+physical Finder/Settings acceptance after the control-tool failure is still open.
