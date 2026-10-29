@@ -1,6 +1,23 @@
 # TurtleGit for Mac — full port tracking
 
+## Log inspection continuation
+
+The [streamed file inspection family](LOG-STREAMED-FILE-NAVIGATION-PARITY.md)
+keeps loaded historical files usable during an independent history walk,
+including navigation, comparisons, document delivery, Copy and file promises.
+Reload binds a retained selected commit's details to the current accepted prefix
+and preserves unchanged file selections at final settlement. The family receipt
+separates native checks from installed-build and physical input acceptance.
+These later changes are not included in signed candidate30.
+
 ## Current installed checkpoint
+
+[Signed build30](qa/signed-consolidation-build30-2026-10-29.json) is the newer
+uninstalled Apple Silicon test candidate from `06e3de29`, consolidating the recent
+Commit, comparison, Log-selection and Merge recovery work with updated guides and
+bundled Help. Measured inputs, strict signatures and package inventory pass.
+The user-owned build27 session remains running. Fresh Commit screenshots await
+an unlocked desktop; later source work and physical acceptance are separate.
 
 [Build27](qa/signed-consolidation-build27-2026-10-28.json), version 0.1.0 (27),
 is installed from `3d0cf270` for Apple Silicon local testing. Measured inputs,

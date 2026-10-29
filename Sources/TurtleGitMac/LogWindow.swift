@@ -140,6 +140,7 @@ final class LogHistoryWindow: NSWindow {
     private let permissions: [RepositoryAccessLease]
     private let panels: OwnedFilePanelSession
     private var finished = false
+    private let activity: UUID
     var defaultApplication: (URL) -> URL? = { NSWorkspace.shared.urlForApplication(toOpen: $0) }
     var launch: ExternalDocumentApplication.Launch?
     var chooseApplication: ((NSOpenPanel) async -> URL?)?
@@ -149,13 +150,13 @@ final class LogHistoryWindow: NSWindow {
     init(model: LogWindowModel, preferences: UserDefaults, permissions: [RepositoryAccessLease], panels: OwnedFilePanelSession,editor:AlternativeEditorPreferences? = nil) {
         self.model = model; generation = model.generation; selection = model.fileSelectionGeneration
         self.editor = editor ?? .load(from: preferences); self.permissions = permissions; self.panels = panels
-        model.busy = true; Self.activeRequests += 1
+        activity=model.beginFileNavigationActivity(); Self.activeRequests += 1
     }
-    var current: Bool { !finished && !cancellation.isCancelled && !model.isInvalidated && model.generation == generation && model.fileSelectionGeneration == selection }
+    var current: Bool { !finished && !cancellation.isCancelled && !model.isInvalidated && !model.confirmingQuit && model.generation == generation && model.fileSelectionGeneration == selection }
     func retire() { cancellation.cancel(); panels.cancel() }
     private func finish() {
         guard !finished else { return }; finished = true; Self.activeRequests -= 1
-        if !model.isInvalidated && model.generation == generation { model.busy = false }
+        model.endFileNavigationActivity(activity)
     }
     func run(content: ComparisonFileContent?, workingFile: URL?, action: HistoricalOpenAction) async {
         defer { finish(); withExtendedLifetime(permissions) {} }
@@ -207,6 +208,13 @@ final class LogHistoryWindow: NSWindow {
 
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     private(set) lazy var filePanels = OwnedFilePanelSession(window: window)
+    var chooseFileDestination: ((NSSavePanel) async -> URL?)?
+    private var exportFailureAlert: NSAlert?
+    private func retireExportFailureAlert() {
+        guard let alert=exportFailureAlert else{return};exportFailureAlert=nil
+        if let parent=alert.window.sheetParent {parent.endSheet(alert.window,returnCode:.abort)}
+        alert.window.orderOut(nil);alert.window.close()
+    }
     private(set) var documentOpen: LogDocumentOpenSession?
     var configureDocumentOpen: (LogDocumentOpenSession) -> Void = { _ in }
     private(set) static var activeReferencePickers = 0
@@ -357,18 +365,20 @@ final class LogHistoryWindow: NSWindow {
         }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
         model.finishMultipleSelection = { [weak self] revisions in self?.finishMultipleSelection(revisions) }
-        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel(); self?.documentOpen?.retire() }
+        model.cancelFileChoice = { [weak self] in self?.filePanels.cancel(); self?.documentOpen?.retire();self?.retireExportFailureAlert() }
         model.cancelFileOpen = { [weak self] in self?.documentOpen?.retire() }
         model.presentHistoricalSave = { [weak self] content, short in
             // Let the originating context-menu tracking finish before presenting AppKit UI.
-            DispatchQueue.main.async { [weak self] in self?.saveHistoricalFile(content, short: short) }
+            guard let self else{return};let current=self.model.captureFileNavigationOwner()
+            DispatchQueue.main.async { [weak self] in guard current() else{return};self?.saveHistoricalFile(content, short: short) }
         }
         model.presentHistoricalOpen = { [weak self] content, action in
             self?.openDocument(content: content, action: action)
         }
         model.presentHistoricalExport = { [weak self] revision, files in
-            let backend=self?.model.historicalExportBackend
-            DispatchQueue.main.async { [weak self] in self?.chooseHistoricalExport(revision: revision, files: files,backend:backend) }
+            guard let self else{return}
+            let backend=self.model.historicalExportBackend,current=self.model.captureFileNavigationOwner()
+            DispatchQueue.main.async { [weak self] in guard current() else{return};self?.chooseHistoricalExport(revision: revision, files: files,backend:backend) }
         }
         model.presentWorkingSave = { [weak self] path in
             DispatchQueue.main.async { [weak self] in self?.chooseWorkingCopy(paths: [path], save: true) }
@@ -380,13 +390,20 @@ final class LogHistoryWindow: NSWindow {
             self?.openDocument(workingFile: file, action: action)
         }
         model.confirmExportFailure = { [weak self] message in
-            guard let window = self?.window else { return false }
-            return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.messageText = "Could not export historical file"
-                alert.informativeText = message; alert.alertStyle = .warning
-                alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Abort")
-                alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertFirstButtonReturn) }
+            guard let self,let window = self.window,!self.model.isInvalidated,!self.model.confirmingQuit,self.exportFailureAlert==nil,window.attachedSheet==nil else { return false }
+            let alert=NSAlert();self.exportFailureAlert=alert
+            alert.messageText="Could not export historical file";alert.informativeText=message;alert.alertStyle = .warning
+            alert.addButton(withTitle:"Ignore");alert.addButton(withTitle:"Abort")
+            let answer=await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for:window) {continuation.resume(returning:$0)}
             }
+            // The export and a requested owner Close retain the real sheet
+            // until AppKit releases it, rather than treating its reply as drain.
+            while alert.window.sheetParent === window || window.attachedSheet === alert.window {
+                try? await Task.sleep(nanoseconds:5_000_000)
+            }
+            if self.exportFailureAlert === alert {self.exportFailureAlert=nil}
+            return !self.model.isInvalidated && !self.model.confirmingQuit && answer == .alertFirstButtonReturn
         }
         if loadsImmediately { model.reload() }
 
@@ -427,7 +444,7 @@ final class LogHistoryWindow: NSWindow {
         }
         let copying = key == "c" && (flags == .command || flags == .control) || event.keyCode == 114 && flags == .control
         guard copying, !editing else { return false }
-        guard model.canFollowMessageLink else { return true }
+        guard (window.firstResponder is HistoryTableView || window.firstResponder is LogMessageTextView ? model.canFollowMessageLink : model.canInspectHistory) else { return true }
         if let message = text as? LogMessageTextView { message.copy(nil) }
         else if window.firstResponder is HistoryTableView { model.copyDetails() }
         else if window.firstResponder is NSTableView { model.copyChangedFileIDs(Array(model.selectedFiles)) }
@@ -435,14 +452,16 @@ final class LogHistoryWindow: NSWindow {
         return true
     }
     private func chooseFile(_ panel: NSSavePanel, accepted: @escaping (URL) -> Void) {
-        guard !model.busy, !model.isInvalidated, window?.attachedSheet == nil else { return }
-        let selection = model.fileSelectionGeneration
-        model.busy = true
-        Task { [weak self] in
-            guard let self else { return }
-            let target = await filePanels.choose(panel)
-            model.busy = false
-            guard !model.isInvalidated, selection == model.fileSelectionGeneration, let target else { return }
+        guard model.canInspectHistory, window?.attachedSheet == nil else { return }
+        let selection=model.fileSelectionGeneration, generation=model.generation
+        let activity=model.beginFileNavigationActivity()
+        Task { [self] in
+            let target: URL?
+            if let chooseFileDestination {target=await chooseFileDestination(panel)}
+            else {target=await filePanels.choose(panel)}
+            model.endFileNavigationActivity(activity)
+            guard !model.isInvalidated,!model.confirmingQuit,generation==model.generation,
+                  selection == model.fileSelectionGeneration, let target else { return }
             accepted(target)
         }
     }
@@ -475,7 +494,7 @@ final class LogHistoryWindow: NSWindow {
         }
     }
     private func openDocument(content: ComparisonFileContent? = nil, workingFile: URL? = nil, action: HistoricalOpenAction) {
-        guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated, documentOpen == nil else { return }
+        guard let window, window.attachedSheet == nil, model.canInspectHistory, documentOpen == nil else { return }
         let operation = LogDocumentOpenSession(model: model, preferences: findPreferences,
             permissions: findAccess.map { [$0] } ?? [], panels: filePanels,editor:content == nil ? nil:model.materializationEditorSettings)
         configureDocumentOpen(operation); documentOpen = operation
@@ -627,6 +646,12 @@ final class LogHistoryWindow: NSWindow {
         model.requestRepositoryRefresh()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // A document handoff without an attached chooser can retire its visual
+        // owner immediately. windowWillClose cancels it and retains the actual
+        // preview/launch worker and grants until acknowledgement/drain. File
+        // reads and owned panels keep their separate deferred-close contract.
+        let retiringDocument=documentOpen != nil && sender.attachedSheet == nil && filePanels.currentPanel == nil
+        if !retiringDocument,model.cancelFileNavigationRead(closeAfter:true) { return false }
         if model.cancelWorkingLFSRead(closeAfter: true) { return false }
         if model.cancelFollowedComparison(closeAfter:true) { return false }
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
@@ -655,8 +680,8 @@ final class LogHistoryWindow: NSWindow {
         window?.contentViewController = nil
         completion?(nil);multiple?(nil)
         let closed=onClosed;onClosed={}
-        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || lfsOperation != nil {
-            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
+        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || lfsOperation != nil {
+            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
         }else{closed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
@@ -803,7 +828,38 @@ struct LogCommandRequest: Identifiable {
     private(set) static var activeHistoryLoads = 0
     private(set) var pendingHistoryLoads = 0
     private(set) static var activeFileOpenReads = 0
-    private var fileOpenRead: OperationCancellation?
+    private var fileOpenRead: OperationCancellation? {
+        didSet {
+            // History already owns busy while streaming. A separate file read
+            // must still retire captured menu receipts through its own lifetime.
+            if oldValue !== fileOpenRead { fileMenuGeneration = UUID();fileDragEpoch=UUID() }
+        }
+    }
+    private(set) static var activeFileNavigationActivities = 0
+    private var fileNavigationActivities = Set<UUID>()
+    var fileNavigationReadPending: Bool { fileOpenRead != nil || !fileNavigationActivities.isEmpty }
+    @discardableResult func beginFileNavigationActivity() -> UUID {
+        let id=UUID();fileNavigationActivities.insert(id);Self.activeFileNavigationActivities += 1
+        fileMenuGeneration=UUID();fileDragEpoch=UUID();busy=true
+        return id
+    }
+    func endFileNavigationActivity(_ id:UUID) {
+        guard fileNavigationActivities.remove(id) != nil else{return}
+        Self.activeFileNavigationActivities -= 1;fileMenuGeneration=UUID()
+        if !isInvalidated {busy=loadingHistory || fileNavigationReadPending || !unifiedSessions.isEmpty || followedSession != nil}
+        finishPendingFileNavigationClose()
+    }
+    private var closeAfterFileNavigationRead = false
+    @discardableResult func cancelFileNavigationRead(closeAfter: Bool = false) -> Bool {
+        guard fileNavigationReadPending else{return false}
+        closeAfterFileNavigationRead = closeAfterFileNavigationRead || closeAfter
+        fileMenuGeneration=UUID();fileOpenRead?.cancel();cancelFileChoice();return true
+    }
+    private func finishPendingFileNavigationClose() {
+        guard closeAfterFileNavigationRead,!fileNavigationReadPending else{return}
+        closeAfterFileNavigationRead=false
+        if !isInvalidated {window?.performClose(nil)}
+    }
     private(set) static var activeActionReads = 0
     private var combineSelectionReads:[UUID:OperationCancellation]=[:]
     func validateCombineSelection(_ entries:[LogEntry],offset:Int,head:String,token:OperationCancellation) async throws {
@@ -997,7 +1053,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func copyChangedFileIDs(_ ids:[String],status:Bool=false,column:StatusListColumn?=nil) {
-        guard !busy,!isInvalidated else {return}
+        guard canInspectHistory else {return}
         let ids=GitPathSet(ids),chosen=fileTableRows.compactMap(\.file).filter {ids.contains($0.id)}
         guard !chosen.isEmpty else {return}
         let text=chosen.map {file in
@@ -1129,7 +1185,11 @@ struct LogCommandRequest: Identifiable {
         didSet { if oldValue.map { GitReferenceName($0) } != fileSelectionMark.map { GitReferenceName($0) } { invalidateFileSelection(includingDrag:false) } }
     }
     private(set) var fileSelectionGeneration = UUID()
-    private var fileMenuGeneration = UUID()
+    private var preservingHistoryFileNavigationOwner = false
+    private var fileNavigationOwnerEpoch = UUID()
+    private var fileMenuGeneration = UUID() {
+        didSet { if !preservingHistoryFileNavigationOwner { fileNavigationOwnerEpoch=UUID() } }
+    }
     private var fileDragEpoch = UUID()
     private func invalidateFileSelection(includingDrag:Bool=true) { cancelFileOpen(); fileOpenRead?.cancel(); fileSelectionGeneration = UUID(); fileMenuGeneration = UUID();if includingDrag{fileDragEpoch=UUID()} }
     func markedFile(_ ids: some Sequence<String>) -> CommitFile? {
@@ -1139,6 +1199,26 @@ struct LogCommandRequest: Identifiable {
     }
     func fileMenuSnapshot(_ ids: GitPathSet) -> LogFileMenuSnapshot {
         LogFileMenuSnapshot(owner: self, menuGeneration: fileMenuGeneration, selectionGeneration: fileSelectionGeneration, ids: ids, visible: visibleFiles)
+    }
+    /// A child comparison owns the accepted file rows rather than the current
+    /// history projection. Appends are harmless; a different revision, file
+    /// selection, setting/action epoch or owner retires the pending read. Its
+    /// own warning sheet is deliberately outside this receipt's admission gate.
+    func captureFileNavigationOwner() -> () -> Bool {
+        let request=generation, selection=selected, fileRequest=fileSelectionGeneration
+        let ownerEpoch=fileNavigationOwnerEpoch, selectedIDs=selectedFiles
+        let records=files.enumerated().compactMap { selectedIDs.contains($0.element.id) ? ($0.offset,$0.element):nil }
+        return { [weak self] in
+            guard let self,!self.isInvalidated,!self.confirmingQuit,
+                  self.generation==request,self.selected==selection,
+                  self.fileSelectionGeneration==fileRequest,self.fileNavigationOwnerEpoch==ownerEpoch,
+                  self.selectedFiles==selectedIDs,
+                  !self.jumping,!self.loadingNote,!self.savingNote,self.noteRequest==nil,
+                  !self.findBlocked,!self.orderingBlocked,!self.referencePickerBlocked,!self.copyingDetails,
+                  !self.unifiedViewerBusy,self.unifiedSessions.isEmpty,self.followedSession==nil,
+                  !self.fileNavigationReadPending,(!self.busy || self.loadingHistory) else{return false}
+            return records.allSatisfy {self.files.indices.contains($0.0) && self.files[$0.0]==$0.1}
+        }
     }
     func withFileMenu(_ snapshot: LogFileMenuSnapshot, consume:Bool=true, inspection:Bool=false, action: () -> Void) {
         guard snapshot.owner === self, !snapshot.consumed, !isInvalidated, (inspection ? canInspectHistory : !busy), !jumping, !loadingNote, !savingNote,
@@ -1154,9 +1234,10 @@ struct LogCommandRequest: Identifiable {
     /// still export the selected child hash. A combined multi-commit list has
     /// no single source revision and is deliberately not a drag source.
     func fileDragProvider(_ snapshot:LogFileMenuSnapshot)->NSItemProvider? {
-        guard !confirmingQuit,NSApp.modalWindow==nil,pendingHistoryLoads==0,fileOpenRead==nil,combineSelectionReads.isEmpty,hasRepresentableFilePaths(snapshot.ids) else{return nil}
+        guard !confirmingQuit,NSApp.modalWindow==nil,(selectedWorkingTree ? pendingHistoryLoads==0 : canInspectHistory),!fileNavigationReadPending,combineSelectionReads.isEmpty,hasRepresentableFilePaths(snapshot.ids) else{return nil}
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         var provider:NSItemProvider?
-        withFileMenu(snapshot,consume:false) {
+        withFileMenu(snapshot,consume:false,inspection:!selectedWorkingTree) {
             let source:ComparisonRevision
             if selectedWorkingTree {source = .workingTree}
             else if let revision {source = .revision(revision.hash)}
@@ -1170,17 +1251,18 @@ struct LogCommandRequest: Identifiable {
     /// Capture the actual highlighted native row IDs, in their displayed order.
     /// Merge-parent groups share the selected child object; a combined selection
     /// has no single materialization revision and is not silently guessed.
-    var fileDragGeneration:UUID? { !isInvalidated && !busy && !confirmingQuit ? fileDragEpoch:nil }
+    var fileDragGeneration:UUID? { (selectedWorkingTree ? !isInvalidated && !busy && !confirmingQuit : canInspectHistory) ? fileDragEpoch:nil }
     func captureFileDrag(_ orderedIDs:[String])->LogFileListDrag? {
-        guard !confirmingQuit,NSApp.modalWindow==nil,pendingHistoryLoads==0,fileOpenRead==nil,
+        guard !confirmingQuit,NSApp.modalWindow==nil,(selectedWorkingTree ? pendingHistoryLoads==0 : canInspectHistory),!fileNavigationReadPending,
               combineSelectionReads.isEmpty,!orderedIDs.isEmpty,hasRepresentableFilePaths(orderedIDs),
               GitPathSet(orderedIDs).count==orderedIDs.count,
               orderedIDs.allSatisfy({selectedFiles.contains($0)}) else{return nil}
         let rows=fileTableRows,lookup=GitPathMap(uniqueKeysWithValues:rows.compactMap { row in row.file.map{(row.rawID,$0)} })
         let files=orderedIDs.compactMap{lookup[$0]}
         guard files.count==orderedIDs.count else{return nil}
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         var drag:LogFileListDrag?
-        withFileMenu(fileMenuSnapshot(GitPathSet(orderedIDs)),consume:false) {
+        withFileMenu(fileMenuSnapshot(GitPathSet(orderedIDs)),consume:false,inspection:!selectedWorkingTree) {
             let source:ComparisonRevision
             if selectedWorkingTree {source = .workingTree}
             else if let revision {source = .revision(revision.hash)}
@@ -1206,7 +1288,9 @@ struct LogCommandRequest: Identifiable {
         guard !isInvalidated else { return }
         HistoryReferenceScopePreference.save(effectiveReferenceScope, root: repository.root, defaults: labelDefaults)
     }
-    private(set) var logControlsEpoch = UUID()
+    private(set) var logControlsEpoch = UUID() {
+        didSet { if !preservingHistoryFileNavigationOwner { fileNavigationOwnerEpoch=UUID() } }
+    }
     func retireLogControlMenus() { logControlsEpoch = UUID() }
     var canChangeLogControls: Bool {
         canChangeStartReference && !resettingChangedFileColumns
@@ -1486,6 +1570,16 @@ struct LogCommandRequest: Identifiable {
                     else if finalProjectionGeneration != current.generation, input.entries.count >= acceptedProjectionCount {
                         acceptedProjectionCount = input.entries.count
                         entries = projection.entries; graph = projection.graph; rollupInfo = projection.rollups
+                        // A refresh can retain a highlighted immutable hash
+                        // without another native selection notification. Bind
+                        // its file read to this load as soon as that shown row
+                        // arrives, rather than exposing old details until EOF.
+                        if detailHistoryGeneration != current.generation,
+                           prefixDetailBindingGeneration != current.generation,
+                           let revision,!revision.hash.isEmpty {
+                            prefixDetailBindingGeneration=current.generation
+                            select(selected,mark:selectionMark,recordNavigation:false)
+                        }
                         searchHighlights = [:]; historySourceRowCount = input.entries.count
                     }
                 case .failure(let error):
@@ -1515,6 +1609,7 @@ struct LogCommandRequest: Identifiable {
         let selected: Set<String>, mark: String?
     }
     private var detailHistoryGeneration: Int?
+    private var prefixDetailBindingGeneration: Int?
     private var historyRestore: HistoryRestore?
     private var provisionalHistory: [LogEntry] = []
     private var nextHistoryPublication = 128
@@ -1559,11 +1654,11 @@ struct LogCommandRequest: Identifiable {
     private var pathFilterTask: Task<Void, Never>?
     private var pathFilterGeneration = 0
     var readSearchValidation: ((String, Bool, OperationCancellation) async throws -> Bool)?
-    var canEditPathFilter: Bool { !isInvalidated && !confirmingQuit && !referencePickerBlocked && !findBlocked && !orderingBlocked && unifiedSessions.isEmpty && followedSession == nil && window?.attachedSheet == nil }
+    var canEditPathFilter: Bool { !isInvalidated && !confirmingQuit && !fileNavigationReadPending && !referencePickerBlocked && !findBlocked && !orderingBlocked && unifiedSessions.isEmpty && followedSession == nil && window?.attachedSheet == nil }
     var canEditLogFilters: Bool { canEditPathFilter && (!busy || loadingHistory) }
     var canUseSourceCommands: Bool {
         !isInvalidated && !confirmingQuit && (!busy || loadingHistory) && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
-            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && unifiedSessions.isEmpty && followedSession == nil && window?.attachedSheet == nil && NSApp.modalWindow == nil
+            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && unifiedSessions.isEmpty && followedSession == nil && !fileNavigationReadPending && window?.attachedSheet == nil && NSApp.modalWindow == nil
     }
     /// Explicit Refresh clears the history filter in CLogDlg::Refresh(true).
     /// Background/selection refreshes continue to call reload() and retain it.
@@ -1973,7 +2068,7 @@ struct LogCommandRequest: Identifiable {
     }
     private static func boundedHistoryDate(_ date:Date)->Date {min(max(date,Date(timeIntervalSince1970:0)),maximumHistoryDate)}
     @Published var busy = false {
-        didSet { if busy != oldValue { fileMenuGeneration = UUID();fileDragEpoch=UUID(); retireLogControlMenus() }; if !busy { scheduleRepositoryRefresh() } }
+        didSet { if busy != oldValue { fileMenuGeneration = UUID();if !preservingHistoryFileNavigationOwner {fileDragEpoch=UUID()}; retireLogControlMenus() }; if !busy { scheduleRepositoryRefresh() } }
     }
     private var pendingRepositoryRefresh = false
     private var repositoryRefreshTask: Task<Void, Never>?
@@ -2031,6 +2126,7 @@ struct LogCommandRequest: Identifiable {
                     let snapshot = try await repository.followedHistoryComparison(path: path, entries: rows, from: from, to: to, parentOf: parentOf, cancellation: token)
                     guard !isInvalidated, generation == request, detailGeneration == detail, self.selected == selected,
                           followedPath.map({ GitReferenceName.equal($0, path) }) == true, !token.isCancelled else { return }
+                    acceptedNavigationRepository=repository
                     ComparisonToolInvocation.$alternate.withValue(session.alternateTool) { onFollowedFileComparison(snapshot, token) }
                 }
             } catch { if !isInvalidated, generation == request, detailGeneration == detail, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -2185,7 +2281,7 @@ struct LogCommandRequest: Identifiable {
     }
     var canInspectHistory: Bool {
         !isInvalidated && !confirmingQuit && (!busy || loadingHistory) && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
-            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && unifiedSessions.isEmpty && followedSession == nil &&
+            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && unifiedSessions.isEmpty && followedSession == nil && !fileNavigationReadPending &&
             window?.attachedSheet == nil && NSApp.modalWindow == nil
     }
     private var canStartHistoryTransport: Bool {
@@ -2426,7 +2522,7 @@ struct LogCommandRequest: Identifiable {
         bisectRead?.cancel(); bisectRead = nil
         cancelReferenceDescriptionRead()
         retireLogControlMenus()
-        cancelFileChoice(); invalidateFileSelection()
+        cancelFileChoice(); invalidateFileSelection();closeAfterFileNavigationRead=false
         messageLinkGeneration = UUID()
         if let jumpAlert, let parent = jumpAlert.window.sheetParent { parent.endSheet(jumpAlert.window, returnCode: .abort) }; jumpAlert = nil
         cancelSearchFilter(); pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil
@@ -2454,7 +2550,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
-        guard !isInvalidated, !referencePickerBlocked, unifiedSessions.isEmpty, followedSession == nil, !busy || loadingHistory else { return }
+        guard !isInvalidated, !referencePickerBlocked, unifiedSessions.isEmpty, followedSession == nil, !fileNavigationReadPending, !busy || loadingHistory else { return }
         cancelReferenceDescriptionRead()
         cancelSearchFilter()
         restoreHistorySnapshot()
@@ -2593,14 +2689,19 @@ struct LogCommandRequest: Identifiable {
                 messageSearch.query = options.search; messageSearch.fields = options.searchFields
                 messageSearch.regex = options.searchRegex; messageSearch.caseSensitive = options.searchCaseSensitive
                 appliedMessageSearch = messageSearch
-                historyCancellation = nil; busy = !unifiedSessions.isEmpty || followedSession != nil
+                // Completing the independent history stream must not cancel
+                // an already accepted child file comparison. Native menu and
+                // control receipts still retire normally at this settlement.
+                preservingHistoryFileNavigationOwner=true
+                historyCancellation = nil; busy = !unifiedSessions.isEmpty || followedSession != nil || fileNavigationReadPending
+                preservingHistoryFileNavigationOwner=false
                 if selected != priorSelection || detailHistoryGeneration != generation { select(selected) }
             } catch {
                 if request == generation {
                     detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
                     restoreHistorySnapshot(); historyCancellation = nil
                     if !cancellation.isCancelled { self.error = error.localizedDescription }
-                    busy = !unifiedSessions.isEmpty || followedSession != nil
+                    busy = !unifiedSessions.isEmpty || followedSession != nil || fileNavigationReadPending
                     if !isInvalidated { select(selected, mark: selectionMark, recordNavigation: false) }
                 }
             }
@@ -2919,7 +3020,7 @@ struct LogCommandRequest: Identifiable {
     }
     func canCopyFiles(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
-        return !busy && !isInvalidated && visibleFiles.contains { ids.contains($0.id) }
+        return canInspectHistory && visibleFiles.contains { ids.contains($0.id) }
     }
     func copyFiles(_ ids: some Sequence<String>, information: CopyFileInformation) {
         let ids = GitPathSet(ids)
@@ -2936,13 +3037,14 @@ struct LogCommandRequest: Identifiable {
         copy(StatusListClipboard.text(selected, root: repository.root, statuses: statuses, copy: kind, label:FileListLabels.caption))
     }
     func fileLog(_ ids: some Sequence<String>, oldName: Bool = false) {
-        guard !isInvalidated,!confirmingQuit else{return}
+        guard canInspectHistory else{return}
         let ids = GitPathSet(ids)
-        if selectedWorkingTree, !busy, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), file.action != "?", let onFileLog {
+        acceptedNavigationRepository=repository.capturingDiffBackend(preferences:labelDefaults)
+        if selectedWorkingTree, ids.count == 1, let file = visibleFiles.first(where: { ids.contains($0.id) }), file.action != "?", let onFileLog {
             onFileLog(oldName ? file.oldPath ?? file.path : file.path, nil); return
         }
-        guard !busy, let onFileLog, let revision, ids.count == 1,
-              let file = files.first(where: { ids.contains($0.id) }) else { return }
+        guard canInspectHistory, let onFileLog, let revision, ids.count == 1,
+              let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
         if oldName {
             guard let path = file.oldPath else { return }; onFileLog(path, file.isPathRepresentable ? nil:revision.hash)
         } else { onFileLog(file.path, revision.hash) }
@@ -2951,7 +3053,7 @@ struct LogCommandRequest: Identifiable {
     func canShowSubmoduleFileLog(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
         guard hasRepresentableFilePaths(ids) else { return false }
-        return !busy && !isInvalidated && !bare && onSubmoduleFileLog != nil && ids.count == 1 && visibleFiles.contains { ids.contains($0.id) && $0.isSubmodule && $0.action != "?" }
+        return canInspectHistory && !bare && onSubmoduleFileLog != nil && ids.count == 1 && visibleFiles.contains { ids.contains($0.id) && $0.isSubmodule && $0.action != "?" }
     }
     func showSubmoduleFileLog(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
@@ -2965,7 +3067,7 @@ struct LogCommandRequest: Identifiable {
         let token = OperationCancellation(); fileOpenRead = token; Self.activeFileOpenReads += 1
         busy = true
         Task {
-            defer { Self.activeFileOpenReads -= 1; withExtendedLifetime(access) {}; if fileOpenRead === token { fileOpenRead=nil; busy = false } }
+            defer { Self.activeFileOpenReads -= 1; withExtendedLifetime(access) {}; finishFileOpenRead(token,generation:request) }
             do {
                 try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
                 if working {
@@ -2983,10 +3085,10 @@ struct LogCommandRequest: Identifiable {
                     guard let revision else {throw RevisionComparisonFailure.selection}
                     endRevision = try await repository.submoduleLogRevision(path:file.path,revision:revision.hash,cancellation:token)
                 } else { endRevision = nil }
-                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!token.isCancelled else { return }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!confirmingQuit,!token.isCancelled else { return }
                 acceptedNavigationRepository=child
-                busy = false; onSubmoduleFileLog?(checkout, endRevision)
-            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!token.isCancelled { self.error = error.localizedDescription } }
+                finishFileOpenRead(token,generation:request); onSubmoduleFileLog?(checkout, endRevision)
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!confirmingQuit,!token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     /// History keys may be opaque byte names. Native filesystem and mutation
@@ -3014,7 +3116,7 @@ struct LogCommandRequest: Identifiable {
     }
     func canBlameFile(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
-        guard !busy, !isInvalidated, !confirmingQuit, onBlame != nil, ids.count == 1,
+        guard canInspectHistory, onBlame != nil, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
         if selectedWorkingTree { return hasRepresentableFilePaths(ids) && !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && !file.action.hasPrefix("A") }
         return revision != nil
@@ -3059,6 +3161,8 @@ struct LogCommandRequest: Identifiable {
     func blameFile(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard canBlameFile(ids), let onBlame, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
+        acceptedNavigationRepository=repository
         if !selectedWorkingTree { if let revision { onBlame(file.path, revision.hash) }; return }
         let request = generation, selection = selected
         let fileRequest = fileSelectionGeneration
@@ -3082,16 +3186,17 @@ struct LogCommandRequest: Identifiable {
     func chooseHistoricalExport(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard requireNativeFilePaths(ids) else { return }
-        guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, window?.attachedSheet == nil else { return }
+        guard (selectedWorkingTree ? !busy : canInspectHistory), !isInvalidated, selectedWorkingTree || revision != nil, window?.attachedSheet == nil else { return }
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard chosen.contains(where: { !$0.isSubmodule && !$0.action.hasPrefix("D") }) else { return }
         if selectedWorkingTree { presentWorkingExport(chosen.filter { !$0.isSubmodule && !$0.action.hasPrefix("D") }.map(\.path)) }
         else if let revision { historicalExportBackend=materializationBackend();presentHistoricalExport(revision.hash, chosen) }
     }
     func exportHistoricalFiles(revision: String, files: [CommitFile], to folder: URL,backend:GitLibGit2Configuration? = nil) {
-        guard !busy,!isInvalidated,!confirmingQuit else { return }
+        guard canInspectHistory else { return }
         guard files.allSatisfy(\.isPathRepresentable) else{error=RepositoryBrowserWindowModel.rawPathReason;return}
         let captured=backend ?? materializationBackend(),token=OperationCancellation(),request=generation
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         fileOpenRead=token;busy=true;Self.activeFileOpenReads += 1
         Task { [self,access] in
             defer {Self.activeFileOpenReads -= 1;finishFileOpenRead(token,generation:request);withExtendedLifetime(access){}}
@@ -3121,10 +3226,11 @@ struct LogCommandRequest: Identifiable {
                   let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
             presentWorkingSave(file.path); return
         }
-        guard !busy, !isInvalidated,!confirmingQuit,let revision, ids.count == 1, let window, window.attachedSheet == nil,
+        guard canInspectHistory,let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         let request = generation, fileRequest = fileSelectionGeneration
         let backend=materializationBackend(),token=OperationCancellation()
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         fileOpenRead=token;busy=true;Self.activeFileOpenReads += 1
         Task {
             defer {Self.activeFileOpenReads -= 1;finishFileOpenRead(token,generation:request);withExtendedLifetime(access){}}
@@ -3139,15 +3245,20 @@ struct LogCommandRequest: Identifiable {
         }
     }
     private func finishFileOpenRead(_ token: OperationCancellation, generation request: Int) {
-        if fileOpenRead === token { fileOpenRead = nil; if request == generation && !isInvalidated { busy = false } }
+        if fileOpenRead === token {
+            fileOpenRead = nil
+            if request == generation && !isInvalidated { busy = loadingHistory || fileNavigationReadPending || !unifiedSessions.isEmpty || followedSession != nil }
+            finishPendingFileNavigationClose()
+        }
     }
     func openHistoricalFile(_ ids: some Sequence<String>, action: HistoricalOpenAction) {
         let ids = GitPathSet(ids)
         guard requireHistoricalFilePaths(ids) else { return }
         if selectedWorkingTree { openWorkingFile(ids, action: action); return }
-        guard !busy, !isInvalidated, let revision, ids.count == 1, let window, window.attachedSheet == nil,
+        guard canInspectHistory, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         let request = generation, fileRequest = fileSelectionGeneration, token = OperationCancellation(),backend=materializationBackend()
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         materializationEditorSettings = .load(from:labelDefaults)
         fileOpenRead = token; busy = true; Self.activeFileOpenReads += 1
         Task {
@@ -3156,7 +3267,7 @@ struct LogCommandRequest: Identifiable {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let content = try await repository.materializedHistoricalFile(revision: revision.hash, path: file.path, cancellation: token,backend:backend)
                 try token.check()
-                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { return }
+                guard !isInvalidated,!confirmingQuit, request == generation, fileRequest == fileSelectionGeneration else { return }
                 finishFileOpenRead(token, generation: request); presentHistoricalOpen(content, action)
             } catch { if !isInvalidated, !token.isCancelled, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription } }
         }
@@ -3206,7 +3317,7 @@ struct LogCommandRequest: Identifiable {
     func markForComparison(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard requireHistoricalFilePaths(ids) else { return }
-        guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, ids.count == 1, let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        guard canInspectHistory, selectedWorkingTree || revision != nil, ids.count == 1, let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         comparisonMark = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
     }
     func canCompareMarkedFile(_ ids:some Sequence<String>) -> Bool {
@@ -3217,12 +3328,13 @@ struct LogCommandRequest: Identifiable {
     func compareWithMarkedFile(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard requireHistoricalFilePaths(ids) else { return }
-        guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
+        guard canInspectHistory, selectedWorkingTree || revision != nil, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         if comparisonMark.workingAccess != nil || comparisonMark.revision.isEmpty || selectedWorkingTree {
             guard requireNativeFilePaths(ids),(try? RepositoryBrowserGitPath(key:comparisonMark.path).isRepresentable)==true else{return}
         }
         let current = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
+        acceptedNavigationRepository=repository.capturingDiffBackend(preferences:labelDefaults)
         onPreparedFileCompare(comparisonMark, current)
     }
     func revealFile(_ ids: some Sequence<String>) {
@@ -3589,11 +3701,13 @@ struct LogCommandRequest: Identifiable {
     func compareFilePair(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard requireHistoricalFilePaths(ids) else { return }
+        guard canInspectHistory, canCompareFilePair(ids) else{return}
+        acceptedNavigationRepository=repository.capturingDiffBackend(preferences:labelDefaults)
         if selectedWorkingTree {
-            guard !busy, !isInvalidated, !bare, canCompareFilePair(ids), let onWorkingFilePairCompare else { return }
+            guard !bare, canCompareFilePair(ids), let onWorkingFilePairCompare else { return }
             onWorkingFilePairCompare(fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }.map(\.path)); return
         }
-        guard !busy, let revision, let onFilePairCompare else { return }
+        guard let revision, let onFilePairCompare else { return }
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
         onFilePairCompare(revision.hash, chosen)
@@ -3628,6 +3742,7 @@ struct LogCommandRequest: Identifiable {
                 requests.append((workingTree ? .revision(revision.hash) : parent, workingTree || parentWorkingTree ? .workingTree : .revision(revision.hash), chosen.filter { ($0.parentIndex ?? 0) == index }.map(\.path)))
             }
         }
+        acceptedNavigationRepository=repository.capturingDiffBackend(preferences:labelDefaults)
         if let onFileComparisons { onFileComparisons(requests) }
         else { for (from, to, paths) in requests { onFileCompare?(from, to, paths) } }
     }
@@ -3896,7 +4011,7 @@ struct LogDialog: View {
                 Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids) } } label: { CommandLabel(title:"Compare with base",icon:.compare) }.disabled(!model.canInspectHistory || model.revision == nil || model.onFileCompare == nil && model.onFileComparisons == nil)
                 Button { model.withFileMenu(snapshot, inspection: true) { model.selectedFileDiff(ids,alternate:NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff) }.disabled(!model.canInspectHistory || model.revision == nil)
                 if model.canCompareFilePair(ids) {
-                    Button { model.withFileMenu(snapshot) { model.compareFilePair(ids) } } label: { CommandLabel(title:"Compare two files",icon:.compare) }.disabled(model.busy || model.onFilePairCompare == nil)
+                    Button { model.withFileMenu(snapshot, inspection: true) { model.compareFilePair(ids) } } label: { CommandLabel(title:"Compare two files",icon:.compare) }.disabled(!model.canInspectHistory || model.onFilePairCompare == nil)
                 }
                 if ids.count == 1,let file=model.visibleFiles.first(where:{ids.contains($0.id)}),!file.isSubmodule,!file.action.hasPrefix("D") {
                     historicalFileActions(ids,snapshot:snapshot)
@@ -3905,16 +4020,16 @@ struct LogDialog: View {
                 Divider()
             }
             if ids.count == 1, let file=model.visibleFiles.first(where:{ids.contains($0.id)}) {
-                Button { model.withFileMenu(snapshot) { model.fileLog(ids) } } label: { CommandLabel(title:"Show log",icon:.log) }.disabled(model.busy || model.onFileLog == nil)
+                Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids) } } label: { CommandLabel(title:"Show log",icon:.log) }.disabled(!model.canInspectHistory || model.onFileLog == nil)
                 if file.oldPath != nil {
-                    Button { model.withFileMenu(snapshot) { model.fileLog(ids,oldName:true) } } label: { CommandLabel(title:"Show log of old name",icon:.log) }.disabled(model.busy || model.onFileLog == nil)
+                    Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids,oldName:true) } } label: { CommandLabel(title:"Show log of old name",icon:.log) }.disabled(!model.canInspectHistory || model.onFileLog == nil)
                 }
                 if !file.isSubmodule && !file.action.hasPrefix("D") {
-                    Button { model.withFileMenu(snapshot) { model.blameFile(ids) } } label: { CommandLabel(title:"Blame",icon:.blame) }.disabled(!model.canBlameFile(ids))
+                    Button { model.withFileMenu(snapshot, inspection: true) { model.blameFile(ids) } } label: { CommandLabel(title:"Blame",icon:.blame) }.disabled(!model.canBlameFile(ids))
                 }
             }
             Divider()
-            Button { model.withFileMenu(snapshot) { model.copyChangedFileIDs(Array(ids)) } } label: { CommandLabel(title:"Copy displayed names (escaped)",icon:.copy) }.disabled(!model.canCopyFiles(ids))
+            Button { model.withFileMenu(snapshot, inspection: true) { model.copyChangedFileIDs(Array(ids)) } } label: { CommandLabel(title:"Copy displayed names (escaped)",icon:.copy) }.disabled(!model.canCopyFiles(ids))
             Button(RepositoryBrowserWindowModel.rawPathReason) {}.disabled(true)
         } else {
         if model.selectedWorkingTree {
@@ -3955,7 +4070,7 @@ struct LogDialog: View {
             Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
         }
         if model.canCompareFilePair(ids) {
-            Button { model.withFileMenu(snapshot) { model.compareFilePair(ids) } } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
+            Button { model.withFileMenu(snapshot, inspection: true) { model.compareFilePair(ids) } } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(!model.canInspectHistory || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
         }
         if !model.selectedWorkingTree && !model.bare {
             if model.canRevertHistoricalFiles(ids, parent: false) || model.busy {
@@ -3967,20 +4082,20 @@ struct LogDialog: View {
         }
         Divider()
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
-            Button { model.withFileMenu(snapshot) { model.fileLog(ids) } } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
+            Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids) } } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(!model.canInspectHistory || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
             if file.isSubmodule && !model.bare {
-                Button { model.withFileMenu(snapshot) { model.showSubmoduleFileLog(ids) } } label: { CommandLabel(title: "Show submodule log", icon: .log) }.disabled(!model.canShowSubmoduleFileLog(ids))
+                Button { model.withFileMenu(snapshot, inspection: true) { model.showSubmoduleFileLog(ids) } } label: { CommandLabel(title: "Show submodule log", icon: .log) }.disabled(!model.canShowSubmoduleFileLog(ids))
             }
             if file.oldPath != nil {
-                Button { model.withFileMenu(snapshot) { model.fileLog(ids, oldName: true) } } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+                Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids, oldName: true) } } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(!model.canInspectHistory || model.onFileLog == nil)
             }
             if !file.isSubmodule && !file.action.hasPrefix("D") {
-                Button { model.withFileMenu(snapshot) { model.blameFile(ids) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(!model.canBlameFile(ids))
+                Button { model.withFileMenu(snapshot, inspection: true) { model.blameFile(ids) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(!model.canBlameFile(ids))
             }
             Divider()
         }
-        Button { model.withFileMenu(snapshot) { model.chooseHistoricalExport(ids) } } label: { CommandLabel(title: "Export…", icon: .export) }
-            .disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
+        Button { model.withFileMenu(snapshot, inspection: true) { model.chooseHistoricalExport(ids) } } label: { CommandLabel(title: "Export…", icon: .export) }
+            .disabled((model.selectedWorkingTree ? model.busy : !model.canInspectHistory) || !model.selectedWorkingTree && model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule && !file.action.hasPrefix("D") {
             historicalFileActions(ids, snapshot: snapshot)
         }
@@ -4001,24 +4116,24 @@ struct LogDialog: View {
         }
         Menu {
             ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
-                Button { model.withFileMenu(snapshot) { model.copyFiles(ids, information: information) } } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+                Button { model.withFileMenu(snapshot, inspection: true) { model.copyFiles(ids, information: information) } } label: { CommandLabel(title: information.rawValue, icon: .copy) }
             }
         } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(!model.canCopyFiles(ids))
         }
     }
     @ViewBuilder private func preparedComparisonActions(_ ids: GitPathSet, file: CommitFile, snapshot: LogFileMenuSnapshot) -> some View {
         Divider()
-        Button { model.withFileMenu(snapshot) { model.markForComparison(ids) } } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil)
+        Button { model.withFileMenu(snapshot, inspection: true) { model.markForComparison(ids) } } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(!model.canInspectHistory || !model.selectedWorkingTree && model.revision == nil)
         if let mark = model.comparisonMark {
-            Button { model.withFileMenu(snapshot) { model.compareWithMarkedFile(ids) } } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil || !model.canCompareMarkedFile(ids))
+            Button { model.withFileMenu(snapshot, inspection: true) { model.compareWithMarkedFile(ids) } } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(!model.canInspectHistory || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil || !model.canCompareMarkedFile(ids))
         }
     }
     @ViewBuilder private func historicalFileActions(_ ids: GitPathSet, snapshot: LogFileMenuSnapshot) -> some View {
-        let unavailable = model.busy || !model.selectedWorkingTree && model.revision == nil
-        Button { model.withFileMenu(snapshot) { model.saveHistoricalFile(ids) } } label: { CommandLabel(title: model.selectedWorkingTree ? "Save As…" : "Save revision to…", icon: .saveAs) }.disabled(unavailable)
-        Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .alternativeEditor) } } label: { CommandLabel(title: model.selectedWorkingTree ? "View in alternative editor" : "View revision in alternative editor", icon: .editor) }.disabled(unavailable)
-        Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .open) } } label: { CommandLabel(title: "Open", icon: .open) }.disabled(unavailable)
-        Button { model.withFileMenu(snapshot) { model.openHistoricalFile(ids, action: .openWith) } } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
+        let unavailable = (model.selectedWorkingTree ? model.busy : !model.canInspectHistory) || !model.selectedWorkingTree && model.revision == nil
+        Button { model.withFileMenu(snapshot, inspection: true) { model.saveHistoricalFile(ids) } } label: { CommandLabel(title: model.selectedWorkingTree ? "Save As…" : "Save revision to…", icon: .saveAs) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot, inspection: true) { model.openHistoricalFile(ids, action: .alternativeEditor) } } label: { CommandLabel(title: model.selectedWorkingTree ? "View in alternative editor" : "View revision in alternative editor", icon: .editor) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot, inspection: true) { model.openHistoricalFile(ids, action: .open) } } label: { CommandLabel(title: "Open", icon: .open) }.disabled(unavailable)
+        Button { model.withFileMenu(snapshot, inspection: true) { model.openHistoricalFile(ids, action: .openWith) } } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
     }
 
 }

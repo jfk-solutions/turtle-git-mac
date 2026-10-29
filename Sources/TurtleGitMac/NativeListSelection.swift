@@ -69,7 +69,7 @@ import TurtleGitCore
             } else if previous.retired {
                 guard let window=table.window,window !== previous.retiredWindow else{return}
                 objc_setAssociatedObject(table,&key,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            } else if table.delegate !== previous {
+            } else if !previous.delegateIsCurrent(table) {
                 previous.retire()
                 objc_setAssociatedObject(table,&key,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
@@ -95,7 +95,7 @@ import TurtleGitCore
         guard let label=owner(table)?.label(row:row),let cell=label.cell.copy() as? NSTextFieldCell else{return nil}
         return (cell,label.frame)
     }
-    static func usesFullRowSelection(in table:NSTableView)->Bool? {guard let owner=owner(table),!owner.retired else{return nil};return owner.fullRow}
+    static func usesFullRowSelection(in table:NSTableView)->Bool? {guard let owner=owner(table),owner.isCurrent(table) else{return nil};return owner.fullRow}
     static func originalDelegate(of table:NSTableView)->NSTableViewDelegate? {
         guard let owner=owner(table),owner.isCurrent(table) else{return table.delegate}
         return owner.original
@@ -108,6 +108,10 @@ import TurtleGitCore
     @MainActor fileprivate final class Owner:NSObject,NSTableViewDelegate {
         weak var table:NSTableView?
         weak var original:NSTableViewDelegate?
+        private let observesOutline:Bool
+        private var originalIdentity:ObjectIdentifier?
+        private weak var observedClip:NSClipView?
+        private var priorClipNotifications:Bool?
         weak var primaryColumn:NSTableColumn?
         private weak var client:AnyObject?
         private let clientIdentity:ObjectIdentifier?
@@ -133,14 +137,18 @@ import TurtleGitCore
         }
         init(table:NSTableView,client:AnyObject?) {
             self.table=table;self.client=client;clientIdentity=client.map(ObjectIdentifier.init)
+            observesOutline=table is NSOutlineView
+            original=table.delegate;originalIdentity=table.delegate.map(ObjectIdentifier.init)
             originalHighlightStyle=table.selectionHighlightStyle;super.init()
-            for name in [NSTableView.selectionDidChangeNotification,NSTableView.columnDidResizeNotification,NSTableView.columnDidMoveNotification,UserDefaults.didChangeNotification,NSWindow.didBecomeKeyNotification,NSWindow.didResignKeyNotification,NSWorkspace.accessibilityDisplayOptionsDidChangeNotification] {
+            for name in [NSTableView.selectionDidChangeNotification,NSOutlineView.selectionDidChangeNotification,NSTableView.columnDidResizeNotification,NSTableView.columnDidMoveNotification,NSView.boundsDidChangeNotification,UserDefaults.didChangeNotification,NSWindow.didBecomeKeyNotification,NSWindow.didResignKeyNotification,NSWorkspace.accessibilityDisplayOptionsDidChangeNotification] {
                 let center=name == NSWorkspace.accessibilityDisplayOptionsDidChangeNotification ? NSWorkspace.shared.notificationCenter:NotificationCenter.default
                 observations.append(center.addObserver(forName:name,object:nil,queue:.main){[weak self] note in
                     MainActor.assumeIsolated {
                         guard let self else{return}
-                        if name == NSTableView.selectionDidChangeNotification || name == NSTableView.columnDidResizeNotification || name == NSTableView.columnDidMoveNotification {
+                        if name == NSTableView.selectionDidChangeNotification || name == NSOutlineView.selectionDidChangeNotification || name == NSTableView.columnDidResizeNotification || name == NSTableView.columnDidMoveNotification {
                             guard let source=note.object as? NSTableView,source === self.table else{return}
+                        } else if name == NSView.boundsDidChangeNotification {
+                            guard self.observesOutline,let clip=note.object as? NSClipView,clip === self.table?.enclosingScrollView?.contentView else{return}
                         } else if name == NSWindow.didBecomeKeyNotification || name == NSWindow.didResignKeyNotification {
                             guard let source=note.object as? NSWindow,source === self.table?.window else{return}
                         }
@@ -154,7 +162,18 @@ import TurtleGitCore
         }
         func bind() {
             guard !retired,let table else{return}
-            if table.delegate !== self {original=table.delegate;table.delegate=self}
+            // SwiftUI's outline-backed Table owns its native delegate and
+            // selection binding. Preserve that outline delegate contract;
+            // table-only optional-selector forwarding is not a substitute.
+            // Decorate those rows through notifications and reconciliation.
+            if !observesOutline,table.delegate !== self {
+                original=table.delegate;originalIdentity=table.delegate.map(ObjectIdentifier.init);table.delegate=self
+            }
+            if observesOutline,let clip=table.enclosingScrollView?.contentView,clip !== observedClip {
+                if let previous=observedClip,let priorClipNotifications {previous.postsBoundsChangedNotifications=priorClipNotifications}
+                observedClip=clip;priorClipNotifications=clip.postsBoundsChangedNotifications
+                clip.postsBoundsChangedNotifications=true
+            }
             overlay.owner=self;overlay.frame=table.bounds;overlay.autoresizingMask=[.width,.height];overlay.setAccessibilityElement(false)
             // SwiftUI tables compose their cells into layers; a drawing-only
             // subview must participate above those layers too.
@@ -202,9 +221,15 @@ import TurtleGitCore
             if let row=row as? NativeListSelectionRowView {return row.selectionOwner === self}
             return (objc_getAssociatedObject(row,&NativeListSelection.rowKey) as? RowBinding)?.owner === self
         }
+        fileprivate func delegateIsCurrent(_ table:NSTableView)->Bool {
+            if !observesOutline {return table.delegate === self}
+            guard let identity=originalIdentity else{return table.delegate == nil}
+            guard let delegate=table.delegate,let original else{return false}
+            return ObjectIdentifier(delegate)==identity && delegate === original
+        }
         fileprivate func isCurrent(_ table:NSTableView)->Bool {
             !retired && self.table === table && (clientIdentity==nil || client != nil) &&
-            NativeListSelection.owner(table) === self && table.delegate === self
+            NativeListSelection.owner(table) === self && delegateIsCurrent(table)
         }
         private func release(_ row:NSTableRowView) {
             guard owns(row) else{return}
@@ -254,6 +279,8 @@ import TurtleGitCore
         }
         func retire() {
             guard !retired else{return};retired=true
+            if let observedClip,let priorClipNotifications {observedClip.postsBoundsChangedNotifications=priorClipNotifications}
+            observedClip=nil;priorClipNotifications=nil
             retiredWindow=table?.window
             reconciliationGeneration=UUID();reconciliationPending=false
             if let table {
@@ -275,7 +302,7 @@ import TurtleGitCore
         var background:NSColor {emphasized ? .selectedContentBackgroundColor:.unemphasizedSelectedContentBackgroundColor}
         var foreground:NSColor {emphasized ? .alternateSelectedControlTextColor:.unemphasizedSelectedTextColor}
         func label(row:Int)->Label? {
-            guard !retired,let table,let column=primaryColumn,let index=table.tableColumns.firstIndex(where:{$0 === column}),row>=0,row<table.numberOfRows,!column.isHidden else{return nil}
+            guard !retired,let table,isCurrent(table),let column=primaryColumn,let index=table.tableColumns.firstIndex(where:{$0 === column}),row>=0,row<table.numberOfRows,!column.isHidden else{return nil}
             let bounds=table.frameOfCell(atColumn:index,row:row)
             guard bounds.width>0,bounds.height>0 else{return nil}
             func textField(_ view:NSView)->NSTextField? {
@@ -284,12 +311,26 @@ import TurtleGitCore
                 return view.subviews.compactMap(textField).first
             }
             let nativeCell=table.view(atColumn:index,row:row,makeIfNecessary:false)
+            func currentColumnFrame(_ rect:NSRect,from view:NSView)->NSRect {
+                var converted=view.convert(rect,to:table)
+                // Reordering retains the real column/cell binding before
+                // AppKit moves that cell view's presentation frame. Measure
+                // its actual label offset, but anchor it to the current
+                // primary column rather than intersecting its old origin.
+                if !observesOutline,let cell=nativeCell as? NSTableCellView,
+                   table.row(for:cell)==row,
+                   table.view(atColumn:index,row:row,makeIfNecessary:false) === cell {
+                    let origin=cell.convert(cell.bounds,to:table).minX
+                    converted.origin.x += bounds.minX-origin
+                }
+                return converted
+            }
             func marker(_ view:NSView)->NativeListSelectionLabelMarker.Probe? {
                 if let marker=view as? NativeListSelectionLabelMarker.Probe,!marker.retired {return marker}
                 return view.subviews.compactMap(marker).first
             }
             if let marker=nativeCell.flatMap(marker) {
-                let measured=marker.convert(marker.bounds,to:table)
+                let measured=currentColumnFrame(marker.bounds,from:marker)
                 guard marker.window === table.window,measured.width>0,measured.height>0,
                       measured.intersects(bounds),
                       let text=labelText?(row) ?? (table.dataSource?.tableView?(table,objectValueFor:column,row:row) as? String) else{return nil}
@@ -309,8 +350,8 @@ import TurtleGitCore
                 // Let the native field editor render its own selection/caret.
                 guard field.currentEditor()==nil else{return nil}
                 guard let cell=field.cell?.copy() as? NSTextFieldCell else{return nil}
-                let frame=field.convert(field.bounds,to:table)
-                let drawing=field.convert(field.cell?.drawingRect(forBounds:field.bounds) ?? field.bounds,to:table)
+                let frame=currentColumnFrame(field.bounds,from:field)
+                let drawing=currentColumnFrame(field.cell?.drawingRect(forBounds:field.bounds) ?? field.bounds,from:field)
                 let measured=cell.cellSize(forBounds:NSRect(x:0,y:0,width:CGFloat.greatestFiniteMagnitude,height:drawing.height)).width
                 let width=min(drawing.width,max(0,measured))
                 let x:CGFloat

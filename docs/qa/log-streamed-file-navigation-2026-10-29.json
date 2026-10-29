@@ -1,0 +1,293 @@
+{
+  "date": "2026-10-29",
+  "status": "passed-focused-native-family-and-retained-regressions",
+  "scope": "Loaded historical changed-file navigation, document delivery, clipboard and historical file promises during independent streamed Log history, including actual Root viewer wiring and cancellation/drain",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": [
+    "LogDlg.cpp::OnLvnItemchangedLoglist, 1869 onward: thread-running selection guard commented; display-update suppression retained.",
+    "GitStatusListCtrl.cpp::OnContextMenu, 1796–1810 and 1862–1870: selected pair and single-file Log/old-name/Blame eligibility.",
+    "GitStatusListCtrl.cpp dispatch 2155–2171, 2260 onward, 2403–2447: captured mark endpoints, selected pair paths/revisions and Log/Blame/old-name policy.",
+    "GitStatusListCtrl.cpp 1875–1888, 2120–2125 and 2682–2686: historical Export/Save/Open/Open With eligibility and dispatch.",
+    "GitStatusListCtrl.cpp 1997–2004 and 2671–2680: selected path/name/all/pointed-column clipboard modes.",
+    "GitStatusListCtrl.cpp::OnBeginDrag 3767 onward: selected paths plus displayed revision determine the transfer source; native historical transfer is a copy promise.",
+    "Git.cpp::GetSubmoduleHash1392 onward returns0 without a hash when m_IsUseLibGit2 is false; GitStatusListCtrl.cpp2423–2430 only adds revision pin when nonempty."
+  ],
+  "fixture": "docs/qa/log-streamed-file-navigation-native-2026-10-29.swift",
+  "runner": "scripts/test-log-streamed-file-navigation.py",
+  "validation": {
+    "debug": {
+      "result": "passed-with-diagnostics",
+      "exit_code": 0,
+      "log": "build/qa/list-selection-adapter-final-scope-debug-2026-10-29.log",
+      "contradictory_exit_zero_diagnostic_count": 1,
+      "pristine_diagnostics_claimed": false
+    },
+    "system_git_native": {
+      "result": "passed",
+      "exit_code": 0,
+      "receiver_pid": 93130,
+      "receiver_reaped": true,
+      "owned_helper_cleanup_verified": true,
+      "log": "build/qa/log-stream-files-native-prefix-details-recheck-2026-10-29.log"
+    },
+    "bundled_git_native": {
+      "result": "passed",
+      "exit_code": 0,
+      "receiver_pid": 93599,
+      "receiver_reaped": true,
+      "owned_helper_cleanup_verified": true,
+      "log": "build/qa/log-stream-files-native-prefix-details-recheck-2026-10-29.log"
+    },
+    "core": "Native-only production change; no Core test rerun executed or claimed.",
+    "attempts": [
+      {
+        "scope": "new family native receiver compilation",
+        "result": "compile-failed-before-execution",
+        "log": "build/qa/log-stream-files-new-family-2026-10-29.log",
+        "cause": "Private NSWindow.beginSheet call selected async overload without await.",
+        "repair": "Pass explicit completionHandler to invoke synchronous AppKit beginSheet; preserve owned question authority/detachment assertions.",
+        "product_failure": false
+      },
+      {
+        "scope": "new family native system Git",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 88821,
+        "receiver_reaped": true,
+        "log": "build/qa/log-stream-files-new-family-recheck-2026-10-29.log",
+        "failure": "Native changed-file highlight did not update model after actual NSTableView selection; cause not yet established.",
+        "followup": "Bounded native/projection/selection diagnostics added without weakening assertion. Runner preserves regular files and recreates FIFOs instead of masking original failure with shutil named-pipe errors.",
+        "regression_steps_started": false
+      },
+      {
+        "scope": "new family native selection diagnostic, system Git",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 89252,
+        "receiver_reaped": true,
+        "log": "build/qa/log-stream-files-native-selection-diagnostic-2026-10-29.log",
+        "observation": "Current and captured native table identities/projections agree, but requested row selection settles empty while inspection remains permitted and no independent file activity exists. Cause remains unproven.",
+        "followup": "Capture immediate native/model selection plus original delegate identity and selector support without retaining the weak original delegate or replacing native selection with a model setter.",
+        "regression_steps_started": false
+      },
+      {
+        "scope": "system Git native immediate/delegate diagnostic",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 89603,
+        "receiver_reaped": true,
+        "log": "build/qa/log-stream-files-native-delegate-diagnostic-2026-10-29.log",
+        "observation": "Native row2 is selected immediately, but model selection stays empty and native selection subsequently clears. Table is enabled/visible, original AppKitOutlineTableCoordinator stays alive and does not respond to NSTableView selection selectors. NSOutlineView delegate/target-action diagnostics added; no native sendAction or model setter substituted.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git outline delegate diagnostic",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 89912,
+        "receiver_reaped": true,
+        "observation": "SwiftUIOutlineTableView original delegate conforms to NSOutlineViewDelegate; installed presentation proxy does not, although responds forwarding reports outline selectors. Native table has no target action.",
+        "followup": "One failure-only experiment unwraps original delegate and repeats native selection for at most200ms, prints state, then preserves and throws original assertion. It cannot pass or continue the family.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git failure-only original-delegate experiment",
+        "result": "original-selection-assertion-failed-as-required",
+        "receiver_pid": 90256,
+        "receiver_reaped": true,
+        "observation": "Restoring the original SwiftUI outline delegate then repeating exactly the same native selectRowIndexes updated native row2 and both model selection values. The original failure was still thrown; no downstream family assertions were accepted.",
+        "causal_conclusion": "Initial proxy-causal interpretation was confounded: subsequent90679 control still failed first selection with original outline delegate already installed, then accepted a later same-delegate retry. The experiment proves only late native selection can reach the binding.",
+        "repair": "Production owner retains actual outline delegate and decorates observationally; ordinary table proxy path retained. Fixture requires original delegate identity and owned decoration on outline hosts after successful actual selection.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git observational outline control",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 90679,
+        "receiver_reaped": true,
+        "observation": "Original outline delegate is already installed; first synthetic selection still drops, later same-delegate retry succeeds. Earlier proxy-only causal attribution withdrawn.",
+        "repair": "Before ONE selection, observe native table identity, row IDs and visible captions stable across two20ms layout turns, then reacquire current table. Keep original native-to-model assertion and diagnostic failures.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git rendered-readiness control",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 91061,
+        "receiver_reaped": true,
+        "log": "build/qa/log-stream-files-native-rendered-readiness-2026-10-29.log",
+        "observation": "Stable rendered projection did not resolve first-selection failure; later same-delegate assignment/retry reached binding. No final causal attribution made.",
+        "followup": "Failure-only controls A unchanged delegate/style retry; if still failing B regular table highlight style only; if still failing C original-delegate assignment. Each bounded200ms, always rethrow original assertion.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git failure-only retry/style/delegate control",
+        "result": "original-selection-assertion-failed-as-required",
+        "receiver_pid": 91411,
+        "receiver_reaped": true,
+        "observation": "ControlA repeating native selection with unchanged style and delegate succeeded. Neither style nor delegate assignment is established as cause of first synthetic selection failure; earlier causal claims withdrawn.",
+        "followup": "Before single programmatic native selection, invoke actual outline delegate selectionShouldChange and shouldSelectItem admissions for actual native row items; require allowed. AppKit programmatic selection omits normal input delegate admission. No repeated selection/model setter to pass.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git admitted direct-setter native selection",
+        "result": "failed-before-first-menu-action",
+        "receiver_pid": 91779,
+        "receiver_reaped": true,
+        "observation": "Actual outline delegate and real native row items allowed selection, but direct setter still did not update binding.",
+        "repair": "Replace programmatic file selection simulation with one deterministic owned native keyDown sequence: firstResponder, one clear, Down to first requested row, Shift-Down for contiguous extension, validate every native index transition and final exact model selection. No retries or model assignment.",
+        "late_family_assertions_executed": false
+      },
+      {
+        "scope": "system Git native keyboard family",
+        "result": "failed-at-false-submodule-pin-expectation",
+        "receiver_pid": 92084,
+        "receiver_reaped": true,
+        "observation": "Native keyboard selection and preceding historical content actions progressed; combined child root/pin/backend assertion incorrectly expected a hash with captured UseLibgit2=false.",
+        "source_evidence": "CGit::GetSubmoduleHash returns0 before lookup when m_IsUseLibGit2=false; native submoduleLogRevision likewise returns nil.",
+        "repair": "Split exact canonical UTF8 child root, nil revision and captured backendfalse assertions; later switch totrue cannot change accepted request. No product change.",
+        "remaining_family_result": "Subsequent full new-family pass with both Git engines; original failed phase retained above."
+      },
+      {
+        "scope": "system Git backend-policy repaired family",
+        "result": "failed-successful-history-source-retention",
+        "receiver_pid": 92536,
+        "receiver_reaped": true,
+        "log": "build/qa/log-stream-files-native-backend-policy-recheck-2026-10-29.log",
+        "observation": "Actual native keyboard selection, navigation/document/clipboard/promise phases, child cancellation and captured disabled-backend policy progressed. Unchanged async source was revoked at successful final history completion.",
+        "followup": "Failure-only before/after selection, records, file/projection/controls epochs, active detail reads and lifecycle flags added; strict owner/drag/menu assertions retained. Underlying production EOF selection lifecycle being investigated.",
+        "remaining_family_result": "Subsequent full new-family pass with both Git engines; original failed phase retained above.",
+        "confirmed_product_defect": "Reload retained same selected revision/files from an earlier load, but current-load detail marker was nil. Final history settlement redundantly reselected and revoked file/viewer/drag ownership.",
+        "production_repair": "First accepted prefix containing the selected historical hash now refreshes its detail context once for the current load before inspection; final settlement preserves already-current details.",
+        "subsequent_result": "Both-engine full-family pass with strict owner/drag/menu assertions retained."
+      },
+      {
+        "scope": "retained historical document Open regression",
+        "result": "failed-close-preparation-retirement",
+        "receiver_pid": 94075,
+        "receiver_reaped": true,
+        "failure": "Native Close blocked preparation retirement; original fixture expects immediate visual document-preparation retirement with no sheet, while worker/Quit ownership lasts through actual drain.",
+        "preservation_contract": "Keep prior immediate visual document-preparation Close; new file-read-token Close still waits for drain, panels detach, accepted workers remain counted. Do not weaken retained assertion.",
+        "followup": "Production immediate visual document-preparation retirement restored; affected Open regression passed both engines, original assertion retained.",
+        "other_preplanned_drag_generic_regressions_started": false,
+        "subsequent_result": "Original assertion preserved; production close-contract repair followed by both-engine retained Open pass."
+      },
+      {
+        "scope": "retained shared native-list selection regression",
+        "result": "failed-under-investigation",
+        "receiver_pid": 95442,
+        "receiver_reaped": true,
+        "log": "build/qa/log-stream-files-shared-list-selection-regression-2026-10-29.log",
+        "failure": "Native selection wait expired",
+        "later_family_cases_claimed": false,
+        "followup": "Diagnostic96010 located regular AppKit column-reorder label bounds; repaired under !observesOutline, then shared-list group and final adapter passed."
+      },
+      {
+        "scope": "retained shared-list wait diagnostic",
+        "result": "failed-AppKit-column-reorder",
+        "receiver_pid": 96010,
+        "receiver_reaped": true,
+        "failure": "Reordered AppKit primary label bounds, wait line130: null label rectangle while actual native selection and delegate remain current. SwiftUI decoration valid.",
+        "subsequent_result": "Regular AppKit geometry repair followed by full shared-list group and final adapter passes.",
+        "user_revision_selection_cause_claimed": false
+      }
+    ],
+    "shared_selection_regressions": {
+      "result": "passed",
+      "group_receiver_pids": [
+        96111,
+        96112,
+        96224
+      ],
+      "group_log": "build/qa/list-selection-geometry-group-2026-10-29.log",
+      "final_adapter_receiver_pid": 96394,
+      "final_adapter_log": "build/qa/list-selection-adapter-final-scope-2026-10-29.log",
+      "owned_receivers_reaped": true,
+      "repair_scope": "Regular AppKit only (!observesOutline): actual caption/cell local insets anchored to retained current column after reorder. Outline geometry unchanged."
+    },
+    "debug_attempts": [
+      {
+        "result": "passed-with-diagnostics",
+        "exit_code": 0,
+        "log": "build/qa/log-stream-files-debug-2026-10-29.log",
+        "contradictory_exit_zero_diagnostic_count": 6
+      },
+      {
+        "result": "passed-with-diagnostics",
+        "exit_code": 0,
+        "log": "build/qa/log-stream-files-outline-fix-debug-2026-10-29.log",
+        "contradictory_exit_zero_diagnostic_count": 1
+      },
+      {
+        "result": "passed-with-diagnostics",
+        "exit_code": 0,
+        "log": "build/qa/log-stream-files-document-close-debug-2026-10-29.log",
+        "contradictory_exit_zero_diagnostic_count": 1
+      },
+      {
+        "result": "passed-with-diagnostics",
+        "exit_code": 0,
+        "log": "build/qa/log-stream-files-prefix-details-debug-2026-10-29.log",
+        "contradictory_exit_zero_diagnostic_count": 11,
+        "pristine_diagnostics_claimed": false
+      }
+    ],
+    "retained_document_open": {
+      "result": "passed-both-engines",
+      "exit_code": 0,
+      "receiver_pids": [
+        94467,
+        94755
+      ],
+      "owned_receivers_reaped": true,
+      "log": "build/qa/log-stream-files-document-open-close-recheck-2026-10-29.log",
+      "scope": "--only open; preserves original immediate visual preparation Close and actualworker/Quit lifetime"
+    },
+    "retained_historical_drags": {
+      "result": "passed-four-cases",
+      "exit_code": 0,
+      "receiver_pids": [
+        95052,
+        95147,
+        95242,
+        95336
+      ],
+      "owned_receivers_reaped": true,
+      "log": "build/qa/log-stream-files-historical-drag-regression-2026-10-29.log",
+      "scope": "historical + range for both Git engines"
+    },
+    "regression_group_record": "build/qa/log-stream-files-final-regressions-2026-10-29.json"
+  },
+  "limits": [
+    "Actual native row selection, captured shared menu admission, real Root comparison consumer, production panel/document/promise routes and injected private chooser/launcher responses were exercised; no physical pointer/menu/drag or external-application-launch pass is claimed.",
+    "No HOME override or production preferences/repository/pasteboard are used.",
+    "No signed build30 claim: that candidate is consolidated from the preceding source checkpoint in a separate checkout.",
+    "Visible screenshot work is suspended while the user's screen is locked; this fixture remains invisible/offscreen.",
+    "No full hosted CI, Finder acceptance or complete upstream Log visual/control parity claim.",
+    "File selection uses actual native table keyDown handling with owned NSEvents, not physical desktop keyboard input; no retry-until-pass or model selection setter.",
+    "This family checks accepted native revision/model files, not rendered message/physical input. Earlier log-native-selection-delivery evidence covers rendered message and native revision keys. The reported user process remains installed build27 with a known rendered-projection gate repaired in956/newer signed30; user-specific physical acceptance awaits updated installation, and no latest-source reproduction is claimed."
+  ],
+  "verified_assertions": [
+    "Real notes-batch hold exposes 128 real history rows; actual native history/file selection loads the selected revision's real files while history stays busy.",
+    "Show log/current name, old-name Log, Blame, pair and cross-revision marked comparison deliver exact selected source hash/path/old-name/CommitFile records through production captured-menu admission.",
+    "Mutation admission remains blocked; source navigation/reload/Quit/retirement reject stale menus and async owner receipts.",
+    "Owned invisible comparison question does not revoke its own unchanged navigation source.",
+    "An actual initialized-child discovery Git read remains busy/owned after history completes; explicit cancel suppresses late callback/error and waits for real process drain.",
+    "Accepted child history preserves exact child root and original backend after later settings changes; captured disabled libgit master retains nil revision pin as upstream GetSubmoduleHash requires.",
+    "Successful history completion preserves an unchanged async viewer source but retires old native menu presentation; a later refresh permanently revokes the old source.",
+    "Normal Close cancels an actual held child read before closing, retains Quit/counter ownership through drain, and cannot deliver a late child/error.",
+    "Private parent/child index and working bytes plus parent HEAD are preserved; every owned window/sheet closes and every held helper/receiver is reaped.",
+    "Historical Save revision and multi-file Export deliver exact selected commit bytes through configured owned destination chooser adapters while notes/history remains held.",
+    "Actual Open/Open With/alternative-editor operations reach a private injected native document launcher with exact historical bytes, readonly previews and unchanged launch arguments; no external application is launched.",
+    "A held Open With chooser retains Quit/accounting through real return but cannot launch after native selection changes; actual invisible Save-sheet Cancel detaches and stale OK replay cannot revive delivery.",
+    "Private clipboard relative/full/name/all/status/column values remain available while history streams; no general clipboard content is read or written.",
+    "Actual native file selection produces historical NSFilePromiseProvider writers; the production delegate delivers exact historical bytes independently of the held history actor. Successful history completion retains the unchanged drag epoch.",
+    "An actual RepositoryModel-created Log and its installed historical-pair callback present a real comparison viewer during held history, preserving captured path order, bytes, source preferences and appearance.",
+    "On hosts whose SwiftUI file Table is an NSOutlineView, actual selection reaches the model with the original outline delegate retained and native selection decoration still owned."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "d6b42272cf1811b971c0598c27af8ec2ce59c0c39302517a9f46a6b248093651",
+    "Sources/TurtleGitMac/NativeListSelection.swift": "5744e0974f68ee3de51197e25157d228b83781775eea435b7f3ce8b925835ea5",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6fdf715d93970a6d67ddfe814a5ba938cf7a8fa01f0e8a46d5fe26c194e0f03d",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "6d1e65cb0c65daba2c5f8bd3315dfffbcd57296e6c1e4432c473bd3d278a2e34",
+    "docs/qa/log-streamed-file-navigation-native-2026-10-29.swift": "092d490b9925c25babbb599d071685c826f689086373b5e806f7a1a48296ddb1",
+    "scripts/test-log-streamed-file-navigation.py": "08dbe5802a96a7c2e9d8ee1e6f77a6857cb214e85c8f827cb48492ed8a66e3a9",
+    "docs/qa/list-selection-native-2026-10-20.swift": "49564c52468121dfa004586d4e158f879f34e93ba84d76b56289019be18ed8b0"
+  },
+  "source_sha256_scope": "Final frozen source and QA after retained regression repairs."
+}

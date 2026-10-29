@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-arm64-candidate-ready-installed-build27-retained",
+  "build": "30",
+  "source_commit": "06e3de2971a8f5da72e7f44eb950fed45f34f3e7",
+  "source_input_sha256": "752982315117a711fed81d853714bf06dabb6a7e570283500494cbab7b8c92a0",
+  "source_inputs_unchanged": true,
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "static_receipt": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/signed30-static-2026-10-29.json",
+  "implementation_scope": [
+    "Displayed Log commit selection across accepted-but-unrendered history projections; blocked native highlight reconciliation",
+    "Merge/Compare missing nested output folders, ordinary new-output AutoAdd intent and saved-but-pending recovery",
+    "Owned off-MainActor saved-source/reinterpretation/result preparation",
+    "Unresolved Save Anyway confirmation, repository and standalone saved-output Resolve/Retry Resolve with owned Git authority and actual index publication",
+    "Stable native Log/Rebase message semantics alongside canonical reference buttons; removal of workspace development footer",
+    "Shared complete Commit metadata, destination and file workflows across Classic and Git Gui layouts",
+    "Explicit comparison versus conflict intent with captured requesting repository and Browser read-to-delivery ownership",
+    "Explicit unchanged/copy/rename, Amend first-parent and added/deleted gitlink content with read-only index preservation",
+    "Updated Getting Started, dialog guide and bundled Help from source06e3de29; historical screenshot assets retained"
+  ],
+  "retained_focused_evidence": [
+    "docs/qa/log-native-selection-delivery-2026-10-29.json",
+    "docs/qa/merge-output-preparation-2026-10-29.json",
+    "docs/qa/commit-loading-caption-2026-10-29.json",
+    "docs/qa/merge-saved-resolve-2026-10-29.json",
+    "docs/qa/log-message-accessibility-2026-10-29.json",
+    "docs/qa/commit-presentation-workflows-2026-10-29.json",
+    "docs/qa/file-comparison-browser-ownership-2026-10-29.json",
+    "docs/qa/working-file-content-selection-2026-10-29.json",
+    "docs/qa/manual-commit-captures-2026-10-29.json"
+  ],
+  "static_validation": {
+    "build_exit": 0,
+    "strict_deep_signature_exit": 0,
+    "application_sha256": "c604871c4dc7df3a7aaa99ceea2ca6c4be04b747e0f6313a52f5285ab442102a",
+    "bundle_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "30",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "30"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "30"
+        }
+      }
+    },
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "arm64"
+      ]
+    },
+    "bundle_file_count": 6378,
+    "packaged_help_members": 92,
+    "packaged_help_source_equal": true,
+    "contradictory_exit_zero_diagnostics": 0
+  },
+  "installation": {
+    "status": "not-installed-running-app-preserved",
+    "existing_build": "27",
+    "existing_main_sha256": "bf6b2f1199da04834afaac8c9e0bed329228b7ee7285ecbf7959b7ab8983810d",
+    "reason": "User-owned installed app still running; no restart/update authorization received."
+  },
+  "physical_acceptance": {
+    "status": "not-performed-for-build30",
+    "previous_build27_receipt": "docs/qa/signed-consolidation-build27-2026-10-28.json",
+    "boundary": "Focused native checks prove the recorded cases. Earlier build27 signed observations do not certify build30 pointer behavior or the complete port."
+  },
+  "limits": [
+    "Apple Silicon local testing build; Intel/minimum-macOS execution remains separate.",
+    "No complete hosted CI, full-dialog/whole-port certification, App Store submission or notarization claimed.",
+    "Synthetic invisible mouse delivery was unavailable; actual AppKit row/delegate, keys and matching message/files passed as recorded.",
+    "Fresh composited Commit screenshots await an unlocked desktop; no new images or current signed physical acceptance claimed."
+  ],
+  "documentation_validation": {
+    "site_build": "passed",
+    "site_links_tests": 2,
+    "site_links_seconds": 3.458,
+    "local_search": "passed",
+    "help": "regenerated and checked before signed build",
+    "images": "Fresh captures deferred: authoritative CGSession screenLocked=true. All six attempts retained; historical images remain unchanged."
+  },
+  "build_elapsed_seconds": 430.44,
+  "excluded_later_work": "The later Log streamed-file inspection family (qa/log-streamed-file-navigation-2026-10-29.json) is not part of source06e3de29 or this signed candidate."
+}

@@ -88,5 +88,6 @@
     "No complete hosted CI, full-dialog/whole-port certification, App Store submission or notarization claimed.",
     "Synthetic invisible mouse delivery was unavailable; actual AppKit row/delegate, keys and matching message/files passed as recorded."
   ],
-  "candidate_preservation": "Exact bundle cloned and inventory verified before consolidated build30; still uninstalled."
+  "candidate_preservation": "Exact bundle cloned and inventory verified before consolidated build30; still uninstalled.",
+  "superseded_by": "signed-consolidation-build30-2026-10-29.json"
 }

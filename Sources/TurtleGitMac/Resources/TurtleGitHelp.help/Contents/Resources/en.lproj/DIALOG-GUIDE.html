@@ -218,6 +218,13 @@ keeps the current draft's Undo history.</p>
 message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. <a href="LOG-FIND.html">Finding revisions</a> explains Log's Find flow.</p>
+<p>You can inspect a loaded revision's files while more history is arriving. Use
+Show log (including an old name), Blame, file comparisons, Open/Open With, Save
+revision or Export as offered for the selected files. Copy and historical file
+drags use that selected revision's contents. A file chooser or active file read
+must finish or be cancelled before another file action starts. Closing Log cancels
+pending inspection and waits for its cleanup; files already written remain in
+place. History-changing operations keep their normal availability rules.</p>
 <p><img src="images/61bb4ff85220-mac-log-light-2026-10-27.png" alt="Log revision graph, selected message and changed files in light appearance" /></p>
 <p><img src="images/3d106a75087c-mac-log-dark-2026-10-27.png" alt="Log history and changed files in dark appearance" /></p>
 <p>Drag a file from the changed-file list to another application to copy the

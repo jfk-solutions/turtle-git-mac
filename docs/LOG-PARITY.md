@@ -3001,3 +3001,15 @@ route as passing. Physical/signed pointer acceptance remains separate. The
 source-proven dropped-selection interval is distinct from the unconfirmed
 message-paint mismatch observed through a non-atomic accessibility snapshot;
 this change does not certify every Log interaction.
+
+
+## Historical file inspection during streamed history — October 29, 2026
+
+The [streamed file inspection family](LOG-STREAMED-FILE-NAVIGATION-PARITY.md)
+connects loaded historical file navigation, comparisons, Open/Open With/editor,
+Save/Export, Copy and file promises while the independent history walk continues.
+Originating repository/settings and selected records remain captured through
+child reads and native destination choices. Independent activity and real worker
+drain retain busy/Close/Quit ownership; working-tree mutation admission remains
+separate. The linked checkpoint records actual validation and its boundaries,
+rather than establishing complete Log or signed acceptance from implementation.

@@ -6,7 +6,19 @@ import TurtleGitCore
 @MainActor enum ListSelectionVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
-    static func wait(_ ready:()->Bool)async throws {for _ in 0..<2000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(description:"Native selection wait expired")}
+    static func wait(_ message:String="Native selection wait",line:Int = #line,_ ready:()->Bool)async throws {
+        for _ in 0..<2000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
+        for window in NSApp.windows {
+            guard let content=window.contentView else{continue}
+            for table in views(content).compactMap({$0 as? NSTableView}) {
+                print("LIST WAIT line=\(line) message=\(message) table=\(ObjectIdentifier(table)) type=\(type(of:table)) delegate=\(String(describing:table.delegate)) original=\(String(describing:NativeListSelection.originalDelegate(of:table))) fullrow=\(String(describing:NativeListSelection.usesFullRowSelection(in:table))) label=\(String(describing:NativeListSelection.labelRect(in:table,row:0))) rows=\(table.numberOfRows) selected=\(Array(table.selectedRowIndexes)) bounds=\(table.bounds) visible=\(table.visibleRect) windowVisible=\(window.isVisible)")
+            }
+            for probe in views(content).filter({String(describing:type(of:$0)).contains("Probe")}) {
+                print("LIST PROBE type=\(type(of:probe)) frame=\(probe.frame) bounds=\(probe.bounds) window=\(probe.window === window)")
+            }
+        }
+        throw Failure(description:"\(message) expired at line \(line)")
+    }
     static func views(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(views)}
     @MainActor final class Rows:NSObject,NSTableViewDataSource,NSTableViewDelegate {
         var notifications=0,checks=0
@@ -94,7 +106,7 @@ import TurtleGitCore
         let originalTableStyle=table.selectionHighlightStyle,originalRowStyle=beforeRow.selectionHighlightStyle
         NativeListSelection.install(on:table,preferences:prefs,primaryColumn:primary)
         let host=NSHostingView(rootView:SwiftUITable(preferences:prefs)),swiftOwner=window(host)
-        try await wait {host.layoutSubtreeIfNeeded();return views(host).compactMap{$0 as? NSTableView}.contains{NativeListSelection.usesFullRowSelection(in:$0)==false && $0.numberOfRows==2}}
+        try await wait("SwiftUI selection decoration installation") {host.layoutSubtreeIfNeeded();return views(host).compactMap{$0 as? NSTableView}.contains{NativeListSelection.usesFullRowSelection(in:$0)==false && $0.numberOfRows==2}}
         let swiftTable=views(host).compactMap{$0 as? NSTableView}.first{NativeListSelection.usesFullRowSelection(in:$0)==false}!
         swiftTable.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         if captureOnly {
@@ -105,7 +117,7 @@ import TurtleGitCore
             NativeListSelection.remove(from:table);return
         }
         table.selectRowIndexes(IndexSet([0,2]),byExtendingSelection:false)
-        try await wait {NativeListSelection.labelRect(in:table,row:0) != nil}
+        try await wait("AppKit selected label bounds") {NativeListSelection.labelRect(in:table,row:0) != nil}
         let label=NativeListSelection.labelRect(in:table,row:0)!,cell=table.frameOfCell(atColumn:0,row:0)
         try require(label.minX>=cell.minX+24 && label.width<cell.width-80,"Highlight covered checkbox/icon or full primary column")
         try require(beforeRow.interiorBackgroundStyle == .normal && table.selectedRowIndexes==IndexSet([0,2]) && rows.notifications>0,"Label presentation altered native semantic selection/delegate")
@@ -115,7 +127,7 @@ import TurtleGitCore
         try require(NativeListSelection.usesFullRowSelection(in:table)==true && table.selectedRowIndexes==IndexSet([0,2]),"Default full row changed selection")
         prefs.set(false,forKey:"FullRowSelect");NotificationCenter.default.post(name:UserDefaults.didChangeNotification,object:prefs)
         table.moveColumn(0,toColumn:1)
-        try await wait {table.layoutSubtreeIfNeeded();return NativeListSelection.labelRect(in:table,row:0)?.intersects(table.frameOfCell(atColumn:1,row:0))==true}
+        try await wait("Reordered AppKit primary label bounds") {table.layoutSubtreeIfNeeded();return NativeListSelection.labelRect(in:table,row:0)?.intersects(table.frameOfCell(atColumn:1,row:0))==true}
         let moved=NativeListSelection.labelRect(in:table,row:0)!
         try require(moved.intersects(table.frameOfCell(atColumn:1,row:0)),"Primary label identity lost after column reorder")
         owner.makeFirstResponder(table);table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)

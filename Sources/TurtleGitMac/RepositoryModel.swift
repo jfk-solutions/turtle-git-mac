@@ -3255,24 +3255,6 @@ private enum TransportBatchPresentationContext {
             self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name:nil,revisionRange:range)
         }
         log.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope:GitRuntime.isAppStoreBuild))
-        log.onPreparedFileCompare=CommandProgressContext.capture { [weak self,weak log] marked,current in
-            guard let owner=log?.window else {return};self?.showPreparedFileComparison(repository:repository,access:access,marked:marked,current:current,owner:owner)
-        }
-        log.onFilePairCompare=CommandProgressContext.capture { [weak self,weak log] revision,files in
-            guard let owner=log?.window else {return};self?.showHistoricalFilePair(repository:repository,access:access,revision:revision,files:files,owner:owner)
-        }
-        log.onFileCompare=CommandProgressContext.capture { [weak self,weak log] from,to,paths in
-            guard let owner=log?.window else {return};self?.showHistoricalFiles(repository:repository,access:access,from:from,to:to,paths:paths,owner:owner)
-        }
-        log.onFileComparisons=CommandProgressContext.capture { [weak self,weak log] requests in
-            guard let owner=log?.window else {return};self?.showGroupedHistoricalFiles(repository:repository,access:access,requests:requests,owner:owner)
-        }
-        log.onFileLog=CommandProgressContext.capture { [weak self] path,hash in self?.showLog(repository:repository,access:access,paths:[path],endRevision:hash) }
-        log.onSubmoduleFileLog=CommandProgressContext.capture { [weak self,weak log] checkout,hash in
-            let child=log?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
-            self?.showLog(repository:child,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:log?.colorPreferences)
-        }
-        log.onBlame=CommandProgressContext.capture { [weak self] path,hash in self?.showBlame(repository:repository,access:access,path:path,revision:hash) }
         log.onRevisionChanged=CommandProgressContext.capture { [weak self] output in
             guard let self else {return}
             self.refreshRepositoryLogs(repository.root)
@@ -3436,10 +3418,10 @@ private enum TransportBatchPresentationContext {
             presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: defaults, appearance: appearance, alpha: alpha)
         }
     }
-    func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark, owner: NSWindow? = nil, preferences: UserDefaults? = nil) {
+    func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark, owner: NSWindow? = nil, preferences: UserDefaults? = nil, ownerIsCurrent: @escaping () -> Bool = { true }, onFailure: ((String) -> Void)? = nil) {
         let defaults = preferences ?? fileComparisonPreferences
         let appearance = owner?.effectiveAppearance, alpha = owner?.alphaValue
-        prepareFileComparisons(repository: repository, access: access, selectedCount: 2, owner: owner, preferences: defaults, capturedOwner: owner != nil) { [self] token in
+        prepareFileComparisons(repository: repository, access: access, selectedCount: 2, owner: owner, preferences: defaults, capturedOwner: owner != nil, ownerIsCurrent: ownerIsCurrent, onFailure: onFailure) { [self] token in
             if current.isDirectory || marked.isDirectory {
                 guard current.isDirectory,marked.workingAccess == nil else {throw SubmoduleComparisonFailure.unsupported}
                 try token.check()
@@ -3451,7 +3433,7 @@ private enum TransportBatchPresentationContext {
             }
             if let workingAccess = marked.workingAccess {
                 if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                guard !retired, !token.isCancelled, !confirmingQuit else { return }
+                guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
                 let key = "historical-working:" + UUID().uuidString
                 let controller: FileComparisonWindowController
                 if current.revision.isEmpty {
@@ -3462,9 +3444,10 @@ private enum TransportBatchPresentationContext {
                     controller = FileComparisonWindowController(comparison: comparison, permissions: [workingAccess.permission] + [access].compactMap { $0 }, preferences: defaults)
                 } else {
                     let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file, cancellation: token)
+                    guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
                     controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission, preferences: defaults)
                 }
-                guard !retired, !token.isCancelled, !confirmingQuit else { return }
+                guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
                 controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
                 fileComparisonWindows[key] = controller
                 controller.window?.appearance = appearance
@@ -3475,42 +3458,49 @@ private enum TransportBatchPresentationContext {
                 try publishComparisonMark()
             } else {
                 let snapshot = try await repository.preparedPathComparison(from: marked.revision.isEmpty ? .workingTree : .revision(marked.revision), fromPath: marked.path, to: current.revision.isEmpty ? .workingTree : .revision(current.revision), toPath: current.path, cancellation: token)
+                guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
                 presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: defaults, appearance: appearance, alpha: alpha)
             }
         }
     }
-    func showHistoricalFilePair(repository: GitRepository, access: RepositoryAccessLease?, revision: String, files: [CommitFile], owner: NSWindow? = nil) {
-        prepareFileComparisons(repository: repository, access: access, selectedCount: files.count, owner: owner) { [self] token in
-            let snapshot = try await repository.historicalFilePairComparison(revision: revision, files: files, cancellation: token)
-            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
-        }
-    }
-    func showGroupedHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, requests: [(ComparisonRevision, ComparisonRevision, [String])], owner: NSWindow? = nil) {
-        guard !requests.isEmpty else { return }
-        prepareFileComparisons(repository: repository, access: access, selectedCount: requests.reduce(0) { $0 + $1.2.count }, owner: owner) { [self] token in
-            var snapshots: [RevisionComparisonSnapshot] = []
-            for (from, to, paths) in requests {
-                guard !token.isCancelled, !confirmingQuit else { return }
-                snapshots.append(try await repository.revisionFileComparison(from: from, to: to, paths: paths, cancellation: token))
-            }
-            for snapshot in snapshots { presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token) }
-        }
-    }
-    func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String], owner: NSWindow? = nil, line: Int? = nil, preferences: UserDefaults? = nil) {
+    func showHistoricalFilePair(repository: GitRepository, access: RepositoryAccessLease?, revision: String, files: [CommitFile], owner: NSWindow? = nil, preferences: UserDefaults? = nil, ownerIsCurrent: @escaping () -> Bool = { true }, onFailure: ((String) -> Void)? = nil) {
         let defaults = preferences ?? fileComparisonPreferences
         let appearance = owner?.effectiveAppearance, alpha = owner?.alphaValue
-        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner, preferences: defaults, capturedOwner: owner != nil) { [self] token in
+        prepareFileComparisons(repository: repository, access: access, selectedCount: files.count, owner: owner, preferences: defaults, capturedOwner: owner != nil, ownerIsCurrent: ownerIsCurrent, onFailure: onFailure) { [self] token in
+            let snapshot = try await repository.historicalFilePairComparison(revision: revision, files: files, cancellation: token)
+            guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: defaults, appearance: appearance, alpha: alpha)
+        }
+    }
+    func showGroupedHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, requests: [(ComparisonRevision, ComparisonRevision, [String])], owner: NSWindow? = nil, preferences: UserDefaults? = nil, ownerIsCurrent: @escaping () -> Bool = { true }, onFailure: ((String) -> Void)? = nil) {
+        guard !requests.isEmpty else { return }
+        let defaults = preferences ?? fileComparisonPreferences
+        let appearance = owner?.effectiveAppearance, alpha = owner?.alphaValue
+        prepareFileComparisons(repository: repository, access: access, selectedCount: requests.reduce(0) { $0 + $1.2.count }, owner: owner, preferences: defaults, capturedOwner: owner != nil, ownerIsCurrent: ownerIsCurrent, onFailure: onFailure) { [self] token in
+            var snapshots: [RevisionComparisonSnapshot] = []
+            for (from, to, paths) in requests {
+                guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
+                snapshots.append(try await repository.revisionFileComparison(from: from, to: to, paths: paths, cancellation: token))
+            }
+            for snapshot in snapshots {
+                guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
+                presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: defaults, appearance: appearance, alpha: alpha)
+            }
+        }
+    }
+    func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String], owner: NSWindow? = nil, line: Int? = nil, preferences: UserDefaults? = nil, ownerIsCurrent: @escaping () -> Bool = { true }, onFailure: ((String) -> Void)? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
+        let appearance = owner?.effectiveAppearance, alpha = owner?.alphaValue
+        prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: owner, preferences: defaults, capturedOwner: owner != nil, ownerIsCurrent: ownerIsCurrent, onFailure: onFailure) { [self] token in
             let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: paths, cancellation: token)
+            guard !retired, !token.isCancelled, !confirmingQuit, ownerIsCurrent() else { return }
             if snapshot.files.isEmpty { output = "No files exist at the selected comparison paths."; return }
             presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: line, preferences: defaults, appearance: appearance, alpha: alpha)
         }
     }
     private func presentFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, cancellation: OperationCancellation, line: Int? = nil, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
         let defaults = preferences ?? fileComparisonPreferences
-        let backend = NativeDiffBackendIdentity(repository.libgit2Configuration)
-        let runtime = [repository.executable.absoluteString, repository.askpass?.absoluteString ?? "no-askpass",
-                       String(repository.diffDetection.percentage), String(backend.enabled), String(backend.mask),
-                       backend.helper?.base64EncodedString() ?? "no-helper"].joined(separator: "\0")
+        let runtime = fileNavigationRuntimeKey(repository)
         for file in snapshot.files {
             guard !retired, !confirmingQuit, !cancellation.isCancelled else { return }
             if let fileComparisonPresentation { fileComparisonPresentation(snapshot, file); continue }
@@ -4055,7 +4045,7 @@ private enum TransportBatchPresentationContext {
     }
     private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false,preferences:UserDefaults? = nil) {
         let defaults=preferences ?? fileComparisonPreferences
-        let baseKey=GitPathRowIdentity.encode(repository.root.path+"\0"+path+"\0"+revision)
+        let baseKey=GitPathRowIdentity.encode(repository.root.path+"\0"+path+"\0"+revision+"\0runtime\0"+fileNavigationRuntimeKey(repository))
         let key=baseKey+(commandLaunch || (blameWindows[baseKey].map { $0.model.labelDefaults !== defaults } ?? false) ? UUID().uuidString:"")
         var recentFailure:String?
         if blameRecentDocuments==nil { do { blameRecentDocuments=try BlameRecentDocuments.production() } catch { recentFailure="Recent files could not be loaded: "+error.localizedDescription } }
@@ -4067,7 +4057,7 @@ private enum TransportBatchPresentationContext {
         controller.onDocumentChanged=CommandProgressContext.capture { [weak self,weak controller] in
             guard let self,let controller else { return };self.configureBlameRoutes(controller)
             self.blameWindows=self.blameWindows.filter { $0.value !== controller }
-            let newKey=GitPathRowIdentity.encode(controller.model.repository.root.path+"\0"+controller.model.path+"\0HEAD")
+            let newKey=GitPathRowIdentity.encode(controller.model.repository.root.path+"\0"+controller.model.path+"\0HEAD\0runtime\0"+self.fileNavigationRuntimeKey(controller.model.repository))
             // Another window may already display this file; retain both without
             // corrupting either owner's lifecycle or discarding its work.
             let available=self.blameWindows[newKey]==nil ? newKey : newKey+"\0"+UUID().uuidString
@@ -4145,10 +4135,11 @@ private enum TransportBatchPresentationContext {
         if !paths.isEmpty { baseKey += "\0paths\0" + paths.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }.joined(separator: "\0") }
         if invocation != nil { baseKey += "\0command\0" + UUID().uuidString }
         if let preferences { baseKey += "\0preferences\0" + String(describing: ObjectIdentifier(preferences)) }
+        baseKey += "\0runtime\0" + fileNavigationRuntimeKey(repository)
         let reusable: (key: String, value: LogWindowController)?
         if let revisionRange, invocation == nil {
             reusable = logWindows.first { _, controller in
-                controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
+                controller.model.repository.root == root && fileNavigationRuntimeKey(controller.model.repository) == fileNavigationRuntimeKey(repository) &&
                 controller.model.colorPreferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
             }
         } else if let cached = logWindows[baseKey], !cached.model.isInvalidated {
@@ -4190,8 +4181,6 @@ private enum TransportBatchPresentationContext {
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onPreparedFileCompare = CommandProgressContext.capture { [weak self, weak controller] marked, current in guard let controller else { return }; self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current, owner: controller.window) }
-        controller.model.onFilePairCompare = CommandProgressContext.capture { [weak self, weak controller] revision, files in guard let controller else { return }; self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files, owner: controller.window) }
         controller.model.onWorkingFiles = CommandProgressContext.capture { [weak self] action, paths in
             if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
             else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
@@ -4203,25 +4192,10 @@ private enum TransportBatchPresentationContext {
         controller.model.onIgnoreFiles = CommandProgressContext.capture { [weak self] action, paths in
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
         }
-        controller.model.onWorkingFilePairCompare = CommandProgressContext.capture { [weak self, weak controller] paths in
-            guard let controller, !controller.model.isInvalidated, !controller.model.confirmingQuit, let owner = controller.window else { return }
-            let selected = controller.model.selected
-            self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: owner, preferences: controller.model.colorPreferences,
-                ownerIsCurrent: { [weak model = controller.model] in model?.isInvalidated == false && model?.confirmingQuit == false && model?.selected == selected },
-                onFailure: { [weak model = controller.model] in model?.error = $0 })
-        }
         controller.model.onConflictAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
-        controller.model.onFileCompare = CommandProgressContext.capture { [weak self, weak controller] from, to, paths in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths, owner: controller.window) }
-        controller.model.onFileComparisons = CommandProgressContext.capture { [weak self, weak controller] requests in guard let controller else { return }; self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests, owner: controller.window) }
-        controller.model.onFileLog = CommandProgressContext.capture { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
-        controller.model.onSubmoduleFileLog = CommandProgressContext.capture { [weak self,weak model=controller.model] checkout, hash in
-            let child = model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
-            self?.showLog(repository: child, access: access, paths: [], endRevision: hash,selectedRevision:hash,preferences:model?.colorPreferences)
-        }
-        controller.model.onBlame = CommandProgressContext.capture { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         controller.model.onRevisionChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)
             self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
@@ -4253,10 +4227,70 @@ private enum TransportBatchPresentationContext {
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
 
+    private func fileNavigationRuntimeKey(_ repository: GitRepository) -> String {
+        let backend = NativeDiffBackendIdentity(repository.libgit2Configuration)
+        return [repository.executable.absoluteString, repository.askpass?.absoluteString ?? "no-askpass",
+                String(repository.diffDetection.percentage), String(backend.enabled), String(backend.mask),
+                backend.helper?.base64EncodedString() ?? "no-helper"].joined(separator: "\0")
+    }
+    /// Ordinary, selectable and embedded Logs share the same originating
+    /// repository, settings and child-comparison ownership rules.
+    private func configureLogFileNavigation(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        let preferences=model.colorPreferences
+        model.onPreparedFileCompare=CommandProgressContext.capture { [weak self,weak model] marked,current in
+            guard let model,!model.isInvalidated,!model.confirmingQuit,let owner=model.window else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showPreparedFileComparison(repository:accepted,access:access,marked:marked,current:current,owner:owner,preferences:preferences,
+                ownerIsCurrent:model.captureFileNavigationOwner(),onFailure:{ [weak model] in model?.error=$0 })
+        }
+        model.onFilePairCompare=CommandProgressContext.capture { [weak self,weak model] revision,files in
+            guard let model,!model.isInvalidated,!model.confirmingQuit,let owner=model.window else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showHistoricalFilePair(repository:accepted,access:access,revision:revision,files:files,owner:owner,preferences:preferences,
+                ownerIsCurrent:model.captureFileNavigationOwner(),onFailure:{ [weak model] in model?.error=$0 })
+        }
+        model.onWorkingFilePairCompare=CommandProgressContext.capture { [weak self,weak model] paths in
+            guard let model,!model.isInvalidated,!model.confirmingQuit,let owner=model.window else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showWorkingFilePair(repository:accepted,access:access,paths:paths,owner:owner,preferences:preferences,
+                ownerIsCurrent:model.captureFileNavigationOwner(),onFailure:{ [weak model] in model?.error=$0 })
+        }
+        model.onFileCompare=CommandProgressContext.capture { [weak self,weak model] from,to,paths in
+            guard let model,!model.isInvalidated,!model.confirmingQuit,let owner=model.window else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showHistoricalFiles(repository:accepted,access:access,from:from,to:to,paths:paths,owner:owner,preferences:preferences,
+                ownerIsCurrent:model.captureFileNavigationOwner(),onFailure:{ [weak model] in model?.error=$0 })
+        }
+        model.onFileComparisons=CommandProgressContext.capture { [weak self,weak model] requests in
+            guard let model,!model.isInvalidated,!model.confirmingQuit,let owner=model.window else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showGroupedHistoricalFiles(repository:accepted,access:access,requests:requests,owner:owner,preferences:preferences,
+                ownerIsCurrent:model.captureFileNavigationOwner(),onFailure:{ [weak model] in model?.error=$0 })
+        }
+        model.onFileLog=CommandProgressContext.capture { [weak self,weak model] path,hash in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showLog(repository:accepted,access:access,paths:[path],endRevision:hash,preferences:preferences)
+        }
+        model.onSubmoduleFileLog=CommandProgressContext.capture { [weak self,weak model] checkout,hash in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            let child=model.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            self?.showLog(repository:child,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:preferences)
+        }
+        model.onBlame=CommandProgressContext.capture { [weak self,weak model] path,hash in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.showBlame(repository:accepted,access:access,path:path,revision:hash,preferences:preferences)
+        }
+    }
     private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, registerRefresh: Bool = true) {
         let preferences=model.colorPreferences
-        model.onFollowedFileComparison = CommandProgressContext.capture { [weak self] snapshot, token in
-            self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: preferences)
+        configureLogFileNavigation(model, repository: repository, access: access)
+        model.onFollowedFileComparison = CommandProgressContext.capture { [weak self,weak model] snapshot, token in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
+            self?.presentFileComparisons(repository: accepted, access: access, snapshot: snapshot, cancellation: token, preferences: preferences,
+                appearance:model.window?.effectiveAppearance,alpha:model.window?.alphaValue)
         }
         configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
         if registerRefresh { configuredLogModels[ObjectIdentifier(model)]=ConfiguredLog(model:model) }

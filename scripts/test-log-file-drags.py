@@ -78,7 +78,7 @@ for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'bu
             config.write_text('')
             environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             environment.update(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
-                               HOME=str(context / 'home'), CFFIXED_USER_HOME=str(context / 'preferences'),
+                               CFFIXED_USER_HOME=str(context / 'preferences'),
                                XDG_CONFIG_HOME=str(context / 'xdg'), TMPDIR=str(context / 'temporary') + '/',
                                DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'))
             print('Checking log file drags ' + case + ' with ' + str(git), flush=True)
