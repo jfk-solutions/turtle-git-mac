@@ -380,6 +380,83 @@ import TurtleGitCore
         }
         return ["public_core_package_smoke":true,"navigation_boundaries":true,"selection_case_and_rectangle":true,"opaque_legacy_bom_bytes":true,"source_codec_nfd":true,"native_ui_executed":false,"helpers_executed":false,"input_sha256":digest(original),"edited_sha256":digest(expected),"legacy_sha256":digest(legacy),"codec_sha256":codecs]
     }
+    /// Public Core package smoke. No AppKit windows, Finder state or App Group access.
+    static func localTools(_ directory:URL,payload:String)async throws->[String:Any] {
+        struct Input:Decodable{let name:String,bytes:String,sha256:String}
+        guard let packet=Data(base64Encoded:payload),packet.count<=64*1024 else{throw Failure(description:"Invalid bounded local-tools payload")}
+        let inputs=try JSONDecoder().decode([Input].self,from:packet)
+        try require(Set(inputs.map(\.name))==["animated.gif","vector.wmf"] && inputs.count==2,"Missing original image containers")
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        defer{try? FileManager.default.removeItem(at:directory)}
+        var originals:[String:Data]=[:]
+        for input in inputs {
+            guard let bytes=Data(base64Encoded:input.bytes),digest(bytes)==input.sha256 else{throw Failure(description:"Changed image payload")}
+            originals[input.name]=bytes;try bytes.write(to:directory.appendingPathComponent(input.name),options:.withoutOverwriting)
+        }
+        let opaque=Data([0,255,0,1,2,3,128]),opaqueURL=directory.appendingPathComponent("opaque.bin")
+        try opaque.write(to:opaqueURL);originals["opaque.bin"]=opaque
+        let output=directory.appendingPathComponent("result/selected.image")
+        let argv=["--image-tool","--mine",directory.appendingPathComponent("animated.gif").path,"--base",directory.appendingPathComponent("vector.wmf").path,"--theirs",opaqueURL.path,"--result",output.path]
+        guard let invocation=try ImageToolInvocation.parse(arguments:argv,currentDirectory:directory.path) else{throw Failure(description:"Packaged image invocation refused")}
+        try require(invocation.isSelection && invocation.result==output,"Packaged image selection mode changed")
+        var document=try ImageSelectionDocument.capture(invocation:invocation)
+        let sides:[ImageConflictSide]=[.mine,.base,.theirs],sources=["animated.gif","vector.wmf","opaque.bin"],statuses:[Int32]=[1,3,2]
+        for (index,side) in sides.enumerated() {
+            let expected=originals[sources[index]]!
+            try require(document.selectionBytes(side)==expected && ImageToolInvocation.selectionExitCode(side)==statuses[index],"Original image/side status changed")
+            document=try document.select(side)
+            try require(document.selectedSide==side && (try Data(contentsOf:output))==expected,"Image choice re-encoded original container")
+        }
+        for(name,bytes)in originals{try require(try Data(contentsOf:directory.appendingPathComponent(name))==bytes,"Image selection rewrote input")}
+        let git=try GitRuntime.executable(bundle:.main,appStore:true)
+        try require(git.path.hasPrefix(Bundle.main.bundleURL.path+"/Contents/"),"Local-tools Git escaped packaged clone")
+        let root=directory.appendingPathComponent("repository");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let repository=GitRepository(root:root,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
+        func oid(_ arguments:[String],input:Data?=nil)async throws->String{try await repository.run(arguments,input:input).text.trimmingCharacters(in:.whitespacesAndNewlines)}
+        func tree(_ entries:[(String,String,String,Data)])async throws->String {
+            var data=Data();for(mode,type,object,path)in entries{data.append(Data("\(mode) \(type) \(object)\t".utf8));data.append(path);data.append(0)}
+            return try await oid(["mktree","-z"],input:data)
+        }
+        _=try await repository.run(["init","--template=","-b","main"])
+        for(key,value)in[("user.name","Signed local-tools QA"),("user.email","signed-local@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_=try await repository.run(["config",key,value])}
+        let sentinel=Data("unchanged working sentinel\n".utf8),sentinelURL=root.appendingPathComponent("sentinel.txt")
+        try sentinel.write(to:sentinelURL);try await repository.stage(["sentinel.txt"]);_=try await repository.commit(message:"private seed")
+        let first=try await oid(["rev-parse","HEAD"]),seed=try await oid(["rev-parse","HEAD:sentinel.txt"])
+        let rawFolder=Data([251])+Data(" folder".utf8),rawA=Data([255])+Data(".PNG".utf8),rawB=Data([254])+Data(".PNG".utf8)
+        let rawPaths=[rawFolder+Data([47])+rawA,rawFolder+Data([47])+rawB],names=["Git-path-7b650404d2883313a196637e97d928cf61e595391c18bbbc4a65bd76e11362d1.PNG","Git-path-0b22cf05f26aa13949b4b801da54e6973d06e181ef69cdcd7f84f91f7bf46320.PNG"]
+        let blob=Data([0,80,78,71,255,16]),blobID=try await oid(["hash-object","-w","--stdin"],input:blob)
+        let attrs=try await oid(["hash-object","-w","--stdin"],input:Data("hidden export-ignore\nshown export-subst\n".utf8))
+        let shown=try await oid(["hash-object","-w","--stdin"],input:Data("$Format:%H$\n".utf8))
+        let child=try await tree([("100755","blob",blobID,rawA),("100644","blob",blobID,rawB),("100644","blob",attrs,Data(".gitattributes".utf8)),("100644","blob",shown,Data("shown".utf8)),("100644","blob",blobID,Data("hidden".utf8))])
+        let treeID=try await tree([("100644","blob",seed,Data("sentinel.txt".utf8)),("040000","tree",child,rawFolder)])
+        let revision=try await oid(["commit-tree",treeID,"-p",first],input:Data("captured raw namespace\n".utf8))
+        _=try await repository.run(["update-ref","refs/heads/main",revision]);_=try await repository.run(["update-ref","refs/heads/captured",revision])
+        let head=try await repository.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index")),config=try Data(contentsOf:root.appendingPathComponent(".git/config"))
+        let snapshot=try await repository.browseRepository(revision:"captured",backend:.init(mask:0)),scope=try RepositoryBrowserGitPath(rawData:rawFolder).key
+        _=try await repository.run(["update-ref","refs/heads/captured",first])
+        let archive=directory.appendingPathComponent("raw-folder.zip")
+        _=try await repository.archiveRepositoryBrowser(snapshot,directory:scope,to:archive,cancellation:OperationCancellation())
+        let oracle=try await repository.run(["archive","--format=zip","--end-of-options",revision,scope],argumentBytes:[4:rawFolder]).stdout
+        let archived=try Data(contentsOf:archive);try require(archived==oracle && !archived.isEmpty,"Packaged raw folder archive changed pinned bytes/attributes")
+        let paths=try rawPaths.map{try RepositoryBrowserGitPath(rawData:$0).key}
+        let files=paths.map{CommitFile(path:$0,oldPath:nil,action:"A",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)}
+        let plan=try FileListDragPlan(root:root,revision:.revision(revision),files:files,backend:.init(mask:0))
+        try require(plan.items.map(\.path)==paths && plan.items.map(\.name)==names && names[0] != names[1],"Packaged raw file names merged same-blob paths")
+        for index in plan.items.indices {
+            guard case .historical(let export)=try await repository.materializeFileListDrag(plan,itemAt:index) else{throw Failure(description:"Historical raw file returned working URL")}
+            do {
+                defer{export.discard()}
+                let bytes=try Data(contentsOf:export.item),attributes=try FileManager.default.attributesOfItem(atPath:export.item.path)
+                try require(bytes==blob && export.item.lastPathComponent==names[index] && (attributes[.posixPermissions] as? NSNumber)?.intValue==(index==0 ? 0o755:0o644),"Packaged historical materialization changed name/bytes/mode")
+            }
+            try require(!FileManager.default.fileExists(atPath:export.item.path),"Historical export survived explicit release")
+        }
+        let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterConfig=try Data(contentsOf:root.appendingPathComponent(".git/config")),afterWorking=try Data(contentsOf:sentinelURL)
+        try require(afterHead==head && afterIndex==index && afterConfig==config && afterWorking==sentinel,"Local-tools smoke changed HEAD/index/config/worktree")
+        try require(try FileManager.default.contentsOfDirectory(atPath:root.path).sorted()==[".git","sentinel.txt"],"Historical raw files leaked into checkout")
+        return ["public_core_package_smoke":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
+    }
+
     static func main() async throws {
         let args=CommandLine.arguments
         guard args.count>=4, let uuid=UUID(uuidString:args[2]), let expected=FinderIntegration.groupIdentifier(team:args[3]) else { throw Failure(description:"Invalid signed QA request") }
@@ -388,6 +465,15 @@ import TurtleGitCore
         try require(try FinderCacheServiceIdentity.currentTeam()==args[3],"Signature team mismatch")
         let task=SecTaskCreateFromSelf(nil)!
         try require((SecTaskCopyValueForEntitlement(task,"com.apple.security.app-sandbox" as CFString,nil) as? Bool)==true,"Probe is not sandbox entitled")
+        if mode=="local-tools" {
+            guard args.count==5 else{throw Failure(description:"Missing local-tools payload")}
+            let directory=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/TurtleGitSignedLocalTools-"+uuid.uuidString,isDirectory:true)
+            try require(!FileManager.default.fileExists(atPath:directory.path),"Local-tools UUID directory already exists")
+            let value=try await localTools(directory,payload:args[4])
+            try require(!FileManager.default.fileExists(atPath:directory.path),"Private local-tools directory survived cleanup")
+            let receipt:[String:Any]=["mode":mode,"passed":true,"local_tools":value,"outside_file_grants":false,"shipping_gui_launched":false,"app_group_files_created":false,"private_container_cleaned":true]
+            print("TURTLEGIT_SIGNED_QA "+String(decoding:try JSONSerialization.data(withJSONObject:receipt,options:.sortedKeys),as:UTF8.self));return
+        }
         if mode=="denied" {
             try require(FinderIntegration.container==nil,"A process without the group entitlement acquired the container")
             guard args.count==5 else { throw Failure(description:"Missing negative read target") }

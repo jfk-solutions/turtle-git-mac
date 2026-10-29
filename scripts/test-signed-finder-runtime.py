@@ -64,6 +64,16 @@ def metafile_request():
     if len(payload)>192*1024:raise ValueError('Signed metafile payload exceeds bounded argv transport')
     return payload,originals
 
+def local_tools_request():
+    """Only captured bytes cross argv; the signed probe opens no checkout assets."""
+    sources={'animated.gif':ROOT/'Tests/TurtleGitCoreTests/Fixtures/Metafile/compressed-raster-source-gif-two-frames.gif',
+             'vector.wmf':ROOT/'Tests/TurtleGitCoreTests/Fixtures/Metafile/clip-vector.wmf'}
+    originals={path:hashlib.sha256(path.read_bytes()).hexdigest() for path in sources.values()}
+    packet=[{'name':name,'bytes':base64.b64encode(path.read_bytes()).decode(),'sha256':originals[path]} for name,path in sources.items()]
+    payload=base64.b64encode(json.dumps(packet,separators=(',',':')).encode()).decode()
+    if len(payload)>64*1024:raise ValueError('Local-tools payload exceeds bounded argv transport')
+    return payload,originals
+
 class OwnedRuntimeChildren:
     """Observe/retire only the unique disposable clone's actual helper path."""
     def __init__(self,executables,required,acknowledgements=None):
@@ -145,7 +155,7 @@ def entitlements(path):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('app',type=Path);parser.add_argument('--team',required=True)
-    parser.add_argument('--only',choices=('history','metafile','unified-diff','udiff'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
+    parser.add_argument('--only',choices=('history','metafile','unified-diff','udiff','local-tools'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
     parser.add_argument('--skip-metafile',action='store_true',help='Run App Group, history and Unified Diff phases without unchanged metafile coverage.')
     parser.add_argument('--identity',required=True,help='Installed Apple Development signing identity SHA-1.')
     parser.add_argument('--report',required=True,type=Path);args=parser.parse_args()
@@ -212,8 +222,13 @@ def main():
             for key in list(environment):
                 if key.startswith(('GIT_CONFIG_KEY_','GIT_CONFIG_VALUE_')):environment.pop(key)
             identifier=str(uuid.uuid4());snapshot=None
+            local_tools_only=args.only is not None and set(args.only)=={'local-tools'}
             def run(binary,mode,*extra):
-                result=run_receiver([str(binary),mode,identifier,args.team,*extra],cwd=ROOT,env=environment,capture_output=True,text=True,timeout=90)
+                child_environment=environment
+                if mode=='local-tools':
+                    child_environment={key:value for key,value in environment.items() if not key.startswith('GIT_')}
+                    child_environment.update(GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',GIT_TERMINAL_PROMPT='0')
+                result=run_receiver([str(binary),mode,identifier,args.team,*extra],cwd=ROOT,env=child_environment,capture_output=True,text=True,timeout=90)
                 print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
                 lines=[line for line in result.stdout.splitlines() if line.startswith('TURTLEGIT_SIGNED_QA ')]
                 if len(lines)!=1:raise ValueError('Signed probe did not complete')
@@ -227,7 +242,7 @@ def main():
                     record['packaged_lexilla_runs_from_sandbox']=True
                     run(clones[0],'reader')
                     run(clones[1],'denied',snapshot)
-                else:
+                elif not local_tools_only:
                     snapshot=run(clones[0],'location')['snapshot']
                 if args.only is None or 'history' in args.only:
                     history_children=OwnedRuntimeChildren({'libgit2':clones[0].parent.parent/'Helpers/LibGit2/bin/turtlegit-libgit2','git':clones[0].parent.parent/'Helpers/Git/bin/git'},required={'libgit2'},acknowledgements=Path(snapshot).parent)
@@ -272,6 +287,34 @@ def main():
                     if len(value.get('codec_sha256',{}))!=3 or any(not re.fullmatch('[0-9a-f]{64}',digest) for digest in value['codec_sha256'].values()):raise ValueError('Signed public UDiff codec receipt incomplete')
                     record['packaged_udiff_public_core_smoke']=True
                     record['udiff_native_ui']='not exercised; source-linked private native receiver is separate'
+                if args.only and 'local-tools' in args.only:
+                    payload,originals=local_tools_request()
+                    # No App Group entitlement is present on this disposable parent.
+                    local_binary=clones[1]
+                    clone_core=local_binary.parent.parent/'Frameworks/TurtleGitCore.framework/TurtleGitCore'
+                    if hashlib.sha256(clone_core.read_bytes()).hexdigest()!=record['packaged_core_sha256']:raise ValueError('Local-tools clone changed production Core')
+                    children=OwnedRuntimeChildren({'git':local_binary.parent.parent/'Helpers/Git/bin/git'},required={'git'})
+                    try:
+                        with children:
+                            receipt=run(local_binary,'local-tools',payload)
+                            value=receipt.get('local_tools',{})
+                            for key in ['public_core_package_smoke','image_original_bytes_selection','raw_folder_archive','raw_individual_materialization','captured_revision_backend','head_index_working_unchanged']:
+                                if value.get(key) is not True:raise ValueError('Signed local-tools smoke missing '+key)
+                            if value.get('native_ui_executed') is not False or any(receipt.get(key) is not False for key in ['outside_file_grants','shipping_gui_launched','app_group_files_created']) or receipt.get('private_container_cleaned') is not True:raise ValueError('Signed local-tools scope/cleanup incorrect')
+                            if Path(value.get('git','')).resolve()!= (local_binary.parent.parent/'Helpers/Git/bin/git').resolve(strict=True):raise ValueError('Local-tools used external Git')
+                            if set(value.get('image_sha256',{}))!={'animated.gif','vector.wmf','opaque.bin'}:raise ValueError('Local-tools image byte receipts incomplete')
+                            expected_images={name:originals[path] for name,path in {'animated.gif':ROOT/'Tests/TurtleGitCoreTests/Fixtures/Metafile/compressed-raster-source-gif-two-frames.gif','vector.wmf':ROOT/'Tests/TurtleGitCoreTests/Fixtures/Metafile/clip-vector.wmf'}.items()}
+                            if any(value['image_sha256'].get(name)!=digest for name,digest in expected_images.items()):raise ValueError('Signed image smoke changed original containers')
+                            for key in ['archive_sha256','raw_blob_sha256']:
+                                if not re.fullmatch('[0-9a-f]{64}',value.get(key,'')):raise ValueError('Local-tools byte receipt missing '+key)
+                    finally:
+                        if hasattr(children,'result'):record['local_tools_children']=children.result
+                    if hashlib.sha256(clone_core.read_bytes()).hexdigest()!=record['packaged_core_sha256']:raise ValueError('Local-tools changed production Core during execution')
+                    for path,digest in originals.items():
+                        if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:raise ValueError('Local-tools changed original image asset')
+                    record['packaged_local_tools_public_core_smoke']=True
+                    record['local_tools_native_ui']='not exercised; separate private native receiver covers controls and delivery'
+                    record['local_tools_app_group_entitled']=False
                 if not args.skip_metafile and (args.only is None or 'metafile' in args.only):
                     payload,originals=metafile_request()
                     children=OwnedRuntimeChildren({'metafile':clones[0].parent.parent/'Helpers/Metafile/metafile-convert'},required={'metafile'})
@@ -299,7 +342,8 @@ def main():
                     record['metafile_fixture_files_unchanged']=True
             finally:
                 original_error=sys.exc_info()[1]
-                try:run(clones[0],'cleanup')
+                try:
+                    if not local_tools_only:run(clones[0],'cleanup')
                 except BaseException as error:
                     record['cleanup_error']=str(error)
                     if original_error is None:raise
