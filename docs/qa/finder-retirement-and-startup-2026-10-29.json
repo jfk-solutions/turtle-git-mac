@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-native-checkpoint-passed",
+  "scope": [
+    "Finder session retirement, warm archive receipt/content reuse, multiple departing repositories, empty/repeated retirement and expired peers",
+    "Held asynchronous Merge tool startup and once-only delivery fixture repair for actual hosted failure"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "f657b67f786b72f37885aa87fc9fe3206e9b00d35b20fe74adc9f8c9b53ba9e8",
+    "Tests/TurtleGitCoreTests/FinderPublicationRetirementTests.swift": "4d61da72aa4a8deac225460a6cb3f92c2a95fed6a88de6c701cbfc34431349b9",
+    "docs/qa/merge-tool-scene-native-2026-10-18.swift": "adcdec51101172a2b38e12a1d7f528989a21891d857ffee52be8987ba1b0173e"
+  },
+  "core": {
+    "exit": 0,
+    "tests": 46,
+    "failures": 0,
+    "elapsed_test_seconds": 18.753,
+    "classes": {
+      "FinderCachePersistenceTests": 19,
+      "FinderPublicationClaimTests": 5,
+      "FinderPublicationPipelineTests": 6,
+      "FinderPublicationRetirementTests": 8,
+      "FinderPublicationTests": 8
+    },
+    "log": "build/qa/finder-retirement-core-2026-10-29.log",
+    "private_retirement_observation": {
+      "numbered_files": 10001,
+      "elapsed_seconds": 0.125888,
+      "warm_decode_delta": 0,
+      "warm_write_delta": 0,
+      "warm_bytes_and_inode_preserved": true,
+      "timing_assertion": false
+    },
+    "asserted": [
+      "Missing archive rebuilt with exactly one write for all departing roots",
+      "Missing receipt with identical archive preserved bytes/inode with zero writes",
+      "Cold siblings and exact NFC/NFD state/parent metadata retained",
+      "Same-root and nested older peer exposure did not gain false warm authority",
+      "Expired unrelated live owner removed",
+      "Empty claim revoked without unchanged live/warm writes; duplicate retirement unchanged",
+      "Corrupt/nonregular warm diagnostics and disabled/reset policy retained"
+    ]
+  },
+  "hosted_failure": {
+    "run": 40922602775,
+    "job": 123644737352,
+    "source_commit": "d35ae69fc17d58d60d402e7e41bcfce2969d6714",
+    "step": "Standalone Merge tool entry and editor workflows",
+    "case": "scene /usr/bin/git",
+    "message": "Tool bootstrap is missing or delivered twice",
+    "cause": "Fixture expected synchronous delivery after startupDidFinishLaunching, while production intentionally defers nonempty command delivery through asynchronous Git configuration preparation.",
+    "repair": "Hold existing injected private preparation; assert one bootstrap and no early command, release and await exactly one delivery, repeat launch without repeated preparation. Existing scene/menu/Save All/no workspace assertions retained.",
+    "production_app_changed": false
+  },
+  "native": {
+    "debug_build_exit": 0,
+    "debug_log": "build/qa/finder-retirement-debug-2026-10-29.log",
+    "build_diagnostic": "One contradictory SwiftCompile diagnostic reported command exit0/no further output. Build exited0; fresh Core module/binary and relinked app artifacts were verified. All240 app objects current against unchanged app sources. No redundant compile was run solely for this diagnostic.",
+    "finder_command": "python3 scripts/test-finder-cache-persistence.py --git /usr/bin/git --only lifecycle --only roots",
+    "finder_exit": 0,
+    "finder_log": "build/qa/finder-retirement-native-2026-10-29.log",
+    "finder_cases": [
+      "lifecycle",
+      "roots"
+    ],
+    "merge_command": "python3 scripts/test-merge-tool-entry.py --only scene --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "merge_exit": 0,
+    "merge_log": "build/qa/merge-scene-startup-recheck-2026-10-29.log",
+    "merge_case_engine_pairs": 2,
+    "owned_receiver_worker_pids": [
+      22494,
+      22506,
+      22558,
+      22559,
+      22560,
+      22661,
+      22667
+    ],
+    "independently_absent": true,
+    "private_inputs_and_offscreen_windows": true,
+    "full_suite_rerun": false
+  },
+  "limits": [
+    "Installed build36 predates the retirement continuation",
+    "No full hosted CI pass or physical Finder cold command/badge acceptance inferred",
+    "Private deterministic cost observation is not a large real-repository startup guarantee",
+    "No app-owned components launched visibly for automated receiver checks; owned processes must be reaped"
+  ]
+}

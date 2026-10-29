@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+## Finder retirement and asynchronous tool startup checkpoint
+
+The [retirement continuation](qa/finder-retirement-and-startup-2026-10-29.json)
+reuses verified-current warm archives, batches required retirement writes across
+repositories and preserves exact path metadata, nested ownership and expired-peer
+fences. It passed 46 focused Core methods and the native lifecycle/root group.
+The actual hosted Merge scene failure was a stale synchronous fixture expectation;
+the repaired held-preparation check passes with system and bundled Git while
+retaining once-only delivery and no-workspace assertions. No unrelated dialog
+families were rerun. Installed build36 predates this source continuation; physical
+Finder cold menus/badges and complete hosted CI remain open.
+
 ## Installed workflow acceptance and large-cache publication
 
 The installed build35 private UI check verified Classic and staging lists, actual

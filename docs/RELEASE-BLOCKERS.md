@@ -42,8 +42,9 @@ the sealed application did not change. Build35 rollback copies remain available.
 
 The private physical check loaded all five changes and reached Finder cache Ready.
 Settings Git OK and Remote Cancel both closed and reopened correctly. Shutdown
-sampling still found a costly warm-cache retirement rewrite, so large-cache
-lifecycle performance and Finder cold menus/badges remain acceptance gates.
+sampling found a costly warm-cache retirement rewrite. The [source continuation](qa/finder-retirement-and-startup-2026-10-29.json)
+passes focused Core and native checks, but is not yet in build36; installed
+large-cache lifecycle performance and Finder cold menus/badges remain acceptance gates.
 Test apps quit normally; the private saved repository permission was removed.
 No Finder/Dock restart, public upload, notarization or Store submission occurred.
 The later CI split into eight dependency-complete lanes is source `54168b21`;

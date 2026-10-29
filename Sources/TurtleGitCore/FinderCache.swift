@@ -1022,6 +1022,7 @@ public struct FinderPublicationResult: Sendable {
 /// these count actual work and never change cache authority or wire records.
 struct FinderPublicationWorkCounters:Equatable,Sendable {
     var controlDecodes=0,rawDecodes=0,contributionEncodes=0,controlWrites=0,projections=0,localWaits=0
+    var warmDecodes=0,warmWrites=0
 }
 public final class FinderSnapshotStore: @unchecked Sendable {
     public let url: URL
@@ -1176,6 +1177,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             coordination.cacheLock.lock();let known=coordination.warm;coordination.cacheLock.unlock()
             if let known,known.0==before,before == (try identity(warmURL)){return known.1}
             let value=try read(FinderSnapshot.self,warmURL)
+            coordination.cacheLock.lock();coordination.work.warmDecodes += 1;coordination.cacheLock.unlock()
             guard before == (try identity(warmURL)) else{continue}
             coordination.cacheLock.lock();coordination.warm=(before,value);coordination.cacheLock.unlock()
             return value
@@ -1230,7 +1232,10 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                witness.modifiedSeconds==stagedInfo.st_mtimespec.tv_sec,witness.modifiedNanoseconds==stagedInfo.st_mtimespec.tv_nsec {
                 coordination.cacheLock.lock();coordination.control=(witness,state);coordination.cacheLock.unlock()
             }
-        }else{try bytes.write(to:location,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)}
+        }else{
+            try bytes.write(to:location,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)
+            if GitReferenceName.equal(location.path,warmURL.path) {coordination.cacheLock.lock();coordination.work.warmWrites += 1;coordination.cacheLock.unlock()}
+        }
     }
     /// Trust is scoped to this one locked operation (or atomic read attempt).
     /// Immutable contribution identities are retained strongly so allocator
@@ -1406,13 +1411,36 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     }
     private func warmWarning(_ operation: () throws -> Void) -> String? {do {try operation();return nil} catch {return error.localizedDescription}}
     private func mergeWarm(root: String, snapshots: [FinderSnapshot], enabled: Bool, rebuildFrom:FinderSnapshot?=nil) throws {
-        guard enabled else {return}
+        try mergeWarm([(root,snapshots)],enabled:enabled,rebuildFrom:rebuildFrom)
+    }
+    private func sameWarmContents(_ lhs:FinderSnapshot,_ rhs:FinderSnapshot)->Bool {
+        let left=lhs.roots.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)},right=rhs.roots.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        // Synthesized metadata equality normalizes String values. Parent roots
+        // are filesystem identities and must also retain their exact UTF-8.
+        let parentsMatch=lhs.repositories.allSatisfy { path,value in
+            guard let other=rhs.repositories[path] else {return false}
+            switch (value.submoduleParentRoot,other.submoduleParentRoot) {
+            case (nil,nil):return true
+            case let (a?,b?):return GitReferenceName.equal(a,b)
+            default:return false
+            }
+        }
+        return left.elementsEqual(right,by:{GitReferenceName.equal($0,$1)}) && lhs.states==rhs.states && lhs.repositories==rhs.repositories && parentsMatch &&
+            lhs.overlayEntries==rhs.overlayEntries && lhs.indexFlags==rhs.indexFlags && lhs.overlayPolicies==rhs.overlayPolicies
+    }
+    /// Retirement has no new scan timestamp to publish. Merge its complete root
+    /// cohort once, and preserve the existing archive inode when exact contents
+    /// already match. Ordinary fresh publications retain their timestamp policy.
+    private func mergeWarm(_ updates:[(String,[FinderSnapshot])],enabled:Bool,rebuildFrom:FinderSnapshot?=nil,retiring:Bool=false)throws {
+        guard enabled,!updates.isEmpty else {return}
         let recovered=try readWarm(rebuildCorrupt:true)
         // A successful live publication is already namespace/lease validated.
         // Retain those live siblings when unreadable restart JSON has no usable
         // archive to merge, instead of reducing it to only this refreshed root.
         var warm=recovered.snapshot ?? rebuildFrom ?? FinderSnapshot(roots:[],states:[:]);warm.liveRevision=nil;warm.persistenceFailure=nil
-        warm.replaceSubtree(root:FileTransferPaths.fileURL(root),snapshots:snapshots);try save(warm,warmURL)
+        for (root,snapshots) in updates {warm.replaceSubtree(root:FileTransferPaths.fileURL(root),snapshots:snapshots)}
+        if retiring,let previous=recovered.snapshot,sameWarmContents(previous,warm){return}
+        try save(warm,warmURL)
         if recovered.discarded {throw FinderPublicationFailure.corruptWarmCacheReset}
     }
     private func migrateWarm(_ state: Control, validation:ValidationContext) throws {
@@ -1773,10 +1801,36 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         defer {session.closeLease();sessionLock.lock();owned.removeValue(forKey:session.id);if implicit?.id==session.id {implicit=nil};sessionLock.unlock()}
         return try locked(cancellation) { validation in
             var state=try control(validation:validation);guard session.instance==instance,session.store==state.id else {throw FinderPublicationFailure.retiredSession}
-            let current=projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
+            let liveBefore=try live(state)
             let departing=state.contributions.filter {$0.session==session.id}
-            let warning=warmWarning {for item in departing {let saved=current.subtree(root:FileTransferPaths.fileURL(item.root));if !saved.roots.isEmpty {try mergeWarm(root:item.root,snapshots:[saved],enabled:state.policy.cacheSave)}}}
-            state.contributions.removeAll {$0.session==session.id};state.claims=state.claims.filter {$0.value != session.id}
+            let remaining=liveBefore.filter {$0.session != session.id},claims=state.claims.filter {$0.value != session.id}
+            let claimsChanged=claims.count != state.claims.count
+            if departing.isEmpty,remaining.count==state.contributions.count {
+                if claimsChanged {state.claims=claims;try validation.check();try save(state,controlURL)}
+                return projection(remaining,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
+            }
+            var archived=false
+            let warning=warmWarning {
+                guard state.policy.cacheSave,!departing.isEmpty else{return}
+                if try warmIsCurrent(state,contributions:liveBefore) {archived=true;return}
+                let current=projection(liveBefore,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
+                let updates=departing.compactMap {item -> (String,[FinderSnapshot])? in
+                    let saved=current.subtree(root:FileTransferPaths.fileURL(item.root))
+                    return saved.roots.isEmpty ? nil:(item.root,[saved])
+                }
+                // A successful subtree merge does not certify disjoint peers
+                // that may have missed an earlier warm write. Only the exact
+                // pre-existing full-cohort receipt authorizes that shortcut.
+                try mergeWarm(updates,enabled:true,rebuildFrom:current,retiring:true)
+            }
+            // Removing an overlapping publisher can expose an older peer's
+            // different payload. Do not certify that newly visible cohort from
+            // an archive of the pre-retirement projection.
+            let overlaps=departing.contains {old in remaining.contains {other in
+                FinderSnapshot.contains(old.root,root:other.root) || FinderSnapshot.contains(other.root,root:old.root)
+            }}
+            state.contributions=remaining;state.claims=claims;state.warmMaintenance=nil
+            if archived,!overlaps {state.warmMaintenance=try? warmReceipt(remaining)}
             var result=try writeLive(&state,validation:validation);result.persistenceFailure=warning;return result
         }
     }

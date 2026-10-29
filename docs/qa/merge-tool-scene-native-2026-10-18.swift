@@ -31,6 +31,12 @@ enum MergeToolSceneVerification {
         defer { ordinary.stopMonitoringForTermination() }
         let standalone = TurtleGitApplicationDelegate(); standalone.startupArguments = ["--merge-tool"]; standalone.startupDirectory = root.path
         var creations = 0, services = 0, activations = 0, deliveries = 0, correctDelivery = false
+        var preparations = 0, releasePreparation: CheckedContinuation<Void, Never>?
+        defer { releasePreparation?.resume(); standalone.repositoryModel?.stopMonitoringForTermination() }
+        standalone.prepareGitConfigurationReads = {
+            preparations += 1
+            await withCheckedContinuation { releasePreparation = $0 }
+        }
         standalone.makeStandaloneWorkspace = {
             creations += 1
             let model = RepositoryModel(startMonitoring: false, initializePreferences: false); model.fileComparisonPreferences = prefs; return model
@@ -42,18 +48,28 @@ enum MergeToolSceneVerification {
             correctDelivery = model === standalone.standaloneWorkspace && args == ["--merge-tool"]
         }
         standalone.startupDidFinishLaunching(); standalone.startupDidFinishLaunching()
+        try await wait { releasePreparation != nil }
+        try require(creations == 1 && services == 1 && activations == 1 && preparations == 1 && deliveries == 0 && !standalone.startupDelivered,
+                    "Tool bootstrap duplicated its owner or delivered before configuration preparation")
+        try require(standalone.repositoryModel === standalone.standaloneWorkspace && standalone.repositoryModel?.finderWatches == nil && standalone.repositoryModel?.root == nil,
+                    "Pending tool startup initialized repository/Finder workspace")
+        releasePreparation?.resume(); releasePreparation = nil
+        try await wait { standalone.startupDelivered && deliveries == 1 }
+        standalone.startupDidFinishLaunching()
         try require(creations == 1 && services == 1 && activations == 1 && deliveries == 1 && correctDelivery && standalone.startupDelivered, "Tool bootstrap is missing or delivered twice")
+        try require(preparations == 1 && standalone.gitConfigurationReadsReady, "Tool launch repeated or bypassed configuration preparation")
         try require(standalone.repositoryModel === standalone.standaloneWorkspace && standalone.repositoryModel?.finderWatches == nil && standalone.repositoryModel?.root == nil, "Tool bootstrap initialized repository/Finder workspace")
         try require(!standalone.applicationShouldOpenUntitledFile(NSApp) && !standalone.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false), "Tool startup/reopen requested an untitled workspace")
-        defer { standalone.repositoryModel?.stopMonitoringForTermination() }
         let normal = TurtleGitApplicationDelegate(); normal.startupArguments = []; normal.startupDirectory = root.path
-        var normalDeliveries = 0
+        var normalDeliveries = 0, normalPreparations = 0
+        normal.prepareGitConfigurationReads = { normalPreparations += 1 }
         normal.configureStandaloneServices = { _, _ in fatalError("Ordinary startup configured standalone services") }
         normal.startupCommandHandler = { _, _, _ in normalDeliveries += 1 }
         normal.startupDidFinishLaunching()
         try require(normal.standaloneWorkspace == nil && !normal.startupDelivered && normalDeliveries == 0, "Ordinary startup constructed tool owner instead of waiting for workspace")
         normal.repositoryModel = ordinary
         try require(normalDeliveries == 1 && !normal.applicationShouldOpenUntitledFile(NSApp) && normal.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false), "Ordinary workspace startup/reopen changed")
+        try require(normalPreparations == 0, "Empty workspace startup unnecessarily prepared Git configuration")
         let base = root.appendingPathComponent("scene-base"), mine = root.appendingPathComponent("scene-mine"), output = root.appendingPathComponent("scene-output")
         try Data("base\n".utf8).write(to: base); try Data("mine\n".utf8).write(to: mine)
         let owner = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: [], preferences: prefs, deferInitialLoad: true)

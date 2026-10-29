@@ -253,7 +253,7 @@
       19705,
       20332
     ],
-    "fixture_preservation": "Original HEAD c98e1e482f72ed9cc359acfb968daee53344871b, four modified files, one untracked file and empty index restored; permission removed; fixture data retained for any affected recheck."
+    "fixture_preservation": "Original HEAD c98e1e482f72ed9cc359acfb968daee53344871b, four modified files, one untracked file and empty index verified unchanged; private saved permission removed; exact guarded owned scratch parent then deleted."
   },
   "limits": [
     "No full current hosted macOS CI pass; split-lane workflow54168b21 pushed separately after sealed build",

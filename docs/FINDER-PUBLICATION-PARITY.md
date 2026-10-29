@@ -95,5 +95,30 @@ and retained watch-action cases. Two initial warm-warning regressions were repai
 without removing assertions; only those affected methods were repeated. A private
 10,001-file cold claim took about three seconds, while five retained claims took
 about nine milliseconds together and repeated no payload work. Those observations
-are not an installed startup benchmark. The installed app remains build35, and
-physical Finder/Settings acceptance after the control-tool failure is still open.
+are not an installed startup benchmark. Build36 includes this correction. Its private check reached cache Ready and
+Settings OK/Cancel; physical Finder cold menus/badges remain open.
+
+
+## Multi-repository retirement archive work — October 29, 2026
+
+Installed build36 shutdown sampling found a remaining full warm-archive encode
+and byte-key sort in `endSession`. The app main thread was idle; the sampled
+worker was draining publication ownership. Both owned test apps later exited
+normally. This evidence identifies cache work, rather than proving an AppKit hang.
+
+Session retirement now trusts a warm-maintenance receipt only when its exact
+publisher authority and current archive file identity match. Otherwise it merges
+all departing subtrees with one archive read and at most one write. An unchanged
+archive keeps its bytes and inode; retirement alone does not refresh scan time.
+Content comparison preserves exact namespace bytes, flags, overlay policy and
+submodule-parent path bytes. Cold siblings remain available for restart.
+Overlapping older publishers do not inherit a false warm-authority receipt when
+retirement exposes their different payload. Expired peers still lose live status;
+empty or repeated retirement avoids unchanged live/control payload writes.
+
+The [grouped checkpoint](qa/finder-retirement-and-startup-2026-10-29.json) records
+focused Core, native lifecycle/root and Merge startup verification. A private
+10,001-file retirement reused its current archive without a warm decode or write;
+its elapsed observation is not an installed large-repository latency guarantee.
+The shipping build36 predates this continuation. Physical Finder cold command and
+badge acceptance, initial cache decode/scan cost and full hosted CI remain open.
