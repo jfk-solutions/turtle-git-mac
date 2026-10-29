@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,551 @@
+@@ -0,0 +1,559 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -127,7 +127,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function i32(b,o) { return u32(b,o)|0; }
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
 +  let conversion=null;
-+  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','EffectPixels','EffectBytes','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
++  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','DibPrivateBytes','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','EffectPixels','EffectBytes','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
 +  function shareBudgets(ctx) {
 +    const counters=conversion.counters;
 +    for(const suffix of sharedCounters){const key='_turtle'+suffix;Object.defineProperty(ctx,key,{get(){return counters[key]||0;},set(value){if(!Number.isFinite(value)||value<0)fail('invalid shared rendering budget');counters[key]=value;}});}
@@ -579,6 +579,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(format&&format!=='auto'&&format==='wmf'&&!/wmf/.test(parsed.fileType))fail('format mismatch');
 +    let bounds=parsed.header.bounds||parsed.header.placeableHeader;
 +    let width=bounds?bounds.right-bounds.left:0,height=bounds?bounds.bottom-bounds.top:0;
++    let logicalGdiSurface=null;
 +    if((parsed.fileType==='emf'||parsed.fileType==='emf+')&&bounds){
 +      const header=parsed.header,frame=header.frame;
 +      // A file-backed GDI+ Bitmap has an inclusive natural canvas. Embedded
@@ -590,13 +591,16 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +        const dx=device&&mm&&device.cx>0&&mm.cx>0?device.cx*25.4/mm.cx:96;
 +        const dy=device&&mm&&device.cy>0&&mm.cy>0?device.cy*25.4/mm.cy:96;
 +        const inclusive=child?0:1;
-+        width=Math.round((frame.right-frame.left)*dx/2540)+inclusive;
-+        height=Math.round((frame.bottom-frame.top)*dy/2540)+inclusive;
++        width=Math.round((frame.right-frame.left)*dx/2540);
++        height=Math.round((frame.bottom-frame.top)*dy/2540);
++        if(!child&&parsed.fileType==='emf')logicalGdiSurface={width,height};
++        width+=inclusive;height+=inclusive;
 +        const left=frame.left*dx/2540,top=frame.top*dy/2540;
 +        parsed.header.bounds={left,top,right:left+width,bottom:top+height};
 +      } else if(!child) {
 +        // With no usable physical frame, the file Bitmap falls back to the
 +        // inclusive rclBounds. Embedded fallback bounds remain unchanged.
++        if(parsed.fileType==='emf')logicalGdiSurface={width,height};
 +        width+=1;height+=1;
 +        parsed.header.bounds={left:bounds.left,top:bounds.top,right:bounds.left+width,bottom:bounds.top+height};
 +      }
@@ -609,6 +613,10 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(playback&&playback.inspectOnly)return {width,height};
 +    if(!child){if(typeof globalThis.__turtlePicturePlan!=='function')fail('native Picture document plan unavailable');globalThis.__turtlePicturePlan(width,height);}
 +    const context=new SvgContext();shareBudgets(context);context._turtleTransparentSurface=child;
++    // The file Bitmap allocation is inclusive; its extra row/column is not
++    // part of the recorded GDI DC. Keep the logical white DC separate from
++    // transparent allocation pixels, which only actual paints may cover.
++    context._turtleGdiSurface=logicalGdiSurface;
 +    const parent=playback&&playback.parent;
 +    if(parent){
 +      context.canvas=parent.ctx.canvas;context._turtleReplaySurface=true;
@@ -2614,7 +2622,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,489 @@
+@@ -0,0 +1,492 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -2625,6 +2633,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  function depends(op,bit){for(let i=0;i<8;i++)if(((op>>>i)^(op>>>(i^bit)))&1)return true;return false;}
 +  function dimension(w,h){if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w>32768||h>32768||w*h>16777216)fail('raster bitmap dimensions exceed limit');}
 +  function bitmapBudget(d,n){d.ctx._turtleRasterDecoded=(d.ctx._turtleRasterDecoded||0)+n;if(d.ctx._turtleRasterDecoded>67108864)fail('aggregate raster bitmap budget exceeded');}
++  const dibColor=require('./turtleGitDibColor')({fail,u32});
 +  // Packed DIB parsing is independent of the upstream placeholder-producing
 +  // decoder. Scanlines, palettes, masks and RLE commands must be complete.
 +  function decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d,alpha=false,monochrome=false,brushMode=0,compressedCopy=false) {
@@ -2634,13 +2643,13 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    const header=u32(bytes,bmi),core=header===12;
 +    if(!core&&![40,52,56,108,124].includes(header))fail('unsupported raster DIB header');
 +    if(header>cbBmi)fail('truncated raster DIB header');
++    const colorMetadata=dibColor.read(bytes,bmi,cbBmi);
 +    const width=core?word(bytes,bmi+4):i32(bytes,bmi+4),signedHeight=core?word(bytes,bmi+6):i32(bytes,bmi+8),height=Math.abs(signedHeight);
 +    const planes=word(bytes,bmi+(core?8:12)),depth=word(bytes,bmi+(core?10:14)),compression=core?0:u32(bytes,bmi+16);
 +    dimension(width,height);
 +    if(compression===4||compression===5){
 +      if(!compressedCopy||core||signedHeight<0||planes!==1||depth!==0||usage!==0||alpha||monochrome||brushMode)fail('compressed raster requires RGB SRCCOPY StretchDIB');
-+      if(header===124&&(u32(bytes,bmi+112)||u32(bytes,bmi+116)))fail('external/profiled raster DIB is unsupported');
-+      const size=u32(bytes,bmi+20);if(!size||size>cbBits||cbBits-size>3||bytes.slice(bits+size,bits+cbBits).some(v=>v))fail('invalid compressed raster byte count');
++      const size=u32(bytes,bmi+20);cbBits=dibColor.pixels(colorMetadata,bmi+header,bits,cbBits,size);if(!size||size>cbBits||cbBits-size>3||bytes.slice(bits+size,bits+cbBits).some(v=>v))fail('invalid compressed raster byte count');
 +      const raw=require('./turtleGitCompressed')(bytes.slice(bits,bits+size)),png=compression===5;if(!raw)fail('invalid compressed raster container');
 +      if(png?!(raw[0]===137&&raw[1]===80&&raw[2]===78&&raw[3]===71):!(raw[0]===255&&raw[1]===216&&raw[2]===255))fail('compressed raster signature mismatch');
 +      if(typeof __turtleCompressedClassicRaster!=='function')fail('native compressed raster adapter unavailable');
@@ -2657,7 +2666,6 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(alpha&&(depth!==32||compression!==0))fail('AlphaBlend per-pixel source requires 32-bit BI_RGB');
 +    if(monochrome&&(depth!==1||compression!==0))fail('transfer mask must be monochrome BI_RGB');
 +    if(brushMode===2&&(depth!==1||compression!==0))fail('monochrome pattern requires 1-bit BI_RGB');
-+    if(header===124&&(u32(bytes,bmi+112)||u32(bytes,bmi+116)))fail('external/profiled raster DIB is unsupported');
 +    let table=bmi+header,masks=depth===16?[0x7c00,0x3e0,0x1f]:[0xff0000,0xff00,0xff];
 +    if(compression===3||compression===6){const count=compression===6?4:3,offset=header===40?table:bmi+40;need(bytes,offset,count*4);if(offset+count*4>bmi+cbBmi)fail('truncated raster bit masks');masks=Array.from({length:count},(_,i)=>u32(bytes,offset+i*4));if(header===40)table+=count*4;}
 +    const channels=![16,32].includes(depth)?[]:masks.slice(0,3).map(mask=>{if(!mask||depth<32&&mask>>>depth)fail('invalid raster bit mask');let shift=0;while(((mask>>>shift)&1)===0)shift++;const max=mask>>>shift;if((max&(max+1))!==0)fail('noncontiguous raster bit mask');return{mask,shift,max};});
@@ -2671,6 +2679,8 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +      else if(usage===1){const entry=d.currentPalette&&d.currentPalette.entries&&d.currentPalette.entries[word(bytes,table)];if(!entry)fail('missing raster logical palette');palette.push([entry.r,entry.g,entry.b]);}
 +      else{palette.push([bytes[table+2],bytes[table+1],bytes[table]]);if(!core&&bytes[table+3]!==0)monoReserved=false;}table+=size;
 +    }
++    const pixelSize=compression===1||compression===2?(core?0:u32(bytes,bmi+20)):Math.ceil(width*depth/32)*4*height;
++    cbBits=dibColor.pixels(colorMetadata,table,bits,cbBits,pixelSize||undefined);
 +    bitmapBudget(d,width*height);const out=new Uint8ClampedArray(width*height*4);
 +    // DIB reserved/alpha bytes are not an AlphaBlend channel in classic BLTs.
 +    for(let i=3;i<out.length;i+=4)out[i]=255;
@@ -2712,7 +2722,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
 +  const classicPen=require('./turtleGitClassicPen')({fail,u32,i32,escape,decodeDib,brushes,clipped,composite});
 +  const regions=require('./turtleGitClassicRegion')({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension});
-+  const directScanlines=require('./turtleGitDirectScanlines')({fail,u32,i32,decodeDib,declaredDib,transfer,mapping,group,clipped,composite,bitmapBudget,dimension});
++  const directScanlines=require('./turtleGitDirectScanlines')({fail,u32,i32,decodeDib,declaredDib,transfer,mapping,group,clipped,composite,bitmapBudget,dimension,dibColor});
 +  const classicGradient=require('./turtleGitClassicGradient')({fail,u32,i32,clipped,group,dimension,bitmapBudget});
 +  const originalGetSvg=SvgContext.prototype.getSvg;
 +  function svg(ctx,nodes){
@@ -2977,8 +2987,8 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(!masked&&rect.some((v,i)=>i>1&&v<=0))fail('mirrored transparent/alpha source is unsupported');
 +    advancedTransfer(d,m,dib,rect,mask,maskRect,options);
 +  }
-+  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkRef:d._turtleRasterBkRef,text:d.textColor,textRef:d._turtleRasterTextRef,palette:d.currentPalette,bkMode:d._turtleRasterBkMode,stretchMode:d._turtleRasterStretchMode||1,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,font:d.gdiObjectManager._currentFont,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},textState:d._turtlePositionedTextState&&{...d._turtlePositionedTextState},textAlign:d.textAlignFlags,textUpdate:d.textUpdateCp,charset:d.currentCharset,fontFace:d.currentFontFace,posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
-+  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkRef=s.bkRef;d.textColor=s.text;d._turtleRasterTextRef=s.textRef;d.currentPalette=s.palette;d._turtleRasterBkMode=s.bkMode;d._turtleRasterStretchMode=s.stretchMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d.gdiObjectManager._currentFont=s.font;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d._turtlePositionedTextState=s.textState&&{...s.textState};d.textAlignFlags=s.textAlign;d.textUpdateCp=s.textUpdate;d.currentCharset=s.charset;d.currentFontFace=s.fontFace;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
++  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,icm:d._turtleICMMode===undefined?1:d._turtleICMMode,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkRef:d._turtleRasterBkRef,text:d.textColor,textRef:d._turtleRasterTextRef,palette:d.currentPalette,bkMode:d._turtleRasterBkMode,stretchMode:d._turtleRasterStretchMode||1,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,font:d.gdiObjectManager._currentFont,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},textState:d._turtlePositionedTextState&&{...d._turtlePositionedTextState},textAlign:d.textAlignFlags,textUpdate:d.textUpdateCp,charset:d.currentCharset,fontFace:d.currentFontFace,posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
++  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleICMMode=s.icm;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkRef=s.bkRef;d.textColor=s.text;d._turtleRasterTextRef=s.textRef;d.currentPalette=s.palette;d._turtleRasterBkMode=s.bkMode;d._turtleRasterStretchMode=s.stretchMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d.gdiObjectManager._currentFont=s.font;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d._turtlePositionedTextState=s.textState&&{...s.textState};d.textAlignFlags=s.textAlign;d.textUpdateCp=s.textUpdate;d.currentCharset=s.charset;d.currentFontFace=s.fontFace;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
 +  const wp=WmfDrawer.prototype,ep=EmfDrawer.prototype;
 +  // Reject an aggregate over-budget mono family before decoding its first large
 +  // bitmap. This is a preflight, not a second reservation: actual decoding still
@@ -3031,6 +3041,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  ep.processEmfRecordType=function(type,data){
 +    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
 +    brushes.state(this);
++    if(type===98){dibColor.setMode(this,data);return;}
 +    if(regions.emf(this,type,data))return;
 +    if(directScanlines.emf(this,type,data)||classicGradient(this,type,data))return;
 +    if(type===95){classicPen.create(this,data);return;}
@@ -3811,10 +3822,10 @@ diff --git a/src/turtleGitClassicGradient.js b/src/turtleGitClassicGradient.js
 diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
 --- /dev/null
 +++ b/src/turtleGitDirectScanlines.js
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,98 @@
 +// Original TurtleGit direct DIB scanline playback. GPL-2.0-or-later.
 +// MS-EMF EMR_SETDIBITSTODEVICE / MS-WMF META_SETDIBTODEV.
-+module.exports = function({fail,u32,i32,decodeDib,transfer,bitmapBudget,dimension}) {
++module.exports = function({fail,u32,i32,decodeDib,transfer,bitmapBudget,dimension,dibColor}) {
 +  function need(b,o,n){if(!Number.isSafeInteger(o)||!Number.isSafeInteger(n)||o<0||n<0||o+n>b.length)fail('truncated direct scanline record');}
 +  function word(b,o){need(b,o,2);return b[o]|b[o+1]<<8;}
 +  function short(b,o){return word(b,o)<<16>>16;}
@@ -3831,8 +3842,8 @@ diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
 +    if(word(bytes,bmi+(core?8:12))!==1)fail('invalid direct scanline planes');
 +    if(![0,1,2,3,4,5,6].includes(compression)||!([4,5].includes(compression)?depth===0:[1,4,8,16,24,32].includes(depth)))fail('unsupported direct scanline format');
 +    if((compression===1&&depth!==8)||(compression===2&&depth!==4)||([3,6].includes(compression)&&![16,32].includes(depth))||(signedHeight<0&&[1,2,4,5].includes(compression)))fail('invalid direct scanline compression');
-+    if(header===124&&(u32(bytes,bmi+112)||u32(bytes,bmi+116)))fail('profiled direct scanline DIB unsupported');
-+    return {header,core,width,signedHeight,height,depth,compression};
++    const color=dibColor.read(bytes,bmi,length);
++    return {header,core,width,signedHeight,height,depth,compression,color};
 +  }
 +  function packedSize(bytes,bmi,usage){
 +    need(bytes,bmi,12);const header=u32(bytes,bmi),core=header===12;
@@ -3845,15 +3856,16 @@ diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
 +  function paint(d,bytes,bmi,cbBmi,bits,cbBits,usage,start,count,dx,dy,sx,sy,cx,cy){
 +    need(bytes,bmi,cbBmi);need(bytes,bits,cbBits);
 +    if(bits<bmi+cbBmi&&bmi<bits+cbBits)fail('overlapping direct scanline DIB');
-+    const meta=info(bytes,bmi,cbBmi,usage);
++    const meta=info(bytes,bmi,cbBmi,usage),paletteEnd=bmi+packedSize(bytes,bmi,usage);
++    if(paletteEnd>bmi+cbBmi)fail('truncated direct scanline palette');
 +    if(cx<0||cy<0)fail('negative direct scanline extent');
 +    if(count>32768||start>32768)fail('direct scanline band exceeds limit');
 +    // Zero scan count is a valid no-op; declared framing/header is still checked.
-+    if(!count||!cx||!cy)return;
++    if(!count||!cx||!cy){dibColor.validate(meta.color,paletteEnd,bits,0);return;}
 +    let decoded,bandCount=count;
 +    if([4,5].includes(meta.compression)){
 +      if(meta.core||meta.signedHeight<0||usage!==0||meta.depth!==0||start!==0||count!==meta.height)fail('unsupported compressed direct scanline band');
-+      const size=u32(bytes,bmi+20);if(!size||size!==cbBits)fail('invalid compressed direct scanline size');
++      const size=u32(bytes,bmi+20);cbBits=dibColor.pixels(meta.color,paletteEnd,bits,cbBits,size);if(!size||size!==cbBits)fail('invalid compressed direct scanline size');
 +      const raw=bytes.slice(bits,bits+size),png=meta.compression===5;
 +      if(png?!(raw[0]===137&&raw[1]===80&&raw[2]===78&&raw[3]===71):!(raw[0]===255&&raw[1]===216&&raw[2]===255))fail('direct scanline compressed signature mismatch');
 +      if(typeof __turtleCompressedClassicImage!=='function')fail('native compressed scanline adapter unavailable');
@@ -3871,8 +3883,12 @@ diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
 +      // Keep palette/masks/profile fields intact, changing only the privately
 +      // decoded band height. The original record and its full height stay intact.
 +      const bandBytes=Math.ceil(meta.width*meta.depth/32)*4*bandCount;
++      cbBits=dibColor.pixels(meta.color,paletteEnd,bits,cbBits,bandBytes);
 +      if(bandBytes>cbBits)fail('truncated direct scanline band');
-+      const copy=new Uint8Array(cbBmi+bandBytes);copy.set(bytes.slice(bmi,bmi+cbBmi));copy.set(bytes.slice(bits,bits+bandBytes),cbBmi);
++      const profileBytes=meta.color&&meta.color.active?meta.color.size:0,total=cbBmi+bandBytes+profileBytes;
++      dibColor.reserveCopy(d,total*2);
++      const copy=new Uint8Array(total);copy.set(bytes.slice(bmi,bmi+cbBmi));copy.set(bytes.slice(bits,bits+bandBytes),cbBmi);
++      if(profileBytes){copy.set(bytes.slice(meta.color.start,meta.color.start+profileBytes),cbBmi+bandBytes);put32(copy,112,cbBmi+bandBytes);put32(copy,116,profileBytes);}
 +      if(meta.core)put16(copy,6,bandCount);else put32(copy,8,meta.signedHeight<0?-bandCount:bandCount);
 +      decoded=decodeDib(copy,0,cbBmi,cbBmi,bandBytes,usage,d);
 +    }
@@ -3898,7 +3914,7 @@ diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
 +    wmf(d,type,data){
 +      if(type!==0x0d33)return false;need(data,0,30);const usage=word(data,0),bmi=18,size=packedSize(data,bmi,usage),bits=bmi+size;need(data,bmi,size);
 +      let cbBits=data.length-bits;
-+      if(u32(data,bmi)!==12&&[4,5].includes(u32(data,bmi+16))){const declared=u32(data,bmi+20);if(declared>cbBits||cbBits-declared>1)fail('invalid packed compressed scanline size');cbBits=declared;}
++      if(u32(data,bmi)!==12&&[4,5].includes(u32(data,bmi+16))){const declared=u32(data,bmi+20),color=dibColor.read(data,bmi,size);cbBits=dibColor.pixels(color,bmi+size,bits,cbBits,declared);if(declared>cbBits||cbBits-declared>1)fail('invalid packed compressed scanline size');cbBits=declared;}
 +      // Playback sign-extends source/destination coordinates despite MS-WMF's
 +      // unsigned field prose; scan counts/start remain unsigned WORD values.
 +      paint(d,data,bmi,size,bits,cbBits,usage,word(data,4),word(data,2),short(data,16),short(data,14),short(data,8),short(data,6),word(data,12),word(data,10));return true;
@@ -4069,11 +4085,16 @@ diff --git a/src/utils/surface.js b/src/utils/surface.js
      ctx.canvas.width = Math.round(canvasWidth * dpr);
      ctx.canvas.height = Math.round(canvasHeight * dpr);
      // CSS display size (logical pixels)
-@@ -47,6 +48,7 @@
+@@ -47,6 +48,12 @@
   * @param {string} [color]
   */
  function clearCanvas(ctx, canvasWidth, canvasHeight, color = DEFAULT_CANVAS_BACKGROUND) {
 +    if (ctx._turtleTransparentSurface) return;
++    const surface=ctx._turtleGdiSurface;
++    if(surface){
++        if(!Number.isFinite(surface.width)||!Number.isFinite(surface.height)||surface.width<0||surface.height<0||surface.width>canvasWidth||surface.height>canvasHeight)throw new Error('Metafile: invalid logical GDI surface');
++        canvasWidth=surface.width;canvasHeight=surface.height;
++    }
      ctx.fillStyle = color;
      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
      console.log('Canvas cleared');
@@ -4123,4 +4144,80 @@ diff --git a/src/turtleGitCompressed.js b/src/turtleGitCompressed.js
 +    }return seen.size?finish(high):null;
 +  }
 +  return null;
++};
+diff --git a/src/turtleGitDibColor.js b/src/turtleGitDibColor.js
+new file mode 100644
+--- /dev/null
++++ b/src/turtleGitDibColor.js
+@@ -0,0 +1,71 @@
++// Original TurtleGit DIB color metadata framing. GPL-2.0-or-later.
++// Metadata parsing does not authorize file access or select a color transform.
++module.exports=function({fail,u32}) {
++  const linked=0x4c494e4b,embedded=0x4d424544;
++  function range(bytes,offset,size,label) {
++    if(!Number.isSafeInteger(offset)||!Number.isSafeInteger(size)||offset<0||size<0||offset>bytes.length||size>bytes.length-offset)fail('invalid DIB '+label+' extent');
++  }
++  function read(bytes,bmi,length) {
++    range(bytes,bmi,length,'information');if(length<4)fail('truncated DIB color header');
++    const header=u32(bytes,bmi);if(header!==108&&header!==124)return null;
++    if(length<header)fail('truncated DIB color header');
++    const space=u32(bytes,bmi+56),intent=header===124?u32(bytes,bmi+108):0;
++    const metadata={space,intent,active:false,headerStart:bmi,headerEnd:bmi+header};
++    // Windows ignores both profile members for every other color-space type,
++    // including sRGB. Do not dereference or validate ignored offset/size bits.
++    if(header!==124||(space!==linked&&space!==embedded))return metadata;
++    const relative=u32(bytes,bmi+112),declared=u32(bytes,bmi+116);
++    if(relative<header)fail('DIB profile overlaps its header');
++    const start=bmi+relative;range(bytes,start,0,'profile');
++    let size=declared;
++    if(space===linked) {
++      // This is an opaque CP1252 name, never a path to open. A linked name may
++      // omit the embedded-data size; find only its bounded in-record terminator.
++      const limit=size?size:Math.min(32768,bytes.length-start);
++      if(limit>32768)fail('DIB linked profile name exceeds limit');range(bytes,start,limit,'linked profile');
++      let end=0;while(end<limit&&bytes[start+end]!==0)end++;
++      if(end===limit||end===0)fail('invalid DIB linked profile name');
++      size=end+1;
++    } else {
++      if(size<128||size>4194304)fail('DIB embedded profile exceeds framing limits');
++      range(bytes,start,size,'embedded profile');
++    }
++    return {...metadata,active:true,linked:space===linked,start,size};
++  }
++  function validate(metadata,paletteEnd,pixelStart,pixelSize) {
++    if(!metadata||!metadata.active)return;
++    if(!Number.isSafeInteger(paletteEnd)||!Number.isSafeInteger(pixelStart)||!Number.isSafeInteger(pixelSize)||pixelSize<0)fail('invalid DIB profile layout');
++    if(metadata.start<paletteEnd)fail('DIB profile overlaps masks or palette');
++    if(metadata.start<pixelStart+pixelSize&&pixelStart<metadata.start+metadata.size)fail('DIB profile overlaps pixel storage');
++  }
++  function mode(d){return d._turtleICMMode===undefined?1:d._turtleICMMode;}
++  function setMode(d,data) {
++    if(data.length!==4)fail('invalid EMF ICM mode extent');const value=u32(data,0);
++    if(value<1||value>4)fail('invalid EMF ICM mode');
++    // ICM_QUERY reports existing state and cannot mutate that state.
++    if(value!==3)d._turtleICMMode=value;
++  }
++  function pixels(metadata,paletteEnd,pixelStart,available,required) {
++    if(!Number.isSafeInteger(available)||available<0)fail('invalid DIB pixel extent');
++    // Packed DIB profiles follow the actual pixel data. They are not pixels,
++    // even when the enclosing packed buffer's remaining bytes include them.
++    // Never move the public packed pixel start to accommodate profile data.
++    let count=available;
++    if(metadata&&metadata.active&&metadata.start>=pixelStart&&metadata.start<pixelStart+available)count=metadata.start-pixelStart;
++    const consumed=required===undefined?count:required;
++    if(!Number.isSafeInteger(consumed)||consumed<0||consumed>count)fail('DIB profile or framing truncates pixels');
++    validate(metadata,paletteEnd,pixelStart,consumed);return count;
++  }
++  function reserveCopy(d,count) {
++    const previous=d.ctx._turtleDibPrivateBytes||0;
++    if(!Number.isSafeInteger(count)||count<0||count>67108864-previous)fail('aggregate private DIB byte budget exceeded');
++    d.ctx._turtleDibPrivateBytes=previous+count;
++  }
++  // Pinned Picture.cpp loads Bitmap(file,FALSE). The independent Windows
++  // controls preserve all source RGB bytes for V4/V5 calibrated, embedded and
++  // linked profiles, including recorded ICM_ON. Direct GDI with an explicitly
++  // color-managed destination does convert, and is a separate consumer.
++  // We therefore validate/retain metadata without applying an ICC transform
++  // or resolving a linked filename, regardless of the recorded mode value.
++  return {read,validate,pixels,mode,setMode,reserveCopy};
 +};

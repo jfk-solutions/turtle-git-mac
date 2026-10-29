@@ -131,5 +131,34 @@
     "No physical mouse/keyboard workflow acceptance or every upstream dialog visual parity claim.",
     "Prior six failed attempts retained including abort without graceful fixture cleanup.",
     "User-owned installed app was not quit, relaunched or modified by capture."
-  ]
+  ],
+  "publication": {
+    "source_commit": "bf2d6b3f56422cb4b9e6272e3b72d5633d47669c",
+    "pages_run": 40823727559,
+    "pages_conclusion": "success",
+    "homepage_references_all_four": true,
+    "assets": [
+      {
+        "path": "assets/mac-commit-classic-dark-2026-10-29.png",
+        "http_status": 200,
+        "sha256": "8708f8765c8151063b682563b5243429849e0d8ae446f12c608998f82d81a694"
+      },
+      {
+        "path": "assets/mac-commit-staging-dark-2026-10-29.png",
+        "http_status": 200,
+        "sha256": "32be20cb69f6f981931149a83da498dbf623a9966e0bd239ea53a0959172c7c5"
+      },
+      {
+        "path": "assets/mac-commit-classic-light-2026-10-29.png",
+        "http_status": 200,
+        "sha256": "3363ed324c9ee692a64af40d2f5b7a4d7d63db96078ee87ef575b462d51b703b"
+      },
+      {
+        "path": "assets/mac-commit-staging-light-2026-10-29.png",
+        "http_status": 200,
+        "sha256": "ba888755a2dbdf5a5ce62fd1f65514cb3b5f69f859acbc60a71ad5aa6e4b21c6"
+      }
+    ],
+    "scope": "Actual deployed homepage HTML plus four public PNG responses; each PNG matches the committed source bytes. This is website publication evidence, not signed-app acceptance."
+  }
 }

@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-native-passed-both-engines",
+  "scope": "V4/V5 color metadata, bounded inert embedded/linked profiles, packed and explicit DIB storage, direct-band private copies and saved recorded ICM modes through image consumers",
+  "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "windows_reference": {
+    "run": 40825035410,
+    "job": 123286017624,
+    "source_commit": "b4824fc176dc4e9b8d756de9c858675865a89a4e",
+    "artifact": 12876287010,
+    "zip_sha256": "ed2a54890678df96637a3c4913572d2caf4c793753adbb17e1cbef50436aa838",
+    "result": "success",
+    "profiles_validated_by_Windows": true,
+    "matrix_profile_macos_preflight_gray": {
+      "srgb": [
+        128,
+        128,
+        128
+      ],
+      "linear": [
+        188,
+        188,
+        188
+      ]
+    },
+    "actual_Picture_FALSE_full_RGBA_baseline_matches": 31,
+    "malformed_packed_before_inputs": 2,
+    "positive_direct_ICM_control_gray": {
+      "srgb": 128,
+      "linear": 188
+    },
+    "raw_observations": "metafile-dib-profile-reference-2026-10-29/windows/observations.json",
+    "analysis": "metafile-dib-profile-reference-2026-10-29/windows/analysis.json",
+    "extra_automatically_triggered_run": 40825035440,
+    "extra_run_note": "Inherited oracle-branch workflow also triggered on the push; no second DIB probe was dispatched. CLI cancellation was unavailable because the CLI has no authenticated account. That unrelated run is not new DIB evidence.",
+    "reproduction": "Main branch carries the same original C++/ICC inputs with a manual-only reference workflow, avoiding automatic repeated probes. The measured run used the push-triggered oracle-branch workflow at b4824fc1."
+  },
+  "implementation": {
+    "patch_sha256": "19c4d69079fc6330dd728ccb27ce2728980c1d20d3a8c8cbb605620aa11b15ac",
+    "wire_fixtures": 86,
+    "native_Windows_witnesses": 33,
+    "native_Windows_well_formed": 31,
+    "private_copy_budget_bytes": 67108864,
+    "color_policy": "Measured Picture byte RGB, without invented ColorSync/WCS conversion. Linked names are never opened.",
+    "state": "Exact DWORD mode1..4, QUERY does not mutate, mode stored with classic saved DC state; pixel equality cannot uniquely prove internal mode under inert paint policy."
+  },
+  "validation": {
+    "helper": {
+      "result": "passed-universal-structure",
+      "log": "build/qa/metafile-dib-profiles-border-helper-2026-10-29.log",
+      "initial_pass": "build/qa/metafile-dib-profiles-helper-2026-10-29.log"
+    },
+    "core": {
+      "exit": 0,
+      "methods": 41,
+      "failures": 0,
+      "seconds": 23.238,
+      "log": "build/qa/metafile-dib-profiles-border-core-2026-10-29.log",
+      "scope": "New DIB profiles, direct scanlines, drawing state, ROI and affected Boolean/masked/transparent/alpha raster methods; no full Core repeat."
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/metafile-dib-profiles-native-corpus-recheck-2026-10-29.log",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "source_samples": 8,
+      "refusal_samples": 7,
+      "receivers_reaped": [
+        6147,
+        6464
+      ],
+      "approved_helper_cleanup": "Runner verifies exact executable/private-resource ownership; no receiver/metafile helper remains in independent process check.",
+      "scope": "Native default/explicit image comparisons, preview drop/reload, real private conflict stages, retained region/texture/indexed regressions, cancelled/late workers, leases, sessions and Quit ownership; original bytes/HEAD/index preserved."
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/metafile-dib-profiles-border-debug-2026-10-29.log",
+      "contradictory_exit_zero_diagnostics": 0
+    },
+    "first_core": {
+      "exit": 1,
+      "methods": 24,
+      "assertion_failures": 21,
+      "failed_methods": 1,
+      "log": "build/qa/metafile-dib-profiles-core-2026-10-29.log",
+      "failure": "All21 EMF Windows full-RGBA witnesses exposed opaque white natural-allocation border; all other new framing/policy methods and affected old methods passed.",
+      "production_repair": "Classic EMF DC initialization now uses recorded/preinclusive device extent, leaving extra allocated border transparent. No crop, output wipe or weakened full-image expectation."
+    },
+    "first_debug": {
+      "exit": 0,
+      "log": "build/qa/metafile-dib-profiles-debug-2026-10-29.log"
+    },
+    "documentation_attempts": [
+      {
+        "scope": "Help freshness",
+        "result": "initial check failed because the included raster parity guide changed after generation; regenerated after docs freeze, with final check pending",
+        "followup": "Help regenerated; final freshness check passed before final app build."
+      }
+    ],
+    "documentation": {
+      "help": "regenerated and check passed after guide freeze",
+      "site": "497 documents, no unresolved fragments",
+      "site_links_tests": 2,
+      "local_search": "passed",
+      "localizations": "38 locales/1325 keys check passed",
+      "ledger": "reconciled; no new dialog completion claim"
+    },
+    "native_attempts": [
+      {
+        "log": "build/qa/metafile-dib-profiles-native-2026-10-29.log",
+        "result": "SIGTRAP in fixture legacy conflict-source lookup",
+        "receiver": 5798,
+        "reaped": true,
+        "scope_reached": "Selected image comparisons and preview/drop flow; conflict setup used a legacy EMF+ lookup absent from the DIB-only corpus."
+      },
+      {
+        "log": "build/qa/metafile-dib-profiles-native-conflict-recheck-2026-10-29.log",
+        "result": "fixture compilation failed; no receiver",
+        "reason": "First fixture repair was inserted at the earlier formatted-digit preview block instead of the conflict-index block; anchored correction preserves all assertions."
+      },
+      {
+        "log": "build/qa/metafile-dib-profiles-native-final-2026-10-29.log",
+        "result": "fixture missing legacy retained-regression file",
+        "receiver": 5963,
+        "reaped": true,
+        "reason": "Retained region/hatch/texture fixtures were still read from the DIB-only directory. Use their original supplied corpus, with selected DIB files unchanged."
+      }
+    ],
+    "ci_registration": "Added dib-profiles to the existing hosted grouped metafile consumer step. No complete hosted pass claimed."
+  },
+  "limits": [
+    "Windows source discriminator covers its32-bit raster transfers, not every direct-band/brush/palette/compressed/device profile combination.",
+    "Local six-consumer equivalence extends the measured RGB policy through shared parsing; it is not independent Windows coverage of every consumer.",
+    "Embedded ICC data is opaque after bounded minimum header/framing checks; arbitrary ICC semantic validity and WCS transformations are not claimed.",
+    "Malformed packed-before profiles are explicitly refused even though Windows can paint their profile prefix as bitmap pixels.",
+    "Focused native checks do not establish signed installed image behavior, physical Finder/VoiceOver, Intel/minimum-macOS or complete hosted application parity.",
+    "This source family is newer than the user-owned installed build30; that app is preserved."
+  ],
+  "source_sha256": {
+    "patches/metafile-renderer.patch": "19c4d69079fc6330dd728ccb27ce2728980c1d20d3a8c8cbb605620aa11b15ac",
+    "Tests/TurtleGitCoreTests/MetafileDibProfileTests.swift": "14686613f1deb660c232ebdd2924debdc938879ed153269d7de6eb3ea756c268",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-dib-profiles.py": "3cf366665d29f3276dc43d8d254c9c5619a11eeabae145fc16c8e13ed8561f99",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/DIBProfiles/manifest.json": "70b64f8ba9745241d9bdef710844f71eef5fa60f3a627aeace8314b372551a52",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/DIBProfileWindows/manifest.json": "e5daa54812485562bd8dba2091db5d4ec73802a0149638627bab0880846645da",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "8588a3e659b7b021670432177f640752474b163e7d9af7c45893c3d37431e215",
+    "scripts/test-metafile-workflows.py": "00d6f0a7261cade3bc376040e2919e17cd4752c35eb37c27d520bc033a24b839",
+    ".github/workflows/macos.yml": "6790799d9f263b1beebc562001bc4750c3594f8237086a3d1aaa678086a3ff41"
+  }
+}

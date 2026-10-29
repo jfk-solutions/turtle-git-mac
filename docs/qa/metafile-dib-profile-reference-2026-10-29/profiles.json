@@ -1,0 +1,17 @@
+{
+  "purpose": "Original ICC v2 matrix/TRC profiles for the DIB color-policy discriminator.\n\nStandard sRGB primaries adapted to D50; transfer curves distinguish encoded\nsRGB from linear RGB. No vendor profile bytes or private device data are used.\nThese are reference inputs, not proposed display-profile replacements.",
+  "profiles": [
+    {
+      "file": "srgb.icc",
+      "bytes": 25116,
+      "sha256": "8d21fb9b27f920326d69c1442dbc79d00369fbd45ebd974ff23af7587be93eaa",
+      "linear_transfer": false
+    },
+    {
+      "file": "linear-rgb.icc",
+      "bytes": 560,
+      "sha256": "bfc0b7804f5b37268b594443eaa4774d9d28845cb09b6aa75f4aa5277c85e608",
+      "linear_transfer": true
+    }
+  ]
+}

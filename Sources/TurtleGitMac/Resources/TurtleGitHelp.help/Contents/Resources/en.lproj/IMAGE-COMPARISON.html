@@ -68,6 +68,9 @@ repository. In an image viewer, <strong>File → Open…</strong> or <strong>Cmd
 native two-path chooser. Use Browse for either side, leave a side blank for a
 single image, or choose the same image twice. Cancel keeps the existing view.</p>
 <h2 id="windows-metafiles">Windows metafiles</h2>
+<p>Bitmap drawings with V4/V5 color headers and embedded profiles use the same
+stored RGB colors as the upstream viewer. Linked profile names do not trigger
+additional file loads. Truncated or overlapping bitmap/profile data is refused.</p>
 <p>WMF, EMF and EMF+ inputs use the bundled metafile renderer in the existing image
 panes. No separately installed converter is needed. Load Images and image-pane
 drops accept these formats too. Rendering supports captured vector paths, text,

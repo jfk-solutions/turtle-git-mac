@@ -1,0 +1,4 @@
+Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35229 for x64
+usage: cl [ option... ] filename... [ /link linkoption... ]
+Copyright (C) Microsoft Corporation.  All rights reserved.
+

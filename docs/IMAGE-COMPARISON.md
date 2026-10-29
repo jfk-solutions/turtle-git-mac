@@ -78,6 +78,10 @@ single image, or choose the same image twice. Cancel keeps the existing view.
 
 ## Windows metafiles
 
+Bitmap drawings with V4/V5 color headers and embedded profiles use the same
+stored RGB colors as the upstream viewer. Linked profile names do not trigger
+additional file loads. Truncated or overlapping bitmap/profile data is refused.
+
 WMF, EMF and EMF+ inputs use the bundled metafile renderer in the existing image
 panes. No separately installed converter is needed. Load Images and image-pane
 drops accept these formats too. Rendering supports captured vector paths, text,

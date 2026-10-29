@@ -1,0 +1,53 @@
+name: Metafile DIB profile Windows discriminator
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent bounded Windows observation tool
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-dib-profile-reference-2026-10-29\DibProfileReference.cpp
+          /Fe:DibProfileReference.exe /link gdiplus.lib user32.lib gdi32.lib mscms.lib
+      - name: Observe native profile handling without TurtleGit expected output
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./DibProfileReference.exe reference-output docs/qa/metafile-dib-profile-reference-2026-10-29/srgb.icc docs/qa/metafile-dib-profile-reference-2026-10-29/linear-rgb.icc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $m = Get-Content -Raw reference-output/observations.json | ConvertFrom-Json
+          if ($m.caseCount -ne 33 -or $m.cases.Count -ne 33 -or $m.standaloneBMPControls.Count -ne 2) { throw 'Incomplete discriminator inventory' }
+          foreach ($p in $m.profileValidation) { if (-not $p.opened -or -not $p.headerRead -or -not $p.validityCall -or -not $p.valid) { throw 'Invalid Windows ICC input' } }
+          # Failed Bitmap loads/draws are observations, not invented successful pixels.
+          # Require controls to be genuinely decoded; no expected color is asserted.
+          foreach ($c in $m.standaloneBMPControls) {
+            foreach ($b in $c.bitmap) {
+              if ($b.loadStatus -ne 0 -or $b.drawStatus -ne 0 -or $b.intrinsic.getPixelStatus -ne 0 -or $b.picture.getPixelStatus -ne 0 -or $b.picture.graySample.Count -ne 4) { throw 'Standalone profile control did not decode into observable pixels' }
+            }
+          }
+      - name: Record byte provenance and Windows runtime
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          git rev-parse HEAD | Set-Content reference-output/source-revision.txt
+          cl 2>&1 | Out-File reference-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/mscms.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content reference-output/runtime-versions.json
+          $files = @(Get-ChildItem reference-output -File) + @(Get-ChildItem docs/qa/metafile-dib-profile-reference-2026-10-29 -File) + @(Get-Item .github/workflows/metafile-dib-profile-reference.yml)
+          if (Test-Path DibProfileReference.exe) { $files += Get-Item DibProfileReference.exe }
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content reference-output/sha256.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-dib-profile-windows-reference
+          path: reference-output
+          if-no-files-found: error
+          retention-days: 30

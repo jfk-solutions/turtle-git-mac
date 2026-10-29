@@ -1,0 +1,187 @@
+{
+  "native_run": 40825035410,
+  "artifact": 12876287010,
+  "zip_sha256": "ed2a54890678df96637a3c4913572d2caf4c793753adbb17e1cbef50436aa838",
+  "actual_FALSE_full_RGBA_comparison": [
+    {
+      "name": "v4-srgb-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v4-srgb-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v4-calibrated-linear-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v4-calibrated-linear-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v4-calibrated-gamma22-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v4-calibrated-gamma22-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-srgb-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-srgb-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-calibrated-linear-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-calibrated-linear-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-calibrated-gamma22-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-calibrated-gamma22-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-srgb-ignored-profile-fields-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-srgb-ignored-profile-fields-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-after-icm0-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-after-icm0-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-after-icm0-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-after-icm0-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-after-icm1-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-after-icm1-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-after-icm2-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-after-icm2-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-before-icm0-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-before-icm0-wmf",
+      "same_full_rgba_as_srgb_baseline": false
+    },
+    {
+      "name": "v5-embedded-linear-before-icm0-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-before-icm0-wmf",
+      "same_full_rgba_as_srgb_baseline": false
+    },
+    {
+      "name": "v5-embedded-srgb-before-icm1-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-before-icm1-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-srgb-before-icm2-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-embedded-linear-before-icm2-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-linear-savedc-icmon-restored-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-linked-local-linear-emf",
+      "same_full_rgba_as_srgb_baseline": true
+    },
+    {
+      "name": "v5-linked-local-linear-wmf",
+      "same_full_rgba_as_srgb_baseline": true
+    }
+  ],
+  "direct_positive_ICM_controls": [
+    {
+      "case": "v5-embedded-linear-before-icm2-emf",
+      "mode": {
+        "requestedICM": 2,
+        "explicitDestinationProfile": true,
+        "setDestinationProfileResult": 1,
+        "setDestinationProfileError": 0,
+        "destinationProfileReadResult": 1,
+        "destinationProfileReadError": 0,
+        "destinationProfile": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\srgb.icc",
+        "setICMError": 0,
+        "setICMResult": 1,
+        "playResult": 1,
+        "lastError": 0,
+        "rgba": "v5-embedded-linear-before-icm2-emf-play-3.rgba"
+      },
+      "gray": [
+        188,
+        188,
+        188,
+        255
+      ]
+    },
+    {
+      "case": "v5-embedded-srgb-before-icm2-emf",
+      "mode": {
+        "requestedICM": 2,
+        "explicitDestinationProfile": true,
+        "setDestinationProfileResult": 1,
+        "setDestinationProfileError": 0,
+        "destinationProfileReadResult": 1,
+        "destinationProfileReadError": 0,
+        "destinationProfile": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\srgb.icc",
+        "setICMError": 0,
+        "setICMResult": 1,
+        "playResult": 1,
+        "lastError": 0,
+        "rgba": "v5-embedded-srgb-before-icm2-emf-play-3.rgba"
+      },
+      "gray": [
+        128,
+        128,
+        128,
+        255
+      ]
+    }
+  ]
+}

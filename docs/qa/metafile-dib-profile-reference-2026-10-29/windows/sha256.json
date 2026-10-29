@@ -1,0 +1,1286 @@
+[
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\compiler.txt",
+    "Hash": "6A466842CA158680288DF7C087797A658B5291423E4C1D6DE4F3561D52A58211"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-linear-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-linear-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-linear-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-linear-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-linear.bmp",
+    "Hash": "7517B9E0049E25648CA7FB8E78FA51DE317CB1CE2DD81EDD35F0BAAE77DFDC38"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-srgb-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-srgb-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-srgb-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-srgb-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\control-srgb.bmp",
+    "Hash": "C7163BAC49AA9C947B06CD7638D31D001058E7FD5C3ACDAC8EF0CA3809A6FBD2"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\linear-rgb.icc",
+    "Hash": "BFC0B7804F5B37268B594443EAA4774D9D28845CB09B6AA75F4AA5277C85E608"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\observations.json",
+    "Hash": "C994F6C33CE19572E99C337967D66C6E402FB9BA290076B941C5C691583F6ECA"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\runtime-versions.json",
+    "Hash": "BE0E9877EA14492728A02750627F0389CC6558E8832E882C15166496CEF35DFC"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\source-revision.txt",
+    "Hash": "CEE04E802635016A3D93ECCC88627EC211CBB6568B1F5E3A8A18E93E538A1E62"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\srgb.icc",
+    "Hash": "8D21FB9B27F920326D69C1442DBC79D00369FBD45EBD974FF23AF7587BE93EAA"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-play-3.rgba",
+    "Hash": "3B950846B4313E61812E23FF32AE2F485766158AC2468CC42332E9555E2A0401"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-emf.emf",
+    "Hash": "954B9719EB6871B8E12A16AEBD1949D35BACBBA3A6FAF129302BBCEC77DEE6CD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-play-3.rgba",
+    "Hash": "3B950846B4313E61812E23FF32AE2F485766158AC2468CC42332E9555E2A0401"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-gamma22-wmf.wmf",
+    "Hash": "0AB0485E39342B1E1E50192F34DD1582650801AE828A71073D541F2DA5182AB0"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-emf.emf",
+    "Hash": "C4F53568F4F38E338FF160BFE61BA064059E7C461EA92E8FB4F66442B4E5C798"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-calibrated-linear-wmf.wmf",
+    "Hash": "CF6218AAF86C33E299E09C62D2E0754100985190D76358E6A1F68F7DB71EB9A6"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-emf.emf",
+    "Hash": "EA1512C648BF24C7D1EB3740AA7C7A77F941BA9DC13F078ED76433D4F938B971"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v4-srgb-wmf.wmf",
+    "Hash": "9D2FF921ECE006AE7BCABAFD4C6FD923C94C95DED16B88CE20A5744C12E43DD2"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-play-3.rgba",
+    "Hash": "3B950846B4313E61812E23FF32AE2F485766158AC2468CC42332E9555E2A0401"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-emf.emf",
+    "Hash": "62F1C5C0C9FDB025734776B8E6F5F89C93D235033634D891323D223A498BBF46"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-play-3.rgba",
+    "Hash": "3B950846B4313E61812E23FF32AE2F485766158AC2468CC42332E9555E2A0401"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-gamma22-wmf.wmf",
+    "Hash": "EC5E0EF0D0017246AB6D876B44531DEAF5DB5B9AB63E73E1FD5BD3443291FC9A"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-emf.emf",
+    "Hash": "7D0C3F78F1746F98CD5FF0588738965439C136CFF21A109540679344FBAAE3E0"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-calibrated-linear-wmf.wmf",
+    "Hash": "FE9F8BD71DC62485C151F779BC3D831347F329015E9C22FD22546E91445E7179"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-emf.emf",
+    "Hash": "14D4AF9063D68BB60AF52586D8475752AB06E0014479B51AE0507E3A0E338CBB"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm0-wmf.wmf",
+    "Hash": "B4EDB74331ABCF4CF44CF02A4082855A67CF87A418C9A679556A8A4303F5BABF"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-play-3.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm1-emf.emf",
+    "Hash": "24F40D43EFC6A9306D8B2E91D6BE2FCFAB2FD2A88A05A34EED4F47AD12A81038"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-after-icm2-emf.emf",
+    "Hash": "4B3436105980209912F9FA94AE7E07F478BB0F465DA73C5C8A1B46699D3FBF90"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-emf.emf",
+    "Hash": "1067676A317945E66F72DDA5AA89A230430346987DCBE8D063C936C7632A043E"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-false-intrinsic.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-false-picture.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-play-0.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-play-1.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-play-2.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-play-3.rgba",
+    "Hash": "2ED1EE4B30949BDAC48B669B94339DB562477C6CAA60C0A58B1723C5F5B4C6F2"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-true-intrinsic.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf-true-picture.rgba",
+    "Hash": "1BD72AECE7C03B85F84FBDF2C788CE55982F4883D94DA7C0F11132E7F9268DE4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm0-wmf.wmf",
+    "Hash": "1B13E21183CFD6D3A9532EB08A6E9D90618822EF5CEAF2A2E99E38DC2FEDE8E6"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-play-3.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm1-emf.emf",
+    "Hash": "5600CBC4B52CA1BFF6981AC4448DD73C6A00F9543F7B1C24CE7162CB2A1C0AC2"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-linear-before-icm2-emf.emf",
+    "Hash": "8DDD7262DE58564DE8F240CEB72594B3FFEF1DEBB533D6D9FFA72D832780B351"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-emf.emf",
+    "Hash": "045A47A360CF84B79302D92AD2CF82744FED0D54CA3BBA98ED13C1856C0D0273"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm0-wmf.wmf",
+    "Hash": "49330A946EED01985BB2C2ED565972B2CDE5DEA4E8811E62C4D6B4E2D5483A8F"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-play-3.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm1-emf.emf",
+    "Hash": "BCCEDC3367B43E0263B9EBEFFAC99F014E63A86F0F6E1A76D3FE5B1FD330F4FD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-after-icm2-emf.emf",
+    "Hash": "AF8D373F2B9A5FA65196986EC542309DB3D3D55BD4EEB20EFF7D8D3704853B87"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-emf.emf",
+    "Hash": "67E086223EFACE9434FC26642EB01276E98FC0BEB504ED8434B0021FE1504811"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-false-intrinsic.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-false-picture.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-play-0.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-play-1.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-play-2.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-play-3.rgba",
+    "Hash": "F3C4D31B90999A4059BFB73C5AAEC987517A36E64E7DC12421C9AD681C4F01E9"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-true-intrinsic.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf-true-picture.rgba",
+    "Hash": "10606D41CB6604C3AED6D936E8E3E08460E471386C412B18F0A26026136B3005"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm0-wmf.wmf",
+    "Hash": "D282522841075A3A6CEE9C7D8BD05312DF3D19822390186C6ABF17594AD5F8C9"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-play-3.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm1-emf.emf",
+    "Hash": "6CB09C509FA32354AE2ECD0754FB99079526029FAC0C0E38182259467F738363"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-embedded-srgb-before-icm2-emf.emf",
+    "Hash": "16167C07961A02C08691E7F4BBA888B0227AFFCCA16CD19401BE8735C05770F0"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-play-3.rgba",
+    "Hash": "A4337D9F3B081C365B85DE91E89A1D78443DBAE205F16007ED55A0E285734F79"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linear-savedc-icmon-restored-emf.emf",
+    "Hash": "C2AE2D2DE8A9474478075172C0E0BA9564588E2AF5B930CE9A76EA521B70EBD4"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-emf.emf",
+    "Hash": "1563EAD8EA520FBF68A6D940DA34CD536F5F98A59FD8C0AE1E87D974CEAB76D2"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-linked-local-linear-wmf.wmf",
+    "Hash": "519D69B99908D4401BAFC709EDE957D3FF1BD9CE7660CDAACF8485A29BA3110C"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-emf.emf",
+    "Hash": "88067B57A1D86DC42E05E29FF26CDF3E0F33990E079705A28D39FCC8DB013BBF"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-false-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-false-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-true-intrinsic.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf-true-picture.rgba",
+    "Hash": "99B0D31C39047576E4E06AC4C9BD7AEFD84F1F8C91BE5308462887DEE4157BFD"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-emf.emf",
+    "Hash": "C3F4622EB26B77AD356F3D6CA0FE21900C8CB0C206A0AD2DBDE65C72B674A8B6"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-ignored-profile-fields-wmf.wmf",
+    "Hash": "E9B51438562CD35FF0BA276D76ABE77D63A13C530CBB9C6A23E088B4C00EE0FC"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-false-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-false-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-play-0.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-play-1.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-play-2.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-play-3.rgba",
+    "Hash": "A7940EDCBF546C81079FD2049162CF3D728E52F2833804C47CA8C768497E7A23"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-true-intrinsic.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf-true-picture.rgba",
+    "Hash": "DDAEFD89A2134960C0B93B367BFD92E7F0B0F06496B26AB89EA9A4D62F5109A3"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\v5-srgb-wmf.wmf",
+    "Hash": "DB9FFCDFDC8E75AA1CAEA6F8EAF09D816503D1DB173CD2DA5B3E14A55889A37C"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\reference-output\\windows.json",
+    "Hash": "96D80056208C62A6CC721D9A450AAB94F02235914A031A95FEEC2CE56058B10C"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\docs\\qa\\metafile-dib-profile-reference-2026-10-29\\DibProfileReference.cpp",
+    "Hash": "14D73632E571103D2D0441B20B0EDF8786FDD77B0B2C917537E68C74564CADE9"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\docs\\qa\\metafile-dib-profile-reference-2026-10-29\\generate-profiles.py",
+    "Hash": "2783E57A331500C966D8262665F652775B5AC31DC4AEA98FD0F852172763BA8F"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\docs\\qa\\metafile-dib-profile-reference-2026-10-29\\linear-rgb.icc",
+    "Hash": "BFC0B7804F5B37268B594443EAA4774D9D28845CB09B6AA75F4AA5277C85E608"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\docs\\qa\\metafile-dib-profile-reference-2026-10-29\\profiles.json",
+    "Hash": "6A1771AF29437927B6F782F2A682C1DD0823AE6DB56D6D4B6DD923C0BDD0F3A1"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\docs\\qa\\metafile-dib-profile-reference-2026-10-29\\srgb.icc",
+    "Hash": "8D21FB9B27F920326D69C1442DBC79D00369FBD45EBD974FF23AF7587BE93EAA"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\.github\\workflows\\metafile-dib-profile-reference.yml",
+    "Hash": "0B1389F77B28494AD6AD878B77FC6F457DCF62BC081A2E38267FCE17246984A9"
+  },
+  {
+    "Path": "D:\\a\\turtle-git-mac\\turtle-git-mac\\DibProfileReference.exe",
+    "Hash": "8AD6D599B4ABA085A2A3C3F3AAD9D9B6CE147F6E0C50A76FBA12C5781533A517"
+  }
+]

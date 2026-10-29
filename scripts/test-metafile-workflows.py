@@ -53,6 +53,7 @@ def retire_owned_helpers(context, approved):
 
 
 CASES = {
+    'dib-profiles': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'path-gradients': ('metafile-path-gradients-native-2026-10-25.swift', 'MetafilePathGradientVerification'),
     'compressed-raster': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'embedded-metafiles': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
@@ -91,7 +92,7 @@ for filename in dict.fromkeys(filename for filename, _ in CASES.values()):
     if not path.is_file() or path.read_text() != contents:
         path.write_text(contents)
     fixtures.append(path)
-dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('wmfBitmap16:true' if case == 'wmf-bitmap16' else 'wmfText:true' if case == 'wmf-text' else 'classicTextRecords:true' if case == 'classic-text-records' else 'formattedDigits:true' if case == 'formatted-digits' else 'compressedRaster:true' if case == 'compressed-raster' else 'embeddedMetafiles:true' if case == 'embedded-metafiles' else 'classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
+dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('dibProfiles:true' if case == 'dib-profiles' else 'wmfBitmap16:true' if case == 'wmf-bitmap16' else 'wmfText:true' if case == 'wmf-text' else 'classicTextRecords:true' if case == 'classic-text-records' else 'formattedDigits:true' if case == 'formatted-digits' else 'compressedRaster:true' if case == 'compressed-raster' else 'embeddedMetafiles:true' if case == 'embedded-metafiles' else 'classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
 main = generated/'MetafileWorkflowMain.swift'
 main_contents = '''import AppKit
 import ObjectiveC
@@ -135,7 +136,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             private_home=directory/'home';private_home.mkdir(mode=0o700)
             environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            if case in ['wmf-bitmap16','wmf-text','classic-text-records','path-gradients','compressed-raster','embedded-metafiles','drawing-state','consumers','formatted-digits','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            if case in ['dib-profiles','wmf-bitmap16','wmf-text','classic-text-records','path-gradients','compressed-raster','embedded-metafiles','drawing-state','consumers','formatted-digits','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             environment.pop('TURTLEGIT_DRAWING_STATE_CAPTURES', None)
             if args.capture_dir and case == 'drawing-state' and index == 0:
                 args.capture_dir.resolve().mkdir(parents=True, exist_ok=True)
@@ -147,15 +148,15 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
                                       timeout_sample=directory/'timeout.sample.txt')
                 print(result.stdout, end=''); print(result.stderr, end='')
                 completed=result.returncode==0 and 'PASS: metafile workflow completed' in result.stdout
-                if case=='path-gradients':
+                if case in ['path-gradients','dib-profiles']:
                     results.append(dict(case=case,git=str(git.absolute()),returncode=result.returncode,passed=completed))
-                    (root/'build/qa/metafile-path-gradients-native-results.json').write_text(json.dumps(results,indent=2)+'\n')
+                    (root/('build/qa/metafile-'+case+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
                 result.check_returncode()
                 if not completed:raise SystemExit('Metafile receiver exited before completion: '+case)
             finally:
-                if case=='path-gradients':
+                if case in ['path-gradients','dib-profiles']:
                     sample=directory/'timeout.sample.txt'
-                    if sample.is_file():shutil.copyfile(sample,root/('build/qa/metafile-path-gradients-'+str(index)+'.sample.txt'))
+                    if sample.is_file():shutil.copyfile(sample,root/('build/qa/metafile-'+case+'-'+str(index)+'.sample.txt'))
                     approved={str(git.resolve())}
                     resolved=subprocess.run(['/usr/bin/xcrun','--find','git'],capture_output=True,text=True)
                     if resolved.returncode==0:approved.add(str(Path(resolved.stdout.strip()).resolve()))
@@ -164,5 +165,5 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
                     cleaned=retire_owned_helpers(directory,approved)
                     if completed and cleaned:
                         results[-1].update(passed=False,helper_cleanup_needed=True)
-                        (root/'build/qa/metafile-path-gradients-native-results.json').write_text(json.dumps(results,indent=2)+'\n')
-                        raise RuntimeError('Owned helper outlived completed path-gradient request')
+                        (root/('build/qa/metafile-'+case+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
+                        raise RuntimeError('Owned helper outlived completed '+case+' request')

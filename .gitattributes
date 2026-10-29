@@ -21,3 +21,7 @@ Licenses/Wine-LGPL-2.1.txt -text -whitespace
 
 # Native reference RGBA buffers are binary even when a sample has no NUL bytes.
 Tests/TurtleGitCoreTests/Fixtures/Metafile/**/*.rgba binary
+
+# Preserve original Windows reference metadata and its CRLF byte provenance.
+docs/qa/metafile-dib-profile-reference-2026-10-29/windows/* -text -whitespace
+docs/qa/metafile-dib-profile-reference-2026-10-29/windows/*.rgba binary

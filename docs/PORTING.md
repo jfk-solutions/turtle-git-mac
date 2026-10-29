@@ -12,6 +12,11 @@ These later changes are not included in signed candidate30.
 
 ## Current installed checkpoint
 
+The later [DIB metadata family](METAFILE-DIB-PROFILES-PARITY.md) follows measured
+Windows Picture byte-RGB playback for V4/V5 color headers, embedded/linked
+profile metadata and recorded ICM state across raster, brush and direct-band
+image consumers. Its own checkpoint remains separate from installed build30.
+
 [Signed build30](qa/signed-consolidation-build30-2026-10-29.json) is the newer
 installed Apple Silicon local test build from `06e3de29`, consolidating the recent
 Commit, comparison, Log-selection and Merge recovery work with updated guides and

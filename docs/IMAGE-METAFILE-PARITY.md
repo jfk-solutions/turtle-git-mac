@@ -115,6 +115,11 @@ Original repository files and conflict bytes remain unchanged.
 
 ## Explicit remaining format behavior
 
+The [DIB color-metadata family](METAFILE-DIB-PROFILES-PARITY.md) connects V4/V5
+headers, bounded embedded/linked profile metadata and recorded ICM state across
+raster, brush and direct-band consumers. It follows measured Picture byte-RGB
+playback, with separate framing and color-management limits.
+
 The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph outlines for DrawString layouts, including direction, tabs, tracking, wrapping and trimming.
 The separate [positioned text family](METAFILE-POSITIONED-TEXT-PARITY.md)
 connects driver strings, font-specific glyph indices and classic W text advances

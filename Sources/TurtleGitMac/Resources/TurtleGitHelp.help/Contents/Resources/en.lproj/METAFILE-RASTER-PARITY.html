@@ -69,8 +69,10 @@ the baseline BitBlt/StretchBlt restriction. The connected
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-WMF-BITMAP16-PARITY.html">Bitmap16 transfer family</a> adds monochrome and
 the measured Windows 32-bit BGRX profile, plus prior-surface copying for DDB
 source-omitted records. DIB source-omitted records retain their own required-
-source refusal. Unknown device-specific color organizations, external/profiled
-bitmap layouts and unrepresented encodings remain refusals. The connected classic EMF masked/transparent extension below covers
+source refusal. The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-DIB-PROFILES-PARITY.html">V4/V5 metadata family</a>
+adds bounded embedded/linked profile framing without external reads or invented
+color conversion. Unknown device-specific color organizations, malformed profile
+layouts and unrepresented encodings remain refusals. The connected classic EMF masked/transparent extension below covers
 its own record and operand requirements.</p>
 <p>The classic DIB path accepts bounded RGB, RLE4/RLE8, indexed palettes, bitfields
 and core headers. Later <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-COMPRESSED-RASTER-PARITY.html">compressed-raster support</a>
