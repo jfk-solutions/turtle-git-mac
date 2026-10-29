@@ -9,14 +9,15 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 
 ## Current installed local checkpoint — 29 October 2026
 
-[Signed build 30](qa/signed-consolidation-build30-2026-10-29.json), version `0.1.0`,
-is installed from clean source `06e3de29` for Apple Silicon local testing. After
-the user's approval it replaced build 27 and reopened normally; build 27 remains
-available for rollback. The installed inventory matches the measured signed
-candidate and its strict deep signature check passes. Later source batches and
-newer documentation assets are separate from that installed source. See
-[release gates](RELEASE-BLOCKERS.md) for current acceptance limits and
-[port tracking](PORTING.md) for subsequent implementation checkpoints.
+[Signed build31](qa/signed-consolidation-build31-2026-10-29.json), version
+`0.1.0 (31)`, is installed from clean source `9d5912be`. It includes streamed Log
+file inspection, Merge header activation, DIB color metadata and EMF border fixes,
+and current Commit screenshots in bundled Help. All eight app-owned components
+contain arm64 and x86_64; measured inputs, strict signatures and the complete
+installed inventory pass. The app was already closed at replacement and reopened
+successfully. Build30 is preserved for rollback. Universal structure does not
+establish physical Intel execution, current signed workflow acceptance or a full
+hosted CI pass. No App Store submission was made.
 
 The older dated artifacts below remain historical evidence, not the current
 package to install or a certification of later source.

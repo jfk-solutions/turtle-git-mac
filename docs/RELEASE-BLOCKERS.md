@@ -7,17 +7,15 @@ This page identifies current gates; dated implementation detail is in
 
 ## Installed local checkpoint
 
-[Signed build30](qa/signed-consolidation-build30-2026-10-29.json) is installed from
-`06e3de29`. It consolidates displayed-row Log selection and message semantics,
-Merge save/resolve recovery, shared Commit controls in both layouts, comparison
-intent/content/ownership, and the updated guides and bundled Help. Its Apple
-Silicon build, measured inputs, strict signatures and complete package inventory
-pass. After explicit user approval, the app quit normally and build30 was
-installed and reopened; build27 is preserved for rollback. The later Log streamed-file inspection batch is separate from
-this signed source. Four current native Commit screenshots are integrated in
-the source guides and homepage; the [capture receipt](qa/manual-commit-captures-2026-10-29.json)
-retains the previous failures. These newer images are not in build30’s packaged Help.
-Current signed pointer acceptance and complete hosted integration remain open.
+[Signed build31](qa/signed-consolidation-build31-2026-10-29.json), version
+`0.1.0 (31)`, is installed from clean source `9d5912be`. It includes streamed Log
+file inspection, Merge header activation, DIB color metadata and EMF border fixes,
+and current Commit screenshots in bundled Help. All eight app-owned components
+contain arm64 and x86_64; measured inputs, strict signatures and the complete
+installed inventory pass. The app was already closed at replacement and reopened
+successfully. Build30 is preserved for rollback. Universal structure does not
+establish physical Intel execution, current signed workflow acceptance or a full
+hosted CI pass. No App Store submission was made.
 
 [Build27, version 0.1.0 (27)](qa/signed-consolidation-build27-2026-10-28.json)
 was installed from `3d0cf270` and is now preserved for rollback. Measured

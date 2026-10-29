@@ -152,5 +152,7 @@
   "build_elapsed_seconds": 430.44,
   "excluded_later_work": "The later Log streamed-file inspection and Merge header-activation families are not part of source06e3de29 or this signed installed build.",
   "original_candidate_path": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
-  "preserved_before_next_build": true
+  "preserved_before_next_build": true,
+  "superseded_by": "signed-consolidation-build31-2026-10-29.json",
+  "current_installation": "Replaced by build31; original installation evidence retained."
 }

@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-installed-and-reopened",
+  "build": "0.1.0 (31)",
+  "source_commit": "9d5912bee2716c4bb9a3b40f5e382a4e96f06ba1",
+  "source_input_sha256": "54dc0af10318951d84b7f32ffcf89032abdf6f77a7477f9c50e141217f4e82c7",
+  "source_inputs_unchanged": true,
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "implementation_scope": [
+    "Streamed historical Log file inspection and delivery",
+    "Merge pane header activation ownership",
+    "DIB V4/V5 profile metadata and natural EMF border handling",
+    "Current Classic/staging screenshots and bundled Help"
+  ],
+  "static_validation": {
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6378,
+    "help_source_equal": true,
+    "help_members": 92,
+    "application_sha256": "28023a05e5f93de87af860aa4475c7852fb2eb6de0104b26f6c227153426d767"
+  },
+  "installation": {
+    "source_commit": "9d5912bee2716c4bb9a3b40f5e382a4e96f06ba1",
+    "build": "31",
+    "installed": "/Applications/TurtleGit for Mac.app",
+    "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed31-displaced-installed-2026-10-29.app",
+    "bundle_inventory_matches": true,
+    "bundle_file_count": 6378,
+    "codesign_deep_strict_exit": 0,
+    "application_sha256": "28023a05e5f93de87af860aa4475c7852fb2eb6de0104b26f6c227153426d767",
+    "registration": [
+      {
+        "args": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit": 0,
+        "output": ""
+      },
+      {
+        "args": [
+          "/usr/bin/pluginkit",
+          "-a",
+          "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex"
+        ],
+        "exit": 0,
+        "output": ""
+      },
+      {
+        "args": [
+          "/usr/bin/pluginkit",
+          "-m",
+          "-v",
+          "-i",
+          "org.turtlegit.macos.finder"
+        ],
+        "exit": 0,
+        "output": "+    org.turtlegit.macos.finder(0.1.0)\t7F769D66-89D5-49D1-8B75-3E966F4BCF36\t2026-10-29 10:11:45 +0000\t/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex\n (1 plug-in)\n"
+      }
+    ],
+    "registration_note": "Private candidate was already unregistered; lsregister -u returned -10814. Installed application and extension registration succeeded.",
+    "launch": "reopened",
+    "store_submission": false,
+    "reopened_pid": 11427,
+    "visible_state": "Workspace with recent repositories and no repository selected; no test mutation"
+  },
+  "retained_focused_evidence": [
+    "log-streamed-file-navigation-2026-10-29.json",
+    "merge-header-activation-2026-10-29.json",
+    "metafile-dib-profiles-2026-10-29.json",
+    "manual-commit-captures-2026-10-29.json"
+  ],
+  "limits": [
+    "No complete current hosted CI pass established",
+    "Universal binary structure does not prove execution on physical Intel hardware or minimum macOS",
+    "No new installed workflow, signed-parent helper or physical Finder badge acceptance performed during installation",
+    "No App Store upload or notarization"
+  ],
+  "registration_attempts": [
+    "Unregistering already-unregistered private candidate returned -10814; installed app and extension registration then passed"
+  ],
+  "physical_acceptance": "Reopened application workspace visibly present; no repository modified",
+  "documentation_validation": {
+    "dialog_coverage": "reconciled; generated ledger unchanged",
+    "help_check_attempts": [
+      {
+        "command": "scripts/build-help.py --check",
+        "result": "system Python lacks markdown_it; no output regenerated"
+      },
+      {
+        "command": "build/site-venv/bin/python scripts/build-help.py --check",
+        "result": "pass; 60 documents, 51 topics, 92 files"
+      }
+    ],
+    "diff_check": "pass"
+  }
+}

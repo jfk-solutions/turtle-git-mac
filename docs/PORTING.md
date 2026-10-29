@@ -8,24 +8,24 @@ including navigation, comparisons, document delivery, Copy and file promises.
 Reload binds a retained selected commit's details to the current accepted prefix
 and preserves unchanged file selections at final settlement. The family receipt
 separates native checks from installed-build and physical input acceptance.
-These later changes are not included in signed candidate30.
+These changes are included in signed build31.
 
 ## Current installed checkpoint
 
 The later [DIB metadata family](METAFILE-DIB-PROFILES-PARITY.md) follows measured
 Windows Picture byte-RGB playback for V4/V5 color headers, embedded/linked
 profile metadata and recorded ICM state across raster, brush and direct-band
-image consumers. Its own checkpoint remains separate from installed build30.
+image consumers. It is included in installed build31.
 
-[Signed build30](qa/signed-consolidation-build30-2026-10-29.json) is the newer
-installed Apple Silicon local test build from `06e3de29`, consolidating the recent
-Commit, comparison, Log-selection and Merge recovery work with updated guides and
-bundled Help. Measured inputs, strict signatures and package inventory pass.
-The user authorized normal Quit, installation and reopening of build30; build27
-is preserved for rollback. Four current native Commit screenshots now cover
-Classic and staging in light/dark appearance in the guides and homepage; these
-newer documentation assets are separate from build30’s packaged Help. Later source
-work and physical acceptance remain separate.
+[Signed build31](qa/signed-consolidation-build31-2026-10-29.json), version
+`0.1.0 (31)`, is installed from clean source `9d5912be`. It includes streamed Log
+file inspection, Merge header activation, DIB color metadata and EMF border fixes,
+and current Commit screenshots in bundled Help. All eight app-owned components
+contain arm64 and x86_64; measured inputs, strict signatures and the complete
+installed inventory pass. The app was already closed at replacement and reopened
+successfully. Build30 is preserved for rollback. Universal structure does not
+establish physical Intel execution, current signed workflow acceptance or a full
+hosted CI pass. No App Store submission was made.
 
 [Build27](qa/signed-consolidation-build27-2026-10-28.json), version 0.1.0 (27),
 was installed from `3d0cf270` and is now preserved for rollback. Measured inputs,
