@@ -1924,7 +1924,8 @@ private extension FileComparisonDocument {
     }
     let saveFolderAccess=MergeSaveFolderAccess()
     let newOutputAdd = MergeNewOutputAdd()
-    @Published private(set) var pendingNewOutputAdd: MergeNewOutputReceipt?
+    private var newOutputAddRevision=UUID()
+    @Published private(set) var pendingNewOutputAdd: MergeNewOutputReceipt? {didSet {newOutputAddRevision=UUID()}}
     var canRetryNewOutputAdd: Bool { pendingNewOutputAdd != nil && !mergeToolReadOnly && canBeginOutput }
     private func advanceNewOutputAdd(before: ComparisonFileContent, after: ComparisonFileContent, at url: URL, enabled: Bool) throws {
         if let pending = pendingNewOutputAdd, GitReferenceName.equal(pending.url.path, url.path) {
@@ -1935,9 +1936,13 @@ private extension FileComparisonDocument {
     }
     private func addSavedNewOutput(_ request: OperationCancellation) async throws -> Bool {
         guard let pending = pendingNewOutputAdd else { return true }
+        let revision=newOutputAddRevision,saveWindow=window
         guard let acquired = try await newOutputAdd.perform(pending, repository: repository,
             permissions: [access].compactMap { $0 } + openPermissions, window: window, cancellation: request) else { return false }
-        try ensurePaneSave(request)
+        // Core's index rename is its acceptance boundary. A later Cancel cannot
+        // turn an accepted Add into a failed retry; stale owners still cannot
+        // adopt the result or clear a replacement receipt.
+        guard !retired,paneSave === request,window === saveWindow,newOutputAddRevision==revision else {return false}
         retainPermissions(acquired); pendingNewOutputAdd = nil
         return true
     }
@@ -2162,7 +2167,9 @@ private extension FileComparisonDocument {
                     if autoAdd { if !(try await addSavedNewOutput(request)) { return } }
                     else { pendingNewOutputAdd = nil }
                 }
-                if !retainingViewEdits { rebuildAlignment() }; saved = true
+                // Publication is accepted, but a late cancellation need not
+                // start another presentation/reload operation.
+                if !request.isCancelled,!retainingViewEdits { rebuildAlignment() }; saved = true
             } catch { if !retired && !request.isCancelled { self.error = pendingNewOutputAdd == nil ? error.localizedDescription : "The result is saved, but Git Add did not complete. " + error.localizedDescription } }
         }
     }

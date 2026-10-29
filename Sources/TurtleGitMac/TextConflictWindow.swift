@@ -2089,12 +2089,18 @@ private enum MergeSourceSide {
         try token.check()
     }
     let newOutputAdd=MergeNewOutputAdd()
-    @Published private(set) var pendingNewOutput:MergeNewOutputReceipt?
+    private var newOutputAddRevision=UUID()
+    @Published private(set) var pendingNewOutput:MergeNewOutputReceipt? {didSet {newOutputAddRevision=UUID()}}
     private func addSavedNewOutput(_ receipt:MergeNewOutputReceipt,cancellation:OperationCancellation) async throws {
+        let revision=newOutputAddRevision,generation=loadGeneration,saveWindow=window
         guard let acquired=try await newOutputAdd.perform(receipt,repository:repository,permissions:openPermissions,window:window,cancellation:cancellation) else {
             throw OperationCancellationFailure.cancelled
         }
-        workingMergePermissions.append(contentsOf:acquired)
+        // Adopt accepted index publication without a new cancellation boundary.
+        // The operation, document owner and exact pending intent must be current.
+        guard !retired,loadCancellation === cancellation,window === saveWindow,
+              loadGeneration==generation,newOutputAddRevision==revision else {throw OperationCancellationFailure.cancelled}
+        workingMergePermissions.append(contentsOf:acquired);pendingNewOutput=nil
     }
     func retryNewOutputAdd() {
         guard sourceMutationsAllowed,!confirmingQuit,window?.attachedSheet==nil,let receipt=pendingNewOutput else{return}
@@ -2105,9 +2111,7 @@ private enum MergeSourceSide {
             do {
                 try ensureSave(token)
                 try await addSavedNewOutput(receipt,cancellation:token)
-                try ensureSave(token)
-                pendingNewOutput=nil
-                onChanged("Added saved merged result: " + receipt.url.lastPathComponent)
+                onChanged("Saved merged result: " + receipt.url.lastPathComponent)
             } catch {
                 if !retired {self.error="The merged result was saved, but Git Add did not complete. " + error.localizedDescription}
             }
@@ -2410,16 +2414,16 @@ private enum MergeSourceSide {
                         do {
                             try ensureSave(token)
                             try await addSavedNewOutput(receipt,cancellation:token)
-                            try ensureSave(token)
-                            pendingNewOutput=nil
                         } catch {
                             if !retired {self.error="The merged result was saved, but Git Add did not complete. " + error.localizedDescription}
                             return
                         }
                     }
                 }
-                if markResolved && !choosingRepositoryCopy || closeAfter {close()}
-                else if reloadAfter {try await reloadDocument(filterName:regexFilterName,cancellation:token)}
+                if !token.isCancelled {
+                    if markResolved && !choosingRepositoryCopy || closeAfter {close()}
+                    else if reloadAfter {try await reloadDocument(filterName:regexFilterName,cancellation:token)}
+                }
                 saved=true
             } catch let failure as TextConflictSaveFailure {
                 // Stage may be cancelled after the file was successfully saved.

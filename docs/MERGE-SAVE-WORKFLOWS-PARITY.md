@@ -401,3 +401,14 @@ regression with hidden Compare toolbar dispatch. That older menu runner executes
 System Git only for this case despite accepting two executable arguments; no
 bundled run of that older menu fixture is claimed. Physical menu interaction
 remains separate from these invisible native control checks.
+
+
+## Automatic Add outside repositories and accepted completion — October 29, 2026
+
+[Saved-output discovery and completion](MERGE-AUTOADD-COMPLETION-PARITY.md)
+separates an authorized non-repository result from a sandbox discovery boundary.
+Ordinary new-output saves in plain folders complete without an impossible Git
+root chooser. Known repository and explicit Resolve authority stay separate.
+Both Compare and three-file Merge also adopt a successful index publication
+before honoring late cancellation, with current operation and receipt fences.
+The hosted failure and grouped local scope are retained in that continuation.

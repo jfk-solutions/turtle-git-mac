@@ -48,11 +48,19 @@ with tempfile.TemporaryDirectory(prefix='tg-merge-tool-entry-') as temporary:
 }
 ''')
     receiver = build_receiver(root, sources+[main], folder)
-    env = dict(os.environ, DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0')
+    base_environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+    base_environment.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0')
     for case in args.only or ['comparison', 'three-file', 'launch', 'blame', 'continuity', 'scene', 'reflected']:
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             fixture = folder/(case+str(index)); fixture.mkdir()
-            env['TURTLEGIT_MERGE_ENTRY_CASE'] = case
+            child_root = folder/(case+str(index)+'-environment'); child_root.mkdir(mode=0o700)
+            private_home = child_root/'home'; private_home.mkdir(mode=0o700)
+            private_tmp = child_root/'temporary'; private_tmp.mkdir(mode=0o700)
+            private_xdg = child_root/'xdg'; private_xdg.mkdir(mode=0o700)
+            (private_home/'Library/Preferences').mkdir(parents=True, mode=0o700)
+            env = dict(base_environment, HOME=str(private_home), CFFIXED_USER_HOME=str(private_home),
+                       TMPDIR=str(private_tmp)+'/', XDG_CONFIG_HOME=str(private_xdg),
+                       TURTLEGIT_MERGE_ENTRY_CASE=case)
             print('Checking Merge tool '+case+' with '+str(git), flush=True)
             result = run_receiver([str(receiver), str(fixture), str(git.absolute())], cwd=root, env=env, capture_output=True, text=True)
             print(result.stdout, end=''); print(result.stderr, end=''); result.check_returncode()

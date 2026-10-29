@@ -595,6 +595,13 @@ reviewed result for that attempt. With Mark as resolved, it also stages that fil
 including any conflict markers you explicitly chose to keep. It does not commit
 or continue the merge or rebase.
 
+With **AutoAdd** enabled, an ordinary save of a newly created result adds it to
+its Git repository. A confirmed non-repository folder completes as a plain file
+save. A sandbox grant that stops below the repository root can still require
+repository-folder permission. If automatic Add fails before publication, the
+saved file remains available with **Retry Add**. A cancellation arriving after
+Git has already accepted the index update does not leave a false Retry state.
+
 If saving succeeds but staging fails or is cancelled, your saved file and draft
 remain available in the editor. Correct the reported Git problem and try Mark as
 resolved again; a result with remaining conflicts requires a fresh confirmation.

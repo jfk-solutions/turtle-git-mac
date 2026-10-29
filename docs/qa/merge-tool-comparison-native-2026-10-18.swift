@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
+private extension NSWindow {
+    @objc func mergeToolComparisonQAOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {alphaValue=0;setFrameOrigin(.init(x:-24000,y:-24000));mergeToolComparisonQAOrder(mode,relativeTo:number)}
+}
 enum TwoFileMergeToolVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String)throws { if !value { throw Failure(description:message) } }
@@ -11,13 +15,26 @@ enum TwoFileMergeToolVerification {
     }
     @MainActor static func views(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(views) }
     @MainActor static func verify()async throws {
+        let originalOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hiddenOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.mergeToolComparisonQAOrder(_:relativeTo:)))!
+        method_exchangeImplementations(originalOrder,hiddenOrder);defer{method_exchangeImplementations(originalOrder,hiddenOrder)}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),suite="TurtleGit.MergeToolComparison."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer {prefs.removePersistentDomain(forName:suite)}
         let base=root.appendingPathComponent("tool-base"),mine=root.appendingPathComponent("tool-mine"),output=root.appendingPathComponent("tool-output")
         let baseBytes=Data("base\nunchanged\n".utf8),mineBytes=Data("mine 🐢\nunchanged\n".utf8)
         try baseBytes.write(to:base);try mineBytes.write(to:mine)
-        var owners:[FileComparisonWindowController]=[]
-        defer {for owner in owners {owner.close()}}
+        var owners:[FileComparisonWindowController]=[],replacementOwners:[MergeEditorReplacementOwner]=[]
+        var emptyAnswer:CheckedContinuation<MergeEmptyResult,Never>?
+        func cleanOwners()async throws {
+            emptyAnswer?.resume(returning:.keep);emptyAnswer=nil
+            for replacement in replacementOwners {replacement.current?.close()}
+            for owner in owners {
+                owner.model.cancelPaneSave()
+                if let sheet=owner.window?.attachedSheet {owner.window?.endSheet(sheet,returnCode:.cancel);sheet.orderOut(nil)}
+                owner.model.error=nil;owner.close()
+            }
+            try await wait {owners.allSatisfy{!$0.model.mergeToolHasPendingWork && $0.window?.attachedSheet==nil && $0.window?.isVisible != true} && replacementOwners.allSatisfy{!$0.hasPendingRetiredWork && $0.current==nil}}
+        }
+        do {
         func invocation(_ more:[String])throws->MergeToolInvocation {
             try MergeToolInvocation.parse(arguments:["--merge-tool","--base",base.path,"--mine",mine.path]+more,currentDirectory:root.path)!
         }
@@ -50,8 +67,14 @@ enum TwoFileMergeToolVerification {
         let result=try owner(invocation(["--merged",output.path,"--saverequired"])),model=result.model
         try await wait { !model.busy && !model.filtering && model.document != nil }
         try require(model.dirty && model.activeDirty && model.mergeToolSaveRequired && !model.mergeToolSaved,"Save-required clean result did not participate in close policy")
+        try require(MergeEditorPreferences.load(from:prefs).autoAdd,"Clean required-output fixture lost default AutoAdd=true")
         var completed:Bool?;model.saveAll {completed=$0}
-        try await wait { completed != nil && !model.mergeToolHasPendingWork }
+        do {try await wait { completed != nil && !model.mergeToolHasPendingWork }}
+        catch {
+            let saved=try? Data(contentsOf:output),sheet=result.window?.attachedSheet
+            print("Required output timeout: completed=\(String(describing:completed)) bytes=\(saved?.count ?? -1) prefix=\(saved.map{Array($0.prefix(48))} ?? []) pendingAdd=\(model.pendingNewOutputAdd != nil) busy=\(model.busy) dirty=\(model.dirty) pending=\(model.mergeToolHasPendingWork) sheet=\(sheet.map{String(describing:type(of:$0))+":"+$0.title} ?? "nil") error=\(String((model.error ?? "").prefix(400)))")
+            throw error
+        }
         try require(completed==true && model.mergeToolSaved && !model.dirty && !model.mergeToolSaveRequired && (try Data(contentsOf:output))==mineBytes,"Unchanged required output save failed")
         try require(model.document?.destination.path==mine.path && (try Data(contentsOf:mine))==mineBytes && (try Data(contentsOf:base))==baseBytes,"Merged output rebound or overwrote an input")
         model.updateDraft("edited result\n",base:false);model.rebuildAlignment();try await wait { !model.filtering }
@@ -92,11 +115,11 @@ enum TwoFileMergeToolVerification {
         let cancelled=root.appendingPathComponent("tool-cancelled"),closing=try owner(invocation(["--merged",cancelled.path,"--saverequired"]))
         try await wait {!closing.model.busy && !closing.model.filtering && closing.model.document != nil}
         closing.model.updateDraft("",base:false);closing.model.rebuildAlignment();try await wait {!closing.model.filtering}
-        var answer:CheckedContinuation<MergeEmptyResult,Never>?,closedResult:Bool?
-        closing.model.chooseEmptyResult={_ in await withCheckedContinuation {answer=$0}}
-        closing.model.saveAll {closedResult=$0};try await wait {answer != nil}
+        var closedResult:Bool?
+        closing.model.chooseEmptyResult={_ in await withCheckedContinuation {emptyAnswer=$0}}
+        closing.model.saveAll {closedResult=$0};try await wait {emptyAnswer != nil}
         closing.close();try require(closing.model.mergeToolHasPendingWork,"Closed owner lost held output-work accounting")
-        answer?.resume(returning:.keep);answer=nil
+        emptyAnswer?.resume(returning:.keep);emptyAnswer=nil
         try await wait {closedResult != nil && !closing.model.mergeToolHasPendingWork}
         try require(closedResult==false && !FileManager.default.fileExists(atPath:cancelled.path) && !closing.model.mergeToolSaved,"Retired output callback wrote a result")
         // File/Open adopts the actual current controller before first load.
@@ -107,7 +130,7 @@ enum TwoFileMergeToolVerification {
         try Data("newly opened file\n".utf8).write(to:replacementMine)
         let oldWindow=locked.window!,oldOutput=try Data(contentsOf:output)
         var replacementCloses=0,publishedEditor:NSWindowController=locked,adoptions=0,rejectReplacement=true
-        let replacementOwner=MergeEditorReplacementOwner(onClosed:{replacementCloses+=1})
+        let replacementOwner=MergeEditorReplacementOwner(onClosed:{replacementCloses+=1});replacementOwners.append(replacementOwner)
         defer {replacementOwner.current?.close()}
         locked.sharedReplacementOwner=replacementOwner
         replacementOwner.configureBeforeAdopt={next in
@@ -157,9 +180,9 @@ enum TwoFileMergeToolVerification {
         let patchChild=patchReplacement.model.editor!
         patchReplacement.close();try await wait {!replacementOwner.hasPendingRetiredWork && !patchReplacement.activeOperation && !patchChild.mergeToolHasPendingWork}
         try require(replacementCloses==1 && replacementOwner.current==nil,"Replacement completion did not close current owner once")
-        for value in owners {value.close()}
-        try await wait {owners.allSatisfy{!$0.model.mergeToolHasPendingWork}}
+        try await cleanOwners()
         try require((try Data(contentsOf:base))==baseBytes && (try Data(contentsOf:mine))==mineBytes,"Standalone source inputs changed")
         print("PASS: Merge-tool two-file labels/reflected metadata, source one-way/line, immutable readonly/blame, clean Save-required output, independent Mine, later output edits, changed-target refusal/Reload, held-close cancellation and owned operation drain")
+        } catch {try? await cleanOwners();throw error}
     }
 }

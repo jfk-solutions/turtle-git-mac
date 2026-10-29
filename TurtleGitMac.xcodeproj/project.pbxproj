@@ -12,6 +12,7 @@
 		00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */; };
 		00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */; };
 		014FED72A38374C2E9164870 /* RepositoryBrowserTransferPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443A2A0BA4D3502CBF7EBE98 /* RepositoryBrowserTransferPolicy.swift */; };
+		015F20F0995F4E07380C3352 /* MergeOutputRepositoryDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D667494699ED0BDBC10FB0 /* MergeOutputRepositoryDiscovery.swift */; };
 		018CF5C4CDB7B942B4775411 /* RemoteTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64D6C9E84E73A820367C405 /* RemoteTagWindow.swift */; };
 		0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593DF9B126BBA7E5D206ABE5 /* Checkout.swift */; };
 		01E47522DBF16E94D1B384C9 /* MergeReflectedPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9B499E774DD7EDC33E4AFC6 /* MergeReflectedPatch.swift */; };
@@ -934,6 +935,7 @@
 		9360FE4E1923D5B727AC05FD /* CommitIssueProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitIssueProvider.swift; sourceTree = "<group>"; };
 		94119EBF871C901C8A360D50 /* HistoryFileCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFileCache.swift; sourceTree = "<group>"; };
 		94460BAA2864B3BF68F01264 /* TurtleGitWCRev.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitWCRev.swift; sourceTree = "<group>"; };
+		94D667494699ED0BDBC10FB0 /* MergeOutputRepositoryDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeOutputRepositoryDiscovery.swift; sourceTree = "<group>"; };
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
 		95978CF1E0733DA580F5F3E2 /* FileDropTransferWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDropTransferWindow.swift; sourceTree = "<group>"; };
 		95BD991FB21CB7C18C0CA1DE /* BinaryComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinaryComparisonWindow.swift; sourceTree = "<group>"; };
@@ -1685,6 +1687,7 @@
 				EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */,
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */,
+				94D667494699ED0BDBC10FB0 /* MergeOutputRepositoryDiscovery.swift */,
 				9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */,
 				31E4D36A977C544ECB552B24 /* MergePaneSaveAs.swift */,
 				D9B499E774DD7EDC33E4AFC6 /* MergeReflectedPatch.swift */,
@@ -2356,6 +2359,7 @@
 				3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */,
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				2006DACDA67B90A4E15DCE8A /* MergeMessageHistory.swift in Sources */,
+				015F20F0995F4E07380C3352 /* MergeOutputRepositoryDiscovery.swift in Sources */,
 				153F98E7380923ABB8849622 /* MergePaneInput.swift in Sources */,
 				53C589EB138EEF1AB4FAC39F /* MergePaneSaveAs.swift in Sources */,
 				01E47522DBF16E94D1B384C9 /* MergeReflectedPatch.swift in Sources */,

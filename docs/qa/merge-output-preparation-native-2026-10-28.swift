@@ -290,11 +290,114 @@ private final class MergeOutputBookmarks:RepositoryBookmarkProvider {
             }catch{owner.close();try? await wait("failed comparison owner drain"){!model.mergeToolHasPendingWork};throw error}
         }
     }
+    static func plainFolderOutputs(_ folder:URL,git:URL)async throws {
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let suite="TurtleGit.PlainFolderOutput."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer{prefs.removePersistentDomain(forName:suite)}
+        prefs.set(false,forKey:"TurtleGitMerge.Backup");prefs.set(false,forKey:"UseLibgit2")
+        try require(prefs.object(forKey:"TurtleGitMerge.AutoAdd")==nil && MergeEditorPreferences.load(from:prefs).autoAdd,"Plain-folder fixture did not preserve AutoAdd default true")
+        let inputs=["base.txt","theirs.txt","mine.txt"].map{folder.appendingPathComponent($0)},original=Data("plain source\n".utf8)
+        for file in inputs{try original.write(to:file)}
+        let compareOutput=folder.appendingPathComponent("compare nested/result.txt")
+        let pair=FileComparisonWindowController(comparison:try WorkingFileComparison(base:inputs[0],destination:inputs[2]),permissions:[RepositoryAccessLease(url:folder)],preferences:prefs,deferInitialLoad:true)
+        var merge:TextConflictWindowController?
+        func cleanup()async throws {
+            pair.model.cancelPaneSave();pair.model.error=nil;pair.close()
+            if let merge {merge.model.cancelSaveOperation();merge.model.error=nil;merge.close()}
+            try await wait("plain-folder native owners drain"){!pair.model.mergeToolHasPendingWork && merge?.model.mergeToolHasPendingWork != true && pair.window?.attachedSheet==nil && merge?.window?.attachedSheet==nil}
+        }
+        do {
+            let request=try MergeToolInvocation.parse(arguments:["--base",inputs[0].path,"--mine",inputs[2].path,"--merged",compareOutput.path,"--saverequired"],currentDirectory:folder.path)!
+            try pair.model.configureMergeTool(request);pair.model.editorConfigEnabled=[true:false,false:false]
+            var pairExecutables=0,pairAdds=0
+            pair.model.newOutputAdd.executable={pairExecutables+=1;return git};pair.model.newOutputAdd.requiresScope=false
+            pair.model.newOutputAdd.addOutput={_,_,_ in pairAdds+=1;throw Failure(description:"Plain-folder Compare unexpectedly attempted Git Add")}
+            var pairChoices=0;pair.model.newOutputAdd.chooseRepository={_,_ in pairChoices+=1;return nil}
+            pair.showWindow(nil);pair.model.beginTransferredDocument()
+            try await wait("plain-folder actual Compare ready"){!pair.model.busy && !pair.model.filtering && pair.model.document != nil}
+            var pairSaved:Bool?;pair.model.saveAll{pairSaved=$0}
+            try await wait("plain-folder default AutoAdd Compare Save"){pairSaved != nil && !pair.model.mergeToolHasPendingWork}
+            try require(pairSaved==true && pairChoices==0 && pairExecutables==0 && pairAdds==0 && pair.model.pendingNewOutputAdd==nil && pair.model.error==nil && pair.model.mergeToolSaved && !pair.model.dirty && pair.window?.attachedSheet==nil && (try Data(contentsOf:compareOutput))==original,"Default AutoAdd asked for a repository or left Compare Save pending in proven plain folder")
+            let output=folder.appendingPathComponent("three nested/result.txt")
+            let working=try WorkingTextMerge(base:inputs[0],theirs:inputs[1],mine:inputs[2],merged:output,allowMissingInputs:true)
+            let owner=TextConflictWindowController(repository:GitRepository(root:folder,executable:git,libgit2Configuration:.init(enabled:false)),access:nil,path:output.lastPathComponent,workingMerge:working,permissions:[RepositoryAccessLease(url:folder)],preferences:prefs,deferInitialLoad:true)
+            merge=owner;owner.model.regexDefaults=prefs;owner.model.commentProfileURL=folder.appendingPathComponent("private-comments")
+            var mergeExecutables=0,mergeAdds=0
+            owner.model.newOutputAdd.executable={mergeExecutables+=1;return git};owner.model.newOutputAdd.requiresScope=false
+            owner.model.newOutputAdd.addOutput={_,_,_ in mergeAdds+=1;throw Failure(description:"Plain-folder Merge unexpectedly attempted Git Add")}
+            var mergeChoices=0;owner.model.newOutputAdd.chooseRepository={_,_ in mergeChoices+=1;return nil}
+            let triple=try MergeToolInvocation.parse(arguments:["--base",inputs[0].path,"--theirs",inputs[1].path,"--mine",inputs[2].path,"--merged",output.path],currentDirectory:folder.path)!
+            try owner.model.configureMergeTool(triple);owner.showWindow(nil);owner.model.beginTransferredDocument()
+            try await wait("plain-folder actual three-file Merge ready"){!owner.model.busy && !owner.model.preparing && owner.model.document != nil && owner.model.nativeEditorReady}
+            owner.model.result="plain three-file result\n"
+            var merged:Bool?;owner.model.save(markResolved:false){merged=$0}
+            try await wait("plain-folder default AutoAdd three-file Save"){merged != nil && !owner.model.mergeToolHasPendingWork}
+            try require(merged==true && mergeChoices==0 && mergeExecutables==0 && mergeAdds==0 && owner.model.pendingNewOutput==nil && owner.model.error==nil && !owner.model.dirty && owner.window?.attachedSheet==nil && (try Data(contentsOf:output))==Data("plain three-file result\n".utf8),"Default AutoAdd asked for a repository or left three-file Save pending in proven plain folder")
+            for input in inputs{try require((try Data(contentsOf:input))==original,"Plain-folder Save modified source input")}
+            try require(!FileManager.default.fileExists(atPath:folder.appendingPathComponent(".git").path),"Plain-folder Save initialized a repository")
+            try await cleanup()
+        }catch{try? await cleanup();throw error}
+    }
+    static func acceptedAddLateCancellation(_ folder:URL,git:URL)async throws {
+        for pair in [false,true] {for retry in [false,true] {
+            let c=try await make(folder.appendingPathComponent("\(pair ? "compare":"merge")-\(retry ? "retry":"save")"),git:git,autoAdd:true)
+            var comparison:FileComparisonWindowController?
+            do {
+                let peer="unrelated [keep].txt";try await c.repo.stage([peer])
+                let peerBefore=try await c.repo.run(["ls-files","--stage","-z","--",peer]).stdout,head=try await c.repo.run(["rev-parse","HEAD"]).stdout
+                let peerBytes=try Data(contentsOf:c.root.appendingPathComponent(peer)),inputBytes=try c.inputs.map{try Data(contentsOf:$0)}
+                let expected=Data("accepted Add before late cancellation\n".utf8)
+                var retryInode:NSNumber?
+                if pair {
+                    let owner=FileComparisonWindowController(comparison:try WorkingFileComparison(base:c.inputs[0],destination:c.inputs[2]),permissions:[RepositoryAccessLease(url:c.root)],preferences:c.prefs,deferInitialLoad:true)
+                    comparison=owner;let model=owner.model
+                    let invocation=try MergeToolInvocation.parse(arguments:["--base",c.inputs[0].path,"--mine",c.inputs[2].path,"--merged",c.output.path],currentDirectory:c.root.path)!
+                    try model.configureMergeTool(invocation);model.editorConfigEnabled=[true:false,false:false];model.newOutputAdd.executable={git};model.newOutputAdd.requiresScope=false
+                    owner.showWindow(nil);model.beginTransferredDocument();try await wait("late-cancel Compare ready"){!model.busy && !model.filtering && model.document != nil}
+                    model.editingEnabled=true;model.updateDraft(String(decoding:expected,as:UTF8.self),base:false)
+                    if retry {
+                        model.newOutputAdd.addOutput={_,_,_ in throw Failure(description:"Private prepublication Add failure")}
+                        var first:Bool?;model.save{first=$0};try await wait("Compare initial Add refusal"){first != nil && !model.mergeToolHasPendingWork}
+                        try require(first==false && model.pendingNewOutputAdd != nil && !model.dirty,"Compare retry setup lost saved baseline")
+                        retryInode=try FileManager.default.attributesOfItem(atPath:c.output.path)[.systemFileNumber] as? NSNumber
+                        model.error=nil;try await wait("Compare refusal sheet detached"){owner.window?.attachedSheet==nil}
+                    }
+                    var actualAdds=0;model.newOutputAdd.addOutput={repo,receipt,token in try await repo.addNewMergeOutput(receipt,cancellation:token);actualAdds+=1;token.cancel()}
+                    if retry {model.retryNewOutputAdd()}
+                    else {var done:Bool?;model.save{done=$0};try await wait("Compare accepted Add completion"){done != nil && !model.mergeToolHasPendingWork};try require(done==true,"Late cancellation changed actual successful Compare Add to failed save")}
+                    try await wait("Compare accepted receipt adopted"){!model.busy && !model.filtering && !model.mergeToolHasPendingWork && model.pendingNewOutputAdd==nil}
+                    try require(actualAdds==1 && model.error==nil && model.mergeToolSaved && !model.dirty,"Compare discarded actual Add success after token cancellation")
+                    owner.close();try await wait("late-cancel Compare drains"){!model.mergeToolHasPendingWork}
+                } else {
+                    c.model.result=String(decoding:expected,as:UTF8.self)
+                    if retry {
+                        c.model.newOutputAdd.addOutput={_,_,_ in throw Failure(description:"Private prepublication Add failure")}
+                        try require(!(try await save(c)) && c.model.pendingNewOutput != nil && !c.model.dirty,"Merge retry setup lost saved baseline")
+                        retryInode=try FileManager.default.attributesOfItem(atPath:c.output.path)[.systemFileNumber] as? NSNumber
+                        c.model.error=nil;try await wait("Merge refusal sheet detached"){c.owner.window?.attachedSheet==nil}
+                    }
+                    var actualAdds=0;c.model.newOutputAdd.addOutput={repo,receipt,token in try await repo.addNewMergeOutput(receipt,cancellation:token);actualAdds+=1;token.cancel()}
+                    if retry {c.model.retryNewOutputAdd()}
+                    else {try require(try await save(c),"Late cancellation changed actual successful Merge Add to failed save")}
+                    try await wait("Merge accepted receipt adopted"){!c.model.busy && !c.model.mergeToolHasPendingWork && c.model.pendingNewOutput==nil}
+                    try require(actualAdds==1 && c.model.error==nil && !c.model.dirty,"Merge discarded actual Add success after token cancellation")
+                }
+                let relative=String(c.output.path.dropFirst(c.root.path.count+1)),indexed=try await c.repo.run(["show",":"+relative]).stdout
+                let peerAfter=try await c.repo.run(["ls-files","--stage","-z","--",peer]).stdout,finalHead=try await c.repo.run(["rev-parse","HEAD"]).stdout
+                try require(indexed==expected && (try Data(contentsOf:c.output))==expected && peerAfter==peerBefore && finalHead==head && (try Data(contentsOf:c.root.appendingPathComponent(peer)))==peerBytes,"Late-cancel accepted Add lost output or changed unrelated staged/work/HEAD bytes")
+                if let retryInode {try require((try FileManager.default.attributesOfItem(atPath:c.output.path)[.systemFileNumber] as? NSNumber)==retryInode,"Accepted late-cancel Retry Add rewrote saved file")}
+                for(index,file)in c.inputs.enumerated(){try require((try Data(contentsOf:file))==inputBytes[index],"Late-cancel Add changed source input")}
+                try await c.close()
+            }catch{comparison?.model.cancelPaneSave();comparison?.close();try? await wait("failed late-cancel Compare drain"){comparison?.model.mergeToolHasPendingWork != true};try? await c.close();throw error}
+        }}
+    }
     static func main()async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.mergeOutputOrder(_:relativeTo:)))!
         method_exchangeImplementations(original,hidden);defer{method_exchangeImplementations(original,hidden)}
         let folder=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])
+        try await plainFolderOutputs(folder.appendingPathComponent("plain-folder"),git:git)
+        try await acceptedAddLateCancellation(folder.appendingPathComponent("accepted-late-cancel"),git:git)
         try await outputs(folder.appendingPathComponent("outputs"),git:git)
         try await addFailureAndCancellation(folder.appendingPathComponent("add-recovery"),git:git)
         try await pendingIntentDisposition(folder.appendingPathComponent("pending-disposition"),git:git)

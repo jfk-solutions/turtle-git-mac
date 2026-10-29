@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+## Merge saved-output AutoAdd completion continuation
+
+[Automatic Add discovery and completion](MERGE-AUTOADD-COMPLETION-PARITY.md)
+connects ordinary Compare and three-file Merge saves to explicit no-repository
+versus missing-authority outcomes, accepted index publication and late Cancel
+adoption. The original hosted comparison failure remains recorded; installed
+build33 predates this source batch.
+
 ## Unified Diff basic cursor continuation
 
 [Character and display-line movement](UNIFIED-DIFF-CURSOR-PARITY.md) connects all

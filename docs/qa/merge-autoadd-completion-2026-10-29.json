@@ -1,0 +1,185 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "e73c971963cf184f073d6ff53539b41bee6aaada",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared automatic Add proven-no-repository versus unknown-authority classification",
+    "Default AutoAdd enabled plain-folder Compare/three-file Save completion without Git or chooser",
+    "Current-owner exact-intent adoption after real index publication and late cancellation",
+    "Saved bytes and Retry state across failure/cancel, scoped grants and explicit Resolve"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/MergeOutputRepositoryDiscovery.swift": "1759b4ec6ad6e4f618216aeaf29398a0cb74963c86f8edc1ebc594d5d5e114d6",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "229f099db362ac69acf0789d1c284518919060b97c4ae0e74e2d492037a36e70",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "fe12a9e60ab23b9676d86abb235dfce184144565179c3cde769ce7d8cd920ade",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "8044571ff0c988059ab5990b7f8bfe244450f9bddf477ecf7ee59fb7ea1362ab",
+    "Tests/TurtleGitCoreTests/MergeOutputRepositoryDiscoveryTests.swift": "385771fca12b37510635b826ae02be1732a2679bd09190d605ae8abf4df6a696",
+    "docs/qa/merge-output-preparation-native-2026-10-28.swift": "157ae64e762b1455c4eb346ce70a0da27f571504518731a8ec4633a3b9f43dee",
+    "docs/qa/merge-tool-comparison-native-2026-10-18.swift": "d179782a3550785137fc54d8757562c93d72c095e79f558aa93207c038625c29",
+    "scripts/test-merge-tool-entry.py": "fdd9c767c4002a70a53c5335b3487eb94d2fba76abda640738c68bee49966915"
+  },
+  "hosted_failure": {
+    "run": 40863559740,
+    "job": 123419337716,
+    "source_commit": "59351fd738b67725fe672d83c9f8ac460ce159d8",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40863559740",
+    "conclusion": "failure",
+    "full_core_methods": 3245,
+    "core_skipped": 2,
+    "core_failures": 0,
+    "failed_step": "Standalone Merge tool entry and editor workflows",
+    "failure": "Merge-tool comparison timeout at line54 after saveAll; AutoAdd default true, absent required output and no Git repository caused unhandled repository chooser.",
+    "remote_receiver_reaped": 46130,
+    "current_source_full_hosted_pass": false
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter MergeOutputRepositoryDiscoveryTests",
+    "attempts": [
+      {
+        "log": "build/qa/merge-autoadd-completion-core-2026-10-29.log",
+        "exit": 1,
+        "methods": 7,
+        "passed_methods": 6,
+        "failed_methods": 1,
+        "cause": "Actual Foundation URL ancestor canonicalization reintroduced /var symlink; strict directory guard correctly refused it.",
+        "log_sha256": "a337a1335ef23a6119028d632bb828f7314c48dda0509470acfa2f7780840b26"
+      },
+      {
+        "log": "build/qa/merge-auto-add-core-canonical-recheck-2026-10-29.log",
+        "exit": 0,
+        "methods": 1,
+        "scope": "Previously failed plain-folder method only; first physical realpath repair.",
+        "log_sha256": "898691883aed0b263b834f79f41cc3ab4f4f1ee62a1da134ee19d574aa45c96c"
+      },
+      {
+        "log": "build/qa/merge-auto-add-core-canonical-final-2026-10-29.log",
+        "exit": 0,
+        "methods": 1,
+        "scope": "Same method after transitional DI normalization flag; retained history, not final whole-policy proof.",
+        "log_sha256": "fe469ac54c1aa53bf9fa0700118c7ab8433ae2f275cf2fefe4e3e6a1dbca3760"
+      },
+      {
+        "log": "build/qa/merge-auto-add-core-canonical-unified-recheck-2026-10-29.log",
+        "exit": 0,
+        "methods": 3,
+        "scope": "Final single physical ancestor loop: plain folder, working/linked/bare markers and public real-alias plus physical authority-boundary case. Transitional DI flag removed. Other unchanged error/cancellation/bounded mock cases not repeated.",
+        "log_sha256": "c379eef1b5cadddd480a0e3366788c3a08b1c8e1d22e3431c3a76aab296fc14b"
+      }
+    ],
+    "distinct_methods_passing_cumulatively": 7,
+    "assertions_removed": false,
+    "physical_alias_repair": "Darwin realpath after initial scope admission; raw physical ancestors retain strict lstat and permission checks. Returned identities normalized only after classification.",
+    "production_test_only_normalization_branch": false
+  },
+  "build": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/merge-autoadd-completion-debug-2026-10-29.log",
+    "canonical_repair_incremental_exit": 0,
+    "canonical_repair_incremental_log": "build/qa/merge-autoadd-completion-debug-canonical-recheck-2026-10-29.log",
+    "reason_for_incremental": "Embed final canonical-path Core framework before native checks."
+  },
+  "native": {
+    "planned_groups": [
+      "new-output Save/Add/prepared reload",
+      "standalone comparison/three-file/continuity entry",
+      "saved-output explicit Resolve"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/merge-autoadd-completion-output-native-2026-10-29.log",
+        "exit": 0,
+        "cases": [
+          "expanded new-output Save/AutoAdd and prepared reload family"
+        ],
+        "result": "Default-true plain-folder Compare and three-file Save assert executable0/Add0/chooser0 and exact saved bytes; actual Core index publication followed by token cancellation passes for both Save and Retry in both consumers. Existing failed/canceled Add, captured settings and scoped-root-grant recovery retained.",
+        "log_sha256": "14cc8e8e7f950a368326040d609fa6ab38341db7810aac591930ea7608f3a58d",
+        "pids": [
+          59033,
+          59463
+        ]
+      },
+      {
+        "log": "build/qa/merge-autoadd-completion-entry-native-2026-10-29.log",
+        "exit": 0,
+        "cases": [
+          "original hosted comparison failure",
+          "three-file Merge entry",
+          "three/two/three frame continuity"
+        ],
+        "result": "Original default-true required clean output Save completes with all existing bytes/readonly/replacement/drain assertions, both engines.",
+        "log_sha256": "c1b972a5d18448b2ec0214ae1da03d7c36965e6fff894484a2b6d340a39b0a27",
+        "pids": [
+          59988,
+          60332,
+          60541,
+          60638,
+          60836,
+          60929
+        ]
+      },
+      {
+        "log": "build/qa/merge-autoadd-completion-resolve-native-2026-10-29.log",
+        "exit": 0,
+        "cases": [
+          "saved-output explicit Resolve authority and retry"
+        ],
+        "result": "Explicit authority, root grants, real literal staging, failed/canceled stage and no-rewrite retry retained, both engines.",
+        "log_sha256": "1cb8de6152f94e5a63eb660acbc5dd860157098bdd798261c44cd62ebbc8d529",
+        "pids": [
+          59937,
+          60614
+        ]
+      }
+    ],
+    "all_final_native_first_attempt_passed": true,
+    "owned_receivers_reaped_and_independently_absent": [
+      59033,
+      59463,
+      59988,
+      60332,
+      60541,
+      60638,
+      60836,
+      60929,
+      59937,
+      60614
+    ],
+    "private_repositories_preferences_pasteboards": true,
+    "invisible_offscreen_owned_windows_closed": true,
+    "source_bytes_head_peer_index_and_retry_inode_preserved": true,
+    "real_add_then_cancel_executor": "Dependency injection wraps actual Core addNewMergeOutput, then token.cancel before native continuation; no mocked successful index publication.",
+    "shared_real_app_receiver_cache_reused": true
+  },
+  "generation": {
+    "localization_languages": 38,
+    "localization_keys": 1326,
+    "localization_check_exit": 0,
+    "help_documents": 60,
+    "help_topics": 51,
+    "help_files": 92,
+    "help_check_exit": 0,
+    "coverage_dialogs": 130,
+    "coverage_partial_family_audits": 120,
+    "coverage_pending_family_reviews": 10,
+    "coverage_certified_complete": 0
+  },
+  "installed_app": {
+    "build": "33",
+    "unchanged": true,
+    "main_sha256": "34e80d7aa60744c68c02050128a2a65986ee02885b21b7a803f7f04ea622177b",
+    "finder_registered_path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+    "batch_included": false
+  },
+  "remaining": [
+    "Full hosted integration on repaired release source",
+    "Physical signed repository/output permission sheets and Save/Retry",
+    "Real external caller exit-status acceptance",
+    "Intel/minimum-macOS execution",
+    "Complete Merge and full-port parity"
+  ]
+}
