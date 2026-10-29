@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "authored_date": "2026-10-29",
+  "status": "focused-native-passed-both-engines-signed-delivery-separate",
+  "scope": "Native Log and Rebase message accessibility with reference badge ownership",
+  "fixture": "docs/qa/log-reference-interaction-native-2026-10-18.swift",
+  "runner": "scripts/test-metadata-port-family.py --only references --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+  "validation": {
+    "native": {
+      "exit": 0,
+      "log": "build/qa/log-message-accessibility-native-legacy-2026-10-29.log",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "reaped_pids": [
+        67348,
+        67429
+      ]
+    },
+    "debug": {
+      "exit": 0,
+      "log": "build/qa/log-message-accessibility-debug-lifetime-2026-10-29.log",
+      "failed_attempts": [
+        {
+          "exit": 65,
+          "log": "build/qa/log-message-accessibility-debug-2026-10-29.log",
+          "reason": "NSTextField accessibilityIdentifier override returned optional String; fixed to nonoptional empty fallback."
+        },
+        {
+          "exit": 65,
+          "log": "build/qa/log-message-accessibility-debug-repair-2026-10-29.log",
+          "reason": "First repair addressed label instead of identifier; same identifier override corrected before final build."
+        }
+      ],
+      "contradictory_exit_zero_diagnostics": 1,
+      "previous_success_before_lifetime_repair": {
+        "exit": 0,
+        "log": "build/qa/log-message-accessibility-debug-repair2-2026-10-29.log",
+        "contradictory_exit_zero_diagnostics": 12
+      }
+    },
+    "core": "no Core changes in this native accessibility family",
+    "physical_voiceover_keyboard_pointer": "not established by invisible native receiver",
+    "signed_distribution": "no new signed build/install claimed",
+    "hosted_ci": "no complete hosted pass claimed",
+    "failed_native_attempts": [
+      {
+        "log": "build/qa/log-message-accessibility-native-2026-10-29.log",
+        "phase": "fixture compile",
+        "reason": "Deprecated NSAccessibility global function names; replaced with current Swift AppKit spellings."
+      },
+      {
+        "log": "build/qa/log-message-accessibility-native-repair-2026-10-29.log",
+        "phase": "system native receiver",
+        "reaped_pid": 66975,
+        "reason": "Actual table-tree subject identity assertion failed; production recreated subject during badge painting. Preserve semantic child across paint-only geometry updates, with bounded tree diagnostics retained for focused recheck."
+      },
+      {
+        "log": "build/qa/log-message-accessibility-native-lifetime-2026-10-29.log",
+        "reaped_pid": 67211,
+        "reason": "Diagnostic showed correct stable row text, but walker stopped at actual AppKit legacy row/column AX proxies. Added accessibilityAttributeValue fallback; strict actual-table membership assertions retained."
+      }
+    ],
+    "site_docs": {
+      "exit": 0,
+      "log": "build/qa/log-message-accessibility-site-venv-2026-10-29.log",
+      "earlier_environment_failure": "System Python lacked markdown_it; used existing site environment."
+    }
+  },
+  "isolation": "Private repositories/preferences/pasteboard; alpha-zero native windows; no synthetic mouse dispatch. Existing owner-close and actual worker-drain checks retained.",
+  "limits": [
+    "This verifies connected native accessibility semantics and table selection, not spoken VoiceOver output or physical pointer delivery",
+    "Rebase representation uses a real parsed private cherry-pick plan and duplicate occurrence; no Git replay execution",
+    "No claim that Graph or Blame shared this omission; both already expose ordinary text labels",
+    "Complete Log/Rebase dialog parity and signed/hosted acceptance remain separate"
+  ],
+  "physical_observation": {
+    "build": "27",
+    "source_commit": "3d0cf270c26ae9793a0df2d0c2fede4cccabd771",
+    "scope": "Private three-commit repository; relevant pre-repair LogReferenceDrawing and Settings sources unchanged from observed installed build.",
+    "observed": {
+      "mouse_selects_commit_and_message": true,
+      "down_arrow_selects_commit_message_and_changed_file": true,
+      "visible_subject_absent_from_accessibility_tree": true,
+      "settings_remote_is_native_table": true,
+      "remote_selection_populates_URL": true,
+      "settings_no_edit_cancel_and_OK_close": true
+    },
+    "cleanup": {
+      "HEAD_index_working_file_and_remote_unchanged": true,
+      "owned_log_and_settings_windows_closed": true,
+      "private_recent_permission_and_repository_removed": true,
+      "user_recent_roots_and_no_repository_workspace_restored": true,
+      "user_main_app_retained": true
+    },
+    "limits": "Physical observation predates the new semantics and does not certify current signed binary or VoiceOver speech."
+  },
+  "validated_assertions": [
+    "Actual NSAccessibilityUnignoredChildren table and row trees expose static-text subjects for reference-bearing and plain Log rows, with exact commit identity and native geometry",
+    "Actual native Log row selection updates the selected commit message/files and returns to the reference-bearing row",
+    "Full configured Rebase message, including body, is exposed through actual RebaseReplayTable with distinct duplicate-hash occurrence identities and native selection",
+    "Real Replay provider update retires removed occurrence semantics; hidden message column and retired owners expose no stale text/frame",
+    "Reference paint invalidation preserves unchanged message semantics while retiring old badge geometry/actions",
+    "Existing canonical badge context/copy, busy refusal, refreshed branch-description hover and held-reader cancellation/drain assertions remain"
+  ],
+  "cleanup": {
+    "receiver_pids": [
+      66975,
+      67211,
+      67348,
+      67429
+    ],
+    "all_reaped": true,
+    "scope": "Private native repos/preferences/pasteboard and invisible windows; user-owned installed main preserved."
+  },
+  "sha256": {
+    "Sources/TurtleGitMac/LogReferenceDrawing.swift": "4dd29be8b66112b5e43192dd8bc8188e499b239b3538480bb7d11ecf2122213d",
+    "docs/qa/log-reference-interaction-native-2026-10-18.swift": "51b27bd96f4babc5dc6a0ac0d3cadd3904110e2e752c45b9e029ba5285e6c457"
+  }
+}

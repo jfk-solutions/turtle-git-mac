@@ -95,6 +95,13 @@ struct RebaseReplayTable: NSViewRepresentable {
             if column == 3 {
                 cell.configureReferences(value.labels, value: value.values[column], font: face, preferences: model.columnPreferences)
                 if let field = cell.textField as? LogReferenceTextField {
+                    field.configureAccessibility(message:value.values[column],
+                        identity:"Rebase." + String(describing:ObjectIdentifier(model)) + "." + value.id,
+                        revision:value.hash,label:tableColumn.title) { [weak self,weak tableView] in
+                            guard let self,let tableView,!self.retired,!self.model.retired,self.table === tableView,
+                                self.rows.indices.contains(row),self.rows[row].id==value.id else{return false}
+                            return tableView.tableColumn(withIdentifier:.init("Message"))?.isHidden != true
+                        }
                     field.referenceInteractionAllowed = { [weak self] in self?.available == true }
                     field.tooltipForReference = { $0 }
                     field.onReferenceMenu = { [weak self, weak field] name, point in

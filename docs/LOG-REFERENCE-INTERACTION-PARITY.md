@@ -80,3 +80,51 @@ complete Log visuals, complete localization or whole-app parity.
 
 Actual build/check outcomes and remaining acceptance limits are recorded in the
 [grouped batch evidence](qa/metadata-port-2026-10-18.json).
+
+## Message text alongside reference badges — October 29, 2026
+
+The custom message field previously exposed an accessibility group containing
+only its painted reference buttons. A commit without references consequently
+had no message-text child, and a labeled commit exposed its badges without its
+subject. This was a native semantic omission, separate from the displayed-row
+selection race fixed in `956335f4` and documented in [Log parity](LOG-PARITY.md).
+The selection fix accepts still-current displayed hashes across a pending model
+projection; it does not reinterpret an old row number against newer history.
+
+Log and the Rebase replay table now supply the actual configured message as a
+passive native static-text child alongside the existing reference buttons. The
+value contains the complete configured single-line/full-message presentation,
+including text hidden by visual truncation. It excludes badge padding and
+attachment characters. Reference labels retain their separate canonical values,
+help and existing pointed-menu actions. The text child adds no press action and
+does not take selection or keyboard handling away from the native table.
+
+Semantics carry the owning model and commit identity. Rebase additionally uses
+the replay occurrence identity, so repeated occurrences of the same hash remain
+distinct. Reused fields retire old text and badge children when their semantic
+owner changes. Hidden message columns, removed occurrences, detached or retired
+owners and unavailable visible geometry expose no stale text value or frame.
+The text frame follows the field's clipped native screen geometry. A font or
+reference-paint invalidation retires badge hit rectangles without unnecessarily
+retiring unchanged message text; badge actions still require both current
+semantic ownership and current painted geometry, with the original busy/modal/
+Quit gates.
+
+A prior physical observation of installed build27 showed that mouse and Down-key
+selection could display the selected commit message and changed files while
+history loaded, even though its accessibility tree omitted row subjects. That
+observation establishes neither delivery of this later semantic change nor
+spoken VoiceOver output. In the same limited Settings observation, `origin` was
+present in the native Remote list, and no-edit Cancel and OK closed Settings;
+there is no new Settings repair or general Settings certification in this batch.
+
+The [native semantic checkpoint](qa/log-message-accessibility-2026-10-29.json)
+records the actual parent validation result. Its private fixture covers plain
+and reference-bearing Log rows, native selection/message/files, full Rebase
+messages and duplicate occurrences, provider replacement, hidden/retired owners,
+and retained badge/hover cancellation behavior. Fixture existence is not a
+pass. No Core operation changed for these semantics. Physical VoiceOver speech,
+compositor hit testing, signed delivery of this change, complete hosted CI and
+whole-dialog/whole-port parity remain separate acceptance scope. RefLog and
+Blame use ordinary native text fields, and Revision Graph already has semantic
+nodes; this change does not claim they shared the omitted-text defect.

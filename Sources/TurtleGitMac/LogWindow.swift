@@ -4917,6 +4917,14 @@ struct RevisionTable: NSViewRepresentable {
             else { text.toolTip = entry.subject + "\n" + entry.hash }
             if let referenceField = text as? LogReferenceTextField {
                 let hash = entry.hash, fallback = text.toolTip, historyTable = tableView as? HistoryTableView
+                referenceField.configureAccessibility(message:entry.logLine(fullMessage:model.fullCommitMessageOnLogLine),
+                    identity:"Log." + String(describing:ObjectIdentifier(model)) + "." + (hash.isEmpty ? "working-tree":hash),
+                    revision:hash,label:column?.title ?? NSLocalizedString("Message",comment:"")) { [weak self,weak model,weak tableView] in
+                        guard let self,let model,let tableView,!self.retired,!model.isInvalidated,self.model === model,
+                            self.table === tableView,tableView.window === model.window,
+                            self.renderedEntries.indices.contains(row),self.renderedEntries[row].hash==hash else{return false}
+                        return tableView.tableColumn(withIdentifier:.init("message"))?.isHidden==false
+                    }
                 referenceField.tooltipForReference = { [weak model] name in model?.referenceTooltip(hash: hash, name: name, fallback: fallback) }
                 referenceField.onHoverReference = { [weak model] name in model?.hoverReference(hash: hash, name: name) }
                 referenceField.referenceInteractionAllowed = { [weak model, weak historyTable] in

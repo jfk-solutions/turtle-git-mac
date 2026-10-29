@@ -227,7 +227,6 @@ struct RepositoryWindow: View {
                             Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.buttonStyle(.plain).padding(6).disabled((model.bare && action.requiresWorkingTree) || (action == .mergeAbort && !model.mergeActive))
                         }
                         Spacer()
-                        Text("Native macOS port • In development").font(.caption).foregroundStyle(.secondary)
                     }.padding(12) }.frame(minWidth: 185, idealWidth: 205, maxWidth: 260).disabled(model.busy)
                     VSplitView {
                         VStack(alignment: .leading, spacing: 8) {
