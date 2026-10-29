@@ -8,8 +8,7 @@ GitHub Actions publishing source. Repository name: `jfk-solutions/turtle-git-mac
 The GitHub Pages site has a compact product homepage and a linked user manual,
 with local search and navigation. The homepage uses a neutral blue/gray palette,
 eight light/dark screenshots covering Log, Classic Commit, Git Gui-style Commit
-and editable Unified Diff, alongside planned Mac App Store availability. It has no download
-links. Markdown under `docs/` remains the manual source.
+and editable Unified Diff. It has no download or purchase links. Markdown under `docs/` remains the manual source.
 Build it in a private Python environment:
 
 ```sh
@@ -172,3 +171,20 @@ bytes, dimensions, hashes, the initial precompile launcher repair and the
 portrait-to-landscape patch-only continuation. All owned windows/processes closed;
 the private repository's HEAD, index, configuration and worktree were preserved.
 The signed preview checkpoint records deployment separately.
+
+## Current Commit capture batch
+
+The dated capture runner `scripts/capture-manual-commit-2026-10-29.py` captures
+Classic and Git Gui-style staging in both appearances from a private Harbor
+repository. It uses the current Debug app objects and ScreenCaptureKit's real
+window compositor. Its receipt is
+[the current Commit capture record](qa/manual-commit-captures-2026-10-29.json).
+Earlier setup failures remain in that record; only reviewed successful images
+should replace the public illustrations.
+
+The capture host requires an unlocked Mac session. It briefly displays one
+private demo window at a time for visual review. It preserves the native content, frame aspect ratio and composited
+pixels. Each window is closed before the next capture, and owned workers and
+the receiver must finish before the runner publishes any image. It does not
+close or change the installed application. The receipt distinguishes this
+deliberate visual capture from the earlier rejected offscreen attempts.

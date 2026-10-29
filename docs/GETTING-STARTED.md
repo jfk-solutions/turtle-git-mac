@@ -93,15 +93,15 @@ verification limits.
 
 ## Commit with checked files
 
-Open **Commit** for the current repository. The message sits above the changed
-file list. With **Staging support (EXPERIMENTAL)** off, check the files whose
+Open **Commit** for the current repository. In **Classic**, the message sits
+above the changed-file list. With **Staging support (EXPERIMENTAL)** off, check the files whose
 current whole-file contents you want to commit. Highlighting a row is separate
 from checking it. Category links such as All and None change the checked set.
 Unrelated staged changes are preserved outside the checked-file commit.
 
 **Show Unversioned Files** includes files that Git does not yet track. **Show
-Whole Project** expands a scoped selection to the repository. Double-click a
-file to inspect its diff before committing. **Do not autoselect submodules**
+Whole Project** expands a scoped selection to the repository. In Classic,
+double-click a file to inspect its diff or edit its conflict. **Do not autoselect submodules**
 controls automatic submodule selection in checked-file mode; it is disabled in
 staging mode.
 
@@ -111,9 +111,7 @@ and **Message only**. The commit choice offers **Commit**, **ReCommit** and
 and result before continuing. [Commit parity](COMMIT-PARITY.md) records their
 source comparisons, verification and remaining work.
 
-The Commit window in light appearance:
-
-Choose **Classic** or **Git Gui-style staging** from the compact dropdown at the upper right. TurtleGit remembers your choice.
+The Classic Commit window in light appearance:
 
 ![Commit in light mode: message, author options and checked files](site/assets/mac-commit-classic-light-2026-10-27.png)
 
@@ -150,13 +148,24 @@ offers the corresponding Unstage actions. The working file is preserved.
 
 The alternative workspace commits the Git index, including staged changes outside
 the displayed scope. It shares the classic commit checks and progress workflow.
-Both layouts provide the same branch, issue/provider, author/date, Amend and
-sign-off controls. The **Commit** menu and its commit/message/focus shortcuts
-also work in either layout. File context menus retain Compare, Open, Resolve,
+Both layouts show **Commit to:** and offer **new branch**. Project-configured
+issue fields and issue-provider actions appear in the destination band. The message
+area includes **Amend Last Commit**, **Set author**, **Set author date** with
+separate date/time controls, and **Add Signed-off-by**. Switching layouts retains
+the message, branch name, issue value and author/date choices.
+
+The **Commit** menu works in either layout. Use ⌘⌥M to focus the message and
+⌘⌥F to focus the active file list. File context menus retain Compare, Open, Resolve,
 Revert, ignore, changelist and other commands when the selected files allow them.
 Space stages or unstages the selection in the focused staging list. Changing the
 interface preserves the draft, options and index; switching back restores the
 repository's classic staging preference.
+
+**Compare with base** opens the explicitly selected files even when their
+working contents equal the base. Normally that base is HEAD. While amending,
+**Show diff to last commit** chooses HEAD; turning it off compares against HEAD's
+first parent, or an empty base for a root commit. This changes what you review;
+it does not stage files or create a commit.
 
 ![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-10-27.png)
 
@@ -164,7 +173,7 @@ repository's classic staging preference.
 
 ## Use the staging area
 
-Enable **Staging support (EXPERIMENTAL)** to use the Git index. The same file list
+In Classic, enable **Staging support (EXPERIMENTAL)** to use the Git index. The same file list
 shows unstaged, staged and mixed checkbox states. Mixed means that a file has
 both staged contents and later working-tree changes. Stage/Unstage commands act
 on selected rows; enabling the mode alone does not change the index.
@@ -341,6 +350,16 @@ require file/folder authorization for paths outside the app container.
 For two-file comparisons, choose **Classic** or **P4Merge-style** from the compact
 dropdown at the upper right. The selected layout is remembered; changing it does
 not save either file.
+
+Repository file comparisons use the selected file's actual base and working
+contents. Added files have an empty base; deleted files have an empty destination.
+A file removed only from the index still shows its working contents when it
+remains on disk. Explicitly selected unchanged files remain visible in mixed
+selections.
+
+Submodule comparisons show gitlink revisions: an Added submodule uses the parent
+index's revision, even when its child checkout has advanced. See
+[Submodules and worktrees](DIALOG-GUIDE.md#submodules-and-worktrees).
 
 ![Two-file comparison in light mode with the compact Classic selector](site/assets/mac-compare-compact-light-classic-2026-10-25.png)
 

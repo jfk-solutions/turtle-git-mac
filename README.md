@@ -2,7 +2,7 @@
 
 <img src="docs/site/assets/application-icon.png" alt="TurtleGit application icon" width="96" height="96">
 
-Native Git tools for macOS, inspired by [TortoiseGit](https://tortoisegit.org/).
+A macOS fork of [TortoiseGit](https://tortoisegit.org/), with native Git tools for Mac.
 Browse history, review changes, commit your work and resolve conflicts in native
 Mac windows, with Git commands and status badges in Finder.
 

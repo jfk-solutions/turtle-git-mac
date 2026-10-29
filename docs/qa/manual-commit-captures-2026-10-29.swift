@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import CoreGraphics
 import Darwin
 import ScreenCaptureKit
 import TurtleGitCore
 
-/// Real compositor output: never an alpha-zero NSView bitmap approximation.
+/// Deliberate, brief visual captures of normal native windows, one at a time.
+/// No runtime window adaptation or view-bitmap approximation is used.
 @main struct ManualCommitWindowCapture {
     @MainActor static var owners:[CommitWindowController]=[]
     struct Failure:Error,CustomStringConvertible{let description:String}
@@ -12,23 +14,26 @@ import TurtleGitCore
         for _ in 0..<2500{if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Current Commit capture timeout at line \(line)")
     }
-    @MainActor static func offscreen(_ window:NSWindow,phase:String = "capture")throws {
-        guard NSScreen.screens.allSatisfy({!$0.frame.intersects(window.frame)}) else{throw Failure(description:"Owned capture window intersects user desktop: phase=\(phase), frame=\(window.frame), screens=\(NSScreen.screens.map(\.frame))")}
+    @MainActor static func contained(_ window:NSWindow,on screen:NSScreen)throws {
+        guard screen.visibleFrame.contains(window.frame) else{throw Failure(description:"Owned visual capture exceeds screen: frame=\(window.frame), visibleFrame=\(screen.visibleFrame)")}
+    }
+    @MainActor static func soleVisible(_ window:NSWindow)throws {
+        let visible=NSApp.windows.filter(\.isVisible)
+        guard visible.count==1,visible.first === window,window.attachedSheet==nil else{throw Failure(description:"Visual capture requires exactly one owned visible native window")}
     }
     @MainActor static func png(_ window:NSWindow,_ file:URL)async throws {
         guard #available(macOS 14.4,*)else{throw Failure(description:"ScreenCaptureKit compositor capture unavailable")}
-        window.alphaValue=0
-        window.contentView?.layoutSubtreeIfNeeded()
-        window.setFrameOrigin(.init(x:-12000,y:-12000));try offscreen(window,phase:"before ordering")
-        window.orderFront(nil)
+        guard let screen=NSScreen.main ?? NSScreen.screens.first else{throw Failure(description:"Visible visual-capture screen unavailable")}
+        window.alphaValue=0;window.contentView?.layoutSubtreeIfNeeded()
+        let area=screen.visibleFrame,size=window.frame.size
+        guard size.width<=area.width,size.height<=area.height else{throw Failure(description:"Native capture frame does not fit the deliberate visual-acceptance screen")}
+        window.setFrameOrigin(.init(x:area.midX-size.width/2,y:area.midY-size.height/2));try contained(window,on:screen)
+        window.alphaValue=1;window.orderFront(nil)
         defer{window.orderOut(nil);window.alphaValue=0}
-        // AppKit constrains the initial order to a screen even at alpha zero.
-        // It remains invisible; finish that layout before placing the capture.
-        window.contentView?.layoutSubtreeIfNeeded()
-        window.setFrameOrigin(.init(x:-12000,y:-12000));try offscreen(window,phase:"after transparent ordering before compositor reveal")
-        window.alphaValue=1;window.displayIfNeeded()
+        try contained(window,on:screen);try soleVisible(window)
+        window.contentView?.layoutSubtreeIfNeeded();window.displayIfNeeded()
         try await Task.sleep(nanoseconds:600_000_000)
-        try offscreen(window,phase:"before compositor capture")
+        try contained(window,on:screen);try soleVisible(window)
         let available=try await SCShareableContent.currentProcess
         guard let owned=available.windows.first(where:{$0.windowID==CGWindowID(window.windowNumber)})else{throw Failure(description:"Own compositor window missing")}
         let settings=SCStreamConfiguration();settings.width=Int(window.frame.width*2);settings.height=Int(window.frame.height*2)
@@ -36,7 +41,7 @@ import TurtleGitCore
         let image=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:owned),configuration:settings)
         guard let data=NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])else{throw Failure(description:"Actual native PNG encoding unavailable")}
         try data.write(to:file)
-        print("CAPTURE \(file.lastPathComponent) \(image.width)x\(image.height) windowID=\(window.windowNumber) frame=\(window.frame.width)x\(window.frame.height)");fflush(stdout)
+        print("CAPTURE \(file.lastPathComponent) \(image.width)x\(image.height) windowID=\(window.windowNumber) frame=\(window.frame.width)x\(window.frame.height) deliberate-visible-one-owner");fflush(stdout)
     }
     @MainActor static func drained()->Bool {
         CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activeIssueProviderOperations==0 && CommitWindowModel.activeCommitPreflights==0 && PatchWindowModel.activeOperations==0 && PatchDocumentSession.activeOperations==0
@@ -52,9 +57,16 @@ import TurtleGitCore
         do{try await run();try await clean();print("Captured four real current Commit windows; owned cleanup complete");fflush(stdout)}
         catch{try? await clean();fputs("Current Commit capture failed: \(error)\n",stderr);fflush(stderr);exit(1)}
     }
+    @MainActor static func requireUnlockedSession()throws {
+        guard let session=CGSessionCopyCurrentDictionary() as? [String:Any] else{throw Failure(description:"Screenshots are waiting for an available, unlocked macOS desktop session; no demo repository or window was created.")}
+        let locked=session["CGSSessionScreenIsLocked"] as? NSNumber
+        print("CAPTURE_SESSION available=true screenLocked=\(locked.map{String($0.boolValue)} ?? "unknown")");fflush(stdout)
+        if locked?.boolValue==true {throw Failure(description:"Screenshots are waiting for the macOS screen to be unlocked; no demo repository or window was created.")}
+    }
     @MainActor static func run()async throws {
         NSApp.setActivationPolicy(.accessory)
         print("RECEIVER pid=\(getpid())");fflush(stdout)
+        try requireUnlockedSession()
         let fixture=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true),root=fixture.appendingPathComponent("Harbor"),git=URL(fileURLWithPath:CommandLine.arguments[2])
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo=GitRepository(root:root,executable:git),output=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_PREVIEW_CAPTURE_DIR"] ?? "build/qa/manual-commit-captures-2026-10-29")
@@ -94,9 +106,9 @@ import TurtleGitCore
                 prefs.set(gui,forKey:"TurtleGit.Commit.GitGuiInterface")
                 let owner=CommitWindowController(repository:repo,access:nil,defaults:prefs);owners.append(owner)
                 guard let window=owner.window else{throw Failure(description:"Actual Commit window missing")}
-                window.alphaValue=0;window.appearance=NSAppearance(named:appearance)
+                window.alphaValue=0
+                window.appearance=NSAppearance(named:appearance)
                 window.setContentSize(.init(width:1160,height:840));window.contentView?.layoutSubtreeIfNeeded()
-                window.setFrameOrigin(.init(x:-12000,y:-12000));try offscreen(window,phase:"after initial geometry")
                 owner.model.confirmCancel={$0(true)};owner.model.reload()
                 try await wait{!owner.model.busy && owner.model.hasHead && owner.model.gitGuiInterface==gui && owner.model.nativeIssueProvider != nil && !owner.model.inputsBlocked}
                 owner.model.message="Improve repository status display\n\nKeep familiar colors and original icons in native Mac dialogs."

@@ -16,6 +16,8 @@ source=root/'docs/qa/manual-commit-captures-2026-10-29.swift'
 out=root/'build/qa/manual-commit-captures-2026-10-29'
 out.mkdir(parents=True,exist_ok=True)
 (out/'sources').mkdir(exist_ok=True)
+prior_receipt=root/'docs/qa/manual-commit-captures-2026-10-29.json'
+previous=json.loads(prior_receipt.read_text()) if prior_receipt.exists() else {}
 receiver=build_receiver(root,[source],out/'sources')
 with tempfile.TemporaryDirectory(prefix='turtlegit-commit-manual-') as private:
     context=Path(private).resolve()
@@ -49,13 +51,19 @@ manifest={
     'validation_date':'2026-10-29',
     'scope':'Four current Commit screenshots: Classic and GitGui staging, each light/dark',
     'build':'Current unsigned Debug objects; not installed user app27 or signed build30',
-    'method':'ScreenCaptureKit SCScreenshotManager desktopIndependentWindow for actual offscreen alpha-one native window; original PNG bytes, no view.cacheDisplay or postprocessing',
+    'status':'captured-visual-review-pending',
+    'prior_capture_attempts':previous.get('attempts',previous.get('prior_capture_attempts',[])),
+    'prior_failed_fixture_sha256':previous.get('prior_failed_fixture_sha256',previous.get('fixture_sha256')),
+    'prior_failed_runner_sha256':previous.get('prior_failed_runner_sha256',previous.get('runner_sha256')),
+    'capture_presentation':'Deliberate brief visual acceptance using normal native window class/geometry. Exactly one owned window contained on screen; orderFront without activation or makeKey; compositor capture then immediately orderOut/close. No runtime overrides.',
+    'method':'ScreenCaptureKit SCScreenshotManager desktopIndependentWindow for actual screen-contained alpha-one native window; original PNG bytes, no view.cacheDisplay or postprocessing',
     'repository':'Private offline Harbor demo with staged/unstaged/deleted/unversioned files and changelists; synthetic author, issue catalog/ID and draft',
     'native_presentation':'Production compact DialogTitles preference, actual Compact Commit layout dropdown and colored source icons; 1160x840 content points, compositor retains actual native frame aspect ratio',
     'preserved':'HEAD, index tree, raw index/config and porcelain working status after setup; no Commit/stage/apply/save action during capture',
     'preferences':'Private suite removed; private CFFIXED_USER_HOME/TMPDIR/XDG and explicit global Git config; no user pasteboard or Keychain',
+    'session_preflight':'CGSessionCopyCurrentDictionary refuses a locked desktop before demo Git repository/window creation; an unlocked desktop is required for ScreenCaptureKit.',
     'network':False,
-    'desktop':'Every owned window checked outside all screen frames before/after ordering; no app activation, no user-owned app close/Quit/install',
+    'desktop':'Deliberate visible visual capture, four own windows one at a time; each screen-contained and sole visible receiver window, then immediately hidden/closed. No app activation, no user-owned app close/Quit/install',
     'owned_receiver_pids':pids,'owned_receiver_reaped_independently':True,
     'window_ids':[int(value) for value in re.findall(r'windowID=(\d+)',result.stdout)],
     'fixture_sha256':sha(source),'runner_sha256':sha(Path(__file__)),'receiver_sha256':sha(receiver),

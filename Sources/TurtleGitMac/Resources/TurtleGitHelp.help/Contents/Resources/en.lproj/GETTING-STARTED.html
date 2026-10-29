@@ -74,14 +74,14 @@ other repositories or cause a scan of your Mac. See the
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-REGISTRATION-PARITY.html">registration workflow</a> for scope and current
 verification limits.</p>
 <h2 id="commit-with-checked-files">Commit with checked files</h2>
-<p>Open <strong>Commit</strong> for the current repository. The message sits above the changed
-file list. With <strong>Staging support (EXPERIMENTAL)</strong> off, check the files whose
+<p>Open <strong>Commit</strong> for the current repository. In <strong>Classic</strong>, the message sits
+above the changed-file list. With <strong>Staging support (EXPERIMENTAL)</strong> off, check the files whose
 current whole-file contents you want to commit. Highlighting a row is separate
 from checking it. Category links such as All and None change the checked set.
 Unrelated staged changes are preserved outside the checked-file commit.</p>
 <p><strong>Show Unversioned Files</strong> includes files that Git does not yet track. <strong>Show
-Whole Project</strong> expands a scoped selection to the repository. Double-click a
-file to inspect its diff before committing. <strong>Do not autoselect submodules</strong>
+Whole Project</strong> expands a scoped selection to the repository. In Classic,
+double-click a file to inspect its diff or edit its conflict. <strong>Do not autoselect submodules</strong>
 controls automatic submodule selection in checked-file mode; it is disabled in
 staging mode.</p>
 <p>The dialog includes <strong>Amend Last Commit</strong>, <strong>Set author date</strong>, <strong>Set author</strong>
@@ -89,8 +89,7 @@ and <strong>Message only</strong>. The commit choice offers <strong>Commit</stro
 <strong>Commit &amp; Push</strong>. Options have eligibility rules; inspect the enabled controls
 and result before continuing. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-PARITY.html">Commit parity</a> records their
 source comparisons, verification and remaining work.</p>
-<p>The Commit window in light appearance:</p>
-<p>Choose <strong>Classic</strong> or <strong>Git Gui-style staging</strong> from the compact dropdown at the upper right. TurtleGit remembers your choice.</p>
+<p>The Classic Commit window in light appearance:</p>
 <p><img src="images/43a1ebc091da-mac-commit-classic-light-2026-10-27.png" alt="Commit in light mode: message, author options and checked files" /></p>
 <p>The same window in dark appearance:</p>
 <p><img src="images/442f7399b864-mac-commit-classic-dark-2026-10-27.png" alt="Commit in dark mode with colored status rows and changelists" /></p>
@@ -118,17 +117,26 @@ lines in the patch, then use <strong>Stage lines</strong> or <strong>Stage chunk
 offers the corresponding Unstage actions. The working file is preserved.</p>
 <p>The alternative workspace commits the Git index, including staged changes outside
 the displayed scope. It shares the classic commit checks and progress workflow.
-Both layouts provide the same branch, issue/provider, author/date, Amend and
-sign-off controls. The <strong>Commit</strong> menu and its commit/message/focus shortcuts
-also work in either layout. File context menus retain Compare, Open, Resolve,
+Both layouts show <strong>Commit to:</strong> and offer <strong>new branch</strong>. Project-configured
+issue fields and issue-provider actions appear in the destination band. The message
+area includes <strong>Amend Last Commit</strong>, <strong>Set author</strong>, <strong>Set author date</strong> with
+separate date/time controls, and <strong>Add Signed-off-by</strong>. Switching layouts retains
+the message, branch name, issue value and author/date choices.</p>
+<p>The <strong>Commit</strong> menu works in either layout. Use ⌘⌥M to focus the message and
+⌘⌥F to focus the active file list. File context menus retain Compare, Open, Resolve,
 Revert, ignore, changelist and other commands when the selected files allow them.
 Space stages or unstages the selection in the focused staging list. Changing the
 interface preserves the draft, options and index; switching back restores the
 repository's classic staging preference.</p>
+<p><strong>Compare with base</strong> opens the explicitly selected files even when their
+working contents equal the base. Normally that base is HEAD. While amending,
+<strong>Show diff to last commit</strong> chooses HEAD; turning it off compares against HEAD's
+first parent, or an empty base for a root commit. This changes what you review;
+it does not stage files or create a commit.</p>
 <p><img src="images/4032584c64bd-mac-commit-staging-light-2026-10-27.png" alt="Git Gui-style Commit with unstaged and staged lists and an embedded patch" /></p>
 <p><img src="images/c40dd63a4ad0-mac-commit-staging-dark-2026-10-27.png" alt="Git Gui-style Commit in dark appearance" /></p>
 <h2 id="use-the-staging-area">Use the staging area</h2>
-<p>Enable <strong>Staging support (EXPERIMENTAL)</strong> to use the Git index. The same file list
+<p>In Classic, enable <strong>Staging support (EXPERIMENTAL)</strong> to use the Git index. The same file list
 shows unstaged, staged and mixed checkbox states. Mixed means that a file has
 both staged contents and later working-tree changes. Stage/Unstage commands act
 on selected rows; enabling the mode alone does not change the index.</p>
@@ -285,6 +293,14 @@ require file/folder authorization for paths outside the app container.</p>
 <p>For two-file comparisons, choose <strong>Classic</strong> or <strong>P4Merge-style</strong> from the compact
 dropdown at the upper right. The selected layout is remembered; changing it does
 not save either file.</p>
+<p>Repository file comparisons use the selected file's actual base and working
+contents. Added files have an empty base; deleted files have an empty destination.
+A file removed only from the index still shows its working contents when it
+remains on disk. Explicitly selected unchanged files remain visible in mixed
+selections.</p>
+<p>Submodule comparisons show gitlink revisions: an Added submodule uses the parent
+index's revision, even when its child checkout has advanced. See
+<a href="DIALOG-GUIDE.html#submodules-and-worktrees">Submodules and worktrees</a>.</p>
 <p><img src="images/fcbe4c554065-mac-compare-compact-light-classic-2026-10-25.png" alt="Two-file comparison in light mode with the compact Classic selector" /></p>
 <p><img src="images/2cd34e544b72-mac-compare-compact-dark-p4merge-2026-10-25.png" alt="Two-file comparison in dark mode with the compact P4Merge-style selector" /></p>
 <p>Three-file results start unnamed. <strong>Save</strong> asks for a destination; later Save

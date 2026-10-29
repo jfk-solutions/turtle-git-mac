@@ -48,12 +48,17 @@ answers; completed repository contents remain on disk.</p>
 <a name="topic-workingTree"></a><a name="topic-add"></a><a name="topic-ignore"></a><h2 id="working-tree-and-add">Working Tree and Add</h2>
 <p>Working Tree lists changes and offers the same kinds of status filters as
 TortoiseGit. Show Whole Project expands a file/folder invocation to the repository.
-Show unversioned, ignored, unmodified and staged files as needed. F5 refreshes;
+Use the available filters for unversioned, ignored and staged files. F5 refreshes;
 double-click a file to compare it, or to edit its conflict when it is conflicted.
 The explicit <strong>Compare with base</strong> menu command remains a two-way comparison,
 even for a conflicted file; <strong>Edit conflicts</strong> opens conflict resolution. These
 actions stay with the repository belonging to that dialog. Select rows for
-context-menu actions. Checking files and selecting rows are separate operations.</p>
+context-menu actions. Checking files and selecting rows are separate operations.
+An explicit comparison retains unchanged files in the selection, including a
+file whose staged contents differ while its working contents equal HEAD. Added
+files compare against an empty base; deleted files compare against an empty
+destination. An index-only removal does not hide working contents still on disk.
+Reviewing these comparisons preserves the staged contents and working files.</p>
 <p>Context <strong>Commit…</strong> passes the selected rows; the footer Commit follows the
 invoked scope and Whole Project. For an unversioned or ignored focused row,
 choose <strong>Add</strong>, or hold Shift for <strong>Add as Executable (+x)</strong> / <strong>Add as Symlink</strong>
@@ -83,8 +88,8 @@ email is missing, choose <strong>Yes</strong> to open Git Settings, set the valu
 with <strong>OK</strong>. TurtleGit checks again after Settings closes; <strong>No</strong> abandons this
 Commit request. The Start Commit hook and file/template preparation wait for a
 complete identity. Your captured paths and message presets stay with the request.</p>
-<p>Write the commit message above the changed-file list. In ordinary mode, check the
-files to include. Use the Check links to select categories. Show Unversioned Files
+<p>In Classic, write the commit message above the changed-file list. In ordinary
+mode, check the files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.</p>
 <p>The changed-file list keeps each file and group caption on one line when you
 resize columns. Row height follows the configured file-list font and leaves room
@@ -108,9 +113,16 @@ ordinary double-click Diff action. Space performs the same stage/unstage transfe
 in the focused staging list. Both layouts share file context-menu actions,
 including Compare, Resolve, Open, Revert, ignore and changelist commands as
 applicable. Each menu acts on its captured paths and index/working-tree side.</p>
-<p>Branch, issue/provider, author/date/time, sign-off and Amend controls remain
-available in both layouts. The native <strong>Commit</strong> menu offers the same commit,
-message and focus shortcuts. Git Gui mode keeps its embedded patch controls;
+<p>Both layouts retain the <strong>Commit to:</strong> destination; enable <strong>new branch</strong> to enter
+a branch name. They also provide project-configured issue/provider controls and
+the message's Amend, author,
+date/time and sign-off options. Date and time fields appear when <strong>Set author
+date</strong> is checked; the author identity becomes editable with <strong>Set author</strong>.
+Changing the layout preserves those choices and their draft values.</p>
+<p>The native <strong>Commit</strong> menu offers the same commit, message and focus shortcuts
+in either layout. ⌘⌥M focuses the message and ⌘⌥F focuses the active file list.
+The menu reflects current option values and whether an action is available.
+Git Gui mode keeps its embedded patch controls;
 the separate Classic patch-window and staging-toggle commands are omitted.</p>
 <p>Read-only previews can be cancelled by selecting another file or changing the
 interface. An active hunk write must finish first. An empty selection displays
@@ -142,10 +154,14 @@ at that width. Select text and choose <strong>Split lines</strong> from its cont
 join and reflow the selected lines. Opening an existing message preserves its
 text. Without a configured width, text wraps visually to the editor window.
 The shared Rebase message editor uses the same project policy.</p>
-<p>Amend Last Commit changes the latest commit. Set author date and Set author
-allow explicit attribution. These options rewrite commit metadata; verify them
-before accepting. Message only is available for the corresponding commit flow.</p>
-<p>Staging support (EXPERIMENTAL) enables the index-based workflow. The file list
+<p><strong>Amend Last Commit</strong> changes the latest commit. When HEAD has a parent,
+<strong>Show diff to last commit</strong> compares the working files with HEAD. With it off,
+the list and file comparisons use HEAD's first parent, so unchanged working files
+can still show changes belonging to the commit being amended. A root commit uses
+an empty base. <strong>Set author date</strong> and <strong>Set author</strong> allow explicit attribution;
+verify them before accepting. <strong>Message only</strong> is available for the corresponding
+commit flow.</p>
+<p>In Classic, <strong>Staging support (EXPERIMENTAL)</strong> enables the index-based workflow. The file list
 retains its place; partial staging opens in a separate window to the right.
 Checkboxes update immediately after a whole-file or partial staging action. Status
 labels, colors, groups and line counts retain their loaded values, as in TortoiseGit;
@@ -692,6 +708,12 @@ accept the operation, including across its Skip/Abort decisions. The selected
 libgit2 engine retains its native conflict index and message state. Review any
 conflicts in the working tree and Commit window before creating a commit.</p>
 <a name="topic-submodules"></a><a name="topic-worktrees"></a><h2 id="submodules-and-worktrees">Submodules and worktrees</h2>
+<p>Comparing an Added submodule shows the gitlink staged in the parent repository's
+index, labelled <strong>To (Index)</strong>, even if the child checkout has advanced further.
+Its dirty indication still describes the current child working tree. A Deleted
+submodule compares the historical gitlink with an empty destination. An
+uninitialized checkout may lack commit subjects while retaining its <strong>New
+submodule</strong> or <strong>Delete submodule</strong> state.</p>
 <p>Submodule Add asks for the repository, destination path and optional branch.
 Update works on the selected submodules and offered init/recursive/update choices.
 Large explicit selections run in ordered command batches. Progress retains earlier

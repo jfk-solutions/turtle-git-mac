@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "authored_date": "2026-10-29",
-  "status": "failed-capture-setup-deferred",
+  "status": "deferred-locked-desktop-session",
   "scope": "Planned four current Commit documentation screenshots: Classic and GitGui staging, light and dark",
   "fixture": "docs/qa/manual-commit-captures-2026-10-29.swift",
   "runner": "scripts/capture-manual-commit-2026-10-29.py",
-  "fixture_sha256": "72bf09f28b6136ee2d535501de3864528b20293476c6fe117cb9af9737db3b8e",
-  "runner_sha256": "487ae63ce5e79cc77a03279935432d16d909b423bc3f137773898cc973d99962",
+  "fixture_sha256": "234c3dece8db484d8b76fb982f55ecf4ca91093bd886e5171871ce753b1bce04",
+  "runner_sha256": "623e4cde8c78b2e309503d607e980e3d5440912713f2840942638aec855755fe",
   "attempts": [
     {
       "receiver_pid": 82917,
@@ -28,16 +28,50 @@
       "result": "After transparent ordering, AppKit constrained the requested offscreen origin to (-1120,-757) for a 1160x872 frame, leaving a 40-point screen intersection. Strict setup assertion stopped before alpha-one compositor reveal.",
       "evidence": "build/qa/manual-commit-captures-2026-10-29/failed-8t_58zsy",
       "cleanup": "Runner reaped exact receiver; fixture closed one owned Commit window, reported no visible windows/sheets and actual workers drained."
+    },
+    {
+      "receiver_pid": 85057,
+      "log": "build/qa/docs-current-captures-2026-10-29.log",
+      "result": "SIGABRT before any PNG. Replacing the Swift/KVO window isa with a new dynamic subclass caused SwiftUI NSForwarding / MatchedGeometryScope unrecognized _isStyleMaskEffectivelyTitled: failure. That adaptation has been removed.",
+      "cleanup": "Runner reaped exact receiver. No successful fixture cleanup/drain sentinel: process aborted; do not describe this attempt as graceful owned-window cleanup."
+    },
+    {
+      "receiver_pid": 85334,
+      "log": "build/qa/docs-current-captures-repair-2026-10-29.log",
+      "result": "Actual offscreen compositor capture was reached, but ScreenCaptureKit returned -3811; no PNG accepted or published.",
+      "cleanup": "Runner reaped exact receiver; fixture completed owned-window close and actual worker drain. Unlike85057, this attempt returned through successful fixture cleanup."
+    },
+    {
+      "receiver_pid": 85529,
+      "log": "build/qa/docs-current-visual-captures-2026-10-29.log",
+      "result": "Deliberate visible normal-window compositor attempt also returned ScreenCaptureKit -3811 before any accepted PNG.",
+      "cleanup": "Runner reaped exact receiver; fixture closed one owned Commit window and reported no visible windows/sheets and actual workers drained."
     }
   ],
   "published_assets": [],
   "screenshots_updated": false,
   "existing_images": "No new dated PNGs were produced or copied; historical documentation images remain unchanged by this capture family.",
-  "decision": "Stop this capture-only work for the current batch. Preserve fixture/runner and failure evidence. Future investigation may use an owned capture-window constraint override; no such override was implemented or validated here.",
+  "decision": "Stop all further captures. Keep normal native visible-capture strategy for a later unlocked session; no runtime overrides. Existing images retained honestly; no current screenshots produced or published.",
   "boundaries": [
-    "These failures concern private offscreen capture placement; they do not establish a failure of Commit behavior or a visual parity result.",
-    "The intended ScreenCaptureKit real-window compositor capture was not reached; no alpha-zero view bitmap was substituted.",
-    "Capture attempts used private Harbor repositories/preferences and no user pasteboard, Commit/stage/apply/save action, app Quit or installation.",
-    "No current screenshot, signed build, physical interaction or complete hosted pass is claimed by this receipt."
-  ]
+    "All six attempts failed before an accepted PNG; no alpha-zero bitmap or fabricated image substituted.",
+    "Current screenshots have not been updated; no visual parity acceptance or signed/hosted claim.",
+    "Fourth receiver85057 aborted and did not execute successful fixture cleanup; the other reported cleanup runs and exact runner reaping are recorded individually.",
+    "Capture family used private Harbor demo data and did not Quit, install, or terminate any user-owned app."
+  ],
+  "prior_failed_fixture_sha256": "72bf09f28b6136ee2d535501de3864528b20293476c6fe117cb9af9737db3b8e",
+  "prior_failed_runner_sha256": "487ae63ce5e79cc77a03279935432d16d909b423bc3f137773898cc973d99962",
+  "rejected_adaptation": "Changing the Swift/KVO native window isa is not used after attempt85057.",
+  "rejected_adaptations": [
+    "Swift/KVO window isa replacement: attempt85057 aborted; removed.",
+    "Marker-scoped offscreen constrainFrameRect method adaptation: offscreen compositor attempt85334 returned ScreenCaptureKit -3811; all runtime adaptation removed."
+  ],
+  "capture_presentation": "Normal NSWindow class and geometry. Deliberate brief visual acceptance: four own windows one at a time, centered inside visibleFrame, alpha one/orderFront without activation/makeKey, actual ScreenCaptureKit compositor capture then immediately orderOut and close. Exactly one receiver-owned visible window and native frame containment asserted.",
+  "locked_session_evidence": {
+    "method": "Parent authoritative read-only Swift CGSessionCopyCurrentDictionary query after sixth attempt",
+    "sessionAvailable": true,
+    "screenLocked": true,
+    "onConsole": true,
+    "interpretation": "Locked desktop explains the observed ScreenCaptureKit -3811 failures. Earlier JXA empty-key output was inconclusive and did not establish an unlocked session. Initial placement assertions and the fourth isa crash remain distinct failed causes."
+  },
+  "session_preflight": "Prepared requireUnlockedSession() uses CGSessionCopyCurrentDictionary and throws a clear screenshot-wait error when CGSSessionScreenIsLocked is NSNumber true, before creating the Harbor Git repository or any Commit window. This new guard has not been run."
 }
