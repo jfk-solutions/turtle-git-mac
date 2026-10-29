@@ -115,7 +115,7 @@ enum PatchNavigationCommand:String,CaseIterable,Identifiable,Hashable {
         applyLineSelection(.init(rows:[.init(id:id,anchor:anchor,caret:target)],primarySelectionID:id,rectangular:false))
         scrollRangeToVisible(.init(location:target,length:0))
     }
-    private func navigationSafeOffset(_ position:Int,backwards:Bool)->Int {
+    func navigationSafeOffset(_ position:Int,backwards:Bool)->Int {
         let text=string as NSString;var p=min(text.length,max(0,position))
         if p>0,p<text.length,text.character(at:p-1)==13,text.character(at:p)==10 {p += backwards ? -1:1}
         if p<text.length {let r=text.rangeOfComposedCharacterSequence(at:p);if p != r.location {p=backwards ? r.location:NSMaxRange(r)}}

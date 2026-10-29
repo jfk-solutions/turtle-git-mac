@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+## Unified Diff basic cursor continuation
+
+[Character and display-line movement](UNIFIED-DIFF-CURSOR-PARITY.md) connects all
+eight arrow/Shift-arrow routes, directional stream/rectangle transitions and
+shared desired-column state across line/page navigation. Installed build33
+predates this family; its grouped checkpoint remains separate.
+
 ## Unified Diff temporary zoom continuation
 
 [Temporary zoom and printer magnification](UNIFIED-DIFF-ZOOM-PARITY.md) connect

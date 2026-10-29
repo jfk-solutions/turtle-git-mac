@@ -540,6 +540,13 @@ struct PatchLineEditingCommands: Commands {
                     }
                 }
             }
+            Menu("Cursor") {
+                ForEach(PatchCursorCommand.allCases) {command in
+                    Button {context.performCursorCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}
+                        .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers)
+                        .disabled(!context.cursorCommands.contains(command))
+                }
+            }
             Menu("Zoom") {
                 ForEach(PatchZoomCommand.allCases) {command in
                     Button {context.performZoomCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}

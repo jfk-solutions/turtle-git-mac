@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "f388f3aa65e56108fdeabfc6110b90314907ab6b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "All8 character/display-line arrows and Shift-arrow input with native responder aliases and owned icon menus",
+    "Logical composed-character/CRLF stepping and directional stream/rectangle transitions",
+    "Shared desired-X across short rows, arrows/pages/caret-aware scrolling and direct input reset",
+    "Actual wrapped fragment, BOF/EOF and retained source ownership",
+    "Read-only, IME/native composition handoff, busy/error/sheet/Quit and stale menu refusal"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/PatchCharacterNavigation.swift": "e3ef04a40f82cef984bc76850d9961226cd423ca0afbada01f7a08a8f0546225",
+    "Tests/TurtleGitCoreTests/PatchCharacterNavigationTests.swift": "5a47295c7e45e04662642e961e37e1e73bf1c55acd302725caed02de9f52aa1d",
+    "Sources/TurtleGitMac/PatchCursorCommands.swift": "2d04d0f4261195cab877a4ff56cc126b6ccef733e4392a8dea2f8ffa853e8239",
+    "Sources/TurtleGitMac/PatchNavigationCommands.swift": "ebf7fac0dca2ff194661e230c8ee200b4dde5683f1a54a88a46363668307b192",
+    "Sources/TurtleGitMac/PatchWindow.swift": "99ef9c9f7f0b864011061508512f61ab7a0eae65e46c051216c9a46b6d9a981c",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "66cee9a5978ffdee3e8a7f9f4bfc8e2b4a9382f3b6719f50fc3cedc3505f0724",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "b687a5690886f6c5b0090def8895adccdfcd52f7d68cacb772747be45ce3a29b",
+    "docs/qa/unified-cursor-native-2026-10-29.swift": "5196e432beeedcb37b04ced5f6e008a0517ebe2487760ba8c165a403ee0cade5",
+    "scripts/test-unified-cursor.py": "98091236c1ec505ef46f778f4b08cb11d712ab4cc2a7e419372608b442f68292"
+  },
+  "core": {
+    "initial": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter PatchCharacterNavigationTests",
+      "log": "build/qa/unified-cursor-core-2026-10-29.log",
+      "exit": 1,
+      "methods": 5,
+      "passed_methods": 3,
+      "failed_methods": 2,
+      "failed_assertions": 3,
+      "cause": "Foundation NSString composed-character boundaries split CRLF, producing a forbidden interior caret and subsequent refusal during exact legacy-byte traversal.",
+      "log_sha256": "7bfb6c4ae771fed0b294998f60153828c2d037e16a6362fa343f444b4f87fea0"
+    },
+    "repair": "Explicit CRLF forward/backward branches precede native composed stepping. All original assertions retained.",
+    "focused_recheck": {
+      "filter": "PatchCharacterNavigationTests.testCRLFIsOneStepWhileMixedLineEndingsRetainTheirOwnSteps|PatchCharacterNavigationTests.testOpaqueLegacyDocumentNavigationPreservesExactSnapshot",
+      "log": "build/qa/unified-cursor-core-crlf-recheck-2026-10-29.log",
+      "exit": 0,
+      "methods": 2,
+      "failures": 0,
+      "log_sha256": "37caabd4dde26a4b2b88535c618ccdabefa077c0acf1f69f62f734329891e1f3"
+    },
+    "distinct_methods_passing_cumulatively": 5,
+    "already_passed_methods_repeated": false
+  },
+  "build": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/unified-cursor-debug-2026-10-29.log",
+    "crlf_repair_incremental_exit": 0,
+    "crlf_repair_incremental_log": "build/qa/unified-cursor-debug-crlf-recheck-2026-10-29.log",
+    "reason_for_incremental": "Initial Core framework compiled before CRLF defect was found; incremental app build embeds corrected framework before native validation."
+  },
+  "native": {
+    "planned_groups": [
+      "new basic cursor family, both Git engines",
+      "affected existing word/boundary/document/page navigation, both Git engines"
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/unified-cursor-native-2026-10-29.log",
+        "exit": 0,
+        "pids": [
+          55724,
+          55755
+        ],
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "All8 actual key/menu/selector routes, Unicode and exact bytes, stream/reverse/disjoint/rectangle behavior, wrapped rows, arrows/page/line-scroll desired-X, read-only and ownership passed on first native attempt.",
+        "log_sha256": "1f2cd898c5555b0e6b71f88dd5e4618f9c45ec43e5359c4d6db8fa6e21825676"
+      },
+      {
+        "log": "build/qa/unified-cursor-navigation-2026-10-29.log",
+        "exit": 0,
+        "pids": [
+          55803,
+          55821
+        ],
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "All18 existing navigation routes, source selection transitions, viewport and owner regression passed.",
+        "log_sha256": "6528e633ebc5bf57c97049d605e8615964570568f3b184d3ee465343ba5673f3"
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      55724,
+      55755,
+      55803,
+      55821
+    ],
+    "private_repositories_preferences_pasteboards": true,
+    "invisible_offscreen_owned_windows_closed": true,
+    "bytes_undo_head_index_working_unchanged": true,
+    "cached_real_app_objects_and_imported_frameworks": true,
+    "native_or_fixture_repairs_required": false
+  },
+  "generation": {
+    "localization_languages": 38,
+    "localization_keys": 1326,
+    "localization_check_exit": 0,
+    "unmatched_labels_retain_english_fallback": true,
+    "help_documents": 60,
+    "help_topics": 51,
+    "help_files": 92,
+    "help_check_exit": 0,
+    "coverage_dialogs": 130,
+    "coverage_partial_family_audits": 120,
+    "coverage_pending_family_reviews": 10,
+    "coverage_certified_complete": 0
+  },
+  "installed_app": {
+    "build": "33",
+    "pid": 50246,
+    "unchanged": true,
+    "cursor_batch_included": false
+  },
+  "remaining": [
+    "Physical keyboard, IME and VoiceOver acceptance",
+    "Bidirectional visual rendering and wrapped equivalence beyond measured fragments",
+    "Signed installed cursor execution",
+    "Intel/minimum-macOS execution",
+    "Complete hosted workflow and full UDiff/full-port parity"
+  ]
+}

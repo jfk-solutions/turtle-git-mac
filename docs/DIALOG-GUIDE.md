@@ -978,6 +978,15 @@ selection. Opening a replacement document resets Overtype. See
 [caret editing modes](UNIFIED-DIFF-CARET-PARITY.md) for native Unicode boundaries,
 column-selection behavior and ownership details.
 
+Plain arrow keys and **Shift-Arrows** move or extend the selection through the
+patch text. **Edit → Cursor** and the text context menu provide the same commands.
+Left/Right collapse an existing stream selection at its directional edge before
+moving further. On a rectangular selection, a horizontal arrow first switches
+to a single caret at the rectangle's outer edge. Up/Down move by displayed rows
+and retain the intended column across shorter lines, including subsequent page
+movement. These commands also work in read-only previews and keep source bytes
+unchanged. See [character and line movement](UNIFIED-DIFF-CURSOR-PARITY.md).
+
 **Edit → Navigation** groups Words, Lines and Document, and Pages. Option-Left/Right
 moves by source word classes; add Shift to extend. Command-Left or Home toggles
 between the first non-indentation character and the logical line start.

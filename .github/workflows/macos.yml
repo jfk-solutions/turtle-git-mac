@@ -500,6 +500,8 @@ jobs:
         run: python3 scripts/test-unified-selection-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Verify Unified Diff word, boundary and page navigation
         run: python3 scripts/test-unified-navigation.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Unified Diff character and display-line cursor ownership
+        run: python3 scripts/test-unified-cursor.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff temporary zoom, reflow and base-size printing
         run: python3 scripts/test-unified-zoom.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit staging table presentation and native transfer

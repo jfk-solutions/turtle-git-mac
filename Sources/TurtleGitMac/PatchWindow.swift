@@ -771,6 +771,7 @@ struct PatchTextView: NSViewRepresentable {
             columnSelection?.externalSelectionChanged(); super.mouseDown(with: event)
         }
         override func keyDown(with event: NSEvent) {
+            if let command=PatchCursorCommand.command(for:event),!hasMarkedText() {_ = performCursorCommand(command);return}
             if let command=PatchZoomCommand.command(for:event) {_ = performZoomCommand(command);return}
             if let command=PatchNavigationCommand.command(for:event) {_ = performNavigationCommand(command);return}
             if let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return}
@@ -830,6 +831,18 @@ struct PatchTextView: NSViewRepresentable {
         }
         override func deleteBackward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: true) { super.deleteBackward(sender) } }
         override func deleteForward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: false) { super.deleteForward(sender) } }
+        override func moveLeft(_ sender:Any?) {if hasMarkedText() {super.moveLeft(sender)} else {_ = performCursorCommand(.previousCharacter)}}
+        override func moveBackward(_ sender:Any?) {if hasMarkedText() {super.moveBackward(sender)} else {_ = performCursorCommand(.previousCharacter)}}
+        override func moveRight(_ sender:Any?) {if hasMarkedText() {super.moveRight(sender)} else {_ = performCursorCommand(.nextCharacter)}}
+        override func moveForward(_ sender:Any?) {if hasMarkedText() {super.moveForward(sender)} else {_ = performCursorCommand(.nextCharacter)}}
+        override func moveUp(_ sender:Any?) {if hasMarkedText() {super.moveUp(sender)} else {_ = performCursorCommand(.previousLine)}}
+        override func moveDown(_ sender:Any?) {if hasMarkedText() {super.moveDown(sender)} else {_ = performCursorCommand(.nextLine)}}
+        override func moveLeftAndModifySelection(_ sender:Any?) {if hasMarkedText() {super.moveLeftAndModifySelection(sender)} else {_ = performCursorCommand(.selectPreviousCharacter)}}
+        override func moveBackwardAndModifySelection(_ sender:Any?) {if hasMarkedText() {super.moveBackwardAndModifySelection(sender)} else {_ = performCursorCommand(.selectPreviousCharacter)}}
+        override func moveRightAndModifySelection(_ sender:Any?) {if hasMarkedText() {super.moveRightAndModifySelection(sender)} else {_ = performCursorCommand(.selectNextCharacter)}}
+        override func moveForwardAndModifySelection(_ sender:Any?) {if hasMarkedText() {super.moveForwardAndModifySelection(sender)} else {_ = performCursorCommand(.selectNextCharacter)}}
+        override func moveUpAndModifySelection(_ sender:Any?) {if hasMarkedText() {super.moveUpAndModifySelection(sender)} else {_ = performCursorCommand(.selectPreviousLine)}}
+        override func moveDownAndModifySelection(_ sender:Any?) {if hasMarkedText() {super.moveDownAndModifySelection(sender)} else {_ = performCursorCommand(.selectNextLine)}}
         override func moveWordLeft(_ sender:Any?) {_ = performNavigationCommand(.previousWord)}
         override func moveWordRight(_ sender:Any?) {_ = performNavigationCommand(.nextWord)}
         override func moveWordBackward(_ sender:Any?) {_ = performNavigationCommand(.previousWord)}
@@ -952,6 +965,7 @@ struct PatchTextView: NSViewRepresentable {
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if window?.firstResponder === self,!hasMarkedText(),let command=PatchCursorCommand.command(for:event) {_ = performCursorCommand(command);return true}
             if window?.firstResponder === self,let command=PatchZoomCommand.command(for:event) {_ = performZoomCommand(command);return true}
             if window?.firstResponder === self,let command=PatchNavigationCommand.command(for:event) {_ = performNavigationCommand(command);return true}
             if window?.firstResponder === self,let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return true}
@@ -1053,6 +1067,8 @@ struct PatchTextView: NSViewRepresentable {
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let cursorMenu=NSMenuItem(title:NSLocalizedString("Cursor",comment:"Unified Diff basic cursor menu"),action:nil,keyEquivalent:"")
+            cursorMenu.image=MenuIcon.mergeNextInline.contextImage(defaults:defaults);cursorMenu.submenu=makeCursorCommandMenu();menu.addItem(cursorMenu)
             let zoomMenu=NSMenuItem(title:NSLocalizedString("Zoom",comment:"Unified Diff temporary zoom menu"),action:nil,keyEquivalent:"")
             zoomMenu.image=MenuIcon.imageZoomIn.contextImage(defaults:defaults);zoomMenu.submenu=makeZoomCommandMenu();menu.addItem(zoomMenu)
             let navigationMenu=NSMenuItem(title:NSLocalizedString("Navigation",comment:"Unified Diff navigation menu"),action:nil,keyEquivalent:"")
