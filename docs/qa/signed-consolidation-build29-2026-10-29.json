@@ -80,7 +80,7 @@
   },
   "physical_acceptance": {
     "status": "not-repeated-for-build29",
-    "previous_build27_receipt": "docs/qa/signed-consolidation-build27-2026-10-29.json",
+    "previous_build27_receipt": "docs/qa/signed-consolidation-build27-2026-10-28.json",
     "boundary": "Focused native checks prove the recorded cases. Earlier build27 signed observations do not certify build29 pointer behavior or the complete port."
   },
   "limits": [
