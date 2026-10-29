@@ -2367,6 +2367,14 @@ private enum TransportBatchPresentationContext {
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let resetWindowPresentation {resetWindowPresentation(controller)}else{controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
+    func didResolveSavedMergeOutput(root:URL,path:String) {
+        guard !retired else{return}
+        refreshAfterConflictChange(root)
+        if let current=self.root,GitReferenceName.equal(current.standardizedFileURL.resolvingSymlinksInPath().path,root.standardizedFileURL.resolvingSymlinksInPath().path) {
+            output="Resolved: " + path
+            Task {await self.refresh()}
+        }
+    }
     private func refreshAfterConflictChange(_ root:URL) {
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
             revertWindows.allValues(forKey: root.path).forEach { $0.model.requestReload() }; refreshStatusWindows(root);commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }

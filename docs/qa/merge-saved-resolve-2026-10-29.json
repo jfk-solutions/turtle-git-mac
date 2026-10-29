@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "authored_date": "2026-10-29",
+  "status": "focused-grouped-checkpoint-passed",
+  "scope": "Standalone three-pane and rebound repository-result Save As Mark Resolved",
+  "native_fixture": "docs/qa/merge-saved-resolve-native-2026-10-29.swift",
+  "native_runner": "scripts/test-merge-saved-resolve.py",
+  "isolation": {
+    "repositories_preferences_pasteboards": "private; no general pasteboard access",
+    "windows_and_sheets": "offscreen alpha-zero via owned temporary NSWindow swizzles",
+    "git": "system and bundled executables planned; real private index operations with bounded FIFO wrapper for failure/cancel",
+    "cleanup": "controller close/drain and owned helper absence asserted; outer runner waits owned receiver and cleans private directories"
+  },
+  "validation": {
+    "core": {
+      "status": "passed focused cumulative scope",
+      "distinct_methods": 15,
+      "runs": [
+        {
+          "log": "build/qa/merge-saved-resolve-core-2026-10-29.log",
+          "methods": 14,
+          "seconds": 8.831,
+          "failures": 0,
+          "scope": "8 existing AutoAdd plus 6 new Resolve methods before known-encoding extension"
+        },
+        {
+          "log": "build/qa/merge-saved-resolve-known-encoding-core-2026-10-29.log",
+          "methods": 7,
+          "seconds": 5.972,
+          "failures": 0,
+          "scope": "Affected Resolve methods after encoding repair, including new encoding method; old 8 AutoAdd methods not repeated"
+        }
+      ],
+      "full_core_suite": false
+    },
+    "debug": {
+      "status": "exit 0 on relevant builds",
+      "runs": [
+        {
+          "log": "build/qa/merge-saved-resolve-debug-2026-10-29.log",
+          "exit_zero_diagnostic_entries": 38
+        },
+        {
+          "log": "build/qa/merge-saved-resolve-help-resources-2026-10-29.log",
+          "exit_zero_diagnostic_entries": 0,
+          "source_compile_count": 0
+        },
+        {
+          "log": "build/qa/merge-saved-resolve-refresh-identity-2026-10-29.log",
+          "exit_zero_diagnostic_entries": 2
+        },
+        {
+          "log": "build/qa/merge-saved-resolve-known-encoding-debug-2026-10-29.log",
+          "exit_zero_diagnostic_entries": 4
+        },
+        {
+          "log": "build/qa/merge-saved-resolve-p4-menu-debug-2026-10-29.log",
+          "exit_zero_diagnostic_entries": 5
+        }
+      ],
+      "limit": "Contradictory exit-zero diagnostic entries retained; not a pristine build-log claim."
+    },
+    "native": {
+      "system_git": {
+        "status": "cumulative affected cases passed; no single complete final System run claimed",
+        "runs": [
+          {
+            "log": "build/qa/merge-saved-resolve-native-p4-recheck-2026-10-29.log",
+            "receiver": 63351,
+            "scope": "All non-readonly matrix cases passed; process ended at invalid final readonly fixture setup."
+          },
+          {
+            "log": "build/qa/merge-saved-resolve-readonly-recheck-2026-10-29.log",
+            "receiver": 64291,
+            "exit": 0,
+            "scope": "Only corrected read-only invocation/menu/unchanged target and index case."
+          }
+        ]
+      },
+      "bundled_git": {
+        "status": "complete current matrix passed in one run",
+        "log": "build/qa/merge-saved-resolve-bundled-final-2026-10-29.log",
+        "receiver": 64348,
+        "exit": 0
+      }
+    },
+    "affected_regressions": [
+      {
+        "log": "build/qa/merge-saved-resolve-save-ownership-2026-10-29.log",
+        "receivers": [
+          63952,
+          64017
+        ],
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "exit": 0,
+        "scope": "Actual warning defaults/Cancel, explicit nonstaging Save As, backup/reload/held Close/Quit and retirement ownership."
+      },
+      {
+        "log": "build/qa/merge-saved-resolve-autoadd-regression-2026-10-29.log",
+        "receivers": [
+          64085,
+          64538
+        ],
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "exit": 0,
+        "scope": "Existing connected new-output AutoAdd and prepared reload family after shared authority change."
+      },
+      {
+        "log": "build/qa/merge-saved-resolve-menu-regression-2026-10-29.log",
+        "receivers": [
+          65243
+        ],
+        "engines": [
+          "system"
+        ],
+        "exit": 0,
+        "scope": "Existing native menu owner/epoch/history/field/busy controls plus hidden Compare toolbar main-menu dispatch. Runner hardcodes System for menus despite two --git arguments; bundled menus not run."
+      }
+    ],
+    "resources": {
+      "help": {
+        "files": 92,
+        "bytes": 8725435,
+        "check": "passed"
+      },
+      "localizations": {
+        "locales": 38,
+        "keys": 1325,
+        "check": "passed"
+      },
+      "site_and_coverage": "pending parent checkpoint; no result claimed here"
+    },
+    "physical_keyboard_pointer": "not performed",
+    "signed_distribution": "Current Debug objects only; not included in signed candidate 28; no new signed build or installation",
+    "hosted_ci": "no complete hosted pass claimed",
+    "site_docs": {
+      "exit": 0,
+      "tests": 2,
+      "log": "build/qa/merge-saved-resolve-site-docs-2026-10-29.log"
+    }
+  },
+  "limits": [
+    "Invisible same-process NSMenu/NSAlert control dispatch proves connected native actions, not physical pointer or keyboard delivery",
+    "Private scoped bookmark provider tests authority boundaries and lease ownership; signed sandbox prompts and real Finder invocation remain separate",
+    "This batch extends three-pane saved result Resolve only; does not assert a two-pane Resolve workflow or full upstream dialog completion"
+  ],
+  "affected_existing_native": {
+    "fixture": "docs/qa/merge-save-ownership-native-2026-10-16.swift",
+    "runner": "scripts/test-save-as-targets.py --only ownership --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "scope": "Actual Continue default/Cancel button; ordinary explicit Save As remains nonstaging while bound writable result now permits separate Resolve; all backup/reload/ownership assertions retained",
+    "status": "passed both Git engines; see validation.affected_regressions"
+  },
+  "validation_date": "2026-10-29",
+  "assertions_executed": [
+    "Actual result Mark as resolved menu in Classic and P4; saved tracked, unmerged, initially new and deleted literal Unicode/tab/bracket target",
+    "Repository conflict result Save As and read-only original Save-As-on-Mark bind and resolve chosen output without altering original conflicted file/index",
+    "Unrelated staged/working peer bytes and HEAD retained; all standalone input files unchanged",
+    "Narrow file/output-folder grants cannot authorize upward Git root or external linked-worktree metadata reads; choice cancellation retains clean saved baseline and receipt",
+    "Root/metadata grant retry stages selected saved output without repeating its write; retained root authority reused for linked metadata retry",
+    "Real add failure and cancellation preserve saved baseline/pending receipt and original index; retry requires fresh unresolved warning, uses actual menu and does not repeat successful save",
+    "External output replacement invalidates pending receipt before Add and survives retry unchanged",
+    "Read-only result excludes Mark Resolved; no two-pane workflow extension",
+    "Explicit Windows-1252 result format preserves exact r\u00e9solu newline bytes in file and staged blob; UTF-8 Unicode payload cases remain explicit"
+  ],
+  "product_repairs": [
+    {
+      "scope": "Saved-output encoding",
+      "detail": "Receipt records known selected output encoding, preserving legacy and non-BOM Unicode output instead of requiring insufficient heuristic decoding."
+    },
+    {
+      "scope": "Existing-owner refresh callback",
+      "detail": "Compare canonical filesystem root paths rather than URL directory-hint representation; exact relative UTF-8 path retained."
+    },
+    {
+      "scope": "P4 native main-menu provider",
+      "detail": "Menu state/dispatch is independent of intentionally absent toolbar chrome; toolbar and overflow owner/attachment guards retained across shared Compare/Merge/Patch factories."
+    }
+  ],
+  "failed_attempts": [
+    {
+      "receiver": 61680,
+      "log": "build/qa/merge-saved-resolve-native-2026-10-29.log",
+      "kind": "fixture setup",
+      "detail": "ASCII inputs legitimately selected Windows-1252; Unicode draft encoded before explicit UTF-8 result choice. Corrected through real supported format action; Unicode assertions retained."
+    },
+    {
+      "receiver": 61865,
+      "log": "build/qa/merge-saved-resolve-native-recheck-2026-10-29.log",
+      "kind": "fixture root representation",
+      "detail": "Resolve completed; callback assertion compared URL directory hints."
+    },
+    {
+      "receiver": 61967,
+      "log": "build/qa/merge-saved-resolve-callback-diagnostic-2026-10-29.log",
+      "kind": "confirming diagnostic",
+      "detail": "Canonical root path and exact relative UTF-8 matched, only URL trailing directory slash differed. Fixture corrected filesystem identity; consumer refresh guard repaired separately."
+    },
+    {
+      "receiver": 62794,
+      "log": "build/qa/merge-saved-resolve-native-final-2026-10-29.log",
+      "kind": "actual product defect",
+      "detail": "Classic tracked case passed; P4 main menu Mark disabled because its toolbar was intentionally absent."
+    },
+    {
+      "receiver": 63002,
+      "log": "build/qa/merge-saved-resolve-p4-menu-diagnostic-2026-10-29.log",
+      "kind": "confirming diagnostic",
+      "detail": "P4 admission diagnostics confirmed live model/editor with toolbar-dependent menu refusal; shared provider repaired."
+    },
+    {
+      "receiver": 63351,
+      "log": "build/qa/merge-saved-resolve-native-p4-recheck-2026-10-29.log",
+      "kind": "final fixture setup only",
+      "detail": "All preceding cases passed; last read-only case tried guarded pre-load policy API after load. Corrected to real --readonly invocation before load, skipped disabled format mutation, rechecked only affected System case."
+    }
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "25b61d77f53599ab74a7bc7f4bc07044206b87c91a0234e97dbe8a1f5a721fdb",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "fa0b7758e4a8694c74ed891491bda6d90f0303fd12b4462ee953bc84c4390e44",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "c4fd2544d46d0829fed252aed66cd7994c1a632fa0e7183ca32138bda19420b6",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "30d3d526c564b01257296849bd72a0e1082b08bb54afa8138398075a80785240",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "4dedc62d8277767944287e8f2d0bac8eec13786800892749590b8367c0fe07c0",
+    "docs/qa/merge-saved-resolve-native-2026-10-29.swift": "719c6e2c927beeb8dc9e3d7a9c7dcbd8ae3cedfe9b318a39f97829e17a4ad641",
+    "scripts/test-merge-saved-resolve.py": "098ba50d4cc75bbf23f71e9954871bf1a2fefce6c79c233b40538ef4552796f2",
+    "docs/qa/merge-save-ownership-native-2026-10-16.swift": "795b6bced671fb29d928cc8be3bd0270b68a37b28ff84348f1458290c7e490de",
+    "docs/qa/merge-command-menus-native-2026-10-16.swift": "84ae7110c82463979344577711e94275e26566a27b7d7635887cdf8deb7e48f4"
+  },
+  "cleanup": {
+    "status": "All listed receivers logged reaped by owned runner; controllers close/drain in fixture, canceled stage helper absence checked before retry. No termination of unrelated apps.",
+    "receivers": [
+      61680,
+      61865,
+      61967,
+      62794,
+      63002,
+      63351,
+      64291,
+      64348,
+      63952,
+      64017,
+      64085,
+      64538,
+      65243
+    ]
+  }
+}

@@ -80,13 +80,15 @@ struct MergeSaveOwnershipVerification {
         var completed:Bool?
         model.save(markResolved:false) {completed=$0}
         try await SaveAsTargetsVerification.wait([window]) {window.attachedSheet != nil}
-        try require(window.attachedSheet?.defaultButtonCell?.title=="Cancel" && !owner.windowShouldClose(window),"Unresolved prompt default/owner")
-        window.endSheet(window.attachedSheet!,returnCode:.alertFirstButtonReturn)
+        guard let warning=window.attachedSheet,let content=warning.contentView,
+              let cancel=SaveAsTargetsVerification.descendants(content).compactMap({$0 as? NSButton}).first(where:{$0.title=="Cancel"}) else{throw Failure(description:"Actual unresolved Cancel action missing")}
+        try require(warning.defaultButtonCell?.title=="Continue Resolving" && (warning.defaultButtonCell?.controlView as? NSButton)?.title=="Continue Resolving" && cancel.keyEquivalent=="\u{1b}" && !owner.windowShouldClose(window),"Unresolved prompt default/owner")
+        cancel.performClick(nil)
         try await SaveAsTargetsVerification.wait([window]) {completed != nil && window.attachedSheet==nil}
         try require(completed==false && Data(contentsOf:file)==original,"Unresolved Cancel saved")
         model.encoding = .utf8;model.result="resolved copy 🐢\n";model.chooseStandaloneOutput={_,_ in copy};completed=nil
-        model.save(markResolved:true) {completed=$0};try await SaveAsTargetsVerification.wait([window]) {completed != nil}
-        try require(completed==true && model.mergedResultTarget?.url==copy && !model.repositoryResolutionAllowed && !model.dirty,"Read-only conflict Save As binding/index guard")
+        model.save(markResolved:false,chooseNewOutput:true) {completed=$0};try await SaveAsTargetsVerification.wait([window]) {completed != nil}
+        try require(completed==true && model.mergedResultTarget?.url==copy && model.repositoryResolutionAllowed && !model.dirty,"Read-only conflict Save As binding/index guard")
         try require(try Data(contentsOf:file)==original && Data(contentsOf:folder.appendingPathComponent(".git/index"))==index,"Conflict copy changed original/index")
         model.result="later copy\n";completed=nil;model.save(markResolved:false) {completed=$0}
         try await SaveAsTargetsVerification.wait([window]) {completed != nil}

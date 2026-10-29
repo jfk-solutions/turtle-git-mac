@@ -698,27 +698,47 @@ public struct MergeOutputDirectories: Sendable {
     }
 }
 
-/// A successful new ordinary result owns this receipt even if its later Git Add
-/// fails. Retrying Add validates the exact saved file, without repeating Save.
-/// Save As/source copies must not request a receipt.
-public struct MergeNewOutputReceipt: Sendable {
-    public let url: URL
-    private let target: MergeToolOutputTarget
-    public static func capture(before: ComparisonFileContent, after: ComparisonFileContent, at url: URL) throws -> Self? {
-        guard before.isDeleted, !after.isDeleted else { return nil }
-        guard ["100644", "100755"].contains(after.mode ?? "") else { throw FileComparisonEditFailure.unsupported }
-        let target = try MergeToolOutputTarget(capturing: url)
-        guard !target.content.isDeleted, target.content.bytes == after.bytes, target.content.permissions == after.permissions,
-              target.content.mode == after.mode else { throw FileComparisonEditFailure.changed }
-        return Self(url: target.url, target: target)
+/// An exact successful saved result, independent of where the source panes
+/// came from. Deleted outputs retain an absence receipt. Unresolved is state,
+/// never stored warning consent: every Resolve attempt must authorize it anew.
+public struct MergeSavedOutputReceipt: Sendable {
+    public var url: URL { target.url }
+    public let unresolvedConflicts: Bool
+    fileprivate let target: MergeToolOutputTarget
+    fileprivate let decodedText: String?
+    private let explicitEncoding: ComparisonTextEncoding?
+    public static func capture(after: ComparisonFileContent, at url: URL, encoding: ComparisonTextEncoding? = nil, unresolvedConflicts: Bool = false) throws -> Self {
+        guard after.isDeleted || ["100644", "100755"].contains(after.mode ?? "") else { throw FileComparisonEditFailure.unsupported }
+        let target = try MergeToolOutputTarget(capturing: url, absentPermissions: after.permissions ?? 0o644)
+        guard target.content.isDeleted == after.isDeleted, target.content.bytes == after.bytes,
+              after.isDeleted || target.content.permissions == after.permissions && target.content.mode == after.mode else { throw FileComparisonEditFailure.changed }
+        // A successful editor Save knows its format even when automatic file
+        // detection cannot recognize legacy or BOMless Unicode-only bytes.
+        let decoded = after.isDeleted ? "" : (encoding ?? after.encoding ?? target.content.encoding)?.decode(after.bytes)
+        let unresolved = unresolvedConflicts || decoded.map { MergeText.hasMarkers($0) } == true
+        return Self(unresolvedConflicts: unresolved, target: target, decodedText: decoded, explicitEncoding: encoding)
     }
     public func validate() throws { try target.validate() }
+    public func refreshingSavedOutput(_ after: ComparisonFileContent, encoding: ComparisonTextEncoding? = nil, unresolvedConflicts: Bool = false) throws -> Self {
+        try Self.capture(after: after, at: url, encoding: encoding ?? explicitEncoding, unresolvedConflicts: unresolvedConflicts)
+    }
+}
+
+/// A successful new ordinary result owns this stricter AutoAdd intent even if
+/// Add fails. Save As/source copies must not request this intent.
+public struct MergeNewOutputReceipt: Sendable {
+    public var url: URL { saved.url }
+    fileprivate let saved: MergeSavedOutputReceipt
+    public static func capture(before: ComparisonFileContent, after: ComparisonFileContent, at url: URL) throws -> Self? {
+        guard before.isDeleted, !after.isDeleted else { return nil }
+        return try Self(saved: MergeSavedOutputReceipt.capture(after: after, at: url))
+    }
+    public func validate() throws { try saved.validate() }
     /// Preserve this session's initial-new intent after an accepted same-path
     /// ordinary resave. The caller has already applied the disk CAS receipt.
     public func refreshingSavedOutput(_ after: ComparisonFileContent) throws -> Self? {
         guard !after.isDeleted else { return nil }
-        let absent = ComparisonFileContent(path: url.path, revision: .workingTree, bytes: Data(), mode: after.mode, permissions: after.permissions, isDeleted: true)
-        return try Self.capture(before: absent, after: after, at: url)
+        return try Self(saved: saved.refreshingSavedOutput(after))
     }
 }
 
@@ -733,12 +753,25 @@ extension GitRepository {
     /// Only a caller with an actual authorized repository may invoke this policy.
     /// The literal path packet changes this result's index entry, never its peers.
     public func addNewMergeOutput(_ receipt: MergeNewOutputReceipt, cancellation: OperationCancellation? = nil) throws {
+        try publishSavedMergeOutput(receipt.saved, resolving: false, cancellation: cancellation)
+    }
+    /// Source Resolve /silent force-adds the explicitly saved result, including
+    /// existing conflict stages or deletion. Only the current target is changed;
+    /// authorization and warning consent belong to this single caller attempt.
+    public func resolveSavedMergeOutput(_ receipt: MergeSavedOutputReceipt, allowUnresolvedConflicts: Bool = false, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard receipt.decodedText != nil else { throw FileComparisonEditFailure.encoding }
+        guard allowUnresolvedConflicts || !receipt.unresolvedConflicts else { throw TextConflictFailure.markers }
+        try publishSavedMergeOutput(receipt, resolving: true, cancellation: cancellation)
+    }
+    private func publishSavedMergeOutput(_ receipt: MergeSavedOutputReceipt, resolving: Bool, cancellation: OperationCancellation?) throws {
         try cancellation?.check()
         let prefix = root.standardizedFileURL.path + "/", location = receipt.url.standardizedFileURL.path
         guard location.utf8.starts(with: prefix.utf8), RepositoryAccessLease.pathIsContained(receipt.url, by: root) else { throw FileComparisonEditFailure.unsupported }
         let path = String(location.dropFirst(prefix.count))
         guard !path.isEmpty, !path.split(separator: "/").contains(".git") else { throw FileComparisonEditFailure.unsupported }
         try receipt.validate(); try cancellation?.check()
+        if resolving { _ = try resolveCommandPaths([path], cancellation: cancellation) }
         let snapshot = try captureCommitIndex(cancellation: cancellation)
         let lock = URL(fileURLWithPath: snapshot.location.path + ".lock")
         let descriptor = open(lock.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
@@ -760,14 +793,22 @@ extension GitRepository {
         _ = try run(["-c", "core.splitIndex=false", "update-index", "--no-split-index"], environmentOverrides: environment, cancellation: cancellation)
         let prior = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout
         try receipt.validate()
-        _ = try run(["add", "--pathspec-from-file=-", "--pathspec-file-nul"], environmentOverrides: environment, cancellation: cancellation, input: literalPathPacket([path]))
+        let arguments = ["add"] + (resolving ? ["-f"] : []) + ["--pathspec-from-file=-", "--pathspec-file-nul"]
+        _ = try run(arguments, environmentOverrides: environment, cancellation: cancellation, input: literalPathPacket([path]))
         let prepared = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment, cancellation: cancellation).stdout
-        guard !prepared.isEmpty, prior.isEmpty || prior == prepared else { throw MergeNewOutputFailure.indexChanged }
+        if resolving {
+            guard receipt.target.content.isDeleted ? prepared.isEmpty : !prepared.isEmpty else { throw MergeNewOutputFailure.indexChanged }
+        } else {
+            guard !prepared.isEmpty, prior.isEmpty || prior == prepared else { throw MergeNewOutputFailure.indexChanged }
+        }
         try cancellation?.check(); try receipt.validate()
         guard try commitIndexBytes(at: snapshot.location) == snapshot.bytes else { throw MergeNewOutputFailure.indexChanged }
         // A cancelled Add that actually completed may be retried. An exact
         // existing index entry is already accepted; never rewrite its peers.
-        if prior == prepared { return }
+        if prior == prepared {
+            if resolving { removeSourceMergeFiles(path) }
+            return
+        }
         let bytes = try Data(contentsOf: privateIndex)
         let duplicate = dup(descriptor)
         guard duplicate >= 0 else { throw CocoaError(.fileWriteUnknown) }
@@ -777,7 +818,10 @@ extension GitRepository {
         if let permissions { guard fchmod(descriptor, mode_t(permissions.uint16Value)) == 0 else { throw CocoaError(.fileWriteUnknown) } }
         try cancellation?.check(); try receipt.validate()
         guard try commitIndexBytes(at: snapshot.location) == snapshot.bytes else { throw MergeNewOutputFailure.indexChanged }
-        guard Darwin.rename(lock.path, snapshot.location.path) == 0 else { throw GitFailure(arguments: ["add"], code: 1, message: "Could not publish the new result's Git index entry: " + String(cString: strerror(errno))) }
+        guard Darwin.rename(lock.path, snapshot.location.path) == 0 else { throw GitFailure(arguments: ["add"], code: 1, message: "Could not publish the saved result's Git index entry: " + String(cString: strerror(errno))) }
+        // No cancellation boundary after the atomic index publication. The
+        // successful Resolve must be adopted even if Cancel arrives now.
+        if resolving { removeSourceMergeFiles(path) }
     }
 }
 

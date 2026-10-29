@@ -19,7 +19,8 @@ to ConflictAdded and the result to Conflicted_Ignored. `ViewData.h::SetState`
 changes the state without resetting its hide flag. Thus an ignored common
 conflict retains Hidden while an ignored identical-added change retains Shown.
 The ignored range remains unresolved metadata even when collapsed: Save still
-warns and Mark as resolved remains unavailable. Three pairwise different original
+warns and Mark as resolved requires its own explicit Save Anyway confirmation.
+Collapsing a row never supplies that confirmation. Three pairwise different original
 payloads or three pairwise different endings identify that conflict; differing
 in mixed channels alone does not.
 

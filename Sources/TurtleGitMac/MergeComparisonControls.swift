@@ -965,7 +965,8 @@ enum MergeUnresolvedSaveChoice: Sendable {
 }
 
 /// Saving bytes and authorizing an index change are distinct operations. A
-/// caller keeps its saved baseline and receipt until this owned Add completes.
+/// caller keeps its saved baseline and receipt until this owned Add or Resolve
+/// completes. Both actions use the same bounded repository/metadata authority.
 @MainActor final class MergeNewOutputAdd {
     var requiresScope = GitRuntime.isAppStoreBuild
     var executable: (() throws -> URL)?
@@ -984,34 +985,44 @@ enum MergeUnresolvedSaveChoice: Sendable {
     private func covers(_ root: URL, with permissions: [RepositoryAccessLease]) -> Bool {
         !requiresScope || permissions.contains { $0.hasSecurityScope && $0.contains(root) }
     }
-    private func chooseFolder(_ start: URL, message: String, window: NSWindow?) async -> URL? {
+    private enum Action { case add, resolve }
+    private func chooseFolder(_ start: URL, message: String, window: NSWindow?, action: Action) async -> URL? {
         if let chooseRepository { return await chooseRepository(window, start) }
         guard panel == nil, window?.attachedSheet == nil else { return nil }
         let chooser = NSOpenPanel(); chooser.canChooseFiles = false; chooser.canChooseDirectories = true
         chooser.allowsMultipleSelection = false; chooser.directoryURL = start
-        chooser.title = NSLocalizedString("Add saved file to Git", comment: "")
-        chooser.prompt = NSLocalizedString("Allow Add", comment: ""); chooser.message = message
+        chooser.title = action == .resolve ? NSLocalizedString("Mark saved file as resolved", comment: "") : NSLocalizedString("Add saved file to Git", comment: "")
+        chooser.prompt = action == .resolve ? NSLocalizedString("Allow Resolve", comment: "") : NSLocalizedString("Allow Add", comment: ""); chooser.message = message
         panel = chooser
         let answer = await withCheckedContinuation { continuation in
             if let window, window.isVisible { chooser.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
             else { chooser.begin { continuation.resume(returning: $0) } }
         }
+        while chooser.sheetParent != nil || window?.attachedSheet === chooser {
+            try? await Task.sleep(nanoseconds:5_000_000)
+        }
         panel = nil; return answer == .OK ? chooser.url : nil
     }
-    func perform(_ receipt: MergeNewOutputReceipt, repository: GitRepository? = nil,
-        permissions: [RepositoryAccessLease], window: NSWindow?, cancellation: OperationCancellation) async throws -> [RepositoryAccessLease]? {
+    private func authorize(file: URL, repository: GitRepository?, permissions: [RepositoryAccessLease],
+        window: NSWindow?, action: Action, cancellation: OperationCancellation) async throws -> (GitRepository, [RepositoryAccessLease])? {
         try cancellation.check()
         let effectivePermissions = permissions + retainedPermissions
         let resolved: (GitRepository, [RepositoryAccessLease])
         if let resolveRepository {
-            guard let value = try await resolveRepository(receipt.url, cancellation) else { return nil }
+            guard let value = try await resolveRepository(file, cancellation) else { return nil }
             resolved = value
         } else {
             let git: URL
             if let executable { git = try executable() }
             else if let repository { git = repository.executable }
             else { git = try GitRuntime.executable() }
-            let parent = receipt.url.deletingLastPathComponent(), scoped = requiresScope
+            let askpass:URL?
+            if let repository {askpass=repository.askpass} else {askpass=GitAskpassRuntime.bundled()}
+            func atRoot(_ root: URL) -> GitRepository {
+                GitRepository(root:root, executable:git, askpass:askpass,
+                    diffDetection:repository?.diffDetection ?? .load(), libgit2Configuration:repository?.libgit2Configuration)
+            }
+            let parent = file.deletingLastPathComponent(), scoped = requiresScope
             // Marker discovery stops at the live grant boundary. Do not start
             // Git's upward repository walk with only a narrow output grant.
             let discovered = try await Task.detached {
@@ -1020,20 +1031,20 @@ enum MergeUnresolvedSaveChoice: Sendable {
             }.value
             try cancellation.check()
             if let root = discovered, covers(root, with: effectivePermissions) {
-                resolved = (GitRepository(root: root, executable: git), [])
+                resolved = (atRoot(root), [])
             } else {
                 guard let selected = await chooseFolder(parent,
-                    message: NSLocalizedString("Choose the Git repository folder to add the saved file. The file is already saved.", comment: ""), window: window) else { return nil }
+                    message: action == .resolve ? NSLocalizedString("Choose the Git repository folder to mark the saved file as resolved. The file is already saved.", comment: "") : NSLocalizedString("Choose the Git repository folder to add the saved file. The file is already saved.", comment: ""), window: window, action: action) else { return nil }
                 try cancellation.check()
                 let grant = makeLease(selected)
-                guard covers(selected, with: [grant]), RepositoryAccessLease.pathIsContained(receipt.url, by: selected) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-                resolved = (GitRepository(root: selected, executable: git), [grant])
+                guard covers(selected, with: [grant]), RepositoryAccessLease.pathIsContained(file, by: selected) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                resolved = (atRoot(selected), [grant])
             }
         }
         var held = effectivePermissions + resolved.1, acquired = resolved.1
         defer { withExtendedLifetime(held) {} }
         try cancellation.check()
-        guard covers(resolved.0.root, with: held), RepositoryAccessLease.pathIsContained(receipt.url, by: resolved.0.root) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        guard covers(resolved.0.root, with: held), RepositoryAccessLease.pathIsContained(file, by: resolved.0.root) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         retainedPermissions += resolved.1
         let expectedRoot = resolved.0.root, rootPermissions = held, scoped = requiresScope
         let markedRoot = try await Task.detached {
@@ -1048,7 +1059,7 @@ enum MergeUnresolvedSaveChoice: Sendable {
                     try RepositoryMetadataAccess.next(at: root, permissions: currentPermissions, cancellation: cancellation)
                 }.value
                 guard let needed else { break }
-                guard let selected = await chooseFolder(needed.folder, message: needed.explanation, window: window) else { return nil }
+                guard let selected = await chooseFolder(needed.folder, message: needed.explanation, window: window, action: action) else { return nil }
                 try cancellation.check()
                 let grant = makeLease(selected)
                 guard covers(needed.folder, with: [grant]) else { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -1062,9 +1073,30 @@ enum MergeUnresolvedSaveChoice: Sendable {
         }
         let actual = try await resolved.0.discoverRoot(cancellation: cancellation)
         guard GitReferenceName.equal(actual.resolvingSymlinksInPath().standardizedFileURL.path, resolved.0.root.resolvingSymlinksInPath().standardizedFileURL.path), covers(actual, with: held) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-        try await resolved.0.addNewMergeOutput(receipt, cancellation: cancellation)
-        return acquired
+        try cancellation.check()
+        return (resolved.0, acquired)
     }
+    func perform(_ receipt: MergeNewOutputReceipt, repository: GitRepository? = nil,
+        permissions: [RepositoryAccessLease], window: NSWindow?, cancellation: OperationCancellation) async throws -> [RepositoryAccessLease]? {
+        guard let authorized=try await authorize(file:receipt.url,repository:repository,permissions:permissions,window:window,action:.add,cancellation:cancellation) else {return nil}
+        let held=permissions+retainedPermissions+authorized.1
+        defer {withExtendedLifetime(held) {}}
+        try await authorized.0.addNewMergeOutput(receipt,cancellation:cancellation)
+        return authorized.1
+    }
+    func resolveSaved(_ receipt: MergeSavedOutputReceipt, repository: GitRepository? = nil,
+        permissions: [RepositoryAccessLease], window: NSWindow?, allowUnresolvedConflicts: Bool = false,
+        cancellation: OperationCancellation, validate: (() throws -> Void)? = nil) async throws -> (permissions: [RepositoryAccessLease], repository: GitRepository)? {
+        guard let authorized=try await authorize(file:receipt.url,repository:repository,permissions:permissions,window:window,action:.resolve,cancellation:cancellation) else {return nil}
+        let held=permissions+retainedPermissions+authorized.1
+        defer {withExtendedLifetime(held) {}}
+        try cancellation.check();try validate?()
+        try await authorized.0.resolveSavedMergeOutput(receipt,allowUnresolvedConflicts:allowUnresolvedConflicts,cancellation:cancellation)
+        // The index publication has succeeded. A late Cancel cannot undo it or
+        // turn that accepted result into an apparent failed retry.
+        return (authorized.1,authorized.0)
+    }
+
 }
 
 /// One pane read owns its folder sheet, child process and access leases until

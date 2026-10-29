@@ -408,6 +408,11 @@ import TurtleGitCore
         for model in [repositoryModel,actionRepositoryModel].compactMap({$0}) where !models.contains(where:{$0 === model}) {models.append(model)}
         return models
     }
+    func didResolveSavedMergeOutput(root:URL,path:String) {
+        // Notify only existing owners. A standalone merge must not construct or
+        // open a workspace merely to refresh the repository it actually changed.
+        for model in routingModels {model.didResolveSavedMergeOutput(root:root,path:path)}
+    }
     private func setRoutingQuitConfirmation(_ value:Bool) {for model in routingModels {model.confirmingQuit=value};if !value {showNextActionError()}}
     private func shutdownRoutingModels() async {
         for model in routingModels {model.stopMonitoringForTermination();await model.finderWatches?.shutdown();await model.shutdownFinderPublication()}

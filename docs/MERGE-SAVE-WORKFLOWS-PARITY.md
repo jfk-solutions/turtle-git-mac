@@ -97,7 +97,8 @@ existing regular destination's executable mode.
 Three-pane Save likewise redirects a read-only working result or selected output.
 A repository conflict saved to a different file retains its original worktree and
 index conflict. The new result target gets later Save/Reload, backup, empty-file
-Delete/Keep and recreation behavior; Mark as resolved is disabled for that target.
+Delete/Keep and recreation behavior. Explicit Mark as resolved now stages that
+chosen target through the standalone/rebound workflow described below.
 The window and result caption name the chosen file. Ordinary repository result
 Save As remains a separate copy until a result target has been rebound. This
 distinction follows FileSaveAs versus source-pane SaveFileTo; those commands
@@ -325,9 +326,78 @@ its native action; this does not establish physical keyboard delivery. The build
 passed with 13 recorded exit-zero diagnostic entries. Full hosted, physical and
 signed acceptance remain separate.
 
-An explicit functional gap remains: standalone `WorkingTextMerge` outputs and
-results rebound by Save As still cannot invoke Mark as resolved. Their existing
-`repositoryResolutionAllowed` exclusion needs a separate authorized repository-
-discovery and saved-output resolve workflow. This repository-conflict change does
-not claim complete Mark as resolved parity, signed sheet acceptance, or every
-encoding/filter and physical interaction.
+At that repository-conflict checkpoint, standalone `WorkingTextMerge` outputs
+and results rebound by Save As remained excluded. The connected saved-output
+follow-up below implements that separate authority/resolve route; the earlier
+checkpoint alone did not establish it. Signed sheet acceptance and every
+encoding/filter and physical interaction remain separate.
+
+
+## Standalone three-pane and rebound-result Resolve — October 29, 2026
+
+The pinned writable-bottom-view eligibility also applies to a standalone merge
+result; it is not restricted to the original repository conflict window. Native
+three-pane results now offer Mark as resolved for standalone `WorkingTextMerge`
+outputs and saved result copies. Read-only/blame and patch-result restrictions
+remain. Two-pane Compare has no merged bottom view and is not made eligible.
+
+An attempt first obtains its own unresolved-conflict affirmation, saves the
+actual output, and accepts that saved baseline. It then captures an exact regular
+or deleted output receipt and obtains authority for that file's actual Git
+repository and any required linked metadata/object folders. The standalone
+window's initial Mine-parent repository placeholder never grants staging
+authority. A read-only original conflict redirected through Save As follows this
+same route in the original Mark as resolved attempt, rather than becoming a
+save-only operation. Selected copies capture their file identity and destination
+hierarchy before the folder permission question.
+
+The saved-file Resolve operation uses force-Add semantics separately from the
+new-output AutoAdd policy. Saved bytes, mode, inode and relevant index state are
+checked, unrelated staged entries are preserved, and publication is atomic.
+Affirmation remains a per-attempt argument, including ignored-conflict state;
+the receipt stores unresolved state without storing consent. Successful callbacks
+report the actual repository root and relative output path, refreshing only
+existing application owners without opening a workspace for a standalone tool.
+
+An authority refusal, stage failure or cancellation keeps the saved editor open
+with a distinct pending Resolve receipt and compact Retry Resolve control.
+Unchanged clean retries—including the regular Mark as resolved action—validate
+that receipt, request a fresh warning when needed, and do not save the file again.
+Unsaved edits must be saved first; an accepted same-output resave advances the
+receipt without automatically resolving. Result Save As rebinding retires the
+old pending intent; saving another source pane does not retarget it. Repeated
+commands, changed drafts, replaced owners and late callbacks cannot stage or
+close a different attempt. Actual successful index publication remains success
+even if cancellation arrives afterward. Deferred result EditorConfig preparation
+cannot compete with the repository-authority sheet.
+
+The [focused checkpoint](qa/merge-saved-resolve-2026-10-29.json) passed 15
+distinct Core methods cumulatively, the connected System Git native cases across
+the retained main run and corrected read-only recheck, and the complete current
+matrix in one bundled Git run. It also passed affected Save As ownership and
+AutoAdd checks with both engines. The receipt preserves each failed attempt and
+separates fixture setup corrections from the encoding, callback identity and P4
+provider repairs. This verifies current Debug objects, not signed candidate 28,
+physical permission panels, every merge-tool layout or whole-port parity.
+
+### Main-menu commands with P4 toolbar chrome removed
+
+The first saved-output native checkpoint exposed a real P4 command-provider
+issue: main-menu Save/Resolve and related commands reused a toolbar accessor and
+dispatcher that required an attached, visible native toolbar. P4 intentionally
+removes that chrome, while the editor and its main-menu commands remain live.
+The menu therefore disabled Mark as resolved before its actual Save/Resolve
+operation could begin; the P4 case is retained rather than excluded.
+
+Compare, three-pane Merge and Patch main-menu factories now use the owning
+provider's current model state independently of toolbar presentation. Native
+menu attachment, active-window/epoch receipts, live owner/readiness checks and
+per-command admission still apply. Physical toolbar and overflow controls retain
+their original visibility/attachment requirements; a retained hidden toolbar
+item does not gain authority from this change. The same
+[checkpoint](qa/merge-saved-resolve-2026-10-29.json) exercised actual P4 Save and
+Mark as resolved, Save As availability, and the existing native menu ownership
+regression with hidden Compare toolbar dispatch. That older menu runner executes
+System Git only for this case despite accepting two executable arguments; no
+bundled run of that older menu fixture is claimed. Physical menu interaction
+remains separate from these invisible native control checks.

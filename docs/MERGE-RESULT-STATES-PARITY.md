@@ -243,10 +243,10 @@ or resolution metadata is serialized into files or the index. Reload reconstruct
 it from source comparison and remaps into a retained result snapshot.
 
 Save warns while ignored conflicts remain; its warning participates in the
-existing operation/Quit guard. Mark as resolved is unavailable until all conflicts
-are resolved. The Core save route also requires an explicit acknowledgement for
-a document with ignored conflicts before staging; choosing comparison options
-alone cannot silently stage Mine. Source Save As retains captured original source
+existing operation/Quit guard. Mark as resolved offers the same owned warning;
+only explicit, current-attempt Save Anyway consent can stage a result whose
+conflicts remain. The Core routes retain default refusal and separate unresolved
+state from consent. Choosing comparison options alone cannot silently stage Mine. Source Save As retains captured original source
 bytes; result Save As includes the unresolved-conflict warning.
 
 [Grouped evidence](qa/merge-ignored-2026-10-15.json) records the source conditions,

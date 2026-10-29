@@ -207,6 +207,17 @@ struct MergeToolbarState {
         guard !retired, window?.toolbar === toolbar, visible(), states(command)?.enabled == true else { return }
         action(command); refresh()
     }
+    // The main menu owns its own window/epoch receipt. P4 presentation removes
+    // native toolbar chrome without retiring that editor's command provider.
+    // Toolbar items and overflow continue through the stricter methods above.
+    fileprivate func menuCommandState(_ command:MergeToolbarCommand)->MergeToolbarState? {
+        guard !retired,window != nil else{return nil}
+        return states(command)
+    }
+    fileprivate func performMenuCommand(_ command:MergeToolbarCommand) {
+        guard !retired,window != nil,states(command)?.enabled==true else{return}
+        action(command);refresh()
+    }
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
         guard !retired, window?.toolbar === toolbar, visible(), let command = command(item.itemIdentifier) else { return false }
         return states(command)?.enabled == true
@@ -844,7 +855,7 @@ extension MergeEditorCommandMenu {
                 guard let model else { return nil };let enabled = ready(),document = enabled && model.alignment != nil
                 switch command {
                 case .toolbar(let value):
-                    guard let state = bar?.commandState(value) else { return nil }
+                    guard let state = bar?.menuCommandState(value) else { return nil }
                     return .init(enabled:enabled && state.enabled,checked:state.checked)
                 case .viewport:return .init(enabled:document && model.canScrollViewport)
                 case .saveAs:return .init(enabled:enabled && model.canSavePaneAs)
@@ -878,7 +889,7 @@ extension MergeEditorCommandMenu {
             },action:{ [weak owner,weak model,weak bar,weak window] command in
                 guard let model,ready() else { return }
                 switch command {
-                case .toolbar(let value):bar?.perform(value)
+                case .toolbar(let value):bar?.performMenuCommand(value)
                 case .viewport(let direction):model.scrollViewport(direction)
                 case .saveAs:model.saveAs(base:model.activeBase)
                 case .enableEdit:model.editingEnabled.toggle()
@@ -932,7 +943,7 @@ extension MergeEditorCommandMenu {
             state:{ [weak model,weak bar,weak window] command in
                 guard let model else { return nil };let enabled = ready()
                 switch command {
-                case .toolbar(let value):guard let state = bar?.commandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .toolbar(let value):guard let state = bar?.menuCommandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
                 case .viewport:return .init(enabled:enabled && model.canScrollViewport)
                 case .saveAs:return .init(enabled:enabled && model.sourceMutationsAllowed)
                 case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
@@ -962,7 +973,7 @@ extension MergeEditorCommandMenu {
             },action:{ [weak model,weak bar,weak window] command in
                 guard let model,ready() else { return }
                 switch command {
-                case .toolbar(let value):bar?.perform(value)
+                case .toolbar(let value):bar?.performMenuCommand(value)
                 case .viewport(let direction):model.scrollViewport(direction)
                 case .saveAs:model.export()
                 case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
@@ -1010,7 +1021,7 @@ extension MergeEditorCommandMenu {
                 case .toolbar(.undo):return .init(enabled:enabled && model.canUndoPreview)
                 case .toolbar(.redo):return .init(enabled:enabled && model.canRedoPreview)
                 case .toolbar(.find):return .init(enabled:enabled && (model.alignment != nil || model.conflictEditor?.document != nil))
-                case .toolbar(let value):guard let state = owner?.editorToolbar?.commandState(value) else {return nil};return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .toolbar(let value):guard let state = owner?.editorToolbar?.menuCommandState(value) else {return nil};return .init(enabled:enabled && state.enabled,checked:state.checked)
                 case .saveAs:return model.conflictEditor == nil ? nil : .init(enabled:enabled && model.conflictEditor?.sourceToolsAllowed == true)
                 case .patchKeepCurrent,.patchUsePatched:return model.specialComparison == nil ? nil : .init(enabled:enabled && model.canResolveSpecial)
                 case .patchPreview:return .init(enabled:enabled && model.canPreviewFiles(model.highlightedFiles,generation:model.fileListGeneration))
@@ -1031,7 +1042,7 @@ extension MergeEditorCommandMenu {
                 case .toolbar(.help):TurtleGitHelp.show(.patches)
                 case .settings:SettingsPresentationService.shared.show(globalOnly:true,initialPage:.mergeEditor)
                 case .about:TurtleGitAboutService.shared.show(.merge)
-                case .toolbar(let value):owner.editorToolbar?.perform(value)
+                case .toolbar(let value):owner.editorToolbar?.performMenuCommand(value)
                 case .saveAs:model.conflictEditor?.export()
                 case .patchKeepCurrent:model.resolveSpecial(.current)
                 case .patchUsePatched:model.resolveSpecial(.patched)

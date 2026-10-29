@@ -459,7 +459,7 @@ private enum MergeSourceSide {
     var patchComparison:WorkingTreePatchFileComparison?
     var patchResultSaver:((String,ComparisonTextEncoding,OperationCancellation?) async throws -> TextConflictDocument)?
     @Published var patchResultCompleted = false
-    var repositoryResolutionAllowed:Bool {!mergeToolReadOnly && workingMerge == nil && patchComparison == nil && mergedResultTarget == nil}
+    var repositoryResolutionAllowed:Bool {!mergeToolReadOnly && patchComparison == nil}
     func cancelPatchOperation() {if patchComparison != nil {cancelSaveOperation()}}
     func cancelSaveOperation() {newOutputAdd.cancel();loadCancellation?.cancel();saveChoices.cancel();saveFolderAccess.cancel()}
     let saveFolderAccess=MergeSaveFolderAccess()
@@ -1376,6 +1376,9 @@ private enum MergeSourceSide {
     var redo: () -> Void = {}
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
+    var onResolvedOutput: (URL,String) -> Void = {root,path in
+        (NSApp.delegate as? TurtleGitApplicationDelegate)?.didResolveSavedMergeOutput(root:root,path:path)
+    }
     private var sourceScrolls: [String: WeakMergeScroll] = [:]
     private var synchronizingScroll = false
     private var pointerOrigins: [ObjectIdentifier: NSPoint] = [:]
@@ -2101,6 +2104,69 @@ private enum MergeSourceSide {
             }
         }
     }
+    private var pendingResolveRevision=UUID()
+    @Published private(set) var pendingResolve:MergeSavedOutputReceipt? {didSet {pendingResolveRevision=UUID()}}
+    private func resolveSavedOutput(_ receipt:MergeSavedOutputReceipt,allowUnresolvedConflicts:Bool,cancellation:OperationCancellation,validate:@escaping ()throws->Void) async throws -> GitRepository {
+        guard let resolved=try await newOutputAdd.resolveSaved(receipt,repository:repository,permissions:openPermissions,window:window,
+            allowUnresolvedConflicts:allowUnresolvedConflicts,cancellation:cancellation,validate:validate) else {throw OperationCancellationFailure.cancelled}
+        workingMergePermissions.append(contentsOf:resolved.permissions)
+        return resolved.repository
+    }
+    private func acknowledgeResolvedOutput(_ receipt:MergeSavedOutputReceipt,in resolved:GitRepository) {
+        pendingResolve=nil;pendingNewOutput=nil
+        let prefix=resolved.root.standardizedFileURL.path + "/"
+        onResolvedOutput(resolved.root,String(receipt.url.standardizedFileURL.path.dropFirst(prefix.count)))
+    }
+    func retrySavedResolve(completion:((Bool)->Void)?=nil) {
+        guard sourceMutationsAllowed,!dirty,!hasKeptSourceChanges,!confirmingQuit,window?.attachedSheet==nil,NSApp.modalWindow==nil,
+            let receipt=pendingResolve,GitReferenceName.equal(receipt.url.path,resultPath) else{completion?(false);return}
+        let token=OperationCancellation(),permissions=openPermissions,epoch=pendingResolveRevision
+        let generation=loadGeneration,documentStamp=documentRevision,presentationStamp=resultPresentationRevision,inputStamp=inputEncodingEpoch,layoutStamp=sourceLayoutRevision
+        let ending=resultLineEnding,outputEncoding=encoding,text=result,owner=window,unresolved=hasUnresolvedConflicts
+        busy=true;error=nil;loadCancellation=token;saveChoices.reset();MergeRegexOperations.activeRequests += 1
+        Task {
+            var returnToConflict=false,resolvedSuccessfully=false
+            defer {
+                busy=false;if loadCancellation === token {loadCancellation=nil};MergeRegexOperations.activeRequests -= 1
+                withExtendedLifetime(permissions) {}
+                if returnToConflict,!retired,!confirmingQuit {continueResolving()}
+                completion?(resolvedSuccessfully)
+            }
+            @MainActor func validate() throws {
+                try ensureSave(token)
+                guard !confirmingQuit,window === owner,window?.attachedSheet==nil,NSApp.modalWindow==nil,
+                    pendingResolveRevision==epoch,loadGeneration==generation,documentRevision==documentStamp,
+                    resultPresentationRevision==presentationStamp,inputEncodingEpoch==inputStamp,sourceLayoutRevision==layoutStamp,
+                    resultLineEnding==ending,encoding==outputEncoding,result.utf8.elementsEqual(text.utf8),!dirty else {throw FileComparisonEditFailure.changed}
+            }
+            do {
+                try validate()
+                try await Task.detached {try receipt.validate()}.value
+                try validate()
+                var approved=false
+                if unresolved {
+                    let message=resultPresentation.ignoredConflicts.isEmpty ? "Save with unresolved conflict markers?":"Save with unresolved conflicts ignored by comparison options?"
+                    let answer:MergeUnresolvedSaveChoice
+                    if let chooseUnresolvedSave {answer=await chooseUnresolvedSave(message)}
+                    else if let confirmUnresolvedSave {answer=confirmUnresolvedSave(message) ? .saveAnyway:.continueResolving}
+                    else {answer=await saveChoices.unresolvedResolution(window:window,message:message)}
+                    try validate()
+                    guard answer == .saveAnyway else{returnToConflict=true;return}
+                    approved=true
+                }
+                let resolved=try await resolveSavedOutput(receipt,allowUnresolvedConflicts:approved,cancellation:token,validate:validate)
+                // A completed Git Resolve is authoritative even if Cancel arrived
+                // after its successful exit; replacement owners still refuse it.
+                guard !retired,!confirmingQuit,window === owner,loadCancellation === token,pendingResolveRevision==epoch,
+                    loadGeneration==generation,documentRevision==documentStamp,resultPresentationRevision==presentationStamp,
+                    inputEncodingEpoch==inputStamp,sourceLayoutRevision==layoutStamp,encoding==outputEncoding,resultLineEnding==ending,
+                    result.utf8.elementsEqual(text.utf8),!dirty else{return}
+                acknowledgeResolvedOutput(receipt,in:resolved);resolvedSuccessfully=true;close()
+            } catch {
+                if !retired,loadCancellation === token {self.error="The merged result is saved, but marking it resolved did not complete. " + error.localizedDescription}
+            }
+        }
+    }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
         guard !externalReloadBlocksCommands,!preservingSourceCopies,!mergeToolReadOnly,!patchResultCompleted,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),!retired,!markResolved || repositoryResolutionAllowed,window?.attachedSheet==nil,let document else {completion?(false);return}
         if hasKeptSourceChanges,!chooseNewOutput {
@@ -2110,20 +2176,26 @@ private enum MergeSourceSide {
             }
             return
         }
+        if markResolved,!dirty,let pendingResolve,GitReferenceName.equal(pendingResolve.url.path,resultPath) {
+            retrySavedResolve(completion:completion);return
+        }
         let text=result,outputEncoding=encoding,ignoredResolved=resultPresentation.ignoredConflicts.isEmpty,ignoredSnapshot=resultPresentation.ignoredConflicts,choiceSnapshot=resultPresentation.sourceChoiceRevision,endingSnapshot=resultLineEnding
         let unresolved=hasUnresolvedConflicts,permissions=openPermissions,token=OperationCancellation(),autoAddForSave=editorPreferences.autoAdd
         let resultPaneBeforeSave = "Merged · \(resultPath)"
         let saveGeneration=loadGeneration,saveDocumentRevision=documentRevision,savePresentationRevision=resultPresentationRevision
         let saveInputEpoch=inputEncodingEpoch,saveLayoutRevision=sourceLayoutRevision,saveOwner=window
+        let resolvingSavedTargetAtStart=markResolved && (workingMerge != nil || mergedResultTarget != nil)
         busy=true;error=nil;loadCancellation=token;saveChoices.reset();MergeRegexOperations.activeRequests += 1
         Task { [self] in
             var saved=false
             var attemptedOutput:URL?
             var returnToConflict=false,allowUnresolvedConflicts=false
+            var resolvingSavedOutput=resolvingSavedTargetAtStart,refreshResultEditorConfig=false
             defer {
                 busy=false;if loadCancellation === token {loadCancellation=nil}
                 MergeRegexOperations.activeRequests -= 1;withExtendedLifetime(permissions) {}
                 if returnToConflict,!retired,!confirmingQuit {continueResolving()}
+                if refreshResultEditorConfig,!retired,!confirmingQuit {reloadEditorConfig()}
                 completion?(saved)
             }
             @MainActor func validateSaveSnapshot() throws {
@@ -2165,7 +2237,13 @@ private enum MergeSourceSide {
                     try ensureSave(token)
                 }
                 let choosingRepositoryCopy=workingMerge==nil && patchComparison==nil && (needsNewOutput || mergedResultTarget != nil)
+                if markResolved && choosingRepositoryCopy {resolvingSavedOutput=true}
                 if !choosingRepositoryCopy,workingMerge==nil,GitRuntime.isAppStoreBuild,(access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let selectedCopyTarget:MergeToolOutputTarget?
+                if choosingRepositoryCopy,needsNewOutput,let chosenOutput {
+                    selectedCopyTarget=try await Task.detached {try MergeToolOutputTarget(capturing:chosenOutput)}.value
+                    try validateSaveSnapshot()
+                } else {selectedCopyTarget=nil}
                 // Capture the destination hierarchy before any permission sheet;
                 // the eventual write must reject a replaced ancestor.
                 let outputDirectories:MergeOutputDirectories?
@@ -2188,12 +2266,17 @@ private enum MergeSourceSide {
                 try ensureSave(token)
                 try validateSaveSnapshot()
                 let options=MergeFileSaveOptions(backupOriginal:!needsNewOutput && MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice,outputDirectories:outputDirectories)
-                let autoAddCandidate = !markResolved && !needsNewOutput && !chooseNewOutput && patchComparison==nil && mergedResultTarget==nil && document.workingContents==nil && autoAddForSave
+                let autoAddCandidate = !markResolved && !needsNewOutput && !chooseNewOutput && patchComparison==nil && mergedResultTarget==nil && pendingResolve==nil && document.workingContents==nil && autoAddForSave
                 let ordinaryOutput = !markResolved && !needsNewOutput && !chooseNewOutput && patchComparison==nil && mergedResultTarget==nil
                 let pendingResave:MergeNewOutputReceipt? = ordinaryOutput && autoAddForSave && chosenOutput.map {output in pendingNewOutput.map {GitReferenceName.equal($0.url.path,output.standardizedFileURL.path)} ?? false} == true ? pendingNewOutput:nil
                 if let pendingResave {
                     try await Task.detached {try pendingResave.validate()}.value
                     try ensureSave(token)
+                }
+                let resolveResave:MergeSavedOutputReceipt? = !needsNewOutput && !chooseNewOutput && chosenOutput.map {output in pendingResolve.map {GitReferenceName.equal($0.url.path,output.standardizedFileURL.path)} ?? false} == true ? pendingResolve:nil
+                if let resolveResave {
+                    try await Task.detached {try resolveResave.validate()}.value
+                    try validateSaveSnapshot()
                 }
                 let beforeNewOutput:ComparisonFileContent?
                 if autoAddCandidate,let chosenOutput {
@@ -2217,14 +2300,16 @@ private enum MergeSourceSide {
                         // save baseline. Stale original inputs grant no authority
                         // over it, and must not prevent preserving later edits.
                         let saved=try FileComparisonEditing.saveWorkingContent(at:target.url,original:target.content,text:text,encoding:outputEncoding,options:options)
-                        try ensureSave(token);mergedResultTarget=try target.recording(saved)
+                        if !resolvingSavedOutput && resolveResave==nil {try ensureSave(token)}
+                        guard !retired,loadCancellation === token else{return}
+                        mergedResultTarget=try target.recording(saved)
                         next=try document.recordingOwnedWorkingWrite(saved)
                     } else {
                         next=try await workingMerge.saveTo(chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
                     }
                     // Once the actor returned a successful ordinary creation,
                     // retain that save even if Cancel arrived just after write.
-                    if autoAddCandidate || pendingResave != nil {
+                    if resolvingSavedOutput || resolveResave != nil || autoAddCandidate || pendingResave != nil {
                         guard !retired,loadCancellation === token else{return}
                     } else {try ensureSave(token)}
                     self.document=next
@@ -2237,8 +2322,12 @@ private enum MergeSourceSide {
                         content=try FileComparisonEditing.saveWorkingContent(at:target.url,original:target.content,text:text,encoding:outputEncoding,options:options)
                         mergedResultTarget=try target.recording(content)
                     } else {
-                        let bytes=try outputEncoding.encode(text);try MergePaneSaveAs.write(bytes,to:chosenOutput)
-                        let target=try SavedMergePane(url:chosenOutput,writtenBytes:bytes,encoding:outputEncoding)
+                        guard let selectedCopyTarget else {throw FileComparisonEditFailure.changed}
+                        let target=try await Task.detached {
+                            let written=try selectedCopyTarget.save(text:text,encoding:outputEncoding,options:options,cancellation:token)
+                            return try SavedMergePane(url:chosenOutput,writtenBytes:written.content.bytes,encoding:outputEncoding)
+                        }.value
+                        guard !retired,loadCancellation === token else{return}
                         mergedResultTarget=target;content=target.content
                     }
                     self.document=try document.recordingOwnedWorkingWrite(content)
@@ -2251,15 +2340,51 @@ private enum MergeSourceSide {
                     self.document=next
                 }
                 if mergeToolInvocation != nil { mergeToolRequiredSave = false; mergeToolAcceptedSave = true }
-                if resultPaneBeforeSave != "Merged · \(resultPath)" { reloadEditorConfig() }
+                if resultPaneBeforeSave != "Merged · \(resultPath)" {
+                    if resolvingSavedOutput {refreshResultEditorConfig=true} else {reloadEditorConfig()}
+                }
                 resultCopySavepoint=nil
                 savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot
                 if let chosenOutput,let accepted=self.document {try acknowledgeOwnedSourceAliases(accepted,at:chosenOutput)}
                 await refreshExternalReloadSources(invalidatingWrittenURLs:[chosenOutput].compactMap{$0})
-                onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)
+                if !resolvingSavedOutput {onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)}
                 // A rebound result is a copy, and disabling AutoAdd for this
                 // ordinary save retires its previous automatic-add intent.
                 if needsNewOutput || ordinaryOutput && !autoAddForSave || markResolved && !choosingRepositoryCopy {pendingNewOutput=nil}
+                if needsNewOutput {pendingResolve=nil}
+                if resolvingSavedOutput || resolveResave != nil,let chosenOutput,let accepted=self.document {
+                    let receipt=try await Task.detached {
+                        let after=try MergeToolFileInput.read(at:chosenOutput,absentPermissions:accepted.permissions)
+                        guard (after.isDeleted ? nil:after.bytes)==accepted.workingContents,after.permissions==accepted.permissions else {throw FileComparisonEditFailure.changed}
+                        if let resolveResave {return try resolveResave.refreshingSavedOutput(after,encoding:outputEncoding,unresolvedConflicts:unresolved)}
+                        return try MergeSavedOutputReceipt.capture(after:after,at:chosenOutput,encoding:outputEncoding,unresolvedConflicts:unresolved)
+                    }.value
+                    guard !retired,loadCancellation === token else{return}
+                    pendingResolve=receipt
+                    if resolvingSavedOutput {
+                        pendingNewOutput=nil
+                        let acceptedDocument=documentRevision,acceptedInputEpoch=inputEncodingEpoch,epoch=pendingResolveRevision
+                        do {
+                            let resolved=try await resolveSavedOutput(receipt,allowUnresolvedConflicts:allowUnresolvedConflicts,cancellation:token) {
+                                try self.ensureSave(token)
+                                guard !self.confirmingQuit,self.window === saveOwner,self.documentRevision==acceptedDocument,
+                                    self.pendingResolveRevision==epoch,self.loadGeneration==saveGeneration,
+                                    self.resultPresentationRevision==savePresentationRevision,self.inputEncodingEpoch==acceptedInputEpoch,self.sourceLayoutRevision==saveLayoutRevision,
+                                    self.encoding==outputEncoding,self.resultLineEnding==endingSnapshot,self.result.utf8.elementsEqual(text.utf8) else {throw FileComparisonEditFailure.changed}
+                            }
+                            guard !retired,!confirmingQuit,window === saveOwner,loadCancellation === token,
+                                documentRevision==acceptedDocument,pendingResolveRevision==epoch,loadGeneration==saveGeneration,
+                                resultPresentationRevision==savePresentationRevision,inputEncodingEpoch==acceptedInputEpoch,
+                                sourceLayoutRevision==saveLayoutRevision,encoding==outputEncoding,resultLineEnding==endingSnapshot,
+                                result.utf8.elementsEqual(text.utf8) else{return}
+                            acknowledgeResolvedOutput(receipt,in:resolved)
+                            saved=true;close();return
+                        } catch {
+                            if !retired,loadCancellation === token {self.error="The merged result is saved, but marking it resolved did not complete. " + error.localizedDescription}
+                            return
+                        }
+                    }
+                }
                 // The file and its editor baseline are already accepted. Git
                 // Add is a separate owned operation: failure must never repeat
                 // the write or discard the successful save receipt.
@@ -2465,6 +2590,14 @@ private struct TextConflictDialog: View {
                     .accessibilityLabel("Interface")
                     .disabled(model.busy || model.confirmingQuit)
             }.padding(.horizontal,10).padding(.top,6).padding(.bottom,4)
+            if model.pendingResolve != nil {
+                HStack {
+                    Text("The merged result is saved. Resolve is pending.").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button {model.retrySavedResolve()} label:{CommandLabel(title:"Retry Resolve",icon:.mergeResolved)}
+                        .disabled(!model.sourceMutationsAllowed || model.dirty || model.hasKeptSourceChanges)
+                }.padding(.horizontal,8).padding(.vertical,4)
+            }
             if model.pendingNewOutput != nil {
                 HStack {
                     Text("The merged result is saved. Git Add is pending.").font(.caption).foregroundStyle(.secondary)

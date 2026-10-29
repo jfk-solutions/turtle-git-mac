@@ -15,12 +15,14 @@ review/apply tool, including its target chooser if Directory is empty.
 One input opens the right-hand text pane; two inputs open comparison in source
 order. Base+Their with no My uses Their as My; Their+My with no Base uses Their
 as Base. Three inputs open the existing three-pane text editor with a standalone
-Subversion-backed merge. No Git repository is created and no index operation
-runs. The result starts unnamed; Save opens the native Save As panel. My supplies
+Subversion-backed merge. Opening the inputs creates no Git repository and does
+not stage a result. The result starts unnamed; Save opens the native Save As panel. My supplies
 initial output encoding/permissions. All input files stay unchanged unless the
 user explicitly selects one as output. Save validates all input snapshots and
 the chosen output snapshot, supports backup/empty-delete/recreation, and refuses
-external changes. Mark as resolved is disabled for standalone files. An initial
+external changes. Explicit Mark as resolved saves the chosen output, obtains
+repository authority and stages that saved result through the
+[standalone Resolve workflow](MERGE-SAVE-WORKFLOWS-PARITY.md#standalone-three-pane-and-rebound-result-resolve--october-29-2026). An initial
 merged result differing from My is dirty and participates in Close/Quit prompts.
 
 Browse owns native file/directory panels and retained security-scope leases.

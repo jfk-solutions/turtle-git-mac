@@ -554,9 +554,20 @@ or continue the merge or rebase.
 If saving succeeds but staging fails or is cancelled, your saved file and draft
 remain available in the editor. Correct the reported Git problem and try Mark as
 resolved again; a result with remaining conflicts requires a fresh confirmation.
-Outside edits still require review. Mark as resolved currently applies to the
-original repository-conflict result; standalone outputs and copies selected with
-Save As retain their separate save workflow.
+Outside edits still require review.
+
+**Mark as resolved** also works with a standalone three-pane merge or a result
+selected with Save As. Choose an output file if needed. TurtleGit saves that
+result first, then may ask for access to its Git repository and metadata folders.
+Only the chosen output is staged in its own repository; other conflict entries
+remain unchanged. Successful Resolve can remove the standard temporary
+LOCAL/REMOTE/BASE merge-source siblings.
+
+If repository access is declined or staging fails, the editor shows **Resolve is
+pending** and **Retry Resolve**. An unchanged retry uses the saved file without
+rewriting it, and asks again if conflicts remain. Save an edited draft to update
+the pending result before retrying. Saving to another output with Save As clears
+the old pending request.
 
 Common rows in a three-way merge keep their normal colors even when whitespace,
 case, comment or regex options make their original text compare equal. Collapse
