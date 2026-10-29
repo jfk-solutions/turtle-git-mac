@@ -161,11 +161,11 @@ helper cancellation and original-image conflict staging are included. Both
 receivers are reaped and independently absent. Initial fixture extent/background
 errors and the low-alpha source-normalization repair remain recorded.
 
-The renderer
-retains its existing opaque-white initial canvas outside command coverage. The
-Windows reference uses transparent initialization, so fixture expectations adapt
-only unpainted pixels; every painted pixel retains the native alpha assertion,
-including fully transparent lookup-table output.
+That earlier checkpoint retained an opaque-white initial canvas outside command
+coverage and adapted unpainted expectations. The [initial-alpha continuation](METAFILE-INITIAL-ALPHA-PARITY.md)
+removes this compatibility matte for recorded Plus streams and uses the retained
+Windows RGBA for all 459 previously adapted samples. Painted native assertions and
+tolerances remain unchanged, including fully transparent lookup-table output.
 
 The [supplementary pointwise family](METAFILE-POINTWISE-EFFECTS-PARITY.md) adds
 ColorBalance, HueSaturationLightness, Levels, ColorCurve and Tint, including

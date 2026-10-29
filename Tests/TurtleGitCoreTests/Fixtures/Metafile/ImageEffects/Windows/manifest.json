@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "pathsRelativeTo": "ImageEffects",
+  "windowsRun": 40491928071,
+  "artifact": 12728783501,
+  "archiveSHA256": "1a3147347a5d3b7df6ff90ac93be710e3253aa894f93d4e9fd20a3a1f1c943d0",
+  "startupVersion": 1,
+  "cases": [
+    {
+      "file": "state-seed.emf",
+      "sourceSHA256": "96eab58020dddd6c1f64f2a1b0dbb65c2e77a6f301e20b5354128df6f95bb0f7",
+      "rgba": "Windows/replay-v1-state-seed.rgba",
+      "rgbaSHA256": "100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "state-first-effect-persists.emf",
+      "sourceSHA256": "4cdd8e88dd2b858aa4f8f5bd43ac3041f2a94f1caba7dda01099e652fb17be09",
+      "rgba": "Windows/replay-v1-state-first-effect-persists.rgba",
+      "rgbaSHA256": "e5eaef38061afd499743b27834ad78dcc6cfc318a8aaf5a08e8c839eaf1a0308",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "state-two-effects-save-restore.emf",
+      "sourceSHA256": "8658fa269317557070aa287cd326c55ddf2c3f763fc847461a59c49ddf3304ed",
+      "rgba": "Windows/replay-v1-state-two-effects-save-restore.rgba",
+      "rgbaSHA256": "e711433282e8bd89fcfa424f58bfe013e6a9b3236ab3d0886ce3ded1897dd538",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "state-all-native-serials-E.emf",
+      "sourceSHA256": "04862e150eb4973befecc5ab3372665f95663af4d19836595bf7ae07a0694a44",
+      "rgba": "Windows/replay-v1-state-all-native-serials-E.rgba",
+      "rgbaSHA256": "100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "state-effect-nonE-ignored.emf",
+      "sourceSHA256": "5904e3ffaf7d54df03c2bfd22b117fa48d9825cddde7cb0459a93fbc21b87824",
+      "rgba": "Windows/replay-v1-state-effect-nonE-ignored.rgba",
+      "rgbaSHA256": "f433e695c502141a7b65d42638a596848e42bc39d29e5583e83c80755f40546e",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "state-E-without-effect.emf",
+      "sourceSHA256": "5e0dff581c4f551e6c3fdd029810a00d0a1ecaa1977aef02eaeb29fe8ddac669",
+      "rgba": "Windows/replay-v1-state-E-without-effect.rgba",
+      "rgbaSHA256": "f433e695c502141a7b65d42638a596848e42bc39d29e5583e83c80755f40546e",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "pending-effect-across-plain-draw.emf",
+      "sourceSHA256": "149930a38904c42b8cb02fd19de2085058215ec40ac6112ce40787f24e96ad10",
+      "rgba": "Windows/replay-v1-pending-effect-across-plain-draw.rgba",
+      "rgbaSHA256": "098c89fe364293dcb806b15e9005d75ee57752222dd08a099608d11289295044",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "pending-effect-save-restore-before-E.emf",
+      "sourceSHA256": "6e7c32e5c4035a57f00a1512c833440906739af02b9db278830e9b05e06eec80",
+      "rgba": "Windows/replay-v1-pending-effect-save-restore-before-E.rgba",
+      "rgbaSHA256": "e5eaef38061afd499743b27834ad78dcc6cfc318a8aaf5a08e8c839eaf1a0308",
+      "width": 256,
+      "height": 64
+    },
+    {
+      "file": "pending-effect-container-before-E.emf",
+      "sourceSHA256": "265dfe5c4e21b2859cfbb8e3aa5f5f64b8f2140e81f66700eb5b40fb8be7345f",
+      "rgba": "Windows/replay-v1-pending-effect-container-before-E.rgba",
+      "rgbaSHA256": "e5eaef38061afd499743b27834ad78dcc6cfc318a8aaf5a08e8c839eaf1a0308",
+      "width": 256,
+      "height": 64
+    }
+  ],
+  "originalRun": 40491004875
+}

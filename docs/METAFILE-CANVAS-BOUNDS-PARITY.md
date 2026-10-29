@@ -29,24 +29,29 @@ the existing EMF+ background policy remains separate. Embedded transparent
 surfaces and WMF behavior retain their established paths. The output is not
 cropped, and no final pixel wipe or profile-specific edge rewrite is added.
 
+The table retains the dated bounds-repair policy; the Plus row is superseded by
+the initial-alpha continuation below.
+
 | Existing input family | Natural canvas | Recorded inclusive device extent | Initialization policy |
 | --- | --- | --- | --- |
 | Original Windows DIB profile witnesses |17×9|16×8|Extra allocation remains transparent unless painted |
 | Empty/degenerate classic gradient controls |65×65|65×65|Full logical DC remains white |
-| Recorded EMF+ image-effect stream |256×64|Separate Plus stream|Existing full-canvas white compatibility initialization |
+| Recorded EMF+ image-effect stream |256×64|Separate Plus stream|Historical white compatibility initialization (superseded) |
 
 The entire existing assertions, source wires, reference JSON, raw Windows RGBA
 files and tolerances remain unchanged. The DIB family checks complete original
 Windows RGBA; the gradient family checks its explicit white-control canvas. These
 are different contracts and are not made equal by changing an expected image.
 
-## EMF+ compatibility boundary
+## Historical EMF+ compatibility boundary
 
 The image-effect reference generator explicitly retains both raw `windowsRGBA`
 and the established local `rgba` expectations. Its 81 uncovered border samples
 are transparent in the native Windows captures and white in the local compatibility
-profile. That distinction predates this repair and remains documented in
-[image effects](METAFILE-IMAGE-EFFECTS-PARITY.md). It must not be described as raw
+profile. That distinction predates this bounds repair. The subsequent
+[initial-alpha continuation](METAFILE-INITIAL-ALPHA-PARITY.md) removes the implicit
+Plus matte and adopts the already captured raw samples. The canvas-bounds results
+above retain their dated scope. See [image effects](METAFILE-IMAGE-EFFECTS-PARITY.md). It must not be described as raw
 Windows alpha equality. Painted transparent pixels keep their original native
 assertions; this correction neither widens tolerances nor substitutes backdrop
 colors inside recorded paint coverage.

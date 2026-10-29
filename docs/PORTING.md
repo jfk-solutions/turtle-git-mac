@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+## EMF+ untouched-alpha continuation
+
+[Initial source alpha](METAFILE-INITIAL-ALPHA-PARITY.md) removes the implicit Plus
+white matte, uses actual retained Windows samples and separates explicit display
+backdrops from raw pixel checks. Its connected Compare/conflict/raster checkpoint
+retains original byte, cancellation and operation-ownership assertions.
+
 ## Metafile canvas-bounds continuation
 
 [The canvas-bounds repair](METAFILE-CANVAS-BOUNDS-PARITY.md) addresses hosted

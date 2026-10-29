@@ -8,12 +8,22 @@ import TurtleGitCore
     struct Failure:Error,LocalizedError {let message:String;var errorDescription:String?{message}}
     struct Sample:Decodable {
         let x:Int,y:Int,rgba:[Int],tolerance:Int
-        var red:Int {Int((Double(rgba[0]*rgba[3])/255).rounded())}
-        var green:Int {Int((Double(rgba[1]*rgba[3])/255).rounded())}
-        var blue:Int {Int((Double(rgba[2]*rgba[3])/255).rounded())}
-        var alpha:Int {rgba[3]}
+        let windowsRGBA:[Int]?
+        // Original Picture(FILE,FALSE) alpha, including unpainted pixels. Older
+        // compatibility-white samples are never substituted for native alpha.
+        var original:[Int] {windowsRGBA ?? rgba}
+        var red:Int {Int((Double(original[0]*original[3])/255).rounded())}
+        var green:Int {Int((Double(original[1]*original[3])/255).rounded())}
+        var blue:Int {Int((Double(original[2]*original[3])/255).rounded())}
+        var alpha:Int {original[3]}
     }
-    struct ReferenceCase:Decodable {let file:String;let sourceSHA256:String;let samples:[Sample];let width:Int;let height:Int}
+    struct RawReference:Decodable {let file:String;let sha256:String}
+    struct ReferenceCase:Decodable {
+        let file:String;let sourceSHA256:String;let samples:[Sample];let width:Int;let height:Int;let windowsRGBA:RawReference?
+        init(file:String,sourceSHA256:String,samples:[Sample],width:Int,height:Int,windowsRGBA:RawReference?=nil) {
+            self.file=file;self.sourceSHA256=sourceSHA256;self.samples=samples;self.width=width;self.height=height;self.windowsRGBA=windowsRGBA
+        }
+    }
     struct Reference:Decodable {let cases:[ReferenceCase]}
     static let generalCubic="state-first-effect-persists.emf"
     static let generalContour="state-two-effects-save-restore.emf"
@@ -43,16 +53,63 @@ import TurtleGitCore
         let width=image.pixels.width,height=image.pixels.height
         let record=reference.first{$0.file==name}
         try require(width==(record?.width ?? 65) && height==(record?.height ?? 65) && !expected.isEmpty,"Invalid helper canvas or empty oracle "+name)
-        var bytes=[UInt8](repeating:0,count:width*height*4)
-        try bytes.withUnsafeMutableBytes { buffer in
-            guard let color=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:color,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(message:"Pixel inspection failed")}
-            context.interpolationQuality = .none;context.draw(image.pixels,in:CGRect(x:0,y:0,width:width,height:height))
-        }
+        let bytes=try rgba(image.pixels)
         for sample in expected {
             let offset=(sample.y*width+sample.x)*4
             let actual=Array(bytes[offset..<(offset+4)])
             let channels=[sample.red,sample.green,sample.blue]
             try require((0..<3).allSatisfy{abs(Int(bytes[offset+$0])-channels[$0])<=sample.tolerance} && abs(Int(actual[3])-sample.alpha)<=sample.tolerance,"\(name) (\(sample.x),\(sample.y)) expected \(channels), actual \(actual)")
+        }
+    }
+    static func rgba(_ image:CGImage)throws->[UInt8] {
+        let width=image.width,height=image.height
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes { buffer in
+            guard let color=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:color,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(message:"Pixel inspection failed")}
+            context.interpolationQuality = .none;context.draw(image,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return bytes
+    }
+    static func alphaAndBackground(_ window:NSWindow,_ presentation:ImageWindowPresentation,_ images:[(ComparisonImage,String)])async throws {
+        try require(!images.isEmpty,"Missing live alpha consumers")
+        let before=try images.map {try rgba($0.0.pixels)}
+        for (image,name) in images {
+            let witnesses=samples(name)
+            try require(witnesses.contains{$0.alpha==0} && witnesses.contains{$0.alpha>0 && $0.alpha<255},"Native oracle lacks transparent and partial-alpha witnesses: "+name)
+            try pixels(image,witnesses,name)
+        }
+        window.appearance=NSAppearance(named:.aqua)
+        presentation.chooseTransparentColor()
+        try await wait{window.attachedSheet != nil && views(window.attachedSheet?.contentView).contains{$0 is NSColorWell}}
+        guard let sheet=window.attachedSheet,let well=views(sheet.contentView).compactMap({$0 as? NSColorWell}).first else {throw Failure(message:"Missing owned Transparent color dialog")}
+        try require(!sheet.isVisible || sheet.alphaValue==0,"Owned transparency question became visible")
+        well.color=NSColor(deviceRed:0.2,green:0.4,blue:0.6,alpha:1)
+        window.endSheet(sheet,returnCode:.alertFirstButtonReturn)
+        try await wait {
+            window.contentView?.layoutSubtreeIfNeeded()
+            let panes=views(window.contentView).compactMap{$0 as? ImageComparisonScrollView}
+            return window.attachedSheet==nil && presentation.transparentColor != nil && panes.count==images.count && panes.allSatisfy{$0.transparentColor==presentation.transparentColor}
+        }
+        let background=[51,102,153]
+        guard let color=CGColorSpace(name:CGColorSpace.sRGB),let backdrop=CGColor(colorSpace:color,components:[0.2,0.4,0.6,1]) else {throw Failure(message:"Cannot prepare independent background")}
+        for (index,pair) in images.enumerated() {
+            let (image,name)=pair,width=image.pixels.width,height=image.pixels.height
+            let after=try rgba(image.pixels)
+            try require(after==before[index],"Transparency UI flattened or mutated decoded source alpha: "+name)
+            guard let raster=ImageComparisonXOR.render(base:image.pixels,destination:nil,width:width,height:height,baseRect:CGRect(x:0,y:0,width:width,height:height),destinationRect:.zero,background:backdrop) else {throw Failure(message:"Shared native image raster failed")}
+            let output=try rgba(raster)
+            // Standard source-over on an independently chosen opaque color,
+            // then the source viewer's inverse-XOR display. Use decoded bytes
+            // already checked against Windows, rather than another renderer.
+            for sample in samples(name).filter({$0.alpha==0 || $0.alpha>0 && $0.alpha<255}).prefix(24) {
+                let offset=(sample.y*width+sample.x)*4,a=Int(after[offset+3])
+                for channel in 0..<3 {
+                    let over=min(255,Int(after[offset+channel])+(background[channel]*(255-a)+127)/255)
+                    let expected=255 ^ (over ^ background[channel])
+                    try require(abs(Int(output[offset+channel])-expected)<=1,"Shared raster ignored source alpha/background: \(name) (\(sample.x),\(sample.y))")
+                }
+                try require(output[offset+3]==255,"Display raster must own its opaque background")
+            }
         }
     }
     @MainActor final class Context {
@@ -82,6 +139,15 @@ import TurtleGitCore
                 try require(owner.model.viewerSelection == .image && owner.window?.title.hasSuffix("TurtleGitIDiff")==true,"New records did not route to actual native IDiff: "+(owner.model.error ?? "none"))
                 try pixels(owner.model.imageComparison?.base,leftPixels,leftName);try pixels(owner.model.imageComparison?.destination,rightPixels,rightName)
                 try require(owner.model.document?.base.bytes==c.inputs[left] && owner.model.document?.destination.bytes==c.inputs[right],"Native view replaced original EMF bytes with PNG")
+                if leftName==scanlineName && rightName==triangleName {
+                    guard let window=owner.window,let images=owner.model.imageComparison,let base=images.base,let destination=images.destination else {throw Failure(message:"Missing actual Compare alpha panes")}
+                    try await alphaAndBackground(window,owner.model.imagePresentation,[(base,leftName),(destination,rightName)])
+                    let previous=images.id
+                    owner.model.load()
+                    try await wait{!owner.model.busy && owner.model.imageComparison?.id != previous && owner.model.imageComparison != nil}
+                    try pixels(owner.model.imageComparison?.base,leftPixels,leftName);try pixels(owner.model.imageComparison?.destination,rightPixels,rightName)
+                }
+
                 owner.close();try await wait{drained()}
             }
         }
@@ -125,6 +191,9 @@ import TurtleGitCore
         try pixels(owner.model.panes[.theirs]?.currentImage(base:true),samples(generalContour),generalContour)
         try pixels(owner.model.panes[.mine]?.currentImage(base:true),samples(generalCubic),generalCubic)
         try require(owner.model.document.contents[.base]==base && owner.model.document.contents[.theirs]==theirs && owner.model.document.contents[.mine]==mine,"Conflict displayed PNG replaced raw Git stages")
+        guard let window=owner.window,let baseImage=owner.model.panes[.base]?.currentImage(base:true),let theirsImage=owner.model.panes[.theirs]?.currentImage(base:true),let mineImage=owner.model.panes[.mine]?.currentImage(base:true) else {throw Failure(message:"Missing actual conflict alpha panes")}
+        try await alphaAndBackground(window,owner.model.presentation,[(baseImage,generalCrossing),(theirsImage,generalContour),(mineImage,generalCubic)])
+
         let ids=owner.model.images.mapValues(\.id),decode=owner.model.decodeImages
         var reply:CheckedContinuation<Void,Never>?,token:OperationCancellation?
         owner.model.decodeImages={document,request in let actual=try await decode(document,request);token=request;await withCheckedContinuation{reply=$0};return actual}
@@ -149,8 +218,16 @@ import TurtleGitCore
         for item in reference {
             let wire=try Data(contentsOf:c.corpus.appendingPathComponent(item.file))
             try require(SHA256.hash(data:wire).map{String(format:"%02x",$0)}.joined()==item.sourceSHA256,"Windows reference wire changed: "+item.file)
+            if let raw=item.windowsRGBA {
+                let buffer=try Data(contentsOf:c.corpus.appendingPathComponent(raw.file))
+                try require(buffer.count==item.width*item.height*4 && SHA256.hash(data:buffer).map{String(format:"%02x",$0)}.joined()==raw.sha256,"Original Windows RGBA changed: "+item.file)
+                for sample in item.samples {
+                    let offset=(sample.y*item.width+sample.x)*4
+                    try require(Array(buffer[offset..<(offset+4)]).map(Int.init)==sample.original,"Native alpha sample no longer matches original Windows buffer: "+item.file)
+                }
+            }
         }
-        try require(reference.allSatisfy{item in item.samples.allSatisfy{$0.rgba.count==4 && $0.x>=0 && $0.x<item.width && $0.y>=0 && $0.y<item.height}},"Invalid independent reference sample bounds")
+        try require(reference.allSatisfy{item in item.samples.allSatisfy{$0.rgba.count==4 && $0.original.count==4 && $0.original.allSatisfy{(0...255).contains($0)} && $0.x>=0 && $0.x<item.width && $0.y>=0 && $0.y<item.height}},"Invalid independent reference sample bounds")
         do {
             try await consumers(c);try await conflict(c)
             try c.unchanged();await c.clean()

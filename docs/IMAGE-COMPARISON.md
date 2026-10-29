@@ -193,3 +193,12 @@ classic DC initialization extent while preserving the separate EMF+ background
 profile. This retains full Windows DIB RGBA assertions and existing gradient and
 image-effect expectations. It also records the hosted regression and the remaining
 EMF+ unpainted-alpha compatibility difference. Installed build31 predates this fix.
+
+## EMF+ source alpha — October 29, 2026
+
+Recorded EMF+ files now retain transparency outside actual drawing operations.
+[Source alpha and display backgrounds](METAFILE-INITIAL-ALPHA-PARITY.md) explains
+the original Windows observations, full-buffer checks and explicit Clear/GetDC
+behavior. Transparent Color remains a display choice and does not replace source
+alpha. The earlier canvas-bounds checkpoint's white compatibility profile is
+historical. Installed build31 predates this continuation.

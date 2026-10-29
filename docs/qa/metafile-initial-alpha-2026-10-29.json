@@ -1,0 +1,178 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-family-core-cumulative-and-grouped-native-pass-with-retained-repairs",
+  "source_base_commit": "59351fd7",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Unpainted EMF+ Only and Dual allocations preserve alpha; no implicit white matte",
+    "Explicit Clear/white paints, classic GDI coverage/operands and embedded SourceOver/Copy remain independent",
+    "Actual source alpha reaches Compare/conflict and shared image raster; user background choice remains presentation only",
+    "Nine original Windows full RGBA planes and literal record controls protect empty/state-only/half-alpha/Clear/GetDC behavior",
+    "Explicit test-owned white display surfaces retain older geometry/color/coverage assertions while separate raw checks protect alpha"
+  ],
+  "runtime": {
+    "exit": 0,
+    "cache_key": "2ec5e0ce0be4be7af14dfabf18c17bc02ccc1e91ce59689b437fd962b794d7a5",
+    "binary_sha256": "86773a1f6c7b59e7119333f9fa89e87dc4eddd5bd34868ca7c39473af423cac9",
+    "renderer_sha256": "f4d9b1af7d681aae7be22b0b2ced0d3a5a44d75a941651a878dea9c8d49bb4c1",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "structure_only_for_Intel": true
+  },
+  "reference_verification": {
+    "source_base_commit": "59351fd7",
+    "adapted_unpainted_samples": 459,
+    "painted_samples_unchanged": 1809,
+    "original_raw_planes_byte_identical": [
+      "replay-v1-state-seed.rgba",
+      "replay-v1-state-first-effect-persists.rgba",
+      "replay-v1-state-two-effects-save-restore.rgba",
+      "replay-v1-state-all-native-serials-E.rgba",
+      "replay-v1-state-effect-nonE-ignored.rgba",
+      "replay-v1-state-E-without-effect.rgba",
+      "replay-v1-pending-effect-across-plain-draw.rgba",
+      "replay-v1-pending-effect-save-restore-before-E.rgba",
+      "replay-v1-pending-effect-container-before-E.rgba"
+    ],
+    "source_wires_and_refusals_unchanged": true,
+    "tolerances_unchanged": true
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter Metafile",
+    "initial_compile": {
+      "exit": 1,
+      "reason": "New raw test assertions performed integer arithmetic on UInt8; explicit Int conversion repaired test code only"
+    },
+    "broad_run": {
+      "exit": 1,
+      "methods": 226,
+      "assertion_failures": 35,
+      "unexpected": 0,
+      "failed_methods": [
+        "MetafileImageTests testDisplayGeometryMattesDoNotChangeActualPenAndTextAlpha",
+        "MetafileImageTests testRaw16BitMasksAlphaAndRetained24And32BitFormats",
+        "MetafileImageTests testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows"
+      ],
+      "elapsed_test_seconds": 257.37,
+      "reason": "Three newly added raw assertions selected fixtures containing explicit white paints while assuming unpainted pixels; retained source records establish opaque output"
+    },
+    "affected_repair": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'MetafileImageTests/test(DisplayGeometryMattesDoNotChangeActualPenAndTextAlpha|Raw16BitMasksAlphaAndRetained24And32BitFormats|RawIndexedBitOrderPaletteAlphaAndSignedPaddedRows)'",
+      "exit": 0,
+      "methods": 3,
+      "failures": 0,
+      "elapsed_test_seconds": 2.674,
+      "repair": "Assert actual serialized white FillRect and corresponding opaque final composite; use background-free glyph source for raw transparent margin/edge checks; original embedded alpha checks retained"
+    },
+    "final_distinct_methods_cumulatively_passing": 226,
+    "full_group_clean_repeat_claimed": false,
+    "native_full_buffer_witness_cases": 9,
+    "full_buffer_rule": "Every pixel compared in premultiplied RGBA with tolerance3 and exact zero alpha at captured zero-alpha pixels; actual source/raw SHA identities asserted"
+  },
+  "native_build": {
+    "exit": 0,
+    "configuration": "Debug arm64 testability signing disabled"
+  },
+  "native": {
+    "initial_compile": {
+      "exit": 1,
+      "launched_receivers": 0,
+      "reason": "Shared ReferenceCase new optional raw-reference field required explicit initializer default for existing spatial consumers",
+      "repair": "Add memberwise initializer defaultnil while preserving synthesized JSON Decodable"
+    },
+    "grouped_repair": {
+      "exit": 0,
+      "command": "python3 scripts/test-metafile-image-effects.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "results": [
+        {
+          "case": "image-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "image-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pointwise-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pointwise-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "spatial-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "spatial-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "receiver_pids": [
+        28011,
+        28164,
+        28311,
+        28467,
+        28621,
+        28780
+      ],
+      "all_reaped": true,
+      "independent_pid_absence_check": true,
+      "runner_helper_cleanup_needed": false,
+      "scope": "Actual image/pointwise/spatial Compare and conflict consumers; captured RGBA/hash checks, owned invisible Transparent Color NSAlerts/nonwhite view backgrounds, raw pixels unchanged by display choice, shared XOR raster, reload, held cancellation/retirement/Quit and expected original-byte Git resolution state"
+    }
+  },
+  "documentation": {
+    "site_documents": 501,
+    "site_link_tests": 2,
+    "unresolved_fragments": 0,
+    "help": "Generated before app build and freshness pass:60documents/51topics/92files",
+    "localization": "38languages/1325keys check pass; no native labels changed",
+    "dialog_ledger": "reconciled; counts are not completion percentage"
+  },
+  "files_sha256": {
+    "patches/metafile-renderer.patch": "91039ebe2c643f6137850b13da2947a88e77897a7c7d6ae817d233a88bd72d38",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "b9107c529fd258c4f640ca80528c9e8b43c2eb4812b0041d0c11c5fa6f0a3966",
+    "Tests/TurtleGitCoreTests/MetafileInitialAlphaTests.swift": "1104e7c368efb865cb33e5b92898d8c930dd5c51bebd597b440e379c97fcbe8b",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/ImageEffects/windows-reference.json": "6ba09933fcc7c0f9e7949b375c1c6cc75db95164c66fad22d58577c8c24218a1",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/ImageEffects/Windows/manifest.json": "d5f8b69aa7b38e37d8539cbf879bcd217bd9ea98fffb6bff54ae5081c809888f",
+    "docs/qa/metafile-image-effects-native-2026-10-27.swift": "e4bca59d186d86d1f74424d385ba0518f210643b1a6e1b60aa6ad30e0e7c279e",
+    "docs/qa/metafile-image-effects-reference-2026-10-27/generate-fixtures.py": "be54e5c878121972ba94efd6286363304a9edf717c651e405885e97da4319ee0"
+  },
+  "log_sha256": {
+    "build/qa/metafile-initial-alpha-runtime-2026-10-29.log": "49816a082b1fe733ae33448f5e5ed514d082a229eeef7ba14f06e50f36f70fe2",
+    "build/qa/metafile-initial-alpha-core-2026-10-29.log": "7d6b51be729525339faf8dd85363158d705f5fafd145438d60b99d055ae44ebd",
+    "build/qa/metafile-initial-alpha-core-compile-repair-2026-10-29.log": "ac476a32db05a44c639b75861c9d6df3d5902f3feef2ecfc19667a0e3ea4afea",
+    "build/qa/metafile-initial-alpha-core-recorded-background-repair-2026-10-29.log": "caa9f472da1e59441c548d3373ca346dad5c4bdb989ec3b3e766d11cb50e4bfa",
+    "build/qa/metafile-initial-alpha-build-2026-10-29.log": "fed9695b5f5d67369fc48dce974bb12fef36ff14d648ac89ab362234014394dc",
+    "build/qa/metafile-initial-alpha-native-2026-10-29.log": "a42fe91a3561cfab1b4f0b12dddbb940dff8be04345c740432b34fd5d4165fcd",
+    "build/qa/metafile-initial-alpha-native-initializer-repair-2026-10-29.log": "c3c4ea266536adf4c60892b771d41d15405d8f1ee1adbddd9fc5a66331af97dd",
+    "build/qa/metafile-initial-alpha-reference-verification-2026-10-29.json": "c5d392ccf0c598e059c55fb655c7474af91f5c037f8c1717acefb109719b754b"
+  },
+  "unchanged_native_references": "All17 EMF sources, refusals,1809 painted samples and tolerances unchanged;459 formerlywhite unpainted expectations now capturedWindowsRGBA; old values retainedaslegacyCompatibilityRGBA. Pointwise and spatial expected pixels unchanged.",
+  "installed_application": "Build31 untouched; installed LS/Finder registration restored after Debug build.",
+  "limits": [
+    "No complete current hosted CI pass established",
+    "No current signed-parent or physical image-window input acceptance",
+    "Universal structure does not prove physical Intel/minimum-macOS execution",
+    "Classic EMF/WMF initialization and every undocumented state remain separate",
+    "Installed build31 predates this continuation",
+    "No App Store upload or notarization"
+  ],
+  "store_submission": false
+}

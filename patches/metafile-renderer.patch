@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,562 @@
+@@ -0,0 +1,565 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -614,7 +614,10 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(parsed.records.length>1000000)fail('record count limit');
 +    if(playback&&playback.inspectOnly)return {width,height};
 +    if(!child){if(typeof globalThis.__turtlePicturePlan!=='function')fail('native Picture document plan unavailable');globalThis.__turtlePicturePlan(width,height);}
-+    const context=new SvgContext();shareBudgets(context);context._turtleTransparentSurface=child;
++    const context=new SvgContext();shareBudgets(context);
++    // File-backed EMF+ starts with unpainted alpha, like native Bitmap(file,
++    // FALSE). Graphics.Clear and actual paints still own their full coverage.
++    context._turtleTransparentSurface=child||recordInfo.plusMode!==null;
 +    // Classic recorded bounds and file allocation are separate extents.
 +    // Allocation beyond the inclusive GDI bounds starts transparent, and later
 +    // actual paints can cover it. Recorded Plus streams use their own policy.

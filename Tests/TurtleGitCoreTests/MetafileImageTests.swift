@@ -19,10 +19,12 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(image.pixels.height,height+edge,name)
         return try XCTUnwrap(image.pixels.cropping(to:CGRect(x:0,y:0,width:width,height:height)),name)
     }
-    private func rgb(_ image: ComparisonImage, _ x: Int, _ y: Int) throws -> [CGFloat] {
+    /// Display-color oracle on an explicitly requested opaque white test surface.
+    /// This matte belongs to the test, never to the decoded metafile pixels.
+    private func displayRGBOnWhite(_ image: ComparisonImage, _ x: Int, _ y: Int) throws -> [CGFloat] {
         // NSBitmapImageRep.colorAt can return generic calibrated RGB despite an
         // sRGB CGImage profile; converting that NSColor changes pure magenta.
-        // Normalize the actual image to a named sRGB byte buffer instead.
+        // Normalize this explicitly matted display to a named sRGB byte buffer.
         let width = image.pixels.width, height = image.pixels.height
         XCTAssertTrue((0..<width).contains(x) && (0..<height).contains(y))
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
@@ -31,11 +33,33 @@ final class MetafileImageTests: XCTestCase {
             let context = try XCTUnwrap(CGContext(data: storage.baseAddress, width: width, height: height,
                 bitsPerComponent: 8, bytesPerRow: width * 4, space: space,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+            context.setFillColor(CGColor(gray:1,alpha:1));context.fill(CGRect(x:0,y:0,width:width,height:height))
             context.draw(image.pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
             let components = storage.bindMemory(to: UInt8.self), offset = (y * width + x) * 4
             let alpha = CGFloat(components[offset + 3]) / 255
             return (0..<3).map { alpha > 0 ? CGFloat(components[offset + $0]) / (255 * alpha) : 0 }
         }
+    }
+    /// Actual premultiplied RGBA, with no test matte or source-scene substitution.
+    private func rawDecodedPixels(_ image:ComparisonImage)throws->PenPixels {
+        let width=image.pixels.width,height=image.pixels.height
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes {storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none
+            context.draw(image.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return .init(width:width,height:height,bytes:bytes)
+    }
+    /// generate.py::raw_scene records a real whole-canvas opaque white FillRects
+    /// before its bitmap. Verify that wire paint, rather than infer a backdrop
+    /// from a filename or ask the renderer to manufacture an initial matte.
+    private func assertRecordedWhiteBackground(_ image:ComparisonImage,name:String,_ x:Int,_ y:Int,file:StaticString=#filePath,line:UInt=#line)throws {
+        let words:[UInt32]=[0x8000400a,36,24,0xffffffff,1,Float(0).bitPattern,Float(0).bitPattern,Float(96).bitPattern,Float(64).bitPattern]
+        // EMF+ FillRects is 12 header bytes +24 payload bytes =36 bytes.
+        let paint=Data(words.flatMap{value in (0..<4).map{UInt8(truncatingIfNeeded:value >> ($0*8))}})
+        XCTAssertNotNil(try data(name).range(of:paint),"Fixture must actually record its white background",file:file,line:line)
+        XCTAssertEqual(try rawDecodedPixels(image).pixel(x,y),[255,255,255,255],"Transparent bitmap samples preserve the recorded white paint",file:file,line:line)
     }
     private struct EmbeddedPaint {
         let x:Int,y:Int,width:Int,height:Int,pixels:CGImage,rgba:[UInt8]
@@ -151,13 +175,20 @@ final class MetafileImageTests: XCTestCase {
         // red/128 over white on every display profile. This reference contains
         // no metafile, bitmap adapter or embedded PNG.
         let referenceBytes=Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"96\" height=\"64\"><rect width=\"96\" height=\"64\" fill=\"white\"/><rect width=\"96\" height=\"64\" fill=\"red\" fill-opacity=\"0.5019607843137255\"/></svg>".utf8)
-        let reference=try XCTUnwrap(ComparisonImage(bytes:referenceBytes)),expected=try rgb(reference,44,44)
-        let composite=try rgb(image(name.replacingOccurrences(of:".emf",with:"-plateau.emf")),44,44)
+        let reference=try XCTUnwrap(ComparisonImage(bytes:referenceBytes)),expected=try displayRGBOnWhite(reference,44,44)
+        let plateau=try image(name.replacingOccurrences(of:".emf",with:"-plateau.emf"))
+        let plateauName=name.replacingOccurrences(of:".emf",with:"-plateau.emf")
+        try assertRecordedWhiteBackground(plateau,name:plateauName,0,0)
+        let actual=try rawDecodedPixels(plateau).pixel(44,44).map(Int.init)
+        let referenceRaw=try rawDecodedPixels(reference).pixel(44,44).map(Int.init)
+        XCTAssertEqual(actual[3],255,"The recorded opaque background remains under half-alpha bitmap paint")
+        for channel in 0..<4 {XCTAssertLessThanOrEqual(abs(actual[channel]-referenceRaw[channel]),1,"Recorded white plus half-alpha bitmap must match independent CSS source-over") }
+        let composite=try displayRGBOnWhite(plateau,44,44)
         XCTAssertGreaterThan(composite[0],0.95)
         for channel in 0..<3{XCTAssertEqual(composite[channel],expected[channel],accuracy:1.0/255,"Raw bitmap source-over differs from independent native CSS alpha")}
     }
     private func primary(_ image: ComparisonImage, _ channel: Int, _ x: Int, _ y: Int, file: StaticString = #filePath, line: UInt = #line) throws {
-        let color = try rgb(image,x,y)
+        let color = try displayRGBOnWhite(image,x,y)
         XCTAssertGreaterThan(color[channel],0.8,"Sample(\(x),\(y))=\(color); \(rasterDiagnostic(image))",file:file,line:line)
         for i in 0..<3 where i != channel { XCTAssertLessThan(color[i],0.25,"Sample(\(x),\(y))=\(color); \(rasterDiagnostic(image))",file:file,line:line) }
     }
@@ -168,10 +199,10 @@ final class MetafileImageTests: XCTestCase {
         let value=try XCTUnwrap(ComparisonImage(bytes:bytes)),diagnostic=rasterDiagnostic(value)
         XCTAssertEqual(value.size,CGSize(width:24,height:20),diagnostic)
         for y in 0..<8{for x in 0..<8{
-            let color=try rgb(value,x+4,y+4),expected:[CGFloat]=(x+y)%2==0 ? [1,0,0]:[0,0,1]
+            let color=try displayRGBOnWhite(value,x+4,y+4),expected:[CGFloat]=(x+y)%2==0 ? [1,0,0]:[0,0,1]
             for channel in 0..<3{XCTAssertEqual(color[channel],expected[channel],accuracy:1.0/255,"SVG intrinsic cell(\(x),\(y)) blurred: \(diagnostic)")}
         }}
-        let top=try rgb(value,19,3),bottom=try rgb(value,19,16)
+        let top=try displayRGBOnWhite(value,19,3),bottom=try displayRGBOnWhite(value,19,16)
         for channel in 0..<3{XCTAssertEqual(top[channel],[CGFloat(0),1,0][channel],accuracy:1.0/255,diagnostic);XCTAssertEqual(bottom[channel],[CGFloat(1),0,1][channel],accuracy:1.0/255,diagnostic)}
     }
     func testNativeSVGEmbeddedRasterRampUsesIntrinsicPixelCenters() throws {
@@ -188,7 +219,7 @@ final class MetafileImageTests: XCTestCase {
         let bytes=Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"8\"><image x=\"0\" y=\"0\" width=\"16\" height=\"8\" href=\"data:image/png;base64,\(encoded)\"/></svg>".utf8)
         let value=try XCTUnwrap(ComparisonImage(bytes:bytes)),diagnostic=rasterDiagnostic(value)
         XCTAssertEqual(value.size,CGSize(width:16,height:8),diagnostic)
-        for x in 0..<16{let color=try rgb(value,x,4),t=CGFloat(2*x+1)/32
+        for x in 0..<16{let color=try displayRGBOnWhite(value,x,4),t=CGFloat(2*x+1)/32
             XCTAssertEqual(color[0],1-t,accuracy:1.0/255,"Embedded sRGB raster pixel center \(x): \(diagnostic)")
             XCTAssertEqual(color[1],0,accuracy:1.0/255,diagnostic);XCTAssertEqual(color[2],t,accuracy:1.0/255,diagnostic)
         }
@@ -200,7 +231,7 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertEqual(value.size,CGSize(width:96+edge,height:64+edge))
             try primary(value,0,12,12)
             if name.hasSuffix("wmf") {
-                let outside = try rgb(value,35,35)
+                let outside = try displayRGBOnWhite(value,35,35)
                 XCTAssertTrue(outside.allSatisfy { $0>0.9 },"WMF intersection clipping was ignored")
             } else { try primary(value,2,58,12) }
         }
@@ -220,7 +251,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(value.size,CGSize(width:97,height:65))
         try primary(value,0,20,12)
         try primary(value,2,58,12)
-        let outside = try rgb(value,34,12)
+        let outside = try displayRGBOnWhite(value,34,12)
         XCTAssertTrue(outside.allSatisfy { $0>0.9 },"EMF+ transformed clip did not constrain red rectangle")
         let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-transform.emf"))),as:UTF8.self)
         XCTAssertTrue(svg.contains("matrix(1 0 0 1 12 4)")); XCTAssertTrue(svg.contains("mask="))
@@ -229,7 +260,7 @@ final class MetafileImageTests: XCTestCase {
         let value = try image("plus-matrix-order.emf")
         try primary(value,0,20,8)
         try primary(value,2,32,40)
-        XCTAssertTrue(try rgb(value,35,8).allSatisfy { $0>0.9 })
+        XCTAssertTrue(try displayRGBOnWhite(value,35,8).allSatisfy { $0>0.9 })
     }
     func testDualPlaybackChoosesPlusAndPermitsOnlyGetDCClassicInterval() throws {
         let value = try image("plus-dual-getdc.emf")
@@ -275,7 +306,7 @@ final class MetafileImageTests: XCTestCase {
         try primary(value, 0, 70, 10)
         try primary(value, 1, 60, 32)
         try primary(value, 2, 49, 54)
-        XCTAssertTrue(try rgb(value, 44, 30).allSatisfy { $0 > 0.9 }, "Brush/world transforms misplaced the painted rectangle")
+        XCTAssertTrue(try displayRGBOnWhite(value, 44, 30).allSatisfy { $0 > 0.9 }, "Brush/world transforms misplaced the painted rectangle")
         // Final snapshots prune unreferenced semantic gradient definitions.
         // Verify the actual paint pixels before native SVG display instead.
         let paints = try embeddedPaints("plus-gradient-transform.emf")
@@ -296,7 +327,7 @@ final class MetafileImageTests: XCTestCase {
         try primary(value, 0, 54, 38)
         try primary(value, 1, 66, 38)
         try primary(value, 2, 76, 38)
-        XCTAssertTrue(try rgb(value, 20, 20).allSatisfy { $0 > 0.9 })
+        XCTAssertTrue(try displayRGBOnWhite(value, 20, 20).allSatisfy { $0 > 0.9 })
         let paints = try embeddedPaints("plus-gradient-radial.emf")
         XCTAssertEqual(paints.count, 1)
         let paint = try XCTUnwrap(paints.first)
@@ -311,7 +342,7 @@ final class MetafileImageTests: XCTestCase {
         let value = try image("plus-gradient-blend.emf")
         try primary(value, 0, 16, 24)
         try primary(value, 2, 80, 24)
-        let middle = try rgb(value, 48, 24)
+        let middle = try displayRGBOnWhite(value, 48, 24)
         XCTAssertGreaterThan(middle[0], 0.35); XCTAssertGreaterThan(middle[2], 0.35)
         XCTAssertLessThan(middle[1], 0.25)
         XCTAssertEqual(middle[0], middle[2], accuracy: 0.08)
@@ -333,7 +364,7 @@ final class MetafileImageTests: XCTestCase {
         // horizontal position: Tile restarts red; TileFlipX reflects from blue.
         try primary(value, 0, 24, 20)
         try primary(value, 2, 24, 52)
-        XCTAssertTrue(try rgb(value, 92, 30).allSatisfy { $0 > 0.9 })
+        XCTAssertTrue(try displayRGBOnWhite(value, 92, 30).allSatisfy { $0 > 0.9 })
     }
     func testImageAttributesDefaultClampColorAndTileFlipPreserveOriginalPixels() throws {
         let plain = try image("plus-image-attributes.emf")
@@ -341,10 +372,10 @@ final class MetafileImageTests: XCTestCase {
         try primary(plain, 1, 32, 16)
         try primary(plain, 2, 16, 32)
         let ignoredClamp = try image("plus-image-attributes-clamp-ignored.emf")
-        for y in [16,32] { for x in [16,32] { XCTAssertEqual(try rgb(ignoredClamp,x,y),try rgb(plain,x,y),"GDI+ 1.0 ignores SetWrapMode clamp BOOL") } }
+        for y in [16,32] { for x in [16,32] { XCTAssertEqual(try displayRGBOnWhite(ignoredClamp,x,y),try displayRGBOnWhite(plain,x,y),"GDI+ 1.0 ignores SetWrapMode clamp BOOL") } }
         let clamped = try image("plus-image-clamp.emf")
         for x in [16, 64] {
-            let color = try rgb(clamped, x, 16)
+            let color = try displayRGBOnWhite(clamped, x, 16)
             XCTAssertGreaterThan(color[0], 0.8); XCTAssertLessThan(color[1], 0.25); XCTAssertGreaterThan(color[2], 0.8)
         }
         try primary(clamped, 0, 32, 16)
@@ -368,12 +399,12 @@ final class MetafileImageTests: XCTestCase {
         try primary(absolute, 0, 24, 20)
         try primary(absolute, 1, 56, 20)
         try primary(absolute, 2, 24, 36)
-        XCTAssertTrue(try rgb(absolute, 88, 52).allSatisfy { $0 > 0.9 })
+        XCTAssertTrue(try displayRGBOnWhite(absolute, 88, 52).allSatisfy { $0 > 0.9 })
     }
     func testOpaquePenAndHalfAlphaBrushPreserveSeparateSVGOpacity() throws {
         let value = try image("plus-alpha-pen.emf")
         try primary(value, 0, 20, 8)
-        let translucent = try rgb(value, 20, 32)
+        let translucent = try displayRGBOnWhite(value, 20, 32)
         XCTAssertGreaterThan(translucent[0], 0.9)
         for channel in [1, 2] {
             XCTAssertGreaterThan(translucent[channel], 0.3)
@@ -402,7 +433,7 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertEqual(value.size, CGSize(width: 97, height: 65))
             for (x, painted) in zip(samples, expected) {
                 if painted { try primary(value, 0, x, 24) }
-                else { XCTAssertTrue(try rgb(value, x, 24).allSatisfy { $0 > 0.9 }, "\(name) painted excluded x=\(x)") }
+                else { XCTAssertTrue(try displayRGBOnWhite(value, x, 24).allSatisfy { $0 > 0.9 }, "\(name) painted excluded x=\(x)") }
             }
         }
         for (name, expected) in operations { try check("plus-region-\(name).emf", expected) }
@@ -412,19 +443,19 @@ final class MetafileImageTests: XCTestCase {
     func testRegionPathHoleInt16BoundaryInfiniteAndEmptyHaveActualGeometry() throws {
         let path = try image("plus-region-path.emf")
         try primary(path, 0, 12, 12); try primary(path, 0, 44, 28)
-        XCTAssertTrue(try rgb(path, 28, 28).allSatisfy { $0 > 0.9 }, "Even-odd region path lost its hole")
+        XCTAssertTrue(try displayRGBOnWhite(path, 28, 28).allSatisfy { $0 > 0.9 }, "Even-odd region path lost its hole")
         try primary(path, 2, 64, 16)
-        XCTAssertTrue(try rgb(path, 84, 44).allSatisfy { $0 > 0.9 }, "Int16 triangular region became its bounding box")
+        XCTAssertTrue(try displayRGBOnWhite(path, 84, 44).allSatisfy { $0 > 0.9 }, "Int16 triangular region became its bounding box")
         let leaves = try image("plus-region-infinite-empty.emf")
         try primary(leaves, 0, 12, 12); try primary(leaves, 0, 80, 48)
-        XCTAssertTrue(try rgb(leaves, 40, 24).allSatisfy { $0 > 0.9 }, "Infinite minus rectangle or Empty fill lost its semantics")
+        XCTAssertTrue(try displayRGBOnWhite(leaves, 40, 24).allSatisfy { $0 > 0.9 }, "Infinite minus rectangle or Empty fill lost its semantics")
     }
     func testRegionClipCapturesDeviceTransformAndIndexedRestore() throws {
         let value = try image("plus-region-state.emf")
         try primary(value, 0, 20, 12)
-        XCTAssertTrue(try rgb(value, 44, 12).allSatisfy { $0 > 0.9 }, "World reset moved a captured region clip")
+        XCTAssertTrue(try displayRGBOnWhite(value, 44, 12).allSatisfy { $0 > 0.9 }, "World reset moved a captured region clip")
         try primary(value, 2, 68, 16)
-        XCTAssertTrue(try rgb(value, 6, 6).allSatisfy { $0 > 0.9 }, "Region clip lost its translated boundary")
+        XCTAssertTrue(try displayRGBOnWhite(value, 6, 6).allSatisfy { $0 > 0.9 }, "Region clip lost its translated boundary")
     }
     func testHatchStylesRetainForegroundBackgroundAndNativeCellOrientation() throws {
         let paints=try embeddedPaints("plus-hatch-atlas.emf")
@@ -452,7 +483,7 @@ final class MetafileImageTests: XCTestCase {
             var red = 0, blue = 0
             for y in top..<(top + 8) {
                 for x in left..<(left + 8) {
-                    let color = try rgb(value, x, y)
+                    let color = try displayRGBOnWhite(value, x, y)
                     if color[0] > 0.8 && color[1] < 0.2 && color[2] < 0.2 { red += 1 }
                     if color[2] > 0.8 && color[1] < 0.2 && color[0] < 0.2 { blue += 1 }
                 }
@@ -466,7 +497,7 @@ final class MetafileImageTests: XCTestCase {
                 // as antialiased; edge coverage may blend only the two colors.
                 for y in top..<(top + 8) {
                     for x in left..<(left + 8) {
-                        let color = try rgb(value, x, y)
+                        let color = try displayRGBOnWhite(value, x, y)
                         XCTAssertLessThan(color[1], 0.03)
                         XCTAssertEqual(color[0] + color[2], 1, accuracy: 0.04)
                     }
@@ -476,10 +507,10 @@ final class MetafileImageTests: XCTestCase {
         // MS-EMFPLUS describes horizontal/vertical line orientation, independent
         // of the backend's private serialized pattern representation.
         for delta in 0..<8 {
-            let horizontal = try rgb(value, 2, 2 + delta)
-            let vertical = try rgb(value, 12 + delta, 2)
+            let horizontal = try displayRGBOnWhite(value, 2, 2 + delta)
+            let vertical = try displayRGBOnWhite(value, 12 + delta, 2)
             for step in 1..<8 {
-                let h = try rgb(value, 2 + step, 2 + delta), v = try rgb(value, 12 + delta, 2 + step)
+                let h = try displayRGBOnWhite(value, 2 + step, 2 + delta), v = try displayRGBOnWhite(value, 12 + delta, 2 + step)
                 for channel in 0..<3 {
                     XCTAssertEqual(h[channel], horizontal[channel], accuracy: 0.02)
                     XCTAssertEqual(v[channel], vertical[channel], accuracy: 0.02)
@@ -501,10 +532,13 @@ final class MetafileImageTests: XCTestCase {
             let baseline=try origins[0].sample(20,y),shifted=try origins[1].sample(60,y+3),restored=try origins[2].sample(20,y+32)
             for channel in 0..<4{XCTAssertEqual(baseline[channel],shifted[channel],accuracy:1.0/255,"Source rendering-origin phase changed before SVG");XCTAssertEqual(baseline[channel],restored[channel],accuracy:1.0/255,"Source restored rendering-origin phase changed before SVG")}
         }}
-        let scaled = try image("plus-hatch-alpha-world.emf")
+        let scaled = try image("plus-hatch-alpha-world.emf"),rawScaled=try rawDecodedPixels(scaled)
         var redRows = 0, blueRows = 0
         for y in 10..<34 {
-            let color = try rgb(scaled, 20, y), repeated = try rgb(scaled, 20, y + 8)
+            let raw=rawScaled.pixel(20,y).map(Int.init)
+            XCTAssertLessThanOrEqual(abs(raw[3]-128),1,"Final hatch pixels retain source half alpha")
+            XCTAssertEqual(raw[1],0);XCTAssertLessThanOrEqual(abs(raw[0]+raw[2]-raw[3]),2,"Half-alpha red/blue hatch must not acquire a white backdrop")
+            let color = try displayRGBOnWhite(scaled, 20, y), repeated = try displayRGBOnWhite(scaled, 20, y + 8)
             for channel in 0..<3 { XCTAssertEqual(color[channel], repeated[channel], accuracy: 0.03, "World scale stretched the device hatch cell; \(rasterDiagnostic(scaled))") }
             XCTAssertGreaterThan(color[1], 0.35); XCTAssertLessThan(color[1], 0.7)
             if color[0] > 0.9 && color[2] < 0.7 { redRows += 1 }
@@ -515,15 +549,19 @@ final class MetafileImageTests: XCTestCase {
         // diagonal edge. Over white, transparent red + covered opaque blue
         // yields identical red/green components and unchanged blue for every
         // coverage. This oracle follows source alpha algebra, not a cell table.
-        let edge = try image("plus-hatch-alpha-edge.emf")
+        let edge = try image("plus-hatch-alpha-edge.emf"),rawEdge=try rawDecodedPixels(image("plus-hatch-alpha-edge.emf"))
         var partialCoverage = 0
         for y in 12..<20 {
             for x in 12..<20 {
-                let clearForeground = try rgb(edge, x, y)
+                let rawLeft=rawEdge.pixel(x,y).map(Int.init),rawRight=rawEdge.pixel(x+40,y).map(Int.init)
+                XCTAssertEqual(rawLeft[0],0);XCTAssertEqual(rawLeft[1],0);XCTAssertLessThanOrEqual(abs(rawLeft[2]-rawLeft[3]),1,"Transparent red cannot contaminate the raw blue edge")
+                XCTAssertEqual(rawRight[1],0);XCTAssertLessThanOrEqual(abs(rawRight[0]+rawRight[2]-rawRight[3]),2,"Raw hatch channels and alpha retain independent source coverage")
+                XCTAssertLessThanOrEqual(rawRight[3],129,"Unequal source alphas must not become opaque")
+                let clearForeground = try displayRGBOnWhite(edge, x, y)
                 XCTAssertGreaterThan(clearForeground[2], 0.95)
                 XCTAssertEqual(clearForeground[0], clearForeground[1], accuracy: 0.03, "Invisible red stained hatch antialias coverage")
                 if clearForeground[0] > 0.05 && clearForeground[0] < 0.95 { partialCoverage += 1 }
-                let unequal = try rgb(edge, x + 40, y)
+                let unequal = try displayRGBOnWhite(edge, x + 40, y)
                 // Foreground alpha128/255 and background alpha64/255. Their
                 // source coverage weights sum to one; compositing both over
                 // white therefore gives b+r-g=1, independently of coverage.
@@ -535,7 +573,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertGreaterThan(partialCoverage, 0, "Diagonal hatch lost antialiased edge coverage")
         let origin = try image("plus-hatch-origin.emf")
         for y in 8..<21 {
-            let baseline = try rgb(origin, 20, y), shifted = try rgb(origin, 60, y + 3), restored = try rgb(origin, 20, y + 32)
+            let baseline = try displayRGBOnWhite(origin, 20, y), shifted = try displayRGBOnWhite(origin, 60, y + 3), restored = try displayRGBOnWhite(origin, 20, y + 32)
             for channel in 0..<3 {
                 XCTAssertEqual(baseline[channel], shifted[channel], accuracy: 0.03, "Rendering origin did not shift hatch device phase; \(rasterDiagnostic(origin))")
                 XCTAssertEqual(baseline[channel], restored[channel], accuracy: 0.03, "Restore did not restore hatch rendering origin; \(rasterDiagnostic(origin))")
@@ -555,7 +593,7 @@ final class MetafileImageTests: XCTestCase {
                     var column = Int(floor(sx)) - 2 * tileX, row = Int(floor(sy)) - 2 * tileY
                     if mode & 1 != 0 && abs(tileX % 2) == 1 { column = 1 - column }
                     if mode & 2 != 0 && abs(tileY % 2) == 1 { row = 1 - row }
-                    if row == 1 && column == 1 { XCTAssertTrue(try rgb(value, x, y).allSatisfy { $0 > 0.9 }) }
+                    if row == 1 && column == 1 { XCTAssertTrue(try displayRGBOnWhite(value, x, y).allSatisfy { $0 > 0.9 }) }
                     else { try primary(value, row == 0 ? column : 2, x, y) }
                 }
             }
@@ -564,8 +602,8 @@ final class MetafileImageTests: XCTestCase {
         try primary(corrected, 0, 27, 27); try primary(corrected, 1, 35, 27); try primary(corrected, 2, 27, 35)
         let clamped = try image("plus-texture-wrap-4.emf")
         try primary(clamped, 0, 27, 27); try primary(clamped, 1, 35, 27); try primary(clamped, 2, 27, 35)
-        XCTAssertTrue(try rgb(clamped, 11, 27).allSatisfy { $0 > 0.9 }, "Clamp repeated a negative texture tile")
-        XCTAssertTrue(try rgb(clamped, 43, 27).allSatisfy { $0 > 0.9 }, "Clamp repeated a positive texture tile")
+        XCTAssertTrue(try displayRGBOnWhite(clamped, 11, 27).allSatisfy { $0 > 0.9 }, "Clamp repeated a negative texture tile")
+        XCTAssertTrue(try displayRGBOnWhite(clamped, 43, 27).allSatisfy { $0 > 0.9 }, "Clamp repeated a positive texture tile")
     }
     func testTextureBrushWorldAndDoNotTransformMappingsKeepAlphaAndRegionFills() throws {
         let world = try image("plus-texture-world.emf"), device = try image("plus-texture-device.emf")
@@ -576,16 +614,16 @@ final class MetafileImageTests: XCTestCase {
         // their y centers differ because only normal playback includes W.
         try primary(world, 0, 27, 15); try primary(device, 1, 35, 11)
         try primary(world, 1, 43, 15); try primary(device, 0, 43, 11)
-        XCTAssertTrue(try rgb(world, 90, 15).allSatisfy { $0 > 0.9 }, "Texture escaped transformed fill geometry")
-        let alpha = try image("plus-texture-alpha.emf"), color = try rgb(alpha, 20, 20)
+        XCTAssertTrue(try displayRGBOnWhite(world, 90, 15).allSatisfy { $0 > 0.9 }, "Texture escaped transformed fill geometry")
+        let alpha = try image("plus-texture-alpha.emf"), color = try displayRGBOnWhite(alpha, 20, 20)
         XCTAssertGreaterThan(color[0], 0.9)
         for channel in [1, 2] { XCTAssertGreaterThan(color[channel], 0.35); XCTAssertLessThan(color[channel], 0.7) }
         let region = try image("plus-region-texture.emf")
         try primary(region, 0, 27, 27); try primary(region, 1, 35, 27); try primary(region, 2, 27, 35)
-        XCTAssertTrue(try rgb(region, 80, 50).allSatisfy { $0 > 0.9 }, "Texture region painted its bounding box")
+        XCTAssertTrue(try displayRGBOnWhite(region, 80, 50).allSatisfy { $0 > 0.9 }, "Texture region painted its bounding box")
         let hatch = try image("plus-region-hatch.emf")
-        XCTAssertTrue(try rgb(hatch, 28, 28).allSatisfy { $0 > 0.9 }, "Hatch FillRegion discarded its excluded hole")
-        let samples = try (10..<18).map { try rgb(hatch, 16, $0) }
+        XCTAssertTrue(try displayRGBOnWhite(hatch, 28, 28).allSatisfy { $0 > 0.9 }, "Hatch FillRegion discarded its excluded hole")
+        let samples = try (10..<18).map { try displayRGBOnWhite(hatch, 16, $0) }
         XCTAssertTrue(samples.contains { $0[0] > 0.8 && $0[2] < 0.2 })
         XCTAssertTrue(samples.contains { $0[2] > 0.8 && $0[0] < 0.2 })
     }
@@ -601,11 +639,12 @@ final class MetafileImageTests: XCTestCase {
             }
         }
         for name in ["indexed-alpha","indexed-alpha-unflagged"] {
-            let value=try image("plus-raw-\(name).emf"),color=try rgb(value,12,12)
+            let value=try image("plus-raw-\(name).emf"),color=try displayRGBOnWhite(value,12,12)
             XCTAssertGreaterThan(color[0],0.95);try halfAlphaRed("plus-raw-\(name).emf")
-            XCTAssertTrue(try rgb(value,44,12).allSatisfy{$0>0.95},"Transparent palette blue stained the white background")
+            XCTAssertTrue(try displayRGBOnWhite(value,44,12).allSatisfy{$0>0.95},"Transparent palette blue stained the explicit white display background")
+            try assertRecordedWhiteBackground(value,name:"plus-raw-\(name).emf",44,12)
         }
-        let gray=try rgb(image("plus-raw-indexed-gray.emf"),12,12)
+        let gray=try displayRGBOnWhite(image("plus-raw-indexed-gray.emf"),12,12)
         for channel in gray{XCTAssertEqual(channel,CGFloat(85)/255,accuracy:0.03)}
         let halftone=try image("plus-raw-indexed-halftone.emf")
         try primary(halftone,0,12,12);try primary(halftone,1,28,12);try primary(halftone,2,44,12)
@@ -615,22 +654,22 @@ final class MetafileImageTests: XCTestCase {
             for format in ["rgb555","rgb565","rgb24","rgb32"] {
                 let value=try image("plus-raw-\(format)-\(sign).emf")
                 try primary(value,0,12,12);try primary(value,1,28,12);try primary(value,2,44,12)
-                XCTAssertTrue(try rgb(value,12,28).allSatisfy{$0>0.95})
-                XCTAssertTrue(try rgb(value,28,28).allSatisfy{$0<0.05})
-                let yellow=try rgb(value,44,28);XCTAssertGreaterThan(yellow[0],0.9);XCTAssertGreaterThan(yellow[1],0.9);XCTAssertLessThan(yellow[2],0.1)
+                XCTAssertTrue(try displayRGBOnWhite(value,12,28).allSatisfy{$0>0.95})
+                XCTAssertTrue(try displayRGBOnWhite(value,28,28).allSatisfy{$0<0.05})
+                let yellow=try displayRGBOnWhite(value,44,28);XCTAssertGreaterThan(yellow[0],0.9);XCTAssertGreaterThan(yellow[1],0.9);XCTAssertLessThan(yellow[2],0.1)
             }
             let alpha=try image("plus-raw-argb1555-\(sign).emf")
             try primary(alpha,0,12,12);try primary(alpha,1,28,12);try primary(alpha,2,28,28)
-            for point in [(44,12),(12,28)] {XCTAssertTrue(try rgb(alpha,point.0,point.1).allSatisfy{$0>0.95},"ARGB1555 transparent bit was ignored")}
+            for point in [(44,12),(12,28)] {XCTAssertTrue(try displayRGBOnWhite(alpha,point.0,point.1).allSatisfy{$0>0.95},"ARGB1555 transparent bit was ignored");try assertRecordedWhiteBackground(alpha,name:"plus-raw-argb1555-\(sign).emf",point.0,point.1)}
             for format in ["argb32","pargb32"] {
-                let retained=try image("plus-raw-\(format)-\(sign).emf"),red=try rgb(retained,12,12)
+                let retained=try image("plus-raw-\(format)-\(sign).emf"),red=try displayRGBOnWhite(retained,12,12)
                 XCTAssertGreaterThan(red[0],0.95);try halfAlphaRed("plus-raw-\(format)-\(sign).emf")
                 try primary(retained,1,28,12);try primary(retained,2,28,28)
-                XCTAssertTrue(try rgb(retained,44,12).allSatisfy{$0>0.95})
+                XCTAssertTrue(try displayRGBOnWhite(retained,44,12).allSatisfy{$0>0.95});try assertRecordedWhiteBackground(retained,name:"plus-raw-\(format)-\(sign).emf",44,12)
             }
         }
         for (name,expected) in [("rgb555-mid",[24,90,206]),("rgb565-mid",[57,69,189])] {
-            let actual=try rgb(image("plus-raw-\(name).emf"),12,12)
+            let actual=try displayRGBOnWhite(image("plus-raw-\(name).emf"),12,12)
             for channel in 0..<3{XCTAssertEqual(actual[channel],CGFloat(expected[channel])/255,accuracy:0.015,"16-bit channels were not expanded independently")}
         }
     }
@@ -639,10 +678,10 @@ final class MetafileImageTests: XCTestCase {
             let direct=try image("plus-raw-\(name).emf"),texture=try image("plus-raw-texture-\(name).emf")
             let points=name.hasPrefix("indexed1") ? [(8,12),(16,12),(72,12),(8,28),(16,28)]:[(12,12),(28,12),(44,12),(12,28),(28,28),(44,28)]
             for point in points {
-                let a=try rgb(direct,point.0,point.1),b=try rgb(texture,point.0,point.1)
+                let a=try displayRGBOnWhite(direct,point.0,point.1),b=try displayRGBOnWhite(texture,point.0,point.1)
                 for channel in 0..<3{XCTAssertEqual(a[channel],b[channel],accuracy:0.035,"Raw texture differed for \(name) at \(point)")}
             }
-            XCTAssertTrue(try rgb(texture,80,48).allSatisfy{$0>0.95},"Clamp repeated raw image beyond its tile")
+            XCTAssertTrue(try displayRGBOnWhite(texture,80,48).allSatisfy{$0>0.95},"Clamp repeated raw image beyond its tile")
         }
     }
     func testMalformedIndexedPalettes16BitStridesAndRawSizesRefuseRendering() throws {
@@ -781,48 +820,50 @@ final class MetafileImageTests: XCTestCase {
     }
     /// Pixel geometry is measured from actual final output, independently of the
     /// CoreText layout bridge. No native glyph-path/bounds API is used as oracle.
-    private func textInk(_ name:String,colored:Bool=false,prefix:String="plus-formatted-",inkThreshold:UInt8=128)throws->TextInk {
+    /// Glyph geometry is measured on an explicit white display surface, independently of file alpha.
+    private func displayTextInkOnWhite(_ name:String,colored:Bool=false,prefix:String="plus-formatted-",inkThreshold:UInt8=128)throws->TextInk {
         let value=try image(prefix+name+".emf"),width=240,height=180
         let cropped=try interior(value,width:width,height:height,emf:prefix != "windows-formatted-",name:name)
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes{storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.setFillColor(CGColor(gray:1,alpha:1));context.fill(CGRect(x:0,y:0,width:width,height:height))
             context.interpolationQuality = .none;context.draw(cropped,in:CGRect(x:0,y:0,width:width,height:height))
         }
         let points=Set((0..<(width*height)).filter{let offset=$0*4;return bytes[offset+3]>128 && (colored ? bytes[offset+1]<inkThreshold : bytes[offset]<inkThreshold && bytes[offset+1]<inkThreshold && bytes[offset+2]<inkThreshold)})
         return TextInk(width:width,height:height,points:points)
     }
     func testFormattedTextTabsFirstOffsetAndTrackingHaveIndependentPixelGeometry()throws{
-        let control=try textInk("tab-control"),tabs=try textInk("tabs"),offset=try textInk("tabs-offset")
+        let control=try displayTextInkOnWhite("tab-control"),tabs=try displayTextInkOnWhite("tabs"),offset=try displayTextInkOnWhite("tabs-offset")
         XCTAssertEqual(control.columnRuns.count,2);XCTAssertEqual(tabs.columnRuns.count,2);XCTAssertEqual(offset.columnRuns.count,2)
         guard control.columnRuns.count==2,tabs.columnRuns.count==2,offset.columnRuns.count==2 else{return}
         XCTAssertEqual(tabs.columnRuns[0].minX,control.columnRuns[0].minX,accuracy:1)
         XCTAssertEqual(offset.columnRuns[0].minX,tabs.columnRuns[0].minX,accuracy:1)
         XCTAssertGreaterThan(tabs.columnRuns[1].minX,control.columnRuns[1].minX+8,"Tab was drawn as a space/control glyph")
         XCTAssertEqual(offset.columnRuns[1].minX-tabs.columnRuns[1].minX,12,accuracy:1,"FirstTabOffset did not shift the first tab in page units")
-        let continuation=try textInk("tabs-native-continuation").columnRuns
+        let continuation=try displayTextInkOnWhite("tabs-native-continuation").columnRuns
         XCTAssertEqual(continuation.count,4)
         if continuation.count==4 {
             XCTAssertEqual(continuation[1].minX-tabs.columnRuns[1].minX,12,accuracy:1)
             XCTAssertEqual(continuation[2].minX-continuation[1].minX,32,accuracy:1,"Native final-tab interval continuation changed phase")
             XCTAssertEqual(continuation[3].minX-continuation[2].minX,32,accuracy:1)
         }
-        let baseline=try textInk("baseline"),tracked=try textInk("tracking")
-        XCTAssertEqual(try textInk("ranges-metadata").points,baseline.points,"Character-range metadata changed DrawString paint")
-        XCTAssertEqual(try textInk("lcid-bypass").points,baseline.points,"English LCID/BypassGDI changed the ordinary Latin glyph layout")
+        let baseline=try displayTextInkOnWhite("baseline"),tracked=try displayTextInkOnWhite("tracking")
+        XCTAssertEqual(try displayTextInkOnWhite("ranges-metadata").points,baseline.points,"Character-range metadata changed DrawString paint")
+        XCTAssertEqual(try displayTextInkOnWhite("lcid-bypass").points,baseline.points,"English LCID/BypassGDI changed the ordinary Latin glyph layout")
         XCTAssertGreaterThan(try XCTUnwrap(tracked.bounds).width,try XCTUnwrap(baseline.bounds).width*1.25)
         XCTAssertGreaterThan(tracked.points.count,Int(Double(baseline.points.count)*0.8));XCTAssertLessThan(tracked.points.count,Int(Double(baseline.points.count)*1.2),"Tracking scaled glyph shapes instead of their advances")
     }
     func testFormattedTextBidiVerticalAndLineAlignmentPaintPositionedOutlines()throws{
-        let ltr=try textInk("ltr"),rtl=try textInk("rtl"),a=try XCTUnwrap(ltr.bounds),b=try XCTUnwrap(rtl.bounds)
+        let ltr=try displayTextInkOnWhite("ltr"),rtl=try displayTextInkOnWhite("rtl"),a=try XCTUnwrap(ltr.bounds),b=try XCTUnwrap(rtl.bounds)
         XCTAssertGreaterThan(b.minX,a.minX+80,"RTL near alignment did not use the right edge")
         XCTAssertEqual(a.width,b.width,accuracy:8);XCTAssertNotEqual(ltr.normalized,rtl.normalized,"Mixed Hebrew/numeric bidi order was not shaped")
-        let horizontal=try XCTUnwrap(textInk("horizontal").bounds),vertical=try XCTUnwrap(textInk("vertical").bounds)
+        let horizontal=try XCTUnwrap(displayTextInkOnWhite("horizontal").bounds),vertical=try XCTUnwrap(displayTextInkOnWhite("vertical").bounds)
         XCTAssertGreaterThan(horizontal.width,horizontal.height*1.5);XCTAssertGreaterThan(vertical.height,vertical.width*1.5)
         // In image coordinates a clockwise turn maps (x,y) to (h-1-y,x).
         // Compare real ink, not only aspect ratio, to reject upright stacks,
         // mirrored glyphs and the double-rotation error of vertical run matrices.
-        let hInk=try textInk("horizontal"),vInk=try textInk("vertical")
+        let hInk=try displayTextInkOnWhite("horizontal"),vInk=try displayTextInkOnWhite("vertical")
         let rotated=Set(hInk.normalized.map{point in (point%hInk.width)*hInk.width+Int(horizontal.height)-1-point/hInk.width})
         var overlap=0
         for point in vInk.normalized {
@@ -830,10 +871,10 @@ final class MetafileImageTests: XCTestCase {
             if (-1...1).contains(where:{dy in (-1...1).contains(where:{dx in rotated.contains((y+dy)*vInk.width+x+dx)})}){overlap+=1}
         }
         XCTAssertGreaterThan(Double(overlap)/Double(max(1,vInk.points.count)),0.85,"Vertical Latin ink was mirrored or rotated twice")
-        let near=try XCTUnwrap(textInk("line-near").bounds),center=try XCTUnwrap(textInk("line-center").bounds),far=try XCTUnwrap(textInk("line-far").bounds)
+        let near=try XCTUnwrap(displayTextInkOnWhite("line-near").bounds),center=try XCTUnwrap(displayTextInkOnWhite("line-center").bounds),far=try XCTUnwrap(displayTextInkOnWhite("line-far").bounds)
         XCTAssertGreaterThan(center.minY,near.minY+35);XCTAssertGreaterThan(far.minY,center.minY+35)
         XCTAssertEqual(near.width,center.width,accuracy:1);XCTAssertEqual(near.width,far.width,accuracy:1)
-        let pointNear=try textInk("point-near"),pointCenter=try textInk("point-center"),pointFar=try textInk("point-far")
+        let pointNear=try displayTextInkOnWhite("point-near"),pointCenter=try displayTextInkOnWhite("point-center"),pointFar=try displayTextInkOnWhite("point-far")
         let pn=try XCTUnwrap(pointNear.bounds),pc=try XCTUnwrap(pointCenter.bounds),pf=try XCTUnwrap(pointFar.bounds)
         func sameTranslatedInk(_ lhs:TextInk,_ rhs:TextInk)->Bool {
             let target=rhs.normalized
@@ -851,7 +892,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(pn.minY-pc.minY,(pn.minY-pf.minY)/2,accuracy:2)
         XCTAssertEqual(pn.width,pc.width,accuracy:1);XCTAssertEqual(pn.width,pf.width,accuracy:1)
         XCTAssertEqual(pn.height,pc.height,accuracy:1);XCTAssertEqual(pn.height,pf.height,accuracy:1)
-        let shortNearInk=try textInk("short-cross-near"),shortCenterInk=try textInk("short-cross-center"),shortFarInk=try textInk("short-cross-far")
+        let shortNearInk=try displayTextInkOnWhite("short-cross-near"),shortCenterInk=try displayTextInkOnWhite("short-cross-center"),shortFarInk=try displayTextInkOnWhite("short-cross-far")
         XCTAssertTrue(sameTranslatedInk(pointNear,shortNearInk));XCTAssertTrue(sameTranslatedInk(pointNear,shortCenterInk));XCTAssertTrue(sameTranslatedInk(pointNear,shortFarInk))
         let shortNear=try XCTUnwrap(shortNearInk.bounds),shortCenter=try XCTUnwrap(shortCenterInk.bounds),shortFar=try XCTUnwrap(shortFarInk.bounds)
         XCTAssertEqual(shortNear.minY-shortFar.minY,pn.minY-pf.minY-6,accuracy:2)
@@ -860,26 +901,26 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(shortNear.minX,shortCenter.minX,accuracy:1);XCTAssertEqual(shortNear.minX,shortFar.minX,accuracy:1)
         let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data("plus-formatted-rtl.emf"))),as:UTF8.self)
         XCTAssertTrue(svg.contains("אבג 123") && svg.contains("Helvetica"));XCTAssertTrue(svg.contains("<desc>"));XCTAssertFalse(svg.contains("<text"),"Formatted text still delegates painting/layout to the SVG text engine")
-        XCTAssertTrue(svg.contains("<path"));XCTAssertFalse(try textInk("surrogate-pair").points.isEmpty)
+        XCTAssertTrue(svg.contains("<path"));XCTAssertFalse(try displayTextInkOnWhite("surrogate-pair").points.isEmpty)
         let supplementary=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data("plus-formatted-surrogate-pair.emf"))),as:UTF8.self)
         XCTAssertTrue(supplementary.contains("A𝐀B"),"Valid supplementary-plane UTF16 was lost from semantic text")
-        let missing=try textInk("no-fallback"),substituted=try textInk("surrogate-pair")
+        let missing=try displayTextInkOnWhite("no-fallback"),substituted=try displayTextInkOnWhite("surrogate-pair")
         XCTAssertFalse(missing.points.isEmpty,"NoFontFallback omitted the requested font's missing-glyph outline")
         XCTAssertNotEqual(missing.normalized,substituted.normalized,"NoFontFallback silently retained the supplementary fallback font")
     }
     func testFormattedTextWrappingClipLineLimitAndTrimmingRemainVisible()throws{
-        let nowrap=try XCTUnwrap(textInk("nowrap").bounds),wrap=try XCTUnwrap(textInk("wrap").bounds)
+        let nowrap=try XCTUnwrap(displayTextInkOnWhite("nowrap").bounds),wrap=try XCTUnwrap(displayTextInkOnWhite("wrap").bounds)
         XCTAssertGreaterThan(wrap.height,nowrap.height*2);XCTAssertLessThanOrEqual(wrap.maxX,93)
-        let clipped=try XCTUnwrap(textInk("clip").bounds),unclipped=try XCTUnwrap(textInk("no-clip").bounds)
+        let clipped=try XCTUnwrap(displayTextInkOnWhite("clip").bounds),unclipped=try XCTUnwrap(displayTextInkOnWhite("no-clip").bounds)
         XCTAssertLessThanOrEqual(clipped.maxX,72);XCTAssertGreaterThan(unclipped.maxX,100,"NoClip discarded glyph overhang outside the layout rectangle")
-        XCTAssertFalse(try textInk("partial-line").points.isEmpty);XCTAssertTrue(try textInk("line-limit").points.isEmpty,"LineLimit painted a partial first line")
-        let ellipsis=try textInk("ellipsis"),runs=ellipsis.columnRuns
+        XCTAssertFalse(try displayTextInkOnWhite("partial-line").points.isEmpty);XCTAssertTrue(try displayTextInkOnWhite("line-limit").points.isEmpty,"LineLimit painted a partial first line")
+        let ellipsis=try displayTextInkOnWhite("ellipsis"),runs=ellipsis.columnRuns
         XCTAssertGreaterThan(runs.count,3)
         if runs.count>=3{
             let dots=Array(runs.suffix(3));XCTAssertTrue(dots.allSatisfy{$0.height<=5 && $0.width<=5},"Trimming did not paint three visible ellipsis dots")
             XCTAssertEqual(dots[0].maxY,dots[2].maxY,accuracy:1);XCTAssertLessThanOrEqual(try XCTUnwrap(ellipsis.bounds).maxX,102)
         }
-        let trimmed=try textInk("path-trim"),tail=try textInk("path-tail"),trimBounds=try XCTUnwrap(trimmed.bounds),tailBounds=try XCTUnwrap(tail.bounds)
+        let trimmed=try displayTextInkOnWhite("path-trim"),tail=try displayTextInkOnWhite("path-tail"),trimBounds=try XCTUnwrap(trimmed.bounds),tailBounds=try XCTUnwrap(tail.bounds)
         let tailWidth=Int(tailBounds.width),left=Int(trimBounds.maxX)-tailWidth,top=Int(trimBounds.minY)
         let suffix=Set(trimmed.points.filter{$0%trimmed.width>=left}.map{($0/trimmed.width-top)*trimmed.width+$0%trimmed.width-left})
         var best=0.0
@@ -890,7 +931,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertGreaterThan(best,0.8,"Path trimming lost the independently rendered filename suffix")
     }
     func testFormattedTextHotkeysAndFontDecorationsHaveActualPaintedStrokes()throws{
-        let baseline=try textInk("decorations-control"),underline=try textInk("underline"),strike=try textInk("strikeout")
+        let baseline=try displayTextInkOnWhite("decorations-control"),underline=try displayTextInkOnWhite("underline"),strike=try displayTextInkOnWhite("strikeout")
         XCTAssertGreaterThan(underline.points.count,baseline.points.count+10);XCTAssertGreaterThan(strike.points.count,baseline.points.count+10)
         XCTAssertGreaterThan(try XCTUnwrap(underline.bounds).maxY,try XCTUnwrap(baseline.bounds).maxY)
         let glyphs=baseline.columnRuns
@@ -903,20 +944,20 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertTrue(strikeRows.allSatisfy{CGFloat($0)>=bounds.minY && CGFloat($0)<bounds.maxY},"Strikeout was painted outside the glyph body")
             XCTAssertTrue(underline.points.contains{$0%underline.width==spaceX && CGFloat($0/underline.width)>=bounds.maxY},"Underline omitted the visible bar beneath the space")
         }
-        let plain=try textInk("hotkey-plain"),display=try textInk("hotkey-display"),show=try textInk("hotkey-show"),hide=try textInk("hotkey-hide"),literal=try textInk("hotkey-literal")
+        let plain=try displayTextInkOnWhite("hotkey-plain"),display=try displayTextInkOnWhite("hotkey-display"),show=try displayTextInkOnWhite("hotkey-show"),hide=try displayTextInkOnWhite("hotkey-hide"),literal=try displayTextInkOnWhite("hotkey-literal")
         XCTAssertEqual(hide.points,plain.points,"Hidden hotkey marker changed the displayed ABC glyphs")
         XCTAssertEqual(literal.points,display.points,"Escaped ampersand was not rendered literally")
         XCTAssertGreaterThan(show.points.count,plain.points.count+4,"Visible hotkey prefix omitted its underline")
         XCTAssertGreaterThan(try XCTUnwrap(display.bounds).width,try XCTUnwrap(plain.bounds).width+5)
     }
     func testFormattedTextOutlinesRetainBrushWorldTransformAndCapturedClip()throws{
-        let base=try textInk("baseline"),translated=try textInk("translated"),clip=try textInk("translated-clip")
+        let base=try displayTextInkOnWhite("baseline"),translated=try displayTextInkOnWhite("translated"),clip=try displayTextInkOnWhite("translated-clip")
         let a=try XCTUnwrap(base.bounds),b=try XCTUnwrap(translated.bounds),c=try XCTUnwrap(clip.bounds)
         XCTAssertEqual(b.minX-a.minX,24,accuracy:1);XCTAssertEqual(b.minY-a.minY,36,accuracy:1)
         XCTAssertEqual(base.normalized,translated.normalized,"World translation reshaped the text")
         XCTAssertLessThanOrEqual(c.maxX,70);XCTAssertGreaterThan(clip.points.count,0)
         XCTAssertLessThan(c.width,b.width*0.7,"Text escaped the device clip captured before world translation")
-        let gradient=try textInk("gradient",colored:true)
+        let gradient=try displayTextInkOnWhite("gradient",colored:true)
         XCTAssertGreaterThan(gradient.points.count,base.points.count*9/10,"Brush text lost its glyph interiors")
         XCTAssertEqual(try XCTUnwrap(gradient.bounds).width,a.width,accuracy:1)
         let value=try image("plus-formatted-gradient.emf")
@@ -925,18 +966,18 @@ final class MetafileImageTests: XCTestCase {
         // rectangle would also color the counters/spaces and fail mask equality.
         XCTAssertEqual(gradient.points,base.points,"Gradient painted a text bounding box instead of glyph outlines")
         for point in gradient.points where point%gradient.width%3==0 && point/gradient.width%3==0 {
-            let color=try rgb(value,point%gradient.width,point/gradient.width)
+            let color=try displayRGBOnWhite(value,point%gradient.width,point/gradient.width)
             if color[0]>color[2]+0.25{red+=1};if color[2]>color[0]+0.25{blue+=1}
         }
         XCTAssertGreaterThan(red,8);XCTAssertGreaterThan(blue,8,"Glyph brush lost its independent gradient endpoint")
     }
     func testFormattedDigitModesPreserveMeasuredWindowsNumericPaint()throws{
         for (name,control) in [("thai-national","latin-control"),("thai-traditional","latin-control"),("arabic-national","latin-control"),("persian-traditional","latin-control"),("thai-none","latin-control"),("thai-user","latin-control"),("existing-unicode","existing-unicode-control"),("language-upper-bits","latin-control"),("unknown-language","latin-control")] {
-            let painted=try textInk("digits-"+name),expected=try textInk("digits-"+control)
+            let painted=try displayTextInkOnWhite("digits-"+name),expected=try displayTextInkOnWhite("digits-"+control)
             XCTAssertGreaterThan(expected.points.count,100,control)
             XCTAssertEqual(painted.points,expected.points,name+" did not match independently encoded Unicode glyphs")
         }
-        XCTAssertNotEqual(try textInk("digits-thai-traditional").points,try textInk("digits-thai-control").points,"Windows literal numeric playback was replaced by ICU native-digit rewriting")
+        XCTAssertNotEqual(try displayTextInkOnWhite("digits-thai-traditional").points,try displayTextInkOnWhite("digits-thai-control").points,"Windows literal numeric playback was replaced by ICU native-digit rewriting")
         let original=try data("plus-formatted-digits-thai-traditional.emf")
         let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(original)),as:UTF8.self)
         XCTAssertTrue(svg.contains("0123456789"),"Visual substitution overwrote original semantic text")
@@ -946,17 +987,17 @@ final class MetafileImageTests: XCTestCase {
     func testFormattedDigitSubstitutionRetainsHotkeysVerticalWrappingAndBrushPaint()throws{
         for name in ["thai-hotkey","thai-vertical","thai-wrap","thai-gradient"] {
             let colored=name.hasSuffix("gradient")
-            let painted=try textInk("digits-"+name,colored:colored),control=try textInk("digits-"+name+"-control",colored:colored)
+            let painted=try displayTextInkOnWhite("digits-"+name,colored:colored),control=try displayTextInkOnWhite("digits-"+name+"-control",colored:colored)
             XCTAssertGreaterThan(control.points.count,30,name)
             XCTAssertEqual(painted.points,control.points,name+" changed shaped glyph geometry or hotkey decoration")
         }
         let gradient=try image("plus-formatted-digits-thai-gradient.emf"),control=try image("plus-formatted-digits-thai-gradient-control.emf")
         for y in stride(from:12,to:42,by:3) {for x in stride(from:12,to:145,by:3) {
-            let actual=try rgb(gradient,x,y),expected=try rgb(control,x,y)
+            let actual=try displayRGBOnWhite(gradient,x,y),expected=try displayRGBOnWhite(control,x,y)
             for component in 0..<3 {XCTAssertEqual(actual[component],expected[component],accuracy:0.001,"Digit outlines changed gradient paint at \(x),\(y)")}
         }}
-        XCTAssertGreaterThan(try XCTUnwrap(textInk("digits-thai-vertical").bounds).height,try XCTUnwrap(textInk("digits-thai-vertical").bounds).width)
-        XCTAssertGreaterThan(try XCTUnwrap(textInk("digits-thai-wrap").bounds).height,30)
+        XCTAssertGreaterThan(try XCTUnwrap(displayTextInkOnWhite("digits-thai-vertical").bounds).height,try XCTUnwrap(displayTextInkOnWhite("digits-thai-vertical").bounds).width)
+        XCTAssertGreaterThan(try XCTUnwrap(displayTextInkOnWhite("digits-thai-wrap").bounds).height,30)
     }
     func testMalformedFormattedDigitMethodsAndLanguagesRefuseWholeImage()throws{
         for name in ["enumeration"] {
@@ -969,36 +1010,36 @@ final class MetafileImageTests: XCTestCase {
     // Fractional zero-advance stems are visible gray ink, not absent paint.
     func testFormattedControlsPaintZeroAdvanceOutlinesWithoutReplacingShapedText()throws{
         for name in ["lrm-alone","rlm-alone","zwj-alone","zwnj-alone"] {
-            let hidden=try textInk("controls-"+name+"-hidden",inkThreshold:250),shown=try textInk("controls-"+name+"-display",inkThreshold:250)
+            let hidden=try displayTextInkOnWhite("controls-"+name+"-hidden",inkThreshold:250),shown=try displayTextInkOnWhite("controls-"+name+"-display",inkThreshold:250)
             XCTAssertTrue(hidden.points.isEmpty,name)
             XCTAssertGreaterThan(shown.points.count,10,name)
             let bounds=try XCTUnwrap(shown.bounds)
             XCTAssertLessThan(bounds.width,10,name);XCTAssertGreaterThan(bounds.height,12,name)
         }
         for name in ["lrm-context","rlm-context"] {
-            let hidden=try textInk("controls-"+name+"-hidden",inkThreshold:250),shown=try textInk("controls-"+name+"-display",inkThreshold:250)
+            let hidden=try displayTextInkOnWhite("controls-"+name+"-hidden",inkThreshold:250),shown=try displayTextInkOnWhite("controls-"+name+"-display",inkThreshold:250)
             XCTAssertTrue(hidden.points.isSubset(of:shown.points),name+" moved or reshaped the original letters")
             let extra=shown.points.subtracting(hidden.points)
             XCTAssertGreaterThan(extra.count,10,name)
             XCTAssertLessThan(try XCTUnwrap(TextInk(width:shown.width,height:shown.height,points:extra).bounds).width,10,name+" changed more than the zero-advance marker")
         }
         for name in ["zwj-context","zwnj-context","arabic-zwj","arabic-zwnj","other-controls"] {
-            XCTAssertEqual(try textInk("controls-"+name+"-display",inkThreshold:250).points,try textInk("controls-"+name+"-hidden",inkThreshold:250).points,name+" invented a visible glyph or changed joining")
+            XCTAssertEqual(try displayTextInkOnWhite("controls-"+name+"-display",inkThreshold:250).points,try displayTextInkOnWhite("controls-"+name+"-hidden",inkThreshold:250).points,name+" invented a visible glyph or changed joining")
         }
     }
     func testFormattedControlsRetainWrappingVerticalHotkeysAndExactTrimmedText()throws{
         for name in ["vertical","wrap","trim-kept","hotkey","path-trim"] {
-            let hidden=try textInk("controls-"+name+"-hidden",inkThreshold:250),shown=try textInk("controls-"+name+"-display",inkThreshold:250)
+            let hidden=try displayTextInkOnWhite("controls-"+name+"-hidden",inkThreshold:250),shown=try displayTextInkOnWhite("controls-"+name+"-display",inkThreshold:250)
             XCTAssertFalse(hidden.points.isEmpty,name)
             XCTAssertNotEqual(shown.points,hidden.points,name+" lost the retained control outline")
         }
-        XCTAssertEqual(try textInk("controls-trim-removed-display",inkThreshold:250).points,try textInk("controls-trim-removed-hidden",inkThreshold:250).points,"A control removed by ellipsis trimming reappeared as paint")
-        let colored=try textInk("controls-lrm-gradient-display",colored:true,inkThreshold:250),plain=try textInk("controls-lrm-alone-display",inkThreshold:250)
+        XCTAssertEqual(try displayTextInkOnWhite("controls-trim-removed-display",inkThreshold:250).points,try displayTextInkOnWhite("controls-trim-removed-hidden",inkThreshold:250).points,"A control removed by ellipsis trimming reappeared as paint")
+        let colored=try displayTextInkOnWhite("controls-lrm-gradient-display",colored:true,inkThreshold:250),plain=try displayTextInkOnWhite("controls-lrm-alone-display",inkThreshold:250)
         XCTAssertEqual(colored.points,plain.points,"Control brush paint escaped its actual glyph outline")
         let gradient=try image("plus-formatted-controls-lrm-gradient-display.emf")
         var red=0,blue=0
         for point in colored.points {
-            let c=try rgb(gradient,point%colored.width,point/colored.width)
+            let c=try displayRGBOnWhite(gradient,point%colored.width,point/colored.width)
             if c[0]>c[2]+0.2 {red+=1};if c[2]>c[0]+0.2 {blue+=1}
         }
         XCTAssertGreaterThan(red,0);XCTAssertGreaterThan(blue,0,"Zero-advance marker lost its gradient endpoint")
@@ -1009,9 +1050,9 @@ final class MetafileImageTests: XCTestCase {
     }
     func testWindowsRecordedFormatControlsAcceptNativeLanguageStorageAndKeepZeroAdvance()throws{
         for control in ["lrm","rlm","zwj","zwnj"] {
-            let shown=try textInk(control+"-alone-display",prefix:"windows-formatted-",inkThreshold:250),hidden=try textInk(control+"-alone-hidden",prefix:"windows-formatted-",inkThreshold:250)
+            let shown=try displayTextInkOnWhite(control+"-alone-display",prefix:"windows-formatted-",inkThreshold:250),hidden=try displayTextInkOnWhite(control+"-alone-hidden",prefix:"windows-formatted-",inkThreshold:250)
             XCTAssertTrue(hidden.points.isEmpty,control);XCTAssertGreaterThan(shown.points.count,10,control)
-            let embeddedShown=try textInk(control+"-latin-display",prefix:"windows-formatted-",inkThreshold:250),embeddedHidden=try textInk(control+"-latin-hidden",prefix:"windows-formatted-",inkThreshold:250)
+            let embeddedShown=try displayTextInkOnWhite(control+"-latin-display",prefix:"windows-formatted-",inkThreshold:250),embeddedHidden=try displayTextInkOnWhite(control+"-latin-hidden",prefix:"windows-formatted-",inkThreshold:250)
             XCTAssertFalse(embeddedHidden.points.isEmpty,control)
             if ["lrm","rlm"].contains(control) {XCTAssertNotEqual(embeddedShown.points,embeddedHidden.points,control)}
             else {XCTAssertEqual(embeddedShown.points,embeddedHidden.points,control+" should stay invisible in the measured non-lone contexts")}
@@ -1020,8 +1061,8 @@ final class MetafileImageTests: XCTestCase {
     func testWindowsRecordedDigitModesMatchLiteralNumericPaintInPlainAndArabicRTLText()throws{
         for language in ["thai","arabic","persian"] {for mode in ["national","traditional"] {for context in ["plain","arabic-rtl"] {
             let name=language+"-"+mode+"-"+context
-            let painted=try textInk("digits-"+name,prefix:"windows-formatted-")
-            let control=try textInk("digits-literal-ascii"+(context=="plain" ? "":"-arabic-rtl"),prefix:"windows-formatted-")
+            let painted=try displayTextInkOnWhite("digits-"+name,prefix:"windows-formatted-")
+            let control=try displayTextInkOnWhite("digits-literal-ascii"+(context=="plain" ? "":"-arabic-rtl"),prefix:"windows-formatted-")
             XCTAssertGreaterThan(control.points.count,100,name)
             XCTAssertEqual(painted.points,control.points,"Native Windows-recorded digit mode changed numeric code points: "+name)
         }}}
@@ -1135,7 +1176,7 @@ final class MetafileImageTests: XCTestCase {
             try primary(value, 1, 40, 32); try primary(value, 1, 72, 40)
             try primary(value, 1, 40, 52)
             for (x, y) in [(88, 60), (4, 4), (16, 52)] {
-                XCTAssertTrue(try rgb(value, x, y).allSatisfy { $0 > 0.9 }, "GetDC \(name) painted outside A/B at \(x),\(y)")
+                XCTAssertTrue(try displayRGBOnWhite(value, x, y).allSatisfy { $0 > 0.9 }, "GetDC \(name) painted outside A/B at \(x),\(y)")
             }
         }
     }
@@ -1168,9 +1209,10 @@ extension MetafileImageTests {
         }
     }
     private func penPixels(_ name: String) throws -> PenPixels {
-        try metafilePixels("plus-pen-"+name+".emf")
+        try displayGeometryPixelsOnWhite("plus-pen-"+name+".emf")
     }
-    private func metafilePixels(_ name:String) throws -> PenPixels {
+    /// Pen/path signed-distance oracles include an explicit white display backdrop.
+    private func displayGeometryPixelsOnWhite(_ name:String) throws -> PenPixels {
         let value = try image(name)
         let width=96,height=64
         let cropped=try interior(value,width:width,height:height,emf:name.hasSuffix(".emf"),name:name)
@@ -1181,6 +1223,7 @@ extension MetafileImageTests {
                 space: try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB)),
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
             context.interpolationQuality = .none
+            context.setFillColor(CGColor(gray:1,alpha:1));context.fill(CGRect(x:0,y:0,width:width,height:height))
             context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
         return .init(width: width, height: height, bytes: bytes)
@@ -1258,6 +1301,19 @@ extension MetafileImageTests {
         XCTAssertEqual(wrong, 0, "\(name) differs from independent control \(control)", file: file, line: line)
     }
 
+    func testDisplayGeometryMattesDoNotChangeActualPenAndTextAlpha()throws {
+        let pen=try rawDecodedPixels(image("plus-pen-flat.emf"))
+        XCTAssertEqual(pen.pixel(4,4),[0,0,0,0]);XCTAssertEqual(pen.pixel(48,32),[255,0,0,255])
+        let explicitWhite=try rawDecodedPixels(image("plus-formatted-tab-control.emf"))
+        XCTAssertEqual(explicitWhite.pixel(0,0),[255,255,255,255],"The fixture's recorded white FillRect remains an actual opaque paint")
+        let text=try rawDecodedPixels(image("plus-bitmap-text.emf"))
+        XCTAssertEqual(text.pixel(0,0),[0,0,0,0],"This fixture records no background paint")
+        // Exclude the separately recorded bitmap at x4..<36. Only the original
+        // text's supplied layout rectangle contributes to these glyph assertions.
+        let glyphRegion=(8..<32).flatMap {y in (40..<94).map{x in (y*text.width+x)*4}}
+        XCTAssertGreaterThan(glyphRegion.filter{text.bytes[$0+3]>0}.count,20,"Actual glyph ink must survive independently of the display matte")
+        XCTAssertTrue(glyphRegion.contains{text.bytes[$0+3]>0 && text.bytes[$0+3]<255},"Raw text must preserve glyph-edge antialias alpha")
+    }
     func testPenFlatDirectionalAndAsymmetricCapsPaintAnalyticalOutlines() throws {
         try penAssert("flat") { self.penBox($0, $1, 20, 28, 76, 36) }
         try penAssert("vertical") { self.penBox($0, $1, 44, 12, 52, 52) }
@@ -1307,11 +1363,11 @@ extension MetafileImageTests {
         let dashed = try image("plus-pen-inset-dash.emf")
         for (x, y) in [(32, 20), (64, 20), (56, 44), (28, 44), (24, 24)] { try primary(dashed, 0, x, y) }
         for (x, y) in [(48, 20), (40, 44), (24, 36), (12, 20), (48, 32)] {
-            XCTAssertTrue(try rgb(dashed, x, y).allSatisfy { $0 > 0.95 }, "Inset dash gap at \(x),\(y) was scaled with the doubled outline")
+            XCTAssertTrue(try displayRGBOnWhite(dashed, x, y).allSatisfy { $0 > 0.95 }, "Inset dash gap at \(x),\(y) was scaled with the doubled outline")
         }
         let offset = try image("plus-pen-inset-dash-offset.emf")
         try primary(offset, 0, 28, 20); try primary(offset, 0, 56, 20)
-        XCTAssertTrue(try rgb(offset, 40, 20).allSatisfy { $0 > 0.95 }, "Inset dash phase must use original pen width")
+        XCTAssertTrue(try displayRGBOnWhite(offset, 40, 20).allSatisfy { $0 > 0.95 }, "Inset dash phase must use original pen width")
     }
 
     func testPenLinearTransformIgnoresTranslationAndRespectsCapturedWorldClip() throws {
@@ -1402,25 +1458,25 @@ extension MetafileImageTests {
         let ellipse = try image("plus-pen-ellipse.emf"), arc = try image("plus-pen-arc.emf"), bezier = try image("plus-pen-bezier.emf")
         for value in [ellipse, arc] {
             try primary(value, 0, 48, 52)
-            XCTAssertTrue(try rgb(value, 48, 32).allSatisfy { $0 > 0.95 })
+            XCTAssertTrue(try displayRGBOnWhite(value, 48, 32).allSatisfy { $0 > 0.95 })
         }
         try primary(ellipse, 0, 48, 12)
-        XCTAssertTrue(try rgb(arc, 48, 12).allSatisfy { $0 > 0.95 })
+        XCTAssertTrue(try displayRGBOnWhite(arc, 48, 12).allSatisfy { $0 > 0.95 })
         for (x, y) in [(34, 25), (48, 32), (62, 38)] { try primary(bezier, 0, x, y) }
-        XCTAssertTrue(try rgb(bezier, 48, 4).allSatisfy { $0 > 0.95 })
+        XCTAssertTrue(try displayRGBOnWhite(bezier, 48, 4).allSatisfy { $0 > 0.95 })
         let backtrack = try image("plus-pen-bezier-backtrack.emf")
         try primary(backtrack, 0, 34, 32); try primary(backtrack, 0, 62, 32)
-        for x in [20, 76] { XCTAssertTrue(try rgb(backtrack, x, 32).allSatisfy { $0 > 0.95 }) }
+        for x in [20, 76] { XCTAssertTrue(try displayRGBOnWhite(backtrack, x, 32).allSatisfy { $0 > 0.95 }) }
         try penSamePixels("ellipse-compressed", "ellipse")
         try penSamePixels("bezier-compressed", "bezier")
         try penSamePixels("closed-curve-relative", "closed-curve-control")
         try penSamePixels("closed-curve-relative-c", "closed-curve-control")
         let closed = try image("plus-pen-closed-curve-relative.emf")
         for (x, y) in [(48, 16), (62, 32), (34, 32)] { try primary(closed, 0, x, y) }
-        XCTAssertTrue(try rgb(closed, 48, 28).allSatisfy { $0 > 0.95 })
+        XCTAssertTrue(try displayRGBOnWhite(closed, 48, 28).allSatisfy { $0 > 0.95 })
         for brush in ["hatch", "gradient", "texture"] { try penSamePixels(brush, brush + "-control") }
         let gradient = try image("plus-pen-gradient.emf")
-        let red = try rgb(gradient, 20, 32), blue = try rgb(gradient, 75, 32)
+        let red = try displayRGBOnWhite(gradient, 20, 32), blue = try displayRGBOnWhite(gradient, 75, 32)
         XCTAssertGreaterThan(red[0], red[2] + 0.6); XCTAssertGreaterThan(blue[2], blue[0] + 0.6)
         let texture = try image("plus-pen-texture.emf")
         try primary(texture, 0, 24, 28); try primary(texture, 1, 40, 28); try primary(texture, 2, 24, 36)
@@ -1455,7 +1511,7 @@ extension MetafileImageTests {
 }
 
 extension MetafileImageTests {
-    private func compressedPixels(_ name:String) throws -> PenPixels {try metafilePixels("plus-compressed-path-"+name+".emf")}
+    private func compressedPixels(_ name:String) throws -> PenPixels {try displayGeometryPixelsOnWhite("plus-compressed-path-"+name+".emf")}
     private func compressedSame(_ name:String,_ control:String,file:StaticString=#filePath,line:UInt=#line) throws {
         let value=try compressedPixels(name),expected=try compressedPixels(control)
         XCTAssertEqual(value.width,expected.width,file:file,line:line);XCTAssertEqual(value.height,expected.height,file:file,line:line)
@@ -1625,17 +1681,19 @@ extension MetafileImageTests {
         }
         for name in ["path-cubic-count","path-rle-overrun","overlong-inset","object-truncated"] {XCTAssertNil(ComparisonImage(bytes:try data("unsupported-pen-custom-"+name+".emf")),name)}
     }
-    private func positionedInk(_ bytes:Data)throws->TextInk {
+    /// Positioned-glyph geometry shares the explicit white display policy.
+    private func displayPositionedInkOnWhite(_ bytes:Data)throws->TextInk {
         let rendered=try XCTUnwrap(ComparisonImage(bytes:bytes)),width=96,height=64
         let cropped=try interior(rendered,width:width,height:height)
         var rgba=[UInt8](repeating:0,count:width*height*4)
         try rgba.withUnsafeMutableBytes { storage in
             let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.setFillColor(CGColor(gray:1,alpha:1));context.fill(CGRect(x:0,y:0,width:width,height:height))
             context.draw(cropped,in:CGRect(x:0,y:0,width:width,height:height))
         }
         return TextInk(width:width,height:height,points:Set((0..<width*height).filter{let p=$0*4;return rgba[p+3]>128 && rgba[p]<128 && rgba[p+1]<128 && rgba[p+2]<128}))
     }
-    private func positionedInk(_ name:String)throws->TextInk {try positionedInk(data(name+".emf"))}
+    private func displayPositionedInkOnWhite(_ name:String)throws->TextInk {try displayPositionedInkOnWhite(data(name+".emf"))}
     /// Resolve actual installed cmap IDs, then change only the wire's glyph-mode
     /// bit and UInt16 values. Positions, font, brush and framing remain original.
     private func positionedRawGlyphCopy(_ original:Data)throws->Data {
@@ -1675,31 +1733,31 @@ extension MetafileImageTests {
         XCTAssertTrue(found);XCTAssertNotEqual(bytes,original);return bytes
     }
     func testPositionedDriverUnicodeAndRuntimeRawGlyphsMatchClassicExplicitDx()throws {
-        let original=try data("plus-driver-positioned.emf"),driver=try positionedInk(original),classic=try positionedInk("classic-positioned-dx")
+        let original=try data("plus-driver-positioned.emf"),driver=try displayPositionedInkOnWhite(original),classic=try displayPositionedInkOnWhite("classic-positioned-dx")
         XCTAssertEqual(driver.points,classic.points);XCTAssertEqual(driver.columnRuns.count,3)
         if driver.columnRuns.count==3 {XCTAssertEqual(driver.columnRuns[1].minX-driver.columnRuns[0].minX,28);XCTAssertEqual(driver.columnRuns[2].minX-driver.columnRuns[1].minX,28)}
-        XCTAssertEqual(try positionedInk(positionedRawGlyphCopy(original)).points,driver.points)
+        XCTAssertEqual(try displayPositionedInkOnWhite(positionedRawGlyphCopy(original)).points,driver.points)
         let classicBytes=try data("classic-positioned-dx.emf")
-        XCTAssertEqual(try positionedInk(positionedRawGlyphCopy(classicBytes)).points,classic.points)
+        XCTAssertEqual(try displayPositionedInkOnWhite(positionedRawGlyphCopy(classicBytes)).points,classic.points)
         XCTAssertEqual(try data("plus-driver-positioned.emf"),original);XCTAssertEqual(try data("classic-positioned-dx.emf"),classicBytes)
     }
     func testPositionedDriverRealizedAdvanceAndVerticalUseActualFontMetrics()throws {
-        let natural=try positionedInk("plus-driver-natural"),unused=try positionedInk("plus-driver-natural-unused")
+        let natural=try displayPositionedInkOnWhite("plus-driver-natural"),unused=try displayPositionedInkOnWhite("plus-driver-natural-unused")
         XCTAssertEqual(natural.points,unused.points,"Unused realized-position slots must not affect paint")
         let font=CTFontCreateWithName("Helvetica" as CFString,18,nil);var character=UniChar(72),glyph=CGGlyph(),advance=CGSize.zero
         XCTAssertTrue(CTFontGetGlyphsForCharacters(font,&character,&glyph,1));CTFontGetAdvancesForGlyphs(font,.horizontal,&glyph,&advance,1)
         XCTAssertEqual(natural.columnRuns.count,3)
         if natural.columnRuns.count==3 {for index in 1...2{XCTAssertEqual(natural.columnRuns[index].minX-natural.columnRuns[index-1].minX,advance.width,accuracy:1)}}
-        XCTAssertEqual(try positionedInk("classic-positioned-natural").points,natural.points)
-        let horizontal=try positionedInk("plus-driver-single"),vertical=try positionedInk("plus-driver-vertical-single")
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-natural").points,natural.points)
+        let horizontal=try displayPositionedInkOnWhite("plus-driver-single"),vertical=try displayPositionedInkOnWhite("plus-driver-vertical-single")
         let clockwise=Set(horizontal.points.map{point -> Int in let x=point%96,y=point/96;return (28+x-32)*96+32-(y-28)})
         let matched=vertical.points.filter{point in (-1...1).contains{dy in (-1...1).contains{dx in clockwise.contains(point+dy*96+dx)}}}.count
         XCTAssertGreaterThan(vertical.points.count,20);XCTAssertGreaterThan(Double(matched)/Double(max(1,vertical.points.count)),0.9)
-        let verticalNatural=try positionedInk("plus-driver-vertical-natural"),bounds=try XCTUnwrap(verticalNatural.bounds)
+        let verticalNatural=try displayPositionedInkOnWhite("plus-driver-vertical-natural"),bounds=try XCTUnwrap(verticalNatural.bounds)
         XCTAssertGreaterThan(bounds.height,bounds.width*1.5,"Vertical realized advances must follow the rotated font direction")
     }
     func testPositionedVerticalDriverMatrixPrecedesVerticalOrientation()throws {
-        let original=try positionedInk("plus-driver-single"),transformed=try positionedInk("plus-driver-vertical-matrix")
+        let original=try displayPositionedInkOnWhite("plus-driver-single"),transformed=try displayPositionedInkOnWhite("plus-driver-vertical-matrix")
         // Independent noncommuting M then clockwise V, about the supplied
         // alphabetic origin. Reversing the order makes a wide short H instead.
         let expected=Set(original.points.map{point -> Int in
@@ -1712,36 +1770,36 @@ extension MetafileImageTests {
         XCTAssertGreaterThan(Double(covered)/Double(max(1,transformed.points.count)),0.85,"Driver matrix and vertical orientation were applied in reversed order")
     }
     func testPositionedGlyphMatricesAndWorldClipsPreserveSuppliedOrigins()throws {
-        let baseline=try positionedInk("plus-driver-positioned")
-        XCTAssertEqual(try positionedInk("plus-driver-translated").points,baseline.points,"Driver matrix translation is unused, not a second origin transform")
-        XCTAssertEqual(try positionedInk("plus-driver-fractional").points,try positionedInk("plus-driver-limit-subpixel").points,"Subpixel raster hint must not quantize the outline's supplied origins")
+        let baseline=try displayPositionedInkOnWhite("plus-driver-positioned")
+        XCTAssertEqual(try displayPositionedInkOnWhite("plus-driver-translated").points,baseline.points,"Driver matrix translation is unused, not a second origin transform")
+        XCTAssertEqual(try displayPositionedInkOnWhite("plus-driver-fractional").points,try displayPositionedInkOnWhite("plus-driver-limit-subpixel").points,"Subpixel raster hint must not quantize the outline's supplied origins")
         let translated=Set(baseline.points.map{$0+12*96+4})
-        XCTAssertEqual(try positionedInk("plus-driver-world").points,translated)
-        XCTAssertEqual(try positionedInk("classic-positioned-world").points,translated)
-        let clipped=try positionedInk("plus-driver-clipped"),expected=Set(baseline.points.filter{$0%96<48})
-        XCTAssertEqual(clipped.points,expected);XCTAssertEqual(try positionedInk("classic-positioned-clipped").points,expected)
-        let matrix=try positionedInk("plus-driver-linear-matrix")
+        XCTAssertEqual(try displayPositionedInkOnWhite("plus-driver-world").points,translated)
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-world").points,translated)
+        let clipped=try displayPositionedInkOnWhite("plus-driver-clipped"),expected=Set(baseline.points.filter{$0%96<48})
+        XCTAssertEqual(clipped.points,expected);XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-clipped").points,expected)
+        let matrix=try displayPositionedInkOnWhite("plus-driver-linear-matrix")
         XCTAssertNotEqual(matrix.points,baseline.points);XCTAssertEqual(matrix.columnRuns.count,3)
         if matrix.columnRuns.count==3 {XCTAssertEqual(matrix.columnRuns[1].minX-matrix.columnRuns[0].minX,28,accuracy:1);XCTAssertEqual(matrix.columnRuns[2].minX-matrix.columnRuns[1].minX,28,accuracy:1)}
-        for name in ["plus-driver-state","classic-positioned-state"] {let pixel=try rgb(image(name+".emf"),84,52);XCTAssertLessThan(pixel[0],0.05);XCTAssertGreaterThan(pixel[2],0.95,"Restored state retained text clip")}
+        for name in ["plus-driver-state","classic-positioned-state"] {let pixel=try displayRGBOnWhite(image(name+".emf"),84,52);XCTAssertLessThan(pixel[0],0.05);XCTAssertGreaterThan(pixel[2],0.95,"Restored state retained text clip")}
     }
     func testClassicPositionedPdyAlignmentUpdateCPAndOpaqueRects()throws {
-        let baseline=try positionedInk("classic-positioned-dx")
-        XCTAssertEqual(try positionedInk("classic-positioned-path").points,baseline.points,"BeginPath must accumulate glyph outlines until FillPath")
-        for name in ["center","right"] {XCTAssertEqual(try positionedInk("classic-positioned-"+name).points,baseline.points,name)}
-        XCTAssertEqual(try positionedInk("classic-positioned-pdy").points,try positionedInk("plus-driver-pdy-control").points,"PDY positive deltas must move up in source font coordinates")
-        XCTAssertEqual(try positionedInk("classic-positioned-updatecp").points,try positionedInk("classic-positioned-updatecp-control").points)
-        for direction in ["right","center"] {XCTAssertEqual(try positionedInk("classic-positioned-updatecp-"+direction).points,try positionedInk("classic-positioned-updatecp-"+direction+"-control").points,direction)}
+        let baseline=try displayPositionedInkOnWhite("classic-positioned-dx")
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-path").points,baseline.points,"BeginPath must accumulate glyph outlines until FillPath")
+        for name in ["center","right"] {XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-"+name).points,baseline.points,name)}
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-pdy").points,try displayPositionedInkOnWhite("plus-driver-pdy-control").points,"PDY positive deltas must move up in source font coordinates")
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-updatecp").points,try displayPositionedInkOnWhite("classic-positioned-updatecp-control").points)
+        for direction in ["right","center"] {XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-updatecp-"+direction).points,try displayPositionedInkOnWhite("classic-positioned-updatecp-"+direction+"-control").points,direction)}
         let opaque=try image("classic-positioned-opaque.emf"),empty=try image("classic-positioned-empty-opaque.emf")
-        for image in [opaque,empty] {let interior=try rgb(image,6,6),outside=try rgb(image,2,2);XCTAssertLessThan(interior[0],0.05);XCTAssertGreaterThan(interior[1],0.95);XCTAssertGreaterThan(outside[0],0.95);XCTAssertGreaterThan(outside[1],0.95)}
-        XCTAssertEqual(try positionedInk("classic-positioned-empty-opaque").points.count,0)
-        XCTAssertGreaterThan(try positionedInk("classic-positioned-opaque").points.count,50)
+        for image in [opaque,empty] {let interior=try displayRGBOnWhite(image,6,6),outside=try displayRGBOnWhite(image,2,2);XCTAssertLessThan(interior[0],0.05);XCTAssertGreaterThan(interior[1],0.95);XCTAssertGreaterThan(outside[0],0.95);XCTAssertGreaterThan(outside[1],0.95)}
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-empty-opaque").points.count,0)
+        XCTAssertGreaterThan(try displayPositionedInkOnWhite("classic-positioned-opaque").points.count,50)
     }
     func testClassicPositionedCompatibleInkAndAdvancesHaveIndependentMappings()throws {
         for name in ["dx","natural","reflect-dx","reflect-natural","yreflect"] {
-            XCTAssertEqual(try positionedInk("classic-positioned-compatible-"+name).points,try positionedInk("plus-driver-compatible-"+name).points,name)
+            XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-compatible-"+name).points,try displayPositionedInkOnWhite("plus-driver-compatible-"+name).points,name)
         }
-        let explicit=try positionedInk("classic-positioned-compatible-dx"),natural=try positionedInk("classic-positioned-compatible-natural")
+        let explicit=try displayPositionedInkOnWhite("classic-positioned-compatible-dx"),natural=try displayPositionedInkOnWhite("classic-positioned-compatible-natural")
         XCTAssertEqual(explicit.columnRuns.count,2);XCTAssertEqual(natural.columnRuns.count,2)
         if explicit.columnRuns.count==2,natural.columnRuns.count==2 {
             XCTAssertEqual(explicit.columnRuns[1].minX-explicit.columnRuns[0].minX,40)
@@ -1750,23 +1808,23 @@ extension MetafileImageTests {
             XCTAssertEqual(natural.columnRuns[1].minX-natural.columnRuns[0].minX,advance.width,accuracy:1,"Compatible natural advances were stretched by world.m11")
             XCTAssertEqual(explicit.columnRuns[0].width,natural.columnRuns[0].width,accuracy:1,"Compatible glyph ink was horizontally stretched")
         }
-        XCTAssertEqual(try positionedInk("classic-positioned-compatible-scale-metadata").points,explicit.points,"exScale/eyScale conversion metadata must not repeat the captured DC mapping")
+        XCTAssertEqual(try displayPositionedInkOnWhite("classic-positioned-compatible-scale-metadata").points,explicit.points,"exScale/eyScale conversion metadata must not repeat the captured DC mapping")
     }
     func testClassicPositionedCellHeightAndAverageWidthUseActualFontMetrics()throws {
-        let normal=try XCTUnwrap(positionedInk("classic-positioned-em-height").bounds),cell=try XCTUnwrap(positionedInk("classic-positioned-cell-height").bounds)
+        let normal=try XCTUnwrap(displayPositionedInkOnWhite("classic-positioned-em-height").bounds),cell=try XCTUnwrap(displayPositionedInkOnWhite("classic-positioned-cell-height").bounds)
         let font=CTFontCreateWithName("Arial" as CFString,18,nil),scale=18/(CTFontGetAscent(font)+CTFontGetDescent(font))
         XCTAssertEqual(cell.height,normal.height*scale,accuracy:2);XCTAssertLessThan(cell.height,normal.height)
-        let small=try XCTUnwrap(positionedInk("classic-positioned-width10").bounds),large=try XCTUnwrap(positionedInk("classic-positioned-width20").bounds)
+        let small=try XCTUnwrap(displayPositionedInkOnWhite("classic-positioned-width10").bounds),large=try XCTUnwrap(displayPositionedInkOnWhite("classic-positioned-width20").bounds)
         XCTAssertEqual(large.width,small.width*2,accuracy:2);XCTAssertEqual(large.height,small.height,accuracy:1)
-        let a=try positionedInk("classic-positioned-width10-natural"),b=try positionedInk("classic-positioned-width20-natural")
+        let a=try displayPositionedInkOnWhite("classic-positioned-width10-natural"),b=try displayPositionedInkOnWhite("classic-positioned-width20-natural")
         XCTAssertEqual(a.columnRuns.count,3);XCTAssertEqual(b.columnRuns.count,3)
         if a.columnRuns.count==3,b.columnRuns.count==3 {XCTAssertEqual(b.columnRuns[1].minX-b.columnRuns[0].minX,2*(a.columnRuns[1].minX-a.columnRuns[0].minX),accuracy:2)}
-        XCTAssertGreaterThan(try positionedInk("plus-driver-cmap-fallback").points.count,50,"Unicode cmap path may use native font substitution")
+        XCTAssertGreaterThan(try displayPositionedInkOnWhite("plus-driver-cmap-fallback").points.count,50,"Unicode cmap path may use native font substitution")
     }
     func testPositionedTextBrushesAndMalformedRecordsKeepOriginalBytes()throws {
         let normal=try image("plus-driver-positioned.emf"),gradient=try image("plus-driver-gradient.emf"),hatch=try image("plus-driver-hatch.emf")
         var red=0,blue=0,pattern=0
-        for y in 10..<30 {for x in 6..<80 {let a=try rgb(gradient,x,y),b=try rgb(hatch,x,y),n=try rgb(normal,x,y);if a[0]>0.2 && a[2]<0.3 && a[1]<0.5{red+=1};if a[2]>0.2 && a[0]<0.3 && a[1]<0.5{blue+=1};if n[0]<0.5 && (b[0]>0.5 || b[2]>0.5){pattern+=1}}}
+        for y in 10..<30 {for x in 6..<80 {let a=try displayRGBOnWhite(gradient,x,y),b=try displayRGBOnWhite(hatch,x,y),n=try displayRGBOnWhite(normal,x,y);if a[0]>0.2 && a[2]<0.3 && a[1]<0.5{red+=1};if a[2]>0.2 && a[0]<0.3 && a[1]<0.5{blue+=1};if n[0]<0.5 && (b[0]>0.5 || b[2]>0.5){pattern+=1}}}
         XCTAssertGreaterThan(red,5);XCTAssertGreaterThan(blue,5);XCTAssertGreaterThan(pattern,20)
         let names=try FileManager.default.contentsOfDirectory(at:fixtures,includingPropertiesForKeys:nil).filter{$0.lastPathComponent.hasPrefix("unsupported-positioned-text-")}
         XCTAssertGreaterThanOrEqual(names.count,15)
@@ -1916,13 +1974,13 @@ extension MetafileImageTests {
         for name in ["classic-rop3-source-bottom-up.emf","wmf-rop3-source-bottom-up.wmf"] {
             let bottom=try image(name)
             try primary(bottom,2,32,20)
-            let yellow=try rgb(bottom,32,44)
+            let yellow=try displayRGBOnWhite(bottom,32,44)
             XCTAssertGreaterThan(yellow[0],0.8,name);XCTAssertGreaterThan(yellow[1],0.8,name);XCTAssertLessThan(yellow[2],0.25,name)
         }
     }
     func testPreviouslyUnsupportedROP2XorPaintsAgainstOpaqueWhiteDC()throws {
         let value=try image("unsupported-rop.emf")
-        let cyan=try rgb(value,12,12),yellow=try rgb(value,58,12)
+        let cyan=try displayRGBOnWhite(value,12,12),yellow=try displayRGBOnWhite(value,58,12)
         for channel in 0..<3 {
             XCTAssertEqual(cyan[channel],[CGFloat(0),1,1][channel],accuracy:1.0/255)
             XCTAssertEqual(yellow[channel],[CGFloat(1),1,0][channel],accuracy:1.0/255)
@@ -2449,10 +2507,10 @@ extension MetafileImageTests {
         }
     }
     func testClassicTextRecordRealInkClipBackgroundAndCurrentPosition()throws {
-        let natural=try positionedInk("classic-text-compact-wide"),low=try positionedInk("classic-text-compact-low-unicode")
+        let natural=try displayPositionedInkOnWhite("classic-text-compact-wide"),low=try displayPositionedInkOnWhite("classic-text-compact-low-unicode")
         XCTAssertGreaterThan(natural.points.count,40);XCTAssertGreaterThan(low.points.count,20)
         let compactBytes=try data("classic-text-compact-wide.emf")
-        XCTAssertEqual(try positionedInk(positionedRawGlyphCopy(compactBytes)).points,natural.points,"Compact UTF16 glyph mode must use actual selected cmap IDs")
+        XCTAssertEqual(try displayPositionedInkOnWhite(positionedRawGlyphCopy(compactBytes)).points,natural.points,"Compact UTF16 glyph mode must use actual selected cmap IDs")
         var compressedGlyphs=try positionedRawGlyphCopy(compactBytes)
         func word(_ offset:Int)->Int {(0..<4).reduce(0){$0|Int(compressedGlyphs[offset+$1])<<($1*8)}}
         var cursor=88,foundCompact=false
@@ -2470,35 +2528,35 @@ extension MetafileImageTests {
             cursor+=size
         }
         XCTAssertTrue(foundCompact)
-        XCTAssertEqual(try positionedInk(compressedGlyphs).points,natural.points,"Low-byte compact glyph IDs must match full UInt16 IDs without ANSI decoding")
-        let clip=try positionedInk("classic-text-compact-clip")
+        XCTAssertEqual(try displayPositionedInkOnWhite(compressedGlyphs).points,natural.points,"Low-byte compact glyph IDs must match full UInt16 IDs without ANSI decoding")
+        let clip=try displayPositionedInkOnWhite("classic-text-compact-clip")
         XCTAssertFalse(clip.points.isEmpty);XCTAssertTrue(clip.points.allSatisfy{$0%96<24})
         for name in ["compact-opaque","compact-empty-opaque"] {
-            let value=try image("classic-text-"+name+".emf"),inside=try rgb(value,6,6),outside=try rgb(value,2,2)
+            let value=try image("classic-text-"+name+".emf"),inside=try displayRGBOnWhite(value,6,6),outside=try displayRGBOnWhite(value,2,2)
             XCTAssertLessThan(inside[0],0.05);XCTAssertGreaterThan(inside[1],0.95);XCTAssertGreaterThan(outside[0],0.95)
         }
-        XCTAssertTrue(try positionedInk("classic-text-compact-empty-opaque").points.isEmpty)
+        XCTAssertTrue(try displayPositionedInkOnWhite("classic-text-compact-empty-opaque").points.isEmpty)
         for name in ["poly-wide-dx","poly-ansi-dx"] {
-            let ink=try positionedInk("classic-text-"+name)
+            let ink=try displayPositionedInkOnWhite("classic-text-"+name)
             XCTAssertEqual(ink.columnRuns.count,3)
             if ink.columnRuns.count==3 {XCTAssertEqual(ink.columnRuns[1].minX-ink.columnRuns[0].minX,28);XCTAssertEqual(ink.columnRuns[2].minX-ink.columnRuns[1].minX,28)}
         }
         for name in ["compact-updatecp","poly-wide-updatecp","poly-ansi-updatecp"] {
-            let ink=try positionedInk("classic-text-"+name)
+            let ink=try displayPositionedInkOnWhite("classic-text-"+name)
             XCTAssertEqual(ink.columnRuns.count,2)
             XCTAssertLessThan(try XCTUnwrap(ink.bounds).minX,20,"UPDATECP must ignore the record's distant reference point")
         }
-        XCTAssertNotEqual(try positionedInk("classic-text-compact-world").points,natural.points)
-        XCTAssertTrue(try positionedInk("classic-text-poly-zero").points.isEmpty)
+        XCTAssertNotEqual(try displayPositionedInkOnWhite("classic-text-compact-world").points,natural.points)
+        XCTAssertTrue(try displayPositionedInkOnWhite("classic-text-poly-zero").points.isEmpty)
         for kind in ["ansi","wide"] {
-            let ink=try positionedInk("classic-text-poly-"+kind+"-offdx-zero-updatecp")
+            let ink=try displayPositionedInkOnWhite("classic-text-poly-"+kind+"-offdx-zero-updatecp")
             XCTAssertEqual(ink.columnRuns.count,1,"First glyph is outside the canvas; record Type advance must place the second inside")
             let bounds=try XCTUnwrap(ink.bounds)
             XCTAssertGreaterThan(bounds.minX,5);XCTAssertLessThan(bounds.minX,20,"offDx zero must consume source-header DX, not natural advance")
         }
         for family in ["compact","poly"] {
-            XCTAssertGreaterThan(try positionedInk("classic-text-"+family+"-path").points.count,20,"Path text must retain actual glyph outlines until FillPath")
-            let marker=try rgb(image("classic-text-"+family+"-restore.emf"),84,52)
+            XCTAssertGreaterThan(try displayPositionedInkOnWhite("classic-text-"+family+"-path").points.count,20,"Path text must retain actual glyph outlines until FillPath")
+            let marker=try displayRGBOnWhite(image("classic-text-"+family+"-restore.emf"),84,52)
             XCTAssertLessThan(marker[0],0.05);XCTAssertGreaterThan(marker[1],0.95,"Restored DC must release the text clip")
         }
     }
@@ -2557,7 +2615,7 @@ extension MetafileImageTests {
         let cp=try wmfTextInk("wmf-text-ext-updatecp-dx.wmf")
         XCTAssertEqual(cp.columnRuns.count,2);XCTAssertLessThan(try XCTUnwrap(cp.bounds).minX,20)
         for name in ["ext-opaque","ext-empty-opaque"] {
-            let value=try image("wmf-text-"+name+".wmf"),inside=try rgb(value,6,6),outside=try rgb(value,2,2)
+            let value=try image("wmf-text-"+name+".wmf"),inside=try displayRGBOnWhite(value,6,6),outside=try displayRGBOnWhite(value,2,2)
             XCTAssertLessThan(inside[0],0.05);XCTAssertGreaterThan(inside[1],0.95);XCTAssertGreaterThan(outside[0],0.95)
         }
         XCTAssertTrue(try wmfTextInk("wmf-text-ext-empty-opaque.wmf").points.isEmpty)
