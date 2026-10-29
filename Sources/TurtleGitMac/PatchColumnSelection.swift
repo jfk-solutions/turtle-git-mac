@@ -14,6 +14,9 @@ struct PatchTextSelectionSnapshot: Equatable {
     var rectangleAnchor: Int?
     var rectangleCaret: Int?
     var rectangleIsThin = false
+    // Source case edits retain per-row lengths; deletion retains one row
+    // without clearing rectangle mode. Do not rebuild these accepted ranges.
+    var rectangleRowsExplicit = false
     var primary: PatchLineEditSelection { rows.first { $0.id == primarySelectionID } ?? rows[0] }
     var ranges: [NSRange] { rows.map(\.range) }
 }
@@ -161,7 +164,7 @@ enum PatchColumnDirection: String, CaseIterable {
     }
     @discardableResult func applySnapshot(_ requested: PatchTextSelectionSnapshot, stillSelecting: Bool = false) -> Bool {
         var state = requested
-        if state.rectangular, let anchor = state.rectangleAnchor, let caret = state.rectangleCaret,
+        if state.rectangular, !state.rectangleRowsExplicit, let anchor = state.rectangleAnchor, let caret = state.rectangleCaret,
            let rebuilt = snapshotForRectangle(anchor: anchor, caret: caret, primarySelectionID: state.primarySelectionID, previousRows: state.rows, thin: state.rectangleIsThin) { state = rebuilt; state.rectangleIsThin = requested.rectangleIsThin }
         guard let text, let model = text.coordinator?.model, !model.retired, !state.rows.isEmpty,
               state.rows.contains(where: { $0.id == state.primarySelectionID }),

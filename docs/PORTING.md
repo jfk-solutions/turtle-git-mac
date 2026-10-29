@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+## Unified Diff selection editing continuation
+
+[Selection transformations and boundary deletion](UNIFIED-DIFF-SELECTION-EDITING-PARITY.md)
+connect all six source edit commands to byte-backed transactions, native keys and
+menus, explicit rectangle ranges and Undo/Redo. Installed build32 predates this
+family; its grouped checkpoint is recorded separately.
+
 ## Unified Diff block navigation continuation
 
 [Block and viewport navigation](UNIFIED-DIFF-BLOCK-NAVIGATION-PARITY.md) connects

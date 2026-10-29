@@ -32,7 +32,9 @@ public struct UnifiedDiffDocument: Sendable {
         // a real leading FEFF character after the one file BOM is removed.
         for (signature,_,encoding) in Self.signatures where bytes.starts(with:signature) {
             let body=Data(bytes.dropFirst(signature.count)),width=encoding == .utf32LittleEndian || encoding == .utf32BigEndian ? 4:encoding == .utf8 ? 1:2
-            if body.count % width == 0,let prefix="x".data(using:encoding),var text=String(data:prefix+body,encoding:encoding),text.first == "x" {text.removeFirst();return text}
+            if body.count % width == 0,let prefix="x".data(using:encoding),let text=String(data:prefix+body,encoding:encoding),text.unicodeScalars.first?.value == 0x78 {
+                return String(text.unicodeScalars.dropFirst())
+            }
             return String(decoding:bytes,as:UTF8.self)
         }
         return GitPatch.displayText(bytes,displayLegacyEncoding:displayLegacyEncoding)

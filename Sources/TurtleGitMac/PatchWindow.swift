@@ -744,6 +744,7 @@ struct PatchTextView: NSViewRepresentable {
             columnSelection?.externalSelectionChanged(); super.mouseDown(with: event)
         }
         override func keyDown(with event: NSEvent) {
+            if let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return}
             if let command=PatchCaretCommand.command(for:event) {_ = performCaretCommand(command);return}
             if let direction = PatchColumnDirection.direction(for: event), columnSelection?.available == true {
                 _ = columnSelection?.extendRectangle(direction: direction); return
@@ -798,7 +799,15 @@ struct PatchTextView: NSViewRepresentable {
         }
         override func deleteBackward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: true) { super.deleteBackward(sender) } }
         override func deleteForward(_ sender: Any?) { if hasMarkedText() || !handleColumnDelete(backwards: false) { super.deleteForward(sender) } }
+        override func lowercaseWord(_ sender:Any?) {_ = performSelectionCommand(.lowerCase)}
+        override func uppercaseWord(_ sender:Any?) {_ = performSelectionCommand(.upperCase)}
+        override func deleteWordBackward(_ sender:Any?) {_ = performSelectionCommand(.deleteWordLeft)}
+        override func deleteWordForward(_ sender:Any?) {_ = performSelectionCommand(.deleteWordRight)}
+        override func deleteToBeginningOfLine(_ sender:Any?) {_ = performSelectionCommand(.deleteLineLeft)}
+        override func deleteToEndOfLine(_ sender:Any?) {_ = performSelectionCommand(.deleteLineRight)}
         override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+            let selectionActions:[Selector:PatchSelectionCommand]=[#selector(lowercaseWord(_:)):.lowerCase,#selector(uppercaseWord(_:)):.upperCase,#selector(deleteWordBackward(_:)):.deleteWordLeft,#selector(deleteWordForward(_:)):.deleteWordRight,#selector(deleteToBeginningOfLine(_:)):.deleteLineLeft,#selector(deleteToEndOfLine(_:)):.deleteLineRight]
+            if let action=item.action,let command=selectionActions[action] {return canPerformSelectionCommand(command)}
             if hasColumnSelection {
                 if item.action == #selector(copy(_:)) { return canCopyColumnSelection(cutting: false) }
                 if item.action == #selector(cut(_:)) { return canCopyColumnSelection(cutting: true) }
@@ -890,6 +899,7 @@ struct PatchTextView: NSViewRepresentable {
             if let coordinator, coordinator.model.canEditText { coordinator.lastText = string; coordinator.needsStyling = true; coordinator.model.editDocument(string) }
         }
         override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            if window?.firstResponder === self,let command=PatchSelectionCommand.command(for:event) {_ = performSelectionCommand(command);return true}
             if window?.firstResponder === self,let command=PatchCaretCommand.command(for:event) {
                 _ = performCaretCommand(command);return true
             }
@@ -988,6 +998,8 @@ struct PatchTextView: NSViewRepresentable {
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.contextImage(defaults:defaults); menu.addItem(copy)
+            let selectionMenu=NSMenuItem(title:NSLocalizedString("Selection Editing",comment:"Unified Diff selection editing menu"),action:nil,keyEquivalent:"")
+            selectionMenu.image=MenuIcon.mergeLineEdited.contextImage(defaults:defaults);selectionMenu.submenu=makeSelectionCommandMenu();menu.addItem(selectionMenu)
             let caretMenu=NSMenuItem(title:NSLocalizedString("Caret",comment:"Unified Diff caret menu"),action:nil,keyEquivalent:"")
             caretMenu.image=MenuIcon.mergeLineEdited.contextImage(defaults:defaults);caretMenu.submenu=makeCaretCommandMenu();menu.addItem(caretMenu)
             let lineMenu = NSMenuItem(title: NSLocalizedString("Lines", comment: "Unified Diff editing menu"), action: nil, keyEquivalent: "")

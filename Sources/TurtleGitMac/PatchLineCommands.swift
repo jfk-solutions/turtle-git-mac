@@ -77,6 +77,44 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
         }
     }
 }
+/// Source editing operations with Mac editor shortcuts. Control-U keeps its
+/// native text-field meaning; case conversion uses Command-Option-U instead.
+enum PatchSelectionCommand:String,CaseIterable,Identifiable,Hashable {
+    case lowerCase,upperCase,deleteWordLeft,deleteWordRight,deleteLineLeft,deleteLineRight
+    var id:String {rawValue}
+    var converting:Bool {self == .lowerCase || self == .upperCase}
+    var backwards:Bool {self == .deleteWordLeft || self == .deleteLineLeft}
+    var title:String {
+        switch self {
+        case .lowerCase:return "Lowercase Selection"
+        case .upperCase:return "Uppercase Selection"
+        case .deleteWordLeft:return "Delete to Previous Word"
+        case .deleteWordRight:return "Delete to Next Word"
+        case .deleteLineLeft:return "Delete to Line Start"
+        case .deleteLineRight:return "Delete to Line End"
+        }
+    }
+    var icon:MenuIcon {converting ? .mergeLineEdited:.remove}
+    var key:Character {converting ? "u":backwards ? "\u{8}":"\u{f728}"}
+    var modifiers:NSEvent.ModifierFlags {
+        if converting {return self == .upperCase ? [.command,.option,.shift]:[.command,.option]}
+        return self == .deleteWordLeft || self == .deleteWordRight ? .option:.command
+    }
+    var swiftModifiers:EventModifiers {
+        if converting {return self == .upperCase ? [.command,.option,.shift]:[.command,.option]}
+        return self == .deleteWordLeft || self == .deleteWordRight ? .option:.command
+    }
+    var core:PatchSelectionEditCommand {PatchSelectionEditCommand(rawValue:rawValue)!}
+    static func command(for event:NSEvent)->Self? {
+        let flags=event.modifierFlags.intersection([.command,.control,.shift,.option])
+        let key=event.charactersIgnoringModifiers?.lowercased()
+        return allCases.first {command in
+            guard flags==command.modifiers else{return false}
+            if command.converting {return key=="u"}
+            return command.backwards ? event.keyCode==51 && (key=="\u{7f}" || key=="\u{8}") : event.keyCode==117 && key=="\u{f728}"
+        }
+    }
+}
 @MainActor private struct PatchLineOwnerReceipt {
     let identity: UUID, revision: UUID
     let documentRevision: Int
@@ -93,6 +131,10 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
 @MainActor private final class PatchCaretMenuReceipt:NSObject {
     let command:PatchCaretCommand,owner:PatchLineOwnerReceipt
     init(command:PatchCaretCommand,owner:PatchLineOwnerReceipt){self.command=command;self.owner=owner}
+}
+@MainActor private final class PatchSelectionMenuReceipt:NSObject {
+    let command:PatchSelectionCommand,owner:PatchLineOwnerReceipt,selection:PatchTextSelectionSnapshot
+    init(command:PatchSelectionCommand,owner:PatchLineOwnerReceipt,selection:PatchTextSelectionSnapshot) {self.command=command;self.owner=owner;self.selection=selection}
 }
 @MainActor private struct PatchLineUndoState {
     let buffer: UnifiedDiffEditBuffer
@@ -201,6 +243,31 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
         scroll.contentView.scroll(to:point);scroll.reflectScrolledClipView(scroll.contentView)
         return true
     }
+    func canPerformSelectionCommand(_ command:PatchSelectionCommand)->Bool {
+        lineOwner != nil && coordinator?.model.canEditText==true
+    }
+    @discardableResult func performSelectionCommand(_ command:PatchSelectionCommand)->Bool {
+        guard canPerformSelectionCommand(command),let owner=lineOwner else{return false}
+        let selected=lineSelectionSnapshot
+        guard let plan=PatchSelectionEditing.plan(text:string,selections:selected.rows,primarySelectionID:selected.primarySelectionID,rectangular:selected.rectangular,command:command.core,rectangleAnchor:selected.rectangleAnchor,rectangleCaret:selected.rectangleCaret,rectangleIsThin:selected.rectangleIsThin,rectangleRowsExplicit:selected.rectangleRowsExplicit),lineOwnerCurrent(owner) else{return false}
+        return performLinePlan(plan,title:command.title,owner:owner)
+    }
+    func makeSelectionCommandMenu()->NSMenu {
+        let menu=NSMenu(title:NSLocalizedString("Selection Editing",comment:"Unified Diff selection editing menu"));menu.autoenablesItems=false
+        guard let owner=lineOwner else{return menu}
+        let selected=lineSelectionSnapshot,defaults=coordinator?.model.appearancePreferences ?? .standard
+        for command in PatchSelectionCommand.allCases {
+            let item=NSMenuItem(title:NSLocalizedString(command.title,comment:"Unified Diff selection edit action"),action:#selector(dispatchSelectionCommand(_:)),keyEquivalent:String(command.key))
+            item.keyEquivalentModifierMask=command.modifiers;item.image=command.icon.contextImage(defaults:defaults);item.target=self
+            item.representedObject=PatchSelectionMenuReceipt(command:command,owner:owner,selection:selected);item.isEnabled=canPerformSelectionCommand(command)
+            menu.addItem(item)
+        }
+        return menu
+    }
+    @objc func dispatchSelectionCommand(_ sender:NSMenuItem) {
+        guard let receipt=sender.representedObject as? PatchSelectionMenuReceipt,lineOwnerCurrent(receipt.owner),receipt.selection==lineSelectionSnapshot else{return}
+        _ = performSelectionCommand(receipt.command)
+    }
     func handleCaretTyping(_ replacement:String)->Bool {
         guard caretOvertype,!suppressOvertype,!hasMarkedText(),!replacement.contains("\n"),!replacement.contains("\r") else{return false}
         guard let owner=lineOwner,coordinator?.model.canEditText==true else{return true}
@@ -261,7 +328,7 @@ enum PatchCaretCommand:String,CaseIterable,Identifiable,Hashable {
     }
     private func selection(for plan: PatchLineEditPlan) -> PatchTextSelectionSnapshot {
         .init(rows: plan.selections, primarySelectionID: plan.primarySelectionID, rectangular: plan.rectangular,
-              rectangleAnchor: plan.rectangleAnchor, rectangleCaret: plan.rectangleCaret, rectangleIsThin: plan.rectangleIsThin)
+              rectangleAnchor: plan.rectangleAnchor, rectangleCaret: plan.rectangleCaret, rectangleIsThin: plan.rectangleIsThin, rectangleRowsExplicit:plan.rectangleRowsExplicit)
     }
     private func applyLineSelection(_ selection: PatchTextSelectionSnapshot) {
         if let columnSelection { _ = columnSelection.applySnapshot(selection) }
@@ -461,6 +528,13 @@ struct PatchLineEditingCommands: Commands {
                     Button { context.performLineCommand(command) } label: { CommandLabel(title: command.title, icon: command.icon) }
                         .keyboardShortcut(KeyEquivalent(command.key), modifiers: command.swiftModifiers)
                         .disabled(!context.lineCommands.contains(command))
+                }
+            }
+            Menu("Selection Editing") {
+                ForEach(PatchSelectionCommand.allCases) {command in
+                    Button {context.performSelectionCommand(command)} label:{CommandLabel(title:command.title,icon:command.icon)}
+                        .keyboardShortcut(KeyEquivalent(command.key),modifiers:command.swiftModifiers)
+                        .disabled(!context.selectionCommands.contains(command))
                 }
             }
             Menu("Caret") {

@@ -1,0 +1,161 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-source-core-native-checkpoint-passed",
+  "starting_commit": "8dfdb982",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Lowercase/uppercase selection using pinned scalar mappings",
+    "Word/line deletion from primary caret with source anchor rules",
+    "Explicit rectangular per-row lengths and residual dropped-row state",
+    "Byte-preserving transactions, native menus/shortcuts/responder selectors, Undo/Redo and Save",
+    "Exact-scalar sentinel decoding for combining characters and literal FEFF"
+  ],
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/PatchSelectionEditing.swift": "69f300b59bd4d0154ce18e335a5f0c2fa5a85f47ec85a1a9962eaa11bbaf7eba",
+    "Sources/TurtleGitCore/UnifiedDiffCaseMapping.generated.swift": "a92c70eac22d9e44d578858866e3667893eb8ff99af0ea8de090eff101e63deb",
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "655481a10f0304318d78ef046da899e58fccd2865bcf6d1d5d7a12be46aa5794",
+    "Sources/TurtleGitCore/UnifiedDiffViewer.swift": "777044982057afc6787b9ce11fce8f9b0fd5958dd84117683fd6e1059c74f95d",
+    "Sources/TurtleGitMac/PatchLineCommands.swift": "dd0604a6a86c3712e9f24fdde25b3f81a5f044d19d915ed1c23677feec3c134f",
+    "Sources/TurtleGitMac/PatchWindow.swift": "27bddcc451fddfb74f1016a7efb661f6275b79d76fc56a92907b2a2e3caaf11d",
+    "Sources/TurtleGitMac/PatchColumnSelection.swift": "082259898d44b4d501e159f8d40e21bb00ba9d465774bca7174a08bae8a3592b",
+    "Sources/TurtleGitMac/PatchMenuCommands.swift": "35f16366c2167a33bf93b15a5ef7fa11cc9b775b444c2635a3c96ae32bb2f0c9",
+    "docs/qa/unified-selection-edit-native-2026-10-29.swift": "62d19b3165c05bafcc7899564736d18dd22f445b14ef57190fe1c706b101c059"
+  },
+  "source_oracle": {
+    "command": "python3 scripts/generate-unified-case-mapping.py --check",
+    "exit": 0,
+    "log": "build/qa/unified-selection-oracle-2026-10-29.log",
+    "scope": "All 1112064 valid Unicode scalars: lower/upper converters and exact extracted Document::WordCharacterClass with original CharClassify/CharacterCategoryMap C++; verified source Git blobs",
+    "lower_mappings": 1460,
+    "upper_mappings": 1552,
+    "word_class_transitions": 1912,
+    "repeated_after_unrelated_repairs": false
+  },
+  "core": {
+    "initial": {
+      "methods": 26,
+      "failures": 0,
+      "log": "build/qa/unified-selection-core-2026-10-29.log"
+    },
+    "linear_assembly_repair": {
+      "reason": "Static source review found repeated whole-document Work.replace for each changed scalar; replaced with forward segments and cumulative-delta binary search",
+      "methods": 8,
+      "failures": 0,
+      "log": "build/qa/unified-selection-core-linear-recheck-2026-10-29.log",
+      "scope": "Affected selection class only, including 10000 mapped scalars and 2000 independent rows; no timing threshold"
+    },
+    "codec_attempts": [
+      {
+        "log": "build/qa/unified-selection-core-codec-recheck-2026-10-29.log",
+        "exit": 1,
+        "result": "New codec fixture did not compile because it referenced private production codec; repaired with independent platform encoding oracle, without changing visibility."
+      },
+      {
+        "log": "build/qa/unified-selection-core-codec-fixture-recheck-2026-10-29.log",
+        "methods": 18,
+        "failed_methods": 1,
+        "failed_assertions": 3,
+        "result": "17 methods passed; automatic-BOM fixture assumed UTF16LE BOM+NUL could be distinguished from UTF32LE signature."
+      },
+      {
+        "log": "build/qa/unified-selection-core-bom-oracle-recheck-2026-10-29.log",
+        "methods": 1,
+        "failures": 0,
+        "result": "Affected BOM method passed after preserving longest-signature autodetection and asserting original bytes for ambiguous input."
+      }
+    ],
+    "distinct_methods_cumulatively_passing": 37,
+    "complete_single_run_of_37_claimed": false,
+    "families": [
+      "PatchSelectionEditingTests",
+      "ComparisonPayloadCodecTests",
+      "UnifiedDiffEncodingTests",
+      "FileComparisonEditingTests/testExplicitEncodingBytesBOMsAndLosslessRejection",
+      "PatchLineEditingTests",
+      "PatchCaretEditingTests"
+    ],
+    "no_full_core_rerun": true
+  },
+  "build": {
+    "full_debug_before_codec_repair": {
+      "exit": 0,
+      "log": "build/qa/unified-selection-debug-2026-10-29.log"
+    },
+    "incremental_after_linear_repair": {
+      "exit": 0,
+      "log": "build/qa/unified-selection-debug-linear-recheck-2026-10-29.log"
+    },
+    "affected_framework_after_codec_repair": {
+      "exit": 0,
+      "log": "build/qa/unified-selection-core-framework-recheck-2026-10-29.log",
+      "target": "TurtleGitCore",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "products": "build/Build/Products/Debug",
+      "scope": "Native receiver uses rebuilt current framework via DYLD_FRAMEWORK_PATH and source/framework-aware cache; Debug app bundle was not re-embedded after this Core-only repair."
+    }
+  },
+  "native": {
+    "command": "python3 scripts/test-unified-selection-edit.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+    "attempts": [
+      {
+        "log": "build/qa/unified-selection-native-2026-10-29.log",
+        "receiver": 38281,
+        "exit": 1,
+        "result": "Actual uppercase failed on retained combining-mark fragment."
+      },
+      {
+        "log": "build/qa/unified-selection-native-diagnostic-2026-10-29.log",
+        "receiver": 38425,
+        "exit": 1,
+        "result": "Exact-byte diagnostics confirmed encoding refusal; unchanged original text/bytes. Source codec sentinel used Character.first/removeFirst, grouping x with the leading mark."
+      },
+      {
+        "log": "build/qa/unified-selection-native-codec-recheck-2026-10-29.log",
+        "receiver": 39571,
+        "exit": 1,
+        "result": "Case/expansion/rectangle checks passed; deletion fixture placed an extra selection anchor inside CRLF, which source-bound safety correctly refused."
+      },
+      {
+        "log": "build/qa/unified-selection-native-primary-recheck-2026-10-29.log",
+        "receivers": [
+          39709,
+          39745
+        ],
+        "exit": 0,
+        "engines": [
+          "system Git",
+          "bundled Git"
+        ],
+        "result": "All actual key/menu/case/delete/encoding/Undo/Redo/Save and ownership checks passed after selecting literal next-word bounds instead of invalid hardcoded offset."
+      }
+    ],
+    "original_byte_and_normalization_assertions_retained": true,
+    "private_repositories_preferences_pasteboards": true,
+    "invisible_offscreen_windows": true,
+    "owned_receivers_reaped_and_independently_absent": [
+      38281,
+      38425,
+      39571,
+      39709,
+      39745
+    ],
+    "head_index_working_bytes_unchanged": true,
+    "installed_user_app_untouched": true
+  },
+  "documentation": {
+    "localizations": "write/check pass; absent source labels retain English fallback",
+    "help": "regenerated before full app build; write/check pass: 60 documents,51 topics,92 files",
+    "coverage": "reconciled",
+    "diff_check": "pass"
+  },
+  "limits": [
+    "No complete current hosted CI or whole UDiff parity claim",
+    "Current signed installed build32 predates these commands and codec repairs",
+    "Physical keyboards, IME/VoiceOver, signed acceptance and Windows locale-dependent nonUTF8 linguistic casing remain separate",
+    "Later app consolidation must re-embed the repaired Core framework",
+    "No App Store upload or notarization"
+  ]
+}

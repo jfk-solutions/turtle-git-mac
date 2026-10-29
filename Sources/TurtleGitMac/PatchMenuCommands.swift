@@ -9,6 +9,7 @@ import TurtleGitCore
     @Published private(set) var available = false
     @Published private(set) var darkMode = false
     @Published private(set) var caretCommands=Set<PatchCaretCommand>()
+    @Published private(set) var selectionCommands=Set<PatchSelectionCommand>()
     @Published private(set) var caretOvertype=false
     @Published private(set) var lineCommands = Set<PatchLineCommand>()
     @Published private(set) var columnSelectionAvailable = false
@@ -55,6 +56,8 @@ import TurtleGitCore
         let enabled = controller.map { !$0.model.retired && !$0.model.busy && !$0.model.confirmingQuit && $0.model.error == nil && $0.window?.attachedSheet == nil && NSApp.modalWindow == nil } ?? false
         if available != enabled { available = enabled }
         let text = controller?.window?.firstResponder as? PatchTextView.PatchText
+        let selection=Set(PatchSelectionCommand.allCases.filter{enabled && text?.canPerformSelectionCommand($0)==true})
+        if selectionCommands != selection {selectionCommands=selection}
         let caret=Set(PatchCaretCommand.allCases.filter{enabled && text?.canPerformCaretCommand($0)==true})
         if caretCommands != caret {caretCommands=caret}
         let overtype=text?.caretOvertype ?? false
@@ -86,6 +89,12 @@ import TurtleGitCore
               text.coordinator?.model === controller.model else { return }
         _ = text.columnSelection?.extendRectangle(direction: direction)
         refresh()
+    }
+    func performSelectionCommand(_ command:PatchSelectionCommand) {
+        refresh()
+        guard selectionCommands.contains(command),let controller=current,
+              let text=controller.window?.firstResponder as? PatchTextView.PatchText,text.coordinator?.model === controller.model else{return}
+        _ = text.performSelectionCommand(command);refresh()
     }
     func performCaretCommand(_ command:PatchCaretCommand) {
         refresh()

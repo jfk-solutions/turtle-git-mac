@@ -790,6 +790,16 @@ Tab/Shift-Tab applies indentation to a multi-line selection; each line edit is
 one Undo/Redo transaction and retains the document's backing byte fragments.
 The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-LINE-EDITING-PARITY.html">line editing guide</a> lists shortcuts and
 source behavior.</p>
+<p><strong>Edit → Selection Editing</strong> and the text context menu offer Lowercase Selection,
+Uppercase Selection, Delete to Previous/Next Word and Delete to Line Start/End.
+Case conversion uses <strong>Command-Option-U</strong> or <strong>Command-Option-Shift-U</strong>, affects
+only selected text, and keeps each selected row's direction and length changes.
+An empty selection does nothing. <strong>Option-Backspace/Forward Delete</strong> deletes to
+the source word boundary; <strong>Command-Backspace/Forward Delete</strong> deletes to the
+logical line boundary. These deletion commands start at the primary caret; they
+do not simply delete the highlighted range. Deleting to a line end preserves
+its newline. Each edit is one Undo/Redo transaction and preserves untouched byte
+fragments. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/UNIFIED-DIFF-SELECTION-EDITING-PARITY.html">selection editing</a>.</p>
 <p>Use <strong>Option-drag</strong> to select a column of text; add Shift to extend it.
 <strong>Command-Option-Shift-Arrows</strong> extends a rectangle from the keyboard; the same
 modifiers with Home, End and Page Up/Down extend to line boundaries or by a page. Short

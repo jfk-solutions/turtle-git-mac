@@ -222,9 +222,11 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
     /// Foundation treats a leading U+FEFF as a header. A sentinel keeps an
     /// actual text character intact after this format's BOM has been removed.
     private func decodePayload(_ bytes: Data) -> String? {
-        guard let prefix = "x".data(using: codec), var text = String(data: prefix + bytes, encoding: codec), text.first == "x" else { return nil }
-        text.removeFirst()
-        return text
+        guard let prefix = "x".data(using: codec), let text = String(data: prefix + bytes, encoding: codec),
+              text.unicodeScalars.first?.value == 0x78 else { return nil }
+        // A leading combining mark joins the sentinel's grapheme. Strip one
+        // exact scalar, never a Character, so its original bytes remain text.
+        return String(text.unicodeScalars.dropFirst())
     }
     /// Reuse the source CheckUnicodeType classifier; decoding remains lossless.
     /// CP_ACP is supplied explicitly on macOS; retained documents own their codec.

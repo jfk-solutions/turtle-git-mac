@@ -946,6 +946,17 @@ one Undo/Redo transaction and retains the document's backing byte fragments.
 The [line editing guide](UNIFIED-DIFF-LINE-EDITING-PARITY.md) lists shortcuts and
 source behavior.
 
+**Edit → Selection Editing** and the text context menu offer Lowercase Selection,
+Uppercase Selection, Delete to Previous/Next Word and Delete to Line Start/End.
+Case conversion uses **Command-Option-U** or **Command-Option-Shift-U**, affects
+only selected text, and keeps each selected row's direction and length changes.
+An empty selection does nothing. **Option-Backspace/Forward Delete** deletes to
+the source word boundary; **Command-Backspace/Forward Delete** deletes to the
+logical line boundary. These deletion commands start at the primary caret; they
+do not simply delete the highlighted range. Deleting to a line end preserves
+its newline. Each edit is one Undo/Redo transaction and preserves untouched byte
+fragments. See [selection editing](UNIFIED-DIFF-SELECTION-EDITING-PARITY.md).
+
 Use **Option-drag** to select a column of text; add Shift to extend it.
 **Command-Option-Shift-Arrows** extends a rectangle from the keyboard; the same
 modifiers with Home, End and Page Up/Down extend to line boundaries or by a page. Short
