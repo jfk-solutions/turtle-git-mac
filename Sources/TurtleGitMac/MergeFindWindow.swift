@@ -27,7 +27,8 @@ import TurtleGitCore
     private(set) var locatorHighlights = MergeLocatorHighlights()
     var annotationsChanged: () -> Void = {}
     private var cachedMarkedWord = "", cachedSeparators = ""
-    func mark(_ word: String, in text: NSTextView) { markedWord = word; refresh(in: text) }
+    private var markedStatusWordRevision=0
+    func mark(_ word: String, in text: NSTextView) {if !markedWord.utf8.elementsEqual(word.utf8){markedStatusWordRevision &+= 1};markedWord = word; refresh(in: text) }
     private var cachedText: String?
     private var cachedStates: [MergeSourceState] = []
     private var cachedQuery = ""
@@ -39,6 +40,44 @@ import TurtleGitCore
     private var paintedAppearance: NSAppearance.Name?
     private var paintedBackground: NSColor?, paintedForeground: NSColor?
     deinit { if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) } }
+    private struct ScreenRowStatusKey:Equatable {
+        let storage: ObjectIdentifier,layout:ObjectIdentifier,container:ObjectIdentifier
+        let revision:Int,wordRevision:Int,separators:Data
+        let size:NSSize,padding:CGFloat,fontName:String,fontSize:CGFloat
+        let widthTracks:Bool,heightTracks:Bool,fontLeading:Bool
+        let maximumLines:Int,lineBreakMode:Int
+    }
+    private weak var screenRowStatusView:NSTextView?
+    private var screenRowStatusKey:ScreenRowStatusKey?
+    private var screenRowStatusCount=0,buildingScreenRowStatus=false
+    private(set) var screenRowStatusBuilds=0
+    private func observe(_ storage:NSTextStorage) {
+        if observedStorage !== storage {
+            if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) }
+            observedStorage = storage; paintedRevision = -1; cachedText = nil
+            storageObserver = NotificationCenter.default.addObserver(forName: NSTextStorage.didProcessEditingNotification, object: storage, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated { self?.storageRevision &+= 1 }
+            }
+        }
+    }
+    /// MainFrm reads a cached marked-row total on caret changes. Invalidate on
+    /// storage edits (including fold/font/paragraph attributes), marked token,
+    /// separators and actual container wrapping geometry, never caret/scroll.
+    func markedScreenRowCount(in text:NSTextView,fragments:()->[String])->Int {
+        guard let target=text as? MergeFindProviding,let storage=text.textStorage,
+              let layout=text.layoutManager,let container=text.textContainer else{return 0}
+        observe(storage)
+        let separators=MergeFindOptions.load(from:target.mergeFindDefaults).wordSeparators
+        func key()->ScreenRowStatusKey {
+            .init(storage:ObjectIdentifier(storage),layout:ObjectIdentifier(layout),container:ObjectIdentifier(container),revision:storageRevision,wordRevision:markedStatusWordRevision,separators:Data(separators.utf8),size:container.size,padding:container.lineFragmentPadding,fontName:text.font?.fontName ?? "",fontSize:text.font?.pointSize ?? 0,widthTracks:container.widthTracksTextView,heightTracks:container.heightTracksTextView,fontLeading:layout.usesFontLeading,maximumLines:container.maximumNumberOfLines,lineBreakMode:Int(container.lineBreakMode.rawValue))
+        }
+        if screenRowStatusView === text,screenRowStatusKey==key(){return screenRowStatusCount}
+        guard !buildingScreenRowStatus else{return screenRowStatusCount}
+        buildingScreenRowStatus=true;defer{buildingScreenRowStatus=false}
+        let value=MergeMarkedWord.screenRowCount(markedWord,fragments:fragments(),wordSeparators:separators)
+        screenRowStatusView=text;screenRowStatusCount=value;screenRowStatusKey=key();screenRowStatusBuilds &+= 1
+        return value
+    }
     func set(_ query: String, options: MergeFindOptions, in text: NSTextView) {
         self.query = query; self.options = options; refresh(in: text)
     }
@@ -55,13 +94,7 @@ import TurtleGitCore
     }
     func refresh(in text: NSTextView) {
         guard let target = text as? MergeFindProviding, let storage = text.textStorage, let layout = text.layoutManager else { return }
-        if observedStorage !== storage {
-            if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) }
-            observedStorage = storage; paintedRevision = -1; cachedText = nil
-            storageObserver = NotificationCenter.default.addObserver(forName: NSTextStorage.didProcessEditingNotification, object: storage, queue: nil) { [weak self] _ in
-                MainActor.assumeIsolated { self?.storageRevision &+= 1 }
-            }
-        }
+        observe(storage)
         let lines = target.mergeFindLines, states = lines.map(\.state)
         let contentChanged = cachedText?.utf8.elementsEqual(text.string.utf8) != true || cachedStates != states
         let searchChanged = contentChanged || !cachedQuery.utf8.elementsEqual(query.utf8) || cachedOptions != options

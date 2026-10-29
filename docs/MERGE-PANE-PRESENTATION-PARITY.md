@@ -24,8 +24,9 @@ matching the source caret view coordinate. A tab counts one character, a non-BMP
 character uses two UTF-16 units, and wrapping does not reset the logical column.
 Marked-word counts follow source order: `L` for left, `R` for right and `B` for
 the bottom result. A separate optional Base preview is an additional native pane;
-its marks do not replace the source bottom count. Changing the marked word can
-change counts within the same line, independently of locator row highlights.
+its marks do not replace the source bottom count. Status counts matching displayed
+rows, while highlighting retains every eligible occurrence. Zero counts are
+omitted, as in the source status formatter.
 The existing View/Status Bar preference hides and restores these indicators.
 
 Implementation is shared by `MergePanePresentation.swift`,
@@ -56,3 +57,33 @@ from native two-pane and compact P4-style conveniences, and documents retained
 source snapshots and saved-output identity. Its [separate evidence record](qa/merge-pane-header-2026-10-25.json)
 will record the new grouped checkpoint; the earlier presentation passes above
 do not validate these new actions.
+
+## Marked displayed rows — October 29, 2026
+
+`BaseView.cpp:4520–4562` counts the first eligible boundary match in each virtual
+screen row and then breaks. `GetLineChars` (655–676) supplies wrapped fragments;
+`Screen2View` construction (5274–5313) omits hidden rows, retains a fold marker's
+original text as one unwrapped row and pads peers with empty rows. This map spans
+the entire document, not just the current scroll viewport. A token split by
+wrapping can disappear from the status; fragment edges also form new matching
+boundaries. Occurrence painting and locator bands remain separate.
+
+Compare and Merge now project actual TextKit fragments into that shared counting
+rule. Mark, edit, fold, font, container geometry and pane changes refresh status.
+Per-pane caching avoids rebuilding the full projection when only the caret or
+scroll position changes, matching the source's cached status reads. The focused
+logical UTF-16 column and source L/R/B pane order remain intact.
+
+Hosted run `40892810459`, job `123518852961`, failed at step 100 because the
+fixture read an old native status field after its model had already changed.
+The corrected check waits for the attached native field as well as the model.
+Source comparison also exposed a separate product defect: the previous status
+counted all occurrences, so three marks on two unwrapped rows incorrectly read
+three. It now reads two, with all three occurrence ranges retained.
+
+The [new evidence record](qa/merge-marked-screen-rows-2026-10-29.json) records the
+focused Core and grouped Compare/Merge checks, including wrap, fold, resize,
+scroll, pane replacement and caret-cache behavior. Installed build34 predates
+this correction. Earlier presentation checks do not validate this continuation;
+physical interaction, large-document performance, all rendering configurations
+and complete hosted integration remain open.

@@ -125,7 +125,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-merge-patch-family-') as temp
             env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             env.update(DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'),
                        GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
-                       CFFIXED_USER_HOME=str(paths['home']),
+                       HOME=str(paths['home']), CFFIXED_USER_HOME=str(paths['home']),
                        XDG_CONFIG_HOME=str(paths['xdg']), TMPDIR=str(paths['temporary'])+'/',
                        TURTLEGIT_MERGE_PATCH_CASE=case)
             env.pop('TURTLEGIT_MERGE_PATCH_CAPTURES', None)

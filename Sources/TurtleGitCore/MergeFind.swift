@@ -177,6 +177,42 @@ public enum MergeMarkedWord {
         if unit < 32 { return 1 }
         return separators.contains(unit) ? 3 : 4
     }
+    /// Status counts matching screen rows, not painting occurrences or logical
+    /// lines. The caller supplies the actual eligible displayed fragments:
+    /// omit folded Hidden rows, retain a Marker row's original text, and keep
+    /// wrap fragments separate (including empty alignment padding).
+    ///
+    /// Pinned BaseView.cpp 4520–4562 scans GetLineChars(screenRow), stopping at
+    /// its first boundary-valid match. GetLineChars 655–676 exposes wrapped
+    /// fragments; Screen2View rebuilding 5274–5313 controls fold eligibility.
+    /// A fragment edge is a real boundary for this operation, so projecting
+    /// existing full-line matches onto fragments would give different results.
+    public static func screenRowCount(_ word: String, fragments: [String],
+                                      wordSeparators: String = MergeFindOptions().wordSeparators) -> Int {
+        guard !word.isEmpty else { return 0 }
+        let separators = Set(wordSeparators.utf16)
+        var count = 0
+        for fragment in fragments {
+            let text = fragment as NSString
+            func at(_ index: Int) -> Int {
+                group(index >= 0 && index < text.length ? text.character(at: index) : nil,
+                      separators: separators)
+            }
+            var cursor = 0
+            while cursor < text.length {
+                let found = text.range(of: word, options: .literal,
+                                       range: NSRange(location: cursor, length: text.length - cursor))
+                guard found.location != NSNotFound, found.length > 0 else { break }
+                let end = NSMaxRange(found)
+                if at(found.location - 1) != at(found.location), at(end) != at(end - 1) {
+                    count += 1
+                    break
+                }
+                cursor = found.location + 1
+            }
+        }
+        return count
+    }
     public static func selection(at offset: Int, in line: String, wordSeparators: String = MergeFindOptions().wordSeparators) -> NSRange? {
         let units = Array(line.utf16)
         guard offset >= 0, offset <= units.count, !units.isEmpty else { return nil }

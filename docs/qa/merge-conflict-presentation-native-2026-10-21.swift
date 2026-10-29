@@ -41,11 +41,11 @@ import TurtleGitCore
         let repository=GitRepository(root:root,executable:git,libgit2Configuration:.init(enabled:false))
         let owner=TextConflictWindowController(repository:repository,access:nil,path:output.path,workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs)
         let model=owner.model
-        var readonlyOwner:TextConflictWindowController?
+        var readonlyOwner:TextConflictWindowController?,projectionOwner:TextConflictWindowController?
         model.commentProfileURL=root.appendingPathComponent("private-profiles");model.regexDefaults=prefs
         func clean()async {
-            owner.close();readonlyOwner?.close()
-            for _ in 0..<2400 {if !model.mergeToolHasPendingWork && readonlyOwner?.model.mergeToolHasPendingWork != true{return};try? await Task.sleep(nanoseconds:10_000_000)}
+            owner.close();readonlyOwner?.close();projectionOwner?.close()
+            for _ in 0..<2400 {if !model.mergeToolHasPendingWork && readonlyOwner?.model.mergeToolHasPendingWork != true && projectionOwner?.model.mergeToolHasPendingWork != true{return};try? await Task.sleep(nanoseconds:10_000_000)}
         }
         do {
             model.showBase=true;owner.window?.alphaValue=0;owner.window?.orderFront(nil);model.load()
@@ -84,8 +84,9 @@ import TurtleGitCore
             try await wait(window){model.activePresentationPane == .base}
             for word in ["alpha","beta"] {
                 for view in [left,right,bottom] {(view as! MergeFindProviding).mergeFindHighlights.mark(word,in:view)}
-                let expected=word=="alpha" ? 3:2
-                try await wait(window){model.presentationMarkedCounts.map(\.count)==[expected,expected,expected]}
+                try await MergePanePresentationVerification.marked(window,labels:["L","R","B"],counts:[2,2,2],actual:{model.presentationMarkedCounts})
+                let occurrences=word=="alpha" ? 3:2
+                try require([left,right,bottom].allSatisfy{($0 as! MergeFindProviding).mergeFindHighlights.markedRanges.count==occurrences},"Screen-row status changed same-row occurrence painting")
             }
             let statuses=views(window.contentView).compactMap{$0 as? NSTextField}
             try require(statuses.contains{$0.identifier?.rawValue=="Merge.Status.MarkedWords" && $0.stringValue.contains("L: 2 | R: 2 | B: 2")},"Actual marked status omits same-row occurrences")
@@ -143,7 +144,28 @@ import TurtleGitCore
             let unchanged=read.model.result;readonlyResult.insertText("forbidden",replacementRange:.init(location:0,length:0))
             try require(read.model.result==unchanged && !read.model.dirty,"Readonly pane accepted an actual text edit")
             (readonlyMine as! MergeFindProviding).mergeFindHighlights.mark("beta",in:readonlyMine)
-            try await wait(readWindow){read.model.presentationMarkedCounts.contains{$0.count==2}}
+            try await MergePanePresentationVerification.marked(readWindow,labels:["L","R","B"],counts:[0,2,0],actual:{read.model.presentationMarkedCounts})
+            let markedBase=root.appendingPathComponent("marked-base.txt"),markedMine=root.appendingPathComponent("marked-mine.txt"),markedTheirs=root.appendingPathComponent("marked-theirs.txt"),markedOutput=root.appendingPathComponent("marked-result.txt")
+            let fixture=MergePanePresentationVerification.markedFixture(false),changed=MergePanePresentationVerification.markedFixture(true)
+            try Data(fixture.utf8).write(to:markedBase);try Data(changed.utf8).write(to:markedMine);try Data(fixture.utf8).write(to:markedTheirs)
+            let projected=TextConflictWindowController(repository:repository,access:nil,path:markedOutput.path,workingMerge:try WorkingTextMerge(base:markedBase,theirs:markedTheirs,mine:markedMine),preferences:prefs)
+            projectionOwner=projected;projected.model.commentProfileURL=root.appendingPathComponent("unused-marked-profiles");projected.window?.alphaValue=0;projected.showWindow(nil);projected.model.load()
+            guard let markedWindow=projected.window else{throw Failure(description:"Marked Merge window missing")}
+            func projectedPanes()->[NSTextView]{[TextConflictPaneRole.theirs,.mine,.result].compactMap{try? pane(markedWindow,$0)}}
+            func projectedReady()async throws {
+                try await wait(markedWindow){!projected.model.busy && !projected.model.lineWrapping.isGeometryPending && projected.model.document != nil && projectedPanes().count==3 && projectedPanes().allSatisfy{($0 as? MergeContextMenuProviding)?.mergeSourceRowsReady==true}}
+                await Task.yield();try await Task.sleep(nanoseconds:30_000_000)
+            }
+            try await projectedReady()
+            // The changed Mine line contributes removed-old and added-new
+            // display rows; Mine/result have51 alpha rows and102 paint ranges.
+            try require(projectedPanes().map{MergePanePresentationVerification.fragmentCount("alpha",in:$0)}==[50,51,51],"Aligned native source rows lost removed/added display evidence")
+            try await MergePanePresentationVerification.projectedMarks(window:markedWindow,panes:projectedPanes,actual:{projected.model.presentationMarkedCounts},labels:["L","R","B"],unwrappedCounts:[50,51,51],longWordCounts:[1,2,2],wrap:projected.model.setWrapLines,collapse:projected.model.setCollapsed,settle:projectedReady)
+            projected.model.showBase=true;try await wait(markedWindow){(try? pane(markedWindow,.base)) != nil}
+            projected.model.showBase=false;projected.model.showBase=true
+            try await projectedReady()
+            try await MergePanePresentationVerification.marked(markedWindow,labels:["L","R","B"],counts:[50,51,51],actual:{projected.model.presentationMarkedCounts})
+            try require(projectedPanes().map{($0 as! MergeFindProviding).mergeFindHighlights.markedRanges.count}==[100,102,102],"Optional Base replacement changed live pane painting")
             await clean()
             for(url,bytes)in inputs {try require(try Data(contentsOf:url)==bytes,"Pane UI changed an input file")}
             try require(!FileManager.default.fileExists(atPath:output.path),"Pane UI wrote an output")

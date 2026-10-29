@@ -513,7 +513,7 @@ private enum MergeSourceSide {
     }()
     private func makeFoldingController() -> MergeFoldingController {
         let value = MergeFoldingController(preferences: comparisonDefaults)
-        value.geometryChanged = { [weak self] in DispatchQueue.main.async { self?.objectWillChange.send() } }
+        value.geometryChanged = { [weak self] in DispatchQueue.main.async { self?.objectWillChange.send();self?.schedulePanePresentation() } }
         value.actionsAllowed = { [weak self] in self?.retired == false && self?.busy == false && self?.preparing == false && self?.confirmingQuit == false }
         return value
     }
@@ -2893,7 +2893,7 @@ private struct MergeEditor: NSViewRepresentable {
                 DispatchQueue.main.async { if model.selectionRequest == rawRequest { model.selectionRequest = nil } }
             }
         }
-        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport(); model?.invalidateLineRulers() }
+        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport(); model?.invalidateLineRulers();model?.schedulePanePresentation() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells; view.sourceLayoutRevision = model.sourceLayoutRevision; view.resultPresentationRevision = model.resultPresentationRevision
         if view.whitespaceRenderer.preferences != model.whitespaceDisplay || view.whitespaceRenderer.removal != (sourceSide == .theirs) || view.whitespaceRenderer.highlightEndings != model.showInlineDiff { view.needsDisplay = true }

@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-29",
+  "scope": "Compare and Merge source marked virtual screen-row status, occurrence painting retained, native field readiness and per-pane cached projection",
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "BaseView.cpp:4520-4562 BuildMarkedWordArray first eligible match per screen row",
+    "BaseView.cpp:655-676 GetLineChars wrapped fragments",
+    "BaseView.cpp:5274-5313 Screen2View hide/marker/padding",
+    "MainFrm.cpp:3296-3328 positive L/R/B counts"
+  ],
+  "hosted_failure": {
+    "run": 40892810459,
+    "job": 123518852961,
+    "step": 100,
+    "message": "Actual marked status omits same-row occurrences",
+    "receiver_pid": 73189,
+    "receiver_reaped": true,
+    "diagnosis": "Fixture model/native-render readiness race; source audit independently found incorrect occurrence-based product status"
+  },
+  "implementation": [
+    "Core first eligible boundary match per supplied fragment",
+    "Native full-document TextKit wrap/fold projection; original marker row retained",
+    "Per-pane weak-view identity/edit/mark/geometry cache excludes caret and scroll",
+    "Wrap/fold status refresh for Compare and three-way Merge",
+    "Native attached status-field wait, separate occurrence and row assertions, independent ASCII fragment oracle",
+    "Private HOME added to grouped runner"
+  ],
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'MergeMarkedScreenRowTests|MergeMarkedWordTests|MergeFindTests'",
+      "status": "passed",
+      "log": "build/qa/merge-marked-rows-core-2026-10-29.log",
+      "tests": 16,
+      "failures": 0
+    },
+    "build": {
+      "command": "xcodebuild -jobs 4 -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath build CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES build",
+      "status": "passed",
+      "log": "build/qa/merge-marked-rows-build-2026-10-29.log"
+    },
+    "native": {
+      "command": "python3 scripts/test-merge-patch-family.py --only compare --only conflict --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "status": "passed across scoped Compare and conflict checks; earlier failed attempts retained",
+      "log": "build/qa/merge-marked-rows-native-2026-10-29.log",
+      "attempts": [
+        {
+          "log": "build/qa/merge-marked-rows-native-2026-10-29.log",
+          "compare_system_git": "passed",
+          "compare_packaged_git": "passed",
+          "conflict_system_git": "failed supplemental unwrapped50 expectation; model 50/51/51",
+          "conflict_packaged_git": "not run after first failure",
+          "reaped_receivers": [
+            87703,
+            87727,
+            87741
+          ]
+        },
+        {
+          "log": "build/qa/merge-marked-rows-conflict-projection-diagnostic-2026-10-29.log",
+          "status": "diagnostic reproduces invalid supplemental fixture assumption",
+          "phase": "initial unwrapped",
+          "actual_rows": [
+            50,
+            51,
+            51
+          ],
+          "actual_occurrences": [
+            100,
+            102,
+            102
+          ],
+          "wrap_enabled": false,
+          "diagnosis": "Changed Mine line retains a removed Base row and added Mine row in alignment. Source virtual screen map legitimately includes both; fixed per-pane fixture expectations required. No product change or repeat build.",
+          "reaped_receivers": [
+            87910
+          ]
+        },
+        {
+          "log": "build/qa/merge-marked-rows-conflict-final-2026-10-29.log",
+          "command": "python3 scripts/test-merge-patch-family.py --only conflict --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+          "status": "both engines passed",
+          "reaped_receivers": [
+            87982,
+            88000
+          ],
+          "repair": "Fixture-only literal vectors reflect removed/added display rows; Compare not rerun and production not rebuilt because neither behavior changed"
+        }
+      ],
+      "coverage": [
+        "Attached native status field waits",
+        "Independent all-occurrence painting versus status rows",
+        "Whole-document scroll invariant",
+        "Fold Hidden versus original Marker text",
+        "Split long-token wrap disappearance",
+        "Actual native fragment oracle at two window widths",
+        "Fold and resize invalidate cache",
+        "Caret-only native status update reuses cache",
+        "One-pane recreation, readonly, optional Base replacement and ownership retirement"
+      ]
+    },
+    "generated_resources": {
+      "help": "61 documents, 51 topics; regenerated before build and --check passed",
+      "localizations": "--check passed; no new literal UI labels",
+      "dialog_coverage": "reconciled; 130 resource dialogs, zero certified complete; counts are audit coverage only",
+      "whitespace": "git diff --check passed"
+    }
+  },
+  "limits": [
+    "Installed build34 predates correction",
+    "No shipping app launch or replacement in this batch",
+    "No physical visual/keyboard/VoiceOver acceptance",
+    "No complete hosted CI pass",
+    "No minimum-version or Intel native check",
+    "No full upstream parity certification"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/MergeFind.swift": "d9223565c14decc7afbe98bbe6fe4ebf4585d21b872fac0b5d9addb9a3b2a1af",
+    "Sources/TurtleGitMac/MergeFindWindow.swift": "9061d57647c12e7b734648d8101a79f87e862b4241f11bdfdc8666282e027dc0",
+    "Sources/TurtleGitMac/MergePanePresentation.swift": "9dd753bac2b6d5b20883c551d0a07a3fa363ccc456196c89bd244f9ee9690ae1",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "8f6c6dc08b6c4775852cdf43df78af6cb464138d877ce13649d6f94188b18fc7",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "565d67eb092a225b9155374002787d84b41092557fba35295d2d8f34211f0619",
+    "Tests/TurtleGitCoreTests/MergeMarkedScreenRowTests.swift": "636c66252a0c8d7ed76067dc42379878caaacab87e3a2e4d59bd15a8b060f012",
+    "docs/qa/merge-pane-presentation-native-2026-10-21.swift": "718d4f3abfc0c1de340d4948919ba46c16fdcccb13256005756aaf9bcc1ea319",
+    "docs/qa/merge-conflict-presentation-native-2026-10-21.swift": "3979fcc02351c4b1a838b4a87247ebde4b192ecf83cd2d78d6870266398e94f2",
+    "scripts/test-merge-patch-family.py": "2c25e642ea1c0099bc78eb8a66b8eaf727e6ed576a9d2ae0495a439456623209"
+  }
+}

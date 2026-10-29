@@ -21,8 +21,9 @@ matching the source caret view coordinate. A tab counts one character, a non-BMP
 character uses two UTF-16 units, and wrapping does not reset the logical column.
 Marked-word counts follow source order: <code>L</code> for left, <code>R</code> for right and <code>B</code> for
 the bottom result. A separate optional Base preview is an additional native pane;
-its marks do not replace the source bottom count. Changing the marked word can
-change counts within the same line, independently of locator row highlights.
+its marks do not replace the source bottom count. Status counts matching displayed
+rows, while highlighting retains every eligible occurrence. Zero counts are
+omitted, as in the source status formatter.
 The existing View/Status Bar preference hides and restores these indicators.</p>
 <p>Implementation is shared by <code>MergePanePresentation.swift</code>,
 <code>FileComparisonWindow.swift</code>, <code>TextConflictWindow.swift</code> and
@@ -48,4 +49,29 @@ from native two-pane and compact P4-style conveniences, and documents retained
 source snapshots and saved-output identity. Its <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/merge-pane-header-2026-10-25.json">separate evidence record</a>
 will record the new grouped checkpoint; the earlier presentation passes above
 do not validate these new actions.</p>
+<h2 id="marked-displayed-rows--october-29-2026">Marked displayed rows — October 29, 2026</h2>
+<p><code>BaseView.cpp:4520–4562</code> counts the first eligible boundary match in each virtual
+screen row and then breaks. <code>GetLineChars</code> (655–676) supplies wrapped fragments;
+<code>Screen2View</code> construction (5274–5313) omits hidden rows, retains a fold marker's
+original text as one unwrapped row and pads peers with empty rows. This map spans
+the entire document, not just the current scroll viewport. A token split by
+wrapping can disappear from the status; fragment edges also form new matching
+boundaries. Occurrence painting and locator bands remain separate.</p>
+<p>Compare and Merge now project actual TextKit fragments into that shared counting
+rule. Mark, edit, fold, font, container geometry and pane changes refresh status.
+Per-pane caching avoids rebuilding the full projection when only the caret or
+scroll position changes, matching the source's cached status reads. The focused
+logical UTF-16 column and source L/R/B pane order remain intact.</p>
+<p>Hosted run <code>40892810459</code>, job <code>123518852961</code>, failed at step 100 because the
+fixture read an old native status field after its model had already changed.
+The corrected check waits for the attached native field as well as the model.
+Source comparison also exposed a separate product defect: the previous status
+counted all occurrences, so three marks on two unwrapped rows incorrectly read
+three. It now reads two, with all three occurrence ranges retained.</p>
+<p>The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/merge-marked-screen-rows-2026-10-29.json">new evidence record</a> records the
+focused Core and grouped Compare/Merge checks, including wrap, fold, resize,
+scroll, pane replacement and caret-cache behavior. Installed build34 predates
+this correction. Earlier presentation checks do not validate this continuation;
+physical interaction, large-document performance, all rendering configurations
+and complete hosted integration remain open.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

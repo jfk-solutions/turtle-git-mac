@@ -23,8 +23,41 @@ import TurtleGitCore
         let start=text.lineRange(for:NSRange(location:offset,length:0)).location
         return offset-start+1
     }
+    /// BuildMarkedWordArray counts the first boundary match in each virtual
+    /// screen row, not every paint range. TextKit supplies the native wrapping
+    /// partition across the full document; scrolling never changes the result.
     static func marked(label:String,in view:NSTextView?)->MergePaneMarkCount {
-        .init(label:label,count:(view as? MergeFindProviding)?.mergeFindHighlights.markedRanges.count ?? 0)
+        guard let view,view.window != nil,!view.isHiddenOrHasHiddenAncestor,
+              let target=view as? MergeFindProviding else{return .init(label:label,count:0)}
+        let word=target.mergeFindHighlights.markedWord
+        guard !word.isEmpty else{return .init(label:label,count:0)}
+        return .init(label:label,count:target.mergeFindHighlights.markedScreenRowCount(in:view){markedScreenFragments(in:view)})
+    }
+    static func markedScreenFragments(in view:NSTextView)->[String] {
+        guard let target=view as? MergeFindProviding,let storage=view.textStorage,
+              let layout=view.layoutManager,let container=view.textContainer else{return []}
+        layout.ensureLayout(for:container)
+        var fragments:[String]=[]
+        for line in target.mergeFindLines {
+            let text=line.text as NSString,length=text.length
+            guard line.offset>=0,line.offset<=storage.length,length<=storage.length-line.offset else{continue}
+            if line.offset<storage.length {
+                if storage.attribute(.mergeFoldHidden,at:line.offset,effectiveRange:nil) as? Bool == true {continue}
+                // Screen2View retains the marker row's original text. It is a
+                // single unwrapped virtual row despite the rendered {...}.
+                if storage.attribute(.mergeFoldMarker,at:line.offset,effectiveRange:nil) as? Bool == true {fragments.append(line.text);continue}
+            }
+            guard length>0 else{fragments.append("");continue}
+            let logical=NSRange(location:line.offset,length:length)
+            let glyphs=layout.glyphRange(forCharacterRange:logical,actualCharacterRange:nil)
+            layout.enumerateLineFragments(forGlyphRange:glyphs){_,_,_,glyphRange,_ in
+                let actual=layout.characterRange(forGlyphRange:glyphRange,actualGlyphRange:nil)
+                let part=NSIntersectionRange(actual,logical)
+                guard part.length>0 else{return}
+                fragments.append(text.substring(with:NSRange(location:part.location-line.offset,length:part.length)))
+            }
+        }
+        return fragments
     }
 }
 

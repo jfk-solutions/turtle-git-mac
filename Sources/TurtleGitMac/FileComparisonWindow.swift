@@ -654,7 +654,7 @@ private extension FileComparisonDocument {
     }
     lazy var folding: MergeFoldingController = {
         let value = MergeFoldingController(preferences: comparisonDefaults)
-        value.geometryChanged = { [weak self] in DispatchQueue.main.async { self?.objectWillChange.send() } }
+        value.geometryChanged = { [weak self] in DispatchQueue.main.async { self?.objectWillChange.send();self?.refreshPaneStatus() } }
         value.actionsAllowed = { [weak self] in self?.contextCommandsAllowed == true && self?.filtering == false }
         return value
     }()
@@ -2669,7 +2669,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             if view.selectedRange() != range { view.setSelectedRange(range) }
         }
         model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async {
-            model?.applyViewportNavigation(); model?.refreshLocatorViewport(); model?.invalidateLineRulers()
+            model?.applyViewportNavigation(); model?.refreshLocatorViewport(); model?.invalidateLineRulers();model?.refreshPaneStatus()
         } }
         model.lineWrapping.update(scroll, key: base ? "Base" : "Mine", aligned: !model.onePaneActive && !model.singleFileMode, enabled: model.wrapLines)
         let moved = model.movedRowLinks(base:base), generation = model.alignmentGeneration

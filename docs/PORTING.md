@@ -10,6 +10,14 @@ atomic update. Public Core and packaged Git pass the focused private sandbox
 check; no shipping GUI, physical Finder/external grants, complete hosted pass or
 Store release is inferred. See [current release gates](RELEASE-BLOCKERS.md).
 
+## Compare and Merge marked-row continuation
+
+[Displayed-row status](MERGE-PANE-PRESENTATION-PARITY.md#marked-displayed-rows--october-29-2026)
+now follows source wrapping and folding rules while preserving occurrence
+highlighting. Caret-only updates reuse cached counts. The actual native-field
+readiness check also addresses the recorded hosted failure. Installed build34
+predates this correction; scoped validation is recorded separately.
+
 ## Historical raw-file transfer continuation
 
 [Raw historical-file transfers](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md) connect
