@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-29",
+  "status": "signed-universal-ready-for-local-testing",
+  "build": "0.1.0 (33)",
+  "source_commit": "4daef1a36fcf725cd09254d1337d401cbc262fe0",
+  "source_input_sha256": "100ebe8373965f41bd9faa4a58b482fcaabdf1be9d6f57d4487938f20bd1b05d",
+  "source_inputs_unchanged": true,
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "installed": false,
+  "current_installed_build": "0.1.0 (32)",
+  "implementation_scope": [
+    "Unified Diff block movement and source selection extension",
+    "Pinned case conversion and word/line deletion with byte-preserving Undo/Redo",
+    "Exact leading-scalar codec and automatic BOM decoding",
+    "Word, SmartHome, logical/display/document boundary and page navigation",
+    "EOF/offscreen insertion geometry and shared desired-column recovery"
+  ],
+  "build_validation": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 593.77,
+        "log": "build/qa/signed33-build-2026-10-29.log"
+      }
+    ],
+    "source_inputs_unchanged": true,
+    "strict_deep_signature_exit": 0,
+    "own_components_universal": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "bundle_members": 6378,
+    "application_sha256": "34e80d7aa60744c68c02050128a2a65986ee02885b21b7a803f7f04ea622177b",
+    "same_signing_team_and_sandbox_groups": true,
+    "inherited_runtime_representatives": [
+      "Git",
+      "LibGit2",
+      "Metafile"
+    ],
+    "metafile_cache_key": "2ec5e0ce0be4be7af14dfabf18c17bc02ccc1e91ce59689b437fd962b794d7a5",
+    "help_source_equal": true,
+    "help_members": 92
+  },
+  "signed_parent_validation": {
+    "passed": true,
+    "requested_phases": [
+      "udiff"
+    ],
+    "public_core_package_smoke": true,
+    "packaged_core_sha256": "ee116fffaa0f08fc0d2423ad53fce32cfb316ca64796e38e4f9119f6afb77fa1",
+    "probe_source_sha256": "baff888aed25493628fc1cc2e7e08deed53272906a5778a6f79f2ced3ecf6b86",
+    "probe_postdates_frozen_application_source": true,
+    "udiff": {
+      "codec_sha256": {
+        "UTF-8 BOM": "efc7d39492817933c4d13c4c860cda3a521707076e90b9af283fefddcd29ae06",
+        "UTF-16BE BOM": "8dab7e20432f404709665633b3df11938b7c063921590bec70fa4a29ee16a4d1",
+        "UTF-16LE BOM": "6df365e1e1bcce22772a0bbaf34e3c7789e15d143e0eece00df1d4c71bece6b1"
+      },
+      "edited_sha256": "ab6dad459468e81e8b013f3e225118fa53084f88f87e01d591228717daf5a8a7",
+      "helpers_executed": false,
+      "input_sha256": "93e925d74bd950ada6b6b8a2d7cd6db07c212694814771596c2c6144882b086e",
+      "legacy_sha256": "333165a4d4b459412293b12ed4053a89130bc1f75e083853ae79892a8e1063a1",
+      "native_ui_executed": false,
+      "navigation_boundaries": true,
+      "opaque_legacy_bom_bytes": true,
+      "public_core_package_smoke": true,
+      "selection_case_and_rectangle": true,
+      "source_codec_nfd": true
+    },
+    "app_group_files_created": false,
+    "outside_file_grants": false,
+    "shipping_gui_launched": false,
+    "finder_activation": "not performed",
+    "service_registration": "not performed",
+    "owned_receivers": [
+      47651,
+      47665,
+      47666
+    ],
+    "owned_receivers_independently_absent": true,
+    "uuid_group_folder_absent_after_probe": true,
+    "scope": "Public Core from sealed production framework in signed sandboxed parent; not native AppKit editor/NSUndoManager acceptance"
+  },
+  "local_testing_package": {
+    "zip": "TurtleGit-for-Mac-0.1.0-build33-signed.zip",
+    "zip_bytes": 422333201,
+    "zip_sha256": "e3a7ee07c20243747de3f07e9d8b851aaa0deb5bdef9bcd5721e6e15927818ff",
+    "signature_preserved": true,
+    "re_signing_performed": false,
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true,
+    "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build33-signed/TurtleGit-for-Mac-0.1.0-build33-signed.zip"
+  },
+  "retained_source_native_evidence": [
+    "unified-block-navigation-2026-10-29.json",
+    "unified-selection-edit-2026-10-29.json",
+    "unified-navigation-2026-10-29.json"
+  ],
+  "installed_session": "Build32 remains installed and running; preserved exact build32 candidate before replacing build product, no app or Finder restart",
+  "limits": [
+    "No full current hosted CI pass established; current macOS run queued behind older active source at last observation",
+    "Universal binary structure does not prove physical Intel/minimum-macOS execution",
+    "Packaged public Core smoke does not establish physical native UI, Finder or complete workflow parity",
+    "No App Store upload or notarization"
+  ],
+  "documentation_validation": {
+    "coverage": "reconciled",
+    "diff_check": "pass"
+  }
+}

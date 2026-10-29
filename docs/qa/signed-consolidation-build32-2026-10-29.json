@@ -5,7 +5,7 @@
   "source_commit": "144fdf78601c3b8cf1d536551078020e12ec5fed",
   "source_input_sha256": "61400b6f489fdb5ac2a75f71f8d6363978d070cc249ac9930463797905a2163a",
   "source_inputs_unchanged": true,
-  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "candidate": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/qa/preserved-build32-2026-10-29.app",
   "implementation_scope": [
     "Retained-byte Blame encoding projection",
     "Finder returned-volume recovery",
@@ -124,5 +124,7 @@
     "copied_and_extracted_inventory_equal": true,
     "strict_deep_seal_source_copy_roundtrip": true,
     "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build32-signed/TurtleGit-for-Mac-0.1.0-build32-signed.zip"
-  }
+  },
+  "original_candidate_path": "/Users/jkuehner/.codex/worktrees/finder-headless-registration/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+  "preserved_before_next_build": true
 }

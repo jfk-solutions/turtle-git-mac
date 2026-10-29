@@ -145,7 +145,7 @@ def entitlements(path):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('app',type=Path);parser.add_argument('--team',required=True)
-    parser.add_argument('--only',choices=('history','metafile','unified-diff'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
+    parser.add_argument('--only',choices=('history','metafile','unified-diff','udiff'),action='append',help='Focused runtime retry; independent App Group evidence is recorded by the complete run.')
     parser.add_argument('--skip-metafile',action='store_true',help='Run App Group, history and Unified Diff phases without unchanged metafile coverage.')
     parser.add_argument('--identity',required=True,help='Installed Apple Development signing identity SHA-1.')
     parser.add_argument('--report',required=True,type=Path);args=parser.parse_args()
@@ -261,6 +261,17 @@ def main():
                         if not re.fullmatch('[0-9a-f]{64}',value.get(key,'')):raise ValueError('Signed Unified Diff byte receipt is incomplete')
                     record['packaged_unified_diff_core_runs_from_sandbox']=True
                     record['unified_diff_native_ui']='not exercised; separate native receiver covers TextKit/gestures/NSUndoManager'
+                if args.only and 'udiff' in args.only:
+                    receipt=run(clones[0],'udiff')
+                    value=receipt.get('udiff',{})
+                    for key in ['public_core_package_smoke','navigation_boundaries','selection_case_and_rectangle','opaque_legacy_bom_bytes','source_codec_nfd']:
+                        if value.get(key) is not True:raise ValueError('Signed public UDiff smoke missing '+key)
+                    if any(value.get(key) is not False for key in ['native_ui_executed','helpers_executed']) or any(receipt.get(key) is not False for key in ['outside_file_grants','shipping_gui_launched','app_group_files_created']):raise ValueError('Signed public UDiff smoke escaped pure private scope')
+                    for key in ['input_sha256','edited_sha256','legacy_sha256']:
+                        if not re.fullmatch('[0-9a-f]{64}',value.get(key,'')):raise ValueError('Signed public UDiff byte receipt incomplete')
+                    if len(value.get('codec_sha256',{}))!=3 or any(not re.fullmatch('[0-9a-f]{64}',digest) for digest in value['codec_sha256'].values()):raise ValueError('Signed public UDiff codec receipt incomplete')
+                    record['packaged_udiff_public_core_smoke']=True
+                    record['udiff_native_ui']='not exercised; source-linked private native receiver is separate'
                 if not args.skip_metafile and (args.only is None or 'metafile' in args.only):
                     payload,originals=metafile_request()
                     children=OwnedRuntimeChildren({'metafile':clones[0].parent.parent/'Helpers/Metafile/metafile-convert'},required={'metafile'})

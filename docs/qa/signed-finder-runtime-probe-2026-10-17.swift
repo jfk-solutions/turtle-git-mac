@@ -336,6 +336,50 @@ import TurtleGitCore
                 "native_ui_executed":false,"undo_scope":"Core value snapshots; not NSUndoManager"]
     }
 
+    /// Explicit public packaged-Core smoke. No native editor or persistent state.
+    static func udiffCoreSmoke()throws->[String:Any] {
+        let logical="alpha  beta+gamma_delta\r\n雪🙂"
+        let targets:[(Int,PatchBoundary,Int)]=[(0,.nextWord,7),(7,.nextWord,11),(11,.nextWord,12),(12,.nextWord,23),(23,.nextWord,25),(12,.previousWord,11),(0,.documentEnd,(logical as NSString).length)]
+        for (caret,boundary,expected) in targets {try require(PatchBoundaryNavigation.position(text:logical,caret:caret,boundary:boundary)==expected,"Packaged logical navigation changed")}
+        try require(PatchBoundaryNavigation.position(text:" \talpha\r\n",caret:5,boundary:.smartLineStart)==2 && PatchBoundaryNavigation.position(text:" \talpha\r\n",caret:2,boundary:.smartLineStart)==0,"Packaged smart Home lost toggle")
+        try require(PatchBoundaryNavigation.position(text:" \talpha\r\n",caret:5,boundary:.lineEnd)==7 && PatchBoundaryNavigation.position(text:"",caret:0,boundary:.documentEnd)==0,"Packaged empty/line-end navigation changed")
+        let blocks="one\r\n \t\r\ntwo\rthree\n\nlast",last=("one\r\n \t\r\ntwo\rthree\n\n" as NSString).length
+        try require(PatchParagraphNavigation.position(text:blocks,caret:0,backwards:false)==9 && PatchParagraphNavigation.position(text:blocks,caret:last,backwards:true)==9,"Packaged mixed-EOL block navigation changed")
+        func convert(_ bytes:Data,_ selected:Int)throws->(UnifiedDiffEditBuffer,PatchLineEditPlan) {
+            var buffer=UnifiedDiffEditBuffer(document:UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:.windows1251))
+            guard let plan=PatchSelectionEditing.plan(text:buffer.text,selections:[.init(id:0,anchor:0,caret:selected)],primarySelectionID:0,rectangular:false,command:.upperCase) else {throw Failure(description:"Packaged case plan refused")}
+            _ = try buffer.apply(plan);return (buffer,plan)
+        }
+        let suffix=Data("\r\nKEEP".utf8)+Data([0x98,0,0xff,13]),original=Data("Straße e\u{301}".utf8)+suffix,expected=Data("STRASSE E\u{301}".utf8)+suffix
+        let expanded=try convert(original,("Straße e\u{301}" as NSString).length)
+        try require(try expanded.0.snapshot().bytes==expected,"Packaged expansion normalized text or changed opaque packets")
+        let legacy=Data([0xe0,0xe1,13,10,0x98,0xff]),regional=try convert(Data([0xe0,0xe1,13,10,0x98,0xff]),2)
+        try require(try regional.0.snapshot().bytes==Data([0xc0,0xc1,13,10,0x98,0xff]),"Packaged selected legacy edit changed untouched packets")
+        let noOp=try convert(Data("ABC\r\n".utf8),0),noOpBytes=try noOp.0.snapshot().bytes
+        try require(!noOp.1.hasReplacement && noOpBytes==Data("ABC\r\n".utf8),"Packaged empty selection mutated")
+        var rectangle=UnifiedDiffEditBuffer(document:UnifiedDiffDocument(bytes:Data("ß\nX\n".utf8),displayLegacyEncoding:.windows1251))
+        guard let plan=PatchSelectionEditing.plan(text:rectangle.text,selections:[.init(id:1,anchor:0,caret:1),.init(id:2,anchor:2,caret:3)],primarySelectionID:2,rectangular:true,command:.upperCase,rectangleAnchor:0,rectangleCaret:3) else {throw Failure(description:"Packaged rectangle plan refused")}
+        _ = try rectangle.apply(plan)
+        try require(try rectangle.snapshot().bytes==Data("SS\nX\n".utf8),"Packaged rectangle expansion bytes changed")
+        try require(plan.rectangular && plan.rectangleRowsExplicit && plan.selections.map(\.range)==[NSRange(location:0,length:2),NSRange(location:3,length:1)],"Packaged explicit rectangle ranges reflowed")
+        var deleting=UnifiedDiffEditBuffer(document:UnifiedDiffDocument(bytes:Data("alpha beta\r\nnext\rfinal\n".utf8),displayLegacyEncoding:.windows1251))
+        guard let deletion=PatchSelectionEditing.plan(text:deleting.text,selections:[.init(id:0,anchor:0,caret:5)],primarySelectionID:0,rectangular:false,command:.deleteLineRight) else {throw Failure(description:"Packaged line deletion refused")}
+        _ = try deleting.apply(deletion)
+        try require(try deleting.snapshot().bytes==Data("alpha\r\nnext\rfinal\n".utf8),"Packaged deletion consumed selected range/EOL")
+        let nfd="\u{301}e\u{301}\r\n🙂",upperNFD="\u{301}E\u{301}\r\n🙂"
+        var codecs:[String:String]=[:]
+        for codec in [ComparisonTextEncoding.utf8BOM,.utf16LEBOM,.utf16BEBOM] {
+            let encoded=try codec.encode(nfd)
+            guard let decoded=codec.decodeInput(encoded) else {throw Failure(description:"Packaged BOM decoder refused NFD")}
+            try require(decoded.utf16.elementsEqual(nfd.utf16),"Packaged public codec normalized leading NFD")
+            let document=UnifiedDiffDocument(bytes:encoded,displayLegacyEncoding:.windows1251)
+            try require(document.displayText.utf16.elementsEqual(nfd.utf16),"Packaged UDiff BOM autoload normalized NFD")
+            let result=try convert(encoded,3)
+            try require(try result.0.snapshot().bytes==codec.encode(upperNFD),"Packaged BOM/NFD edited buffer changed encoding")
+            codecs[codec.rawValue]=digest(encoded)
+        }
+        return ["public_core_package_smoke":true,"navigation_boundaries":true,"selection_case_and_rectangle":true,"opaque_legacy_bom_bytes":true,"source_codec_nfd":true,"native_ui_executed":false,"helpers_executed":false,"input_sha256":digest(original),"edited_sha256":digest(expected),"legacy_sha256":digest(legacy),"codec_sha256":codecs]
+    }
     static func main() async throws {
         let args=CommandLine.arguments
         guard args.count>=4, let uuid=UUID(uuidString:args[2]), let expected=FinderIntegration.groupIdentifier(team:args[3]) else { throw Failure(description:"Invalid signed QA request") }
@@ -394,6 +438,11 @@ import TurtleGitCore
         } else if mode=="unified-diff" {
             guard args.count==4 else {throw Failure(description:"Unexpected Unified Diff arguments")}
             details["unified_diff"]=try unifiedDiff(folder);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false
+        } else if mode=="udiff" {
+            guard args.count==4 else {throw Failure(description:"Unexpected public UDiff smoke arguments")}
+            let existed=FileManager.default.fileExists(atPath:folder.path)
+            details["udiff"]=try udiffCoreSmoke();details["outside_file_grants"]=false;details["shipping_gui_launched"]=false;details["app_group_files_created"]=false
+            try require(FileManager.default.fileExists(atPath:folder.path)==existed,"Pure public UDiff smoke created App Group state")
         } else if mode=="metafile" {
             guard args.count==5 else {throw Failure(description:"Missing captured metafile payload")}
             details["images"]=try await metafiles(args[4]);details["outside_file_grants"]=false;details["shipping_gui_launched"]=false

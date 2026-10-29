@@ -62,6 +62,25 @@ and preserves unchanged file selections at final settlement. The family receipt
 separates native checks from installed-build and physical input acceptance.
 These changes are included in signed build31.
 
+## Ready local testing candidate — build33
+
+[Signed build33](qa/signed-consolidation-build33-2026-10-29.json), version
+`0.1.0 (33)`, is ready from clean source `4daef1a3`. It includes the three Unified
+Diff navigation/editing batches and leading-scalar codec repairs. The unchanged
+source-input audit, strict signatures, eight app-owned arm64/x86_64 components,
+packaged Help and signature-preserving ZIP extraction/inventory checks pass.
+A focused signed-parent check executes the actual production Core framework's
+new navigation, selection/byte and BOM/NFD paths under the sandbox; it does not
+exercise the shipping AppKit editor or NSUndoManager.
+
+The local package is `TurtleGit-for-Mac-0.1.0-build33-signed.zip` (SHA-256
+`e3a7ee07c20243747de3f07e9d8b851aaa0deb5bdef9bcd5721e6e15927818ff`).
+It is a local Apple Development testing artifact, not a public release download.
+Build32 remains installed and running, with its exact candidate preserved for
+rollback. No app/Finder restart, repository-permission change, App Store upload
+or notarization was performed. Physical installed workflows, Intel/minimum-macOS
+execution, complete hosted CI and full-port acceptance remain separate.
+
 ## Current installed checkpoint
 
 The later [DIB metadata family](METAFILE-DIB-PROFILES-PARITY.md) follows measured
