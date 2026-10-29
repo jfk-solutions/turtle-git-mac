@@ -64,6 +64,50 @@ Run commands from the repository root. The checked-in
 Local success does not establish that a hosted run passed, that dialogs match
 TortoiseGit visually, or that the app is ready for distribution.
 
+## Bounded macOS CI lanes
+
+The macOS workflow separates the former serial job into eight Intel lanes:
+Core; Commit/repository; history/references; replay/transport; text editors;
+Settings/Finder; images/documents; and distribution. At most four lanes run
+concurrently. Each lane has a 300-minute timeout and failure does not cancel its
+siblings. The SVN runtime remains a separate producer with its own 300-minute
+bound. This removes the full Core run from the critical path of native checks;
+actual hosted lane durations still need measurement.
+
+Every lane checks out the same source, restores or builds the exact runtime
+packages, downloads the SVN payload, validates its runtime inputs and builds its
+own Debug app and SwiftPM editor executable before validation consumers. Native
+receiver caches remain local to that job and retain their
+existing source/framework/compiler keys. DerivedData and native receivers are
+not transferred between machines. The intentional repeated bootstrap is recorded
+alongside each original validation step in
+`Configuration/CI/MacOSValidationInventory.json`.
+
+Core keeps the full SwiftPM run, its `--skip-build` SVN consumer, WCRev and the
+additional packaged-Git Core selections. Its headless Rebase editor still comes
+from the local Debug app. Distribution keeps the AppStore producer and its graph,
+SSH and cross-version replay consumers together. The common SwiftPM executable
+also serves Commit message/encoding/last-action fixtures, grouped replay receivers
+and filtered Core fallbacks that directly use `.build/debug/TurtleGitMac`;
+`TURTLEGIT_CORE_ONLY=1 swift test` does not produce that executable. Original commands, environments,
+Git-engine choices and assertions are retained. A mixed-family grouped runner
+stays intact on one lane rather than being split into additional invocations.
+
+`python3 scripts/test-macos-ci-lanes.py` checks YAML syntax, exact command/env/
+action coverage, unique lane assignment, producer dependencies and aggregate
+failure behavior. Unmapped new steps fail this guard. For a deliberate workflow
+change, review and update the inventory; do not regenerate it to conceal a
+coverage failure. `python3 scripts/check-macos-ci-lanes.py --verify-baseline`
+also compares the inventory with its recorded pre-split Git commit when that
+object is available in the local checkout. Hosted shallow checkouts compare
+against the committed inventory without fetching additional history.
+
+The required `build-and-test` job is an always-running aggregate. It waits for
+the SVN producer and the entire matrix and fails if either failed, was cancelled
+or was skipped. Same-ref workflow runs retain `cancel-in-progress: false`.
+Passing these focused guard checks validates the workflow split; it does not
+establish a successful hosted Core/native run.
+
 ## GitHub CI repair, 12 October 2026
 
 Run 38199319588 reached 1,063 Core tests and reported ten failures: stale Finder

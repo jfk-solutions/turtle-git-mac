@@ -8,6 +8,7 @@ concurrency:
 jobs:
   svn-runtime:
     runs-on: macos-15
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - name: Record SVN runtime toolchain key
@@ -59,11 +60,20 @@ jobs:
         with:
           name: universal-git-svn-runtime
           path: build/git-svn-runtime/GitSVN.tar.gz
-  build-and-test:
+  validation:
+    name: validation (${{ matrix.lane }})
     needs: svn-runtime
     runs-on: macos-15-intel
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        lane: [core, commit-repository, history-references, replay-transport, editors, settings-finder, images-documents, distribution]
     steps:
       - uses: actions/checkout@v4
+      - name: Check workflow lane contracts
+        run: python3 scripts/test-macos-ci-lanes.py
       - name: Report toolchain and system Git used by integration tests
         id: toolchain
         run: |
@@ -80,18 +90,24 @@ jobs:
           turtlegit_toolchain_fingerprint=$(shasum -a 256 "$RUNNER_TEMP/turtlegit-toolchain.txt" | awk '{print $1}')
           echo "fingerprint=$turtlegit_toolchain_fingerprint" >> "$GITHUB_OUTPUT"
       - name: Pinned inventory regression
+        if: matrix.lane == 'core'
         run: python3 scripts/check-inventory-pin.py
       - name: Pinned native translation labels
+        if: matrix.lane == 'core'
         run: |
           python3 scripts/test-localizations.py
           python3 scripts/build-localizations.py
       - name: Native reference group coverage contracts
+        if: matrix.lane == 'core'
         run: python3 scripts/test-native-reference-groups-contracts.py
       - name: Native receiver cache and process ownership contracts
+        if: matrix.lane == 'core'
         run: python3 scripts/test-native-receiver.py
       - name: Native Finder team namespace and agent embedding contracts
+        if: matrix.lane == 'core'
         run: python3 scripts/test-finder-group-identity.py
       - name: Runtime cache invalidation contracts
+        if: matrix.lane == 'core'
         run: python3 scripts/test-ci-runtime-caches.py
       - name: Capture libgit2 runtime cache key
         id: libgit2-key
@@ -108,10 +124,13 @@ jobs:
       - name: Validate prepared or restored libgit2 runtime
         run: python3 scripts/validate-libgit2-runtime.py build/libgit2-runtime/LibGit2
       - name: Universal local reference helper contracts on host-supported architectures
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-local-reference-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures
       - name: Universal replay inspection on host-supported architectures
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-replay-inspection-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures
       - name: Universal single commit details on host-supported architectures
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-single-commit-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures
       - name: Save validated libgit2 runtime
         if: steps.libgit2-cache.outputs.cache-hit != 'true'
@@ -172,6 +191,7 @@ jobs:
         if: steps.lexilla-cache.outputs.cache-hit != 'true'
         run: python3 scripts/build-lexilla-runtime.py
       - name: Lexilla ordinary and inherited sandbox signing contracts
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-lexilla-embedding.py
       - name: Validate prepared or restored lexilla runtime
         run: python3 scripts/validate-lexilla-runtime.py build/lexilla-runtime/Lexilla
@@ -213,6 +233,7 @@ jobs:
       - name: Validate graph runtime package before reuse or caching
         run: python3 scripts/validate-graph-layout-runtime.py build/graph-layout-runtime/GraphLayout
       - name: Verify Intel-host universal graph CPU baseline regression
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-graph-layout-cpu-baseline.py
       - name: Save verified graph runtime package
         if: steps.graph-layout-cache.outputs.cache-hit != 'true'
@@ -221,6 +242,7 @@ jobs:
           path: build/graph-layout-runtime/GraphLayout
           key: ${{ steps.graph-layout-cache.outputs.cache-primary-key }}
       - name: Verify Revision Graph helper embedding and ad-hoc signing branches
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-graph-layout-embedding.py
       - name: Capture openssh runtime cache key
         id: openssh-key
@@ -263,6 +285,7 @@ jobs:
           path: build/putty-runtime/PuTTY
           key: ${{ steps.putty-cache.outputs.cache-primary-key }}
       - name: Verify OpenSSH embedding and both ad-hoc signing branches
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-openssh-embedding.py
       - uses: actions/download-artifact@v4
         with:
@@ -291,6 +314,7 @@ jobs:
           path: build/git-runtime/Git
           key: ${{ steps.git-cache.outputs.cache-primary-key }}
       - name: Verify real local SVN workflows with the pinned Git
+        if: matrix.lane == 'distribution'
         run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --git build/git-runtime/Git/bin/git
       - name: Capture merge-diff runtime cache key
         id: merge-diff-key
@@ -313,12 +337,16 @@ jobs:
           path: build/merge-diff-runtime/MergeDiff
           key: ${{ steps.merge-diff-cache.outputs.cache-primary-key }}
       - name: Verify per-slice Git and LFS macOS deployment targets
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git
       - name: Pinned source download recovery checks
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-pinned-download.py
       - name: Runtime embedding cache integrity checks
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-runtime-embedding-cache.py
       - name: Dialog audit consistency
+        if: matrix.lane == 'core'
         run: |
           python3 scripts/test-dialog-coverage.py
           python3 scripts/reconcile-dialog-coverage.py --check
@@ -327,86 +355,121 @@ jobs:
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
           -configuration Debug -destination 'platform=macOS'
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
-      # Run the unresolved hosted editor gate immediately after its app build.
-      # Keep it once; a failing family should not wait behind the full Core run.
+      # Native Commit/replay fixtures and some filtered Core tests use this
+      # executable directly; the Core-only test build does not produce it.
+      - name: Prepare SwiftPM editor for native and Core consumers
+        run: swift build --product TurtleGitMac
       - name: Moved blocks and wrapped editor navigation family
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-wrapped-family.py
       - name: Retain failed wrapped editor stack samples
-        if: failure()
+        if: matrix.lane == 'editors' && (failure())
         uses: actions/upload-artifact@v4
         with:
-          name: wrapped-editor-timeout-stacks
+          name: wrapped-editor-timeout-stacks-${{ matrix.lane }}
           path: build/qa/native-timeouts/*.sample.txt
           if-no-files-found: ignore
       - name: Pinned moved-block detector oracle
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-moved-block-source.py
       - name: Git integration tests
+        if: matrix.lane == 'core'
         env:
           # Rebase tests invoke the real app's headless editor entry point.
           # Core-only SwiftPM deliberately does not build .build/debug/TurtleGitMac.
           TURTLEGIT_REBASE_EDITOR: ${{ github.workspace }}/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac
         run: TURTLEGIT_CORE_ONLY=1 swift test
       - name: Pinned inline parser and matching oracle
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-inline-source.py
       - name: Shared message styles and spelling
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --only links --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Shared message line editing and temporary zoom
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-message-editor-commands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit and Rebase message wrapping and selected reflow
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-message-wrap.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Log rich message links and owned styling
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Settings graph teardown and owned continuations
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-settings-teardown-family.py --only teardown --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Source history actions and replay identity family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-history-action-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Durable paused replay actions
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-pending-actions.py --only linear --only structural --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Older and external paused Rebase session adoption
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-adoption.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Rebase and Cherry Pick failed-Pick recovery
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-execution-recovery.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Connected history reference workflows
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-history-reference-workflows.py --only rebase --only blame --only references --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: RefLog exact named-reference picker and actions
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reflog-reference-identity.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Rebase connected history tools
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-history-tools.py --only tools --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Rebase captured revision menu family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-revision-menus.py --only menus --only controls --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Captured Settings sheet callers
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-settings-sheet-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Settings completion footer ownership and native remote list
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-settings-completion.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Settings context and page handoffs
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-settings-context.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Workspace ownership, retired Quit participants and native report lists
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-report-workspace-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Automatic status reads, watcher quiescence and cancellation ownership
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-status-refresh-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native file-list callback safety, replacement ownership and interactions
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-native-list-interactions.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Commit visibility and Log source command families
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-app-port-families.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit options, Log columns and Settings appearance
+        if: matrix.lane == 'settings-finder'
         run: |
           python3 scripts/test-primary-parity-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-primary-presentation-corrections.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge pane status with patch application policies
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-patch-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Decoded Unicode and SVN source patch workflow
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-source-text-patch-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Historical Diff and Submodule entry family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-submodule-diff-entry.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Standalone Merge tool entry and editor workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-tool-entry.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Reflected EditorConfig, Log references and external workspace requests
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-metadata-port-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Add LFS and persistent native list family
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-add-list-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Revert completed results and shared file-progress ownership
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-revert-result-actions.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native file selection and Log workflows
+        if: matrix.lane == 'history-references'
         run: |
           python3 scripts/test-commit-command-family.py --only identities --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-add-revert-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
@@ -419,152 +482,222 @@ jobs:
           python3 scripts/test-file-transfer-family.py --only identities --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-workspace-files.py --only workspace --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LFS exact paths, owner columns and captured progress
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-lfs-path-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Log working-tree LFS selection and owned progress
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-working-lfs.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Bundled Mac help and contextual dispatch
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-help-book.py
       - name: Hierarchical settings operation ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-configuration-lifecycle.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Repository titles and native file tooltips
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-repository-presentation.py --git /usr/bin/git
       - name: SVN source forms and captured workflow actions
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-svn-source-family.py --source-only --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: SVN progress stage Action log and owned drainage
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-svn-action-log.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First Start forms and setup operation ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-first-start-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First Start SSH selection and owned inspection
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-first-start-ssh.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Source reference refresh and remote-manager return ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reference-refresh.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder overlay and watched-repository source controls
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-control-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Inaccessible repository diagnosis, explicit trust and owned recovery
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-inaccessible-repository.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Selected-file macOS Services and owned repository routing
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-finder-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder returned-volume recovery and authority ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-volume-recovery.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder repository workflow Services
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-service-workflows.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder selected-file workflow Services
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-file-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder filesystem workflow Services
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-filesystem-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder Worktree and Submodule Services
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-linked-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder history and reference Services
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-history-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder comparison, patch and export delivery Services
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-finder-delivery-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder selected-source transfer workflow
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-source-transfers.py --only source --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Project dialog source forms and owned icon chooser
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-project-dialog-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Distribution source and bundle provenance
+        if: matrix.lane == 'distribution'
         run: |
           python3 scripts/test-distribution-provenance.py
           python3 scripts/test-distribution-identity.py
       - name: Native Apple support report review and export
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-support-report-family.py
       - name: Pinned About banner water-effect oracle
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-about-water-source.py
       - name: Source About variants and selected Git lifetime
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-about-source-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Pinned Scintilla Unicode Find mappings
+        if: matrix.lane == 'editors'
         run: python3 scripts/generate-unified-case-fold.py --check
       - name: Verify pinned Unified Diff case and word-class tables
+        if: matrix.lane == 'editors'
         run: python3 scripts/generate-unified-case-mapping.py --check
       - name: Shared standalone and attached source Find controls
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-find-family.py --only source --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: External document tool arguments and scoped lifetime
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-external-document-family.py
       - name: Literal tool settings, associations and owned chooser callbacks
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-literal-tools.py
       - name: Unified Diff editable document workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-document-family.py --only document --only handoffs --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Standalone Unified Diff input, document admission and local appearance
+        if: matrix.lane == 'editors'
         run: |
           python3 scripts/test-udiff-tool-wrapper.py
           python3 scripts/test-unified-diff-input.py
       - name: Unified Diff native line-number and selection gutter
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-gutter.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff whole-line native editing and exact byte provenance
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-line-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff caret modes and byte-preserving input
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-caret.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Verify Unified Diff text blocks and viewport navigation
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-block-navigation.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Verify Unified Diff selection transformations and boundary deletion
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-selection-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Verify Unified Diff word, boundary and page navigation
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-navigation.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff character and display-line cursor ownership
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-cursor.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff temporary zoom, reflow and base-size printing
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-unified-zoom.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit staging table presentation and native transfer
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-gui-staging.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Unified Diff native column selection and multiple-range editing
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-column-edit.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Git Properties live parent pages and scoped ownership
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Standalone local image entry and three-image selection
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-image-tool-selection.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: EMF+ serialized image effects and native consumer ownership
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-metafile-image-effects.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: WMF and EMF native comparison consumers and colors
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-metafile-workflows.py --only dib-profiles --only wmf-bitmap16 --only wmf-text --only classic-text-records --only formatted-digits --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic WMF and EMF Boolean raster consumers and conflict ownership
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic EMF masked and transparent bitmap transfers
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-metafile-masked-transfers.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: EMF+ SourceCopy image and conflict workflows
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-metafile-sourcecopy.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Metafile bounded raster regions and checkpoint ownership
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-metafile-raster-roi.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic metafile direct scanlines and gradient meshes
+        if: matrix.lane == 'images-documents'
         run: |
           python3 scripts/test-metafile-scanline-gradient.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-metafile-high-depth.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: PowerPoint export contracts and native slide comparison
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-presentation-comparison.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LibreOffice comparison and tracked-change merge owners
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Word automation ownership and security contracts
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-word-office-family.py --only contract --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Scoped native Merge menus and pane shortcuts
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-view-family.py --only history --only typing --only lifecycle --only menus
       - name: Selected unified diff and history file backends
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-diff-backend.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Blame grouped origin comparisons and owned questions
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-blame-grouped-comparisons.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Repository Browser recursive selection drag delivery
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-browser-selection-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit scoped preparation, file-list report and Push continuation
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-scope-report-push.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Historical window identity and retiring comparison owners
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-window-byte-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge pane header commands and ownership
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-pane-header.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge folded keyboard input and aligned deletion
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-pane-input.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Embedded Commit patches and Compare/Merge appearance ownership
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-editor-appearance.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Merge view switching, native chrome and saved splits
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-view-family.py --only view --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Inline engine native consumers
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-inline-native.py
       - name: Working copy revision utility and upstream templates
+        if: matrix.lane == 'core'
         run: python3 scripts/test-wcrev.py --tool .build/debug/TurtleGitWCRev --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: SVN command compatibility with pinned Git
+        if: matrix.lane == 'core'
         env:
           TURTLEGIT_SVN_TEST_GIT: ${{ github.workspace }}/build/git-runtime/Git/bin/git
         run: TURTLEGIT_CORE_ONLY=1 swift test --skip-build --filter GitSVNTests
       - name: Native historical file and folder item-provider receivers
+        if: matrix.lane == 'commit-repository'
         run: |
           scripts/verify-browser-item-provider.sh
           python3 scripts/test-status-file-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
@@ -573,19 +706,25 @@ jobs:
           python3 scripts/test-rebase-file-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-sync-file-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Independent cache menu and activity ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-cache-tray.py
       - name: Verify app, extension and original icon resources
+        if: matrix.lane == 'distribution'
         run: |
           python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
           python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app
           python3 scripts/test-branding-native.py
       - name: Universal application architecture audit regression
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-bundle-architectures.py
       - name: Distribution archive identity and offline export contracts
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-distribution-archive.py
       - name: Preview signing inventory regression
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-preview-signing.py
       - name: Verify production ad-hoc app seal and runtime links
+        if: matrix.lane == 'distribution'
         run: |
           python3 scripts/create-demo-repository.py "$RUNNER_TEMP/runtime-layout-repository"
           python3 scripts/create-preview-app.py build/Build/Products/Debug/TurtleGitMac.app \
@@ -595,532 +734,793 @@ jobs:
           python3 docs/qa/runtime-layout-native-2026-10-13.py \
             'build/qa/runtime-layout-signed-2026-10-13/TurtleGit Layout QA.app'
       - name: Verify embedded Subversion merge adapter and shared libraries
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native LFS and Send Mail receivers with one compilation
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-native-lfs-mail-batch.py
       - name: Native Send Mail source forms and owned target preparation
+        if: matrix.lane == 'replay-transport'
         run: >-
           python3 scripts/test-send-source-family.py --only source
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Branch and Tag source forms and connected workflows
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-branch-tag-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Switch source form and connected workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-switch-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Source transport forms and connected workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-transport-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Rebase source forms and connected workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-source.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Issue Tracker source and Regex Tester workflows
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native configured issue-regex consumers and failure ownership
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-issue-regex-consumers.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native issue-provider Settings, HTTP callbacks and Commit ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-native-issue-provider.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native release download and App Store workflows
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-release-updates.py
       - name: Native regex source list and editor workflows
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-merge-regex-source.py
       - name: Native Encoding source sheet and editor transactions
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-format-source.py
       - name: Native per-pane input encoding reload and owned decisions
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-input-encoding.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native revision and prompt word-command consumers
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-input-word-consumers.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native URL and path input word commands
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-input-word-navigation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native prefixed command and progress failure diagnostics
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-progress-diagnostic-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Daemon progress and owned loopback lifecycle
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-daemon-progress-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native byte-backed unified diff editing Save and Undo
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-unified-byte-buffer.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native exact patch rename recovery and import provider paths
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-patch-path-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native raw patch codecs and editable document workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-raw-patch-codec-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native legacy patch preview recovery and application
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-patch-codec-family.py --only codec --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native legacy encoding preference and Compare Merge saves
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-legacy-format-family.py --only legacy
       - name: Native EditorConfig pane commands and owned read workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-editorconfig-pane-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Merge Editor source form and profile ownership
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-editor-source.py
       - name: Native Merge Colors source and shared palette contexts
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-colors-source.py
       - name: Native Merge search source and navigation workflows
+        if: matrix.lane == 'editors'
         run: |
           python3 scripts/test-merge-search-source.py
           python3 scripts/test-merge-directional-find.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Merge Open source and replacement workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-open-source.py
       - name: Native Commit and Working Tree missing staged-file recovery
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-missing-staged-recovery.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Working Tree footer and captured Stash menu
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-working-tree-footer.py
       - name: Native Git configuration source forms and owned editors
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-git-config-source-family.py
       - name: Native Browser historical Save and Open ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-browser-file-actions.py
       - name: Native General source inputs and owned engine validation
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-general-source-family.py
       - name: Native tool source forms and Browse ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-tool-source-family.py
       - name: Native Credential source inputs and coherent refresh
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-credential-source-family.py
       - name: Native Network source layout and SSH ownership
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-network-source-family.py
       - name: Grouped native exact-text Git identity, credentials and Network settings
+        if: matrix.lane == 'settings-finder'
         run: >-
           python3 scripts/test-settings-exact-text-native.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Email settings and owned credential editor
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-email-credential-family.py
       - name: Configured SMTP through built frameworks with private loopback server
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-configured-smtp.py
       - name: Native optional remote-reference listing deletion and Sync workflow
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-remote-reference-backend-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native Clone custom filter checkout and owned cancellation
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-clone-checkout-filter-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native filtered historical file output and owned filter cancellation
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-historical-materialization-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native local reference catalog containment and checked deletion
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-local-reference-engine.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native replay readiness merge completion and Resolve inspection
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-replay-inspection-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native single commit details and captured message workflows
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-single-commit-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native history navigation warnings Combine and child submodule inspections
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-history-submodule-inspection-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Master-selected metadata catalogs and owned native retirement
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-backend-metadata.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Source-selected revision and reference validation workflows
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-revision-lookup.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native historical Browser reference submodule and Bisect navigation
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-historical-navigation.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Notes backend signatures references and owned editing
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-notes-backend.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native optional libgit2 backend selection and owned Git authentication
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-libgit2-native.py --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native libgit2 Clone and Fetch result notifications
+        if: matrix.lane == 'replay-transport'
         run: >-
           python3 scripts/test-remote-progress-notifications.py
           --git /usr/bin/git --git build/git-runtime/Git/bin/git
           --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native source-selected Reset results and Log commit-revert
+        if: matrix.lane == 'replay-transport'
         run: >-
           python3 scripts/test-reset-backend-notifications.py
           --git /usr/bin/git --git build/git-runtime/Git/bin/git
           --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native source-selected Add clean filters and owned index progress
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-add-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native source-selected Commit index preparation and cancellation
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-index-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native Blame pane interaction and retained author properties
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-blame-pane-interaction.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native SMTP certificate review, private TLS and owned export cleanup
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-smtp-certificate-native.py
       - name: Native bundled SSH encrypted-key loading and process cleanup
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
       - name: Grouped native Submodule exact paths, source forms, selection and progress
+        if: matrix.lane == 'replay-transport'
         run: >-
           python3 scripts/test-submodule-source-family.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native submodule comparison and conflict dialog family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-submodule-review-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Grouped native RefLog comparisons, ranges and revision handoffs with one compilation
+        if: matrix.lane == 'history-references'
         run: >-
           python3 scripts/test-native-reflog-batch.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Clone live command output
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-clone-stream.py
       - name: Native Clone progress and repository setup/transition recovery
+        if: matrix.lane == 'replay-transport'
         run: |
           python3 scripts/test-clone-progress.py
           python3 scripts/test-repository-setup-transitions.py
       - name: Native all-reference browser and Reset handoff
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-reference-browser.py
       - name: Native standalone reference browser
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reference-standalone.py
       - name: Native Add Remote and Select Remote Ref source workflows
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-remote-dialog-source-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Source reference forms and owned remote-tag workflows
+        if: matrix.lane == 'history-references'
         run: >-
           python3 scripts/test-reference-source-family.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native remote settings page
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-remote-settings.py
       - name: Native SSH passphrase response
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-ssh-passphrase.py
       - name: Native private SSH session recovery and cleanup
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-ssh-lifecycle-family.py --only lifecycle --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native SSH transport coordinator
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-ssh-coordinator.py
       - name: Native Submodule Sync
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-submodule-sync.py
       - name: Native submodule progress output controls
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-submodule-progress-output.py
       - name: Native Log revision popup variants
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-popup-variants.py --only ranges --only variants --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Log Revert original selection context
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-revert-selection.py --only selection --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Browser revision selection
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-browser-revisions.py --only revision --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native RefLog refresh and deletion lifetime
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reflog-lifecycle.py --only lifecycle --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Resolve and Rebase exact conflict selection
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-conflict-identity-family.py --only identity --only resolve-mutation --only resolve-files --only resolve-drop --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native primary command launch family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-primary-commands.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native invocation-owned progress completion and deferred handoffs
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-command-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native ordered command transport batches
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-command-transport-batch.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native workspace completion handoffs
+        if: matrix.lane == 'commit-repository'
         run: |
           python3 scripts/test-repository-handoffs.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
           python3 scripts/test-repository-settings-handoffs.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native symbolic-link Blame documents and incoming commands
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-blame-symlink-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Blame captured source menus
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Blame retained-byte encoding recovery and cancellation
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-blame-encoding-projection.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Blame toolbar customization and document ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-blame-toolbar.py --only composition --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Blame toolbar placement and quick customization
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-blame-toolbar.py --only placement --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Complete Commit refresh publication and native list settlement
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-refresh-family.py --only snapshot --only position
       - name: Native Commit staging activation and preference lifetime
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-staging-mode.py --only list --only mode --only checkbox --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Commit source category checking
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-check-categories.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Commit report rows, fonts and geometry ownership
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-report-rows.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Rebase structural row behavior
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-action-controls.py --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Rebase Revision Files and shared Changed Files workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-revision-files.py --only recovery --only rebase-files --only changed-files --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Canonical Log integration and Rebase reference workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-log-canonical-integration.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Settings navigation and constrained layout
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-settings-navigation-layout.py --only layout
       - name: Native source color Settings controls
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-settings-color-choices.py
       - name: Primary marked-row file commands
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-primary-file-menus.py --only primary-file-menus-2026-10-16 --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-native-reference-groups.py
       - name: Native Pull forced cleanup
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-pull-cleanup.py
       - name: Native Merge forced cleanup
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-cleanup.py
       - name: Native tracked branch commands and remote-only picker
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reference-tracking.py
       - name: Native reference browser inline branch rename
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reference-rename.py
       - name: Native Branch and Tag creation handoffs
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-branch-tag-completion.py --only completion --only handoff --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Export progress and ZIP cancellation
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-export-progress.py
       - name: Export live output and abandoned window cleanup
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-export-progress.py --receiver docs/qa/export-progress-native-2026-10-10.swift
       - name: Grouped native Format Patch ownership, mail, policies and streaming
+        if: matrix.lane == 'editors'
         run: >-
           python3 scripts/test-format-patch-workflow-native.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native dialog geometry and Saved Data reset
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-dialog-geometry.py
       - name: Native temporary storage and Saved Data clearing
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-temporary-files.py
       - name: Native Saved Data history and decision clearing
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-saved-data.py
       - name: Native progress action log and Saved Data
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-action-log.py
       - name: Native Merge and Fetch fast-forward live output
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-stream.py
       - name: Native patch file panel and recovery
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-patch-file-panel.py --only special --only recovery --only panel --only files --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Source color conversion and native status text appearance
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-status-colors.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder cache persistence, shutdown and restart
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-cache-persistence.py --only settings --only lifecycle --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder source cache modes, collection policy and native ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-status-policy-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native configurable list selection and retained actions
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-list-selection-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Blame rendering, Revision Graph presentation and conflict line inspection
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-history-editor-presentation-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Indexed Finder queries, exact roots and foreground cache publication
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-query-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native clipboard patch chooser and Finder handoff
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-clipboard-patch-entry.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native certificate inspector, export and authentication ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-certificate-inspector.py
       - name: Native Log external document handoff ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-document-open.py --only open --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Log cache and Saved Data ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-log-cache-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Log filter menu, timing and owned validation
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-filters.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Compare and Merge AppKit toolbar workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-toolbar.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Exact Unicode repository paths and browser actions
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-browser-paths.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Repository Browser raw Git names, stored objects and owned delivery
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-repository-browser-namespace.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Repository Browser historical folder archives
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-browser-folder-archive.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Raw historical individual-file providers and promises
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-raw-historical-file-transfers.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Captured reference menus and related native workflows
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reference-menu-targets.py --only folders --only comparison --only tracking --only rename --only standalone --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Comparison savepoints, options, row edits and editor workflows
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-merge-whitespace-states.py
       - name: Three-pane ordinary block choices, navigation, history and ignored conflicts
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-merge-ignored.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Compare and Merge Find highlighting and selected-text commands
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-find-highlights.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Save As source targets
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native conflict identities
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-conflict-identities.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native bundled archive comparison
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-archive-diff.py
       - name: Native filesystem path completion
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-path-entry.py --only paths --only interactions --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native application identity and file-open routing
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-application-identity.py --only identity --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Dock progress and window lifetime
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-dock-progress.py --only dock --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native transport presentation
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-transport-presentation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Source Import Patch native list, options, owned panels and serial workflows
+        if: matrix.lane == 'editors'
         run: >-
           python3 scripts/test-import-source-family.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Import Patch identity, recovery retries and owned close lifecycle
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-import-patch-lifecycle.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Mail patch import and recovery
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-mail-patch.py
       - name: Native revision table optional font
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-table-font.py
       - name: Native Log and Rebase font
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-log-rebase-font.py
       - name: Native message editor font
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-message-font.py
       - name: Native message-history source dialog and Commit Merge handoff
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-message-history-family.py --only source --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native shared history picker
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-history-picker.py
       - name: Native Merge message history
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-history.py
       - name: Native Merge progress and recovery post-actions
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-progress.py
       - name: Native Merge conflict hint and suppression
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-conflict-hint.py
       - name: Native Pull progress and Stash follow-ups
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-pull-progress.py
       - name: Native Clean metadata access, ownership, progress and cleanup family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-clean-access-family.py
       - name: Native Push live output and truncated rejection recovery
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-push-stream.py
       - name: Native Push partial result refresh
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-push-result-refresh.py
       - name: Native Push literal destinations and remote removal
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-push-destination.py --only namespace --only removal --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Push retained progress and post-actions
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-push-progress.py
       - name: Grouped native Request Pull waiting, editor, mail and cancellation
+        if: matrix.lane == 'replay-transport'
         run: >-
           python3 scripts/test-request-pull-workflow-native.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native branch revision number display
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-branch-revision-number.py
       - name: Commit identity repair and effective author controls
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-preparation.py --only identity --only author --only focus --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Commit detached HEAD safety and cancelled issue draft recovery
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-safety.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Commit result recovery and next draft lifecycle
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-result-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Recursive presentation group review and editable output
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-presentation-group-review.py
       - name: Presentation comment threads and coherent editable output
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-presentation-comments.py
       - name: Edit Notes identity repair, cancellation and recovery
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-commit-note-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit columns, sorting and closed-owner settings
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-column-sorting.py
       - name: Native scoped Commit commands and keyboard actions
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-command-family.py --only commands --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native remembered Commit button actions
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-last-action.py
       - name: Native Fetch/Rebase decisions and fast-forward merge
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-fetch-rebase-decisions.py
       - name: Native Fetch and Pull live command output
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-pull-stream.py
       - name: Native ordinary Fetch progress and post-actions
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-progress.py
       - name: Native Abort Merge choices and Cancel routing
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-abort-dialog.py
       - name: Native RefLog partial failures and continued deletion
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reflog-partial-failure.py
       - name: Native general RefLog deletion and stale snapshot guards
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reflog-deletion.py
       - name: Native RefLog revision navigation and clipboard
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reflog-actions.py
       - name: Native RefLog modeless Find and function keys
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-reflog-search.py
       - name: Native editable history deletion
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-history-deletion.py
       - name: Native Push preferences and confirmations
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-push-preferences.py
       - name: Native Push cancellation
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-push-cancellation.py
       - name: Native Credential advanced editing and connected Merge workflows
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-credential-merge-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Check connected Stash and Submodule recovery workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-stash-submodule-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Check connected Switch, Reset and Bisect workflows
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-switch-reset-bisect-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit, Rebase message editing and Fetch/Pull completion
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-operation-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Rebase empty-message review and ownership
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-empty-message.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Rebase clean amend failure Retry and Ignore
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-amend-recovery.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Rebase two-phase conflict messages and recovery
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-conflict-message.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Rebase live progress and completion ownership
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-progress-completion.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Rebase completion export to mail composer
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-rebase-completion-mail.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch cancellation
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-cancellation.py
       - name: Native Pull and Fetch clipboard input
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-clipboard.py
       - name: Synchronization comparisons and transport with bundled Git
+        if: matrix.lane == 'core'
         run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter 'SynchronizationLiteralReferenceTests|SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'
       - name: Native Synchronization histories and revision lists
+        if: matrix.lane == 'replay-transport'
         run: |
           python3 scripts/test-synchronization-history.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
           python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization outgoing, Fetch transports and owner lifetime
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization literal branch selection and transport
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-literal-reference.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Synchronization incoming and outgoing commit controls
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-history-controls.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization incoming and outgoing file lists
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-file-list.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization reference and tag results
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-reference-results.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch submodule defaults
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-submodule-defaults.py
       - name: Native Commit conflict-hint preflight
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-conflict-hints.py
       - name: Native conflicted Commit selection and staging
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-conflicted-selection.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit and Rebase encoding receiver
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-message-encoding.py
       - name: Native Commit and Rebase message-file receiver
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-message-file.py
       - name: Native Synchronization conflict file table and source actions
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-conflict-files.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Synchronization child progress family
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-child-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native language settings and compiled app resources
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-language-family.py
       - name: Native exact changelist Commit and Working Tree family
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-changelist-family.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Commit settings and selection receiver
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-selection-settings.py
       - name: Native Commit dirty-submodule workflow receiver
+        if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-commit-dirty-submodule.py
       - name: Native Log selection and inspection while history streams
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-native-selection.py
       - name: Native Log double-click preference receiver
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-double-click.py
       - name: Native Log modeless Find and shared reference navigation
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-find.py
       - name: Native commit-containing reference dialog and owned Log/picker routes
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Log commit ordering and owned header dialog
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-ordering.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Log compressed graph rollup receiver
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-log-rollup.py
       - name: Native Log Gravatar mock transport receiver
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-log-gravatar.py
       - name: Native Statistics options and calculation receiver
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-statistics-dialog.py
       - name: Statistics source export filters and owned save cancellation
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-statistics-export-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Synchronization typed Fetch results and owned Log routing
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-transfer-notifications.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Fetch source refspec configuration lifecycle and native ownership
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-refspec-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native literal Fetch and Pull refspecs and editable Rebase targets
+        if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-fetch-refspec.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Revision Graph source viewport navigation and gesture ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-graph-viewport-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Compare and Merge all-pane viewport commands
+        if: matrix.lane == 'editors'
         run: python3 scripts/test-merge-viewport-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Statistics source hover geometry and chart ownership
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-statistics-interaction-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Statistics exact author identity and graph exports
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-statistics-authors.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Shared native graph scenes and enhanced-metafile save ownership
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-graph-metafile-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Advanced Settings model and table receiver
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-advanced-settings.py
       - name: Native Finder menu builder without extension activation
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-menu.py
       - name: Native Finder selection context and repository ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-selection-context.py
       - name: Native Context Menu settings transactions and page previews
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-context-menu-settings.py
       - name: Native menu images, lazy presentation and private preferences
+        if: matrix.lane == 'images-documents'
         run: python3 scripts/test-native-menu-images.py
       - name: Finder first-use registration and completed Clone watch ownership
+        if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-finder-registration.py
       - name: Patch mail preparation with packaged Git
+        if: matrix.lane == 'core'
         run: TURTLEGIT_SEND_PATCH_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter PatchMail
       - name: Build and audit unsigned universal App Store candidate
+        if: matrix.lane == 'distribution'
         run: python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store
       - name: Preserve unsigned distribution audit
+        if: matrix.lane == 'distribution'
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-appstore-distribution-audit
+          name: unsigned-appstore-distribution-audit-${{ matrix.lane }}
           path: build-store/distribution-audit.json
       - name: Revision Graph through built Debug and Store frameworks and helpers
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-graph-layout-bundles.py
       - name: Revision Graph data and geometry with bundled Git
+        if: matrix.lane == 'core'
         run: TURTLEGIT_GROUP_TEST_GIT="$PWD/build/git-runtime/Git/bin/git" TURTLEGIT_CORE_ONLY=1 swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests|HistoryRangeTests'
       - name: Native Revision Graph window and Filter with both Git engines
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Revision Graph source save filters and hidden command ownership
+        if: matrix.lane == 'history-references'
         run: python3 scripts/test-revision-graph-save-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native packaged Git SSH client lookup without network
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-git-ssh-runtime.py
       - name: Native AppStore bundled SSH encrypted-key loading and cleanup
+        if: matrix.lane == 'distribution'
         run: python3 scripts/test-bundled-ssh-agent.py
       - name: Build isolated older Git runtimes for replay tests
+        if: matrix.lane == 'distribution'
         run: |
           python3 scripts/build-replay-test-git.py --version 2.37.1
           python3 scripts/build-replay-test-git.py --version 2.39.5
       - name: Native Cherry Pick and Rebase recovery across Git versions
+        if: matrix.lane == 'distribution'
         run: >-
           python3 scripts/check-cherry-pick-native.py
           --git /usr/bin/git
           --git build/replay-test-git/2.37.1/bin/git
           --git build/replay-test-git/2.39.5/bin/git
           --git build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git
+  build-and-test:
+    name: build-and-test
+    if: always()
+    needs: [svn-runtime, validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation lane and runtime producer
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ['NEEDS_JSON'])
+          assert set(results) == {'svn-runtime', 'validation'}, results
+          failed = {name: value['result'] for name, value in results.items() if value['result'] != 'success'}
+          if failed:
+              raise SystemExit('Required macOS validation did not succeed: ' + json.dumps(failed, sort_keys=True))
+          print('All macOS lanes and the SVN runtime producer passed.')
+          PY

@@ -1,0 +1,2640 @@
+{
+  "schema": 1,
+  "baselineCommit": "939ea9fe5511abe5b014ba1318a7a13aa7076646",
+  "baselineWorkflowSHA256": "582a770f044b2e240ea7e94d7c36e111e0f2ad310bd33b2b1cff42e324008b32",
+  "lanes": [
+    "core",
+    "commit-repository",
+    "history-references",
+    "replay-transport",
+    "editors",
+    "settings-finder",
+    "images-documents",
+    "distribution"
+  ],
+  "steps": [
+    {
+      "id": "original-000",
+      "name": "actions/checkout@v4",
+      "lane": "bootstrap",
+      "step": "      - uses: actions/checkout@v4\n"
+    },
+    {
+      "id": "original-001",
+      "name": "Report toolchain and system Git used by integration tests",
+      "lane": "bootstrap",
+      "step": "      - name: Report toolchain and system Git used by integration tests\n        id: toolchain\n        run: |\n          swift --version\n          xcodebuild -version\n          /usr/bin/git --version\n          git --version\n          {\n            xcodebuild -version\n            xcrun --show-sdk-build-version\n            xcrun clang++ --version\n            cmake --version\n          } > \"$RUNNER_TEMP/turtlegit-toolchain.txt\"\n          turtlegit_toolchain_fingerprint=$(shasum -a 256 \"$RUNNER_TEMP/turtlegit-toolchain.txt\" | awk '{print $1}')\n          echo \"fingerprint=$turtlegit_toolchain_fingerprint\" >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-002",
+      "name": "Pinned inventory regression",
+      "lane": "core",
+      "step": "      - name: Pinned inventory regression\n        run: python3 scripts/check-inventory-pin.py\n"
+    },
+    {
+      "id": "original-003",
+      "name": "Pinned native translation labels",
+      "lane": "core",
+      "step": "      - name: Pinned native translation labels\n        run: |\n          python3 scripts/test-localizations.py\n          python3 scripts/build-localizations.py\n"
+    },
+    {
+      "id": "original-004",
+      "name": "Native reference group coverage contracts",
+      "lane": "core",
+      "step": "      - name: Native reference group coverage contracts\n        run: python3 scripts/test-native-reference-groups-contracts.py\n"
+    },
+    {
+      "id": "original-005",
+      "name": "Native receiver cache and process ownership contracts",
+      "lane": "core",
+      "step": "      - name: Native receiver cache and process ownership contracts\n        run: python3 scripts/test-native-receiver.py\n"
+    },
+    {
+      "id": "original-006",
+      "name": "Native Finder team namespace and agent embedding contracts",
+      "lane": "core",
+      "step": "      - name: Native Finder team namespace and agent embedding contracts\n        run: python3 scripts/test-finder-group-identity.py\n"
+    },
+    {
+      "id": "original-007",
+      "name": "Runtime cache invalidation contracts",
+      "lane": "core",
+      "step": "      - name: Runtime cache invalidation contracts\n        run: python3 scripts/test-ci-runtime-caches.py\n"
+    },
+    {
+      "id": "original-008",
+      "name": "Capture libgit2 runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture libgit2 runtime cache key\n        id: libgit2-key\n        run: python3 scripts/ci-runtime-cache-key.py libgit2 --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-009",
+      "name": "Restore exact libgit2 runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact libgit2 runtime\n        id: libgit2-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/libgit2-runtime/LibGit2\n          key: ${{ steps.libgit2-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-010",
+      "name": "Build pinned universal libgit2 transport helper",
+      "lane": "bootstrap",
+      "step": "      - name: Build pinned universal libgit2 transport helper\n        if: steps.libgit2-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-libgit2-runtime.py\n"
+    },
+    {
+      "id": "original-011",
+      "name": "Validate prepared or restored libgit2 runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored libgit2 runtime\n        run: python3 scripts/validate-libgit2-runtime.py build/libgit2-runtime/LibGit2\n"
+    },
+    {
+      "id": "original-012",
+      "name": "Universal local reference helper contracts on host-supported architectures",
+      "lane": "distribution",
+      "step": "      - name: Universal local reference helper contracts on host-supported architectures\n        run: python3 scripts/test-local-reference-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures\n"
+    },
+    {
+      "id": "original-013",
+      "name": "Universal replay inspection on host-supported architectures",
+      "lane": "distribution",
+      "step": "      - name: Universal replay inspection on host-supported architectures\n        run: python3 scripts/test-replay-inspection-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures\n"
+    },
+    {
+      "id": "original-014",
+      "name": "Universal single commit details on host-supported architectures",
+      "lane": "distribution",
+      "step": "      - name: Universal single commit details on host-supported architectures\n        run: python3 scripts/test-single-commit-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures\n"
+    },
+    {
+      "id": "original-015",
+      "name": "Save validated libgit2 runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated libgit2 runtime\n        if: steps.libgit2-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/libgit2-runtime/LibGit2\n          key: ${{ steps.libgit2-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-016",
+      "name": "Capture editorconfig runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture editorconfig runtime cache key\n        id: editorconfig-key\n        run: python3 scripts/ci-runtime-cache-key.py editorconfig --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-017",
+      "name": "Restore exact editorconfig runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact editorconfig runtime\n        id: editorconfig-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/editorconfig-runtime/EditorConfig\n          key: ${{ steps.editorconfig-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-018",
+      "name": "Build and verify pinned universal EditorConfig parser",
+      "lane": "bootstrap",
+      "step": "      - name: Build and verify pinned universal EditorConfig parser\n        if: steps.editorconfig-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-editorconfig-runtime.py\n"
+    },
+    {
+      "id": "original-019",
+      "name": "Validate prepared or restored editorconfig runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored editorconfig runtime\n        run: python3 scripts/validate-editorconfig-runtime.py build/editorconfig-runtime/EditorConfig\n"
+    },
+    {
+      "id": "original-020",
+      "name": "Save validated editorconfig runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated editorconfig runtime\n        if: steps.editorconfig-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/editorconfig-runtime/EditorConfig\n          key: ${{ steps.editorconfig-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-021",
+      "name": "Capture issue-regex runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture issue-regex runtime cache key\n        id: issue-regex-key\n        run: python3 scripts/ci-runtime-cache-key.py issue-regex --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-022",
+      "name": "Restore exact issue-regex runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact issue-regex runtime\n        id: issue-regex-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/issue-regex-runtime/IssueRegex\n          key: ${{ steps.issue-regex-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-023",
+      "name": "Build and verify universal C++ issue matcher",
+      "lane": "bootstrap",
+      "step": "      - name: Build and verify universal C++ issue matcher\n        if: steps.issue-regex-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-issue-regex-runtime.py\n"
+    },
+    {
+      "id": "original-024",
+      "name": "Validate prepared or restored issue-regex runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored issue-regex runtime\n        run: python3 scripts/validate-issue-regex-runtime.py build/issue-regex-runtime/IssueRegex\n"
+    },
+    {
+      "id": "original-025",
+      "name": "Save validated issue-regex runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated issue-regex runtime\n        if: steps.issue-regex-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/issue-regex-runtime/IssueRegex\n          key: ${{ steps.issue-regex-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-026",
+      "name": "Capture lexilla runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture lexilla runtime cache key\n        id: lexilla-key\n        run: python3 scripts/ci-runtime-cache-key.py lexilla --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-027",
+      "name": "Restore exact lexilla runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact lexilla runtime\n        id: lexilla-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/lexilla-runtime/Lexilla\n          key: ${{ steps.lexilla-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-028",
+      "name": "Build and verify universal C++ Lexilla helper",
+      "lane": "bootstrap",
+      "step": "      - name: Build and verify universal C++ Lexilla helper\n        if: steps.lexilla-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-lexilla-runtime.py\n"
+    },
+    {
+      "id": "original-029",
+      "name": "Lexilla ordinary and inherited sandbox signing contracts",
+      "lane": "distribution",
+      "step": "      - name: Lexilla ordinary and inherited sandbox signing contracts\n        run: python3 scripts/test-lexilla-embedding.py\n"
+    },
+    {
+      "id": "original-030",
+      "name": "Validate prepared or restored lexilla runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored lexilla runtime\n        run: python3 scripts/validate-lexilla-runtime.py build/lexilla-runtime/Lexilla\n"
+    },
+    {
+      "id": "original-031",
+      "name": "Save validated lexilla runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated lexilla runtime\n        if: steps.lexilla-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/lexilla-runtime/Lexilla\n          key: ${{ steps.lexilla-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-032",
+      "name": "Capture metafile runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture metafile runtime cache key\n        id: metafile-key\n        run: python3 scripts/ci-runtime-cache-key.py metafile --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-033",
+      "name": "Restore exact metafile runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact metafile runtime\n        id: metafile-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/metafile-runtime/Metafile\n          key: ${{ steps.metafile-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-034",
+      "name": "Build pinned universal WMF and EMF renderer",
+      "lane": "bootstrap",
+      "step": "      - name: Build pinned universal WMF and EMF renderer\n        if: steps.metafile-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-metafile-runtime.py\n"
+    },
+    {
+      "id": "original-035",
+      "name": "Validate prepared or restored metafile runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored metafile runtime\n        run: python3 scripts/validate-metafile-runtime.py build/metafile-runtime/Metafile\n"
+    },
+    {
+      "id": "original-036",
+      "name": "Save validated metafile runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated metafile runtime\n        if: steps.metafile-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/metafile-runtime/Metafile\n          key: ${{ steps.metafile-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-037",
+      "name": "Restore exact graph runtime package",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact graph runtime package\n        id: graph-layout-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/graph-layout-runtime/GraphLayout\n          key: graph-layout-v1-${{ runner.os }}-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('scripts/pinned_download.py', 'LICENSE', 'Configuration/GraphLayoutRuntime.json', 'Sources/TurtleGitGraphLayout/main.cpp', 'scripts/build-graph-layout-runtime.py', 'scripts/validate-graph-layout-runtime.py', 'scripts/embed-graph-layout-runtime.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py') }}\n"
+    },
+    {
+      "id": "original-038",
+      "name": "Build and verify pinned universal Revision Graph layout engine",
+      "lane": "bootstrap",
+      "step": "      - name: Build and verify pinned universal Revision Graph layout engine\n        if: steps.graph-layout-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-graph-layout-runtime.py\n"
+    },
+    {
+      "id": "original-039",
+      "name": "Validate graph runtime package before reuse or caching",
+      "lane": "bootstrap",
+      "step": "      - name: Validate graph runtime package before reuse or caching\n        run: python3 scripts/validate-graph-layout-runtime.py build/graph-layout-runtime/GraphLayout\n"
+    },
+    {
+      "id": "original-040",
+      "name": "Verify Intel-host universal graph CPU baseline regression",
+      "lane": "distribution",
+      "step": "      - name: Verify Intel-host universal graph CPU baseline regression\n        run: python3 scripts/test-graph-layout-cpu-baseline.py\n"
+    },
+    {
+      "id": "original-041",
+      "name": "Save verified graph runtime package",
+      "lane": "bootstrap",
+      "step": "      - name: Save verified graph runtime package\n        if: steps.graph-layout-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/graph-layout-runtime/GraphLayout\n          key: ${{ steps.graph-layout-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-042",
+      "name": "Verify Revision Graph helper embedding and ad-hoc signing branches",
+      "lane": "distribution",
+      "step": "      - name: Verify Revision Graph helper embedding and ad-hoc signing branches\n        run: python3 scripts/test-graph-layout-embedding.py\n"
+    },
+    {
+      "id": "original-043",
+      "name": "Capture openssh runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture openssh runtime cache key\n        id: openssh-key\n        run: python3 scripts/ci-runtime-cache-key.py openssh --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-044",
+      "name": "Restore exact openssh runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact openssh runtime\n        id: openssh-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/openssh-runtime/OpenSSH\n          key: ${{ steps.openssh-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-045",
+      "name": "Build and verify pinned universal OpenSSH helpers",
+      "lane": "bootstrap",
+      "step": "      - name: Build and verify pinned universal OpenSSH helpers\n        if: steps.openssh-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-openssh-runtime.py\n"
+    },
+    {
+      "id": "original-046",
+      "name": "Validate prepared or restored openssh runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored openssh runtime\n        run: python3 scripts/validate-openssh-runtime.py build/openssh-runtime/OpenSSH\n"
+    },
+    {
+      "id": "original-047",
+      "name": "Save validated openssh runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated openssh runtime\n        if: steps.openssh-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/openssh-runtime/OpenSSH\n          key: ${{ steps.openssh-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-048",
+      "name": "Capture putty runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture putty runtime cache key\n        id: putty-key\n        run: python3 scripts/ci-runtime-cache-key.py putty --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-049",
+      "name": "Restore exact PuTTY key converter",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact PuTTY key converter\n        id: putty-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/putty-runtime/PuTTY\n          key: ${{ steps.putty-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-050",
+      "name": "Build pinned universal PuTTY key converter",
+      "lane": "bootstrap",
+      "step": "      - name: Build pinned universal PuTTY key converter\n        if: steps.putty-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-putty-runtime.py\n"
+    },
+    {
+      "id": "original-051",
+      "name": "Validate prepared or restored PuTTY runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored PuTTY runtime\n        run: python3 scripts/validate-putty-runtime.py build/putty-runtime/PuTTY\n"
+    },
+    {
+      "id": "original-052",
+      "name": "Save validated putty runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated putty runtime\n        if: steps.putty-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/putty-runtime/PuTTY\n          key: ${{ steps.putty-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-053",
+      "name": "Verify OpenSSH embedding and both ad-hoc signing branches",
+      "lane": "distribution",
+      "step": "      - name: Verify OpenSSH embedding and both ad-hoc signing branches\n        run: python3 scripts/test-openssh-embedding.py\n"
+    },
+    {
+      "id": "original-054",
+      "name": "actions/download-artifact@v4",
+      "lane": "bootstrap",
+      "step": "      - uses: actions/download-artifact@v4\n        with:\n          name: universal-git-svn-runtime\n          path: build/git-svn-runtime\n"
+    },
+    {
+      "id": "original-055",
+      "name": "Restore universal SVN payload",
+      "lane": "bootstrap",
+      "step": "      - name: Restore universal SVN payload\n        run: tar -xzf build/git-svn-runtime/GitSVN.tar.gz -C build/git-svn-runtime\n"
+    },
+    {
+      "id": "original-056",
+      "name": "Capture git runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture git runtime cache key\n        id: git-key\n        run: python3 scripts/ci-runtime-cache-key.py git --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-057",
+      "name": "Restore exact git runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact git runtime\n        id: git-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/git-runtime/Git\n          key: ${{ steps.git-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-058",
+      "name": "Build pinned universal Git runtime with source and licenses",
+      "lane": "bootstrap",
+      "step": "      - name: Build pinned universal Git runtime with source and licenses\n        if: steps.git-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-git-runtime.py\n"
+    },
+    {
+      "id": "original-059",
+      "name": "Validate prepared or restored git runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored git runtime\n        run: python3 scripts/validate-git-runtime.py build/git-runtime/Git --require-lfs --require-svn\n"
+    },
+    {
+      "id": "original-060",
+      "name": "Save validated git runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated git runtime\n        if: steps.git-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/git-runtime/Git\n          key: ${{ steps.git-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-061",
+      "name": "Verify real local SVN workflows with the pinned Git",
+      "lane": "distribution",
+      "step": "      - name: Verify real local SVN workflows with the pinned Git\n        run: python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-062",
+      "name": "Capture merge-diff runtime cache key",
+      "lane": "bootstrap",
+      "step": "      - name: Capture merge-diff runtime cache key\n        id: merge-diff-key\n        run: python3 scripts/ci-runtime-cache-key.py merge-diff --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\"\n"
+    },
+    {
+      "id": "original-063",
+      "name": "Restore exact merge-diff runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Restore exact merge-diff runtime\n        id: merge-diff-cache\n        uses: actions/cache/restore@v5\n        with:\n          path: build/merge-diff-runtime/MergeDiff\n          key: ${{ steps.merge-diff-key.outputs.key }}\n"
+    },
+    {
+      "id": "original-064",
+      "name": "Build universal Subversion merge adapter sharing the pinned runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Build universal Subversion merge adapter sharing the pinned runtime\n        if: steps.merge-diff-cache.outputs.cache-hit != 'true'\n        run: python3 scripts/build-merge-diff-runtime.py\n"
+    },
+    {
+      "id": "original-065",
+      "name": "Validate prepared or restored merge-diff runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Validate prepared or restored merge-diff runtime\n        run: python3 scripts/validate-merge-diff-runtime.py build/merge-diff-runtime/MergeDiff\n"
+    },
+    {
+      "id": "original-066",
+      "name": "Save validated merge-diff runtime",
+      "lane": "bootstrap",
+      "step": "      - name: Save validated merge-diff runtime\n        if: steps.merge-diff-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v5\n        with:\n          path: build/merge-diff-runtime/MergeDiff\n          key: ${{ steps.merge-diff-cache.outputs.cache-primary-key }}\n"
+    },
+    {
+      "id": "original-067",
+      "name": "Verify per-slice Git and LFS macOS deployment targets",
+      "lane": "distribution",
+      "step": "      - name: Verify per-slice Git and LFS macOS deployment targets\n        run: python3 scripts/test-git-runtime-deployment.py --runtime build/git-runtime/Git\n"
+    },
+    {
+      "id": "original-068",
+      "name": "Pinned source download recovery checks",
+      "lane": "distribution",
+      "step": "      - name: Pinned source download recovery checks\n        run: python3 scripts/test-pinned-download.py\n"
+    },
+    {
+      "id": "original-069",
+      "name": "Runtime embedding cache integrity checks",
+      "lane": "distribution",
+      "step": "      - name: Runtime embedding cache integrity checks\n        run: python3 scripts/test-runtime-embedding-cache.py\n"
+    },
+    {
+      "id": "original-070",
+      "name": "Dialog audit consistency",
+      "lane": "core",
+      "step": "      - name: Dialog audit consistency\n        run: |\n          python3 scripts/test-dialog-coverage.py\n          python3 scripts/reconcile-dialog-coverage.py --check\n"
+    },
+    {
+      "id": "original-071",
+      "name": "Application and embedded Finder extension",
+      "lane": "bootstrap",
+      "step": "      - name: Application and embedded Finder extension\n        run: >-\n          xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac\n          -configuration Debug -destination 'platform=macOS'\n          -derivedDataPath build CODE_SIGNING_ALLOWED=NO build\n"
+    },
+    {
+      "id": "original-072",
+      "name": "Moved blocks and wrapped editor navigation family",
+      "lane": "editors",
+      "step": "      - name: Moved blocks and wrapped editor navigation family\n        run: python3 scripts/test-merge-wrapped-family.py\n"
+    },
+    {
+      "id": "original-073",
+      "name": "Retain failed wrapped editor stack samples",
+      "lane": "editors",
+      "step": "      - name: Retain failed wrapped editor stack samples\n        if: failure()\n        uses: actions/upload-artifact@v4\n        with:\n          name: wrapped-editor-timeout-stacks\n          path: build/qa/native-timeouts/*.sample.txt\n          if-no-files-found: ignore\n"
+    },
+    {
+      "id": "original-074",
+      "name": "Pinned moved-block detector oracle",
+      "lane": "editors",
+      "step": "      - name: Pinned moved-block detector oracle\n        run: python3 scripts/test-moved-block-source.py\n"
+    },
+    {
+      "id": "original-075",
+      "name": "Git integration tests",
+      "lane": "core",
+      "step": "      - name: Git integration tests\n        env:\n          # Rebase tests invoke the real app's headless editor entry point.\n          # Core-only SwiftPM deliberately does not build .build/debug/TurtleGitMac.\n          TURTLEGIT_REBASE_EDITOR: ${{ github.workspace }}/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac\n        run: TURTLEGIT_CORE_ONLY=1 swift test\n"
+    },
+    {
+      "id": "original-076",
+      "name": "Pinned inline parser and matching oracle",
+      "lane": "editors",
+      "step": "      - name: Pinned inline parser and matching oracle\n        run: python3 scripts/test-inline-source.py\n"
+    },
+    {
+      "id": "original-077",
+      "name": "Shared message styles and spelling",
+      "lane": "commit-repository",
+      "step": "      - name: Shared message styles and spelling\n        run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --only links --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-078",
+      "name": "Shared message line editing and temporary zoom",
+      "lane": "commit-repository",
+      "step": "      - name: Shared message line editing and temporary zoom\n        run: python3 scripts/test-message-editor-commands.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-079",
+      "name": "Commit and Rebase message wrapping and selected reflow",
+      "lane": "commit-repository",
+      "step": "      - name: Commit and Rebase message wrapping and selected reflow\n        run: python3 scripts/test-message-wrap.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-080",
+      "name": "Log rich message links and owned styling",
+      "lane": "history-references",
+      "step": "      - name: Log rich message links and owned styling\n        run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-081",
+      "name": "Settings graph teardown and owned continuations",
+      "lane": "settings-finder",
+      "step": "      - name: Settings graph teardown and owned continuations\n        run: python3 scripts/test-settings-teardown-family.py --only teardown --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-082",
+      "name": "Source history actions and replay identity family",
+      "lane": "replay-transport",
+      "step": "      - name: Source history actions and replay identity family\n        run: python3 scripts/test-history-action-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-083",
+      "name": "Durable paused replay actions",
+      "lane": "replay-transport",
+      "step": "      - name: Durable paused replay actions\n        run: python3 scripts/test-rebase-pending-actions.py --only linear --only structural --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-084",
+      "name": "Older and external paused Rebase session adoption",
+      "lane": "replay-transport",
+      "step": "      - name: Older and external paused Rebase session adoption\n        run: python3 scripts/test-rebase-adoption.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-085",
+      "name": "Rebase and Cherry Pick failed-Pick recovery",
+      "lane": "replay-transport",
+      "step": "      - name: Rebase and Cherry Pick failed-Pick recovery\n        run: python3 scripts/test-rebase-execution-recovery.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-086",
+      "name": "Connected history reference workflows",
+      "lane": "history-references",
+      "step": "      - name: Connected history reference workflows\n        run: python3 scripts/test-history-reference-workflows.py --only rebase --only blame --only references --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-087",
+      "name": "RefLog exact named-reference picker and actions",
+      "lane": "history-references",
+      "step": "      - name: RefLog exact named-reference picker and actions\n        run: python3 scripts/test-reflog-reference-identity.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-088",
+      "name": "Rebase connected history tools",
+      "lane": "replay-transport",
+      "step": "      - name: Rebase connected history tools\n        run: python3 scripts/test-rebase-history-tools.py --only tools --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-089",
+      "name": "Rebase captured revision menu family",
+      "lane": "replay-transport",
+      "step": "      - name: Rebase captured revision menu family\n        run: python3 scripts/test-rebase-revision-menus.py --only menus --only controls --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-090",
+      "name": "Captured Settings sheet callers",
+      "lane": "settings-finder",
+      "step": "      - name: Captured Settings sheet callers\n        run: python3 scripts/test-settings-sheet-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-091",
+      "name": "Settings completion footer ownership and native remote list",
+      "lane": "settings-finder",
+      "step": "      - name: Settings completion footer ownership and native remote list\n        run: python3 scripts/test-settings-completion.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-092",
+      "name": "Native Settings context and page handoffs",
+      "lane": "settings-finder",
+      "step": "      - name: Native Settings context and page handoffs\n        run: python3 scripts/test-settings-context.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-093",
+      "name": "Workspace ownership, retired Quit participants and native report lists",
+      "lane": "commit-repository",
+      "step": "      - name: Workspace ownership, retired Quit participants and native report lists\n        run: python3 scripts/test-report-workspace-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-094",
+      "name": "Automatic status reads, watcher quiescence and cancellation ownership",
+      "lane": "commit-repository",
+      "step": "      - name: Automatic status reads, watcher quiescence and cancellation ownership\n        run: python3 scripts/test-status-refresh-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-095",
+      "name": "Native file-list callback safety, replacement ownership and interactions",
+      "lane": "commit-repository",
+      "step": "      - name: Native file-list callback safety, replacement ownership and interactions\n        run: python3 scripts/test-native-list-interactions.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-096",
+      "name": "Commit visibility and Log source command families",
+      "lane": "history-references",
+      "step": "      - name: Commit visibility and Log source command families\n        run: python3 scripts/test-app-port-families.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-097",
+      "name": "Commit options, Log columns and Settings appearance",
+      "lane": "settings-finder",
+      "step": "      - name: Commit options, Log columns and Settings appearance\n        run: |\n          python3 scripts/test-primary-parity-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-primary-presentation-corrections.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-098",
+      "name": "Compare and Merge pane status with patch application policies",
+      "lane": "editors",
+      "step": "      - name: Compare and Merge pane status with patch application policies\n        run: python3 scripts/test-merge-patch-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-099",
+      "name": "Decoded Unicode and SVN source patch workflow",
+      "lane": "editors",
+      "step": "      - name: Decoded Unicode and SVN source patch workflow\n        run: python3 scripts/test-source-text-patch-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-100",
+      "name": "Historical Diff and Submodule entry family",
+      "lane": "replay-transport",
+      "step": "      - name: Historical Diff and Submodule entry family\n        run: python3 scripts/test-submodule-diff-entry.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-101",
+      "name": "Standalone Merge tool entry and editor workflows",
+      "lane": "editors",
+      "step": "      - name: Standalone Merge tool entry and editor workflows\n        run: python3 scripts/test-merge-tool-entry.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-102",
+      "name": "Reflected EditorConfig, Log references and external workspace requests",
+      "lane": "editors",
+      "step": "      - name: Reflected EditorConfig, Log references and external workspace requests\n        run: python3 scripts/test-metadata-port-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-103",
+      "name": "Add LFS and persistent native list family",
+      "lane": "commit-repository",
+      "step": "      - name: Add LFS and persistent native list family\n        run: python3 scripts/test-add-list-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-104",
+      "name": "Revert completed results and shared file-progress ownership",
+      "lane": "commit-repository",
+      "step": "      - name: Revert completed results and shared file-progress ownership\n        run: python3 scripts/test-revert-result-actions.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-105",
+      "name": "Native file selection and Log workflows",
+      "lane": "history-references",
+      "step": "      - name: Native file selection and Log workflows\n        run: |\n          python3 scripts/test-commit-command-family.py --only identities --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-add-revert-identities.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-add-revert-file-flow.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-log-file-identities.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-log-controls-layout.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-primary-conditional.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-source-form-controls.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-comparison-workflow.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-file-transfer-family.py --only identities --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-workspace-files.py --only workspace --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-106",
+      "name": "LFS exact paths, owner columns and captured progress",
+      "lane": "commit-repository",
+      "step": "      - name: LFS exact paths, owner columns and captured progress\n        run: python3 scripts/test-lfs-path-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-107",
+      "name": "Log working-tree LFS selection and owned progress",
+      "lane": "history-references",
+      "step": "      - name: Log working-tree LFS selection and owned progress\n        run: python3 scripts/test-log-working-lfs.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-108",
+      "name": "Bundled Mac help and contextual dispatch",
+      "lane": "editors",
+      "step": "      - name: Bundled Mac help and contextual dispatch\n        run: python3 scripts/test-help-book.py\n"
+    },
+    {
+      "id": "original-109",
+      "name": "Hierarchical settings operation ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Hierarchical settings operation ownership\n        run: python3 scripts/test-configuration-lifecycle.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-110",
+      "name": "Repository titles and native file tooltips",
+      "lane": "commit-repository",
+      "step": "      - name: Repository titles and native file tooltips\n        run: python3 scripts/test-repository-presentation.py --git /usr/bin/git\n"
+    },
+    {
+      "id": "original-111",
+      "name": "SVN source forms and captured workflow actions",
+      "lane": "replay-transport",
+      "step": "      - name: SVN source forms and captured workflow actions\n        run: python3 scripts/test-svn-source-family.py --source-only --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-112",
+      "name": "SVN progress stage Action log and owned drainage",
+      "lane": "replay-transport",
+      "step": "      - name: SVN progress stage Action log and owned drainage\n        run: python3 scripts/test-svn-action-log.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-113",
+      "name": "First Start forms and setup operation ownership",
+      "lane": "settings-finder",
+      "step": "      - name: First Start forms and setup operation ownership\n        run: python3 scripts/test-first-start-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-114",
+      "name": "First Start SSH selection and owned inspection",
+      "lane": "settings-finder",
+      "step": "      - name: First Start SSH selection and owned inspection\n        run: python3 scripts/test-first-start-ssh.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-115",
+      "name": "Source reference refresh and remote-manager return ownership",
+      "lane": "history-references",
+      "step": "      - name: Source reference refresh and remote-manager return ownership\n        run: python3 scripts/test-reference-refresh.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-116",
+      "name": "Finder overlay and watched-repository source controls",
+      "lane": "settings-finder",
+      "step": "      - name: Finder overlay and watched-repository source controls\n        run: python3 scripts/test-finder-control-source-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-117",
+      "name": "Inaccessible repository diagnosis, explicit trust and owned recovery",
+      "lane": "commit-repository",
+      "step": "      - name: Inaccessible repository diagnosis, explicit trust and owned recovery\n        run: python3 scripts/test-inaccessible-repository.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-118",
+      "name": "Selected-file macOS Services and owned repository routing",
+      "lane": "commit-repository",
+      "step": "      - name: Selected-file macOS Services and owned repository routing\n        run: python3 scripts/test-finder-services.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-119",
+      "name": "Finder returned-volume recovery and authority ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Finder returned-volume recovery and authority ownership\n        run: python3 scripts/test-finder-volume-recovery.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-120",
+      "name": "First-use Finder repository workflow Services",
+      "lane": "settings-finder",
+      "step": "      - name: First-use Finder repository workflow Services\n        run: python3 scripts/test-finder-service-workflows.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-121",
+      "name": "First-use Finder selected-file workflow Services",
+      "lane": "settings-finder",
+      "step": "      - name: First-use Finder selected-file workflow Services\n        run: python3 scripts/test-finder-file-services.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-122",
+      "name": "First-use Finder filesystem workflow Services",
+      "lane": "settings-finder",
+      "step": "      - name: First-use Finder filesystem workflow Services\n        run: python3 scripts/test-finder-filesystem-services.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-123",
+      "name": "First-use Finder Worktree and Submodule Services",
+      "lane": "settings-finder",
+      "step": "      - name: First-use Finder Worktree and Submodule Services\n        run: python3 scripts/test-finder-linked-services.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-124",
+      "name": "First-use Finder history and reference Services",
+      "lane": "settings-finder",
+      "step": "      - name: First-use Finder history and reference Services\n        run: python3 scripts/test-finder-history-services.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-125",
+      "name": "Finder comparison, patch and export delivery Services",
+      "lane": "editors",
+      "step": "      - name: Finder comparison, patch and export delivery Services\n        run: python3 scripts/test-finder-delivery-services.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-126",
+      "name": "Finder selected-source transfer workflow",
+      "lane": "settings-finder",
+      "step": "      - name: Finder selected-source transfer workflow\n        run: python3 scripts/test-finder-source-transfers.py --only source --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-127",
+      "name": "Project dialog source forms and owned icon chooser",
+      "lane": "settings-finder",
+      "step": "      - name: Project dialog source forms and owned icon chooser\n        run: python3 scripts/test-project-dialog-source-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-128",
+      "name": "Distribution source and bundle provenance",
+      "lane": "distribution",
+      "step": "      - name: Distribution source and bundle provenance\n        run: |\n          python3 scripts/test-distribution-provenance.py\n          python3 scripts/test-distribution-identity.py\n"
+    },
+    {
+      "id": "original-129",
+      "name": "Native Apple support report review and export",
+      "lane": "settings-finder",
+      "step": "      - name: Native Apple support report review and export\n        run: python3 scripts/test-support-report-family.py\n"
+    },
+    {
+      "id": "original-130",
+      "name": "Pinned About banner water-effect oracle",
+      "lane": "settings-finder",
+      "step": "      - name: Pinned About banner water-effect oracle\n        run: python3 scripts/test-about-water-source.py\n"
+    },
+    {
+      "id": "original-131",
+      "name": "Source About variants and selected Git lifetime",
+      "lane": "settings-finder",
+      "step": "      - name: Source About variants and selected Git lifetime\n        run: python3 scripts/test-about-source-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-132",
+      "name": "Pinned Scintilla Unicode Find mappings",
+      "lane": "editors",
+      "step": "      - name: Pinned Scintilla Unicode Find mappings\n        run: python3 scripts/generate-unified-case-fold.py --check\n"
+    },
+    {
+      "id": "original-133",
+      "name": "Verify pinned Unified Diff case and word-class tables",
+      "lane": "editors",
+      "step": "      - name: Verify pinned Unified Diff case and word-class tables\n        run: python3 scripts/generate-unified-case-mapping.py --check\n"
+    },
+    {
+      "id": "original-134",
+      "name": "Shared standalone and attached source Find controls",
+      "lane": "editors",
+      "step": "      - name: Shared standalone and attached source Find controls\n        run: python3 scripts/test-unified-find-family.py --only source --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-135",
+      "name": "External document tool arguments and scoped lifetime",
+      "lane": "commit-repository",
+      "step": "      - name: External document tool arguments and scoped lifetime\n        run: python3 scripts/test-external-document-family.py\n"
+    },
+    {
+      "id": "original-136",
+      "name": "Literal tool settings, associations and owned chooser callbacks",
+      "lane": "settings-finder",
+      "step": "      - name: Literal tool settings, associations and owned chooser callbacks\n        run: python3 scripts/test-literal-tools.py\n"
+    },
+    {
+      "id": "original-137",
+      "name": "Unified Diff editable document workflows",
+      "lane": "editors",
+      "step": "      - name: Unified Diff editable document workflows\n        run: python3 scripts/test-unified-document-family.py --only document --only handoffs --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-138",
+      "name": "Standalone Unified Diff input, document admission and local appearance",
+      "lane": "editors",
+      "step": "      - name: Standalone Unified Diff input, document admission and local appearance\n        run: |\n          python3 scripts/test-udiff-tool-wrapper.py\n          python3 scripts/test-unified-diff-input.py\n"
+    },
+    {
+      "id": "original-139",
+      "name": "Unified Diff native line-number and selection gutter",
+      "lane": "editors",
+      "step": "      - name: Unified Diff native line-number and selection gutter\n        run: python3 scripts/test-unified-gutter.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-140",
+      "name": "Unified Diff whole-line native editing and exact byte provenance",
+      "lane": "editors",
+      "step": "      - name: Unified Diff whole-line native editing and exact byte provenance\n        run: python3 scripts/test-unified-line-edit.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-141",
+      "name": "Unified Diff caret modes and byte-preserving input",
+      "lane": "editors",
+      "step": "      - name: Unified Diff caret modes and byte-preserving input\n        run: python3 scripts/test-unified-caret.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-142",
+      "name": "Verify Unified Diff text blocks and viewport navigation",
+      "lane": "editors",
+      "step": "      - name: Verify Unified Diff text blocks and viewport navigation\n        run: python3 scripts/test-unified-block-navigation.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-143",
+      "name": "Verify Unified Diff selection transformations and boundary deletion",
+      "lane": "editors",
+      "step": "      - name: Verify Unified Diff selection transformations and boundary deletion\n        run: python3 scripts/test-unified-selection-edit.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-144",
+      "name": "Verify Unified Diff word, boundary and page navigation",
+      "lane": "editors",
+      "step": "      - name: Verify Unified Diff word, boundary and page navigation\n        run: python3 scripts/test-unified-navigation.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-145",
+      "name": "Unified Diff character and display-line cursor ownership",
+      "lane": "editors",
+      "step": "      - name: Unified Diff character and display-line cursor ownership\n        run: python3 scripts/test-unified-cursor.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-146",
+      "name": "Unified Diff temporary zoom, reflow and base-size printing",
+      "lane": "images-documents",
+      "step": "      - name: Unified Diff temporary zoom, reflow and base-size printing\n        run: python3 scripts/test-unified-zoom.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-147",
+      "name": "Commit staging table presentation and native transfer",
+      "lane": "commit-repository",
+      "step": "      - name: Commit staging table presentation and native transfer\n        run: python3 scripts/test-commit-gui-staging.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-148",
+      "name": "Unified Diff native column selection and multiple-range editing",
+      "lane": "editors",
+      "step": "      - name: Unified Diff native column selection and multiple-range editing\n        run: python3 scripts/test-unified-column-edit.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-149",
+      "name": "Git Properties live parent pages and scoped ownership",
+      "lane": "commit-repository",
+      "step": "      - name: Git Properties live parent pages and scoped ownership\n        run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-150",
+      "name": "Image native command family",
+      "lane": "images-documents",
+      "step": "      - name: Image native command family\n        run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-151",
+      "name": "Standalone local image entry and three-image selection",
+      "lane": "images-documents",
+      "step": "      - name: Standalone local image entry and three-image selection\n        run: python3 scripts/test-image-tool-selection.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-152",
+      "name": "EMF+ serialized image effects and native consumer ownership",
+      "lane": "images-documents",
+      "step": "      - name: EMF+ serialized image effects and native consumer ownership\n        run: python3 scripts/test-metafile-image-effects.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-153",
+      "name": "WMF and EMF native comparison consumers and colors",
+      "lane": "commit-repository",
+      "step": "      - name: WMF and EMF native comparison consumers and colors\n        run: python3 scripts/test-metafile-workflows.py --only dib-profiles --only wmf-bitmap16 --only wmf-text --only classic-text-records --only formatted-digits --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-154",
+      "name": "Classic WMF and EMF Boolean raster consumers and conflict ownership",
+      "lane": "commit-repository",
+      "step": "      - name: Classic WMF and EMF Boolean raster consumers and conflict ownership\n        run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-155",
+      "name": "Classic EMF masked and transparent bitmap transfers",
+      "lane": "commit-repository",
+      "step": "      - name: Classic EMF masked and transparent bitmap transfers\n        run: python3 scripts/test-metafile-masked-transfers.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-156",
+      "name": "EMF+ SourceCopy image and conflict workflows",
+      "lane": "images-documents",
+      "step": "      - name: EMF+ SourceCopy image and conflict workflows\n        run: python3 scripts/test-metafile-sourcecopy.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-157",
+      "name": "Metafile bounded raster regions and checkpoint ownership",
+      "lane": "images-documents",
+      "step": "      - name: Metafile bounded raster regions and checkpoint ownership\n        run: python3 scripts/test-metafile-raster-roi.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-158",
+      "name": "Classic metafile direct scanlines and gradient meshes",
+      "lane": "images-documents",
+      "step": "      - name: Classic metafile direct scanlines and gradient meshes\n        run: |\n          python3 scripts/test-metafile-scanline-gradient.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-metafile-high-depth.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-159",
+      "name": "PowerPoint export contracts and native slide comparison",
+      "lane": "images-documents",
+      "step": "      - name: PowerPoint export contracts and native slide comparison\n        run: python3 scripts/test-presentation-comparison.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-160",
+      "name": "LibreOffice comparison and tracked-change merge owners",
+      "lane": "images-documents",
+      "step": "      - name: LibreOffice comparison and tracked-change merge owners\n        run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-161",
+      "name": "Word automation ownership and security contracts",
+      "lane": "images-documents",
+      "step": "      - name: Word automation ownership and security contracts\n        run: python3 scripts/test-word-office-family.py --only contract --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-162",
+      "name": "Scoped native Merge menus and pane shortcuts",
+      "lane": "editors",
+      "step": "      - name: Scoped native Merge menus and pane shortcuts\n        run: python3 scripts/test-merge-view-family.py --only history --only typing --only lifecycle --only menus\n"
+    },
+    {
+      "id": "original-163",
+      "name": "Selected unified diff and history file backends",
+      "lane": "editors",
+      "step": "      - name: Selected unified diff and history file backends\n        run: python3 scripts/test-diff-backend.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-164",
+      "name": "Blame grouped origin comparisons and owned questions",
+      "lane": "history-references",
+      "step": "      - name: Blame grouped origin comparisons and owned questions\n        run: python3 scripts/test-blame-grouped-comparisons.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-165",
+      "name": "Repository Browser recursive selection drag delivery",
+      "lane": "history-references",
+      "step": "      - name: Repository Browser recursive selection drag delivery\n        run: python3 scripts/test-browser-selection-drags.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-166",
+      "name": "Commit scoped preparation, file-list report and Push continuation",
+      "lane": "commit-repository",
+      "step": "      - name: Commit scoped preparation, file-list report and Push continuation\n        run: python3 scripts/test-commit-scope-report-push.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-167",
+      "name": "Historical window identity and retiring comparison owners",
+      "lane": "commit-repository",
+      "step": "      - name: Historical window identity and retiring comparison owners\n        run: python3 scripts/test-window-byte-identities.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-168",
+      "name": "Compare and Merge pane header commands and ownership",
+      "lane": "editors",
+      "step": "      - name: Compare and Merge pane header commands and ownership\n        run: python3 scripts/test-merge-pane-header.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-169",
+      "name": "Compare and Merge folded keyboard input and aligned deletion",
+      "lane": "editors",
+      "step": "      - name: Compare and Merge folded keyboard input and aligned deletion\n        run: python3 scripts/test-merge-pane-input.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-170",
+      "name": "Embedded Commit patches and Compare/Merge appearance ownership",
+      "lane": "editors",
+      "step": "      - name: Embedded Commit patches and Compare/Merge appearance ownership\n        run: python3 scripts/test-editor-appearance.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-171",
+      "name": "Merge view switching, native chrome and saved splits",
+      "lane": "editors",
+      "step": "      - name: Merge view switching, native chrome and saved splits\n        run: python3 scripts/test-merge-view-family.py --only view --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-172",
+      "name": "Inline engine native consumers",
+      "lane": "editors",
+      "step": "      - name: Inline engine native consumers\n        run: python3 scripts/test-inline-native.py\n"
+    },
+    {
+      "id": "original-173",
+      "name": "Working copy revision utility and upstream templates",
+      "lane": "core",
+      "step": "      - name: Working copy revision utility and upstream templates\n        run: python3 scripts/test-wcrev.py --tool .build/debug/TurtleGitWCRev --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-174",
+      "name": "SVN command compatibility with pinned Git",
+      "lane": "core",
+      "step": "      - name: SVN command compatibility with pinned Git\n        env:\n          TURTLEGIT_SVN_TEST_GIT: ${{ github.workspace }}/build/git-runtime/Git/bin/git\n        run: TURTLEGIT_CORE_ONLY=1 swift test --skip-build --filter GitSVNTests\n"
+    },
+    {
+      "id": "original-175",
+      "name": "Native historical file and folder item-provider receivers",
+      "lane": "commit-repository",
+      "step": "      - name: Native historical file and folder item-provider receivers\n        run: |\n          scripts/verify-browser-item-provider.sh\n          python3 scripts/test-status-file-drags.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-log-file-drags.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-revision-file-drags.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-rebase-file-drags.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n          python3 scripts/test-sync-file-drags.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-176",
+      "name": "Independent cache menu and activity ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Independent cache menu and activity ownership\n        run: python3 scripts/test-cache-tray.py\n"
+    },
+    {
+      "id": "original-177",
+      "name": "Verify app, extension and original icon resources",
+      "lane": "distribution",
+      "step": "      - name: Verify app, extension and original icon resources\n        run: |\n          python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app\n          python3 scripts/audit-cache-service.py build/Build/Products/Debug/TurtleGitMac.app\n          python3 scripts/test-branding-native.py\n"
+    },
+    {
+      "id": "original-178",
+      "name": "Universal application architecture audit regression",
+      "lane": "distribution",
+      "step": "      - name: Universal application architecture audit regression\n        run: python3 scripts/test-bundle-architectures.py\n"
+    },
+    {
+      "id": "original-179",
+      "name": "Distribution archive identity and offline export contracts",
+      "lane": "distribution",
+      "step": "      - name: Distribution archive identity and offline export contracts\n        run: python3 scripts/test-distribution-archive.py\n"
+    },
+    {
+      "id": "original-180",
+      "name": "Preview signing inventory regression",
+      "lane": "distribution",
+      "step": "      - name: Preview signing inventory regression\n        run: python3 scripts/test-preview-signing.py\n"
+    },
+    {
+      "id": "original-181",
+      "name": "Verify production ad-hoc app seal and runtime links",
+      "lane": "distribution",
+      "step": "      - name: Verify production ad-hoc app seal and runtime links\n        run: |\n          python3 scripts/create-demo-repository.py \"$RUNNER_TEMP/runtime-layout-repository\"\n          python3 scripts/create-preview-app.py build/Build/Products/Debug/TurtleGitMac.app \\\n            'build/qa/runtime-layout-signed-2026-10-13/TurtleGit Layout QA.app' \\\n            --repository \"$RUNNER_TEMP/runtime-layout-repository\" \\\n            --bundle-identifier org.turtlegit.macos.documentation-preview.layout-ci\n          python3 docs/qa/runtime-layout-native-2026-10-13.py \\\n            'build/qa/runtime-layout-signed-2026-10-13/TurtleGit Layout QA.app'\n"
+    },
+    {
+      "id": "original-182",
+      "name": "Verify embedded Subversion merge adapter and shared libraries",
+      "lane": "distribution",
+      "step": "      - name: Verify embedded Subversion merge adapter and shared libraries\n        run: python3 scripts/test-merge-diff-bundle.py build/Build/Products/Debug/TurtleGitMac.app\n"
+    },
+    {
+      "id": "original-183",
+      "name": "Grouped native LFS and Send Mail receivers with one compilation",
+      "lane": "replay-transport",
+      "step": "      - name: Grouped native LFS and Send Mail receivers with one compilation\n        run: python3 scripts/test-native-lfs-mail-batch.py\n"
+    },
+    {
+      "id": "original-184",
+      "name": "Native Send Mail source forms and owned target preparation",
+      "lane": "replay-transport",
+      "step": "      - name: Native Send Mail source forms and owned target preparation\n        run: >-\n          python3 scripts/test-send-source-family.py --only source\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-185",
+      "name": "Native Branch and Tag source forms and connected workflows",
+      "lane": "history-references",
+      "step": "      - name: Native Branch and Tag source forms and connected workflows\n        run: python3 scripts/test-branch-tag-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-186",
+      "name": "Switch source form and connected workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Switch source form and connected workflows\n        run: python3 scripts/test-switch-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-187",
+      "name": "Source transport forms and connected workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Source transport forms and connected workflows\n        run: python3 scripts/test-transport-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-188",
+      "name": "Rebase source forms and connected workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Rebase source forms and connected workflows\n        run: python3 scripts/test-rebase-source.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-189",
+      "name": "Native Issue Tracker source and Regex Tester workflows",
+      "lane": "commit-repository",
+      "step": "      - name: Native Issue Tracker source and Regex Tester workflows\n        run: python3 scripts/test-issue-tracker-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-190",
+      "name": "Native configured issue-regex consumers and failure ownership",
+      "lane": "commit-repository",
+      "step": "      - name: Native configured issue-regex consumers and failure ownership\n        run: python3 scripts/test-issue-regex-consumers.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-191",
+      "name": "Native issue-provider Settings, HTTP callbacks and Commit ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Native issue-provider Settings, HTTP callbacks and Commit ownership\n        run: python3 scripts/test-native-issue-provider.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-192",
+      "name": "Native release download and App Store workflows",
+      "lane": "commit-repository",
+      "step": "      - name: Native release download and App Store workflows\n        run: python3 scripts/test-release-updates.py\n"
+    },
+    {
+      "id": "original-193",
+      "name": "Native regex source list and editor workflows",
+      "lane": "commit-repository",
+      "step": "      - name: Native regex source list and editor workflows\n        run: python3 scripts/test-merge-regex-source.py\n"
+    },
+    {
+      "id": "original-194",
+      "name": "Native Encoding source sheet and editor transactions",
+      "lane": "editors",
+      "step": "      - name: Native Encoding source sheet and editor transactions\n        run: python3 scripts/test-merge-format-source.py\n"
+    },
+    {
+      "id": "original-195",
+      "name": "Native per-pane input encoding reload and owned decisions",
+      "lane": "editors",
+      "step": "      - name: Native per-pane input encoding reload and owned decisions\n        run: python3 scripts/test-merge-input-encoding.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-196",
+      "name": "Native revision and prompt word-command consumers",
+      "lane": "history-references",
+      "step": "      - name: Native revision and prompt word-command consumers\n        run: python3 scripts/test-input-word-consumers.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-197",
+      "name": "Native URL and path input word commands",
+      "lane": "settings-finder",
+      "step": "      - name: Native URL and path input word commands\n        run: python3 scripts/test-input-word-navigation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-198",
+      "name": "Native prefixed command and progress failure diagnostics",
+      "lane": "commit-repository",
+      "step": "      - name: Native prefixed command and progress failure diagnostics\n        run: python3 scripts/test-progress-diagnostic-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-199",
+      "name": "Native Daemon progress and owned loopback lifecycle",
+      "lane": "replay-transport",
+      "step": "      - name: Native Daemon progress and owned loopback lifecycle\n        run: python3 scripts/test-daemon-progress-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-200",
+      "name": "Native byte-backed unified diff editing Save and Undo",
+      "lane": "editors",
+      "step": "      - name: Native byte-backed unified diff editing Save and Undo\n        run: python3 scripts/test-unified-byte-buffer.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-201",
+      "name": "Native exact patch rename recovery and import provider paths",
+      "lane": "editors",
+      "step": "      - name: Native exact patch rename recovery and import provider paths\n        run: python3 scripts/test-patch-path-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-202",
+      "name": "Native raw patch codecs and editable document workflows",
+      "lane": "editors",
+      "step": "      - name: Native raw patch codecs and editable document workflows\n        run: python3 scripts/test-raw-patch-codec-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-203",
+      "name": "Native legacy patch preview recovery and application",
+      "lane": "editors",
+      "step": "      - name: Native legacy patch preview recovery and application\n        run: python3 scripts/test-patch-codec-family.py --only codec --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-204",
+      "name": "Native legacy encoding preference and Compare Merge saves",
+      "lane": "editors",
+      "step": "      - name: Native legacy encoding preference and Compare Merge saves\n        run: python3 scripts/test-legacy-format-family.py --only legacy\n"
+    },
+    {
+      "id": "original-205",
+      "name": "Native EditorConfig pane commands and owned read workflows",
+      "lane": "editors",
+      "step": "      - name: Native EditorConfig pane commands and owned read workflows\n        run: python3 scripts/test-editorconfig-pane-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-206",
+      "name": "Native Merge Editor source form and profile ownership",
+      "lane": "editors",
+      "step": "      - name: Native Merge Editor source form and profile ownership\n        run: python3 scripts/test-merge-editor-source.py\n"
+    },
+    {
+      "id": "original-207",
+      "name": "Native Merge Colors source and shared palette contexts",
+      "lane": "editors",
+      "step": "      - name: Native Merge Colors source and shared palette contexts\n        run: python3 scripts/test-merge-colors-source.py\n"
+    },
+    {
+      "id": "original-208",
+      "name": "Native Merge search source and navigation workflows",
+      "lane": "editors",
+      "step": "      - name: Native Merge search source and navigation workflows\n        run: |\n          python3 scripts/test-merge-search-source.py\n          python3 scripts/test-merge-directional-find.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-209",
+      "name": "Native Merge Open source and replacement workflows",
+      "lane": "editors",
+      "step": "      - name: Native Merge Open source and replacement workflows\n        run: python3 scripts/test-merge-open-source.py\n"
+    },
+    {
+      "id": "original-210",
+      "name": "Native Commit and Working Tree missing staged-file recovery",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit and Working Tree missing staged-file recovery\n        run: python3 scripts/test-missing-staged-recovery.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-211",
+      "name": "Native Working Tree footer and captured Stash menu",
+      "lane": "commit-repository",
+      "step": "      - name: Native Working Tree footer and captured Stash menu\n        run: python3 scripts/test-working-tree-footer.py\n"
+    },
+    {
+      "id": "original-212",
+      "name": "Native Git configuration source forms and owned editors",
+      "lane": "commit-repository",
+      "step": "      - name: Native Git configuration source forms and owned editors\n        run: python3 scripts/test-git-config-source-family.py\n"
+    },
+    {
+      "id": "original-213",
+      "name": "Native Browser historical Save and Open ownership",
+      "lane": "history-references",
+      "step": "      - name: Native Browser historical Save and Open ownership\n        run: python3 scripts/test-browser-file-actions.py\n"
+    },
+    {
+      "id": "original-214",
+      "name": "Native General source inputs and owned engine validation",
+      "lane": "commit-repository",
+      "step": "      - name: Native General source inputs and owned engine validation\n        run: python3 scripts/test-general-source-family.py\n"
+    },
+    {
+      "id": "original-215",
+      "name": "Native tool source forms and Browse ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Native tool source forms and Browse ownership\n        run: python3 scripts/test-tool-source-family.py\n"
+    },
+    {
+      "id": "original-216",
+      "name": "Native Credential source inputs and coherent refresh",
+      "lane": "settings-finder",
+      "step": "      - name: Native Credential source inputs and coherent refresh\n        run: python3 scripts/test-credential-source-family.py\n"
+    },
+    {
+      "id": "original-217",
+      "name": "Native Network source layout and SSH ownership",
+      "lane": "replay-transport",
+      "step": "      - name: Native Network source layout and SSH ownership\n        run: python3 scripts/test-network-source-family.py\n"
+    },
+    {
+      "id": "original-218",
+      "name": "Grouped native exact-text Git identity, credentials and Network settings",
+      "lane": "settings-finder",
+      "step": "      - name: Grouped native exact-text Git identity, credentials and Network settings\n        run: >-\n          python3 scripts/test-settings-exact-text-native.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-219",
+      "name": "Native Email settings and owned credential editor",
+      "lane": "settings-finder",
+      "step": "      - name: Native Email settings and owned credential editor\n        run: python3 scripts/test-email-credential-family.py\n"
+    },
+    {
+      "id": "original-220",
+      "name": "Configured SMTP through built frameworks with private loopback server",
+      "lane": "replay-transport",
+      "step": "      - name: Configured SMTP through built frameworks with private loopback server\n        run: python3 scripts/test-configured-smtp.py\n"
+    },
+    {
+      "id": "original-221",
+      "name": "Native optional remote-reference listing deletion and Sync workflow",
+      "lane": "history-references",
+      "step": "      - name: Native optional remote-reference listing deletion and Sync workflow\n        run: python3 scripts/test-remote-reference-backend-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-222",
+      "name": "Native Clone custom filter checkout and owned cancellation",
+      "lane": "replay-transport",
+      "step": "      - name: Native Clone custom filter checkout and owned cancellation\n        run: python3 scripts/test-clone-checkout-filter-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-223",
+      "name": "Native filtered historical file output and owned filter cancellation",
+      "lane": "commit-repository",
+      "step": "      - name: Native filtered historical file output and owned filter cancellation\n        run: python3 scripts/test-historical-materialization-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-224",
+      "name": "Native local reference catalog containment and checked deletion",
+      "lane": "history-references",
+      "step": "      - name: Native local reference catalog containment and checked deletion\n        run: python3 scripts/test-local-reference-engine.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-225",
+      "name": "Native replay readiness merge completion and Resolve inspection",
+      "lane": "editors",
+      "step": "      - name: Native replay readiness merge completion and Resolve inspection\n        run: python3 scripts/test-replay-inspection-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-226",
+      "name": "Native single commit details and captured message workflows",
+      "lane": "commit-repository",
+      "step": "      - name: Native single commit details and captured message workflows\n        run: python3 scripts/test-single-commit-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-227",
+      "name": "Native history navigation warnings Combine and child submodule inspections",
+      "lane": "replay-transport",
+      "step": "      - name: Native history navigation warnings Combine and child submodule inspections\n        run: python3 scripts/test-history-submodule-inspection-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-228",
+      "name": "Master-selected metadata catalogs and owned native retirement",
+      "lane": "history-references",
+      "step": "      - name: Master-selected metadata catalogs and owned native retirement\n        run: python3 scripts/test-backend-metadata.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-229",
+      "name": "Source-selected revision and reference validation workflows",
+      "lane": "history-references",
+      "step": "      - name: Source-selected revision and reference validation workflows\n        run: python3 scripts/test-revision-lookup.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-230",
+      "name": "Native historical Browser reference submodule and Bisect navigation",
+      "lane": "replay-transport",
+      "step": "      - name: Native historical Browser reference submodule and Bisect navigation\n        run: python3 scripts/test-historical-navigation.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-231",
+      "name": "Native Notes backend signatures references and owned editing",
+      "lane": "history-references",
+      "step": "      - name: Native Notes backend signatures references and owned editing\n        run: python3 scripts/test-notes-backend.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-232",
+      "name": "Native optional libgit2 backend selection and owned Git authentication",
+      "lane": "commit-repository",
+      "step": "      - name: Native optional libgit2 backend selection and owned Git authentication\n        run: python3 scripts/test-libgit2-native.py --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-233",
+      "name": "Native libgit2 Clone and Fetch result notifications",
+      "lane": "replay-transport",
+      "step": "      - name: Native libgit2 Clone and Fetch result notifications\n        run: >-\n          python3 scripts/test-remote-progress-notifications.py\n          --git /usr/bin/git --git build/git-runtime/Git/bin/git\n          --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-234",
+      "name": "Native source-selected Reset results and Log commit-revert",
+      "lane": "replay-transport",
+      "step": "      - name: Native source-selected Reset results and Log commit-revert\n        run: >-\n          python3 scripts/test-reset-backend-notifications.py\n          --git /usr/bin/git --git build/git-runtime/Git/bin/git\n          --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-235",
+      "name": "Native source-selected Add clean filters and owned index progress",
+      "lane": "commit-repository",
+      "step": "      - name: Native source-selected Add clean filters and owned index progress\n        run: python3 scripts/test-add-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-236",
+      "name": "Native source-selected Commit index preparation and cancellation",
+      "lane": "commit-repository",
+      "step": "      - name: Native source-selected Commit index preparation and cancellation\n        run: python3 scripts/test-commit-index-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2\n"
+    },
+    {
+      "id": "original-237",
+      "name": "Native Blame pane interaction and retained author properties",
+      "lane": "history-references",
+      "step": "      - name: Native Blame pane interaction and retained author properties\n        run: python3 scripts/test-blame-pane-interaction.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-238",
+      "name": "Native SMTP certificate review, private TLS and owned export cleanup",
+      "lane": "replay-transport",
+      "step": "      - name: Native SMTP certificate review, private TLS and owned export cleanup\n        run: python3 scripts/test-smtp-certificate-native.py\n"
+    },
+    {
+      "id": "original-239",
+      "name": "Native bundled SSH encrypted-key loading and process cleanup",
+      "lane": "replay-transport",
+      "step": "      - name: Native bundled SSH encrypted-key loading and process cleanup\n        run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app\n"
+    },
+    {
+      "id": "original-240",
+      "name": "Grouped native Submodule exact paths, source forms, selection and progress",
+      "lane": "replay-transport",
+      "step": "      - name: Grouped native Submodule exact paths, source forms, selection and progress\n        run: >-\n          python3 scripts/test-submodule-source-family.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-241",
+      "name": "Native submodule comparison and conflict dialog family",
+      "lane": "replay-transport",
+      "step": "      - name: Native submodule comparison and conflict dialog family\n        run: python3 scripts/test-submodule-review-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-242",
+      "name": "Grouped native RefLog comparisons, ranges and revision handoffs with one compilation",
+      "lane": "history-references",
+      "step": "      - name: Grouped native RefLog comparisons, ranges and revision handoffs with one compilation\n        run: >-\n          python3 scripts/test-native-reflog-batch.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-243",
+      "name": "Native Clone live command output",
+      "lane": "replay-transport",
+      "step": "      - name: Native Clone live command output\n        run: python3 scripts/test-clone-stream.py\n"
+    },
+    {
+      "id": "original-244",
+      "name": "Native Clone progress and repository setup/transition recovery",
+      "lane": "replay-transport",
+      "step": "      - name: Native Clone progress and repository setup/transition recovery\n        run: |\n          python3 scripts/test-clone-progress.py\n          python3 scripts/test-repository-setup-transitions.py\n"
+    },
+    {
+      "id": "original-245",
+      "name": "Native all-reference browser and Reset handoff",
+      "lane": "replay-transport",
+      "step": "      - name: Native all-reference browser and Reset handoff\n        run: python3 scripts/test-reference-browser.py\n"
+    },
+    {
+      "id": "original-246",
+      "name": "Native standalone reference browser",
+      "lane": "history-references",
+      "step": "      - name: Native standalone reference browser\n        run: python3 scripts/test-reference-standalone.py\n"
+    },
+    {
+      "id": "original-247",
+      "name": "Native Add Remote and Select Remote Ref source workflows",
+      "lane": "commit-repository",
+      "step": "      - name: Native Add Remote and Select Remote Ref source workflows\n        run: python3 scripts/test-remote-dialog-source-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-248",
+      "name": "Source reference forms and owned remote-tag workflows",
+      "lane": "history-references",
+      "step": "      - name: Source reference forms and owned remote-tag workflows\n        run: >-\n          python3 scripts/test-reference-source-family.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-249",
+      "name": "Native remote settings page",
+      "lane": "settings-finder",
+      "step": "      - name: Native remote settings page\n        run: python3 scripts/test-remote-settings.py\n"
+    },
+    {
+      "id": "original-250",
+      "name": "Native SSH passphrase response",
+      "lane": "replay-transport",
+      "step": "      - name: Native SSH passphrase response\n        run: python3 scripts/test-ssh-passphrase.py\n"
+    },
+    {
+      "id": "original-251",
+      "name": "Native private SSH session recovery and cleanup",
+      "lane": "replay-transport",
+      "step": "      - name: Native private SSH session recovery and cleanup\n        run: python3 scripts/test-ssh-lifecycle-family.py --only lifecycle --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-252",
+      "name": "Native SSH transport coordinator",
+      "lane": "replay-transport",
+      "step": "      - name: Native SSH transport coordinator\n        run: python3 scripts/test-ssh-coordinator.py\n"
+    },
+    {
+      "id": "original-253",
+      "name": "Native Submodule Sync",
+      "lane": "replay-transport",
+      "step": "      - name: Native Submodule Sync\n        run: python3 scripts/test-submodule-sync.py\n"
+    },
+    {
+      "id": "original-254",
+      "name": "Native submodule progress output controls",
+      "lane": "replay-transport",
+      "step": "      - name: Native submodule progress output controls\n        run: python3 scripts/test-submodule-progress-output.py\n"
+    },
+    {
+      "id": "original-255",
+      "name": "Native Log revision popup variants",
+      "lane": "history-references",
+      "step": "      - name: Native Log revision popup variants\n        run: python3 scripts/test-log-popup-variants.py --only ranges --only variants --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-256",
+      "name": "Native Log Revert original selection context",
+      "lane": "history-references",
+      "step": "      - name: Native Log Revert original selection context\n        run: python3 scripts/test-log-revert-selection.py --only selection --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-257",
+      "name": "Native Browser revision selection",
+      "lane": "history-references",
+      "step": "      - name: Native Browser revision selection\n        run: python3 scripts/test-browser-revisions.py --only revision --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-258",
+      "name": "Native RefLog refresh and deletion lifetime",
+      "lane": "history-references",
+      "step": "      - name: Native RefLog refresh and deletion lifetime\n        run: python3 scripts/test-reflog-lifecycle.py --only lifecycle --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-259",
+      "name": "Native Resolve and Rebase exact conflict selection",
+      "lane": "replay-transport",
+      "step": "      - name: Native Resolve and Rebase exact conflict selection\n        run: python3 scripts/test-conflict-identity-family.py --only identity --only resolve-mutation --only resolve-files --only resolve-drop --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-260",
+      "name": "Native primary command launch family",
+      "lane": "replay-transport",
+      "step": "      - name: Native primary command launch family\n        run: python3 scripts/test-primary-commands.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-261",
+      "name": "Native invocation-owned progress completion and deferred handoffs",
+      "lane": "replay-transport",
+      "step": "      - name: Native invocation-owned progress completion and deferred handoffs\n        run: python3 scripts/test-command-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-262",
+      "name": "Native ordered command transport batches",
+      "lane": "replay-transport",
+      "step": "      - name: Native ordered command transport batches\n        run: python3 scripts/test-command-transport-batch.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-263",
+      "name": "Native workspace completion handoffs",
+      "lane": "commit-repository",
+      "step": "      - name: Native workspace completion handoffs\n        run: |\n          python3 scripts/test-repository-handoffs.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n          python3 scripts/test-repository-settings-handoffs.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-264",
+      "name": "Native symbolic-link Blame documents and incoming commands",
+      "lane": "history-references",
+      "step": "      - name: Native symbolic-link Blame documents and incoming commands\n        run: python3 scripts/test-blame-symlink-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-265",
+      "name": "Native Blame captured source menus",
+      "lane": "history-references",
+      "step": "      - name: Native Blame captured source menus\n        run: python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-266",
+      "name": "Native Blame retained-byte encoding recovery and cancellation",
+      "lane": "editors",
+      "step": "      - name: Native Blame retained-byte encoding recovery and cancellation\n        run: python3 scripts/test-blame-encoding-projection.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-267",
+      "name": "Native Blame toolbar customization and document ownership",
+      "lane": "history-references",
+      "step": "      - name: Native Blame toolbar customization and document ownership\n        run: python3 scripts/test-blame-toolbar.py --only composition --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-268",
+      "name": "Native Blame toolbar placement and quick customization",
+      "lane": "history-references",
+      "step": "      - name: Native Blame toolbar placement and quick customization\n        run: python3 scripts/test-blame-toolbar.py --only placement --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-269",
+      "name": "Complete Commit refresh publication and native list settlement",
+      "lane": "commit-repository",
+      "step": "      - name: Complete Commit refresh publication and native list settlement\n        run: python3 scripts/test-commit-refresh-family.py --only snapshot --only position\n"
+    },
+    {
+      "id": "original-270",
+      "name": "Native Commit staging activation and preference lifetime",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit staging activation and preference lifetime\n        run: python3 scripts/test-commit-staging-mode.py --only list --only mode --only checkbox --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-271",
+      "name": "Native Commit source category checking",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit source category checking\n        run: python3 scripts/test-commit-check-categories.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-272",
+      "name": "Native Commit report rows, fonts and geometry ownership",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit report rows, fonts and geometry ownership\n        run: python3 scripts/test-commit-report-rows.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-273",
+      "name": "Rebase structural row behavior",
+      "lane": "replay-transport",
+      "step": "      - name: Rebase structural row behavior\n        run: python3 scripts/test-rebase-action-controls.py --only row-drag --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-274",
+      "name": "Rebase Revision Files and shared Changed Files workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Rebase Revision Files and shared Changed Files workflows\n        run: python3 scripts/test-rebase-revision-files.py --only recovery --only rebase-files --only changed-files --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-275",
+      "name": "Canonical Log integration and Rebase reference workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Canonical Log integration and Rebase reference workflows\n        run: python3 scripts/test-log-canonical-integration.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-276",
+      "name": "Native Settings navigation and constrained layout",
+      "lane": "settings-finder",
+      "step": "      - name: Native Settings navigation and constrained layout\n        run: python3 scripts/test-settings-navigation-layout.py --only layout\n"
+    },
+    {
+      "id": "original-277",
+      "name": "Native source color Settings controls",
+      "lane": "settings-finder",
+      "step": "      - name: Native source color Settings controls\n        run: python3 scripts/test-settings-color-choices.py\n"
+    },
+    {
+      "id": "original-278",
+      "name": "Primary marked-row file commands",
+      "lane": "commit-repository",
+      "step": "      - name: Primary marked-row file commands\n        run: python3 scripts/test-primary-file-menus.py --only primary-file-menus-2026-10-16 --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-279",
+      "name": "Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle",
+      "lane": "editors",
+      "step": "      - name: Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle\n        run: python3 scripts/test-native-reference-groups.py\n"
+    },
+    {
+      "id": "original-280",
+      "name": "Native Pull forced cleanup",
+      "lane": "replay-transport",
+      "step": "      - name: Native Pull forced cleanup\n        run: python3 scripts/test-pull-cleanup.py\n"
+    },
+    {
+      "id": "original-281",
+      "name": "Native Merge forced cleanup",
+      "lane": "editors",
+      "step": "      - name: Native Merge forced cleanup\n        run: python3 scripts/test-merge-cleanup.py\n"
+    },
+    {
+      "id": "original-282",
+      "name": "Native tracked branch commands and remote-only picker",
+      "lane": "history-references",
+      "step": "      - name: Native tracked branch commands and remote-only picker\n        run: python3 scripts/test-reference-tracking.py\n"
+    },
+    {
+      "id": "original-283",
+      "name": "Native reference browser inline branch rename",
+      "lane": "history-references",
+      "step": "      - name: Native reference browser inline branch rename\n        run: python3 scripts/test-reference-rename.py\n"
+    },
+    {
+      "id": "original-284",
+      "name": "Native Branch and Tag creation handoffs",
+      "lane": "history-references",
+      "step": "      - name: Native Branch and Tag creation handoffs\n        run: python3 scripts/test-branch-tag-completion.py --only completion --only handoff --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-285",
+      "name": "Native Export progress and ZIP cancellation",
+      "lane": "history-references",
+      "step": "      - name: Native Export progress and ZIP cancellation\n        run: python3 scripts/test-export-progress.py\n"
+    },
+    {
+      "id": "original-286",
+      "name": "Export live output and abandoned window cleanup",
+      "lane": "history-references",
+      "step": "      - name: Export live output and abandoned window cleanup\n        run: python3 scripts/test-export-progress.py --receiver docs/qa/export-progress-native-2026-10-10.swift\n"
+    },
+    {
+      "id": "original-287",
+      "name": "Grouped native Format Patch ownership, mail, policies and streaming",
+      "lane": "editors",
+      "step": "      - name: Grouped native Format Patch ownership, mail, policies and streaming\n        run: >-\n          python3 scripts/test-format-patch-workflow-native.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-288",
+      "name": "Native dialog geometry and Saved Data reset",
+      "lane": "settings-finder",
+      "step": "      - name: Native dialog geometry and Saved Data reset\n        run: python3 scripts/test-dialog-geometry.py\n"
+    },
+    {
+      "id": "original-289",
+      "name": "Native temporary storage and Saved Data clearing",
+      "lane": "settings-finder",
+      "step": "      - name: Native temporary storage and Saved Data clearing\n        run: python3 scripts/test-temporary-files.py\n"
+    },
+    {
+      "id": "original-290",
+      "name": "Native Saved Data history and decision clearing",
+      "lane": "settings-finder",
+      "step": "      - name: Native Saved Data history and decision clearing\n        run: python3 scripts/test-saved-data.py\n"
+    },
+    {
+      "id": "original-291",
+      "name": "Native progress action log and Saved Data",
+      "lane": "settings-finder",
+      "step": "      - name: Native progress action log and Saved Data\n        run: python3 scripts/test-action-log.py\n"
+    },
+    {
+      "id": "original-292",
+      "name": "Native Merge and Fetch fast-forward live output",
+      "lane": "editors",
+      "step": "      - name: Native Merge and Fetch fast-forward live output\n        run: python3 scripts/test-merge-stream.py\n"
+    },
+    {
+      "id": "original-293",
+      "name": "Native patch file panel and recovery",
+      "lane": "editors",
+      "step": "      - name: Native patch file panel and recovery\n        run: python3 scripts/test-patch-file-panel.py --only special --only recovery --only panel --only files --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-294",
+      "name": "Source color conversion and native status text appearance",
+      "lane": "commit-repository",
+      "step": "      - name: Source color conversion and native status text appearance\n        run: python3 scripts/test-status-colors.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-295",
+      "name": "Finder cache persistence, shutdown and restart",
+      "lane": "settings-finder",
+      "step": "      - name: Finder cache persistence, shutdown and restart\n        run: python3 scripts/test-finder-cache-persistence.py --only settings --only lifecycle --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-296",
+      "name": "Finder source cache modes, collection policy and native ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Finder source cache modes, collection policy and native ownership\n        run: python3 scripts/test-finder-status-policy-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-297",
+      "name": "Native configurable list selection and retained actions",
+      "lane": "commit-repository",
+      "step": "      - name: Native configurable list selection and retained actions\n        run: python3 scripts/test-list-selection-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-298",
+      "name": "Blame rendering, Revision Graph presentation and conflict line inspection",
+      "lane": "history-references",
+      "step": "      - name: Blame rendering, Revision Graph presentation and conflict line inspection\n        run: python3 scripts/test-history-editor-presentation-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-299",
+      "name": "Indexed Finder queries, exact roots and foreground cache publication",
+      "lane": "settings-finder",
+      "step": "      - name: Indexed Finder queries, exact roots and foreground cache publication\n        run: python3 scripts/test-finder-query-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-300",
+      "name": "Native clipboard patch chooser and Finder handoff",
+      "lane": "editors",
+      "step": "      - name: Native clipboard patch chooser and Finder handoff\n        run: python3 scripts/test-clipboard-patch-entry.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-301",
+      "name": "Native certificate inspector, export and authentication ownership",
+      "lane": "history-references",
+      "step": "      - name: Native certificate inspector, export and authentication ownership\n        run: python3 scripts/test-certificate-inspector.py\n"
+    },
+    {
+      "id": "original-302",
+      "name": "Native Log external document handoff ownership",
+      "lane": "history-references",
+      "step": "      - name: Native Log external document handoff ownership\n        run: python3 scripts/test-log-document-open.py --only open --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-303",
+      "name": "Native Log cache and Saved Data ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Native Log cache and Saved Data ownership\n        run: python3 scripts/test-log-cache-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-304",
+      "name": "Native Log filter menu, timing and owned validation",
+      "lane": "history-references",
+      "step": "      - name: Native Log filter menu, timing and owned validation\n        run: python3 scripts/test-log-filters.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-305",
+      "name": "Native Compare and Merge AppKit toolbar workflows",
+      "lane": "editors",
+      "step": "      - name: Native Compare and Merge AppKit toolbar workflows\n        run: python3 scripts/test-merge-toolbar.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-306",
+      "name": "Exact Unicode repository paths and browser actions",
+      "lane": "history-references",
+      "step": "      - name: Exact Unicode repository paths and browser actions\n        run: python3 scripts/test-browser-paths.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-307",
+      "name": "Repository Browser raw Git names, stored objects and owned delivery",
+      "lane": "history-references",
+      "step": "      - name: Repository Browser raw Git names, stored objects and owned delivery\n        run: python3 scripts/test-repository-browser-namespace.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-308",
+      "name": "Repository Browser historical folder archives",
+      "lane": "history-references",
+      "step": "      - name: Repository Browser historical folder archives\n        run: python3 scripts/test-browser-folder-archive.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-309",
+      "name": "Raw historical individual-file providers and promises",
+      "lane": "commit-repository",
+      "step": "      - name: Raw historical individual-file providers and promises\n        run: python3 scripts/test-raw-historical-file-transfers.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-310",
+      "name": "Captured reference menus and related native workflows",
+      "lane": "history-references",
+      "step": "      - name: Captured reference menus and related native workflows\n        run: python3 scripts/test-reference-menu-targets.py --only folders --only comparison --only tracking --only rename --only standalone --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-311",
+      "name": "Comparison savepoints, options, row edits and editor workflows",
+      "lane": "commit-repository",
+      "step": "      - name: Comparison savepoints, options, row edits and editor workflows\n        run: python3 scripts/test-merge-whitespace-states.py\n"
+    },
+    {
+      "id": "original-312",
+      "name": "Three-pane ordinary block choices, navigation, history and ignored conflicts",
+      "lane": "history-references",
+      "step": "      - name: Three-pane ordinary block choices, navigation, history and ignored conflicts\n        run: python3 scripts/test-merge-ignored.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-313",
+      "name": "Native Compare and Merge Find highlighting and selected-text commands",
+      "lane": "editors",
+      "step": "      - name: Native Compare and Merge Find highlighting and selected-text commands\n        run: python3 scripts/test-merge-find-highlights.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-314",
+      "name": "Native Save As source targets",
+      "lane": "commit-repository",
+      "step": "      - name: Native Save As source targets\n        run: python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-315",
+      "name": "Native conflict identities",
+      "lane": "commit-repository",
+      "step": "      - name: Native conflict identities\n        run: python3 scripts/test-conflict-identities.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-316",
+      "name": "Native bundled archive comparison",
+      "lane": "commit-repository",
+      "step": "      - name: Native bundled archive comparison\n        run: python3 scripts/test-archive-diff.py\n"
+    },
+    {
+      "id": "original-317",
+      "name": "Native filesystem path completion",
+      "lane": "settings-finder",
+      "step": "      - name: Native filesystem path completion\n        run: python3 scripts/test-path-entry.py --only paths --only interactions --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-318",
+      "name": "Native application identity and file-open routing",
+      "lane": "settings-finder",
+      "step": "      - name: Native application identity and file-open routing\n        run: python3 scripts/test-application-identity.py --only identity --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-319",
+      "name": "Native Dock progress and window lifetime",
+      "lane": "settings-finder",
+      "step": "      - name: Native Dock progress and window lifetime\n        run: python3 scripts/test-dock-progress.py --only dock --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-320",
+      "name": "Native transport presentation",
+      "lane": "replay-transport",
+      "step": "      - name: Native transport presentation\n        run: python3 scripts/test-transport-presentation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-321",
+      "name": "Source Import Patch native list, options, owned panels and serial workflows",
+      "lane": "editors",
+      "step": "      - name: Source Import Patch native list, options, owned panels and serial workflows\n        run: >-\n          python3 scripts/test-import-source-family.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-322",
+      "name": "Import Patch identity, recovery retries and owned close lifecycle",
+      "lane": "editors",
+      "step": "      - name: Import Patch identity, recovery retries and owned close lifecycle\n        run: python3 scripts/test-import-patch-lifecycle.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-323",
+      "name": "Mail patch import and recovery",
+      "lane": "editors",
+      "step": "      - name: Mail patch import and recovery\n        run: python3 scripts/test-mail-patch.py\n"
+    },
+    {
+      "id": "original-324",
+      "name": "Native revision table optional font",
+      "lane": "history-references",
+      "step": "      - name: Native revision table optional font\n        run: python3 scripts/test-log-table-font.py\n"
+    },
+    {
+      "id": "original-325",
+      "name": "Native Log and Rebase font",
+      "lane": "replay-transport",
+      "step": "      - name: Native Log and Rebase font\n        run: python3 scripts/test-log-rebase-font.py\n"
+    },
+    {
+      "id": "original-326",
+      "name": "Native message editor font",
+      "lane": "commit-repository",
+      "step": "      - name: Native message editor font\n        run: python3 scripts/test-message-font.py\n"
+    },
+    {
+      "id": "original-327",
+      "name": "Native message-history source dialog and Commit Merge handoff",
+      "lane": "editors",
+      "step": "      - name: Native message-history source dialog and Commit Merge handoff\n        run: python3 scripts/test-message-history-family.py --only source --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-328",
+      "name": "Native shared history picker",
+      "lane": "history-references",
+      "step": "      - name: Native shared history picker\n        run: python3 scripts/test-history-picker.py\n"
+    },
+    {
+      "id": "original-329",
+      "name": "Native Merge message history",
+      "lane": "editors",
+      "step": "      - name: Native Merge message history\n        run: python3 scripts/test-merge-history.py\n"
+    },
+    {
+      "id": "original-330",
+      "name": "Native Merge progress and recovery post-actions",
+      "lane": "editors",
+      "step": "      - name: Native Merge progress and recovery post-actions\n        run: python3 scripts/test-merge-progress.py\n"
+    },
+    {
+      "id": "original-331",
+      "name": "Native Merge conflict hint and suppression",
+      "lane": "editors",
+      "step": "      - name: Native Merge conflict hint and suppression\n        run: python3 scripts/test-merge-conflict-hint.py\n"
+    },
+    {
+      "id": "original-332",
+      "name": "Native Pull progress and Stash follow-ups",
+      "lane": "replay-transport",
+      "step": "      - name: Native Pull progress and Stash follow-ups\n        run: python3 scripts/test-pull-progress.py\n"
+    },
+    {
+      "id": "original-333",
+      "name": "Native Clean metadata access, ownership, progress and cleanup family",
+      "lane": "replay-transport",
+      "step": "      - name: Native Clean metadata access, ownership, progress and cleanup family\n        run: python3 scripts/test-clean-access-family.py\n"
+    },
+    {
+      "id": "original-334",
+      "name": "Native Push live output and truncated rejection recovery",
+      "lane": "replay-transport",
+      "step": "      - name: Native Push live output and truncated rejection recovery\n        run: python3 scripts/test-push-stream.py\n"
+    },
+    {
+      "id": "original-335",
+      "name": "Native Push partial result refresh",
+      "lane": "replay-transport",
+      "step": "      - name: Native Push partial result refresh\n        run: python3 scripts/test-push-result-refresh.py\n"
+    },
+    {
+      "id": "original-336",
+      "name": "Native Push literal destinations and remote removal",
+      "lane": "replay-transport",
+      "step": "      - name: Native Push literal destinations and remote removal\n        run: python3 scripts/test-push-destination.py --only namespace --only removal --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-337",
+      "name": "Native Push retained progress and post-actions",
+      "lane": "replay-transport",
+      "step": "      - name: Native Push retained progress and post-actions\n        run: python3 scripts/test-push-progress.py\n"
+    },
+    {
+      "id": "original-338",
+      "name": "Grouped native Request Pull waiting, editor, mail and cancellation",
+      "lane": "replay-transport",
+      "step": "      - name: Grouped native Request Pull waiting, editor, mail and cancellation\n        run: >-\n          python3 scripts/test-request-pull-workflow-native.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\n"
+    },
+    {
+      "id": "original-339",
+      "name": "Native branch revision number display",
+      "lane": "history-references",
+      "step": "      - name: Native branch revision number display\n        run: python3 scripts/test-branch-revision-number.py\n"
+    },
+    {
+      "id": "original-340",
+      "name": "Commit identity repair and effective author controls",
+      "lane": "commit-repository",
+      "step": "      - name: Commit identity repair and effective author controls\n        run: python3 scripts/test-commit-preparation.py --only identity --only author --only focus --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-341",
+      "name": "Commit detached HEAD safety and cancelled issue draft recovery",
+      "lane": "commit-repository",
+      "step": "      - name: Commit detached HEAD safety and cancelled issue draft recovery\n        run: python3 scripts/test-commit-safety.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-342",
+      "name": "Commit result recovery and next draft lifecycle",
+      "lane": "commit-repository",
+      "step": "      - name: Commit result recovery and next draft lifecycle\n        run: python3 scripts/test-commit-result-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-343",
+      "name": "Recursive presentation group review and editable output",
+      "lane": "images-documents",
+      "step": "      - name: Recursive presentation group review and editable output\n        run: python3 scripts/test-presentation-group-review.py\n"
+    },
+    {
+      "id": "original-344",
+      "name": "Presentation comment threads and coherent editable output",
+      "lane": "images-documents",
+      "step": "      - name: Presentation comment threads and coherent editable output\n        run: python3 scripts/test-presentation-comments.py\n"
+    },
+    {
+      "id": "original-345",
+      "name": "Edit Notes identity repair, cancellation and recovery",
+      "lane": "history-references",
+      "step": "      - name: Edit Notes identity repair, cancellation and recovery\n        run: python3 scripts/test-commit-note-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-346",
+      "name": "Native Commit columns, sorting and closed-owner settings",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit columns, sorting and closed-owner settings\n        run: python3 scripts/test-commit-column-sorting.py\n"
+    },
+    {
+      "id": "original-347",
+      "name": "Native scoped Commit commands and keyboard actions",
+      "lane": "commit-repository",
+      "step": "      - name: Native scoped Commit commands and keyboard actions\n        run: python3 scripts/test-commit-command-family.py --only commands --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-348",
+      "name": "Native remembered Commit button actions",
+      "lane": "commit-repository",
+      "step": "      - name: Native remembered Commit button actions\n        run: python3 scripts/test-commit-last-action.py\n"
+    },
+    {
+      "id": "original-349",
+      "name": "Native Fetch/Rebase decisions and fast-forward merge",
+      "lane": "editors",
+      "step": "      - name: Native Fetch/Rebase decisions and fast-forward merge\n        run: python3 scripts/test-fetch-rebase-decisions.py\n"
+    },
+    {
+      "id": "original-350",
+      "name": "Native Fetch and Pull live command output",
+      "lane": "replay-transport",
+      "step": "      - name: Native Fetch and Pull live command output\n        run: python3 scripts/test-fetch-pull-stream.py\n"
+    },
+    {
+      "id": "original-351",
+      "name": "Native ordinary Fetch progress and post-actions",
+      "lane": "replay-transport",
+      "step": "      - name: Native ordinary Fetch progress and post-actions\n        run: python3 scripts/test-fetch-progress.py\n"
+    },
+    {
+      "id": "original-352",
+      "name": "Native Abort Merge choices and Cancel routing",
+      "lane": "editors",
+      "step": "      - name: Native Abort Merge choices and Cancel routing\n        run: python3 scripts/test-merge-abort-dialog.py\n"
+    },
+    {
+      "id": "original-353",
+      "name": "Native RefLog partial failures and continued deletion",
+      "lane": "history-references",
+      "step": "      - name: Native RefLog partial failures and continued deletion\n        run: python3 scripts/test-reflog-partial-failure.py\n"
+    },
+    {
+      "id": "original-354",
+      "name": "Native general RefLog deletion and stale snapshot guards",
+      "lane": "history-references",
+      "step": "      - name: Native general RefLog deletion and stale snapshot guards\n        run: python3 scripts/test-reflog-deletion.py\n"
+    },
+    {
+      "id": "original-355",
+      "name": "Native RefLog revision navigation and clipboard",
+      "lane": "history-references",
+      "step": "      - name: Native RefLog revision navigation and clipboard\n        run: python3 scripts/test-reflog-actions.py\n"
+    },
+    {
+      "id": "original-356",
+      "name": "Native RefLog modeless Find and function keys",
+      "lane": "history-references",
+      "step": "      - name: Native RefLog modeless Find and function keys\n        run: python3 scripts/test-reflog-search.py\n"
+    },
+    {
+      "id": "original-357",
+      "name": "Native editable history deletion",
+      "lane": "history-references",
+      "step": "      - name: Native editable history deletion\n        run: python3 scripts/test-history-deletion.py\n"
+    },
+    {
+      "id": "original-358",
+      "name": "Native Push preferences and confirmations",
+      "lane": "replay-transport",
+      "step": "      - name: Native Push preferences and confirmations\n        run: python3 scripts/test-push-preferences.py\n"
+    },
+    {
+      "id": "original-359",
+      "name": "Native Push cancellation",
+      "lane": "replay-transport",
+      "step": "      - name: Native Push cancellation\n        run: python3 scripts/test-push-cancellation.py\n"
+    },
+    {
+      "id": "original-360",
+      "name": "Native Credential advanced editing and connected Merge workflows",
+      "lane": "editors",
+      "step": "      - name: Native Credential advanced editing and connected Merge workflows\n        run: python3 scripts/test-credential-merge-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-361",
+      "name": "Check connected Stash and Submodule recovery workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Check connected Stash and Submodule recovery workflows\n        run: python3 scripts/test-stash-submodule-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-362",
+      "name": "Check connected Switch, Reset and Bisect workflows",
+      "lane": "replay-transport",
+      "step": "      - name: Check connected Switch, Reset and Bisect workflows\n        run: python3 scripts/test-switch-reset-bisect-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-363",
+      "name": "Native Commit, Rebase message editing and Fetch/Pull completion",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit, Rebase message editing and Fetch/Pull completion\n        run: python3 scripts/test-operation-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-364",
+      "name": "Native Rebase empty-message review and ownership",
+      "lane": "replay-transport",
+      "step": "      - name: Native Rebase empty-message review and ownership\n        run: python3 scripts/test-rebase-empty-message.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-365",
+      "name": "Native Rebase clean amend failure Retry and Ignore",
+      "lane": "replay-transport",
+      "step": "      - name: Native Rebase clean amend failure Retry and Ignore\n        run: python3 scripts/test-rebase-amend-recovery.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-366",
+      "name": "Native Rebase two-phase conflict messages and recovery",
+      "lane": "replay-transport",
+      "step": "      - name: Native Rebase two-phase conflict messages and recovery\n        run: python3 scripts/test-rebase-conflict-message.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-367",
+      "name": "Native Rebase live progress and completion ownership",
+      "lane": "replay-transport",
+      "step": "      - name: Native Rebase live progress and completion ownership\n        run: python3 scripts/test-rebase-progress-completion.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-368",
+      "name": "Native Rebase completion export to mail composer",
+      "lane": "replay-transport",
+      "step": "      - name: Native Rebase completion export to mail composer\n        run: python3 scripts/test-rebase-completion-mail.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-369",
+      "name": "Native Pull and Fetch cancellation",
+      "lane": "replay-transport",
+      "step": "      - name: Native Pull and Fetch cancellation\n        run: python3 scripts/test-fetch-cancellation.py\n"
+    },
+    {
+      "id": "original-370",
+      "name": "Native Pull and Fetch clipboard input",
+      "lane": "replay-transport",
+      "step": "      - name: Native Pull and Fetch clipboard input\n        run: python3 scripts/test-fetch-clipboard.py\n"
+    },
+    {
+      "id": "original-371",
+      "name": "Synchronization comparisons and transport with bundled Git",
+      "lane": "core",
+      "step": "      - name: Synchronization comparisons and transport with bundled Git\n        run: TURTLEGIT_GROUP_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" TURTLEGIT_CORE_ONLY=1 swift test --filter 'SynchronizationLiteralReferenceTests|SynchronizationTests|SynchronizationTransportTests|SynchronizationReferenceTests|SynchronizationTagTests|SynchronizationSubmoduleTests|SynchronizationStashTests|RemoteTagTests'\n"
+    },
+    {
+      "id": "original-372",
+      "name": "Native Synchronization histories and revision lists",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization histories and revision lists\n        run: |\n          python3 scripts/test-synchronization-history.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n          python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-373",
+      "name": "Native Synchronization outgoing, Fetch transports and owner lifetime",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization outgoing, Fetch transports and owner lifetime\n        run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-374",
+      "name": "Native Synchronization literal branch selection and transport",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization literal branch selection and transport\n        run: python3 scripts/test-sync-literal-reference.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-375",
+      "name": "Native Synchronization incoming and outgoing commit controls",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization incoming and outgoing commit controls\n        run: python3 scripts/test-sync-history-controls.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-376",
+      "name": "Native Synchronization incoming and outgoing file lists",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization incoming and outgoing file lists\n        run: python3 scripts/test-sync-file-list.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-377",
+      "name": "Native Synchronization reference and tag results",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization reference and tag results\n        run: python3 scripts/test-sync-reference-results.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-378",
+      "name": "Native Pull and Fetch submodule defaults",
+      "lane": "replay-transport",
+      "step": "      - name: Native Pull and Fetch submodule defaults\n        run: python3 scripts/test-fetch-submodule-defaults.py\n"
+    },
+    {
+      "id": "original-379",
+      "name": "Native Commit conflict-hint preflight",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit conflict-hint preflight\n        run: python3 scripts/test-commit-conflict-hints.py\n"
+    },
+    {
+      "id": "original-380",
+      "name": "Native conflicted Commit selection and staging",
+      "lane": "commit-repository",
+      "step": "      - name: Native conflicted Commit selection and staging\n        run: python3 scripts/test-commit-conflicted-selection.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-381",
+      "name": "Native Commit and Rebase encoding receiver",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit and Rebase encoding receiver\n        run: python3 scripts/test-commit-message-encoding.py\n"
+    },
+    {
+      "id": "original-382",
+      "name": "Native Commit and Rebase message-file receiver",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit and Rebase message-file receiver\n        run: python3 scripts/test-commit-message-file.py\n"
+    },
+    {
+      "id": "original-383",
+      "name": "Native Synchronization conflict file table and source actions",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization conflict file table and source actions\n        run: python3 scripts/test-sync-conflict-files.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-384",
+      "name": "Native Synchronization child progress family",
+      "lane": "replay-transport",
+      "step": "      - name: Native Synchronization child progress family\n        run: python3 scripts/test-sync-child-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-385",
+      "name": "Native language settings and compiled app resources",
+      "lane": "settings-finder",
+      "step": "      - name: Native language settings and compiled app resources\n        run: python3 scripts/test-language-family.py\n"
+    },
+    {
+      "id": "original-386",
+      "name": "Native exact changelist Commit and Working Tree family",
+      "lane": "commit-repository",
+      "step": "      - name: Native exact changelist Commit and Working Tree family\n        run: python3 scripts/test-changelist-family.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    },
+    {
+      "id": "original-387",
+      "name": "Native Commit settings and selection receiver",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit settings and selection receiver\n        run: python3 scripts/test-commit-selection-settings.py\n"
+    },
+    {
+      "id": "original-388",
+      "name": "Native Commit dirty-submodule workflow receiver",
+      "lane": "commit-repository",
+      "step": "      - name: Native Commit dirty-submodule workflow receiver\n        run: python3 scripts/test-commit-dirty-submodule.py\n"
+    },
+    {
+      "id": "original-389",
+      "name": "Native Log selection and inspection while history streams",
+      "lane": "history-references",
+      "step": "      - name: Native Log selection and inspection while history streams\n        run: python3 scripts/test-log-native-selection.py\n"
+    },
+    {
+      "id": "original-390",
+      "name": "Native Log double-click preference receiver",
+      "lane": "history-references",
+      "step": "      - name: Native Log double-click preference receiver\n        run: python3 scripts/test-log-double-click.py\n"
+    },
+    {
+      "id": "original-391",
+      "name": "Native Log modeless Find and shared reference navigation",
+      "lane": "history-references",
+      "step": "      - name: Native Log modeless Find and shared reference navigation\n        run: python3 scripts/test-log-find.py\n"
+    },
+    {
+      "id": "original-392",
+      "name": "Native commit-containing reference dialog and owned Log/picker routes",
+      "lane": "history-references",
+      "step": "      - name: Native commit-containing reference dialog and owned Log/picker routes\n        run: python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-393",
+      "name": "Native Log commit ordering and owned header dialog",
+      "lane": "history-references",
+      "step": "      - name: Native Log commit ordering and owned header dialog\n        run: python3 scripts/test-log-ordering.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-394",
+      "name": "Native Log compressed graph rollup receiver",
+      "lane": "history-references",
+      "step": "      - name: Native Log compressed graph rollup receiver\n        run: python3 scripts/test-log-rollup.py\n"
+    },
+    {
+      "id": "original-395",
+      "name": "Native Log Gravatar mock transport receiver",
+      "lane": "replay-transport",
+      "step": "      - name: Native Log Gravatar mock transport receiver\n        run: python3 scripts/test-log-gravatar.py\n"
+    },
+    {
+      "id": "original-396",
+      "name": "Native Statistics options and calculation receiver",
+      "lane": "images-documents",
+      "step": "      - name: Native Statistics options and calculation receiver\n        run: python3 scripts/test-statistics-dialog.py\n"
+    },
+    {
+      "id": "original-397",
+      "name": "Statistics source export filters and owned save cancellation",
+      "lane": "images-documents",
+      "step": "      - name: Statistics source export filters and owned save cancellation\n        run: python3 scripts/test-statistics-export-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-398",
+      "name": "Synchronization typed Fetch results and owned Log routing",
+      "lane": "replay-transport",
+      "step": "      - name: Synchronization typed Fetch results and owned Log routing\n        run: python3 scripts/test-sync-transfer-notifications.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-399",
+      "name": "Fetch source refspec configuration lifecycle and native ownership",
+      "lane": "replay-transport",
+      "step": "      - name: Fetch source refspec configuration lifecycle and native ownership\n        run: python3 scripts/test-fetch-refspec-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-400",
+      "name": "Native literal Fetch and Pull refspecs and editable Rebase targets",
+      "lane": "replay-transport",
+      "step": "      - name: Native literal Fetch and Pull refspecs and editable Rebase targets\n        run: python3 scripts/test-fetch-refspec.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n"
+    },
+    {
+      "id": "original-401",
+      "name": "Revision Graph source viewport navigation and gesture ownership",
+      "lane": "history-references",
+      "step": "      - name: Revision Graph source viewport navigation and gesture ownership\n        run: python3 scripts/test-graph-viewport-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-402",
+      "name": "Compare and Merge all-pane viewport commands",
+      "lane": "editors",
+      "step": "      - name: Compare and Merge all-pane viewport commands\n        run: python3 scripts/test-merge-viewport-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-403",
+      "name": "Statistics source hover geometry and chart ownership",
+      "lane": "images-documents",
+      "step": "      - name: Statistics source hover geometry and chart ownership\n        run: python3 scripts/test-statistics-interaction-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-404",
+      "name": "Statistics exact author identity and graph exports",
+      "lane": "images-documents",
+      "step": "      - name: Statistics exact author identity and graph exports\n        run: python3 scripts/test-statistics-authors.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-405",
+      "name": "Shared native graph scenes and enhanced-metafile save ownership",
+      "lane": "images-documents",
+      "step": "      - name: Shared native graph scenes and enhanced-metafile save ownership\n        run: python3 scripts/test-graph-metafile-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-406",
+      "name": "Native Advanced Settings model and table receiver",
+      "lane": "settings-finder",
+      "step": "      - name: Native Advanced Settings model and table receiver\n        run: python3 scripts/test-advanced-settings.py\n"
+    },
+    {
+      "id": "original-407",
+      "name": "Native Finder menu builder without extension activation",
+      "lane": "settings-finder",
+      "step": "      - name: Native Finder menu builder without extension activation\n        run: python3 scripts/test-finder-menu.py\n"
+    },
+    {
+      "id": "original-408",
+      "name": "Native Finder selection context and repository ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Native Finder selection context and repository ownership\n        run: python3 scripts/test-finder-selection-context.py\n"
+    },
+    {
+      "id": "original-409",
+      "name": "Native Context Menu settings transactions and page previews",
+      "lane": "settings-finder",
+      "step": "      - name: Native Context Menu settings transactions and page previews\n        run: python3 scripts/test-context-menu-settings.py\n"
+    },
+    {
+      "id": "original-410",
+      "name": "Native menu images, lazy presentation and private preferences",
+      "lane": "images-documents",
+      "step": "      - name: Native menu images, lazy presentation and private preferences\n        run: python3 scripts/test-native-menu-images.py\n"
+    },
+    {
+      "id": "original-411",
+      "name": "Finder first-use registration and completed Clone watch ownership",
+      "lane": "settings-finder",
+      "step": "      - name: Finder first-use registration and completed Clone watch ownership\n        run: python3 scripts/test-finder-registration.py\n"
+    },
+    {
+      "id": "original-412",
+      "name": "Patch mail preparation with packaged Git",
+      "lane": "core",
+      "step": "      - name: Patch mail preparation with packaged Git\n        run: TURTLEGIT_SEND_PATCH_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" TURTLEGIT_CORE_ONLY=1 swift test --filter PatchMail\n"
+    },
+    {
+      "id": "original-413",
+      "name": "Build and audit unsigned universal App Store candidate",
+      "lane": "distribution",
+      "step": "      - name: Build and audit unsigned universal App Store candidate\n        run: python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store\n"
+    },
+    {
+      "id": "original-414",
+      "name": "Preserve unsigned distribution audit",
+      "lane": "distribution",
+      "step": "      - name: Preserve unsigned distribution audit\n        uses: actions/upload-artifact@v4\n        with:\n          name: unsigned-appstore-distribution-audit\n          path: build-store/distribution-audit.json\n"
+    },
+    {
+      "id": "original-415",
+      "name": "Revision Graph through built Debug and Store frameworks and helpers",
+      "lane": "distribution",
+      "step": "      - name: Revision Graph through built Debug and Store frameworks and helpers\n        run: python3 scripts/test-graph-layout-bundles.py\n"
+    },
+    {
+      "id": "original-416",
+      "name": "Revision Graph data and geometry with bundled Git",
+      "lane": "core",
+      "step": "      - name: Revision Graph data and geometry with bundled Git\n        run: TURTLEGIT_GROUP_TEST_GIT=\"$PWD/build/git-runtime/Git/bin/git\" TURTLEGIT_CORE_ONLY=1 swift test --filter 'RevisionGraphLayoutTests|RevisionGraphTests|HistoryRangeTests'\n"
+    },
+    {
+      "id": "original-417",
+      "name": "Native Revision Graph window and Filter with both Git engines",
+      "lane": "history-references",
+      "step": "      - name: Native Revision Graph window and Filter with both Git engines\n        run: python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-418",
+      "name": "Revision Graph source save filters and hidden command ownership",
+      "lane": "history-references",
+      "step": "      - name: Revision Graph source save filters and hidden command ownership\n        run: python3 scripts/test-revision-graph-save-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n"
+    },
+    {
+      "id": "original-419",
+      "name": "Native packaged Git SSH client lookup without network",
+      "lane": "distribution",
+      "step": "      - name: Native packaged Git SSH client lookup without network\n        run: python3 scripts/test-git-ssh-runtime.py\n"
+    },
+    {
+      "id": "original-420",
+      "name": "Native AppStore bundled SSH encrypted-key loading and cleanup",
+      "lane": "distribution",
+      "step": "      - name: Native AppStore bundled SSH encrypted-key loading and cleanup\n        run: python3 scripts/test-bundled-ssh-agent.py\n"
+    },
+    {
+      "id": "original-421",
+      "name": "Build isolated older Git runtimes for replay tests",
+      "lane": "distribution",
+      "step": "      - name: Build isolated older Git runtimes for replay tests\n        run: |\n          python3 scripts/build-replay-test-git.py --version 2.37.1\n          python3 scripts/build-replay-test-git.py --version 2.39.5\n"
+    },
+    {
+      "id": "original-422",
+      "name": "Native Cherry Pick and Rebase recovery across Git versions",
+      "lane": "distribution",
+      "step": "      - name: Native Cherry Pick and Rebase recovery across Git versions\n        run: >-\n          python3 scripts/check-cherry-pick-native.py\n          --git /usr/bin/git\n          --git build/replay-test-git/2.37.1/bin/git\n          --git build/replay-test-git/2.39.5/bin/git\n          --git build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git\n"
+    }
+  ],
+  "svnProducer": {
+    "runs-on": "macos-15",
+    "steps": [
+      {
+        "uses": "actions/checkout@v4"
+      },
+      {
+        "name": "Record SVN runtime toolchain key",
+        "id": "svn-toolchain",
+        "run": "/usr/bin/arch -x86_64 /usr/bin/true\npython3 - <<'PY' >> \"$GITHUB_OUTPUT\"\nimport hashlib, subprocess\ndata = subprocess.check_output(['xcrun', 'clang', '--version']) + subprocess.check_output(['xcrun', '--show-sdk-build-version']) + subprocess.check_output(['xcrun', '--show-sdk-path']) + subprocess.check_output(['xcrun', '--find', 'clang'])\nprint('key=' + hashlib.sha256(data).hexdigest())\nPY\n"
+      },
+      {
+        "name": "Restore exact SVN native component work",
+        "id": "svn-work-cache",
+        "uses": "actions/cache/restore@v5",
+        "with": {
+          "path": "build/git-svn-runtime/work",
+          "key": "svn-native-work-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.workspace }}-${{ steps.svn-toolchain.outputs.key }}-${{ hashFiles('Configuration/GitSVNRuntime.json', 'Configuration/GitRuntime.json', 'scripts/build-git-svn-runtime.py', 'scripts/pinned_download.py') }}"
+        }
+      },
+      {
+        "name": "Capture git-svn runtime cache key",
+        "id": "git-svn-key",
+        "run": "python3 scripts/ci-runtime-cache-key.py git-svn --toolchain '${{ steps.svn-toolchain.outputs.key }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> \"$GITHUB_OUTPUT\""
+      },
+      {
+        "name": "Restore exact git-svn runtime",
+        "id": "git-svn-cache",
+        "uses": "actions/cache/restore@v5",
+        "with": {
+          "path": "build/git-svn-runtime/GitSVN",
+          "key": "${{ steps.git-svn-key.outputs.key }}"
+        }
+      },
+      {
+        "name": "Build pinned universal private Perl/Subversion runtime",
+        "if": "steps.git-svn-cache.outputs.cache-hit != 'true'",
+        "run": "python3 scripts/build-git-svn-runtime.py"
+      },
+      {
+        "name": "Validate prepared or restored git-svn runtime",
+        "run": "python3 scripts/validate-git-svn-runtime.py build/git-svn-runtime/GitSVN --audit-only"
+      },
+      {
+        "name": "Save validated git-svn runtime",
+        "if": "steps.git-svn-cache.outputs.cache-hit != 'true'",
+        "uses": "actions/cache/save@v5",
+        "with": {
+          "path": "build/git-svn-runtime/GitSVN",
+          "key": "${{ steps.git-svn-cache.outputs.cache-primary-key }}"
+        }
+      },
+      {
+        "name": "Save SVN native component work after payload validation",
+        "if": "steps.git-svn-cache.outputs.cache-hit != 'true' && steps.svn-work-cache.outputs.cache-hit != 'true'",
+        "uses": "actions/cache/save@v5",
+        "with": {
+          "path": "build/git-svn-runtime/work",
+          "key": "${{ steps.svn-work-cache.outputs.cache-primary-key }}"
+        }
+      },
+      {
+        "name": "Preserve executable permissions and contained aliases",
+        "run": "tar -czf build/git-svn-runtime/GitSVN.tar.gz -C build/git-svn-runtime GitSVN"
+      },
+      {
+        "uses": "actions/upload-artifact@v4",
+        "with": {
+          "name": "universal-git-svn-runtime",
+          "path": "build/git-svn-runtime/GitSVN.tar.gz"
+        }
+      }
+    ]
+  },
+  "workflowHeader": {
+    "name": "macOS",
+    "true": {
+      "push": null,
+      "pull_request": null
+    },
+    "concurrency": {
+      "group": "${{ github.workflow }}-${{ github.ref }}",
+      "cancel-in-progress": false
+    }
+  }
+}

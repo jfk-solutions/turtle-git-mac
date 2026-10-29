@@ -92,6 +92,10 @@ class RuntimeCacheTests(unittest.TestCase):
             self.assertEqual(section.count('path: ' + recipe['path']), 2)
             self.assertIn('run: ' + ' '.join(recipe['validate']), section)
             self.assertIn('steps.' + name + '-cache.outputs.cache-primary-key', section)
-            self.assertNotIn('if:', section[section.index('      - name: Validate prepared or restored'):section.index('      - name: Save validated')])
+            validator_start = section.index('      - name: Validate prepared or restored')
+            validator_end = section.index('\n      - ', validator_start + 1)
+            # Sibling helper regressions can have their own lane conditions;
+            # the restored payload validator itself must always execute.
+            self.assertNotIn('if:', section[validator_start:validator_end])
 
 if __name__ == '__main__': unittest.main()
