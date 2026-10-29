@@ -316,9 +316,9 @@ def main():
                         with children:
                             receipt=run(local_binary,'local-tools',payload)
                             value=receipt.get('local_tools',{})
-                            for key in ['public_core_package_smoke','marked_screen_row_status','settings_publication_intents','creation_acceptance_receipts','image_original_bytes_selection','raw_folder_archive','raw_individual_materialization','captured_revision_backend','head_index_working_unchanged']:
+                            for key in ['public_core_package_smoke','marked_screen_row_status','settings_publication_intents','creation_acceptance_receipts','finder_cache_retained_claims','finder_cache_exact_unicode','finder_cache_stale_ticket_fence','finder_cache_v4_wire','repository_initialization_acceptance','clone_acceptance_receipt','checkout_reset_acceptance','auxiliary_setup_separate','image_original_bytes_selection','raw_folder_archive','raw_individual_materialization','captured_revision_backend','head_index_working_unchanged']:
                                 if value.get(key) is not True:raise ValueError('Signed local-tools smoke missing '+key)
-                            if value.get('native_ui_executed') is not False or any(receipt.get(key) is not False for key in ['outside_file_grants','shipping_gui_launched','app_group_files_created']) or receipt.get('private_container_cleaned') is not True:raise ValueError('Signed local-tools scope/cleanup incorrect')
+                            if value.get('native_ui_executed') is not False or value.get('submodule_add_exercised') is not False or any(receipt.get(key) is not False for key in ['outside_file_grants','shipping_gui_launched','app_group_files_created']) or receipt.get('private_container_cleaned') is not True:raise ValueError('Signed local-tools scope/cleanup incorrect')
                             if Path(value.get('git','')).resolve()!= (local_binary.parent.parent/'Helpers/Git/bin/git').resolve(strict=True):raise ValueError('Local-tools used external Git')
                             observed=value.get('observed_git',{})
                             if observed.get('pid') not in children.seen or observed.get('reaped') is not True or observed.get('hash')!='f440016325e65f00c7c09a9989ce0f099f443cdd':raise ValueError('Local-tools packaged Git stdin observation/reaping missing')

@@ -496,10 +496,74 @@ import TurtleGitCore
         var worktreeOptions=WorktreeCreationOptions();worktreeOptions.newBranch="runtime-linked";worktreeOptions.revision=first;worktreeOptions.checkout=false
         let linked=try await repository.createWorktreeAccepted(at:directory.appendingPathComponent("runtime-linked"),options:worktreeOptions)
         try require(linked.verified && linked.worktree?.head==first,"Packaged worktree creation receipt lost registered checkout")
+        // Last two batches: a private v4 cache and an independent ASCII-only
+        // Git setup fixture. Never checkout/reset/clone the raw-history fixture.
+        do {
+            let cacheFolder=directory.appendingPathComponent("private-finder-cache",isDirectory:true)
+            try FileManager.default.createDirectory(at:cacheFolder,withIntermediateDirectories:true)
+            let store=FinderSnapshotStore(url:cacheFolder.appendingPathComponent("status.json")),owner=try store.startSession()
+            defer{_ = try? store.endSession(owner)}
+            let cachedRoot=cacheFolder.appendingPathComponent("registered-repository",isDirectory:true)
+            try FileManager.default.createDirectory(at:cachedRoot,withIntermediateDirectories:true)
+            let composed=cachedRoot.appendingPathComponent("café.txt").path,decomposed=cachedRoot.appendingPathComponent("cafe\u{301}.txt").path
+            let cached=FinderSnapshot(roots:[cachedRoot.path],states:[cachedRoot.path:.normal,composed:.added,decomposed:.conflicted],repositories:[cachedRoot.path:.init()])
+            let initial=try store.begin(root:cachedRoot,session:owner)
+            try require(try store.publish(initial,snapshots:[cached]).published,"Packaged private cache did not publish")
+            let warm=URL(fileURLWithPath:store.url.path+".warm"),control=URL(fileURLWithPath:store.url.path+".writers")
+            let liveBytes=try Data(contentsOf:store.url),warmBytes=try Data(contentsOf:warm)
+            let liveInode=try FileManager.default.attributesOfItem(atPath:store.url.path)[.systemFileNumber] as? NSNumber
+            let warmInode=try FileManager.default.attributesOfItem(atPath:warm.path)[.systemFileNumber] as? NSNumber
+            let stale=try store.begin(root:cachedRoot,session:owner)
+            let current=try store.begin(root:cachedRoot,session:owner)
+            _ = try store.begin(root:cachedRoot,session:owner)
+            let retained=try store.readLive()
+            try require(retained.states==cached.states && retained.states.count==3 && retained.states[composed] == .added && retained.states[decomposed] == .conflicted,"Packaged cache collapsed exact Unicode state")
+            let afterLive=try Data(contentsOf:store.url),afterWarm=try Data(contentsOf:warm)
+            let afterLiveInode=try FileManager.default.attributesOfItem(atPath:store.url.path)[.systemFileNumber] as? NSNumber
+            let afterWarmInode=try FileManager.default.attributesOfItem(atPath:warm.path)[.systemFileNumber] as? NSNumber
+            try require(afterLive==liveBytes && afterWarm==warmBytes && liveInode != nil && liveInode==afterLiveInode && warmInode==afterWarmInode,"Retained cache claims rewrote live/warm payloads")
+            let staleResult=try store.publish(stale,snapshots:[FinderSnapshot(roots:[cachedRoot.path],states:[cachedRoot.path:.deleted])])
+            let supersededResult=try store.publish(current,snapshots:[FinderSnapshot(roots:[cachedRoot.path],states:[cachedRoot.path:.deleted])])
+            try require(!staleResult.published && !supersededResult.published && supersededResult.snapshot.states==cached.states,"Packaged stale claim replaced accepted cache authority")
+            guard let wire=try JSONSerialization.jsonObject(with:Data(contentsOf:control)) as? [String:Any] else{throw Failure(description:"Packaged cache control is not JSON")}
+            try require(wire["version"] as? Int==4,"Packaged cache unexpectedly changed v4 wire")
+        }
+        let auxiliary=directory.appendingPathComponent("setup-auxiliary",isDirectory:true)
+        try FileManager.default.createDirectory(at:auxiliary,withIntermediateDirectories:true)
+        let initializer=GitRepository(root:auxiliary,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
+        let setupRoot=auxiliary.appendingPathComponent("source",isDirectory:true)
+        let initialized=try await initializer.initializeOutcome(at:setupRoot,bare:false)
+        try require(initialized.verified && initialized.isBare==false && initialized.identity != nil,"Packaged Init lost accepted repository identity")
+        let setup=GitRepository(root:setupRoot,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
+        _ = try await setup.run(["symbolic-ref","HEAD","refs/heads/main"])
+        for (key,value) in [("user.name","Signed setup QA"),("user.email","setup@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await setup.run(["config",key,value])}
+        let setupFile=setupRoot.appendingPathComponent("file.txt"),setupBytes=Data("ASCII setup fixture\n".utf8)
+        try setupBytes.write(to:setupFile);try await setup.stage(["file.txt"]);_ = try await setup.commit(message:"setup first")
+        let setupFirst=String(decoding:try await setup.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        _ = try await setup.run(["commit","--allow-empty","-m","setup second"])
+        _ = try await setup.run(["branch","alternate",setupFirst])
+        var switchOptions=CheckoutOptions();switchOptions.revision="refs/heads/alternate"
+        let switched=try await setup.checkoutAccepted(switchOptions)
+        let switchedHead=String(decoding:try await setup.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        let switchedBranch=String(decoding:try await setup.run(["symbolic-ref","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        try require(!switched.cancelledAfterCommand && switchedHead==setupFirst && switchedBranch=="refs/heads/alternate","Packaged Switch lost accepted transition")
+        switchOptions.revision="refs/heads/main";_ = try await setup.checkoutAccepted(switchOptions)
+        let resetPlan=try await setup.prepareReset(to:setupFirst,mode:.soft)
+        let reset=try await setup.resetAccepted(resetPlan,backend:.init(mask:0))
+        let resetHead=String(decoding:try await setup.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        try require(!reset.cancelledAfterCommand && resetHead==setupFirst && (try Data(contentsOf:setupFile))==setupBytes,"Packaged Reset lost accepted transition or working bytes")
+        var cloneOptions=CloneOptions();cloneOptions.source=setupRoot.path
+        let cloneRoot=auxiliary.appendingPathComponent("clone",isDirectory:true),cloneCancellation=OperationCancellation()
+        let cloned=try await initializer.cloneOutcome(cloneOptions,to:cloneRoot,cancellation:cloneCancellation,onCommandFinished:{receipt in if receipt.success && receipt.exitCode==0 {cloneCancellation.cancel()}},backend:.init(mask:0))
+        let clone=GitRepository(root:cloneRoot,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
+        let clonedHead=String(decoding:try await clone.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        try require(cloned.verified && cloned.cancelledAfterCreation && cloned.identity != nil && clonedHead==setupFirst,"Packaged Clone lost accepted completion after cancellation")
+        let inspected=try await initializer.inspectCloneOutcome(cloned,at:cloneRoot)
+        try require(inspected.identity==cloned.identity && inspected.verified,"Packaged Clone read-only recovery changed repository identity")
         let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterConfig=try Data(contentsOf:root.appendingPathComponent(".git/config")),afterWorking=try Data(contentsOf:sentinelURL)
         try require(afterHead==head && afterIndex==index && afterConfig==config && afterWorking==sentinel,"Local-tools smoke changed HEAD/index/config/worktree")
         try require(try FileManager.default.contentsOfDirectory(atPath:root.path).sorted()==[".git","sentinel.txt"],"Historical raw files leaked into checkout")
-        return ["public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
+        return ["finder_cache_retained_claims":true,"finder_cache_exact_unicode":true,"finder_cache_stale_ticket_fence":true,"finder_cache_v4_wire":true,"repository_initialization_acceptance":true,"clone_acceptance_receipt":true,"checkout_reset_acceptance":true,"auxiliary_setup_separate":true,"submodule_add_exercised":false,"public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
     }
 
     static func main() async throws {
