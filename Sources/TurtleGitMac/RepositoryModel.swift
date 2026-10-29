@@ -20,7 +20,16 @@ private struct FinderWorkspaceBootstrap: Sendable {
         var snapshot: FinderSnapshot?
         var failures: [String] = []
         var persistenceAccepted = false
+        var menuAccepted = false
+        var trayAccepted = false
         var authorityAccepted = false
+        var acceptedPublications:Set<SettingsPublicationChannel> {
+            var channels=Set<SettingsPublicationChannel>()
+            if persistenceAccepted {channels.insert(.cachePersistence)}
+            if menuAccepted {channels.insert(.finderMenu)}
+            if trayAccepted {channels.insert(.cacheTray)}
+            return channels
+        }
     }
     func run(cancellation: OperationCancellation) throws -> Result {
         var result = Result()
@@ -28,14 +37,15 @@ private struct FinderWorkspaceBootstrap: Sendable {
         do {
             if let publishPersistence { try publishPersistence(persistence) }
             else if let statusURL { try FinderSnapshotStore(url: statusURL).setPersistence(persistence, cancellation: cancellation) }
+            else {throw CocoaError(.fileWriteNoPermission)}
             try cancellation.check()
             result.persistenceAccepted = true
         } catch { try cancellation.check(); result.failures.append("Finder cache persistence preferences unavailable: " + error.localizedDescription) }
         if let statusURL {
             let directory = statusURL.deletingLastPathComponent()
-            do { try cancellation.check(); _ = try menu.write(to: directory.appendingPathComponent("menu-settings.json")) }
+            do { try cancellation.check(); result.menuAccepted = try menu.write(to: directory.appendingPathComponent("menu-settings.json")) }
             catch { try cancellation.check(); result.failures.append("Finder menu preferences unavailable: " + error.localizedDescription) }
-            do { try cancellation.check(); _ = try tray.write(to: directory.appendingPathComponent("cache-tray-settings.json")) }
+            do { try cancellation.check(); result.trayAccepted = try tray.write(to: directory.appendingPathComponent("cache-tray-settings.json")) }
             catch { try cancellation.check(); result.failures.append("Finder cache menu preferences unavailable: " + error.localizedDescription) }
             do {
                 let overlayURL = directory.appendingPathComponent("overlay-settings.json")
@@ -992,22 +1002,58 @@ private enum TransportBatchPresentationContext {
     /// Idempotent, presentation-owned startup. It never waits for the shared
     /// cache lock on the main actor and never blocks a foreground action dialog.
     func startWorkspaceServices() {
-        guard !retired, let bootstrap = workspaceBootstrap, workspaceServicesTask == nil else { return }
+        guard !retired, let initial = workspaceBootstrap, let preferences=workspaceDefaults, workspaceServicesTask == nil else { return }
+        // Capture at actual presentation, not model construction. Only these
+        // immutable values cross the worker boundary.
+        let bootstrap=FinderWorkspaceBootstrap(statusURL:initial.statusURL,
+            persistence:.from(defaults:preferences),menu:.from(defaults:preferences),tray:.from(defaults:preferences),
+            overlays:.from(defaults:preferences),policy:.from(defaults:preferences),
+            publishPersistence:initial.publishPersistence,readPolicy:initial.readPolicy)
+        let intents=SettingsPublicationIntents(defaults:preferences)
+        let requests=Dictionary(uniqueKeysWithValues:SettingsPublicationChannel.allCases.map{($0,intents.request($0))})
+        // A late worker can have written an old accepted payload even when its
+        // owner was cancelled. Preserve current recovery before any UI guards.
+        func settlePublications(_ accepted:Set<SettingsPublicationChannel>)->Set<SettingsPublicationChannel> {
+            var current=Set<SettingsPublicationChannel>()
+            for channel in SettingsPublicationChannel.allCases {
+                let unchanged:Bool
+                switch channel {
+                case .cachePersistence:unchanged=bootstrap.persistence == FinderCachePersistencePreferences.from(defaults:preferences)
+                case .cacheTray:unchanged=bootstrap.tray == FinderCacheTrayPreferences.from(defaults:preferences)
+                case .finderMenu:unchanged=bootstrap.menu == FinderMenuSettings.from(defaults:preferences)
+                }
+                if !unchanged {
+                    if intents.pending(channel)==nil {_ = intents.request(channel)}
+                }else if accepted.contains(channel),let request=requests[channel] {
+                    _ = intents.complete(channel,request:request);current.insert(channel)
+                }
+            }
+            return current
+        }
         workspaceBootstrap = nil
         let cancellation = OperationCancellation()
         workspaceServicesCancellation = cancellation
         workspaceServicesPending = true
-        workspaceDefaults?.set(true, forKey: AdvancedSettingsModel.cachePersistencePendingKey)
         workspaceServicesTask = Task { [self] in
             defer { workspaceServicesPending = false; workspaceServicesCancellation = nil }
             do {
                 let result = try await Task.detached(priority: .utility) { try bootstrap.run(cancellation: cancellation) }.value
+                let published=settlePublications(result.acceptedPublications)
                 guard !retired, !cancellation.isCancelled else { return }
-                if result.persistenceAccepted {
-                    workspaceDefaults?.removeObject(forKey: AdvancedSettingsModel.cachePersistencePendingKey)
-                    DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification), object: nil)
+                for channel in published {
+                    let name:String
+                    switch channel {
+                    case .cachePersistence:name=FinderCachePersistencePreferences.notification
+                    case .cacheTray:name=FinderCacheTrayPreferences.notification
+                    case .finderMenu:name=FinderIntegration.notification
+                    }
+                    DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(name),object:nil)
                 }
-                if let failure = result.failures.last { finderStatus = failure }
+                var failures=result.failures
+                if SettingsPublicationChannel.allCases.contains(where:{intents.pending($0) != nil}) {
+                    failures.append("Shared preferences are pending. Open Advanced Settings and Apply to retry the current saved choices.")
+                }
+                if !failures.isEmpty {finderStatus=failures.joined(separator:"\n")}
                 if result.authorityAccepted {
                     await workspaceGitConfigurationPreparation?()
                     guard !retired, !cancellation.isCancelled else { return }
@@ -1026,6 +1072,7 @@ private enum TransportBatchPresentationContext {
                     cacheOverlayEntries = snapshot.overlayEntries; cacheIndexFlags = snapshot.indexFlags; cacheOverlayPolicies = snapshot.overlayPolicies
                 }
             } catch {
+                _ = settlePublications([])
                 if !retired, !cancellation.isCancelled { finderStatus = "Workspace services unavailable: " + error.localizedDescription }
             }
         }

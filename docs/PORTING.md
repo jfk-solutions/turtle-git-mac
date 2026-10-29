@@ -5,10 +5,18 @@
 [Signed build34](qa/signed-consolidation-build34-2026-10-29.json) consolidates the
 recent Unified Diff, Merge AutoAdd, image-tool, report-menu and historical
 archive/file-delivery batches. It is installed with an exact signed inventory
-match and recoverable build33 copies. The app remains closed after its idle-only
-atomic update. Public Core and packaged Git pass the focused private sandbox
+match and recoverable build33 copies. The app was closed for its idle-only atomic update and was subsequently
+reopened with the owner's authorization. Public Core and packaged Git pass the focused private sandbox
 check; no shipping GUI, physical Finder/external grants, complete hosted pass or
 Store release is inferred. See [current release gates](RELEASE-BLOCKERS.md).
+
+## Accepted Settings publication continuation
+
+[Settings publication recovery](SETTINGS-PUBLICATION-RECOVERY-PARITY.md) keeps
+accepted Finder-menu, cache-menu and persistence choices retryable after a shared
+write fails. Independent durable requests preserve newer accepted preferences
+across Cancel, error dismissal and reopening. Installed build34 predates this
+continuation; its focused evidence is recorded separately.
 
 ## Compare and Merge marked-row continuation
 

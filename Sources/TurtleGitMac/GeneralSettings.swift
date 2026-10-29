@@ -35,21 +35,37 @@ import TurtleGitCore
     func applyLanguage() -> Bool {
         guard !busy, !selecting, !confirmingUpdates else { return false }
         guard languageModified else { return true }
+        let acceptedLanguage=language,acceptedLifecycle=lifecycle,baseline=FinderMenuSettings.from(defaults:preferences)
+        let intents=SettingsPublicationIntents(defaults:preferences),pending=intents.pending(.finderMenu)
+        var published=baseline;published.language=acceptedLanguage
+        func retainAcceptedIntent(){if FinderMenuSettings.from(defaults:preferences) != published,intents.pending(.finderMenu)==nil{_ = intents.request(.finderMenu)}}
         do {
             // Publish the accepted choice before changing local defaults so a
             // failed shared write leaves this draft available for Retry.
             let shared: Bool
-            if let publishFinderLanguage { shared = try publishFinderLanguage(language) }
+            if let publishFinderLanguage { shared = try publishFinderLanguage(acceptedLanguage) }
             else if preferences === UserDefaults.standard {
-                var settings = FinderMenuSettings.from(defaults: preferences); settings.language = language
-                shared = try settings.write()
+                shared = try published.write()
             } else { shared = false }
-            try AppLanguageChoice.save(language, to: preferences)
-            savedLanguage = language; languageRevision = UUID(); error = nil
-            if shared { notifyFinderLanguage() }
+            guard lifecycle==acceptedLifecycle else{if shared{retainAcceptedIntent()};return false}
+            guard language==acceptedLanguage,FinderMenuSettings.from(defaults:preferences)==baseline else{
+                if shared{retainAcceptedIntent()}
+                error="The settings changed during Finder publication. The current draft is retained; apply it again.";return false
+            }
+            try AppLanguageChoice.save(acceptedLanguage, to: preferences)
+            savedLanguage = acceptedLanguage; languageRevision = UUID(); error = nil
+            if shared {
+                if let pending,FinderMenuSettings.from(defaults:preferences)==published {_ = intents.complete(.finderMenu,request:pending)}
+                notifyFinderLanguage()
+            }else{
+                _ = intents.request(.finderMenu)
+                error="Preferences saved. Signed App Group access is required to update Finder. Apply Advanced Settings to retry."
+            }
             return true
         }
-        catch { self.error = error.localizedDescription; return false }
+        catch {
+            if lifecycle != acceptedLifecycle || FinderMenuSettings.from(defaults:preferences) != baseline {retainAcceptedIntent()}
+            guard lifecycle==acceptedLifecycle else{return false};self.error = error.localizedDescription; return false }
     }
     func cancelLanguage() { language = savedLanguage; languageRevision = UUID() }
     private var saved: GitEnginePreferences

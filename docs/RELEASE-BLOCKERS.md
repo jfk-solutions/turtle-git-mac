@@ -22,9 +22,11 @@ exercise the shipping AppKit UI, outside repository grants or physical drag/drop
 
 [The idle installation receipt](qa/signed34-installed-2026-10-29.json) records a
 verified atomic swap, complete installed inventory equality and preserved build33
-rollback copies. The app was closed before replacement and remains closed; no
-app process was launched, quit or signalled. Finder/Dock and login/service
-preferences were not restarted or changed. Registration refresh caused macOS to
+rollback copies. The app was closed before replacement; the idle installation itself launched,
+quit or signalled no app process. After the later Compare/Merge checkpoint,
+the installed build34 was reopened with the owner's explicit authorization
+(main process 88077 observed). Finder/Dock and login/service preferences were
+not restarted or changed. Registration refresh caused macOS to
 reload the extension host while the Finder process stayed running.
 
 The local package is `TurtleGit-for-Mac-0.1.0-build34-signed.zip` (SHA-256

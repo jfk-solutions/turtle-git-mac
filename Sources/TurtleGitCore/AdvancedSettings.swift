@@ -1,5 +1,54 @@
 import Foundation
 
+public enum SettingsPublicationChannel: String, CaseIterable, Sendable {
+    case cachePersistence, cacheTray, finderMenu
+}
+
+/// Durable intent to publish already accepted settings. Payloads are deliberately
+/// not stored: a retry reconstructs the current accepted settings. A publisher
+/// must also verify that its captured payload is still current before completing.
+/// The lock serializes helper instances in this process; UserDefaults is not a
+/// cross-process compare-and-swap store.
+public struct SettingsPublicationIntents {
+    private let defaults: UserDefaults
+    private static let lock = NSLock()
+    private static let legacyCachePendingKey = "TurtleGit.CacheSavePublicationPending"
+    public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+    private func key(_ channel: SettingsPublicationChannel) -> String {
+        "TurtleGit.SettingsPublicationIntent." + channel.rawValue
+    }
+    private func pendingLocked(_ channel: SettingsPublicationChannel) -> String? {
+        if let token = defaults.string(forKey: key(channel)), UUID(uuidString: token) != nil { return token }
+        guard channel == .cachePersistence, defaults.bool(forKey: Self.legacyCachePendingKey) else { return nil }
+        let token = UUID().uuidString
+        defaults.set(token, forKey: key(channel))
+        // Retain the legacy true witness until successful completion. An
+        // interrupted migration must conservatively retain the retry intent.
+        return token
+    }
+    /// Every accepted publication request gets a fresh identity, even if an
+    /// older publication of the same channel has not completed yet.
+    @discardableResult public func request(_ channel: SettingsPublicationChannel) -> String {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        let token = UUID().uuidString
+        defaults.set(token, forKey: key(channel))
+        return token
+    }
+    public func pending(_ channel: SettingsPublicationChannel) -> String? {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        return pendingLocked(channel)
+    }
+    /// A stale/duplicate completion cannot clear a newer accepted request.
+    @discardableResult public func complete(_ channel: SettingsPublicationChannel, request: String) -> Bool {
+        Self.lock.lock(); defer { Self.lock.unlock() }
+        guard pendingLocked(channel) == request else { return false }
+        defaults.removeObject(forKey: key(channel))
+        if channel == .cachePersistence { defaults.removeObject(forKey: Self.legacyCachePendingKey) }
+        return true
+    }
+}
+
 public struct AdvancedSettingDefinition: Equatable, Sendable {
     public enum Kind: Equatable, Sendable { case boolean(Bool), dword(UInt32) }
     public let name: String

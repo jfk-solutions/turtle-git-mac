@@ -269,3 +269,12 @@ reopening. Startup republishes the choice. Owned sessions, process-exit fencing,
 retired-read refusal, owner-aware removal and helper diagnostics/retry are described
 in [cache persistence](FINDER-CACHE-PERSISTENCE.md). Other dormant entries retain
 their own consumer status; this does not certify full Settings or Finder parity.
+
+## Accepted shared publication — October 29, 2026
+
+The connected [publication recovery family](SETTINGS-PUBLICATION-RECOVERY-PARITY.md)
+adds independent durable Finder-menu, cache-menu and persistence retries,
+current-value replay, source editor-text retention, property-sheet retry gating
+and startup/retirement settlement. Its [dated record](qa/settings-publication-recovery-2026-10-29.json)
+separates the actual grouped checkpoint from physical/signed and complete source
+acceptance. Installed build34 predates this continuation.

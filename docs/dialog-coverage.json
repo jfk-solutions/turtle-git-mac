@@ -1761,11 +1761,13 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/CONTEXT-MENU-SETTINGS-PARITY.md"
+        "docs/CONTEXT-MENU-SETTINGS-PARITY.md",
+        "docs/SETTINGS-PUBLICATION-RECOVERY-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/context-menu-settings-batch-2026-10-12.json",
-        "docs/qa/context-menu-source-family-2026-10-17.json"
+        "docs/qa/context-menu-source-family-2026-10-17.json",
+        "docs/qa/settings-publication-recovery-2026-10-29.json"
       ]
     },
     {
@@ -2416,7 +2418,8 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/ADVANCED-SETTINGS-PARITY.md",
-        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md"
+        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
+        "docs/SETTINGS-PUBLICATION-RECOVERY-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/advanced-list-consumers-2026-10-14.json",
@@ -2426,6 +2429,7 @@
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/log-list-preferences-2026-10-09.json",
         "docs/qa/remote-reference-engine-2026-10-19.json",
+        "docs/qa/settings-publication-recovery-2026-10-29.json",
         "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
@@ -3715,11 +3719,13 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/CONTEXT-MENU-SETTINGS-PARITY.md"
+        "docs/CONTEXT-MENU-SETTINGS-PARITY.md",
+        "docs/SETTINGS-PUBLICATION-RECOVERY-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/context-menu-settings-batch-2026-10-12.json",
-        "docs/qa/context-menu-source-family-2026-10-17.json"
+        "docs/qa/context-menu-source-family-2026-10-17.json",
+        "docs/qa/settings-publication-recovery-2026-10-29.json"
       ]
     },
     {

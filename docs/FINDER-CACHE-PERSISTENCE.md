@@ -48,7 +48,10 @@ A failed Settings publication preserves the saved `CacheSave` choice and display
 its error. Apply remains available to retry without editing the value. Closing and
 reopening Settings retains that retry. Cancel closes normally, discards unsaved
 edits and does not undo an earlier successful settings save. Application startup
-also republishes the saved policy.
+also republishes the saved policy. The connected
+[Settings publication recovery](SETTINGS-PUBLICATION-RECOVERY-PARITY.md) extends
+durable retry to Finder icons and cache-menu presentation, keeping each channel's
+failure and newer accepted preferences independent.
 
 A warm-archive failure does not suppress an accepted live status update. The
 helper reports persistence failures separately from per-repository scanning and

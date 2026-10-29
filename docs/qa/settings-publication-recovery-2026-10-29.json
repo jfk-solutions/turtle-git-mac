@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-29",
+  "scope": "Accepted Settings publication across Advanced, General language, Context Menu and workspace startup; durable per-channel retry, newer-choice and retirement recovery; source Advanced editor-text retention",
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "Settings/SettingsAdvanced.cpp:36-71 registered settings",
+    "Settings/SettingsAdvanced.cpp:136-143 Apply stores values without rewriting list text",
+    "Settings/SettingsAdvanced.h boolean/DWORD storage conversion"
+  ],
+  "defect": "Advanced accepted local preferences before Finder/cache shared publication; only CacheSave retained retry. Menu/tray failure disabled Apply after error dismissal and reopening. Startup used initializer snapshots and blindly removed a legacy cache-pending key.",
+  "implementation": [
+    "Core SettingsPublicationIntents token-only durable requests for cachePersistence/cacheTray/finderMenu; legacy CacheSave migration and process-local stale-completion protection",
+    "Advanced independent current-value retries, channel-labeled aggregated errors, pending-only Apply without local onApplied replay",
+    "Source blank/overflow editor input retained after Apply; Cancel/reopen reads canonical stored values",
+    "General/Context fresh accepted full-packet merge and conditional acknowledgement; accepted local saves without shared access retain Finder intent",
+    "Retired return/throw settlement retains latest accepted intent before suppressing UI/new channel callbacks",
+    "Workspace captures preferences at actual start; per-channel receipts and matching current-value acknowledgement; failure/cancellation/retirement preserve current recovery"
+  ],
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'SettingsPublicationIntentsTests|AdvancedSettingsTests'",
+      "status": "passed",
+      "tests": 10,
+      "failures": 0,
+      "log": "build/qa/settings-publication-core-2026-10-29.log"
+    },
+    "build": {
+      "command": "xcodebuild -jobs 4 -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath build CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES build",
+      "status": "passed",
+      "log": "build/qa/settings-publication-build-2026-10-29.log"
+    },
+    "native": {
+      "status": "passed: new grouped recovery plus affected Context source/retained and Cache menu checks",
+      "commands": [
+        "python3 scripts/test-advanced-settings.py",
+        "python3 scripts/test-context-menu-settings.py",
+        "python3 scripts/test-cache-tray.py"
+      ],
+      "attempts": [
+        {
+          "command": "python3 scripts/test-context-menu-settings.py",
+          "status": "passed both source and retained cases",
+          "log": "build/qa/settings-publication-context-menu-settings-2026-10-29.log",
+          "reaped_receivers": [
+            92544,
+            92547
+          ]
+        },
+        {
+          "command": "python3 scripts/test-cache-tray.py",
+          "status": "passed",
+          "log": "build/qa/settings-publication-cache-tray-2026-10-29.log",
+          "reaped_receivers": [
+            92559
+          ]
+        },
+        {
+          "command": "python3 scripts/test-advanced-settings.py",
+          "status": "fixture compile failed; no receiver launched",
+          "log": "build/qa/settings-publication-native-2026-10-29.log",
+          "repair": "Explicit @MainActor on nested Context helper; enclosing enum isolation is not inherited by nested type. No production changes, builds or Core reruns.",
+          "reaped_receivers": []
+        },
+        {
+          "command": "python3 scripts/test-advanced-settings.py",
+          "status": "retained fixture failed native table edit admission",
+          "log": "build/qa/settings-publication-native-recheck-2026-10-29.log",
+          "reaped_receivers": [
+            92942
+          ],
+          "repair": "Mount retained table in its actual offscreen alpha-zero owned window, attach model and close via defer. Production rightly refuses table edits without an attached visible owner; all edit/geometry assertions retained."
+        },
+        {
+          "command": "python3 scripts/test-advanced-settings.py",
+          "status": "passed retained actual table and grouped recovery scenarios",
+          "log": "build/qa/settings-publication-native-recheck2-2026-10-29.log",
+          "reaped_receivers": [
+            93099
+          ],
+          "scope": [
+            "All three accepted channels fail independently and retry without editing",
+            "Host Apply/closeAfter, error dismissal, Cancel and reopening retain accepted pending work",
+            "Partial success retries only remaining channels without onApplied replay",
+            "Current accepted language/menu/icon values and peer-page full-packet acknowledgement",
+            "Supersession refuses false property-sheet success",
+            "Return and throw after newer accepted publication plus owner retirement retain repair intent; no late UI or next-channel callbacks",
+            "Accepted local General/Context choices without shared access remain recoverable",
+            "Actual-start preference capture, held stale startup write versus pending and already-completed newer requests",
+            "Successful startup acknowledges all three channels",
+            "Private preferences/files, zero Git-root reads, worker/window drain"
+          ]
+        }
+      ],
+      "cleanup": "All five launched owned receiver PIDs were reaped and independently absent via ps; compile-only failure launched no receiver. No user app quit, restart, replacement or signalling."
+    },
+    "resources": {
+      "localizations": "--write before build; no catalog key change",
+      "help": "regenerated before build; no generated output change",
+      "dialog_coverage": "reconciled; all family mappings remain partial",
+      "checks": "Localization --check, Help --check and git diff --check passed after freeze"
+    }
+  },
+  "limits": [
+    "Installed build34 predates this batch and remained running untouched",
+    "No physical Finder/helper consumption or signed App Group acceptance",
+    "An in-flight old worker may briefly write an earlier shared payload before settlement; current saved choice remains pending for explicit Apply",
+    "UserDefaults intents are process-local serialized metadata, not cross-process CAS or file publication serialization",
+    "No full Core or hosted integration pass claimed",
+    "No complete Settings/source visual, accessibility, Intel/minimum-macOS or App Store acceptance"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/AdvancedSettings.swift": "4bdcf0c7d103be09d95a980ed3e5be8b960ffca7830dbde1dd692e36deed1693",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "bd525729565f422ab0a6a9c368677e0191109f77bc055cb1163a0e78e7fa7024",
+    "Sources/TurtleGitMac/GeneralSettings.swift": "23fe6b2be3aeee950963341d703d46bdea1c15bb12e5d0278c2e3855c4df711d",
+    "Sources/TurtleGitMac/FinderContextMenuSettings.swift": "f97e408f04c1be4ea723dd071d9f2df409418aed49fc3e8b8383cace1f406fb1",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "cb94df3e57458860d017faba30f65c4bba7d3fea01624a796f704fa4f2394654",
+    "Tests/TurtleGitCoreTests/SettingsPublicationIntentsTests.swift": "df321d9c94502e2a8e48590817e8458acacf9a127c0a820f2833d9089f2107b9",
+    "docs/qa/settings-publication-recovery-native-2026-10-29.swift": "43f2421aa3f50ac96dc9058585140c6da469a1b166366252e3edf91c8d0bb72e",
+    "scripts/test-advanced-settings.py": "5da13c82e1a75022d62f7d4fd206e972f6c3ba11b5541d2f87c54fd7248f1337"
+  }
+}

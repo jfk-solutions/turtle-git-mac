@@ -91,22 +91,36 @@ import TurtleGitCore
         guard !retired, !applying else { return false }
         guard validationError == nil else { error = validationError; notice = nil; return false }
         let captured = draft
-        var value = captured
-        // Advanced owns this preference; use its current accepted value.
-        value.showIcons = FinderMenuSettings.from(defaults: defaults).showIcons
-        value.language = AppLanguageChoice.selected(in: defaults)
+        let baseline=FinderMenuSettings.from(defaults:defaults)
+        let intents=SettingsPublicationIntents(defaults:defaults),pending=intents.pending(.finderMenu)
+        // Merge only this page's edited fields into the latest accepted menu.
+        // A language/icon or another page's accepted field is not stale draft.
+        var value=baseline
+        if captured.topLevelMask != saved.topLevelMask {value.topLevelMask=captured.topLevelMask}
+        if captured.extendedOnlyMask != saved.extendedOnlyMask {value.extendedOnlyMask=captured.extendedOnlyMask}
+        if captured.hideForUnversioned != saved.hideForUnversioned {value.hideForUnversioned=captured.hideForUnversioned}
+        if captured.excludedPaths != saved.excludedPaths {value.excludedPaths=captured.excludedPaths}
+        if captured.clipboardTransfers != saved.clipboardTransfers {value.clipboardTransfers=captured.clipboardTransfers}
+        func retainAcceptedIntent(){if FinderMenuSettings.from(defaults:defaults) != value,intents.pending(.finderMenu)==nil{_ = intents.request(.finderMenu)}}
         applying = true; revision = UUID()
         defer { applying = false; revision = UUID() }
         do {
             let shared = try publish(value)
-            guard !retired, draft == captured, FinderMenuSettings.from(defaults: defaults).showIcons == value.showIcons, AppLanguageChoice.selected(in: defaults) == value.language else {
+            guard !retired else{if shared{retainAcceptedIntent()};return false}
+            guard draft == captured,FinderMenuSettings.from(defaults:defaults)==baseline else {
+                if shared{retainAcceptedIntent()}
                 error = "The settings changed during Finder publication. The current draft is retained; apply it again."; notice = nil; return false
             }
             try value.save(to: defaults); draft = value; saved = value
-            error = nil; notice = shared ? nil : "Preferences saved. Signed App Group access is required to update Finder."
-            if shared { notify() }
+            error = nil; notice = shared ? nil : "Preferences saved. Signed App Group access is required to update Finder. Apply Advanced Settings to retry."
+            if shared {
+                if let pending,FinderMenuSettings.from(defaults:defaults)==value {_ = intents.complete(.finderMenu,request:pending)}
+                notify()
+            }else{_ = intents.request(.finderMenu)}
             return true
-        } catch { self.error = error.localizedDescription; notice = nil; return false }
+        } catch {
+            if retired || FinderMenuSettings.from(defaults:defaults) != baseline {retainAcceptedIntent()}
+            guard !retired else{return false};self.error = error.localizedDescription; notice = nil; return false }
     }
     func cancel() {
         guard !retired, !applying else { return }; draft = saved

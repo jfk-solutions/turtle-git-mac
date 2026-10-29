@@ -41,6 +41,14 @@ import TurtleGitCore
     private let publishFinderMenu: (FinderMenuSettings) throws -> Void
     private let publishCachePersistence: (FinderCachePersistencePreferences) throws -> Void
     @Published private(set) var cachePersistencePublicationPending = false
+    @Published private(set) var cacheTrayPublicationPending = false
+    @Published private(set) var finderMenuPublicationPending = false
+    private let publicationIntents:SettingsPublicationIntents
+    private func refreshPublicationPending(){
+        cachePersistencePublicationPending=publicationIntents.pending(.cachePersistence) != nil
+        cacheTrayPublicationPending=publicationIntents.pending(.cacheTray) != nil
+        finderMenuPublicationPending=publicationIntents.pending(.finderMenu) != nil
+    }
     private let publishCacheTray: (FinderCacheTrayPreferences) throws -> Void
     private let readStatusPolicy: () throws -> FinderStatusPolicy
     private let publishStatusPolicy: (FinderStatusPolicyPreferences) throws -> Bool
@@ -55,19 +63,18 @@ import TurtleGitCore
     @Published var error: String?
     @Published private var original: [String: String]
     var onApplied: () -> Void = {}
-    var modified: Bool { values != original || cachePersistencePublicationPending }
+    var modified: Bool { values != original || SettingsPublicationChannel.allCases.contains{publicationIntents.pending($0) != nil} }
     init(defaults: UserDefaults = .standard,
-         publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = { _ = try $0.write() },
-         publishCachePersistence: @escaping (FinderCachePersistencePreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) } },
-         publishCacheTray: @escaping (FinderCacheTrayPreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCacheTrayPreferences.notification),object:nil) } },
+         publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = {guard try $0.write() else{throw CocoaError(.fileWriteNoPermission,userInfo:[NSLocalizedDescriptionKey:"Signed App Group access is required to update Finder menu preferences."])}},
+         publishCachePersistence: @escaping (FinderCachePersistencePreferences) throws -> Void = { guard try $0.write() else{throw CocoaError(.fileWriteNoPermission,userInfo:[NSLocalizedDescriptionKey:"Signed App Group access is required to update cache persistence preferences."])};DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) },
+         publishCacheTray: @escaping (FinderCacheTrayPreferences) throws -> Void = { guard try $0.write() else{throw CocoaError(.fileWriteNoPermission,userInfo:[NSLocalizedDescriptionKey:"Signed App Group access is required to update cache menu preferences."])};DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCacheTrayPreferences.notification),object:nil) },
          readStatusPolicy: (() throws -> FinderStatusPolicy)? = nil,
          publishStatusPolicy: ((FinderStatusPolicyPreferences) throws -> Bool)? = nil,
          fenceStatusPolicy: ((FinderStatusPolicy) throws -> Void)? = nil,
          notifyStatusPolicy: (() -> Void)? = nil,
          configureStatusPolicy: FinderStatusSettingsPublication.Transaction? = nil) {
-        self.defaults = defaults; self.publishFinderMenu = publishFinderMenu; self.publishCacheTray = publishCacheTray; self.publishCachePersistence = publishCachePersistence
+        self.defaults = defaults;publicationIntents=SettingsPublicationIntents(defaults:defaults); self.publishFinderMenu = publishFinderMenu; self.publishCacheTray = publishCacheTray; self.publishCachePersistence = publishCachePersistence
         store = AdvancedSettingsStore(defaults: defaults); let initial = store.values(); original = initial; values = initial
-        cachePersistencePublicationPending=defaults.bool(forKey:Self.cachePersistencePendingKey)
         self.readStatusPolicy=readStatusPolicy ?? {
             if defaults === UserDefaults.standard {return try FinderStatusPolicy.read()}
             return FinderStatusPolicy(settings:FinderOverlaySettings.from(defaults:defaults),preferences:FinderStatusPolicyPreferences.from(defaults:defaults))
@@ -81,9 +88,10 @@ import TurtleGitCore
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderStatusPolicyPreferences.notification),object:nil)
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil)
         }
+        refreshPublicationPending()
     }
     deinit {if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}}
-    func activate() {guard !retired else{return};pageActive=true;revision=UUID()}
+    func activate() {guard !retired else{return};pageActive=true;revision=UUID();refreshPublicationPending()}
     func suspend() {pageActive=false;revision=UUID()}
     func attach(to owner:NSWindow?) {
         guard !retired,let owner,window !== owner || ownerObserver==nil else{return}
@@ -102,7 +110,7 @@ import TurtleGitCore
     func apply() {
         guard !retired,!applying else{return}
         let accepted=values,epoch=revision,changes=values.filter {original[$0.key] != $0.value}
-        applying=true;defer {applying=false}
+        applying=true;defer {applying=false;if !retired{refreshPublicationPending()}}
         var prior:FinderStatusPolicy?,published=false
         do {
             for setting in AdvancedSettingDefinition.all where changes[setting.name] != nil {
@@ -128,28 +136,57 @@ import TurtleGitCore
                 else {try fenceStatusPolicy(derive());try publish()}
             }
             guard !retired,revision==epoch,values==accepted else{throw GitConfigurationFailure.invalidValue}
-            try store.apply(changes)
-            original = store.values(); values=original; error = nil; RepositoryWindowTitles.refreshAll(); onApplied()
+            // Record durable retry ownership before accepted local writes or
+            // callbacks can close this page or publish a newer request.
+            if changes["CacheSave"] != nil {_ = publicationIntents.request(.cachePersistence)}
+            if changes["CacheTrayIcon"] != nil || changes["ShowAppContextMenuIcons"] != nil {_ = publicationIntents.request(.cacheTray)}
+            if changes["ShowContextMenuIcons"] != nil {_ = publicationIntents.request(.finderMenu)}
+            if !changes.isEmpty {
+                try store.apply(changes)
+                original=accepted;values=accepted;error=nil;refreshPublicationPending()
+                RepositoryWindowTitles.refreshAll();onApplied()
+            }else{error=nil}
+            guard !retired else{return}
             if published {notifyStatusPolicy()}
-            if changes["CacheSave"] != nil || cachePersistencePublicationPending {
-                cachePersistencePublicationPending = true
-                defaults.set(true,forKey:Self.cachePersistencePendingKey)
+            guard !retired else{return}
+            var failures:[String]=[]
+            for channel in SettingsPublicationChannel.allCases {
+                guard !retired else{return}
+                guard let request=publicationIntents.pending(channel) else{continue}
+                let persistence=FinderCachePersistencePreferences.from(defaults:defaults),tray=FinderCacheTrayPreferences.from(defaults:defaults),menu=FinderMenuSettings.from(defaults:defaults)
+                func payloadUnchanged()->Bool {
+                    switch channel {
+                    case .cachePersistence:return persistence==FinderCachePersistencePreferences.from(defaults:defaults)
+                    case .cacheTray:return tray==FinderCacheTrayPreferences.from(defaults:defaults)
+                    case .finderMenu:return menu==FinderMenuSettings.from(defaults:defaults)
+                    }
+                }
+                func retainCurrentIntent(){if !payloadUnchanged(),publicationIntents.pending(channel)==nil{_ = publicationIntents.request(channel)}}
                 do {
-                    try publishCachePersistence(FinderCachePersistencePreferences.from(defaults:defaults))
-                    cachePersistencePublicationPending = false
-                    defaults.removeObject(forKey:Self.cachePersistencePendingKey)
-                } catch { self.error = "Settings saved, but cache persistence preferences could not be updated. Apply again to retry: " + error.localizedDescription }
+                    switch channel {
+                    case .cachePersistence:try publishCachePersistence(persistence)
+                    case .cacheTray:try publishCacheTray(tray)
+                    case .finderMenu:try publishFinderMenu(menu)
+                    }
+                    let unchanged=payloadUnchanged()
+                    // A late old write can follow a newer completed request and
+                    // owner retirement. Repair durable metadata before UI gates.
+                    retainCurrentIntent()
+                    guard !retired else{return}
+                    if unchanged {_ = publicationIntents.complete(channel,request:request)}
+                    else if publicationIntents.pending(channel)==nil {_ = publicationIntents.request(channel)}
+                    if publicationIntents.pending(channel) != nil {failures.append(channel.rawValue+": The accepted preferences changed during publication. Apply again to publish the current settings.")}
+                }catch {
+                    retainCurrentIntent()
+                    guard !retired else{return}
+                    failures.append(channel.rawValue+": "+error.localizedDescription)
+                }
             }
-            if changes["CacheTrayIcon"] != nil || changes["ShowAppContextMenuIcons"] != nil {
-                do { try publishCacheTray(FinderCacheTrayPreferences.from(defaults:defaults)) }
-                catch { self.error = "Settings saved, but cache menu preferences could not be updated: " + error.localizedDescription }
-            }
-            if changes["ShowContextMenuIcons"] != nil {
-                do { try publishFinderMenu(FinderMenuSettings.from(defaults: defaults)) }
-                catch { self.error = "Settings saved, but Finder menu preferences could not be updated: " + error.localizedDescription }
-            }
+            if !failures.isEmpty {error="Settings saved, but shared preferences could not be updated. Apply again to retry:\n"+failures.joined(separator:"\n")}
+
         }
         catch {
+            guard !retired else{return}
             if configureStatusPolicy==nil,let prior {
                 if published {_ = try? publishStatusPolicy(FinderStatusPolicyPreferences(caseSensitive:prior.caseSensitive,contentCheckLimitKiB:prior.contentCheckLimitKiB,blockStatus:prior.blockStatus))}
                 try? fenceStatusPolicy(prior)
@@ -157,7 +194,7 @@ import TurtleGitCore
             self.error = error.localizedDescription
         }
     }
-    func cancel() { original = store.values(); values = original; error = nil }
+    func cancel() { guard !retired,!applying else{return};original = store.values(); values = original; error = nil;refreshPublicationPending() }
 }
 
 struct AdvancedSettingsPage: View {
