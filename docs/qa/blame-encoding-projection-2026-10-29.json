@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-29",
+  "status": "focused-core-and-grouped-native-pass-with-retained-failures",
+  "source_base_commit": "98522b6a",
+  "core": {
+    "command": "swift test --filter 'GitBlameDocumentTests|GitBlameTests|GitBlameEncodingMenuTests|BlameReadCancellationTests|SymlinkBlameTests|GitBlameParentActionTests|GitBlameReferenceMetadataTests'",
+    "exit": 0,
+    "methods": 41,
+    "failures": 0,
+    "elapsed_test_seconds": 43.345,
+    "log": "build/qa/blame-encoding-projection-core-2026-10-29.log"
+  },
+  "build_attempts": [
+    {
+      "log": "build/qa/blame-encoding-projection-build-2026-10-29.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/blame-encoding-projection-build-repair-2026-10-29.log",
+      "exit": 0,
+      "scope": "native source-cache/selection repair only; Core unchanged"
+    }
+  ],
+  "native_attempts": [
+    {
+      "log": "build/qa/blame-encoding-projection-native-2026-10-29.log",
+      "receiver_pid": 14311,
+      "result": "SIGSEGV",
+      "reaped": true,
+      "helper_cleanup_verified": true,
+      "private_failed_evidence": "build/qa/blame-encoding-projection-failed-0-edsm1vs4",
+      "crash_stack": "swift_isUniquelyReferenced_nonNull_native -> ObservationTracking._AccessList.addAccess -> ObservationRegistrar.access -> NSDisplayCycleObserverInvoke",
+      "causal_scope": "Not established: no production frame in crashing stack. Do not classify as a fixture-only failure."
+    },
+    {
+      "log": "build/qa/blame-encoding-projection-native-repair-2026-10-29.log",
+      "receiver_pid": 14789,
+      "result": "failed exact source presentation wait at explicit CP1252 recovery",
+      "reaped": true,
+      "helper_cleanup_verified": true,
+      "private_failed_evidence": "build/qa/blame-encoding-projection-failed-0-fwzg4ung",
+      "repair": "Fixture expected no final LF although original tracked bytes and existing native source renderer preserve final LF. Correct exact expected strings; retain assertions and add diagnostic actual-state reporting.",
+      "crash_reproduced": false
+    },
+    {
+      "log": "build/qa/blame-encoding-projection-native-final-lf-2026-10-29.log",
+      "exit": 0,
+      "engines": [
+        {
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "receiver_pids": [
+        15034,
+        15105
+      ],
+      "all_reaped": true,
+      "independent_pid_absence_check": true,
+      "helper_cleanup_verified": true,
+      "assertions": [
+        "Initial failed Automatic retains exact raw annotation bytes and two-commit history",
+        "File Open returns recoverable byte document without fabricated decoded source",
+        "Explicit Windows-1252 and ISO-8859-1 projection uses no additional Git calls",
+        "Actual source retains exact final newline; native attribution rows0->3->0->3",
+        "Selected source line/log hashes/history/reference metadata retained",
+        "Compatibility snapshot install can reinterpret without Git",
+        "First successful recovery invokes loaded callback once; ordinary codecs do not repeat it",
+        "Busy codec requests refused; cancelled projection remains owned until actual drain",
+        "Cancelled explicit Reload preserves previous accepted source/history/document",
+        "Retirement cancels held worker, clears retained raw document and rejects late publication",
+        "HEAD, raw index and tracked source bytes unchanged"
+      ]
+    }
+  ],
+  "repairs_after_initial_native_failure": [
+    "Fixture adds flushed phase diagnostics and places each constructed window offscreen once rather than changing geometry in every order swizzle; cause of crash not proved.",
+    "Independent source-cache defect found on review: codec recovery can change source rows without changing history. Added source projection epoch for attribution rows, metrics, paint and locator caches.",
+    "Successful projection explicitly restores selected source-line navigation; history remains unchanged.",
+    "Preserved tooltip entries seeded by history rather than clearing them before adding fallback origins."
+  ],
+  "limits": [
+    "Installed build31 predates this family",
+    "Automatic ANSI locale fallback remains a separate policy difference",
+    "No full hosted CI, signed parent, physical UI or whole-Blame parity claim"
+  ],
+  "documentation_validation": {
+    "site_build": "pass; 498 documentation pages; no unresolved fragments",
+    "site_link_tests": "2 tests, pass",
+    "help": "60 documents,51 topics,92 files; generated before build and freshness check pass",
+    "localization": "38 locales/1325 keys check pass; no native labels changed",
+    "dialog_ledger": "reconciled; unchanged generated counts are not feature completion",
+    "diff_check": "pass"
+  },
+  "source_files_sha256": {
+    "Sources/TurtleGitCore/GitBlame.swift": "76882110651e40573c1f173087aae3147db2fdd3031fc8ccdf771b2265df69b7",
+    "Sources/TurtleGitMac/BlameWindow.swift": "907dc1d37b0693d15d56aab5140ede4e5bdf6b98c357943a62803f3796c45ed4",
+    "Sources/TurtleGitMac/BlameOpenDocument.swift": "bfd45e4be886d8a731e6a81f308479f59e7ccf6692f676a2d6bc08e14a46c652",
+    "Tests/TurtleGitCoreTests/GitBlameDocumentTests.swift": "41cce00b854c93bdd1d773c70a53ad17c576e5185a4d6231b9be02d066b65d73",
+    "docs/qa/blame-encoding-projection-native-2026-10-29.swift": "1b6735724f0bbd79a83fafcb96424fa388f081efc17839a8ba3d862927250aaf",
+    "scripts/test-blame-encoding-projection.py": "f15864758b172f57b7898824b30ef34708957fc2c82f4b2ac9f8a7caa61eaa55"
+  },
+  "log_sha256": {
+    "build/qa/blame-encoding-projection-core-2026-10-29.log": "2e67bee4c44a0190b62aa451713d95c0ba4527cc341d7bb9194cc98daab94284",
+    "build/qa/blame-encoding-projection-build-2026-10-29.log": "c01fa4a50ee7dad64d10ff69679daa13129f203fe470d5a28296fb1ccee46407",
+    "build/qa/blame-encoding-projection-build-repair-2026-10-29.log": "62d02cf94eae9b5d534732b02390ed903f91cfabe0246e04f05596410d893636",
+    "build/qa/blame-encoding-projection-native-2026-10-29.log": "cd9baa4d1dc2edf3d1e2c4ec0958750a96e62654066807cfa76ef942ca3e88af",
+    "build/qa/blame-encoding-projection-native-repair-2026-10-29.log": "d1ab088bc15b95da4caba45298188eeb30d0bec4bef57a3ce00d20b1165e801d",
+    "build/qa/blame-encoding-projection-native-final-lf-2026-10-29.log": "fb8b20545c80feaab8b4f975e8486c47380513befb1bf16e10f5e8245cc54bbb"
+  },
+  "initial_crash_followup": "Not reproduced in the following assertion-failing receiver or final two passing receivers. Geometry isolation and product source-cache repairs both intervened; no causal attribution is made.",
+  "installed_application": "Build31 remains installed and running; no app replacement or user-window mutation in this family. Restored installed LaunchServices/Finder extension registration after Debug builds; exactly one enabled plugin at /Applications/TurtleGit for Mac.app.",
+  "store_submission": false
+}

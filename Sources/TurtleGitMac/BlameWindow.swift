@@ -113,7 +113,12 @@ import TurtleGitCore
                 toolbarChrome?.retire();toolbarChrome=nil
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
                 let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences,historyRegexExecutable:old.historyRegexExecutable)
-                replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details);replacement.recentHistoryError=old.recentHistoryError
+                if let error=document.decodingError {
+                    replacement.installUndecodedDocument(document.annotationDocument,history:document.history,options:document.options,details:document.details,error:error)
+                } else {
+                    replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details,document:document.annotationDocument)
+                }
+                replacement.recentHistoryError=old.recentHistoryError
                 retireFloatingPanes();model=replacement;replacement.onGoTo={ [weak self] in self?.showGoToLine() };replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
@@ -396,6 +401,16 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     private var clipboardGeneration = 0
     let historyRegexExecutable:URL?
     private var loadCancellation:OperationCancellation?
+    private var retainedDocument:GitBlameDocument?
+    private var documentNeedsLoadedNotification=false
+    var hasRetainedDocument:Bool { retainedDocument != nil }
+    // Encoding is a projection of the accepted byte document, never another Git
+    // read. The worker stays owned until it drains, including cancellation/close.
+    var projectDocument:(GitBlameDocument,GitBlameEncoding?,OperationCancellation) async throws -> GitBlameSnapshot = { document,encoding,token in
+        try await Task.detached(priority:.userInitiated) {
+            try document.project(encoding:encoding,cancellation:token)
+        }.value
+    }
     @Published private(set) var cancellingReload=false
     @Published private(set) var issueProperties=IssueTrackerProperties()
     @Published private(set) var hasGitSVN=false
@@ -554,7 +569,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func acceptsHistory(_ target:HistoryTarget)->Bool { canFind && target.owner==ObjectIdentifier(self) && target.generation==generation && target.menuGeneration==historyMenuGeneration && target.entries.allSatisfy { item in target.sourceOrigin ? lines.contains { $0.hash==item.hash } : historyEntries.contains { $0.hash==item.hash } } }
 
     @Published var copyingLog = false
-    @Published var snapshot: GitBlameSnapshot?
+    @Published var snapshot: GitBlameSnapshot? { didSet { sourceVersion += 1 } }
+    // A codec projection can change the source row count without changing the
+    // retained history. Native attribution and locator caches follow this epoch.
+    private(set) var sourceVersion=0
     @Published var busy = false { didSet { if busy != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID();if busy {cancelHistoryComparisons()}};refreshAuthorImage() } }
     @Published var error: String?
     @Published var ignoreWhitespace = false
@@ -811,6 +829,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         withinFileCharacters = String(options.withinFileCharacters); betweenFileCharacters = String(options.betweenFileCharacters)
     }
     func configure(options: GitBlameOptions, line: Int?) {
+        var attributionOptions=options;attributionOptions.encoding=sourceEncoding
+        if retainedDocument != nil,attributionOptions==currentOptions,sourceEncoding != options.encoding,canFind {
+            setEncoding(options.encoding);if let line {selectOriginalLine(line)};return
+        }
         let needsReload = !sameOptions(currentOptions, options) || (!busy && (snapshot == nil || !sameOptions(appliedOptions, options)))
         setControls(options)
         if needsReload {
@@ -819,8 +841,37 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         if let line { selectOriginalLine(line) }
     }
     func setEncoding(_ encoding: GitBlameEncoding?) {
-        guard !busy, sourceEncoding != encoding else { return }
-        sourceEncoding = encoding; reload(saveThresholds: true)
+        guard canFind, sourceEncoding != encoding else { return }
+        sourceEncoding = encoding
+        guard let document=retainedDocument else { reload(saveThresholds:true);return }
+        // A codec choice does not apply unsubmitted blame thresholds or replace
+        // attribution, history, reference decorations or repository permissions.
+        cancelHistoryParentReads();parentGeneration += 1;parentChoices=[];loadingParents=false
+        historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;clipboardGeneration += 1;copyingLog=false
+        generation += 1;let request=generation,token=OperationCancellation()
+        loadCancellation=token;cancellingReload=false;busy=true;error=nil;hoveredLine=nil
+        Self.activeHistoryOperations += 1
+        Task { [self,access] in
+            defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if request==generation {loadCancellation=nil;cancellingReload=false;busy=false;if token.isCancelled,snapshot != nil {sourceEncoding=appliedOptions.encoding}} }
+            do {
+                let result=try await projectDocument(document,encoding,token)
+                guard request==generation,!retired,!token.isCancelled else{return}
+                let displayed=result.applyingDisplayIdentities(historyEntries+Array(tooltipEntries.values))
+                snapshot=displayed;origins=Dictionary(displayed.lines.map {($0.hash,$0)},uniquingKeysWith:{first,_ in first})
+                tooltipOtherFilenames=displayed.lines.contains {$0.filename != displayed.path}
+                appliedOptions.encoding=encoding;busy=false
+                if let selection {requestSourceNavigation(line:selection,wholeLine:false)}
+                applyPendingLine()
+                if documentNeedsLoadedNotification {documentNeedsLoadedNotification=false;onLoaded?()}
+            } catch {
+                guard request==generation,!retired,!token.isCancelled else{return}
+                // Never leave text rendered under a codec whose menu checkmark
+                // now names another codec. Keep raw bytes and navigation/history
+                // identities so the next explicit choice can recover in place.
+                snapshot=nil;origins=[:];hoveredLine=nil;selectedSourceText=nil
+                self.error=error.localizedDescription
+            }
+        }
     }
     func setDetectionMode(_ mode: GitBlameDetectionMode) {
         guard !busy, detectionMode != mode else { return }
@@ -849,6 +900,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func retire() {
+        retainedDocument=nil;documentNeedsLoadedNotification=false
         retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
@@ -903,22 +955,43 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         hoveredLine=nil;busy = true; error = nil;Self.activeHistoryOperations += 1
         Task { [self,access] in
             defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if request==generation { loadCancellation=nil;cancellingReload=false;busy=false } }
+            var acquiredDocument:GitBlameDocument?
+            var acquiredDetails:GitBlameHistoryDetails?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let result=try await repository.blame(path:path,revision:revision,options:options,cancellation:token)
-                let details=try await repository.blameHistoryDetails(result,options:options,cancellation:token,regexExecutable:historyRegexExecutable)
+                let document=try await repository.blameDocument(path:path,revision:revision,options:options,cancellation:token)
+                let details=try await repository.blameHistoryDetails(document.annotationSnapshot,options:options,cancellation:token,regexExecutable:historyRegexExecutable)
                 guard request==generation,!retired,!token.isCancelled else { return }
-                install(result,history:details.entries,options:options,details:details)
+                acquiredDocument=document;acquiredDetails=details
+                let result=try await projectDocument(document,options.encoding,token)
+                guard request==generation,!retired,!token.isCancelled else{return}
+                install(result,history:details.entries,options:options,details:details,document:document)
                 busy=false;applyPendingLine();onLoaded?()
             } catch {
                 guard request==generation,!retired,!token.isCancelled else { return }
-                snapshot=nil;selection=nil;highlightedHash=nil;hoveredLine=nil;origins=[:];ranks=[:]
+                if let document=acquiredDocument,let details=acquiredDetails {
+                    installUndecodedDocument(document,history:details.entries,options:options,details:details,error:error.localizedDescription)
+                    return
+                }
+                retainedDocument=nil;documentNeedsLoadedNotification=false;snapshot=nil;hoveredLine=nil;origins=[:]
+                selection=nil;highlightedHash=nil;ranks=[:]
                 historyCount=0;navigationMessage="";historyEntries=[];selectedLogHashes=[]
                 issueProperties=IssueTrackerProperties();hasGitSVN=false;svnRevisions=[:];historyHasWorkingTree=false;historyHead=nil;historyReferencesByHash=[:];historyCurrentBranch=nil;historyReferenceContext=HistoryReferenceContext();self.error=error.localizedDescription
             }
         }
     }
-    func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails? = nil) {
+    func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails? = nil,document:GitBlameDocument? = nil) {
+        retainedDocument=document ?? (try? GitBlameDocument(snapshot:result));documentNeedsLoadedNotification=false
+        installMetadata(result,history:entries,options:options,details:details)
+        snapshot=result.applyingDisplayIdentities(historyEntries + (details?.tooltipEntries ?? []))
+        if let selection,!result.lines.contains(where:{$0.number==selection}) { self.selection=nil }
+    }
+    func installUndecodedDocument(_ document:GitBlameDocument,history:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails,error:String) {
+        retainedDocument=document;documentNeedsLoadedNotification=true
+        installMetadata(document.annotationSnapshot,history:history,options:options,details:details)
+        snapshot=nil;origins=[:];hoveredLine=nil;self.error=error
+    }
+    private func installMetadata(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails?) {
         let decorated=Dictionary((details?.entries ?? []).map {($0.hash,$0)},uniquingKeysWith:{first,_ in first})
         let entries=entries.map {decorated[$0.hash] ?? $0}
         let result=result.applyingDisplayIdentities(entries + (details?.tooltipEntries ?? []))
@@ -928,10 +1001,9 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         let hashes=entries.map(\.hash)
         ranks=Dictionary(hashes.enumerated().map { ($0.element,$0.offset) },uniquingKeysWith:min)
         origins=Dictionary(result.lines.map { ($0.hash,$0) },uniquingKeysWith:{ first,_ in first })
-        historyCount=hashes.count;appliedOptions=options;snapshot=result;historyEntries=entries
+        historyCount=hashes.count;appliedOptions=options;historyEntries=entries
         for entry in details?.tooltipEntries ?? [] {tooltipEntries[entry.hash]=entry}
         selectedLogHashes.formIntersection(Set(hashes))
-        if let selection,!result.lines.contains(where:{ $0.number==selection }) { self.selection=nil }
     }
     func selectOriginalLine(_ number: Int) {
         pendingLine = max(1, number)
@@ -1824,7 +1896,7 @@ private struct BlameTable: NSViewRepresentable {
         coordinator.updateColumnMetrics(table)
         container.installNavigation(model)
         let changedRows = container.updateSource(model)
-        let dataKey = "\(model.historyVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
+        let dataKey = "\(model.sourceVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
         let viewportOrigin = container.scroll.contentView.bounds.origin
         if coordinator.attributionKey != dataKey {
             coordinator.attributionKey = dataKey; table.reloadData(); container.attributionReloaded()
@@ -1856,8 +1928,8 @@ private struct BlameTable: NSViewRepresentable {
             container.selectSourceLine(request.line, wholeLine: request.wholeLine, includeBreak: request.includeBreak)
         }
         container.locator.presentation = model.presentation
-        if coordinator.locatorHistoryVersion != model.historyVersion {
-            coordinator.locatorHistoryVersion=model.historyVersion
+        if coordinator.locatorHistoryVersion != model.sourceVersion {
+            coordinator.locatorHistoryVersion=model.sourceVersion
             container.locator.ranks = model.lines.map { model.ranks[$0.hash] }
         }
         container.locator.historyCount = model.historyCount
@@ -1882,7 +1954,7 @@ private struct BlameTable: NSViewRepresentable {
         var attributionKey = "", locatorHistoryVersion = -1
         init(_ model: BlameWindowModel) { self.model = model }
         func updateColumnMetrics(_ table: NSTableView) {
-            let key = "\(model.historyVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
+            let key = "\(model.sourceVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
             guard metricsKey != key else { return };metricsKey = key
             let font = model.sourceFont
             func width(_ values: Set<String>) -> CGFloat {
@@ -2325,9 +2397,9 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
         }
         requestSyntax(model)
         let dark = effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua
-        let historyChanged = paintedHistoryVersion != model.historyVersion || paintedKinds.count != model.lines.count
+        let historyChanged = paintedHistoryVersion != model.sourceVersion || paintedKinds.count != model.lines.count
         if historyChanged {
-            paintedHistoryVersion = model.historyVersion; hashRows = [:]; authorRows = [:]
+            paintedHistoryVersion = model.sourceVersion; hashRows = [:]; authorRows = [:]
             for (row, line) in model.lines.enumerated() {
                 hashRows[line.hash, default: []].insert(row); authorRows[line.author, default: []].insert(row)
             }

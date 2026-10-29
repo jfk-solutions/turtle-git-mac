@@ -85,6 +85,73 @@ public struct GitBlameSnapshot: Sendable {
         return Self(revision: revision, path: path, contents: contents, encoding: encoding, lines: displayed)
     }
 }
+/// Immutable attribution and pinned bytes, independent of any display codec.
+/// Codec changes never perform Git, attribute, filter or history reads.
+public struct GitBlameDocument: Sendable {
+    public let revision: String
+    public let path: String
+    public let contents: Data
+    private let annotations: [GitBlameLine]
+
+    public init(revision: String, path: String, contents: Data, porcelain: Data,
+                cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        let lines = try GitBlameParser.parse(porcelain, encoding: .utf8, decodedSources: nil,
+                                             decodeSources: false, cancellation: cancellation)
+        try Self.validate(revision: revision, path: path, contents: contents, lines: lines, cancellation: cancellation)
+        self.revision=revision;self.path=path;self.contents=contents;self.annotations=lines
+    }
+    public init(snapshot: GitBlameSnapshot) throws {
+        try Self.validate(revision:snapshot.revision,path:snapshot.path,contents:snapshot.contents,lines:snapshot.lines,cancellation:nil)
+        revision=snapshot.revision;path=snapshot.path;contents=snapshot.contents
+        annotations=snapshot.lines.map { Self.line($0, source: "") }
+        let projected=try project(encoding:snapshot.encoding)
+        guard zip(projected.lines,snapshot.lines).allSatisfy({pair in pair.0.source.utf8.elementsEqual(pair.1.source.utf8)}) else {throw GitBlameFailure.format}
+    }
+    /// Metadata-only bridge for history/details readers. Its empty source strings
+    /// and UTF-8 sentinel are NOT a decoded display document; call project first.
+    public var annotationSnapshot: GitBlameSnapshot {
+        GitBlameSnapshot(revision:revision,path:path,contents:contents,encoding:.utf8,lines:annotations)
+    }
+    public func project(encoding requested: GitBlameEncoding? = nil,
+                        cancellation: OperationCancellation? = nil) throws -> GitBlameSnapshot {
+        try cancellation?.check()
+        let encoding=try requested ?? GitBlameEncoding.detect(contents)
+        try encoding.validate(contents)
+        try cancellation?.check()
+        let decoded=try encoding.legacyLines(contents)
+        guard decoded == nil || decoded?.count == annotations.count else {throw GitBlameFailure.format}
+        var lines:[GitBlameLine]=[];lines.reserveCapacity(annotations.count)
+        for (index,raw) in annotations.enumerated() {
+            if index % 256 == 0 {try cancellation?.check()}
+            let source=try decoded?[index] ?? encoding.decode(raw.sourceBytes,line:raw.number)
+            lines.append(Self.line(raw,source:source))
+        }
+        try cancellation?.check()
+        return GitBlameSnapshot(revision:revision,path:path,contents:contents,encoding:encoding,lines:lines)
+    }
+    private static func line(_ raw:GitBlameLine,source:String)->GitBlameLine {
+        GitBlameLine(hash:raw.hash,originalLine:raw.originalLine,number:raw.number,author:raw.author,email:raw.email,
+                     date:raw.date,timezone:raw.timezone,summary:raw.summary,filename:raw.filename,boundary:raw.boundary,
+                     source:source,sourceBytes:raw.sourceBytes)
+    }
+    private static func validate(revision:String,path:String,contents:Data,lines:[GitBlameLine],cancellation:OperationCancellation?) throws {
+        func hash(_ text:String)->Bool {[40,64].contains(text.utf8.count) && text.utf8.allSatisfy{(48...57).contains($0)||(97...102).contains($0)}}
+        guard hash(revision),!(try RepositoryBrowserGitPath(key:path)).rawData.isEmpty else {throw GitBlameFailure.format}
+        var source=contents.split(separator:UInt8(10),omittingEmptySubsequences:false).map{Data($0)}
+        if contents.isEmpty || contents.last==10 {source.removeLast()}
+        guard source.count==lines.count else {throw GitBlameFailure.format}
+        for (index,line) in lines.enumerated() {
+            if index % 256 == 0 {try cancellation?.check()}
+            guard line.number==index+1,line.originalLine>0,hash(line.hash),
+                  line.date.timeIntervalSince1970.isFinite,GitBlameParser.validTimezone(line.timezone),
+                  !(try RepositoryBrowserGitPath(key:line.filename)).rawData.isEmpty,
+                  ![line.author,line.email,line.summary].contains(where:{$0.contains("\0") || $0.contains("\n")}),
+                  source[index]==line.sourceBytes else {throw GitBlameFailure.format}
+        }
+        try cancellation?.check()
+    }
+}
 public struct GitBlameParentComparison: Identifiable, Sendable {
     /// A parent may supply several attributed origin files. Preserve each
     /// exact Git path as a distinct choice, including canonically equal text.
@@ -230,18 +297,20 @@ public enum GitBlameParser {
     public static func parse(_ data: Data, encoding: GitBlameEncoding = .utf8) throws -> [GitBlameLine] {
         try parse(data, encoding: encoding, decodedSources: nil)
     }
-    static func parse(_ data: Data, encoding: GitBlameEncoding, decodedSources: [String]?) throws -> [GitBlameLine] {
+    static func parse(_ data: Data, encoding: GitBlameEncoding, decodedSources: [String]?, decodeSources: Bool = true, cancellation: OperationCancellation? = nil) throws -> [GitBlameLine] {
         guard data.isEmpty || data.last == 10 else { throw GitBlameFailure.format }
         var output: [GitBlameLine] = [], hash: String?, original = 0, final = 0, fields: [String: String] = [:]
         let records = data.split(separator: 10, omittingEmptySubsequences: false)
         for (index, bytes) in records.enumerated() {
+            if index % 256 == 0 {try cancellation?.check()}
             if bytes.isEmpty, index == records.count - 1 { continue }
             if bytes.first == 9 {
                 guard let revisionHash = hash, let author = fields["author"], let mail = fields["author-mail"],
                       let seconds = fields["author-time"].flatMap(Int64.init), let timezone = fields["author-tz"], validTimezone(timezone),
                       let summary = fields["summary"], let path = fields["filename"], final == output.count + 1 else { throw GitBlameFailure.format }
                 let source: String
-                if let decodedSources {
+                if !decodeSources {source = ""}
+                else if let decodedSources {
                     guard decodedSources.indices.contains(final - 1) else { throw GitBlameFailure.format }
                     source = decodedSources[final - 1]
                 } else { source = try encoding.decode(Data(bytes.dropFirst()), line: final) }
@@ -270,7 +339,7 @@ public enum GitBlameParser {
         }
         guard hash == nil, decodedSources == nil || decodedSources?.count == output.count else { throw GitBlameFailure.format }; return output
     }
-    private static func validTimezone(_ value: String) -> Bool {
+    fileprivate static func validTimezone(_ value: String) -> Bool {
         let bytes = Array(value.utf8)
         guard bytes.count == 5, bytes[0] == 43 || bytes[0] == 45,
               bytes.dropFirst().allSatisfy({ (48...57).contains($0) }) else { return false }
@@ -464,25 +533,19 @@ extension GitRepository {
         throw RevisionComparisonFailure.selection
     }
     public func blame(path: String, revision: String = "HEAD", options: GitBlameOptions = GitBlameOptions(), cancellation:OperationCancellation? = nil) throws -> GitBlameSnapshot {
+        try blameDocument(path:path,revision:revision,options:options,cancellation:cancellation).project(encoding:options.encoding,cancellation:cancellation)
+    }
+    public func blameDocument(path: String, revision: String = "HEAD", options: GitBlameOptions = GitBlameOptions(), cancellation:OperationCancellation? = nil) throws -> GitBlameDocument {
         try cancellation?.check()
         let content = try blameContents(revision:revision,path:path,cancellation:cancellation)
         guard ["100644", "100755", "120000"].contains(content.mode ?? ""),
               case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
-        let encoding = try options.encoding ?? GitBlameEncoding.detect(content.bytes)
-        try encoding.validate(content.bytes)
         var args = ["-c","core.precomposeunicode=false","-c", "blame.blankBoundary=false", "-c", "core.quotePath=true", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
         if options.ignoreWhitespace { args.append("-w") }
         if options.onlyFirstParent { args.append("--first-parent") }
         args += options.detectionArguments
         let gitPath=try RepositoryBrowserGitPath(key:path)
-        let lines = try GitBlameParser.parse(run(args + [hash, "--", gitPath.display],argumentBytes:[args.count+2:gitPath.rawData],cancellation:cancellation).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
-        // Git appends LF to each porcelain record even when the source has no final LF.
-        // Compare individual source bytes to the pinned blob, preserving CR, tabs and BOM.
-        let records = content.bytes.split(separator: UInt8(10), omittingEmptySubsequences: false)
-        var source = records.map { Data($0) }
-        if content.bytes.isEmpty || content.bytes.last == 10 { source.removeLast() }
-        guard source == lines.map(\.sourceBytes) else { throw GitBlameFailure.format }
-        try cancellation?.check()
-        return GitBlameSnapshot(revision: hash, path: path, contents: content.bytes, encoding: encoding, lines: lines)
+        let porcelain=try run(args + [hash,"--",gitPath.display],argumentBytes:[args.count+2:gitPath.rawData],cancellation:cancellation).stdout
+        return try GitBlameDocument(revision:hash,path:path,contents:content.bytes,porcelain:porcelain,cancellation:cancellation)
     }
 }

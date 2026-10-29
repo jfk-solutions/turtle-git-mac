@@ -208,3 +208,13 @@ Floating bars retain their document's menu, Copy and Find targets. Closing or
 replacing the Blame document also retires its floating toolbars. See
 [the placement comparison](BLAME-TOOLBAR-PLACEMENT-PARITY.md) for the exact source
 scope and acceptance limits.
+
+## Encoding projection continuation — October 29, 2026
+
+Changing Encoding now reinterprets retained annotation bytes on an owned worker,
+without rerunning Git or rebuilding history. If a codec cannot decode the file,
+the source clears and another choice can recover the same document. The selected
+line and history remain attached to that document. Reload still refreshes Git
+data. See [the source comparison](BLAME-ENCODING-PROJECTION-PARITY.md) for exact
+scope, cancellation, File Open recovery and the remaining automatic-codepage
+difference. Installed build31 predates this continuation.

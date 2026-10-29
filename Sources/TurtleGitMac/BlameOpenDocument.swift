@@ -70,6 +70,8 @@ struct BlameOpenedDocument {
     let repository:GitRepository
     let access:RepositoryAccessLease
     let snapshot:GitBlameSnapshot
+    let annotationDocument:GitBlameDocument
+    let decodingError:String?
     let history:[LogEntry]
     let details:GitBlameHistoryDetails
     let options:GitBlameOptions
@@ -115,11 +117,16 @@ struct BlameOpenedDocument {
         let path=String(lexical.path.dropFirst(prefix.count))
         _ = try BlameDocumentLocation.lexicalFile(root:root,path:path)
         let repository=factory(root)
-        let snapshot=try await repository.blame(path:path,revision:"HEAD",options:options,cancellation:request)
-        let details=try await repository.blameHistoryDetails(snapshot,options:options,cancellation:request,regexExecutable:regexExecutable)
+        let document=try await repository.blameDocument(path:path,revision:"HEAD",options:options,cancellation:request)
+        let details=try await repository.blameHistoryDetails(document.annotationSnapshot,options:options,cancellation:request,regexExecutable:regexExecutable)
+        let projection=try await Task.detached(priority:.userInitiated) { () throws -> (GitBlameSnapshot,String?) in
+            do {return (try document.project(encoding:options.encoding,cancellation:request),nil)}
+            catch GitBlameFailure.unsupported {return (document.annotationSnapshot,GitBlameFailure.unsupported.localizedDescription)}
+        }.value
+        let snapshot=projection.0
         let history=details.entries
         guard identity==generation,!request.isCancelled else { throw OperationCancellationFailure.cancelled }
-        return BlameOpenedDocument(repository:repository,access:retained,snapshot:snapshot,history:history,details:details,options:options)
+        return BlameOpenedDocument(repository:repository,access:retained,snapshot:snapshot,annotationDocument:document,decodingError:projection.1,history:history,details:details,options:options)
     }
 }
 

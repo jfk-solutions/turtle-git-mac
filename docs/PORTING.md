@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Blame retained-byte encoding continuation
+
+[Blame encoding projection](BLAME-ENCODING-PROJECTION-PARITY.md) reinterprets
+accepted annotation bytes without repeating Git/history reads, including recovery
+from a failed codec in an opened or recent file. Its grouped checkpoint and
+remaining automatic-codepage policy boundary are separate from installed build31.
+
+## Next connected Finder recovery gap
+
+Saved repositories that are unavailable when the background helper starts need
+an explicit refresh to reconnect today. `FinderCacheServiceRuntime.start` restores
+available grants; `refreshObserved` only refreshes existing sessions, while the
+missing-session retry lives in explicit `refresh`. Returning volumes therefore
+need a bounded saved-grant recovery path, with healthy watches preserved and
+owned asynchronous authorization/cancellation. This is an implementation gap,
+not evidence that the remaining Finder commands or physical acceptance are done.
+
 ## Log inspection continuation
 
 The [streamed file inspection family](LOG-STREAMED-FILE-NAVIGATION-PARITY.md)

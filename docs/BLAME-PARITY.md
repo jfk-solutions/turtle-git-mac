@@ -1506,3 +1506,12 @@ Git pathname; displayed labels are escaped. Filesystem materialization and
 comparison keep explicit refusals. Its [checkpoint](qa/raw-history-family-2026-10-27.json)
 records the scoped implementation and validation independently of earlier Blame
 acceptance; this does not certify the whole viewer or signed deployment.
+
+## Retained-byte codec projection — October 29, 2026
+
+[Encoding projection](BLAME-ENCODING-PROJECTION-PARITY.md) now separates raw
+attribution acquisition from decoding. Codec changes and explicit recovery after
+a failed automatic decode reuse the accepted bytes and history without another
+Git read. File Open/Recent Files retain the same recovery path. The linked record
+keeps Windows ANSI fallback, physical/signed acceptance and grouped evidence
+separate; no global encoding default is invented.
