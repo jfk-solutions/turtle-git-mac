@@ -5,7 +5,29 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
-## Ready local testing package35
+## Finish line for the first locally accepted release
+
+This is the current release checklist. Historical checkpoints below are evidence,
+not additional implementation milestones. A new batch must address a concrete
+missing source behavior, reported defect or failing check.
+
+- [x] Finish and validate the [Clone/Init/Submodule Add/Switch/Reset batch](qa/repository-setup-transitions-2026-10-29.json).
+- [ ] Accept the installed everyday workflows: Finder cold Commit launch and
+  registration/badges; responsive Commit loading and stable staging lists;
+  selecting a Log commit and inspecting its files; Settings OK/Cancel and remotes.
+  Earlier focused repairs exist, but current installed behavior needs observation.
+- [ ] Obtain a complete hosted macOS CI pass on the release source and repair
+  concrete failures without repeatedly running unrelated local suites.
+- [ ] Close the explicit source/layout gaps in the family records and establish
+  the remaining dialog states, keyboard and accessibility acceptance. Resource
+  counts alone do not complete this requirement.
+- [ ] Check the accepted build's README, license/source notices, manual, offline
+  Help and screenshot website together; keep publisher credit unobtrusive.
+- [ ] Deliver the signed local testing package for owner acceptance. Public
+  distribution and the later App Store submission remain separate, including
+  distribution signing and the unresolved GPL/App Store terms gate.
+
+## Installed local testing build35
 
 [Signed build35](qa/signed-consolidation-build35-2026-10-29.json), `0.1.0 (35)`,
 is packaged from clean source `e0f1c559`. It adds source marked-screen-row status
@@ -16,12 +38,12 @@ Its disposable signed sandbox parent executes the sealed production Core and
 packaged Git, including the three new public contracts; it does not exercise the
 shipping AppKit UI or outside file grants.
 
-The package is ready but uninstalled. Build34's main process and Finder stayed
-running. Xcode's temporary candidate registrations were removed and the installed
-build34 registrations restored; macOS started its installed Finder extension host.
-No main app/Finder restart, signal, login preference change, public upload,
-notarization or Store submission occurred. All global acceptance and Store terms
-gates below remain open.
+Following user approval, build35 replaced build34 after a normal quit and was
+reopened. The installed bundle matches all 6,381 verified inventory members;
+rollback copies of build34 are preserved. The workspace was observed after reopen.
+Finder was not restarted, and login/service preferences were not changed.
+No public upload, notarization or Store submission occurred. All global acceptance
+and Store terms gates below remain open.
 
 ## Installed local testing build34
 

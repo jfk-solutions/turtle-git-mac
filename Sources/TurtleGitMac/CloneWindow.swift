@@ -378,7 +378,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     }
     func clone() { CommandProgressContext.perform(commandProgressScope) { cloneWithCommandProgressContext() } }
     private func cloneWithCommandProgressContext() {
-        guard canEditForm else{return};formRevision=UUID();submissionGeneration=interactionGeneration;granting=true
+        guard completed == nil,pendingInspection == nil,canEditForm else{return};formRevision=UUID();submissionGeneration=interactionGeneration;granting=true
         let submittedContext=formContext
         do {
             let path = directory.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -448,8 +448,10 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
                         let coordinator = sshFactory?(runner); defer { coordinator?.close() }
                         if snapshot.svn { _ = try await runner.run(["svn", "--version"], cancellation: token) }
                         let outcome = try await runner.cloneOutcome(snapshot,to:destination,cancellation:token,prepareTransport:snapshot.sshKey.flatMap {coordinator?.explicitPreparation(path:$0.path)},backend:capturedBackend)
-                        guard !invalidated else {return}
-                        output=outcome.summary;pendingInspection=(outcome,snapshot,destination,access,capturedKeyAccess)
+                        pendingInspection=(outcome,snapshot,destination,access,capturedKeyAccess);completed=destination
+                        guard !invalidated else{return}
+                        output=outcome.summary
+                        if token.isCancelled || outcome.cancelledAfterCreation{completionWarning="Clone completed. Retry opening the repository to continue.";return}
                         try await finishDirectInspection(cancellation:token)
                     } catch { if !invalidated {
                         if pendingInspection != nil {completed=destination;completionWarning="Clone completed, but the repository could not be opened.\n" + error.localizedDescription}
@@ -461,17 +463,25 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             }
         } catch { granting = false; if !invalidated { self.error = error.localizedDescription } }
     }
-    private func finishDirectInspection(cancellation token:OperationCancellation) async throws {
+    private func finishDirectInspection(cancellation token:OperationCancellation,recoverConfiguration:Bool=false) async throws {
         guard let (outcome,options,destination,access,keyAccess)=pendingInspection else {return}
         let candidate=GitRepository(root:destination,executable:try executable ?? GitRuntime.executable())
+        var verified=try await candidate.inspectCloneOutcome(outcome,at:destination,cancellation:token)
+        pendingInspection=(verified,options,destination,access,keyAccess)
+        if verified.configurationPending{
+            guard recoverConfiguration else{throw NSError(domain:"TurtleGit.Clone",code:1,userInfo:[NSLocalizedDescriptionKey:"Clone completed. Retry key configuration before opening the repository."])}
+            _ = try await candidate.configureClonedRepository(options,at:destination,expected:verified,cancellation:token)
+            verified=CloneOutcome(output:verified.output,warnings:verified.warnings,repositoryRoot:verified.repositoryRoot,isBare:verified.isBare,cancelledAfterCreation:verified.cancelledAfterCreation,configurationPending:false,identity:verified.identity)
+            pendingInspection=(verified,options,destination,access,keyAccess)
+        }
         let repo=options.bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable)
         try token.check();guard !invalidated else {return}
         if GitRuntime.isAppStoreBuild && !access.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
         let actualBare=try await repo.isBare(cancellation:token)
         let setupWarning=await bareResultSetup.apply(repository:repo,destination:destination,access:access,verifiedBare:actualBare,cancellation:token)
-        guard !invalidated else{return}
-        let warnings=outcome.warnings+[setupWarning].compactMap{$0}
-        let summary=CloneOutcome(output:outcome.output,warnings:warnings).summary
+        try token.check();guard !invalidated,!confirmingQuit else{return}
+        let warnings=verified.warnings+[setupWarning].compactMap{$0}
+        let summary=CloneOutcome(output:verified.output,warnings:warnings,repositoryRoot:verified.repositoryRoot,isBare:verified.isBare,cancelledAfterCreation:verified.cancelledAfterCreation,verificationError:verified.verificationError,configurationPending:verified.configurationPending,identity:verified.identity).summary
         pendingInspection=nil;completionWarning=warnings.isEmpty ? nil:warnings.joined(separator:"\n")
         recordClone(repo,output:summary,options:options,destination:destination,access:access,keyAccess:keyAccess)
     }
@@ -480,7 +490,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         let token=OperationCancellation();operationCancellation=token;busy=true;beginWork()
         Task { [self] in
             defer {if operationCancellation === token {operationCancellation=nil;busy=false};endWork()}
-            do {try await finishDirectInspection(cancellation:token)}
+            do {try await finishDirectInspection(cancellation:token,recoverConfiguration:true)}
             catch {if !invalidated {completionWarning="Clone completed, but the repository could not be opened.\n" + error.localizedDescription}}
         }
     }
@@ -701,9 +711,9 @@ struct CloneSourceBrowseControl:NSViewRepresentable {
 }
 
 enum ClonePostAction: String, Hashable {
-    case retry, inspect, log, explore
-    var title: String { switch self { case .retry: return "Retry"; case .inspect: return "Retry opening repository"; case .log: return "Show Log"; case .explore: return "Show in Finder" } }
-    var icon: MenuIcon { switch self { case .retry,.inspect: return .refresh; case .log: return .log; case .explore: return .explore } }
+    case retry, inspect, configure, log, explore
+    var title: String { switch self { case .retry: return "Retry"; case .inspect: return "Retry opening repository"; case .configure: return "Retry key configuration"; case .log: return "Show Log"; case .explore: return "Show in Finder" } }
+    var icon: MenuIcon { switch self { case .retry,.inspect,.configure: return .refresh; case .log: return .log; case .explore: return .explore } }
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
     private let commandProgressScope = CommandProgressContext.current
@@ -764,7 +774,8 @@ enum ClonePostAction: String, Hashable {
     @Published private(set) var commandSucceeded=false
     @Published private(set) var completionRange:NSRange?
     @Published private(set) var warnings:[String]=[]
-    private var completedOutcome:CloneOutcome?
+    @Published private(set) var completedOutcome:CloneOutcome?
+    var performClone:((GitRepository,CloneOptions,URL,OperationCancellation) async throws->CloneOutcome)?
     private var adopted=false
     var bareResultSetup = BareRepositoryResultSetup()
     var inspectRepository:(GitRepository,Bool,OperationCancellation) async throws -> GitRepository = {candidate,bare,token in
@@ -841,6 +852,7 @@ enum ClonePostAction: String, Hashable {
             let operation = Task {
                 defer { continuation.finish() }
                 let emit:@Sendable(GitOutputChunk)->Void={chunk in parser.appendChunk(chunk.data);continuation.yield(())}
+                if let performClone{return try await performClone(runner,options,destination,cancellation)}
                 return try await runner.cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:emit,prepareTransport:preparation,
                     onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))},onCommandFinished:{receipt.record($0)},backend:backend,onNotification:{value in typed.append(value);continuation.yield(())})
             }
@@ -851,10 +863,14 @@ enum ClonePostAction: String, Hashable {
             }
             finishParser();drainNotifications()
             let outcome=try await operation.value
-            guard !invalidated,!abandoned else {return}
-            completedOutcome=outcome;commandCompleted=true;warnings += outcome.warnings
+            completedOutcome=outcome;commandCompleted=true
+            guard !invalidated,!abandoned else{return}
+            warnings += outcome.warnings
             completeOutput(succeeded:true,startedAt:startedAt)
             for warning in warnings {appendDiagnostic(warning)}
+            if cancellation.isCancelled || outcome.cancelledAfterCreation {
+                success=true;cancelled=true;postActions=[.inspect,.explore];return
+            }
             try await inspectCompletedRepository(outcome)
         } catch {
             guard !invalidated else {return}
@@ -866,17 +882,20 @@ enum ClonePostAction: String, Hashable {
         cancelled=cancelled || cancellation.isCancelled
     }
     private func inspectCompletedRepository(_ outcome:CloneOutcome) async throws {
-        let repo=try await inspectRepository(GitRepository(root:destination,executable:executable),options.bare,cancellation)
+        let candidate=GitRepository(root:destination,executable:executable)
+        let verified=try await candidate.inspectCloneOutcome(outcome,at:destination,cancellation:cancellation)
+        completedOutcome=verified
+        let repo=try await inspectRepository(candidate,options.bare,cancellation)
         try cancellation.check()
         if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
         guard !invalidated,!abandoned else {return}
         let actualBare = try await repo.isBare(cancellation:cancellation)
         guard !invalidated,!abandoned else {return}
         let warning = await bareResultSetup.apply(repository:repo,destination:destination,access:destinationAccess,verifiedBare:actualBare,cancellation:cancellation)
-        guard !invalidated,!abandoned else {return}
+        try cancellation.check();guard !invalidated,!abandoned,!confirmingQuit else{return}
         if let warning,!warnings.contains(warning) {warnings.append(warning);appendDiagnostic(warning)}
-        repository=repo;success=true;postActions=[.log,.explore]
-        if !adopted {adopted=true;onCloned(repo,outcome.summary + (warning.map{"\n" + $0} ?? ""))}
+        repository=repo;success=true;postActions=(verified.configurationPending ? [.configure]:[]) + [.log,.explore]
+        if !adopted {adopted=true;onCloned(repo,verified.summary + (warning.map{"\n" + $0} ?? ""))}
     }
     private func retryInspection() {
         guard let outcome=completedOutcome,!busy,!hasPendingWork,!confirmingQuit,!invalidated else {return}
@@ -888,6 +907,20 @@ enum ClonePostAction: String, Hashable {
             catch {if !invalidated {appendDiagnostic(error.localizedDescription);postActions=[.inspect,.explore]}}
             guard !invalidated else {return}
             cancelled=cancellation.isCancelled
+        }
+    }
+    private func retryConfiguration(){
+        guard let outcome=completedOutcome,outcome.configurationPending,outcome.verified,!busy,!hasPendingWork,!confirmingQuit,!invalidated else{return}
+        cancellation=OperationCancellation();busy=true;cancelled=false;beginWork()
+        Task{[self] in
+            defer{endWork();withExtendedLifetime((destinationAccess,sourceAccess,keyAccess)) {}}
+            do{
+                let details=try await GitRepository(root:destination,executable:executable).configureClonedRepository(options,at:destination,expected:outcome,cancellation:cancellation)
+                // A completed configuration must not be rerun just because its
+                // originating window retired while Git was exiting.
+                completedOutcome=CloneOutcome(output:outcome.output,warnings:outcome.warnings,repositoryRoot:outcome.repositoryRoot,isBare:outcome.isBare,cancelledAfterCreation:outcome.cancelledAfterCreation,configurationPending:false,identity:outcome.identity)
+                guard !invalidated else{return};appendDiagnostic(details);postActions=[.log,.explore]
+            }catch{if !invalidated{appendDiagnostic(error.localizedDescription);postActions=[.configure,.log,.explore]}}
         }
     }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
@@ -924,7 +957,7 @@ enum ClonePostAction: String, Hashable {
         let prefix=bounded(previous.substring(to:range.location),bytes:outputLimit-footer.utf8.count-suffix.utf8.count)
         output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
     }
-    private func finishAutomaticClose() { if !fileActionBusy,!busy,!hasPendingWork,!confirmingQuit, !confirmingCancellation, !invalidated, abandoned || warnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
+    private func finishAutomaticClose() { if !fileActionBusy,!busy,!hasPendingWork,!confirmingQuit, !confirmingCancellation, !invalidated, abandoned || !cancelled && warnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
     func cancel() {
         guard canCancel, !invalidated else { return }; let token = cancellation,generation=interactionGeneration
         if preferences.bool(forKey: "ConfirmKillProcess") {
@@ -940,7 +973,9 @@ enum ClonePostAction: String, Hashable {
     private func performWithCommandProgressContext(_ action: ClonePostAction) {
         guard !fileActionBusy,!busy,!hasPendingWork,!confirmingQuit,presentationAvailable(), !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .inspect {retryInspection();return}
+        if action == .configure {retryConfiguration();return}
         if action == .retry {
+            guard completedOutcome == nil else{retryInspection();return}
             ProgressActionLog.nextAttempt(self);
             cancellation=OperationCancellation();resetAttempt();beginWork()
             Task { await execute() }; return

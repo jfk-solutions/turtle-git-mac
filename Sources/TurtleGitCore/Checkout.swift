@@ -58,6 +58,15 @@ public struct CheckoutOptions: Sendable {
     public var allowTagNameConflict = false
     public init() {}
 }
+/// Acceptance of the command is independent of later repository inspection.
+/// Only a successful process exit can produce this receipt; observers must not
+/// turn a failed read into permission to repeat a successful mutation.
+public struct RepositoryTransitionReceipt:Sendable {
+    public let output:String
+    public let cancelledAfterCommand:Bool
+    public init(output:String,cancelledAfterCommand:Bool=false){self.output=output;self.cancelledAfterCommand=cancelledAfterCommand}
+}
+
 public enum CheckoutFailure: LocalizedError {
     case invalidRevision, invalidBranch, branchExists, tagNameConflict
     public var errorDescription: String? {
@@ -103,11 +112,15 @@ extension GitRepository {
         catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
     }
     public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) throws -> String {
+        try checkoutAccepted(options,cancellation:cancellation,onOutput:onOutput,onCommand:onCommand).output
+    }
+    public func checkoutAccepted(_ options:CheckoutOptions,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,onCommand:(@Sendable(GitCommandInvocation)->Void)?=nil)throws->RepositoryTransitionReceipt {
         try cancellation?.check()
         let arguments = try checkoutArguments(options, cancellation: cancellation)
         try cancellation?.check()
         onCommand?(commandInvocation(["-c", "core.precomposeunicode=false"] + arguments))
-        return try checkoutCommand(arguments, cancellation: cancellation, onOutput: onOutput).text
+        let result=try acceptedCreationResult {try checkoutCommand(arguments,cancellation:cancellation,onOutput:onOutput)}
+        return .init(output:result.text,cancelledAfterCommand:cancellation?.isCancelled == true)
     }
     /// Read-only validation before a native options dialog hands off to progress.
     public func validateCheckout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws { _ = try checkoutArguments(options, cancellation: cancellation) }

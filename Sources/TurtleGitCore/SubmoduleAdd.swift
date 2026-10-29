@@ -66,9 +66,11 @@ public struct SubmoduleAddOutcome: Sendable {
     public let cancelled: Bool
     public let output: String
     public let receipt: SubmoduleAddReceipt?
+    public let verified:Bool
+    public let verificationError:String?
     public var success: Bool { phase == .completed && !cancelled }
-    public init(phase: SubmoduleAddPhase = .preparing, attempted: Bool = false, added: Bool = false, configured: Bool = false, cancelled: Bool = false, output: String = "", receipt: SubmoduleAddReceipt? = nil) {
-        self.phase=phase;self.attempted=attempted;self.added=added;self.configured=configured;self.cancelled=cancelled;self.output=output;self.receipt=receipt
+    public init(phase: SubmoduleAddPhase = .preparing, attempted: Bool = false, added: Bool = false, configured: Bool = false, cancelled: Bool = false, output: String = "", receipt: SubmoduleAddReceipt? = nil, verified:Bool?=nil,verificationError:String?=nil) {
+        self.phase=phase;self.attempted=attempted;self.added=added;self.configured=configured;self.cancelled=cancelled;self.output=output;self.receipt=receipt;self.verified=verified ?? added;self.verificationError=verificationError
     }
 }
 public struct SubmoduleAddExecutionFailure: LocalizedError {
@@ -98,23 +100,43 @@ extension GitRepository {
         if options.sshKey != nil && session == nil {throw CloneFailure.keyRuntime}
         _ = try restoreLocation(path)
         if let type=try? FileManager.default.attributesOfItem(atPath:location.path)[.type] as? FileAttributeType,type != .typeDirectory {throw SubmoduleAddFailure.path}
-        var added=false,output="",receipt:SubmoduleAddReceipt?
+        let result:GitResult
         do {
-            output=try run(["-c","core.precomposeunicode=false"]+args,environmentOverrides:session?.transportEnvironment ?? [:],literalPathspecs:false,cancellation:token,onOutput:onOutput).text
-            added=true
-            if let key=options.sshKey {
-                let identity=try addedSubmoduleIdentity(path:path,cancellation:token)
-                receipt=SubmoduleAddReceipt(superproject:root,path:path,gitDirectory:identity.0,key:key,directoryDevice:identity.1,directoryInode:identity.2)
-                let configured=try retrySubmoduleAddKeyConfiguration(receipt!,cancellation:token,onOutput:onOutput)
-                return SubmoduleAddOutcome(phase:.completed,attempted:true,added:true,configured:true,output:output+configured.output,receipt:receipt)
-            }
-            return SubmoduleAddOutcome(phase:.completed,attempted:true,added:true,configured:true,output:output)
-        } catch {
-            let diagnosticOutput=submoduleAddFailureOutput(error)
-            let combined=output + (!output.isEmpty && !output.hasSuffix("\n") && !diagnosticOutput.isEmpty ? "\n":"") + diagnosticOutput
-            let outcome=SubmoduleAddOutcome(phase:added ? .configuringKey:.adding,attempted:true,added:added,cancelled:token.isCancelled,output:combined,receipt:receipt)
-            throw SubmoduleAddExecutionFailure(outcome:outcome,underlying:(error as? SubmoduleAddExecutionFailure)?.underlying ?? error)
+            result=try acceptedCreationResult {try run(["-c","core.precomposeunicode=false"]+args,environmentOverrides:session?.transportEnvironment ?? [:],literalPathspecs:false,cancellation:token,onOutput:onOutput)}
+        }catch {
+            throw SubmoduleAddExecutionFailure(outcome:.init(phase:.adding,attempted:true,cancelled:token.isCancelled,output:submoduleAddFailureOutput(error)),underlying:error)
         }
+        // Retain the actual exit-zero Add before inspecting or configuring it.
+        // A failed inspection is recovery-only; it never licenses another Add.
+        let inspected:SubmoduleAddOutcome
+        do {inspected=try inspectSubmoduleAdd(options,output:result.text)}
+        catch {
+            return .init(phase:.adding,attempted:true,added:true,cancelled:token.isCancelled,output:result.text,verified:false,
+                         verificationError:"The submodule was added, but its checkout could not be verified: "+error.localizedDescription)
+        }
+        guard let receipt=inspected.receipt else {
+            return .init(phase:.completed,attempted:true,added:true,configured:true,cancelled:token.isCancelled,output:result.text,verified:true)
+        }
+        if token.isCancelled {
+            return .init(phase:.configuringKey,attempted:true,added:true,cancelled:true,output:result.text,receipt:receipt,verified:true)
+        }
+        do {
+            let configured=try retrySubmoduleAddKeyConfiguration(receipt,cancellation:token,onOutput:onOutput)
+            return .init(phase:.completed,attempted:true,added:true,configured:true,cancelled:token.isCancelled,output:result.text+configured.output,receipt:receipt,verified:true)
+        }catch {
+            let diagnostic=submoduleAddFailureOutput(error)
+            throw SubmoduleAddExecutionFailure(outcome:.init(phase:.configuringKey,attempted:true,added:true,cancelled:token.isCancelled,
+                output:result.text+(result.text.isEmpty || result.text.hasSuffix("\n") ? "":"\n")+diagnostic,receipt:receipt,verified:true),underlying:(error as? SubmoduleAddExecutionFailure)?.underlying ?? error)
+        }
+    }
+    /// Read-only recovery after an accepted Add. The private checkout identity
+    /// is captured before a later explicit key-only retry; Add is never repeated.
+    public func inspectSubmoduleAdd(_ options:SubmoduleAddOptions,output:String="",cancellation:OperationCancellation?=nil)throws->SubmoduleAddOutcome {
+        try cancellation?.check()
+        let path=try options.relativePath(root:root)
+        let identity=try boundedCreationVerification {try addedSubmoduleIdentity(path:path,cancellation:$0)}
+        let receipt=options.sshKey.map {SubmoduleAddReceipt(superproject:root,path:path,gitDirectory:identity.0,key:$0,directoryDevice:identity.1,directoryInode:identity.2)}
+        return .init(phase:receipt == nil ? .completed:.configuringKey,attempted:true,added:true,configured:receipt == nil,cancelled:cancellation?.isCancelled == true,output:output,receipt:receipt,verified:true)
     }
     private func submoduleAddFailureOutput(_ error:Error)->String {
         if let failure=error as? SubmoduleAddExecutionFailure,!failure.outcome.output.isEmpty {return failure.outcome.output}
@@ -147,7 +169,7 @@ extension GitRepository {
         guard identity.0 == receipt.gitDirectory,identity.1 == receipt.directoryDevice,identity.2 == receipt.directoryInode else{throw SubmoduleAddRecoveryFailure.replaced}
         let location=try restoreLocation(receipt.path)
         do {
-            let output=try run(["-C",location.path,"-c","core.precomposeunicode=false","config","--local","remote.origin.turtlegitsshkeyfile",receipt.key.path],cancellation:cancellation,onOutput:onOutput).text
+            let output=try acceptedCreationResult {try run(["-C",location.path,"-c","core.precomposeunicode=false","config","--local","remote.origin.turtlegitsshkeyfile",receipt.key.path],cancellation:cancellation,onOutput:onOutput)}.text
             return SubmoduleAddOutcome(phase:.completed,attempted:true,added:true,configured:true,output:output,receipt:receipt)
         } catch {
             throw SubmoduleAddExecutionFailure(outcome:SubmoduleAddOutcome(phase:.configuringKey,attempted:true,added:true,cancelled:cancellation?.isCancelled == true,output:submoduleAddFailureOutput(error),receipt:receipt),underlying:error)

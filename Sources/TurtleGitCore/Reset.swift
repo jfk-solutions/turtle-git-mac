@@ -37,6 +37,10 @@ extension GitRepository {
             return trashed as URL?
         })
     }
+    public func resetAccepted(_ plan:ResetPlan,cancellation:OperationCancellation?=nil,onOutput:(@Sendable(GitOutputChunk)->Void)?=nil,onCommand:(@Sendable(GitCommandInvocation)->Void)?=nil,backend:GitLibGit2Configuration?=nil,recycle:Bool=true,onNotification:(@Sendable(GitResetNotification)->Void)?=nil)throws->RepositoryTransitionReceipt {
+        let output=try reset(plan,cancellation:cancellation,onOutput:onOutput,onCommand:onCommand,backend:backend,recycle:recycle,onNotification:onNotification)
+        return .init(output:output,cancelledAfterCommand:cancellation?.isCancelled == true)
+    }
     /// Injectable filesystem service boundary also supports private integration
     /// repositories without putting test files into the user's Trash.
     func reset(_ plan:ResetPlan,cancellation:OperationCancellation? = nil,onOutput:(@Sendable(GitOutputChunk)->Void)? = nil,onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,backend:GitLibGit2Configuration? = nil,recycle:Bool = true,onNotification:(@Sendable(GitResetNotification)->Void)? = nil,recycler:@escaping(URL)throws->URL?)throws->String {
@@ -51,8 +55,11 @@ extension GitRepository {
         try cancellation.check()
         let arguments = ["reset", "--" + plan.mode.rawValue, plan.revision, "--"]
         onCommand?(commandInvocation(arguments))
-        if let executor {return try runReset(arguments,executor:executor,cancellation:cancellation,recycle:recycle && plan.mode == .hard,onOutput:onOutput,onNotification:onNotification,recycler:recycler).text}
-        return try run(arguments,cancellation:cancellation,onOutput:onOutput).text
+        let result=try acceptedCreationResult {
+            if let executor {return try runReset(arguments,executor:executor,cancellation:cancellation,recycle:recycle && plan.mode == .hard,onOutput:onOutput,onNotification:onNotification,recycler:recycler)}
+            return try run(arguments,cancellation:cancellation,onOutput:onOutput)
+        }
+        return result.text
     }
     public func submoduleResetTarget(_ entry: ConflictEntry, using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws -> (URL, String) {
         guard let current = try conflicts(cancellation: cancellation).first(where: { $0.path == entry.path }), current == entry,

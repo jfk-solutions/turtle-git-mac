@@ -257,13 +257,14 @@ extension GitRepository {
     /// The stdout result channel is private only when a captured libgit2
     /// executor was selected. CLI stdout/diagnostics keep their original route.
     func transferArguments(_ arguments:[String],executor:URL?,requested:Bool)->[String] {executor != nil && requested ? ["--turtlegit-transfer-notifications"]+arguments:arguments}
-    func runTransfer(_ arguments:[String],environment:[String:String],literalPathspecs:Bool=true,cancellation:OperationCancellation,onOutput:(@Sendable(GitOutputChunk)->Void)?,executor:URL?,onNotification:(@Sendable(GitTransferNotification)->Void)?,sourceFetch:Bool=false)throws->GitResult {
+    func runTransfer(_ arguments:[String],environment:[String:String],literalPathspecs:Bool=true,cancellation:OperationCancellation,onOutput:(@Sendable(GitOutputChunk)->Void)?,executor:URL?,onNotification:(@Sendable(GitTransferNotification)->Void)?,sourceFetch:Bool=false,acceptSuccessfulCancellation:Bool=false)throws->GitResult {
         // FetchProgressCommand appends the requested refspec after loading the
         // remote, then fetches through that same object. Keep this helper-only
         // protocol separate from Git's argv and the displayed command receipt.
         let executionArguments=sourceFetch && executor != nil ? ["--turtlegit-source-fetch"]+arguments:arguments
         guard let executor,onNotification != nil else {
             do {return try run(executionArguments,environmentOverrides:environment,literalPathspecs:literalPathspecs,cancellation:cancellation,onOutput:onOutput,executorOverride:executor)}
+            catch let error as GitCommandCancellationFailure where acceptSuccessfulCancellation && error.result.exitCode==0 {return error.result}
             catch let error as GitFailure {throw GitFailure(arguments:arguments,code:error.code,message:error.message,outputWasDelivered:error.outputWasDelivered,standardError:error.standardError)}
         }
         let receiver=GitTransferNotificationReceiver(cancellation:cancellation,callback:onNotification)
@@ -271,6 +272,10 @@ extension GitRepository {
         do {
             let result=try run(transferArguments(executionArguments,executor:executor,requested:true),environmentOverrides:environment,literalPathspecs:literalPathspecs,cancellation:cancellation,retainStandardOutput:false,consumeOutput:{receiver.consume($0)},onOutput:{chunk in if case .stderr=chunk.stream {onOutput?(chunk)}},executorOverride:executor)
             succeeded=result.exitCode==0;return result
+        } catch let error as GitCommandCancellationFailure where acceptSuccessfulCancellation && error.result.exitCode==0 {
+            // Clone has accepted this exact command result. Finalize buffered
+            // transfer notifications as success before the receiver drains.
+            succeeded=true;return error.result
         } catch let error as GitFailure {throw GitFailure(arguments:arguments,code:error.code,message:error.message,outputWasDelivered:error.outputWasDelivered,standardError:error.standardError)}
     }
 }

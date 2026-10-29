@@ -1,0 +1,168 @@
+{
+  "date": "2026-10-29",
+  "status": "grouped-core-native-checkpoint-passed",
+  "starting_commit": "8e3f179251d687195edcc391bd2c4a3e3edf2512",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Clone, Init, Submodule Add, Switch and Reset accepted command outcomes",
+    "Late cancellation and retired owners retain actual exit-zero results",
+    "Fresh bounded result inspection and identity-fenced configuration recovery without repeating successful mutation",
+    "Captured parent refresh and optional action ownership; retained source options and icons"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Checkout.swift": "2814562235ad9d607ef39ae0d1b7ff36b3f262a288c3adf630fc7737bd90f517",
+    "Sources/TurtleGitCore/Clone.swift": "b5588071280123465eba9fbf817c61e89e1d96de97fba4152c9068c2002f1c36",
+    "Sources/TurtleGitCore/GitLibGit2.swift": "db9df17c15bd4e34834dfcd194cfb49fb688c2676d10adf6d42aa7da070d4d0d",
+    "Sources/TurtleGitCore/GitResetNotifications.swift": "c7d10b8e92d665f4f970a342005cf81cba5b429865239a9cf463a2ddcfbf4f37",
+    "Sources/TurtleGitCore/RepositoryInitialization.swift": "544d37cd6839ed610f670f7decc95d21485de8a4eb928d30e3cd2884d4deca68",
+    "Sources/TurtleGitCore/Reset.swift": "6b454ce2fb9b9be06c9813ca2006df16f0e58114786b20bfc45ba4849e7d2d33",
+    "Sources/TurtleGitCore/SubmoduleAdd.swift": "556c0adf2bd210eb194edcc45332c6796dc69b56816317470dfa4bbf59908904",
+    "Sources/TurtleGitMac/CloneWindow.swift": "d8b39418bc34c34611e246b1aa0db7577138c02f95a6d9a95b3d138cfb8e6693",
+    "Sources/TurtleGitMac/CreateRepositoryWindow.swift": "7414a13b92b6163f30dfc39952ad55147934b35386c42e0694e78915d238136f",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "93c00c23ba543a84e61ee12bf2204ac357456f41c053089e72477a7bacc6fe4f",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "136767254865e8f803dd7ad4008ade77d2e05856f5dcb778f04bfafad7926e92",
+    "Sources/TurtleGitMac/ResetWindow.swift": "3e9f9bf31385e38629cdefd4f959ded764635bb49d7442e556a0c424eb667075",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f1926b50d8662d82fb7ae3117a12087a6d837338c879d4a4e65633b4ab04a277",
+    "Tests/TurtleGitCoreTests/RepositorySetupAcceptanceTests.swift": "a9933c2f1f6b2fc55e670c8dc6a7a4a45a8c3442ffda459ff6204ef6ed043160",
+    "Tests/TurtleGitCoreTests/RepositoryTransitionAcceptanceTests.swift": "cf08912cc14ae1e64a1a0a0d180e627613d813db243b3e3f3a7cdf613ad71c00",
+    "docs/qa/repository-setup-transitions-native-2026-10-29.swift": "1b8b2b17354df3edfc5bce83fa1a04e05a29d908563b7d1bd9552c5156669a8a",
+    "scripts/test-repository-setup-transitions.py": "03dc0733fbda3ad505c6cfbe7d3731243a3f33d236309125f91272abdebb6311"
+  },
+  "core": {
+    "distinct_methods_passed": 65,
+    "first_group_log": "build/qa/repository-setup-core-2026-10-29.log",
+    "first_group_methods": 65,
+    "first_group_failed_methods": 2,
+    "first_group_failed_assertions": 8,
+    "failure_cause": "New Checkout fixture intercepted checkout, but actual source command is switch. Wrapper therefore did not inject cancellation/exit7.",
+    "fixture_repair": "Intercept actual switch command; all original cancellation, exit-status, mutation-count and HEAD/index assertions retained.",
+    "affected_recheck_log": "build/qa/repository-setup-core-fixture-recheck-2026-10-29.log",
+    "rechecked_methods": 2,
+    "recheck_failures": 0,
+    "selected_libgit2_clone_test_passed": true,
+    "generic_runner_semantics_changed": false
+  },
+  "build": {
+    "initial_exit": 0,
+    "initial_log": "build/qa/repository-setup-debug-2026-10-29.log",
+    "submodule_callback_repair_exit": 0,
+    "repair_log": "build/qa/repository-setup-debug-submodule-repair-2026-10-29.log",
+    "reason": "Embed actual restored key-only completion callback before affected native checks."
+  },
+  "native": {
+    "successful_case_engine_pairs": 10,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "passed": [
+      {
+        "log": "build/qa/repository-setup-native-2026-10-29.log",
+        "case": "clone"
+      },
+      {
+        "log": "build/qa/repository-setup-native-system-remaining-2026-10-29.log",
+        "case": "init"
+      },
+      {
+        "log": "build/qa/repository-setup-native-system-repair-2026-10-29.log",
+        "case": "submodule-add"
+      },
+      {
+        "log": "build/qa/repository-setup-native-system-repair-2026-10-29.log",
+        "case": "switch"
+      },
+      {
+        "log": "build/qa/repository-setup-native-system-repair-2026-10-29.log",
+        "case": "reset"
+      },
+      {
+        "log": "build/qa/repository-setup-native-bundled-2026-10-29.log",
+        "case": "clone"
+      },
+      {
+        "log": "build/qa/repository-setup-native-bundled-2026-10-29.log",
+        "case": "init"
+      },
+      {
+        "log": "build/qa/repository-setup-native-bundled-2026-10-29.log",
+        "case": "submodule-add"
+      },
+      {
+        "log": "build/qa/repository-setup-native-bundled-2026-10-29.log",
+        "case": "switch"
+      },
+      {
+        "log": "build/qa/repository-setup-native-bundled-2026-10-29.log",
+        "case": "reset"
+      }
+    ],
+    "failed_attempts": [
+      {
+        "case": "init/system",
+        "receiver": 9718,
+        "cause": "Fixture omitted model.prepare(), explicitly called by the actual production presenter. Added that invocation before unchanged readiness assertion."
+      },
+      {
+        "case": "submodule-add/system",
+        "receiver": 10064,
+        "cause": "Production regression: key-only configuration retry stopped publishing its original typed completion outcome. Restored per-command callback, excluding read-only inspection."
+      },
+      {
+        "case": "switch/system",
+        "receiver": 10488,
+        "cause": "Fixture supplied short older reference; actual form passes exact refs/heads/older. Fixed input and made the callback assertion cleanup-safe rather than SIGTRAP."
+      }
+    ],
+    "owned_receivers_reaped_and_independently_absent": [
+      9630,
+      9718,
+      10017,
+      10064,
+      10488,
+      10750,
+      11122,
+      11190,
+      11292,
+      11377,
+      11422,
+      11793,
+      11860
+    ],
+    "private_repositories_preferences_pasteboards": true,
+    "windows_invisible_or_offscreen": true,
+    "owned_helpers_drained": true,
+    "unchanged_passed_case_engine_pairs_not_repeated": true,
+    "native_libgit2_notification_assertions": false,
+    "cached_app_objects_and_fixture_compilation": true
+  },
+  "generation": {
+    "localizations_check_exit": 0,
+    "help_check_exit": 0,
+    "help_documents": 61,
+    "help_topics": 51,
+    "help_files": 95,
+    "coverage_reconciled": true
+  },
+  "installed_app": {
+    "build": "35",
+    "batch_included": false,
+    "user_session_not_terminated_for_validation": true
+  },
+  "hosted": {
+    "latest_pages_run": 40946367904,
+    "latest_pages_conclusion": "success",
+    "active_macos_run": 40922602775,
+    "active_job": 123644737352,
+    "observed_status": "in_progress",
+    "observed_step": "Git integration tests",
+    "complete_current_hosted_pass": false
+  },
+  "remaining": [
+    "Installed Commit loading/staging, Log selection, Settings and Finder checklist acceptance",
+    "Full current-source hosted CI",
+    "Physical authenticated transport and sandbox external grants",
+    "Intel/minimum macOS execution",
+    "Complete source/layout/accessibility parity and GPL/App Store distribution terms"
+  ]
+}

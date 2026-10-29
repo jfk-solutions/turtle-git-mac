@@ -1,12 +1,23 @@
 # TurtleGit for Mac — full port tracking
 
-## Ready local testing package35
+## Repository setup and transition completion batch
+
+Current source retains accepted Clone, Init, Submodule Add, Switch and Reset
+results across late cancellation, owner retirement and failed follow-up inspection.
+Opening/inspection and Clone/Submodule SSH configuration have separate retry
+paths; none repeats the accepted mutation. Clone configuration checks the captured
+repository identity. Pure parent refresh remains tied to the accepted attempt;
+automatic opening and child actions require a live owner and explicit continuation
+after cancellation. Build35 predates this batch. The [grouped checkpoint](qa/repository-setup-transitions-2026-10-29.json) passes 65 distinct Core methods and ten native case/engine pairs after the recorded fixture and callback repairs.
+
+## Installed local testing build35
 
 [Signed build35](qa/signed-consolidation-build35-2026-10-29.json) consolidates the
 marked-row, accepted Settings publication and creation-outcome families below.
 Frozen source, strict signatures, all eight owned arm64/x86_64 components,
 packaged Help, sandboxed public Core/packaged Git and ZIP extraction/inventory
-checks pass. This is an uninstalled local testing package; build34 remains running.
+checks pass. Following user approval, build35 is installed and reopened with an
+exact inventory match; build34 is preserved for rollback. Finder was not restarted.
 No public binary release, notarization, App Store submission or whole-port
 acceptance is inferred.
 

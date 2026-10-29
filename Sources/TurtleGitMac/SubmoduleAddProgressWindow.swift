@@ -95,8 +95,10 @@ import TurtleGitCore
     var onAdded: (String) -> Void = { _ in }
     var onAttemptCompleted:(SubmoduleAddOutcome)->Void = {_ in}
     @Published private(set) var lastOutcome=SubmoduleAddOutcome()
-    var canRetry:Bool {started && !activeOperation && !invalidated && !success && (!lastOutcome.added || lastOutcome.receipt != nil)}
-    var retryTitle:String {lastOutcome.added ? "Retry key configuration":"Retry"}
+    var canRetry:Bool {started && !activeOperation && pendingOperations == 0 && !invalidated && (!lastOutcome.added || !lastOutcome.verified || !lastOutcome.configured && lastOutcome.receipt != nil)}
+    var retryTitle:String {lastOutcome.added ? lastOutcome.verified ? "Retry key configuration":"Retry opening submodule":"Retry"}
+    var performAdd:((GitRepository,SubmoduleAddOptions,OperationCancellation) async throws->SubmoduleAddOutcome)?
+    private var notifiedAdded=false
     var presentSSH: (SSHKeyPassphraseWindowController) -> Bool = { _ in false }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var activeOperation: Bool { busy || confirmingCancellation || confirmingQuit }
@@ -116,12 +118,12 @@ import TurtleGitCore
     func retry() {
         CommandProgressContext.perform(commandProgressScope) { retryInCommandProgressScope() }
     }
-    private func retryInCommandProgressScope() { guard canRetry else { return }; ProgressActionLog.nextAttempt(self); execute(options,receipt:lastOutcome.added ? lastOutcome.receipt:nil) }
-    private func execute(_ options: SubmoduleAddOptions,receipt:SubmoduleAddReceipt?=nil) {
-        CommandProgressContext.perform(commandProgressScope) { executeInCommandProgressScope(options, receipt: receipt) }
+    private func retryInCommandProgressScope() { guard canRetry else { return }; ProgressActionLog.nextAttempt(self); execute(options,receipt:lastOutcome.added ? lastOutcome.receipt:nil,inspection:lastOutcome.added && !lastOutcome.verified) }
+    private func execute(_ options: SubmoduleAddOptions,receipt:SubmoduleAddReceipt?=nil,inspection:Bool=false) {
+        CommandProgressContext.perform(commandProgressScope) { executeInCommandProgressScope(options, receipt:receipt,inspection:inspection) }
     }
-    private func executeInCommandProgressScope(_ options: SubmoduleAddOptions,receipt:SubmoduleAddReceipt?=nil) {
-        let request = OperationCancellation(); token = request; busy = true; success = false; output = receipt == nil ? "Adding submodule…":"Configuring the added submodule’s SSH key…"; error = nil; streamState.reset(); currentWork = ""; percentage = nil; completionRange = nil; cancelled = false; cancelling = false
+    private func executeInCommandProgressScope(_ options: SubmoduleAddOptions,receipt:SubmoduleAddReceipt?=nil,inspection:Bool=false) {
+        let request = OperationCancellation(); token = request; busy = true; success = false; output = inspection ? "Opening added submodule…":receipt == nil ? "Adding submodule…":"Configuring the added submodule’s SSH key…"; error = nil; streamState.reset(); currentWork = ""; percentage = nil; completionRange = nil; cancelled = false; cancelling = false
         let startedAt = ProcessInfo.processInfo.systemUptime
         let factory = makeSSHCoordinator, identities = identities, presenter = presentSSH
         let grants = (access, sourceAccess, keyAccess)
@@ -129,12 +131,12 @@ import TurtleGitCore
         Self.activeOperations += 1;pendingOperations += 1
         Task {
             var outcome=SubmoduleAddOutcome(phase:receipt == nil ? .preparing:.configuringKey,added:receipt != nil,receipt:receipt)
-            let coordinator:SSHTransportCoordinator?=receipt == nil ? (factory?(repository) ?? SSHTransportCoordinator(repository:repository,identities:identities)):nil
+            let coordinator:SSHTransportCoordinator?=receipt == nil && !inspection ? (factory?(repository) ?? SSHTransportCoordinator(repository:repository,identities:identities)):nil
             activeSSHCoordinator=coordinator
             if factory == nil {coordinator?.present=presenter}
             defer {
                 coordinator?.close();if activeSSHCoordinator === coordinator {activeSSHCoordinator=nil};withExtendedLifetime(grants) {};Self.activeOperations -= 1;pendingOperations -= 1
-                publish(outcome)
+                if !inspection {publish(outcome)}
                 if token === request {token=nil;busy=false;if !invalidated {saveActionLog();finishAutomaticClose()}}
             }
             do {
@@ -143,7 +145,7 @@ import TurtleGitCore
                     guard grants.0?.hasSecurityScope == true, grants.0?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
                     let local = source.hasPrefix("/") ? URL(fileURLWithPath: source) : URL(string: source).flatMap { $0.isFileURL ? $0 : nil }
-                    if receipt == nil,let local { guard grants.1?.hasSecurityScope == true, grants.1?.contains(local) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
+                    if receipt == nil,!inspection,let local { guard grants.1?.hasSecurityScope == true, grants.1?.contains(local) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
                     if let key=options.sshKey {guard grants.2?.hasSecurityScope == true,grants.2?.contains(key) == true else{throw RepositoryAccessFailure.securityScopeUnavailable}}
                 }
                 let parser = GitCliOutputParser(limit: streamState.limit)
@@ -151,19 +153,28 @@ import TurtleGitCore
                 let operation = Task {
                     defer { continuation.finish() }
                     let observer:@Sendable (GitOutputChunk)->Void = {chunk in parser.appendChunk(chunk.data);continuation.yield(())}
+                    if inspection{return try await repository.inspectSubmoduleAdd(options,output:lastOutcome.output,cancellation:request)}
                     if let receipt {return try await repository.retrySubmoduleAddKeyConfiguration(receipt,cancellation:request,onOutput:observer)}
+                    if let performAdd{return try await performAdd(repository,options,request)}
                     return try await repository.addSubmoduleWithOutcome(options,cancellation:request,prepareTransport:options.sshKey.flatMap {key in coordinator.map {$0.explicitPreparation(path:key.path)}},onOutput:observer)
                 }
                 for await _ in updates { if !invalidated { streamState.consume(parser.processPending(), parser: parser); refreshOutput() } }
                 if !invalidated { streamState.consume(parser.processPending(), parser: parser); streamState.consume(parser.finish(), parser: parser); refreshOutput() }
                 outcome=try await operation.value
-                guard !invalidated else{return};lastOutcome=outcome
+                lastOutcome=outcome
+                guard !invalidated else{return}
                 if !streamState.hasOutput {output=outcome.output.isEmpty ? (receipt == nil ? "Submodule added.":"Submodule SSH key configured."):outcome.output}
-                success=true;finishOutput(success:true,request:request,startedAt:startedAt);onAdded(output)
+                success=outcome.added && outcome.verified && outcome.configured
+                cancelled=request.isCancelled || outcome.cancelled
+                if let warning=outcome.verificationError{output += "\n"+warning;self.error=warning}
+                finishOutput(success:outcome.added,request:request,startedAt:startedAt)
+                if success,!cancelled,!inspection,!notifiedAdded{notifiedAdded=true;onAdded(output)}
             } catch {
                 if let failure=error as? SubmoduleAddExecutionFailure {outcome=failure.outcome}
+                else if inspection {outcome=SubmoduleAddOutcome(phase:.adding,added:true,cancelled:request.isCancelled,output:lastOutcome.output,verified:false,verificationError:error.localizedDescription)}
                 else {outcome=SubmoduleAddOutcome(phase:receipt == nil ? .preparing:.configuringKey,added:receipt != nil,cancelled:request.isCancelled,output:error.localizedDescription,receipt:receipt)}
-                guard !invalidated else {return};lastOutcome=outcome
+                lastOutcome=outcome
+                guard !invalidated else{return}
                 let underlying=(error as? SubmoduleAddExecutionFailure)?.underlying ?? error
                 let message:String
                 if outcome.added {message=error.localizedDescription}
@@ -179,9 +190,9 @@ import TurtleGitCore
         output = streamState.output; currentWork = streamState.currentWork; percentage = streamState.percentage
     }
     private func finishOutput(success: Bool, request: OperationCancellation, startedAt: TimeInterval, exitCode: Int32? = nil) {
-        let completion = SubmoduleProgressCompletion(success: success, cancelled: request.isCancelled, exitCode: exitCode,
+        let completion = SubmoduleProgressCompletion(success: success, cancelled: request.isCancelled || lastOutcome.cancelled, exitCode: exitCode,
             elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
-        cancelled = request.isCancelled
+        cancelled = request.isCancelled || lastOutcome.cancelled
         currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
     }
 
@@ -198,7 +209,7 @@ import TurtleGitCore
         } else { cancelling = true; token?.cancel() }
     }
     private func finishAutomaticClose() {
-        if !activeOperation, !invalidated, autoClosePolicy.shouldClose(success: success, postActionCount: success ? 0 : 1) { close() }
+        if !activeOperation,!cancelled,!invalidated,autoClosePolicy.shouldClose(success: success, postActionCount: success ? 0 : 1) { close() }
     }
 }
 

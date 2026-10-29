@@ -1,6 +1,6 @@
 {
   "date": "2026-10-29",
-  "status": "signed-universal-local-testing-package-ready-uninstalled",
+  "status": "signed-universal-local-testing-build-installed-reopened",
   "build": "0.1.0 (35)",
   "source_commit": "e0f1c559e3f110e1f9ed59f19a7289f3f6beb481",
   "source_input_sha256": "85d8a1ae719fed4445f256a0611b246ef3bad7f216a5cba9ec2285d9e4f56c6a",
@@ -216,9 +216,25 @@
     "automatic_installed_extension_host_start": "macOS started installed Finder extension host4088 during registration refresh; no deliberate extension activation or login preference change"
   },
   "installation": {
-    "performed": false,
-    "current_installed_build": "34",
-    "preserved_build34_candidate": true
+    "performed": true,
+    "current_installed_build": "35",
+    "user_authorized_quit_update_reopen": true,
+    "quit": "normal AppleScript quit; no force termination",
+    "installed_main_sha256": "dfdb1a06ecfa674ce166f7e50fda1dbb9a84c7298d8d6dd6d01e245eee395ddd",
+    "complete_inventory_equal": true,
+    "inventory_members": 6381,
+    "atomic_swap": true,
+    "preserved_build34_inventory_equal": true,
+    "completed_utc": "2026-10-29T20:28:09.740067+00:00",
+    "reopened": true,
+    "process": {
+      "pid": 6340,
+      "executable": "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+    },
+    "workspace_ui_observed": true,
+    "finder_restarted": false,
+    "login_item_preferences_changed": false,
+    "service_preferences_changed": false
   },
   "limits": [
     "Local Apple Development testing signature; no public binary upload, notarization or App Store submission",

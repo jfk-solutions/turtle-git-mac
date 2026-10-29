@@ -2407,7 +2407,7 @@ private enum TransportBatchPresentationContext {
             case .bisectBad: self.showBisect(repository: repository, access: access, operation: .bad, preferences: preferences, presentation: presentation)
             case .bisectSkip: self.showBisect(repository: repository, access: access, operation: .skip, preferences: preferences, presentation: presentation)
             case .bisectReset: self.showBisect(repository: repository, access: access, operation: .reset, preferences: preferences, presentation: presentation)
-            case .retry: break
+            case .retry,.inspectResult: break
             }
         }
     }
@@ -4985,7 +4985,7 @@ private enum TransportBatchPresentationContext {
         case .stash:
             var followUp = StashSaveFollowUp(); followUp.showPull = true
             showStash(repository: repository, access: access, followUp: followUp, preferences: preferences, presentation: presentation)
-        case .retry, .switchWithMerge: break
+        case .retry, .switchWithMerge, .inspectResult: break
         }
     }
     private func showReferenceBrowser(repository: GitRepository, access: RepositoryAccessLease?) {

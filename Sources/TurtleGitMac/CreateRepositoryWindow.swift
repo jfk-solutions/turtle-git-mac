@@ -141,6 +141,9 @@ import TurtleGitCore
     var showSuccess:(()->Void)?
     var showError:((String,@escaping()->Void)->Void)?
     var initializeOperation:((GitRepository,URL,Bool,Set<InitializationWarning>,OperationCancellation) async throws->String)?
+    var initializeAcceptedOperation:((GitRepository,URL,Bool,Set<InitializationWarning>,OperationCancellation) async throws->InitializationOutcome)?
+    @Published private(set) var acceptedCreation:InitializationOutcome?
+    private var adoptedCreation=false
     var bareResultSetup = BareRepositoryResultSetup()
     @Published private(set) var setupWarning: String?
     var warningsForFolder:(URL,Bool)throws->Set<InitializationWarning>={try RepositoryInitialization.warnings(for:$0,bare:$1)}
@@ -188,44 +191,56 @@ import TurtleGitCore
         }
     }
     private func perform(bare: Bool) {
-        guard !retired else { return }
-        guard !confirmingQuit else{busy=false;return}
+        guard !retired,!confirmingQuit else {busy=false;return}
+        guard acceptedCreation == nil else {busy=false;retryInspection();return}
         let token=OperationCancellation();cancellation=token;Self.activeOperations += 1;pendingOperations += 1
         let acceptedWarnings=confirmed
         confirmed.remove(.nonemptyBare)
         Task { [self, access] in
-            var created:(GitRepository,Bool,String)?,failure:String?
-            defer {
-                Self.activeOperations -= 1;pendingOperations -= 1;withExtendedLifetime(access){}
-                if cancellation === token { cancellation = nil; busy = false }
-                workDidDrain?()
-                if !retired,let created{completed=true;confirmingSuccess=true;pendingInitialization=created;deliverSuccess()}
-                else if !retired,let failure{reportError(failure)}
-                if pendingSuccessClose, !retired { pendingSuccessClose = false; close() }
-            }
+            defer {Self.activeOperations -= 1;pendingOperations -= 1;withExtendedLifetime(access){};if cancellation === token {cancellation=nil;busy=false};workDidDrain?();if pendingSuccessClose,!retired{pendingSuccessClose=false;close()}}
             do {
-                let executable = try self.executable ?? GitRuntime.executable()
-                let cwd = try CloneOptions.workingDirectory(for: folder)
-                guard access.contains(cwd) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(cwd.path) }
-                let initializer=GitRepository(root:cwd,executable:executable),output:String
-                if let initializeOperation{output=try await initializeOperation(initializer,folder,bare,acceptedWarnings,token)}else{output=try await initializer.initialize(at:folder,bare:bare,confirmedWarnings:acceptedWarnings,cancellation:token)}
-                let candidate = GitRepository(root: folder, executable: executable)
-                let resolved = try await candidate.discoverRoot(cancellation: token)
-                guard access.contains(resolved) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path) }
-                let repo = GitRepository(root: resolved, executable: executable)
-                let actualBare = try await repo.isBare(cancellation: token)
-                try token.check(); guard !retired else { return }
-                // Keep the authoritative Git result while the optional Finder
-                // decoration drains, including when its owner is cancelled.
-                created=(repo,actualBare,output)
-                let warning = await bareResultSetup.apply(repository:repo,destination:folder,access:access,verifiedBare:actualBare,cancellation:token)
-                if let warning {
-                    created=(repo,actualBare,output + (output.hasSuffix("\n") || output.isEmpty ? "":"\n") + warning)
-                    if !retired { setupWarning=warning }
-                }
-            }catch{if !retired,!token.isCancelled{failure=error.localizedDescription}}
+                let executable=try self.executable ?? GitRuntime.executable()
+                let cwd=try CloneOptions.workingDirectory(for:folder)
+                guard access.contains(cwd) else{throw RepositoryAccessFailure.repositoryRootOutsidePermission(cwd.path)}
+                let initializer=GitRepository(root:cwd,executable:executable)
+                let outcome:InitializationOutcome
+                if let initializeAcceptedOperation {outcome=try await initializeAcceptedOperation(initializer,folder,bare,acceptedWarnings,token)}
+                else if let initializeOperation {
+                    let output=try await initializeOperation(initializer,folder,bare,acceptedWarnings,token)
+                    outcome=InitializationOutcome(output:output,destination:folder,cancelledAfterCreation:token.isCancelled)
+                }else{outcome=try await initializer.initializeOutcome(at:folder,bare:bare,confirmedWarnings:acceptedWarnings,cancellation:token)}
+                // An accepted mutation is irreversible even if its presentation
+                // was closed or cancellation arrived before verification.
+                acceptedCreation=outcome;completed=true
+                guard !retired else{return}
+                if token.isCancelled || outcome.cancelledAfterCreation{setupWarning="Repository created. Retry opening the repository to continue.";return}
+                try await finishAcceptedInitialization(initializer:initializer,token:token)
+            }catch{if !retired,!token.isCancelled{if acceptedCreation != nil{setupWarning=error.localizedDescription}else{reportError(error.localizedDescription)}}}
         }
     }
+    func retryInspection(){
+        guard !retired,!confirmingQuit,!hasPendingWork,!busy,acceptedCreation != nil else{return}
+        let token=OperationCancellation();cancellation=token;busy=true;Self.activeOperations += 1;pendingOperations += 1
+        Task{[self,access] in
+            defer{Self.activeOperations -= 1;pendingOperations -= 1;if cancellation === token{cancellation=nil;busy=false};withExtendedLifetime(access){};workDidDrain?()}
+            do{let executable=try self.executable ?? GitRuntime.executable();try await finishAcceptedInitialization(initializer:GitRepository(root:folder,executable:executable),token:token)}
+            catch{if !retired,!token.isCancelled{setupWarning=error.localizedDescription}}
+        }
+    }
+    private func finishAcceptedInitialization(initializer:GitRepository,token:OperationCancellation) async throws{
+        guard let previous=acceptedCreation else{return}
+        let outcome=try await initializer.inspectInitializationOutcome(previous,cancellation:token)
+        acceptedCreation=outcome
+        guard let root=outcome.repositoryRoot,let actualBare=outcome.isBare,access.contains(root) else{throw RepositoryAccessFailure.securityScopeUnavailable}
+        try token.check();guard !retired,!confirmingQuit else{return}
+        let repo=GitRepository(root:root,executable:initializer.executable)
+        let warning=await bareResultSetup.apply(repository:repo,destination:folder,access:access,verifiedBare:actualBare,cancellation:token)
+        guard !retired,!token.isCancelled else{return}
+        setupWarning=warning;confirmingSuccess=true
+        if !adoptedCreation{adoptedCreation=true;pendingInitialization=(repo,actualBare,outcome.output + (warning.map{"\n"+$0} ?? ""))}
+        deliverSuccess()
+    }
+
 
 }
 
@@ -241,12 +256,14 @@ private struct CreateRepositoryDialog: View {
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("OK") {model.initialize()}.keyboardShortcut(.defaultAction).disabled(!model.canEditForm)
+                if model.completed { Button("Retry opening repository") {model.retryInspection()}.disabled(model.busy || model.hasPendingWork || model.retired || model.confirmingQuit || model.confirmingSuccess) }
+                else { Button("OK") {model.initialize()}.keyboardShortcut(.defaultAction).disabled(!model.canEditForm) }
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction).disabled(!model.canClose)
                 Button("Help") { TurtleGitHelp.show(.createRepository) }
             }
         }.padding(16)
         .disabled(model.confirmingQuit)
+        if let warning=model.setupWarning,!model.confirmingSuccess{Text(warning).font(.caption).foregroundStyle(.orange).textSelection(.enabled)}
         if let error=model.error,!model.confirmingError{Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)}
     }
 }

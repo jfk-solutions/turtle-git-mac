@@ -91,7 +91,15 @@ public enum CloneFailure: LocalizedError {
 public struct CloneOutcome: Sendable {
     public let output:String
     public let warnings:[String]
-    public init(output:String,warnings:[String]) {self.output=output;self.warnings=warnings}
+    public let repositoryRoot:URL?,isBare:Bool?
+    public let cancelledAfterCreation:Bool,configurationPending:Bool
+    public let verificationError:String?
+    public let identity:RepositoryCreationIdentity?
+    public var verified:Bool {repositoryRoot != nil && isBare != nil && verificationError == nil}
+    public init(output:String,warnings:[String],repositoryRoot:URL?=nil,isBare:Bool?=nil,cancelledAfterCreation:Bool=false,verificationError:String?=nil,configurationPending:Bool=false,identity:RepositoryCreationIdentity?=nil) {
+        self.output=output;self.warnings=warnings;self.repositoryRoot=repositoryRoot;self.isBare=isBare
+        self.cancelledAfterCreation=cancelledAfterCreation;self.verificationError=verificationError;self.configurationPending=configurationPending;self.identity=identity
+    }
     public var summary:String {output + (warnings.isEmpty ? "" : (output.hasSuffix("\n") ? "" : "\n") + warnings.joined(separator:"\n"))}
 }
 /// The clone subprocess has drained, before saving post-clone SSH settings.
@@ -136,14 +144,15 @@ extension GitRepository {
         defer { withExtendedLifetime(session) {} }
         if options.loadSSHKeyWithAgent && session == nil { throw CloneFailure.keyRuntime }
         var environment = session?.transportEnvironment ?? [:]
-        if let command = try options.sshCommand() { environment["GIT_SSH_COMMAND"] = command }
+        let capturedSSHCommand=try options.sshCommand()
+        if let command=capturedSSHCommand { environment["GIT_SSH_COMMAND"] = command }
         try token.check()
         onCommand?(commandInvocation(args,literalPathspecs:false,executorOverride:executor))
         let started=ProcessInfo.processInfo.systemUptime
         let command:GitResult
         do {
-            command=try runTransfer(args,environment:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification)
-            onCommandFinished?(.init(success:command.exitCode == 0,cancelled:false,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            command=try acceptedCreationResult {try runTransfer(args,environment:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification,acceptSuccessfulCancellation:true)}
+            onCommandFinished?(.init(success:true,cancelled:token.isCancelled,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
         } catch {
             let killed=error as? GitCommandCancellationFailure
             onCommandFinished?(.init(success:false,cancelled:token.isCancelled || error is OperationCancellationFailure || error is CancellationError || killed != nil,
@@ -152,17 +161,44 @@ extension GitRepository {
         }
         let output=command.text
         var warnings:[String]=[]
+        var identity:RepositoryCreationIdentity?,verificationError:String?
+        do {identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}}
+        catch {verificationError="Clone completed, but the repository could not be verified: "+error.localizedDescription;warnings.append(verificationError!)}
+        let needsConfiguration=(options.svn && capturedSSHCommand != nil) || options.loadSSHKeyWithAgent && options.sshKey != nil
+        var configurationPending=needsConfiguration
+        if token.isCancelled,needsConfiguration {
+            warnings.append("Clone completed. Its SSH settings were not saved after cancellation; retry configuration without cloning again.")
+        }else if needsConfiguration,verificationError == nil {
         do {
-        if options.svn, let command = try options.sshCommand() {
-            _ = try run(["-C", destination.path, "config", "--local", "core.sshCommand", command], cancellation: token)
-        }
-        if options.loadSSHKeyWithAgent, let key = options.sshKey {
-            let remote = options.origin.flatMap { $0.isEmpty ? nil : $0 } ?? "origin"
-            _ = try run(["-C", destination.path, "-c", "core.precomposeunicode=false", "config", "--local", "remote." + remote + ".turtlegitsshkeyfile", key.path], cancellation: token)
-        }
+            let accepted=CloneOutcome(output:output,warnings:warnings,repositoryRoot:identity?.root,isBare:identity?.isBare,configurationPending:true,identity:identity)
+            _ = try configureClonedRepository(options,at:destination,expected:accepted,cancellation:token)
+            configurationPending=false
         } catch {
             warnings.append("Clone completed, but its SSH setting could not be saved.\n" + error.localizedDescription)
         }
-        return CloneOutcome(output:output,warnings:warnings)
+        }
+        return CloneOutcome(output:output,warnings:warnings,repositoryRoot:identity?.root,isBare:identity?.isBare,cancelledAfterCreation:token.isCancelled,verificationError:verificationError,configurationPending:configurationPending,identity:identity)
+    }
+    public func inspectCloneOutcome(_ outcome:CloneOutcome,at destination:URL,cancellation:OperationCancellation?=nil)throws->CloneOutcome {
+        try cancellation?.check()
+        let identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}
+        if let prior=outcome.identity,prior != identity {throw InitializationFailure.destination}
+        let warnings=outcome.warnings.filter {$0 != outcome.verificationError}
+        return .init(output:outcome.output,warnings:warnings,repositoryRoot:identity.root,isBare:identity.isBare,cancelledAfterCreation:outcome.cancelledAfterCreation || cancellation?.isCancelled == true,configurationPending:outcome.configurationPending,identity:identity)
+    }
+    /// Explicit post-clone recovery only: no clone transport or destination
+    /// recreation. Revalidate the exact accepted destination before config IO.
+    public func configureClonedRepository(_ options:CloneOptions,at destination:URL,expected:CloneOutcome,cancellation:OperationCancellation?=nil)throws->String {
+        try cancellation?.check()
+        guard let expectedIdentity=expected.identity else {throw InitializationFailure.destination}
+        let identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}
+        guard identity==expectedIdentity else {throw InitializationFailure.destination}
+        var output=""
+        if options.svn,let command=try options.sshCommand() {output += try acceptedCreationResult {try run(["-C",destination.path,"config","--local","core.sshCommand",command],cancellation:cancellation)}.text}
+        if options.loadSSHKeyWithAgent,let key=options.sshKey {
+            let remote=options.origin.flatMap {$0.isEmpty ? nil:$0} ?? "origin"
+            output += try acceptedCreationResult {try run(["-C",destination.path,"-c","core.precomposeunicode=false","config","--local","remote."+remote+".turtlegitsshkeyfile",key.path],cancellation:cancellation)}.text
+        }
+        return output
     }
 }

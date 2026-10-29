@@ -34,6 +34,10 @@ and opening the repository are separate phases; a successful Git clone can still
 need **Retry opening repository**, which does not clone again. Review a warning
 before using Show Log or Show in Finder. Those actions release the Clone result
 and options first, then open the captured destination with the original settings.
+If Git completed before cancellation, the result retains that success. Cancellation
+stops automatic opening and key setup. Explicitly retry opening or key configuration
+to continue; neither choice clones again. Key setup verifies that the destination
+still contains the repository that Clone inspected.
 
 Create Repository initializes Git in the selected folder. Choose a bare repository
 only when you want repository storage without a working tree. Authorize the
@@ -50,7 +54,9 @@ Init checks special-folder and nonempty-bare warnings before writing. Abort leav
 the destination unchanged. A successful operation shows an owned confirmation;
 an error stays with the options so it can be acknowledged and retried. Pending
 questions and Git/metadata work keep the creation workflow owned until they
-settle. Closing a window forcibly cancels its remaining work and rejects late
+settle. A successful Init is retained even if opening its result fails or is
+cancelled. Retry opening inspects the existing result without running Init again.
+Closing a window forcibly cancels its remaining work and rejects late
 answers; completed repository contents remain on disk.
 
 
@@ -423,6 +429,9 @@ the result window, cancellation question and actual work to finish, then inherit
 the repository access, preferences and appearance. As in the pinned source,
 the **Resolve…** action after a failed Switch with merge opens Commit to review
 the conflicts. A forced close cancels owned work and cannot launch a queued child.
+A completed checkout is retained if cancellation arrives after Git finishes.
+**Check result again** inspects the current branch and conflicts without repeating
+checkout. A failed inspection offers that read-only action rather than another Switch.
 
 ## Fetch and Pull
 
@@ -849,7 +858,9 @@ failed Git command. Retry retains the original plan and checks that HEAD has not
 changed. Cancellation and result closure wait for actual owned work and sheets;
 Submodule Update, Clean and Bisect children inherit the same preferences,
 appearance and repository access. Forcibly closing progress cannot start a queued
-post-action.
+post-action. If Reset succeeds but result inspection fails or is cancelled,
+**Inspect reset result** retries only that inspection. Reset is not repeated.
+Optional actions remain unavailable until inspection succeeds.
 
 When Reset is configured to use libgit2, its progress window also shows sortable
 Action/Path rows with the source Checkout icon. You can copy selected rows or
@@ -884,7 +895,10 @@ attempted changes. Only a successful Update enables its completion actions.
 
 When Add succeeds but configuring its SSH key fails, the result distinguishes
 those phases. **Retry key configuration** retries the captured key setup for the
-added submodule without repeating Add. Sync retains results for earlier directories
+added submodule without repeating Add. If opening the added repository fails,
+**Retry opening submodule** inspects the existing result. A completed Add is retained
+when cancellation arrives after Git finishes; automatic key setup then stops until
+you explicitly continue. Sync retains results for earlier directories
 when a later command fails or is cancelled.
 Revert can mark a submodule for comparison. With working-copy marks, Submodule Diff compares its indexed commit with the checkout and labels the From group **Index**. Historical renamed gitlinks retain both paths. A submodule is a separate repository. Inspect its own status and commit pointer
 when the superproject reports a change.

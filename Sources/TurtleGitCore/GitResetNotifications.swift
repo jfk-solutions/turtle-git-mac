@@ -168,6 +168,8 @@ extension GitRepository {
         do {
             let result=try run(["--turtlegit-reset-notifications"]+arguments,environmentOverrides:exchange?.environment ?? [:],cancellation:cancellation,retainStandardOutput:false,consumeOutput:{receiver.consume($0)},onOutput:{chunk in if case .stderr=chunk.stream{onOutput?(chunk)}},executorOverride:executor)
             succeeded=result.exitCode==0;return result
+        } catch let accepted as GitCommandCancellationFailure where accepted.result.exitCode==0 {
+            succeeded=true;return accepted.result
         } catch let error as GitFailure {throw GitFailure(arguments:arguments,code:error.code,message:error.message,outputWasDelivered:error.outputWasDelivered,standardError:error.standardError)}
     }
 }

@@ -738,8 +738,10 @@ jobs:
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
       - name: Native Clone live command output
         run: python3 scripts/test-clone-stream.py
-      - name: Native Clone progress and captured recovery
-        run: python3 scripts/test-clone-progress.py
+      - name: Native Clone progress and repository setup/transition recovery
+        run: |
+          python3 scripts/test-clone-progress.py
+          python3 scripts/test-repository-setup-transitions.py
       - name: Native all-reference browser and Reset handoff
         run: python3 scripts/test-reference-browser.py
       - name: Native standalone reference browser

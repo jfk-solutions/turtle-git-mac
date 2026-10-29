@@ -263,13 +263,17 @@ struct ResetChooserDraft: Equatable {
     var onPostAction: ((ResetPostAction) -> Void)?
     var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
     var onChanged: (String) -> Void = { _ in }
+    var performResetAccepted:((ResetPlan,OperationCancellation) async throws->RepositoryTransitionReceipt)?
+    @Published private(set) var acceptedCommand:RepositoryTransitionReceipt?
+    private var acceptedCompletionDelivered=false
+    var resultInspectionPending:Bool{acceptedCommand != nil && !acceptedCompletionDelivered}
     func finish(_ result: ResetProgressWindowModel) {
         CommandProgressContext.perform(commandProgressScope) { finishInCommandProgressScope(result) }
     }
     private func finishInCommandProgressScope(_ result: ResetProgressWindowModel) {
         guard !invalidated, progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false; error = nil
-        if result.success {
+        if result.success,!result.cancelled,!result.resultInspectionPending {
             let completed=onReset,output=result.output
             let dispatch=CommandProgressContext.capture(commandProgressScope) {completed(output)}
             if let afterClose {afterClose(dispatch)} else {close();dispatch()}
@@ -381,7 +385,7 @@ struct ResetChooserDraft: Equatable {
         CommandProgressContext.perform(commandProgressScope) { resetInCommandProgressScope() }
     }
     private func resetInCommandProgressScope() {
-        guard !invalidated, !confirmingQuit, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
+        guard acceptedCommand == nil,!invalidated, !confirmingQuit, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode, request = OperationCancellation()
         resetCancellation = request
         let context = formContext
@@ -414,7 +418,7 @@ struct ResetChooserDraft: Equatable {
         CommandProgressContext.perform(commandProgressScope) { applyInCommandProgressScope(plan) }
     }
     private func applyInCommandProgressScope(_ plan: ResetPlan) {
-        guard !invalidated, !confirmingQuit, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
+        guard acceptedCommand == nil,!invalidated, !confirmingQuit, !closeAfterRead, !busy, !showingReferencePicker, !showingCommitPicker, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences, access: access)
@@ -429,24 +433,42 @@ struct ResetChooserDraft: Equatable {
         } else {
             let backend=GitLibGit2Configuration.load(from:preferences),recycle=preferences.object(forKey:"RevertWithRecycleBin") == nil || preferences.bool(forKey:"RevertWithRecycleBin")
             let request = OperationCancellation(); resetCancellation = request;pendingBatchWorkers += 1; LocalGitCommandProgress.begin()
+            let publish=onChanged
             Task { [self, access, repository = chooser.repository] in
-                var completedOutput: String?
+                var deliverCompletion=false
                 defer {
-                    pendingBatchWorkers -= 1;LocalGitCommandProgress.end(); withExtendedLifetime(access) {}
-                    if resetCancellation === request {
-                        resetCancellation = nil; busy = false
-                        if let output = completedOutput { onChanged(output); onReset(output); close() }
-                        else { onReadSettled() }
+                    pendingBatchWorkers -= 1;LocalGitCommandProgress.end();withExtendedLifetime(access){}
+                    if resetCancellation === request{
+                        resetCancellation=nil;busy=false
+                        if deliverCompletion,!invalidated,!confirmingQuit,!request.isCancelled,let receipt=acceptedCommand{acceptedCompletionDelivered=true;onReset(receipt.output);close()}
+                        else{onReadSettled()}
                     }
                 }
-                do {
-                    let output = try await repository.reset(plan, cancellation: request, backend:backend,recycle:recycle)
-                    guard !invalidated, resetCancellation === request, !request.isCancelled else { return }
-                    completedOutput = output
-                } catch { if !invalidated, resetCancellation === request, !request.isCancelled { self.error = error.localizedDescription } }
+                do{
+                    let receipt:RepositoryTransitionReceipt
+                    if let performResetAccepted{receipt=try await performResetAccepted(plan,request)}else{receipt=try await repository.resetAccepted(plan,cancellation:request,backend:backend,recycle:recycle)}
+                    acceptedCommand=receipt;publish(receipt.output)
+                    guard !invalidated,!confirmingQuit,resetCancellation === request,!request.isCancelled,!receipt.cancelledAfterCommand else{return}
+                    deliverCompletion=true
+                }catch{if !invalidated,resetCancellation === request,!request.isCancelled{self.error=error.localizedDescription}}
             }
         }
     }
+    func retryResultInspection(){
+        guard let receipt=acceptedCommand,!acceptedCompletionDelivered,!invalidated,!confirmingQuit,!busy,pendingBatchWorkers == 0 else{return}
+        let token=OperationCancellation();resetCancellation=token;busy=true;pendingBatchWorkers += 1;Self.activeReads += 1
+        Task{[self,access] in
+            var deliverCompletion=false
+            let timeout=Task{try? await Task.sleep(nanoseconds:5_000_000_000);if !Task.isCancelled{token.cancel()}}
+            defer{
+                timeout.cancel();pendingBatchWorkers -= 1;Self.activeReads -= 1;withExtendedLifetime(access){}
+                if resetCancellation === token{resetCancellation=nil;busy=false;if deliverCompletion,!invalidated,!confirmingQuit,!token.isCancelled{acceptedCompletionDelivered=true;onReset(receipt.output);close()}else{onReadSettled()}}
+            }
+            do{try validateAccess();let (branch,bare)=try await readState(token);try token.check();guard !invalidated,!confirmingQuit,resetCancellation === token else{return};currentBranch=branch;self.bare=bare;deliverCompletion=true}
+            catch{if !invalidated,!token.isCancelled{self.error=error.localizedDescription}}
+        }
+    }
+
 }
 private struct ResetDialog: View {
     @ObservedObject var model: ResetWindowModel
@@ -490,7 +512,8 @@ private struct ResetDialog: View {
             }
             Button { model.showModifiedFiles() } label: { CommandLabel(title: "Show modified files in working tree", icon: .compare).frame(maxWidth: .infinity) }.disabled(model.bare)
             HStack { if model.busy || chooser.busy { ProgressView().controlSize(.small) }; Spacer()
-                Button("OK") { model.reset() }.keyboardShortcut(.defaultAction).disabled(chooser.revision.isEmpty)
+                if model.acceptedCommand != nil{Button("Inspect reset result"){model.retryResultInspection()}}
+                else{Button("OK") {model.reset()}.keyboardShortcut(.defaultAction).disabled(chooser.revision.isEmpty)}
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button { TurtleGitHelp.show(.reset) } label: { CommandLabel(title: "Help", icon: .help) }
             }
@@ -541,9 +564,9 @@ private struct ResetRadio: NSViewRepresentable {
 }
 
 enum ResetPostAction: String, Hashable {
-    case retry, submoduleUpdate, bisectGood, bisectBad, bisectSkip, bisectReset, clean
-    var title: String { switch self { case .retry: return "Retry"; case .submoduleUpdate: return "Submodule Update…"; case .bisectGood: return "Bisect good"; case .bisectBad: return "Bisect bad"; case .bisectSkip: return "Bisect skip"; case .bisectReset: return "Bisect reset"; case .clean: return "Clean up…" } }
-    var icon: MenuIcon { switch self { case .retry: return .refresh; case .submoduleUpdate: return .fetch; case .bisectGood: return .bisectGood; case .bisectBad: return .bisectBad; case .bisectSkip: return .bisect; case .bisectReset: return .bisectReset; case .clean: return .clean } }
+    case retry, inspectResult, submoduleUpdate, bisectGood, bisectBad, bisectSkip, bisectReset, clean
+    var title: String { switch self { case .retry: return "Retry"; case .inspectResult: return "Inspect reset result"; case .submoduleUpdate: return "Submodule Update…"; case .bisectGood: return "Bisect good"; case .bisectBad: return "Bisect bad"; case .bisectSkip: return "Bisect skip"; case .bisectReset: return "Bisect reset"; case .clean: return "Clean up…" } }
+    var icon: MenuIcon { switch self { case .retry,.inspectResult: return .refresh; case .submoduleUpdate: return .fetch; case .bisectGood: return .bisectGood; case .bisectBad: return .bisectBad; case .bisectSkip: return .bisect; case .bisectReset: return .bisectReset; case .clean: return .clean } }
 }
 private final class ResetNotificationBuffer:@unchecked Sendable {
     private let lock=NSLock()
@@ -576,6 +599,10 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
     private func beginWork(){pendingOperations += 1;Self.activeOperations += 1;LocalGitCommandProgress.begin()}
     private func endWork(){pendingOperations -= 1;Self.activeOperations -= 1;LocalGitCommandProgress.end();if !hasPendingWork {busy=false;workDidDrain?()}}
     var runReset:((ResetPlan,OperationCancellation,@escaping @Sendable (GitOutputChunk)->Void) async throws->String)?
+    var runResetAccepted:((ResetPlan,OperationCancellation,@escaping @Sendable (GitOutputChunk)->Void) async throws->RepositoryTransitionReceipt)?
+    @Published private(set) var acceptedCommand:RepositoryTransitionReceipt?
+    @Published private(set) var resultInspectionPending=false
+    private var notifiedAcceptedCommand=false
     var readBisect:((OperationCancellation) async throws->BisectState)?
     private var interactionGeneration=0
     @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {interactionGeneration += 1}}}
@@ -608,7 +635,7 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((ResetPostAction) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var canCancel: Bool { active && busy && !commandFinished && !confirmingQuit && !cancelling && !confirmingCancellation }
+    var canCancel: Bool { active && busy && (!commandFinished || resultInspectionPending) && !confirmingQuit && !cancelling && !confirmingCancellation }
     init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard, access: RepositoryAccessLease? = nil,backend:GitLibGit2Configuration? = nil) { self.access = access; self.repository = repository; self.plan = plan; self.preferences = preferences;self.backend = backend ?? .load(from:preferences);recycle=preferences.object(forKey:"RevertWithRecycleBin") == nil || preferences.bool(forKey:"RevertWithRecycleBin");notifications=FileOperationProgressState(preferences:preferences); progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func invalidate() { notifications.retire();invalidated = true; cancellation.cancel(); confirmingCancellation = false; postActions = [];if !hasPendingWork {busy=false} }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
@@ -644,7 +671,7 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
         let prefix=bounded(previous.substring(to:range.location),bytes:progressPresentation.outputLimit-footer.utf8.count-suffix.utf8.count)
         output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
     }
-    private func streamReset(_ token:OperationCancellation) async throws->String {
+    private func streamReset(_ token:OperationCancellation) async throws->RepositoryTransitionReceipt {
         let buffer=ResetNotificationBuffer(),started=Date()
         let (events,continuation)=AsyncStream<Void>.makeStream(bufferingPolicy:.bufferingNewest(1))
         func drain(){
@@ -665,16 +692,17 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
             self.output=state.output;self.currentWork=state.currentWork
             if !self.showsNotifications {self.percentage=state.percentage}
         }
-        let operation:(@escaping @Sendable(GitOutputChunk)->Void) async throws->String = { [self] emit in
-            if let runReset {return try await runReset(plan,token,emit)}
+        let operation:(@escaping @Sendable(GitOutputChunk)->Void) async throws->RepositoryTransitionReceipt = { [self] emit in
+            if let runResetAccepted{return try await runResetAccepted(plan,token,emit)}
+            if let runReset {return RepositoryTransitionReceipt(output:try await runReset(plan,token,emit),cancelledAfterCommand:token.isCancelled)}
             let command:@Sendable(GitCommandInvocation)->Void = {invocation in emit(GitOutputChunk(stream:.stdout,data:invocation.preamble))}
-            return try await repository.reset(plan,cancellation:token,onOutput:emit,onCommand:command,backend:backend,recycle:recycle,onNotification:notification)
+            return try await repository.resetAccepted(plan,cancellation:token,onOutput:emit,onCommand:command,backend:backend,recycle:recycle,onNotification:notification)
         }
-        let resultText:(String)->String = {text in text}
+        let resultText:(RepositoryTransitionReceipt)->String = {$0.output}
         do {
-            let result:String=try await LocalGitCommandProgress.stream(preferences:preferences,update:update,resultText:resultText,operation:operation)
+            let result:RepositoryTransitionReceipt=try await LocalGitCommandProgress.stream(preferences:preferences,update:update,resultText:resultText,operation:operation)
             continuation.finish();await pump.value;drain()
-            if showsNotifications,!invalidated {notifications.finish(success:true,cancelled:false,started:started)}
+            if showsNotifications,!invalidated {notifications.finish(success:true,cancelled:result.cancelledAfterCommand,started:started)}
             return result
         }catch{
             continuation.finish();await pump.value;drain()
@@ -684,36 +712,55 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
     }
     private func execute() async {
         defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
-        guard !invalidated else { return }
-        let token=cancellation,startedAt=ProcessInfo.processInfo.systemUptime
+        guard !invalidated,acceptedCommand == nil else{return}
+        let token=cancellation,startedAt=ProcessInfo.processInfo.systemUptime,publish=onChanged
         do {
-            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            rawOutput = try await streamReset(token)
-            guard !invalidated, cancellation === token else { return }; success = true
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable}
+            let receipt=try await streamReset(token)
+            acceptedCommand=receipt;rawOutput=receipt.output;resultInspectionPending=true
+            if !notifiedAcceptedCommand{notifiedAcceptedCommand=true;publish(receipt.output)}
+            guard !invalidated,!abandoned,cancellation === token else{return}
+            success=true;cancelled=token.isCancelled || receipt.cancelledAfterCommand
             completeOutput(succeeded:true,startedAt:startedAt)
-            if plan.mode == .hard, FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { postActions.append(.submoduleUpdate) }
-            do {
-                let state:BisectState
-                if let readBisect {state=try await readBisect(token)}else{state=try await repository.bisectState(cancellation:token)}
-                guard !invalidated,cancellation===token,!token.isCancelled else{return}
-                if state.active {postActions += [.bisectGood,.bisectBad,.bisectSkip,.bisectReset]}
-            }catch{
-                guard !invalidated,cancellation===token else{return}
-                if !token.isCancelled {appendDiagnostic("Could not read bisect state.\n"+error.localizedDescription)}
+            postActions=[.inspectResult]
+            guard !cancelled,!confirmingQuit else{return}
+            try await inspectAcceptedResult()
+        }catch{
+            guard !invalidated else{return}
+            if acceptedCommand != nil{cancelled=cancelled || cancellation.isCancelled;appendDiagnostic("Could not inspect reset result.\n"+error.localizedDescription);postActions=[.inspectResult]}
+            else{
+                guard cancellation === token else{return}
+                rawOutput=(error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
+                output=LocalGitCommandProgress.failure(error,existing:output,preferences:preferences)
+                cancelled=token.isCancelled || error is OperationCancellationFailure || error is CancellationError || error is GitCommandCancellationFailure
+                completeOutput(succeeded:false,error:error,startedAt:startedAt);postActions=[.retry]
             }
-            guard !invalidated,cancellation===token,!token.isCancelled else{return}
-            if plan.mode == .hard { postActions.append(.clean) }
-        } catch {
-            guard !invalidated, cancellation === token else { return }
-            rawOutput=(error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
-            output=LocalGitCommandProgress.failure(error,existing:output,preferences:preferences)
-            cancelled=token.isCancelled || error is OperationCancellationFailure || error is CancellationError || error is GitCommandCancellationFailure
-            completeOutput(succeeded:false,error:error,startedAt:startedAt);postActions=[.retry]
         }
-        guard !invalidated, cancellation === token else { return }
-        onChanged(rawOutput)
     }
-    private func finishAutomaticClose() { if !busy,!hasPendingWork, !confirmingQuit, !confirmingCancellation, !fileActionBusy, !invalidated, abandoned || notificationWarnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
+    private func inspectAcceptedResult() async throws{
+        guard acceptedCommand != nil else{return}
+        let token=OperationCancellation();cancellation=token
+        let timeout=Task{try? await Task.sleep(nanoseconds:5_000_000_000);if !Task.isCancelled{token.cancel()}}
+        defer{timeout.cancel()}
+        let state:BisectState
+        if let readBisect{state=try await readBisect(token)}else{state=try await repository.bisectState(cancellation:token)}
+        try token.check();guard !invalidated,!abandoned,!confirmingQuit,cancellation === token else{return}
+        var actions:[ResetPostAction]=[]
+        if plan.mode == .hard,FileManager.default.fileExists(atPath:repository.root.appendingPathComponent(".gitmodules").path){actions.append(.submoduleUpdate)}
+        if state.active{actions += [.bisectGood,.bisectBad,.bisectSkip,.bisectReset]}
+        if plan.mode == .hard{actions.append(.clean)}
+        resultInspectionPending=false;postActions=actions
+    }
+    private func retryResultInspection(){
+        guard acceptedCommand != nil,!invalidated,!confirmingQuit,!busy,!hasPendingWork else{return}
+        busy=true;cancelled=false;postActions=[];beginWork()
+        Task{[self] in
+            defer{endWork();withExtendedLifetime(access){}}
+            do{try await inspectAcceptedResult()}
+            catch{if !invalidated{appendDiagnostic("Could not inspect reset result.\n"+error.localizedDescription);postActions=[.inspectResult]}}
+        }
+    }
+    private func finishAutomaticClose(){if !busy,!hasPendingWork,!confirmingQuit,!confirmingCancellation,!fileActionBusy,!invalidated,abandoned || !cancelled && !resultInspectionPending && notificationWarnings.isEmpty && autoClosePolicy.shouldClose(success:success,postActionCount:postActions.count){close()}}
     func cancel() {
         guard canCancel, !invalidated else { return }
         let token = cancellation,generation=interactionGeneration
@@ -722,7 +769,7 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
             var answered = false
             confirmCancellation { [weak self] accepted in
                 guard !answered, let self, !self.invalidated, self.cancellation === token else { return }; answered = true; self.confirmingCancellation = false
-                if self.busy && !self.commandFinished && accepted && !self.confirmingQuit && self.interactionGeneration == generation { self.cancelling = true; token.cancel() }
+                if self.busy && (!self.commandFinished || self.resultInspectionPending) && accepted && !self.confirmingQuit && self.interactionGeneration == generation { self.cancelling = true; token.cancel() }
                 self.finishAutomaticClose()
             }
         } else { cancelling = true; token.cancel() }
@@ -732,13 +779,16 @@ private final class ResetNotificationBuffer:@unchecked Sendable {
     }
     private func performInCommandProgressScope(_ action: ResetPostAction) {
         guard !busy,!hasPendingWork, !fileActionBusy, !confirmingQuit, !invalidated, !confirmingCancellation, !dispatched, postActions.contains(action) else { return }
+        if action == .inspectResult{retryResultInspection();return}
         if action == .retry {
+            guard acceptedCommand == nil else{retryResultInspection();return}
             ProgressActionLog.nextAttempt(self);
             cancellation=OperationCancellation();resetAttempt();beginWork()
             Task { await execute() }; return
         }
         guard let onPostAction else { return }; dispatched = true
-        let dispatch=CommandProgressContext.capture(commandProgressScope) {onPostAction(action)}
+        let generation=interactionGeneration
+        let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration==generation else{return};onPostAction(action)}
         if let closeForHandoff {closeForHandoff(dispatch)} else {close();dispatch()}
     }
 }
