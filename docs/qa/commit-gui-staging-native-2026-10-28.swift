@@ -23,12 +23,17 @@ private extension NSWindow {
     static func views(_ view:NSView?)->[NSView] {guard let view else{return []};return [view]+view.subviews.flatMap{views($0)}}
     static func drained()->Bool {CommitWindowModel.activeCommitPreflights==0 && CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeFileDrops==0 && PatchWindowModel.activeOperations==0}
     @MainActor final class Context {
-        let root:URL,git:URL,repository:GitRepository,prefs:UserDefaults,suite:String
+        let root:URL,artifacts:URL,privateRoot:URL,git:URL,repository:GitRepository,prefs:UserDefaults,suite:String
         var owners:[CommitWindowController]=[],release:[()->Void]=[]
         let partial="part 雪\t[*].txt",untracked="-new 🦎.txt",deleted="deleted.txt",sentinel="unrelated.txt"
         var base=Data(),staged=Data(),working=Data(),head=Data(),sentinelIndex=Data(),contents:[String:Data]=[:]
         init(root:URL,git:URL)throws {
-            self.root=root;self.git=git;repository=GitRepository(root:root,executable:git,libgit2Configuration:.init(enabled:false))
+            let workspace=root.deletingLastPathComponent(),captureFolder=workspace.appendingPathComponent("artifacts",isDirectory:true)
+            self.root=root;privateRoot=workspace;artifacts=captureFolder
+            try FileManager.default.createDirectory(at:captureFolder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+            let artifactPath=captureFolder.standardizedFileURL.path,repositoryPath=root.standardizedFileURL.path
+            try require(artifactPath != repositoryPath && !artifactPath.hasPrefix(repositoryPath+"/"),"QA artifacts must remain outside the tested working tree")
+            self.git=git;repository=GitRepository(root:root,executable:git,libgit2Configuration:.init(enabled:false))
             suite="TurtleGit.CommitGuiStaging."+UUID().uuidString;prefs=try unwrap(UserDefaults(suiteName:suite),"Private preferences unavailable")
             for key in ["HintStagingMode","HintHierarchicalConfig","Commit.SkipCancelConfirmation","TurtleGit.Commit.GitGuiInterface","AddBeforeCommit"] {prefs.set(true,forKey:key)}
             for key in ["EnableGravatar","SelectFilesForCommit","UseLibgit2"] {prefs.set(false,forKey:key)}
@@ -83,7 +88,7 @@ private extension NSWindow {
         do {try await context.setup();try await verify(context);await context.clean()}
         catch {await context.clean();throw error}
         try require(drained() && context.owners.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil},"Owned GUI staging windows/workers survived cleanup")
-        print("PASS: Commit GUI staging native tables, captured transfer adapter, double-action hookup, partial/untracked/deleted literal paths, stable loading/empty appearance, owner/selection guards and drain")
+        print("PASS: Commit GUI staging native tables, captured transfer adapter, double-action hookup, partial/untracked/deleted literal paths, stable loading/empty appearance, capture/status isolation, owner/selection guards and drain")
     }
     static func nativeTables(_ owner:CommitWindowController)throws->[NSTableView] {
         let tables=views(owner.window?.contentView).compactMap{$0 as? NSTableView}.filter{$0.headerView != nil && $0.tableColumns.count>=2}
@@ -188,12 +193,16 @@ private extension NSWindow {
         try require(owner.model.guiStaged == !staged && owner.model.selection==wanted,"Moved paths lost exact destination-side native selection: \(after)")
         try require(owner.model.guiPatch.map{GitPathSet($0.paths)==wanted}==true,"Staging continuation lost the captured selected-file preview: \(after)")
     }
-    static func capture(_ owner:CommitWindowController,to path:URL)throws {
+    static func capture(_ owner:CommitWindowController,to path:URL,repository:GitRepository)async throws {
+        let arguments=["status","--porcelain=v2","-z","--untracked-files=all"]
+        let before=try await repository.run(arguments).stdout
         let view=try unwrap(owner.window?.contentView,"Missing appearance owner")
         view.layoutSubtreeIfNeeded()
         let bitmap=try unwrap(view.bitmapImageRepForCachingDisplay(in:view.bounds),"Offscreen appearance bitmap unavailable")
         view.cacheDisplay(in:view.bounds,to:bitmap)
         try unwrap(bitmap.representation(using:.png,properties:[:]),"Offscreen appearance PNG unavailable").write(to:path)
+        let after=try await repository.run(arguments).stdout
+        try require(after==before,"Native capture changed exact Git status; QA output must not become repository input: "+path.lastPathComponent)
     }
     static func verify(_ c:Context)async throws {
         let owner=try await c.open(),model=owner.model
@@ -241,7 +250,7 @@ private extension NSWindow {
         _ = try await select(owner,paths:[partial],staged:false)
         for (name,appearance) in [("light",NSAppearance.Name.aqua),("dark",.darkAqua)] {
             owner.window?.appearance=NSAppearance(named:appearance);await Task.yield()
-            try capture(owner,to:c.root.appendingPathComponent("commit-gui-files-"+name+".png"))
+            try await capture(owner,to:c.artifacts.appendingPathComponent("commit-gui-files-"+name+".png"),repository:c.repository)
         }
         try await c.preserved()
         try await emptyAndLoading(c,owner:owner)
@@ -287,7 +296,7 @@ private extension NSWindow {
         model.setCommitInterface(true);try await ready(owner)
         model.activateGuiFiles([c.partial],snapshot:stale)
         try require(try await c.repository.run(["write-tree"]).stdout==tree,"Old GUI generation revived after returning from Classic")
-        let folder=c.root.appendingPathComponent("empty-repository");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let folder=c.privateRoot.appendingPathComponent("empty-repository");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         let empty=GitRepository(root:folder,executable:c.git,libgit2Configuration:.init(enabled:false))
         _=try await empty.run(["init","-b","main"])
         for(key,value)in [("user.name","Empty staging QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("tgit.commitstagingsupport","true")] {_=try await empty.run(["config",key,value])}
@@ -303,7 +312,7 @@ private extension NSWindow {
                 try require(native.numberOfRows==0 && native.headerView != nil && native.enclosingScrollView != nil,"Empty table lost its native frame/header/scroll surface")
                 try require(emptyOwner.model.guiFileListMessage(staged:staged) != nil,"Empty table lacks explicit feedback")
             }
-            try capture(emptyOwner,to:c.root.appendingPathComponent("commit-gui-empty-"+name+".png"))
+            try await capture(emptyOwner,to:c.artifacts.appendingPathComponent("commit-gui-empty-"+name+".png"),repository:empty)
         }
         // Forced retirement fences a read held beyond cancellation and cannot
         // revive the source table when the accepted worker eventually returns.

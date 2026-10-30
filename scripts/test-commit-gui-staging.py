@@ -29,7 +29,7 @@ for index, git in enumerate(args.git or [Path('/usr/bin/git'), root/'build/git-r
     git = git.absolute()
     with tempfile.TemporaryDirectory(prefix='turtlegit-commit-gui-') as temporary:
         folder = Path(temporary)
-        for name in ('repository', 'preferences', 'home', 'temporary', 'xdg'):
+        for name in ('repository', 'artifacts', 'preferences', 'home', 'temporary', 'xdg'):
             (folder/name).mkdir(mode=0o700)
         config = folder/'global.config'; config.write_text('')
         environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
@@ -55,7 +55,7 @@ for index, git in enumerate(args.git or [Path('/usr/bin/git'), root/'build/git-r
                 raise RuntimeError('GUI staging receiver exited without its final behavioral/cleanup assertion')
             destination = root/'build/qa/commit-gui-staging-captures'/str(index)
             destination.mkdir(parents=True, exist_ok=True)
-            for image in (folder/'repository').glob('commit-gui-*.png'):
+            for image in (folder/'artifacts').glob('commit-gui-*.png'):
                 shutil.copy2(image, destination/image.name)
         except BaseException:
             evidence = Path(tempfile.mkdtemp(prefix='commit-gui-staging-failed-'+str(index)+'-', dir=root/'build/qa'))

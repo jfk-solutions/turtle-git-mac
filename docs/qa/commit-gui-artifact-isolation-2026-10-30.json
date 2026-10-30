@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "date": "2026-10-30",
+  "command": "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer SDKROOT=macosx /usr/bin/python3 scripts/test-commit-gui-staging.py",
+  "scope": "Single grouped Commit GUI staging fixture across system and bundled Git; cached app receiver module, fixture-only compilation. No Core/app build or other native suites.",
+  "exitCode": 0,
+  "nativeResults": [
+    {
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    }
+  ],
+  "receiverPIDs": [
+    4650,
+    5006
+  ],
+  "postRunPS": {
+    "exitCode": 1,
+    "stdout": ""
+  },
+  "helperCleanupMessages": 2,
+  "nativePasses": 2,
+  "evidenceLog": "build/qa/commit-gui-artifact-isolation-native-2026-10-30.log",
+  "preservedAssertions": [
+    "Exact Git status before/after every capture",
+    "Original list/header geometry checks",
+    "Stage/unstage selected paths, partial/untracked/deleted identity and unrelated-index preservation",
+    "Loading/empty panes, ownership/selection rejection and worker drain"
+  ],
+  "captures": {
+    "0": [
+      "commit-gui-empty-dark.png",
+      "commit-gui-empty-light.png",
+      "commit-gui-files-dark.png",
+      "commit-gui-files-light.png"
+    ],
+    "1": [
+      "commit-gui-empty-dark.png",
+      "commit-gui-empty-light.png",
+      "commit-gui-files-dark.png",
+      "commit-gui-files-light.png"
+    ]
+  },
+  "limitations": "Focused local success does not establish a complete hosted CI pass or physical native double-click acceptance.",
+  "hosted_failure": {
+    "run": 41101501351,
+    "job": 124254921437,
+    "source": "dc439347",
+    "step": 151,
+    "diagnosis": "The fixture saved screenshots inside its tested working tree; refresh discovered two new untracked paths, widened the Path column and showed a horizontal scrollbar. The geometry change was caused by unintended test input, not a demonstrated production regression.",
+    "original_failure_log": "build/qa/ci-commit-staging-41101501351-job124254921437-failure.log"
+  },
+  "repair": "Move captures and the empty test repository to private siblings outside the primary working tree. Assert exact NUL-delimited porcelain-v2 Git status before and after every capture. Preserve all original geometry/scroll/transfer and lifetime assertions.",
+  "shipping_changes": "None; installed build39 is unchanged."
+}
