@@ -38,6 +38,12 @@ missing source behavior, reported defect or failing check.
   [Consolidated build40](qa/signed-consolidation-build40-2026-10-30.json) is now
   packaged with focused signed-helper and ZIP checks; it has not replaced build39.
 
+The [hosted compatibility repair batch](qa/ci-host-compatibility-2026-10-30.json)
+records the SSH bookmark host identity, Settings color-control lifecycle and
+pinned Unicode source-loader failures together. Its focused local checks do not
+replace the required complete hosted macOS pass. The installed build39 and
+packaged build40 are unchanged by these verification-source repairs.
+
 The [current first-use Finder observation](qa/installed37-finder-first-use-2026-10-29.json)
 verified the intended unregistered-folder menu and reduced Services entry. The
 computer-control connection rejected invocation. Later build38 owner acceptance

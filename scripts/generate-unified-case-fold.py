@@ -5,27 +5,15 @@
 """
 import argparse
 import ast
-import csv
-import hashlib
-import json
 from pathlib import Path
 import re
 import subprocess
 import tempfile
-import urllib.request
+from pinned_scintilla_source import PinnedScintillaSources
 root=Path(__file__).resolve().parent.parent
-pin=json.loads((root/'docs/upstream.json').read_text())['commit']
-with (root/'docs/upstream-files.csv').open(newline='') as f:blobs={r['path']:r['blob'] for r in csv.DictReader(f)}
-
-def source(name):
-    path='ext/scintilla/src/'+name;checkout=root/'.upstream/TortoiseGit';cache=root/'build/qa/unified-find-source'/pin/name
-    if (checkout/'.git').exists():data=subprocess.check_output(['git','-C',str(checkout),'show',pin+':'+path])
-    elif cache.exists():data=cache.read_bytes()
-    else:
-        with urllib.request.urlopen('https://raw.githubusercontent.com/TortoiseGit/TortoiseGit/'+pin+'/'+path,timeout=30) as stream:data=stream.read()
-    assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==blobs[path],path
-    cache.parent.mkdir(parents=True,exist_ok=True);cache.write_bytes(data)
-    return data.decode('utf-8-sig').replace('\r\n','\n')
+sources=PinnedScintillaSources(root)
+pin=sources.pin
+source=sources.source
 
 def mappings(text):
     result={}

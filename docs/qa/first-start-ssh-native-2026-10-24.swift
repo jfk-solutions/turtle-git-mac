@@ -2,6 +2,7 @@
 import AppKit
 import Darwin
 import ScreenCaptureKit
+import Security
 import TurtleGitCore
 
 @main struct FirstStartSSHVerification {
@@ -15,9 +16,27 @@ import TurtleGitCore
         throw Failure(description: "First Start SSH timeout at \(line)")
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    struct HostIdentity {
+        let bundleID:String?,codeID:String?,selfStatus:OSStatus,staticStatus:OSStatus,informationStatus:OSStatus,validityStatus:OSStatus
+        let flags:String,entitlements:String
+        var diagnostic:String {"bundleID=\(bundleID ?? "nil") codeID=\(codeID ?? "nil") selfStatus=\(selfStatus) staticStatus=\(staticStatus) informationStatus=\(informationStatus) validityStatus=\(validityStatus) flags=\(flags) entitlements=\(entitlements) executable=\(Bundle.main.executableURL?.path ?? "nil")"}
+    }
+    static func hostIdentity()->HostIdentity {
+        var code:SecCode?,staticCode:SecStaticCode?,information:CFDictionary?
+        let selfStatus=SecCodeCopySelf(SecCSFlags(rawValue:0),&code)
+        let staticStatus=code.map{SecCodeCopyStaticCode($0,SecCSFlags(rawValue:0),&staticCode)} ?? errSecParam
+        let informationStatus=staticCode.map{SecCodeCopySigningInformation($0,SecCSFlags(rawValue:kSecCSSigningInformation),&information)} ?? errSecParam
+        let validityStatus=code.map{SecCodeCheckValidity($0,SecCSFlags(rawValue:0),nil)} ?? errSecParam
+        let values=information as? [String:Any] ?? [:]
+        return HostIdentity(bundleID:Bundle.main.bundleIdentifier,codeID:values[kSecCodeInfoIdentifier as String] as? String,selfStatus:selfStatus,staticStatus:staticStatus,informationStatus:informationStatus,validityStatus:validityStatus,
+                            flags:String(describing:values[kSecCodeInfoFlags as String] ?? "none"),entitlements:String(describing:values[kSecCodeInfoEntitlementsDict as String] ?? "none"))
+    }
     @MainActor static func main() async {
         _ = NSApplication.shared; NSApp.setActivationPolicy(.prohibited)
         do {
+            let identity=hostIdentity()
+            print("First Start SSH host identity: "+identity.diagnostic)
+            try require(identity.bundleID?.hasPrefix("org.turtlegit.qa.firststartssh.")==true && identity.codeID==identity.bundleID && identity.selfStatus==errSecSuccess && identity.staticStatus==errSecSuccess && identity.informationStatus==errSecSuccess && identity.validityStatus==errSecSuccess,"Missing verified private application identity; "+identity.diagnostic)
             let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), mode = CommandLine.arguments[3]
             defer { suites.forEach { UserDefaults(suiteName: $0)?.removePersistentDomain(forName: $0) } }
             switch mode { case "choices": try await choices(root, git); case "picker": try await picker(root, git); default: try await lifetime(root, git) }
@@ -150,7 +169,7 @@ import TurtleGitCore
         try require(model.ssh.path == client.path && !prefs.bool(forKey: "TurtleGit.FirstStartComplete"), "Picker allowed stale edits/Finish")
         reply?(.OK); reply?(.cancel)
         try await wait { !model.selectingSSH && owner.window?.attachedSheet == nil && panel?.sheetParent == nil }
-        let diagnostics="path=\(String(reflecting:model.ssh.path)) expected=\(String(reflecting:client.path)) bookmark=\(model.ssh.bookmark != nil) selectionCalls=\(selectionCalls) attachedAtSelection=\(selectionAttached) bookmarkCalls=\(bookmarkCalls) scopedRoundTrips=\(bookmarkRoundTrips) createdBookmarks=\(createdBookmarks.count) canonicalClient=\(String(reflecting:client.resolvingSymlinksInPath().path)) bookmarkError=\(bookmarkError ?? "none") modelError=\(model.error ?? "none") selecting=\(model.selectingSSH) page=\(model.page) activeWrites=\(FirstStartWizardModel.activeWrites)"
+        let diagnostics="path=\(String(reflecting:model.ssh.path)) expected=\(String(reflecting:client.path)) bookmark=\(model.ssh.bookmark != nil) selectionCalls=\(selectionCalls) attachedAtSelection=\(selectionAttached) bookmarkCalls=\(bookmarkCalls) scopedRoundTrips=\(bookmarkRoundTrips) createdBookmarks=\(createdBookmarks.count) canonicalClient=\(String(reflecting:client.resolvingSymlinksInPath().path)) bookmarkError=\(bookmarkError ?? "none") hostIdentity={\(hostIdentity().diagnostic)} modelError=\(model.error ?? "none") selecting=\(model.selectingSSH) page=\(model.page) activeWrites=\(FirstStartWizardModel.activeWrites)"
         print("First Start SSH accepted-picker diagnostics: "+diagnostics)
         try require(model.ssh.path == client.path && model.ssh.bookmark != nil,"Accepted client lost security bookmark; "+diagnostics)
         try require(selectionCalls==1 && selectionAttached && bookmarkCalls==1 && bookmarkRoundTrips==1 && createdBookmarks.count==1 && model.ssh.bookmark==createdBookmarks.first && reentered && FirstStartWizardModel.activeWrites==0,"Picker selection/real scoped bookmark roundtrip/reentrant admission or work drain was not exactly once; "+diagnostics)

@@ -36,18 +36,30 @@ struct MergeColorsSourceVerification {
         defer { prefs.removePersistentDomain(forName: suite); MergePalette.reload() }
         var saved = MergeColorPreferences(); saved.light[.added] = .init(0x112233, 0x445566); saved.dark[.added] = .init(0x778899, 0x334455); try saved.save(to: prefs)
         let model = MergeColorsSettingsModel(preferences: prefs, dark: false), transaction = SettingsTransaction()
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 820, height: 820), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        var transactionNotifications = 0
+        transaction.changed = { transactionNotifications += 1 }
+        let window = NSWindow(contentRect: .init(x: -24000, y: -24000, width: 820, height: 820), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Merge Colors – TurtleGit"; window.isReleasedWhenClosed = false; window.alphaValue = 0
         let viewport = SettingsPageViewport(frame: .zero), host = NSHostingView(rootView: MergeColorsSettings(model: model).environment(\.settingsTransaction, transaction))
         window.contentView = viewport; viewport.pageDocument.addSubview(host); host.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([host.leadingAnchor.constraint(equalTo: viewport.pageDocument.leadingAnchor), host.trailingAnchor.constraint(equalTo: viewport.pageDocument.trailingAnchor), host.topAnchor.constraint(equalTo: viewport.pageDocument.topAnchor), host.bottomAnchor.constraint(equalTo: viewport.pageDocument.bottomAnchor)])
-        defer { transaction.invalidate(); window.close() }
+        defer { transaction.changed = {}; transaction.invalidate(); window.contentView = nil; window.close() }
         window.orderFront(nil); window.contentView?.layoutSubtreeIfNeeded()
         func choice() throws -> MergeColorChoiceView {
             guard let control = views(host).compactMap({ $0 as? MergeColorChoiceView }).first(where: { $0.identifier?.rawValue == "MergeColors.added.background" }) else { throw Failure(message: "Added swatch missing") }
             return control
         }
-        try await wait { views(host).compactMap { $0 as? MergeColorChoiceView }.count == 17 && model.active }
+        func currentControls() -> Bool {
+            let controls = views(host).compactMap { $0 as? MergeColorChoiceView }
+            let context = model.editContext
+            return controls.count == 17 && model.active && model.accepts(context) && controls.allSatisfy { control in
+                let actual = Mirror(reflecting: control).children.first { $0.label == "contextIdentity" }?.value as? String
+                return control.window === window && control.well.isEnabled && control.arrow.isEnabled
+                    && actual == (control.identifier?.rawValue ?? "missing") + "." + context.identity
+            }
+        }
+        try await wait { host.layoutSubtreeIfNeeded(); return transactionNotifications > 0 && currentControls() }
+        try require(model.draft == saved && !model.changed && !transaction.modified, "Initial readiness changed saved draft")
         let lightContext = model.editContext, oldAutomatic = try choice().choices.items[0], oldMore = try choice().choices.items[2]
         model.selectPalette(true, context: lightContext)
         model.setColor(0x123456, role: .added, foreground: false, context: lightContext); model.restoreDefault(context: lightContext); model.selectPalette(false, context: lightContext)
@@ -55,6 +67,7 @@ struct MergeColorsSourceVerification {
         try await wait { (try? rgb(choice().well.color)) == 0x334455 }
         try send(oldAutomatic); try send(oldMore); try require(model.draft == saved && !NSColorPanel.shared.isVisible, "Old palette menu changed draft or opened panel")
         let control = try choice(), panel = NSColorPanel.shared, originalAlpha = panel.showsAlpha
+        defer { if control.well.isActive { control.well.deactivate() }; panel.orderOut(nil); panel.showsAlpha = originalAlpha }
         var presentations = 0; control.presentPanel = { presentations += 1; $0.orderOut(nil) }
         let more = control.choices.items[2]; try send(more); try send(more)
         try require(presentations == 1 && control.well.isActive && !panel.showsAlpha, "More colors response duplicated or lost panel")
@@ -76,7 +89,7 @@ struct MergeColorsSourceVerification {
         try require(model.draft.light[.added]?.background == 0x123456, "Reactivation revived an old control")
         // Shared native control must reject a retained menu even when the RGB
         // values are identical across two different edit contexts.
-        let owner = NSWindow(contentRect: .init(x: 0, y: 0, width: 160, height: 40), styleMask: [.titled], backing: .buffered, defer: false)
+        let owner = NSWindow(contentRect: .init(x: -24000, y: -24000, width: 160, height: 40), styleMask: [.titled], backing: .buffered, defer: false)
         owner.isReleasedWhenClosed = false; owner.alphaValue = 0; defer { owner.close() }
         let generic = MergeColorChoiceView(); owner.contentView = generic
         var edits: [UInt32] = []
@@ -89,12 +102,31 @@ struct MergeColorsSourceVerification {
         generic.menuNeedsUpdate(generic.choices); try send(generic.choices.items[0]); try require(edits == [0, 0], "Reopened menu did not get a fresh invocation")
         owner.close()
         model.setActive(true); model.selectPalette(false, context: model.editContext)
-        try await wait { views(host).compactMap { $0 as? MergeColorChoiceView }.allSatisfy { $0.well.isEnabled } }
+        try await wait { host.layoutSubtreeIfNeeded(); return currentControls() }
         if let path = ProcessInfo.processInfo.environment["TURTLEGIT_MERGE_COLORS_CAPTURE"] { try await capture(window, into: URL(fileURLWithPath: path)) }
         let closedContext = model.editContext; window.close()
         let closed = model.draft
+        func closeState(_ apply: Bool?) -> String {
+            let controls = views(host).compactMap { $0 as? MergeColorChoiceView }
+            return "active=\(model.active),draftUnchanged=\(model.draft == closed),applyAccepted=\(String(describing: apply)),panelVisible=\(panel.isVisible),panelActive=\(control.well.isActive),windowVisible=\(window.isVisible),acceptsClosedContext=\(model.accepts(closedContext)),controls=\(controls.count),enabled=\(controls.filter { $0.well.isEnabled || $0.arrow.isEnabled }.count),transactionNotifications=\(transactionNotifications)"
+        }
+        print("Merge Colors immediate native owner-close: " + closeState(nil))
+        // Authority is revoked synchronously by the real willClose observer;
+        // its published active flag and SwiftUI disabled controls drain later.
         model.setColor(0xabcdef, role: .normal, foreground: false, context: closedContext); model.restoreDefault(context: closedContext)
-        try require(!model.active && model.draft == closed && !model.apply() && !panel.isVisible, "Owner close revived settings or leaked panel")
+        let applyAccepted = model.apply()
+        try require(model.draft == closed && !applyAccepted && !model.accepts(closedContext),
+                    "Native owner close did not immediately revoke edit/Apply authority; " + closeState(applyAccepted))
+        var drained = false
+        for _ in 0..<2000 {
+            host.layoutSubtreeIfNeeded()
+            if !model.active && !window.isVisible && !panel.isVisible && !control.well.isActive
+                && views(host).compactMap({ $0 as? MergeColorChoiceView }).allSatisfy({ !$0.well.isEnabled && !$0.arrow.isEnabled }) { drained = true; break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        try require(drained && !model.active && model.draft == closed && !applyAccepted && !panel.isVisible,
+                    "Owner close revived settings or leaked panel; " + closeState(applyAccepted))
+        print("Merge Colors drained native owner-close: " + closeState(applyAccepted))
         print("PASS Merge Colors source: 17 channels, captured palette/reset/hidden/foreign/closed contexts, authorized hidden Apply, same-RGB stale menus, single-use/reopened choices and native panel ownership; private preferences only")
     }
 }

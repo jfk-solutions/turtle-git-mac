@@ -50,18 +50,54 @@ enum TwoPaneEngineVerification {
         var initialUDiff = UnifiedDiffAppearance(); initialUDiff.light[.added] = .init(0x445566,0x778899); initialUDiff.dark[.added] = .init(0x334455,0x556677); initialUDiff.save(to:prefs)
         let workspace = RepositoryModel(startMonitoring:false,initializePreferences:false)
         let navigation = SettingsNavigationController(workspace:workspace,appearance:AppAppearance(preferences:prefs),globalOnly:true,preferences:prefs,smtpCredentials:SettingsColorSMTPFixture())
-        let window = NSWindow(contentRect:.init(x:0,y:0,width:1040,height:860),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+        let window = NSWindow(contentRect:.init(x:-24000,y:-24000,width:1040,height:860),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
         window.title = "TurtleGit Settings"; window.isReleasedWhenClosed = false; window.contentViewController = navigation
         window.alphaValue = captures ? 1 : 0
         defer { navigation.invalidate(); window.contentViewController = nil; window.close(); NSColorPanel.shared.orderOut(nil) }
-        navigation.viewDidAppear()
+        window.orderFront(nil); navigation.view.layoutSubtreeIfNeeded()
         let outline = views(navigation.view).compactMap { $0 as? NSOutlineView }.first!
         outline.expandItem(nil,expandChildren:true)
+        func participants() -> [String:SettingsTransaction.Participant] {
+            (Mirror(reflecting:navigation.transaction).children.first { $0.label == "participants" }?.value as? [String:SettingsTransaction.Participant]) ?? [:]
+        }
+        func mergeModel() -> MergeColorsSettingsModel? {
+            views(navigation.view).compactMap { view in
+                Mirror(reflecting:view).children.first { $0.label == "model" }?.value as? MergeColorsSettingsModel
+            }.first
+        }
+        func mergeControlsCurrent() -> Bool {
+            guard let model=mergeModel(),model.active,model.accepts(model.editContext) else{return false}
+            let controls=views(navigation.view).compactMap { $0 as? MergeColorChoiceView }
+            return controls.count==17 && controls.allSatisfy { control in
+                let identity=Mirror(reflecting:control).children.first { $0.label == "contextIdentity" }?.value as? String
+                return control.window === window && control.well.isEnabled && control.arrow.isEnabled
+                    && identity == (control.identifier?.rawValue ?? "missing") + "." + model.editContext.identity
+            }
+        }
+        func wait(_ stage:String,_ ready:()->Bool) async throws {
+            for _ in 0..<1500 {
+                navigation.view.layoutSubtreeIfNeeded()
+                if ready(){return}
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            let model=mergeModel()
+            let controls=views(navigation.view).compactMap { $0 as? MergeColorChoiceView }.map { control in
+                "\(control.identifier?.rawValue ?? "missing"){attached=\(control.window === window),enabled=\(control.well.isEnabled),context=\(String(describing:Mirror(reflecting:control).children.first{$0.label == "contextIdentity"}?.value))}"
+            }.joined(separator:";")
+            throw Failure(description:"Settings colors timeout: \(stage); transactionModified=\(navigation.transaction.modified),busy=\(navigation.transaction.busy),participants=\(participants().mapValues{$0.page.rawValue}),mergeActive=\(String(describing:model?.active)),mergeChanged=\(String(describing:model?.changed)),dark=\(String(describing:model?.dark)),context=\(String(describing:model?.editContext.identity)),lightForeground=\(String(describing:model?.draft.light[.added]?.foreground)),controls=[\(controls)]")
+        }
         func choose(_ title:String,_ count:Int) async throws {
             for row in 0..<outline.numberOfRows {
                 if let view = outline.view(atColumn:0,row:row,makeIfNecessary:true), views(view).compactMap({ $0 as? NSTextField }).contains(where:{ $0.stringValue == title }) {
                     outline.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)
-                    try await wait(title) { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? MergeColorChoiceView }.count == count }
+                    let page:SettingsPageID
+                    switch title {case "Colors 1":page = .colors1;case "Colors 2":page = .colors2;case "Colors 3":page = .colors3;case "TurtleGitBlame":page = .blame;case "Unified Diff":page = .unifiedDiff;case "Colors":page = .mergeColors;default:throw Failure(description:"Unknown color page "+title)}
+                    try await wait(title) {
+                        let controls=views(navigation.view).compactMap { $0 as? MergeColorChoiceView }
+                        return participants().values.contains{$0.page==page} && controls.count==count
+                            && controls.allSatisfy{$0.window === window && $0.well.isEnabled && $0.arrow.isEnabled}
+                            && (page != .mergeColors || mergeControlsCurrent())
+                    }
                     return
                 }
             }
@@ -74,7 +110,11 @@ enum TwoPaneEngineVerification {
         func palette(_ id:String,_ dark:Bool) async throws {
             let control = views(navigation.view).compactMap { $0 as? NSSegmentedControl }.first { $0.identifier?.rawValue == id }!
             control.selectedSegment = dark ? 1 : 0; try require(NSApp.sendAction(control.action!,to:control.target,from:control),"Palette action did not route")
-            try await Task.sleep(nanoseconds:30_000_000); navigation.view.layoutSubtreeIfNeeded()
+            try await wait("Palette "+id) {
+                guard let coordinator=control.target as? NativeSettingsPaletteChoice.Coordinator else{return false}
+                return control.window === window && control.isEnabled && coordinator.binding.wrappedValue==dark
+                    && control.selectedSegment==(dark ? 1:0) && (id != "MergeColors.Palette" || mergeControlsCurrent())
+            }
         }
         let pages:[(String,Int,String,String)] = [("Colors 1",8,"StatusColors.conflict","colors-1"),("Colors 2",5,"LogColors.CurrentBranch","colors-2"),("Colors 3",8,"LogColors.BranchLine1","colors-3"),("TurtleGitBlame",2,"BlameColors.recent","blame-colors"),("Unified Diff",12,"UnifiedDiffColors.added.foreground","unified-colors"),("Colors",17,"MergeColors.added.foreground","merge-colors")]
         var detached:MergeColorChoiceView?
@@ -115,7 +155,12 @@ enum TwoPaneEngineVerification {
         try await palette("BlameColors.Palette",true); try edit(choice("BlameColors.recent"),0x654321)
         try await choose("Unified Diff",12); try edit(choice("UnifiedDiffColors.added.foreground"),0x345678)
         try await palette("UnifiedDiffColors.Palette",true); try edit(choice("UnifiedDiffColors.added.background"),0x765432)
-        try await choose("Colors",17); try await palette("MergeColors.Palette",false); try edit(choice("MergeColors.added.foreground"),0x13579b)
+        try await choose("Colors",17); try await palette("MergeColors.Palette",false)
+        let merge=mergeModel()!
+        let beforeMerge=merge.draft.light[.added]?.foreground
+        try edit(choice("MergeColors.added.foreground"),0x13579b)
+        try await wait("Exact native Merge draft before Apply") {merge.draft.light[.added]?.foreground==0x13579b && merge.changed && participants()["mergeColors"]?.modified()==true}
+        print("Shared native Merge draft accepted: before=\(String(describing:beforeMerge)),after=\(String(describing:merge.draft.light[.added]?.foreground)),dark=\(merge.dark),participantModified=\(participants()["mergeColors"]?.modified()==true),context=\(merge.editContext.identity)")
         try await wait("Draft edits") { navigation.transaction.modified }
         navigation.transaction.apply(closeAfter:false); try await wait("Cached page Apply") { !navigation.transaction.busy && !navigation.transaction.modified }
         try require(navigation.transaction.error == nil,"Apply failed")
@@ -128,8 +173,9 @@ enum TwoPaneEngineVerification {
         try require(udiff.colors(.added,dark:false).foreground == 0x345678 && udiff.colors(.added,dark:false).background == 0x778899 && udiff.colors(.added,dark:true).background == 0x765432 && udiff.colors(.added,dark:true).foreground == 0x334455,"Unified palette/channel isolation failed")
         try require(MergeColorPreferences.load(from:prefs).colors(.added,dark:false).foreground == 0x13579b,"Merge color draft not applied")
         // Disabling a live representable releases the panel and rejects late actions.
-        let owner = NSWindow(contentRect:.init(x:0,y:0,width:200,height:50),styleMask:[.titled],backing:.buffered,defer:false)
-        owner.isReleasedWhenClosed = false
+        let owner = NSWindow(contentRect:.init(x:-24000,y:-24000,width:200,height:50),styleMask:[.titled],backing:.buffered,defer:false)
+        owner.isReleasedWhenClosed = false; owner.alphaValue = 0
+        defer { owner.close() }
         let control = MergeColorChoiceView(); owner.contentView = control
         var edits = 0
         control.configure(value:0x112233,automatic:0,label:"Fixture",identifier:"fixture",namespace:"Fixture",changed:{ _ in edits += 1 })

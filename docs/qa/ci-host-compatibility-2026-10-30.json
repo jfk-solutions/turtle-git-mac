@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-30",
+  "status": "focused-grouped-checks-passed-hosted-confirmation-required",
+  "source_base": "b5ead79c",
+  "scope": "Three hosted CI blockers: real app-scope SSH bookmarks in an identified private QA host, native Merge Colors participant/context publication, and pinned Unicode source loading without an upstream checkout. No shipping app changes.",
+  "hosted_run": 41101501351,
+  "hosted_source": "dc439347",
+  "unicode": {
+    "failure": "Mapping generator required .upstream/TortoiseGit, absent on hosted runner.",
+    "change": "Shared exact-pinned Git-blob-verified source loader with checkout, verified cache and bounded raw-source fallback; existing generators and scalar comparisons preserved.",
+    "result": "9 offline availability/integrity contracts pass; both existing generators match tracked Swift tables and pinned C++ for all 1,112,064 valid Unicode scalars.",
+    "log": "build/qa/ci-repairs-unicode-2026-10-30.log"
+  },
+  "initial_grouped_failures": [
+    "SSH identity diagnostics initially failed to compile: SecCode requires explicit static-code conversion before signing-information access.",
+    "Colors source case failed owner-close assertion before reaching merge/shared cases; diagnosis in progress.",
+    "Proposed workflow command addition rejected by exact lane inventory; addition withdrawn, original workflow retained. All9 lane contracts pass."
+  ],
+  "limits": [
+    "Local macOS results do not prove hosted macOS15 compatibility.",
+    "Installed build39 and packaged build40 unchanged.",
+    "No app/Core rebuild needed for test and generator-loading changes.",
+    "No complete hosted CI, signed Finder or physical workflow acceptance claim."
+  ],
+  "ssh": {
+    "hosted_failure": "macOS15 returned Cocoa256 Failed to retrieve app-scope key while creating a real withSecurityScope bookmark from the raw CLI QA receiver.",
+    "change": "Each case copies its cached receiver into an isolated uniquely identified ad-hoc-signed app bundle; verifies BundleID and actual code-signing identity before exercising the existing real bookmark operations. No entitlements, fake Team, registration, keychain changes or fallback bookmarks.",
+    "initial_compile_failure": "SecCodeCopySigningInformation requires SecStaticCode; repaired with explicit SecCodeCopyStaticCode conversion and separately checked status.",
+    "result": "All6 choices/picker/lifetime cases pass with system and bundled Git; actual security-scoped create/resolve/save and lifetime assertions preserved.",
+    "log": "build/qa/ci-repairs-first-start-static-code-repair-2026-10-30.log",
+    "receivers_reaped_and_independently_absent": [
+      12186,
+      12211,
+      12250,
+      12283,
+      12318,
+      12343
+    ],
+    "private_app_contexts_removed": true,
+    "hosted_limit": "Local pass does not establish that hosted macOS15 app-scope-key failure is resolved."
+  },
+  "workflow": {
+    "result": "Original exact-inventory workflow unchanged; all9 lane contracts pass after withdrawing the extra command. Existing hosted generator invocations exercise the shared loader.",
+    "log": "build/qa/ci-repairs-lanes-2026-10-30.log"
+  },
+  "hosted_snapshot": {
+    "older_source_run": 41101501351,
+    "failed_lanes": [
+      "commit-repository",
+      "history-references",
+      "replay-transport",
+      "settings-finder",
+      "editors"
+    ],
+    "live_lanes": [
+      "images-documents",
+      "distribution",
+      "core"
+    ],
+    "build40_source_run": 41118907375,
+    "build40_source_state": "pending",
+    "complete_pass": false
+  },
+  "colors": {
+    "hosted_failure": "Merge Colors native fixture dispatched Automatic before SwiftUI had registered Settings participant/current edit context.",
+    "change": "Await actual Settings registration, all17 attached/enabled current-context controls and passive publication after owner closure. Keep all palette/channel/Apply/Cancel and stale-owner checks; use private per-case HOME and preferences.",
+    "additional_local_failure": "Source case asserted model.active immediately after actual NSWindow.close; diagnostics prove authority already revoked synchronously while published active flag drains later. Native close, stale edits and Apply refusal remain mandatory.",
+    "source_result": "pass; receiver12454 reaped. Immediately after close: active=true, acceptsClosedContext=false, draft unchanged, Apply refused,17disabled controls and hidden panel. After passive drain: active=false with other assertions preserved.",
+    "merge_result": "pass; receiver12474 reaped; all17 channels, RGB/alpha, both palettes, Apply/Cancel, selective default, light/dark bounds and native panel ownership.",
+    "shared_result": "pass; receiver12602 reaped. Actual invisible host appearance, participant and current-context registration awaited; exact native Merge draft0x13579b accepted before Apply and exact persisted value retained. All other5page persistence/isolation and native panel tests pass.",
+    "logs": [
+      "build/qa/ci-repairs-colors-2026-10-30.log",
+      "build/qa/ci-repairs-colors-source-lifecycle-2026-10-30.log",
+      "build/qa/ci-repairs-colors-merge-shared-2026-10-30.log",
+      "build/qa/ci-repairs-colors-shared-context-2026-10-30.log"
+    ],
+    "shared_initial_failure": "Original shared fixture awaited only swatch count and used a fixed30ms palette delay; it could act on controls before current Merge callbacks were attached. Exact persisted-color assertion exposed the failed edit.",
+    "receivers_reaped_and_independently_absent": [
+      12071,
+      12454,
+      12474,
+      12475,
+      12602
+    ]
+  },
+  "validation": {
+    "core": "Not rerun: no shipping Core or generated table change. Both original pinned C++ scalar oracles pass.",
+    "native": "SSH six cases with both Git engines; Colors source/merge/shared each pass cumulatively. Only failed cases repeated after actual repairs.",
+    "build": "Only cached native QA fixture compilation; no app or framework rebuild.",
+    "coverage": "reconcile-dialog-coverage.py run after release gate documentation update; generated ledger unchanged.",
+    "cleanup": "All11 observed receiver PIDs absent in independent ps readback; private receiver contexts and test-owned windows cleaned by runners."
+  },
+  "source_sha256": {
+    "docs/qa/first-start-ssh-native-2026-10-24.swift": "5e25ede66b416847e46e42304a64b1722d26e549c5db205df1aa5f3c7a7e231a",
+    "docs/qa/merge-colors-native-2026-10-12.swift": "62132bed7fca64e13f1f9eb9c4402ccffcccb17a5ce0a60c8621d2a0299a38c5",
+    "docs/qa/merge-colors-source-native-2026-10-17.swift": "449ddc6d10360c3a23336026d337700a7ec95d5dc24258d8be6cfc8df060db3c",
+    "docs/qa/settings-color-choices-native-2026-10-16.swift": "1c50551fd053e63978bc48fd867bee111899e7c3556a480d1a99e607c317842b",
+    "scripts/test-first-start-ssh.py": "5c57266ae8b1fb1bfdd887c482173a600c26681c9c270e0dfbedca4575b60c29",
+    "scripts/test-merge-colors-source.py": "f181c401b52791cfe3f46062a2f71eaa4aedf8894964efd16c7162dbad4b95ee",
+    "scripts/pinned_scintilla_source.py": "a91e5c88d8d375f3e5775088d4bb92cdb79e94dc5e273c4c328eb0732226aa6b",
+    "scripts/test-pinned-scintilla-source.py": "f4533b40c1c2aa587de97a73f467f265710b26bb2e4bd515b3a90bc31fdb06d3",
+    "scripts/generate-unified-case-fold.py": "dcaa196009a185afd175bf9b2bdc92b798b54ad411d986b7f1d06213c2081c13",
+    "scripts/generate-unified-case-mapping.py": "65360332afb159d9caa0b04cf5105067327a9d782e3f6d653b5997db7a44b90e"
+  }
+}

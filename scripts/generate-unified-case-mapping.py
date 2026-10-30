@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Extract pinned Scintilla lower/upper and word classes; --check verifies all scalars with C++."""
-import argparse,ast,csv,hashlib,json,re,subprocess,tempfile
+import argparse,ast,re,subprocess,tempfile
 from pathlib import Path
+from pinned_scintilla_source import PinnedScintillaSources
 root=Path(__file__).resolve().parent.parent
-pin=json.loads((root/'docs/upstream.json').read_text())['commit']
-with (root/'docs/upstream-files.csv').open(newline='') as f: blobs={r['path']:r['blob'] for r in csv.DictReader(f)}
-def source(name):
- path='ext/scintilla/src/'+name
- data=subprocess.check_output(['git','-C',str(root/'.upstream/TortoiseGit'),'show',pin+':'+path])
- assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==blobs[path],path
- return data.decode('utf-8-sig').replace('\r\n','\n')
+sources=PinnedScintillaSources(root)
+pin=sources.pin
+source=sources.source
+
 def ints(text,name):
  block=re.search(r'\b'+name+r'\[\]\s*=\s*\{(.*?)\};',text,re.S)[1]
  return [int(v) for v in re.findall(r'-?\d+',re.sub(r'//[^\n]*','',block))]
