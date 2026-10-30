@@ -84,7 +84,8 @@ static Bytes wmf(const Case& c){std::vector<Bytes> r;auto emit=[&](WORD t,Bytes 
  Bytes p;dword(p,SRCCOPY);word(p,c.sh()*(c.self?4:1));word(p,c.sw()*(c.self?4:1));word(p,(c.sy()+(c.self?2:0))*(c.self?4:1));word(p,(c.sx()+(c.self?2:0))*(c.self?4:1));
  if(c.self)word(p,0); // META_STRETCHBLT without bitmap has a reserved WORD.
  word(p,c.dh()*4);word(p,c.dw()*4);word(p,c.dy()*4);word(p,c.dx()*4);
- if(!c.self){auto b=bitmap(c);p.insert(p.end(),b.begin(),b.end());}emit(META_STRETCHBLT,p);emit(META_EOF);
+ if(!c.self){auto b=bitmap(c);p.insert(p.end(),b.begin(),b.end());}emit(META_STRETCHBLT,p);
+ emit(0x0000); // MS-WMF META_EOF opcode; Windows SDK has no META_EOF symbol.
  Bytes out;dword(out,0x9ac6cdd7);word(out,0);word(out,0);word(out,0);word(out,W);word(out,H);word(out,96);dword(out,0);WORD checksum=0;for(size_t i=0;i<out.size();i+=2)checksum^=WORD(out[i]|out[i+1]<<8);word(out,checksum);
  size_t size=18,max=0;for(const auto& a:r){size+=a.size();max=std::max(max,a.size()/2);}word(out,1);word(out,9);word(out,0x300);dword(out,DWORD(size/2));word(out,2);dword(out,DWORD(max));word(out,0);for(const auto& a:r)out.insert(out.end(),a.begin(),a.end());return out;
 }
