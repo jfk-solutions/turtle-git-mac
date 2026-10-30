@@ -1,4 +1,5 @@
 import AppKit
+import ObjectiveC
 import SwiftUI
 import TurtleGitCore
 
@@ -295,6 +296,78 @@ struct FileSelectionCheckbox:NSViewRepresentable {
 }
 /// Observe the public AppKit table without replacing its selection, accessibility
 /// or context-menu implementation.
+/// SwiftUI owns row/selection delivery; this opt-in binding owns Commit's
+/// persistent native columns. Otherwise SwiftUI can temporarily restore all
+/// declared columns and their default widths before its background adapter runs.
+/// Keep each real AppKit class and original implementation; only weakly bound
+/// instances admit the originating header gesture or the current saved layout.
+@MainActor private enum CommitNativeColumnOwnership {
+    private static var columnKey:UInt8=0,tableKey:UInt8=0
+    private static var columnClasses=Set<ObjectIdentifier>(),tableClasses=Set<ObjectIdentifier>()
+    private final class Binding {
+        weak var owner:CommitFileInteraction.Probe?
+        init(_ owner:CommitFileInteraction.Probe){self.owner=owner}
+    }
+    static func install(_ table:NSTableView,columns:[NSTableColumn],owner:CommitFileInteraction.Probe) {
+        for column in columns {
+            if let base=object_getClass(column),!columnClasses.contains(ObjectIdentifier(base)),
+               let hidden=class_getInstanceMethod(base,#selector(setter:NSTableColumn.isHidden)),
+               let width=class_getInstanceMethod(base,#selector(setter:NSTableColumn.width)) {
+                let originalHidden=method_getImplementation(hidden),originalWidth=method_getImplementation(width)
+                let hide:@convention(block)(NSTableColumn,Bool)->Void={column,value in
+                    typealias Setter=@convention(c)(AnyObject,Selector,Bool)->Void
+                    func forward(){unsafeBitCast(originalHidden,to:Setter.self)(column,#selector(setter:NSTableColumn.isHidden),value)}
+                    guard Thread.isMainThread else{forward();return}
+                    MainActor.assumeIsolated {
+                        if let owner=(objc_getAssociatedObject(column,&columnKey) as? Binding)?.owner,
+                           !owner.admitsNativeHidden(column,value:value){return}
+                        forward()
+                    }
+                }
+                let resize:@convention(block)(NSTableColumn,CGFloat)->Void={column,value in
+                    typealias Setter=@convention(c)(AnyObject,Selector,CGFloat)->Void
+                    func forward(){unsafeBitCast(originalWidth,to:Setter.self)(column,#selector(setter:NSTableColumn.width),value)}
+                    guard Thread.isMainThread else{forward();return}
+                    MainActor.assumeIsolated {
+                        if let owner=(objc_getAssociatedObject(column,&columnKey) as? Binding)?.owner,
+                           !owner.admitsNativeWidth(column,value:value){return}
+                        forward()
+                    }
+                }
+                class_replaceMethod(base,#selector(setter:NSTableColumn.isHidden),imp_implementationWithBlock(hide),method_getTypeEncoding(hidden))
+                class_replaceMethod(base,#selector(setter:NSTableColumn.width),imp_implementationWithBlock(resize),method_getTypeEncoding(width))
+                columnClasses.insert(ObjectIdentifier(base))
+            }
+            objc_setAssociatedObject(column,&columnKey,Binding(owner),.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+        if let base=object_getClass(table),!tableClasses.contains(ObjectIdentifier(base)),
+           let move=class_getInstanceMethod(base,#selector(NSTableView.moveColumn(_:toColumn:))) {
+            let original=method_getImplementation(move)
+            let reorder:@convention(block)(NSTableView,Int,Int)->Void={table,from,to in
+                typealias Move=@convention(c)(AnyObject,Selector,Int,Int)->Void
+                func forward(){unsafeBitCast(original,to:Move.self)(table,#selector(NSTableView.moveColumn(_:toColumn:)),from,to)}
+                guard Thread.isMainThread else{forward();return}
+                MainActor.assumeIsolated {
+                    if let owner=(objc_getAssociatedObject(table,&tableKey) as? Binding)?.owner,
+                       !owner.admitsNativeMove(table,from:from,to:to){return}
+                    forward()
+                }
+            }
+            class_replaceMethod(base,#selector(NSTableView.moveColumn(_:toColumn:)),imp_implementationWithBlock(reorder),method_getTypeEncoding(move))
+            tableClasses.insert(ObjectIdentifier(base))
+        }
+        objc_setAssociatedObject(table,&tableKey,Binding(owner),.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+    static func remove(_ table:NSTableView?,columns:[NSTableColumn],owner:CommitFileInteraction.Probe) {
+        for column in columns where (objc_getAssociatedObject(column,&columnKey) as? Binding)?.owner === owner {
+            objc_setAssociatedObject(column,&columnKey,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+        if let table,(objc_getAssociatedObject(table,&tableKey) as? Binding)?.owner === owner {
+            objc_setAssociatedObject(table,&tableKey,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+}
+
 struct CommitFileInteraction: NSViewRepresentable {
     /// SwiftUI's outline-table coordinator can publish an empty ID set when
     /// selectRowIndexes replaces a multi-selection with its subset. Use two
@@ -314,6 +387,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     /// independently of rows (statistics, metadata and lock ownership).
     var contentRevision:UUID?=nil
     var uniformRowGeometry:FileListUniformRowGeometry?=nil
+    var ownsNativeColumns=false
     var leadingColumnCount = 1
     var selectionLabelInset:CGFloat = 24
     var keyboardDeleteEnabled = true
@@ -352,7 +426,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) {
         view.preferences=preferences;view.menuIconPreference=showMenuIcons
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
-        view.uniformRowGeometry=uniformRowGeometry
+        view.uniformRowGeometry=uniformRowGeometry;view.ownsNativeColumns=ownsNativeColumns
         view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled; view.keyboardCheckWithoutColumn = keyboardCheckWithoutColumn
         view.captureWorkingDrag = captureWorkingDrag; view.workingDragOrigin = workingDragOrigin
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
@@ -370,6 +444,7 @@ struct CommitFileInteraction: NSViewRepresentable {
 
     final class Probe: NSView, NSDraggingSource {
         var preferences:UserDefaults = .standard
+        var ownsNativeColumns=false
         var menuIconPreference=true
         var fileListFont: NSFont?
         var uniformRowGeometry:FileListUniformRowGeometry?
@@ -515,6 +590,67 @@ struct CommitFileInteraction: NSViewRepresentable {
         private var integrationActive = false
         private var integrationGeneration = UUID()
         private var configurationScheduled = false
+        private var configuringColumns=false
+        private var mountObserver:NSObjectProtocol?
+        private weak var pendingColumnSurface:NSScrollView?
+        private var pendingSurfaceAlpha:CGFloat?
+        private(set) var rejectedColumnResets=0
+        private(set) var nativeColumnResetAttempts=[String]()
+        private var columnOwnershipInstalled=false
+        private func rejectedColumnReset(_ detail:String) {
+            rejectedColumnResets+=1
+            if nativeColumnResetAttempts.count>=128 {nativeColumnResetAttempts.removeFirst()}
+            nativeColumnResetAttempts.append(detail)
+        }
+        private var headerGestureOwnsLayout:Bool {enabled && trackingHeader && draggingHeader}
+        fileprivate func admitsNativeHidden(_ column:NSTableColumn,value:Bool)->Bool {
+            guard ownsNativeColumns,integrationActive,column.tableView === configuredTable else{return true}
+            if adjustingLayout{return true}
+            let desired=columnDefinitions[ObjectIdentifier(column)].map{!visibleColumns.contains($0) && $0 != .path} ?? false
+            if value != desired{rejectedColumnReset("hidden \(column.title): \(column.isHidden) -> \(value), owned=\(desired)");return false};return true
+        }
+        fileprivate func admitsNativeWidth(_ column:NSTableColumn,value:CGFloat)->Bool {
+            guard ownsNativeColumns,integrationActive,column.tableView === configuredTable else{return true}
+            if adjustingLayout || headerGestureOwnsLayout{return true}
+            guard let desired=desiredWidths[ObjectIdentifier(column)] else{return true}
+            if value != desired && value != column.width{rejectedColumnReset("width \(column.title): \(column.width) -> \(value), owned=\(desired)");return false};return true
+        }
+        fileprivate func admitsNativeMove(_ table:NSTableView,from:Int,to:Int)->Bool {
+            guard ownsNativeColumns,integrationActive,table === configuredTable else{return true}
+            if adjustingLayout || headerGestureOwnsLayout{return true}
+            guard table.tableColumns.indices.contains(from),table.tableColumns.indices.contains(to) else{return false}
+            var proposed=table.tableColumns;let column=proposed.remove(at:from);proposed.insert(column,at:to)
+            if proposed.map(ObjectIdentifier.init) != desiredColumns.map(ObjectIdentifier.init){rejectedColumnReset("move \(from) -> \(to)");return false};return true
+        }
+        private func releasePendingSurface() {
+            if let pendingColumnSurface,let pendingSurfaceAlpha {pendingColumnSurface.alphaValue=pendingSurfaceAlpha}
+            pendingColumnSurface=nil;pendingSurfaceAlpha=nil
+        }
+        private func awaitColumns(_ table:NSTableView) {
+            guard ownsNativeColumns,configuredTable !== table,let scroll=table.enclosingScrollView else{return}
+            if pendingColumnSurface !== scroll {releasePendingSurface();pendingColumnSurface=scroll;pendingSurfaceAlpha=scroll.alphaValue}
+            scroll.alphaValue=0
+        }
+        private var needsColumnBinding:Bool {
+            guard integrationActive else{return false}
+            guard let configuredTable else{return true}
+            return configuredTable.window !== window || configuredTable.tableColumns.count != nativeColumns.count+leadingColumnCount || Set(configuredTable.tableColumns.map(ObjectIdentifier.init)) != Set(originalColumns.map(ObjectIdentifier.init)) || configuredTable.headerView !== configuredHeader || configuredTable.headerView?.menu==nil
+        }
+        var nativeColumnLayoutReady:Bool {
+            guard ownsNativeColumns,integrationActive,columnOwnershipInstalled,!needsColumnBinding,appliedConfiguration != nil,let table=configuredTable else{return false}
+            return table.tableColumns.map(ObjectIdentifier.init)==desiredColumns.map(ObjectIdentifier.init) && table.tableColumns.allSatisfy {column in
+                let hidden=columnDefinitions[ObjectIdentifier(column)].map{!visibleColumns.contains($0) && $0 != .path} ?? false
+                return column.isHidden==hidden && desiredWidths[ObjectIdentifier(column)].map{abs(column.width-$0)<=0.5}==true
+            }
+        }
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            if integrationActive,needsColumnBinding {configureColumns()}
+        }
+        override func layout() {
+            super.layout()
+            if ownsNativeColumns,needsColumnBinding {configureColumns()}
+        }
         func scheduleColumnConfiguration() {
             guard !configurationScheduled else { return }; configurationScheduled = true
             let generation = integrationGeneration
@@ -647,21 +783,52 @@ struct CommitFileInteraction: NSViewRepresentable {
                 abs(point.x - header.headerRect(ofColumn: index).maxX) <= 4
             }
         }
+        /// An explicit native layout transaction (saved layout, Fit/Reset or a
+        /// captured layout command) is distinct from incidental Table updates.
+        func withOwnedColumnLayout(_ change:(NSTableView)->Void) {
+            guard integrationActive,let table=configuredTable else{return}
+            let previous=adjustingLayout;adjustingLayout=true;defer{adjustingLayout=previous}
+            change(table)
+        }
         private func applyNativeColumnLayout() {
-            guard let table = configuredTable, !trackingHeader else { return }
-            adjustingLayout = true; defer { adjustingLayout = false }
-            for (index, column) in desiredColumns.enumerated() {
-                if let current = table.tableColumns.firstIndex(where: { $0 === column }), current != index { table.moveColumn(current, toColumn: index) }
-                if let width = desiredWidths[ObjectIdentifier(column)], abs(column.width - width) > 0.5 { column.width = width }
+            guard !trackingHeader else{return}
+            withOwnedColumnLayout {table in
+                for (index,column) in desiredColumns.enumerated() {
+                    if let current=table.tableColumns.firstIndex(where:{$0 === column}),current != index {table.moveColumn(current,toColumn:index)}
+                    if let width=desiredWidths[ObjectIdentifier(column)],(ownsNativeColumns ? column.width != width:abs(column.width-width)>0.5) {column.width=width}
+                }
             }
         }
         func configureColumns() {
-            guard integrationActive, let content = window?.contentView else { return }
+            // Installing column order/widths and native decorations can request
+            // layout synchronously. Mount/layout callbacks must not re-enter
+            // this procedure before its header/menu ownership is installed.
+            guard !configuringColumns,integrationActive,let content=window?.contentView else{return}
+            configuringColumns=true;defer{configuringColumns=false}
             func find(_ view: NSView) -> NSTableView? {
                 if let table = view as? NSTableView, contains(table) { return table }
                 return view.subviews.compactMap(find).first
             }
-            guard let table = find(content), table.tableColumns.count == nativeColumns.count + leadingColumnCount else { return }
+            // The background probe can mount before its Table has a nonzero
+            // frame. Prefer its nearest unambiguous native-table ancestor;
+            // geometry-only discovery used to miss that first configuration.
+            func descendantTables(_ view:NSView)->[NSTableView] {
+                if let table=view as? NSTableView{return [table]}
+                return view.subviews.flatMap(descendantTables)
+            }
+            var table=ownsNativeColumns ? configuredTable:nil
+            if table?.window !== window {table=nil}
+            if table==nil,ownsNativeColumns {
+                var ancestor=superview
+                while let view=ancestor {
+                    let candidates=descendantTables(view)
+                    if candidates.count==1 {table=candidates[0];break}
+                    if candidates.count>1 {break}
+                    ancestor=view.superview
+                }
+            }
+            guard let table=table ?? find(content) else{return}
+            guard table.tableColumns.count == nativeColumns.count+leadingColumnCount else{awaitColumns(table);return}
             let currentObjects = Set(table.tableColumns.map(ObjectIdentifier.init))
             let originalObjects = Set(originalColumns.map(ObjectIdentifier.init))
             if configuredTable !== table || currentObjects != originalObjects || layoutObservers.isEmpty {
@@ -669,6 +836,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
                 groupHeaders?.removeFromSuperview(); groupHeaders = nil
                 watermark?.removeFromSuperview(); watermark = nil
+                CommitNativeColumnOwnership.remove(configuredTable,columns:originalColumns,owner:self)
                 configuredTable = table; originalColumns = table.tableColumns
                 invalidateConfiguration();appliedHeaderMenu=nil;installedHeaderMenu=nil;configuredHeader=nil;adornmentBounds=nil;adornmentViewport=nil
                 columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { column, fallback in
@@ -677,6 +845,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 })
                 originalWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
                 desiredColumns = originalColumns; desiredWidths = originalWidths
+                columnOwnershipInstalled=false
                 for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
                 layoutObservers = [NSTableView.columnDidMoveNotification, NSTableView.columnDidResizeNotification].map { name in
                     NotificationCenter.default.addObserver(forName: name, object: table, queue: .main) { [weak self] notification in
@@ -688,6 +857,11 @@ struct CommitFileInteraction: NSViewRepresentable {
                         self.rememberNativeColumnLayout(adjustedColumn: adjusted)
                     }
                 }
+            }
+            if ownsNativeColumns,!columnOwnershipInstalled {
+                CommitNativeColumnOwnership.install(table,columns:originalColumns,owner:self);columnOwnershipInstalled=true
+            } else if !ownsNativeColumns,columnOwnershipInstalled {
+                CommitNativeColumnOwnership.remove(table,columns:originalColumns,owner:self);columnOwnershipInstalled=false
             }
             let geometry=uniformRowGeometry
             let state=ConfigurationState(content:contentRevision,rows:rows,texts:rowTexts,ids:itemIDs,columns:nativeColumns,visible:visibleColumns,available:availableColumns,order:savedOrder,widths:savedWidths,enabled:enabled,leading:leadingColumnCount,inset:selectionLabelInset,fontName:fileListFont?.fontName ?? "",fontSize:fileListFont?.pointSize ?? 0,geometry:geometry.map{[$0.font.pointSize,$0.groupFont.pointSize,$0.minimumContentHeight,$0.verticalPadding]} ?? [],groupFontName:geometry.map{$0.font.fontName+"/"+$0.groupFont.fontName} ?? "",preferences:ObjectIdentifier(preferences),watermark:watermarkIcon)
@@ -737,6 +911,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 }
             }
             applyNativeColumnLayout()
+            releasePendingSurface()
             if configuredHeader !== table.headerView || appliedHeaderMenu != menuState || table.headerView?.menu == nil{
                 let menu=columnMenu();table.headerView?.menu=menu;installedHeaderMenu=menu;configuredHeader=table.headerView;appliedHeaderMenu=menuState
             }
@@ -819,7 +994,14 @@ struct CommitFileInteraction: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); stopObserving()
             guard window != nil else { return }
-            integrationActive = true; scheduleColumnConfiguration()
+            integrationActive = true
+            if ownsNativeColumns {configureColumns()}
+            scheduleColumnConfiguration()
+            // The representable may receive its opt-in after mounting. Keep
+            // this lifecycle notification passive for all other list consumers.
+            mountObserver=NotificationCenter.default.addObserver(forName:NSWindow.didUpdateNotification,object:window,queue:.main) { [weak self] _ in
+                MainActor.assumeIsolated {guard let self,self.ownsNativeColumns,self.needsColumnBinding else{return};self.configureColumns()}
+            }
             closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
                 MainActor.assumeIsolated {self?.stopObserving()}
             }
@@ -833,6 +1015,9 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
+            CommitNativeColumnOwnership.remove(configuredTable,columns:originalColumns,owner:self);columnOwnershipInstalled=false
+            releasePendingSurface()
+            if let mountObserver {NotificationCenter.default.removeObserver(mountObserver);self.mountObserver=nil}
             if let configuredTable {NativeListSelection.remove(from:configuredTable,client:self);NativeReportRowGeometry.remove(from:configuredTable,client:self)}
             finishResetQuestion(false)
             if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}

@@ -81,10 +81,14 @@ import TurtleGitCore
         precondition(model.fileMetadata["file10.swift"]!.size! > model.fileMetadata["file2.swift"]!.size!)
         // Native column identity is independent of its physical position.
         let original = table.tableColumns[2], originalWidth = table.tableColumns[2].width
-        original.width = min(original.maxWidth, originalWidth + 37)
+        // Explicit owned layout transaction; this exercises native setters and
+        // persistence without claiming a synthesized pointer resize/drag.
+        probe().withOwnedColumnLayout { native in
+            original.width = min(original.maxWidth, originalWidth + 37)
+            native.moveColumn(2, toColumn: 4)
+        }
         let customizedWidth = original.width
         precondition(customizedWidth > originalWidth)
-        table.moveColumn(2, toColumn: 4)
         probe().rememberNativeColumnLayout(adjustedColumn: .fileName) // Production resize capture, no synthesized gesture.
         precondition(probe().columnDefinition(atNativeIndex: 4) == .fileName)
         precondition(model.fileColumns.order[3] == .fileName && model.fileColumns.widths[.fileName] == Double(customizedWidth))

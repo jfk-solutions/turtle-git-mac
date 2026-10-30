@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-30",
+  "status": "grouped-core-native-and-private-scale-checks-passed-installed-acceptance-open",
+  "source_base": "7b52d1ac30424e82db4ee0065f1de20bdd6ec5a6",
+  "scope": [
+    "Classic/GitGui Commit native column ownership across initial mount, file selection and message typing; intentional layout, persistence and retirement remain live.",
+    "Byte-exact snapshot ordering and bounded temporary encoding lifetimes for large Finder cache publication."
+  ],
+  "trigger": "Owner reports Commit selection also moves headers; installed39 physical attempt observed initial column-set transition and >60second tiny repository load behind large warm publication.",
+  "installed_observation": "installed39-startup-commit-2026-10-30.json",
+  "changes": {
+    "commit": "Weak per-instance native column ownership forwards original implementations for unrelated tables, admits explicit bridge/user-header layout, blocks unrequested SwiftUI width/visibility/order resets before they appear; lifecycle initial binding and alpha restoration use supported mount/layout/didUpdate events. All row/selection/menu receipts retained.",
+    "cache": "Prepare UTF8 once per map ordering, C memcmp with exact prefix/length semantics, direct capacity-reserved legacy projection, per-map exact/legacy temporary scopes and store autoreleasepool. Wire fields, synchronous publication/persistence warning and lease/ticket semantics unchanged."
+  },
+  "core": {
+    "tests": 53,
+    "failures": 0,
+    "seconds": 20.443,
+    "log": "build/qa/commit-cache-batch-core-2026-10-30.log",
+    "filter": "FinderPublicationPipelineTests|FinderPublicationTests|FinderPublicationClaimTests|FinderPublicationRetirementTests|FinderSnapshotQueryTests|FinderCachePersistenceTests"
+  },
+  "build": {
+    "initial_exit": 65,
+    "initial_failure": "Unsupported NSWindow.willUpdateNotification; corrected to SDK-declared NSWindow.didUpdateNotification.",
+    "initial_log": "build/qa/commit-cache-batch-debug-2026-10-30.log",
+    "affected_incremental_exit": 0,
+    "affected_log": "build/qa/commit-cache-batch-debug-notification-repair-2026-10-30.log",
+    "optimized_core_only_exit": 0,
+    "optimized_core_only_log": "build/qa/commit-cache-optimized-core-2026-10-30.log",
+    "diagnostics": "Existing CoreSimulator mismatch and generic command-failed-with-exit0 messages retained. Actual compile error repaired; subsequent Debug and Core-only build processes exit0."
+  },
+  "native": {
+    "groups": [
+      {
+        "group": "commit-report-typing",
+        "exit": 0,
+        "seconds": 20.604084,
+        "log": "build/qa/commit-report-typing-column-ownership-interface-2026-10-30.log"
+      },
+      {
+        "group": "commit-column-sorting",
+        "exit": 0,
+        "seconds": 24.718905875,
+        "log": "build/qa/commit-column-sorting-column-ownership-interface-2026-10-30.log"
+      },
+      {
+        "group": "commit-gui-staging",
+        "exit": 0,
+        "seconds": 19.012755958,
+        "log": "build/qa/commit-gui-staging-column-ownership-interface-2026-10-30.log"
+      }
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "case_engine_pairs": 6,
+    "scope": "Native selection and text insertion with KVO width/visibility and actual forwarded move sequences; header/table/clip/column positions; initial readiness, positive resize/reorder/Fit, saved layout, content/font/theme, stale checkbox receipts, interface retirement/rebinding; retained column sorting/reset and GUI transfer/layout workflows.",
+    "receivers_reaped_and_independently_absent": [
+      18571,
+      18959,
+      19507,
+      19989,
+      20831,
+      20944,
+      21067,
+      21257,
+      21369,
+      21480,
+      21820,
+      22358
+    ],
+    "first_failures_retained": [
+      "New multi-selection fixture requested an unversioned row while AddBeforeCommit=false hid it; set explicit source preference true and add row diagnostics.",
+      "Positive native control needed exact requested/accepted width and target index diagnostics.",
+      "Programmatic native column moves did not emit the assumed AppKit move notification; fixture now observes actual original implementation forwarding and restores it afterward. Positive real width/order changes and event assertions retained.",
+      "Reverse interface command was sent during reload/preflight; await actual normal command admission before reverse action, retaining final mount/alpha assertions."
+    ],
+    "failure_logs": [
+      "build/qa/commit-report-typing-column-ownership-2026-10-30.log",
+      "build/qa/commit-report-typing-column-ownership-repair-2026-10-30.log",
+      "build/qa/commit-report-typing-column-ownership-positive-2026-10-30.log",
+      "build/qa/commit-report-typing-column-ownership-move-observer-2026-10-30.log"
+    ],
+    "failure_rechecks": "Only affected typing fixture repeated; passed Core checks and app build were not repeated for fixture changes. Remaining column/GUI groups ran once after typing passed.",
+    "ownership": "Private fixture repositories/default suites and invisible/offscreen windows. Typing/GUI runners and the final bundled sorting receiver use private HOME/preferences; original system sorting wrapper inherited HOME, with its private default suite and local Git identity/hooks configuration. Owned Git helper cleanup verified; no user repository writes.",
+    "additional_bundled_sorting_log": "build/qa/commit-column-sorting-bundled-ownership-2026-10-30.log",
+    "actual_execution_note": "The retained sorting wrapper also invoked the already-passed typing regression with both Git engines once. This duplicate was discovered in its log, recorded, and not repeated. Sorting defaults to system Git; its remaining bundled-Git case was run alone with private environment and the same cached fixture. Six distinct case/engine pairs pass; eight successful and four failed receivers were observed in total."
+  },
+  "benchmark": {
+    "initial_report": "build/qa/finder-large-warm-benchmark-result-2026-10-30/report.json",
+    "optimized_report": "build/qa/finder-large-warm-optimized-result-2026-10-30/report.json",
+    "initial_encoded_bytes": 85102160,
+    "initial_exact_before_debug_wire_sha256": "519b90c4357675d4c9ae098182ae1be100d83bb4399a14cd7454957a8c223a74",
+    "exact_before_debug_wire_identical": true,
+    "optimized_current_core_sha256": "d091e277a6ef85f9a4177ea4e7a740955496e11d4a933fc02fed0027d7630135",
+    "comparable_appstore_seconds": {
+      "encode_before": 3.5743245414923877,
+      "encode_after": 1.994306500069797,
+      "tiny_publication_before": 3.8800925833638757,
+      "tiny_publication_after": 2.369703916599974,
+      "whole_publication_before": 7.298393291654065,
+      "whole_publication_after": 5.80200562486425,
+      "startup_before": 0.8431707082781941,
+      "startup_after": 0.8025642081629485,
+      "unchanged_retirement_before": 1.2718840832822025,
+      "unchanged_retirement_after": 1.316318874945864
+    },
+    "assertions": "50k long-prefix exact paths plus NFC/NFD values/flags, decoded snapshot content, stale/consumed tickets, large+tiny warm content and unchanged/repeated retirement bytes/inode.",
+    "limits": "Single sequential samples, filesystem cache and concurrent CPU timing uncontrolled. Debug comparison is separate; later optimized run reuses recorded baseline without rerunning it. Cross-run exact bytes unclaimed because private prefixes differ. No owner archive read or modified.",
+    "cleanup": "All benchmark subprocesses reaped and private payload/HOME removed."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "9a0b0dd0775c0237a3f8e90af1e8aa33bfac39559a2ecab0485085e4c8ce5833",
+    "Sources/TurtleGitCore/GitReferenceName.swift": "5fa3ace574c2d0b44a06746d97d2fabc74203b7209b0bef47671bf650eecb747",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "e17ed4b99b20487be2c6a1ecfb2e3185f68781cfc1cacdf7eb5b980c5466b5ca",
+    "Sources/TurtleGitMac/CommitWindow.swift": "d1eddf8970e9d449c2b5f544c182df2a792068ca911b0e96263368cf21074877",
+    "Tests/TurtleGitCoreTests/FinderPublicationPipelineTests.swift": "a05850aff58cd78fc2c9805f3e2512c429919a3aa191130f49dbb7c6d4924b46",
+    "docs/qa/commit-report-typing-native-2026-10-30.swift": "0fd5e4c232d1a4fd79005410fdc5e41492e606c4c35d4fb30302fdd5ed963a33",
+    "docs/qa/commit-column-sorting-native-2026-10-08.swift": "1d7ca62ffa29ae094c72ea2827e94d8a39bbe1b32a51612190c1d89a0bcb03ae"
+  },
+  "limits": [
+    "Installed39 unchanged; signed40 package predates these fixes. A new signed build and physical acceptance are required.",
+    "Startup remains synchronously coupled to cache publication; the private measurement proves reduced work, not a fixed end-user startup time.",
+    "No complete current hosted CI, minimum macOS/Intel execution, physical pointer gesture or whole-port parity certification."
+  ]
+}

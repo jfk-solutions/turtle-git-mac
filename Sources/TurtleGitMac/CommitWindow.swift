@@ -3792,7 +3792,7 @@ struct CommitDialog: View {
         let key = staged ? "staged" : "unstaged"
         let focus = Binding<String?>(get: { model.focusedFiles[key] }, set: { model.focusedFiles[key] = $0 })
         let columns: Set<StatusListColumn> = [.path, .status]
-        return CommitFileInteraction(rows: entries.map(StatusListRow.file),contentRevision:model.fileReportRevision,uniformRowGeometry: reportGeometry,
+        return CommitFileInteraction(rows: entries.map(StatusListRow.file),contentRevision:model.fileReportRevision,uniformRowGeometry: reportGeometry,ownsNativeColumns:true,
             leadingColumnCount: 0, selectionLabelInset: 0, keyboardCheckWithoutColumn: true,
             captureWorkingDrag: { model.captureWorkingDrag($0) }, workingDragOrigin: model.workingDragOrigin,
             nativeColumns: [.path, .status],
@@ -4000,7 +4000,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows,contentRevision:model.fileReportRevision,uniformRowGeometry:geometry,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows,contentRevision:model.fileReportRevision,uniformRowGeometry:geometry,ownsNativeColumns:true,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: model.fileListAvailable, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)

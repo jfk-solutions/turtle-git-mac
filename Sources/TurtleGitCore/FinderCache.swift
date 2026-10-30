@@ -285,23 +285,28 @@ public struct FinderSnapshot: Codable, Sendable {
     public func encode(to encoder:Encoder) throws {
         var values = encoder.container(keyedBy:CodingKeys.self)
         try values.encode(roots,forKey:.roots)
-        let orderedStates=states.orderedEncoding()
-        try values.encode(orderedStates,forKey:.statesV2)
-        try values.encode(orderedStates.legacy {Self.statePriority($0)>=Self.statePriority($1) ? $0:$1},forKey:.states)
+        // Each exact/legacy pair shares one byte ordering, then releases its
+        // temporary records before the next potentially large map is prepared.
+        // No ordering or projection is retained as authority across calls.
+        func pair<Value:Codable>(_ map:GitPathMap<Value>,exact:CodingKeys,legacy:CodingKeys,
+                                 combine:(Value,Value)->Value)throws {
+            let ordered=map.orderedEncoding()
+            try values.encode(ordered,forKey:exact)
+            try values.encode(ordered.legacy(uniquingKeysWith:combine),forKey:legacy)
+        }
+        try pair(states,exact:.statesV2,legacy:.states) {Self.statePriority($0)>=Self.statePriority($1) ? $0:$1}
         try values.encode(updated,forKey:.updated)
         try values.encodeIfPresent(liveRevision,forKey:.liveRevision)
         try values.encode(overlayPolicies,forKey:.overlayPolicies)
-        let orderedRepositories=repositories.orderedEncoding()
-        try values.encode(orderedRepositories,forKey:.repositoriesV2)
         // Current peers use lossless records; older installed peers retain the
         // same deterministic canonical-collision projection during updates.
-        try values.encode(orderedRepositories.legacy {first,_ in first},forKey:.repositories)
-        let orderedOverlays=overlayEntries.map {$0.orderedEncoding()}
-        try values.encodeIfPresent(orderedOverlays,forKey:.overlayEntriesV2)
-        try values.encodeIfPresent(orderedOverlays.map {$0.legacy {Self.statePriority($0)>=Self.statePriority($1) ? $0:$1}},forKey:.overlayEntries)
-        let orderedFlags=indexFlags.map {$0.orderedEncoding()}
-        try values.encodeIfPresent(orderedFlags,forKey:.indexFlagsV2)
-        try values.encodeIfPresent(orderedFlags.map {$0.legacy {_,last in last}},forKey:.indexFlags)
+        try pair(repositories,exact:.repositoriesV2,legacy:.repositories) {first,_ in first}
+        if let entries=overlayEntries {
+            try pair(entries,exact:.overlayEntriesV2,legacy:.overlayEntries) {Self.statePriority($0)>=Self.statePriority($1) ? $0:$1}
+        }
+        if let flags=indexFlags {
+            try pair(flags,exact:.indexFlagsV2,legacy:.indexFlags) {_,last in last}
+        }
     }
     static func statePriority(_ state: FileState) -> Int {
         switch state {
@@ -1188,25 +1193,28 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         var attributes=stat()
         if lstat(location.path,&attributes)==0 {guard attributes.st_mode & S_IFMT == S_IFREG else {throw FinderPublicationFailure.corruptStore}}
         else if errno != ENOENT {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
-        let encoder=JSONEncoder();encoder.outputFormatting = [.sortedKeys]
-        let bytes:Data
-        if let state=value as? Control {
-            let header=try encoder.encode(ControlHeader(state:state)),placeholder=Data("\"contributions\":[]".utf8)
-            guard let range=header.range(of:placeholder) else{throw FinderPublicationFailure.corruptStore}
-            var bodies:[Data]=[],total=header.count
-            for item in state.contributions {
-                let (bytes,encoded)=try item.encoding()
-                if encoded {coordination.cacheLock.lock();coordination.work.contributionEncodes += 1;coordination.cacheLock.unlock()}
-                let extra=bytes.count+(bodies.isEmpty ? 0:1)
-                guard extra<=268435456-total else{throw FinderPublicationFailure.corruptStore}
-                total+=extra;bodies.append(bytes)
-            }
-            guard total<=268435456 else{throw FinderPublicationFailure.corruptStore}
-            var combined=Data();combined.reserveCapacity(total)
-            combined.append(header.prefix(range.upperBound-1))
-            for (index,body) in bodies.enumerated(){if index>0{combined.append(44)};combined.append(body)}
-            combined.append(header.suffix(from:range.upperBound-1));bytes=combined
-        }else{bytes=try encoder.encode(value)}
+        let bytes:Data=try autoreleasepool {
+            let encoder=JSONEncoder();encoder.outputFormatting = [.sortedKeys]
+            let bytes:Data
+            if let state=value as? Control {
+                let header=try encoder.encode(ControlHeader(state:state)),placeholder=Data("\"contributions\":[]".utf8)
+                guard let range=header.range(of:placeholder) else{throw FinderPublicationFailure.corruptStore}
+                var bodies:[Data]=[],total=header.count
+                for item in state.contributions {
+                    let (bytes,encoded)=try item.encoding()
+                    if encoded {coordination.cacheLock.lock();coordination.work.contributionEncodes += 1;coordination.cacheLock.unlock()}
+                    let extra=bytes.count+(bodies.isEmpty ? 0:1)
+                    guard extra<=268435456-total else{throw FinderPublicationFailure.corruptStore}
+                    total+=extra;bodies.append(bytes)
+                }
+                guard total<=268435456 else{throw FinderPublicationFailure.corruptStore}
+                var combined=Data();combined.reserveCapacity(total)
+                combined.append(header.prefix(range.upperBound-1))
+                for (index,body) in bodies.enumerated(){if index>0{combined.append(44)};combined.append(body)}
+                combined.append(header.suffix(from:range.upperBound-1));bytes=combined
+            }else{bytes=try encoder.encode(value)}
+            return bytes
+        }
         guard bytes.count<=268435456 else {throw FinderPublicationFailure.corruptStore}
         if let state=value as? Control {
             // Bind the memoized state to our actual staged inode. A foreign

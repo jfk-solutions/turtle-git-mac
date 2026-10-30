@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
+import Darwin
 
 /// Git/CString reference identity does not normalize Unicode spellings. Keep
 /// valid UTF-8 names byte-exact when using Swift dictionaries, sets and equality.
@@ -105,12 +106,35 @@ struct GitPathMapOrderedEncoding<Value:Codable>:Encodable {
         var container=encoder.singleValueContainer();try container.encode(entries)
     }
     func legacy(uniquingKeysWith combine:(Value,Value)->Value)->[String:Value] {
-        Dictionary(entries.map {($0.path,$0.value)},uniquingKeysWith:combine)
+        var result:[String:Value]=[:]
+        result.reserveCapacity(entries.count)
+        for entry in entries {
+            if let previous=result.updateValue(entry.value,forKey:entry.path) {
+                result.updateValue(combine(previous,entry.value),forKey:entry.path)
+            }
+        }
+        return result
+    }
+}
+/// Preparing bytes once avoids walking a String.UTF8View for every byte of
+/// every comparison of long, shared-prefix repository paths. These temporary
+/// buffers are discarded before the encoder retains its ordered wire records.
+private struct GitPathMapEncodingSortEntry<Value> {
+    let path:String,value:Value,bytes:[UInt8]
+    static func precedes(_ left:Self,_ right:Self)->Bool {
+        let shared=min(left.bytes.count,right.bytes.count)
+        if shared==0 {return left.bytes.count<right.bytes.count}
+        let order=left.bytes.withUnsafeBufferPointer { lhs in
+            right.bytes.withUnsafeBufferPointer { rhs in memcmp(lhs.baseAddress!,rhs.baseAddress!,shared) }
+        }
+        return order==0 ? left.bytes.count<right.bytes.count:order<0
     }
 }
 extension GitPathMap where Value:Codable {
     func orderedEncoding()->GitPathMapOrderedEncoding<Value> {
-        .init(entries:storage.sorted {$0.key.rawValue.utf8.lexicographicallyPrecedes($1.key.rawValue.utf8)}.map {.init(path:$0.key.rawValue,value:$0.value)})
+        var prepared=storage.map { GitPathMapEncodingSortEntry(path:$0.key.rawValue,value:$0.value,bytes:Array($0.key.rawValue.utf8)) }
+        prepared.sort(by:GitPathMapEncodingSortEntry<Value>.precedes)
+        return .init(entries:prepared.map {.init(path:$0.path,value:$0.value)})
     }
 }
 

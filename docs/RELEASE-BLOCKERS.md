@@ -38,6 +38,16 @@ missing source behavior, reported defect or failing check.
   [Consolidated build40](qa/signed-consolidation-build40-2026-10-30.json) is now
   packaged with focused signed-helper and ZIP checks; it has not replaced build39.
 
+The later [installed build39 acceptance attempt](qa/installed39-startup-commit-2026-10-30.json)
+found a concrete large-cache startup blocker and a native Commit column-set
+transition. The owner also reports header movement when selecting files. These
+are active product defects; earlier scoped checks did not close them. Build40
+contains the same relevant source, so its package does not establish that these
+reported problems are fixed. The connected ordering and column-ownership batch
+now has a [passing grouped checkpoint](qa/commit-columns-cache-scale-2026-10-30.json).
+The next signed consolidation must include it and establish actual installed
+header stability and startup responsiveness; private timings do not close that gate.
+
 The [hosted compatibility repair batch](qa/ci-host-compatibility-2026-10-30.json)
 records the SSH bookmark host identity, Settings color-control lifecycle and
 pinned Unicode source-loader failures together. Its focused local checks do not

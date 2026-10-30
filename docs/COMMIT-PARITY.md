@@ -2872,3 +2872,30 @@ boundaries and light/dark captures. The [loading observations](COMMIT-REFRESH-PE
 separate actual warm read timings from unmeasured cold/signed startup. This does
 not certify all Commit dialogs, physical gestures, external providers or signed
 Finder acceptance.
+
+
+## Native column ownership during selection and typing — October 30, 2026
+
+The owner reports that selecting files moves the Classic Commit headers as well
+as typing a message. The installed build39 observation also found a native
+column-set transition after typing; it does not measure transient flicker by
+video. See the [installed observation](qa/installed39-startup-commit-2026-10-30.json).
+
+The implementation now gives Classic and Git Gui Commit lists explicit ownership
+of their native column layout while SwiftUI retains row, selection, accessibility
+and context-menu delivery. Mounted-table lifecycle events finish initial column
+binding before exposing the saved layout. Weak per-instance bindings admit the
+bridge's explicit configuration and originating header gestures; unrelated
+tables retain their original native implementations. Ordinary selection/text
+updates must not temporarily restore declared column defaults. Saved visibility,
+width/order, Fit/reset, content/font changes and actual header gestures remain
+part of the grouped validation scope. This is a partial Commit continuation,
+not certification of every dialog or installed build.
+
+The [grouped checkpoint](qa/commit-columns-cache-scale-2026-10-30.json) passes
+typing/selection, column sorting/layout and Git Gui staging with both Git engines.
+It records zero observed width/visibility/order transitions during ordinary
+typing and selection, plus actual positive resize/reorder/Fit changes, saved
+layout and interface retirement/rebinding. Initial fixture failures and the
+wrapper's duplicate typing invocation are retained explicitly. Physical header
+gestures and a signed build containing this change remain separate acceptance.

@@ -56,6 +56,27 @@ final class FinderPublicationPipelineTests:XCTestCase {
         // NFC supplies last index flags. Never use canonical String sort here.
         XCTAssertEqual(legacy.repositories[a],snapshot.repositories[b]);XCTAssertEqual(legacy.indexFlags[a],snapshot.indexFlags?[a])
     }
+    func testPreparedPathOrderingPreservesLongPrefixMultibyteAndCanonicalLegacyBytes() throws {
+        let prefix="/repo/"+String(repeating:"long-shared-🧪-component/",count:24)
+        let names=["", "/", "/repo", prefix, prefix+"/", prefix+"a", prefix+"a\0suffix",
+                   prefix+"café", prefix+"cafe\u{301}", prefix+"日本語", prefix+"🧪", prefix+"z"]
+        var values=GitPathMap<Int>()
+        for (index,name) in names.reversed().enumerated() {
+            values[NSMutableString(string:name) as String]=index
+        }
+        let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+        XCTAssertEqual(try encoder.encode(values),try encoder.encode(OldPairs(map:values)))
+        struct Pair:Decodable {let path:String;let value:Int}
+        let ordered=try JSONDecoder().decode([Pair].self,from:encoder.encode(values))
+        let expected=names.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        XCTAssertEqual(ordered.map {Data($0.path.utf8)},expected.map {Data($0.utf8)})
+        for pair in ordered {XCTAssertEqual(pair.value,values[pair.path])}
+        let states=values.mapValues {_ in FileState.modified}
+        var snapshot=FinderSnapshot(roots:["/repo"],states:states,updated:Date(timeIntervalSince1970:123),
+                                    overlayEntries:states,indexFlags:values.mapValues { FinderIndexFlags(skipWorktree:$0.isMultiple(of:2),assumeUnchanged:!$0.isMultiple(of:2)) })
+        snapshot.states[prefix+"café"] = .added;snapshot.states[prefix+"cafe\u{301}"] = .conflicted
+        XCTAssertEqual(try encoder.encode(snapshot),try encoder.encode(OldWire(snapshot:snapshot)))
+    }
     func testNativeAndBridgedStringStorageHaveEqualExactHashFeed() {
         for name in ["plain",String(repeating:"deep/",count:40)+"café 🧪","cafe\u{301}","embedded\0byte"] {
             let native=String(decoding:Array(name.utf8),as:UTF8.self)

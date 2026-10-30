@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-30",
+  "status": "physical-acceptance-found-startup-blocker-and-column-transition",
+  "app_build": "39",
+  "current_source_before_repairs": "7b52d1ac30424e82db4ee0065f1de20bdd6ec5a6",
+  "private_fixture": {
+    "tracked_files": 2,
+    "commits": 2,
+    "modified_files": 1,
+    "untracked_files": 1,
+    "network_transport": false,
+    "head_index_status_unchanged": true
+  },
+  "observations": [
+    "Installed app launched into workspace without a repository selected.",
+    "Repository chooser navigated to exact private fixture using its path field. The first paste attempt did not navigate as intended; explicit field value did.",
+    "After granting only private fixture, repository adoption remained busy for over60seconds. This is an observation interval, not a controlled startup benchmark.",
+    "Later status showed main, history.txt Modified and untracked.txt Untracked.",
+    "Commit opened populated Classic view. Actual message typing retained the private text and updated line/column without committing.",
+    "AX column set initially included native columns absent from the visible saved layout, then changed to saved Path/Extension/Status/LinesAdded/LinesRemoved set after typing. This is an observed structural transition; transient flicker was not measured by video.",
+    "Owner separately reports file selection also moves the Commit headers.",
+    "Commit Cancel displayed the source message-history warning and confirmed cancellation; application quit normally through its menu shortcut."
+  ],
+  "startup_sample": {
+    "file": "build/qa/installed39-acceptance-2026-10-30/loading.sample.txt",
+    "sha256": "5f0a2085131329193f44600dabee18cb1dc0c5da137f5126b996a939409e0da6",
+    "owned_pid": 12935,
+    "main_thread": "Idle in AppKit event loop, no main-thread hang proved.",
+    "blocked_work": "FinderSnapshotStore.publish -> mergeWarm -> save -> JSONEncoder -> FinderSnapshot.encode -> GitPathMap.orderedEncoding. Other publication and RepositoryModel.reload.begin workers wait behind same local writer.",
+    "warm_archive_bytes": 83207034,
+    "sample_footprint_bytes_approx": 867700000,
+    "ordering_worker_samples": 371,
+    "total_worker_samples": 434,
+    "evidence_limit": "83MB is actual owner cache size; original JSON/paths were not copied into public evidence."
+  },
+  "cleanup": {
+    "test_pid": 12935,
+    "normal_quit": true,
+    "independently_absent": true,
+    "signals_sent": false,
+    "private_saved_repository_records_removed": 1,
+    "owned_preferences_restored": [
+      "NSWindow Frame GoToSheet",
+      "NSOSPLastRootDirectory",
+      "Commit.MessageHistory.L1VzZXJzL2prdWVobmVyL0Rlc2t0b3AvZ2l0L2pmay1zb2x1dGlvbnMvdG9ydG9pc2UtZ2l0LW1hYy9idWlsZC9xYS9pbnN0YWxsZWQzOS1hY2NlcHRhbmNlLTIwMjYtMTAtMzAvcmVwb3NpdG9yeS8uZ2l0",
+      "TurtleGit.DialogGeometry.workspace",
+      "TurtleGit.DialogGeometry.CommitWindowController"
+    ],
+    "head_status_and_empty_index_unchanged": true,
+    "limits": "Finder warm archive may retain historical status for private root; no user snapshots altered or removed."
+  },
+  "remaining": [
+    "Source repair and grouped validation of large-cache ordering/publication latency and Commit native column ownership.",
+    "No GUI double-click/Log/Settings acceptance claimed in this attempt; stopped after finding actual startup blocker.",
+    "No full signed40 or complete hosted CI acceptance; signed40 remains packaged and installed39 unchanged."
+  ]
+}

@@ -152,3 +152,28 @@ Empty selection now retires a blank preview. The former reader already produced
 empty data without running Git for that selection; this is not a new large-diff
 optimization. Further slow installed loading needs an actual phase/timing
 observation rather than a speculative claim that the warm Core read was slow.
+
+
+## Installed Finder publication bottleneck — October 30, 2026
+
+A later [installed build39 observation](qa/installed39-startup-commit-2026-10-30.json)
+found a different delay: opening a private three-file repository remained busy
+for over a minute behind publication of an 83 MB Finder warm archive. The main
+thread was idle; a sampled worker spent most observations sorting long shared
+path prefixes for snapshot encoding. Other cache writers, including the new
+repository's pre-collection publication reservation, waited behind that work.
+This does not contradict the earlier warm Git display-read timings.
+
+Byte-exact encoding now prepares UTF-8 path bytes once per ordering and compares
+contiguous buffers. Each exact-record/legacy-map pair shares that ordering,
+then releases temporary records before the next map. Store encoding releases
+Foundation temporaries before writing. The wire format, canonical-collision
+projection, synchronous persistence warnings and cross-process publication
+fences are retained. The [grouped checkpoint](qa/commit-columns-cache-scale-2026-10-30.json)
+passes 53 targeted Core checks and preserves identical initial 85.1 MB wires in
+the paired framework comparison. With matching optimized configurations, a
+single private measurement reduced encoding from 3.57 to 1.99 seconds and the
+complete publication phase from 7.30 to 5.80 seconds. Startup and unchanged
+retirement did not show a comparable improvement. Sequential sampling and OS
+cache/CPU state limit the comparison. Publication remains synchronous; these
+results do not prove that installed repository/Commit startup is fixed.
