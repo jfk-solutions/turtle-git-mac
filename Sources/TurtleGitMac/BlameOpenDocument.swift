@@ -5,6 +5,19 @@ import TurtleGitCore
 /// Blame reads the Git blob named by the leaf, including mode 120000's target
 /// text. Only its parent is resolved for authorization; the target is never read.
 enum BlameDocumentLocation {
+    /// Working-file entry points require a real lexical leaf, but a symbolic
+    /// link's target is never part of Blame's authority or attributed content.
+    static func validateWorkingLeaf(_ file:URL,cancellation:OperationCancellation?=nil) throws {
+        try cancellation?.check()
+        guard file.isFileURL else {throw FinderServiceAuthorizationFailure.invalidRequest}
+        var attributes=stat()
+        guard file.withUnsafeFileSystemRepresentation({$0.map {Darwin.lstat($0,&attributes)} ?? -1})==0 else {
+            throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .ENOENT)
+        }
+        let kind=attributes.st_mode & mode_t(S_IFMT)
+        guard kind==mode_t(S_IFREG) || kind==mode_t(S_IFLNK) else {throw GitBlameFailure.unsupported}
+        try cancellation?.check()
+    }
     static func lexicalFile(root:URL,path:String) throws -> URL {
         let components=path.components(separatedBy:"/")
         guard !path.isEmpty,!path.hasPrefix("/"),!path.contains("\0"),
@@ -100,10 +113,7 @@ struct BlameOpenedDocument {
             lease=RepositoryAccessLease(url:file.deletingLastPathComponent(),provider:provider)
         }
         guard !requireScope || lease.hasSecurityScope,lease.contains(file.deletingLastPathComponent()) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-        var attributes=stat()
-        guard file.withUnsafeFileSystemRepresentation({ $0.map { Darwin.lstat($0,&attributes) } ?? -1 }) == 0 else { throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .ENOENT) }
-        let kind=attributes.st_mode & mode_t(S_IFMT)
-        guard kind==mode_t(S_IFREG) || kind==mode_t(S_IFLNK) else { throw GitBlameFailure.unsupported }
+        try BlameDocumentLocation.validateWorkingLeaf(file,cancellation:request)
         let discovered=try await factory(file.deletingLastPathComponent()).discoverRoot(cancellation:request)
         let root=discovered.standardizedFileURL.resolvingSymlinksInPath()
         // An unsigned directory-derived scope can be widened only in the

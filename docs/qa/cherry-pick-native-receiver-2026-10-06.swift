@@ -2066,6 +2066,23 @@ import TurtleGitCore
     let stash = try await repo.run(["show", "stash:change"]).stdout; precondition(stash == dirty)
     let reopened = BisectWindowController(repository: repo, access: nil,preferences:preferences); defer { reopened.close() }
     reopened.window?.alphaValue=0;retireOwned.append {reopened.close()}
+    struct BisectRecoveryCheckFailure:Error,CustomStringConvertible {let description:String}
+    func recoveryDiagnostic(_ phase:String)->String {
+        "Bisect \(phase): exit=\(String(describing:reopened.model.lastExitCode)), error=\(String(describing:reopened.model.error)), active=\(String(describing:reopened.model.state?.active)), busy=\(reopened.model.busy), pending=\(reopened.model.hasPendingWork), sheet=\(String(describing:reopened.window?.attachedSheet)), reset=\(reopened.model.canPerform(.reset)), good=\(reopened.model.canPerform(.good)), output=\(reopened.model.output.suffix(1024))"
+    }
+    func requireRecovery(_ condition:Bool,_ phase:String)throws {
+        if !condition {throw BisectRecoveryCheckFailure(description:recoveryDiagnostic(phase))}
+    }
+    func dismissBisectError()async throws {
+        // SwiftUI's error binding dismisses the owned native sheet
+        // asynchronously. The next Git operation must wait for actual detach.
+        reopened.model.error=nil
+        let deadline=Date().addingTimeInterval(30)
+        while (reopened.window?.attachedSheet != nil || reopened.model.hasPendingWork) && Date()<deadline {
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        try requireRecovery(reopened.model.error==nil && reopened.window?.attachedSheet==nil && !reopened.model.hasPendingWork,"error dismissal/drain")
+    }
     try await wait(reopened.model); precondition(reopened.model.state?.active == true && reopened.model.state?.originalRevision == "main")
     var submoduleUpdates = 0
     reopened.model.onSubmoduleUpdate = { submoduleUpdates += 1 }
@@ -2098,9 +2115,18 @@ import TurtleGitCore
     reopened.model.start(); try await wait(reopened.model)
     checkSubmoduleAction(); precondition(reopened.model.hasSubmodules)
     reopened.model.perform(.skip, revisions: Array(hashes[1...6])); try await wait(reopened.model)
-    precondition(reopened.model.lastExitCode != 0 && reopened.model.error != nil && reopened.model.canPerform(.reset) && !reopened.model.canPerform(.good))
+    try requireRecovery(reopened.model.lastExitCode.map {$0 != 0} == true && reopened.model.error != nil && reopened.model.postOperations == [.reset] && !reopened.model.canPerform(.good),"indeterminate Skip result/reset-only recovery")
+    if reopened.window?.attachedSheet != nil {
+        let before=try await repo.bisectState()
+        try requireRecovery(!reopened.model.canPerform(.reset),"error sheet blocks Reset dispatch")
+        reopened.model.perform(.reset);reopened.model.perform(.good)
+        let after=try await repo.bisectState()
+        try requireRecovery(after.head==before.head && after.log==before.log,"error sheet refused Git actions")
+    }
     checkSubmoduleAction()
-    reopened.model.error = nil; reopened.model.perform(.reset); try await wait(reopened.model); precondition(reopened.model.error == nil)
+    try await dismissBisectError()
+    try requireRecovery(reopened.model.canPerform(.reset) && !reopened.model.canPerform(.good),"dismissed error admits only Reset")
+    reopened.model.perform(.reset); try await wait(reopened.model); precondition(reopened.model.error == nil)
     checkSubmoduleAction()
     _ = try await repo.run(["bisect", "start", "--term-good=old", "--term-bad=new", hashes[7], hashes[0]])
     reopened.model.load(); try await wait(reopened.model)
@@ -2113,7 +2139,7 @@ import TurtleGitCore
     reopened.model.load(requireStart: true); try await wait(reopened.model)
     precondition(reopened.model.error == BisectFailure.active.localizedDescription)
     let unchangedCandidate = try await repo.bisectState().head; precondition(unchangedCandidate == candidate)
-    reopened.model.error = nil
+    try await dismissBisectError()
     reopened.model.load(operation: .good); try await wait(reopened.model)
     precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect good " + candidate) == true)
     reopened.model.load(operation: .reset); try await wait(reopened.model); precondition(reopened.model.state?.active == false)
@@ -2121,7 +2147,7 @@ import TurtleGitCore
     reopened.model.load(operation: .bad); try await wait(reopened.model)
     precondition(reopened.model.error == BisectFailure.inactive.localizedDescription && reopened.model.state?.active == false)
     let afterStale = try await repo.bisectState(); precondition(afterStale.head == afterReset.head && !afterStale.active)
-    reopened.model.error = nil
+    try await dismissBisectError()
     print("Native Finder Bisect dispatch: fresh active Start refusal, current-commit Good after load, Reset handoff and stale ended-session Bad refusal preserve HEAD/state passed.")
     precondition(submoduleUpdates > 0)
     print("Native Bisect submodule progress: checkout adds/removes .gitmodules, Start/classification/Reset refresh availability, failed result and busy callback guards passed. Update callback injected; dialog handoff not activated.")
@@ -2373,7 +2399,12 @@ import TurtleGitCore
     let pairBytes = ["change": Data("native working-row diff\n".utf8), workingCopyPath: workingCopyBytes]
     precondition(pairDocument.base.bytes == pairBytes[workingPairPaths[0]] && pairDocument.destination.bytes == pairBytes[workingPairPaths[1]])
     try FileManager.default.removeItem(at: root.appendingPathComponent("change"))
-    log.blameFile(["change"]); try await waitLog(); precondition(log.error != nil && blameRequests.count == guardedBlameCount); log.error = nil
+    log.blameFile(["change"]); try await waitLog()
+    guard log.error != nil && blameRequests.count == guardedBlameCount else {
+        let blameAllowed=log.canBlameFile(["change"]),pathExists=FileManager.default.fileExists(atPath:root.appendingPathComponent("change").path)
+        throw BisectRecoveryCheckFailure(description:"Working-row missing-leaf Blame: error=\(String(describing:log.error)), requests=\(blameRequests.count)/\(guardedBlameCount), selected=\(log.selected), working=\(log.selectedWorkingTree), busy=\(log.busy), canBlame=\(blameAllowed), reads=\(LogWindowModel.activeFileOpenReads), pendingNavigation=\(log.fileNavigationReadPending), pathExists=\(pathExists)")
+    }
+    log.error = nil
     log.compareFilePair(pairIDs); let deletedPair = try await repo.workingFilePairComparison(paths: workingPairPaths)
     let deletedDocument = try await repo.comparisonFile(deletedPair, path: workingPairPaths[1])
     let deletedBytes = ["change": headFile.bytes, workingCopyPath: workingCopyBytes]
@@ -2466,7 +2497,23 @@ import TurtleGitCore
     print("Native Bisect picker refresh: real hidden picker and source Log refresh HEAD/Good/Skip/Bad references without manual reload; Reset clears session/marks; closed retained picker stays invalidated and weak observers release models. Root handoff injected.")
     let branch = try await repo.branch(); precondition(branch == "main")
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
-    var closed = false; reopened.onClosed = { closed = true }; reopened.close(); precondition(closed && !window.isVisible)
+    let closingWindow=reopened.window
+    var closeCallbacks=0,callbackBeforeDrain=false
+    reopened.onClosed = { [weak reopened] in
+        closeCallbacks += 1
+        callbackBeforeDrain = callbackBeforeDrain || reopened?.hasPendingWork != false || closingWindow?.attachedSheet != nil || closingWindow?.sheetParent != nil
+    }
+    reopened.close()
+    // The controller retains its native window until actual children, sheets
+    // and accepted operations drain; onClosed follows that asynchronous release.
+    let closeDeadline=Date().addingTimeInterval(30)
+    while (closeCallbacks==0 || reopened.hasPendingWork) && Date()<closeDeadline {
+        try await Task.sleep(nanoseconds:10_000_000)
+    }
+    try requireRecovery(closeCallbacks==1 && !callbackBeforeDrain && !reopened.hasPendingWork && reopened.model.retired && closingWindow?.isVisible==false && closingWindow?.attachedSheet==nil && closingWindow?.sheetParent==nil && !window.isVisible,
+                        "owned Close/drain callbacks=\(closeCallbacks), early=\(callbackBeforeDrain), visible=\(String(describing:closingWindow?.isVisible))")
+    reopened.close();await Task.yield()
+    try requireRecovery(closeCallbacks==1 && !reopened.hasPendingWork,"duplicate Close callback after retirement")
     print("Native Bisect: real hidden two-combo dialog, defaults/icons, Stash Abort/accept with exact saved bytes and untracked preservation, fresh session reopening, regression classification/Reset, ambiguous Skip recovery, custom labels and owned-window cleanup passed. Prompt replies injected.")
     // Retire the model only after every live-menu/Bisect workflow. A retired
     // Log deliberately cannot be resurrected by reload.
@@ -2477,6 +2524,7 @@ import TurtleGitCore
     precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
     precondition(!log.busy && workingSavePath == nil && workingExportPaths.isEmpty)
     await retireAndDrain()
+    try requireRecovery(closeCallbacks==1 && !callbackBeforeDrain,"cleanup replayed Close or released owner before drain")
     } catch {await retireAndDrain();throw error}
 
 }

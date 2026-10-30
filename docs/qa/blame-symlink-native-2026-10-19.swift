@@ -45,7 +45,8 @@ import TurtleGitCore
         prefs.set(false,forKey:"Blame.EnableLexer");prefs.set(false,forKey:"EnableGravatar");prefs.set(false,forKey:"EnableLogCache");prefs.set(true,forKey:"ShowAppContextMenuIcons")
         let scope=RepositoryAccessLease(url:root,provider:provider),recent=try BlameRecentDocuments(url:base.appendingPathComponent("private/recent.json"),provider:provider)
         var blameOwners:[BlameWindowController]=[],logOwners:[LogWindowController]=[],browsers:[RepositoryBrowserWindowController]=[]
-        defer { blameOwners.forEach{$0.close()};logOwners.forEach{$0.close()};browsers.forEach{$0.close()};prefs.removePersistentDomain(forName:suite) }
+        var heldLogLeaf:CheckedContinuation<Void,Error>?
+        defer { heldLogLeaf?.resume(throwing:OperationCancellationFailure.cancelled);blameOwners.forEach{$0.close()};logOwners.forEach{$0.close()};browsers.forEach{$0.close()};prefs.removePersistentDomain(forName:suite) }
         func owner(_ file:String,_ revision:String="HEAD",_ executable:URL?=nil)async throws->BlameWindowController {
             let value=BlameWindowController(repository:GitRepository(root:root,executable:executable ?? git,askpass:nil),access:scope,path:file,revision:revision,preferences:prefs,recentDocuments:recent,requireScope:true,provider:provider)
             blameOwners.append(value);value.window?.alphaValue=0;value.window?.orderFront(nil)
@@ -102,6 +103,8 @@ import TurtleGitCore
         // Both Log contexts retain their advertised Blame action, regardless of
         // the working target's existence or permission.
         try fm.createSymbolicLink(atPath:root.appendingPathComponent(path).path,withDestinationPath:"../../other-dangling")
+        let regular=root.appendingPathComponent("regular.txt"),regularBytes=try Data(contentsOf:regular)
+        try Data("working regular draft\n".utf8).write(to:regular)
         prefs.set(true,forKey:"LogIncludeWorkingTreeChanges")
         let log=LogWindowController(repository:repo,access:scope,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false);logOwners.append(log);log.window?.orderFront(nil)
         try await wait{!log.model.busy && !log.model.entries.isEmpty}
@@ -114,6 +117,55 @@ import TurtleGitCore
         let workingFile=log.model.files.first{$0.path==path}!
         log.model.blameFile([workingFile.id]);try await wait{!log.model.busy && LogWindowModel.activeFileOpenReads==0}
         try require(logBlame?.0==path && logBlame?.1==second.hash,"Working Log followed/rejected dangling target: \(log.model.error ?? "none")")
+        guard let regularRow=log.model.files.first(where:{$0.path=="regular.txt"}) else {throw Failure(description:"Working regular row missing")}
+        logBlame=nil;log.model.blameFile([regularRow.id]);try await wait{!log.model.busy && LogWindowModel.activeFileOpenReads==0}
+        try require(logBlame?.0=="regular.txt" && logBlame?.1==second.hash,"Working regular Blame dispatch failed")
+        // Retain the actual accepted row while the disk leaf changes. Missing,
+        // directory and FIFO leaves must fail before any historical handoff;
+        // a dangling symbolic link remains a valid no-follow leaf.
+        for kind in ["missing","directory","fifo"] {
+            try fm.removeItem(at:regular)
+            if kind=="directory" {try fm.createDirectory(at:regular,withIntermediateDirectories:false)}
+            if kind=="fifo" {try require(mkfifo(regular.path,0o600)==0,"Private FIFO setup failed")}
+            do {try BlameDocumentLocation.validateWorkingLeaf(regular);throw Failure(description:"Working leaf validator accepted "+kind)}
+            catch is Failure {throw Failure(description:"Working leaf validator accepted "+kind)} catch {}
+            try require(log.model.canBlameFile([regularRow.id]),"Captured working row lost Blame admission before "+kind+" preflight")
+            logBlame=nil;log.model.blameFile([regularRow.id]);try await wait{!log.model.busy && LogWindowModel.activeFileOpenReads==0}
+            try require(logBlame==nil && log.model.error != nil,"Log handed off invalid working leaf: "+kind)
+            log.model.error=nil
+            if kind != "missing" {try fm.removeItem(at:regular)}
+            try Data("working regular draft\n".utf8).write(to:regular)
+            try await wait{log.window?.attachedSheet==nil}
+        }
+        try BlameDocumentLocation.validateWorkingLeaf(regular)
+        try BlameDocumentLocation.validateWorkingLeaf(root.appendingPathComponent(dangling))
+        let cancelledLeaf=OperationCancellation();cancelledLeaf.cancel()
+        do {try BlameDocumentLocation.validateWorkingLeaf(regular,cancellation:cancelledLeaf);throw Failure(description:"Precancelled leaf validation succeeded")}
+        catch OperationCancellationFailure.cancelled {}
+        // Hold the real validated candidate under Log's owned preflight. A
+        // selection replacement and an explicit Cancel must suppress a late
+        // successful reply while retaining the request until it actually drains.
+        let prepareLeaf=log.model.prepareWorkingBlameLeaf
+        log.model.prepareWorkingBlameLeaf={file,token in
+            try await prepareLeaf(file,token)
+            try await withCheckedThrowingContinuation{heldLogLeaf=$0}
+        }
+        logBlame=nil;log.model.blameFile([workingFile.id]);try await wait{heldLogLeaf != nil}
+        try require(log.model.fileNavigationReadPending && LogWindowModel.activeFileOpenReads==1,"Held Log preflight lost owned lifetime")
+        log.model.select([second.hash]);log.model.select([""])
+        heldLogLeaf?.resume();heldLogLeaf=nil
+        try await wait{!log.model.busy && !log.model.fileNavigationReadPending && LogWindowModel.activeFileOpenReads==0}
+        try require(logBlame==nil && log.model.error==nil,"Selection replacement accepted a stale Log Blame candidate")
+        try await wait{log.model.files.contains{$0.path==path}}
+        let cancelRow=log.model.files.first{$0.path==path}!
+        log.model.blameFile([cancelRow.id]);try await wait{heldLogLeaf != nil}
+        try require(log.model.cancelFileNavigationRead(),"Held Log Blame could not cancel")
+        try require(log.model.fileNavigationReadPending && LogWindowModel.activeFileOpenReads==1,"Cancel released a nondrained Log candidate")
+        heldLogLeaf?.resume();heldLogLeaf=nil
+        try await wait{!log.model.busy && !log.model.fileNavigationReadPending && LogWindowModel.activeFileOpenReads==0}
+        try require(logBlame==nil && log.model.error==nil,"Cancelled Log preflight dispatched or published a late error")
+        log.model.prepareWorkingBlameLeaf=prepareLeaf
+        try regularBytes.write(to:regular)
         logBlame=nil;log.model.confirmingQuit=true;log.model.blameFile([workingFile.id]);try require(logBlame==nil && LogWindowModel.activeFileOpenReads==0,"Quit admitted link Blame");log.model.confirmingQuit=false
         // Incoming Finder and CLI routes use the leaf's parent permission and
         // keep the exact path rather than adopting a directory/external target.

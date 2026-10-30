@@ -3158,6 +3158,9 @@ struct LogCommandRequest: Identifiable {
         if canWorkingConflict(.editConflict, ids: ids) { requestWorkingConflict(.editConflict, ids: ids) }
         else { compareFiles(ids) }
     }
+    var prepareWorkingBlameLeaf:(URL,OperationCancellation) async throws -> Void = {file,token in
+        try await Task.detached {try BlameDocumentLocation.validateWorkingLeaf(file,cancellation:token)}.value
+    }
     func blameFile(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard canBlameFile(ids), let onBlame, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
@@ -3168,7 +3171,7 @@ struct LogCommandRequest: Identifiable {
         let fileRequest = fileSelectionGeneration
         let token = OperationCancellation()
         fileOpenRead = token; busy = true; Self.activeFileOpenReads += 1
-        let controls = logControlsEpoch
+        let controls = logControlsEpoch,prepareLeaf=prepareWorkingBlameLeaf
         Task {
             defer { Self.activeFileOpenReads -= 1; finishFileOpenRead(token, generation: request); withExtendedLifetime(access) {} }
             do {
@@ -3176,6 +3179,8 @@ struct LogCommandRequest: Identifiable {
                 // text, rather than opening or authorizing its disk target.
                 let location = try BlameDocumentLocation.lexicalFile(root: repository.root, path: file.path)
                 try validateWorkingFileAccess(location.deletingLastPathComponent())
+                try await prepareLeaf(location,token)
+                try token.check()
                 let content = try await repository.historicalFile(revision: "HEAD", path: file.path, cancellation: token)
                 guard ["100644", "100755", "120000"].contains(content.mode ?? ""), case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
                 guard !isInvalidated, !confirmingQuit, !token.isCancelled, controls == logControlsEpoch, request == generation, fileRequest == fileSelectionGeneration, selected == selection else { return }

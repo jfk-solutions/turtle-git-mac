@@ -44,8 +44,31 @@ availability and an older standalone Open fixture. The [grouped native correctio
 passes eighteen relevant native cases/engine pairs, including First Start SSH
 authority and a PowerPoint fixture compiler repair. Build37 predates the production
 corrections. The terminal hosted run passed Core and SVN but failed seven native
-lanes; five have local repairs, while recovery/editor diagnostics remain unavailable
-during GitHub connection failures. A complete corrected-source pass is still required.
+lanes; all seven now have local repairs and focused passes in the continuation
+below. A complete corrected-source pass is still required.
+
+## Working-file Blame and native startup/recovery continuation
+
+The [grouped continuation](qa/startup-bisect-blame-2026-10-30.json) fixes a real
+working-row Log Blame regression: a deleted leaf could still dispatch HEAD Blame.
+Log and the document opener now share the existing no-follow regular-file/symlink
+validation. The owned off-main preflight retains cancellation, selection and
+retirement guards; dangling links and explicit historical revisions remain valid.
+
+The last two hosted failures also exposed obsolete fixture timing assumptions.
+Startup now exercises its actual asynchronous configuration gate before checking
+FIFO/one-shot URL delivery. Bisect separates reset-only failure results from
+modal command admission and waits for its actual owner release before requiring
+exactly one Close callback. The original full recovery function and its assertions
+remain in both the hosted receiver and the focused cached runner.
+
+Eight native case/engine pairs pass: startup and Blame with system/bundled Git,
+and full Bisect recovery with system, 2.37.1, 2.39.5 and packaged Git. Initial
+failures and affected-only repairs are recorded; no Core or unrelated native
+family was rerun. Together with the preceding checkpoint, all seven known CI
+failures have local corrections and focused passes. A complete hosted pass on
+corrected source, signed build38 and physical Finder acceptance remain open.
+Installed build37 predates these production corrections.
 
 ## Installed local testing build37
 
@@ -58,9 +81,8 @@ build36 rollback copies remain available. Installation left the app closed and
 restarted no Finder/Dock process or login/service preference.
 
 The hosted run finished with Core and SVN passing and seven native lanes failing.
-Five failed jobs have local corrections and focused passes; the recovery and editor
-job diagnostics remain unavailable during GitHub connection failures. A complete
-hosted pass on corrected source and physical Finder cold command,
+All seven failed jobs have local corrections and focused passes recorded above.
+A complete hosted pass on corrected source and physical Finder cold command,
 badge and real large-repository latency acceptance remain open. No public upload,
 notarization or Store submission occurred.
 

@@ -76,14 +76,29 @@ enum WorkspaceOpenHandoffVerification {
         let normal = TurtleGitApplicationDelegate(); normal.startupArguments = []; normal.startupDirectory = root.path
         let normalModel = RepositoryModel(startMonitoring: false, initializePreferences: false)
         let actionModel=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        defer {normalModel.stopMonitoringForTermination();actionModel.stopMonitoringForTermination()}
         normal.makeStandaloneWorkspace={actionModel}
+        var configurationResume:CheckedContinuation<Void,Never>?,configurationPreparations=0
+        normal.prepareGitConfigurationReads={
+            configurationPreparations += 1
+            await withCheckedContinuation {configurationResume=$0}
+        }
+        defer {configurationResume?.resume()}
         var sequence: [String] = []
         normal.startupCommandHandler = { _, _, _ in sequence.append("startup") }
         normal.workspaceOpenHandler = { model, url in if model === actionModel { sequence.append(url.absoluteString) } }
         normal.application(NSApp, open: [finder, patch]); normal.startupDidFinishLaunching()
         try require(sequence.isEmpty, "Open events ran before workspace ownership")
         normal.repositoryModel = normalModel
-        try require(sequence == ["startup", finder.absoluteString, patch.absoluteString], "Startup and queued URL order/one-shot delivery changed")
+        // Empty startup can establish its owner immediately. Actual Finder/file
+        // delivery now waits for the asynchronous Git-configuration authority
+        // gate; it must neither overtake that gate nor create a workspace.
+        try await wait {configurationResume != nil}
+        try require(sequence == ["startup"] && !normal.gitConfigurationReadsReady && configurationPreparations==1,"Queued URLs bypassed owned configuration preparation or repeated startup")
+        try require(normalModel.workspaceWindow==nil && actionModel.workspaceWindow==nil,"Held external action created an unsolicited workspace")
+        configurationResume?.resume();configurationResume=nil
+        try await wait {normal.gitConfigurationReadsReady && sequence.count==3}
+        try require(sequence == ["startup", finder.absoluteString, patch.absoluteString], "Startup and queued URL order/one-shot delivery changed: \(sequence)")
         normal.application(NSApp, open: [finder]); normal.startupDidFinishLaunching()
         try require(sequence == ["startup", finder.absoluteString, patch.absoluteString, finder.absoluteString], "Queued events replayed or repeated user action was suppressed")
         var reentrant: [URL] = []
@@ -94,7 +109,7 @@ enum WorkspaceOpenHandoffVerification {
         }
         normal.application(NSApp, open: [finder, patch])
         try require(reentrant == [finder, patch, nested], "Reentrant event delivery overtook an older received URL")
-        normalModel.stopMonitoringForTermination();actionModel.stopMonitoringForTermination()
+        try require(configurationPreparations==1 && normalModel.workspaceWindow==nil && actionModel.workspaceWindow==nil,"Queued/reentrant actions repeated preparation or created a workspace")
 
         // Closing the Git editor cannot exit before an accepted external launch
         // and its failure acknowledgment, nor rewrite the captured Git status.
@@ -108,6 +123,9 @@ enum WorkspaceOpenHandoffVerification {
             session.presentation = { controller in shown = controller as? FileComparisonWindowController; controller.window?.alphaValue = 0; controller.window?.orderFront(nil) }
         }
         let tool = TurtleGitApplicationDelegate()
+        // Keep the real asynchronous startup gate without consulting user
+        // configuration bookmarks in this private receiver.
+        tool.prepareGitConfigurationReads={}
         tool.startupArguments = ["--merge-tool", "--base", base.path, "--mine", mine.path, "--readonly"]; tool.startupDirectory = root.path
         tool.repositoryModel = workspace
         var exitStatus: Int32?, toolReply: ((Error?) -> Void)?, toolAck: (() -> Void)?

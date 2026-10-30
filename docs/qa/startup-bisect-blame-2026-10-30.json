@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-30",
+  "created_utc": "2026-10-30T04:11:51.093091+00:00",
+  "status": "grouped-native-checkpoint-passed",
+  "source_base": "3c50409c",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Working Log Blame shares existing no-follow regular/symlink leaf policy with document opener; off-main cancellable owned preflight refuses deleted/directory/FIFO leaves before HEAD attribution",
+    "Existing startup asynchronous configuration gate now held explicitly by native fixture, preserving exact FIFO, one-shot, reentrant delivery and no unsolicited workspace",
+    "Existing Bisect error-sheet and asynchronous owner release now explicitly drained in original full recovery fixture; result/reset-only, modal refusal, actual Reset and exactly-once close checks preserved"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/BlameOpenDocument.swift": "c98063e36a260365e6ec5200d2c9d459a6986f3a0fac0e952779d86aacf4bc7a",
+    "Sources/TurtleGitMac/LogWindow.swift": "e39c30d732a2ae021fb187ea4889fa4698940c15b0ab0dc2c7d1d187dab1d6ca",
+    "docs/qa/blame-symlink-native-2026-10-19.swift": "5307070a11bdefbc322dadb543280280cf06d4fe58b0ddab5f8a27b74a9f09ba",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "499130a32c14046e8d6593158985d0de1702b954ecda38603136f9961d897923",
+    "docs/qa/workspace-open-handoff-native-2026-10-18.swift": "7fde5ce7fce3f79cc605d54ab01d1b22183c5d9b0e3636d270c7a73dbdd4abf5",
+    "scripts/test-bisect-source-controls.py": "fef642ba6c5704464dc0d9b288e7c079d4abbfffcde947ac2754bfc4bfc83426"
+  },
+  "hosted_diagnostics": {
+    "observed_utc": "2026-10-30T03:51:35.980548+00:00",
+    "run": 40964073622,
+    "source": "a25f65abf6e889c0ffa09a81798e5fe906ba3a22",
+    "retrieval": "Authenticated Chrome visible GitHub expanded step log, after connector Transport closed and initial browser ERR_NETWORK_CHANGED. Public REST annotations independently confirm terminal failure but only expose generic exit1. Temporary browser tab closed.",
+    "jobs": [
+      {
+        "id": 123765567237,
+        "step": "Native Cherry Pick and Rebase recovery across Git versions",
+        "runtime": "/usr/bin/git",
+        "error": "TurtleGitMac/cherry-pick-native-receiver-2026-10-06.swift:2101: Precondition failed",
+        "process_result": "SIGILL4; script check-cherry-pick-native.py line61 failed"
+      },
+      {
+        "id": 123765567265,
+        "step": "Reflected EditorConfig, Log references and external workspace requests",
+        "prior_cases": "editorconfig and references both Git engines passed",
+        "runtime": "handoff with /usr/bin/git",
+        "error": "Native QA failed: Startup and queued URL order/one-shot delivery changed",
+        "process_result": "exit1; owned receiver68439 reaped"
+      }
+    ]
+  },
+  "pinned_behavior": [
+    "GitStatusListCtrl.cpp working Blame omits explicit revision; AppUtils.cpp working route and BlameDoc.cpp OnOpenDocument require actual working leaf",
+    "Existing explicit historical revision and dangling symbolic-link target text behavior preserved"
+  ],
+  "validation": {
+    "debug_exit": 0,
+    "debug_log": "build/qa/log-blame-leaf-debug-2026-10-30.log",
+    "debug_contradictory_exit_zero_diagnostics": 13,
+    "build_limit": "Actual fresh Debug objects/module were linked and exercised; contradictory compiler exit0/no-output messages mean this is not a clean signed build claim.",
+    "startup_case_engine_pairs": 2,
+    "bisect_case_engine_pairs": 4,
+    "blame_case_engine_pairs": 2,
+    "total_case_engine_pairs": 8,
+    "logs": {
+      "startup": "build/qa/startup-handoff-barrier-2026-10-30.log",
+      "bisect": "build/qa/bisect-owned-close-recheck-2026-10-30.log",
+      "blame_system": "build/qa/blame-leaf-system-2026-10-30.log",
+      "blame_bundled": "build/qa/blame-leaf-bundled-2026-10-30.log"
+    },
+    "initial_failures": [
+      {
+        "log": "build/qa/bisect-error-sheet-recovery-2026-10-30.log",
+        "result": "systemGit failed original missing-file Blame assertion2402; real Log validation regression repaired before subsequent build"
+      },
+      {
+        "log": "build/qa/bisect-blame-recovery-recheck-2026-10-30.log",
+        "result": "systemGit reached final Close assertion2500; obsolete synchronous callback/wrong owner assertion replaced with actual asynchronous once-only owner drain; only affected Bisect group repeated"
+      }
+    ],
+    "reported_receiver_pids": [
+      33272,
+      33276,
+      38832,
+      41100,
+      44115,
+      47113,
+      35573,
+      36012,
+      33388,
+      36296
+    ],
+    "all_independently_absent": true,
+    "private_offscreen_receivers": true,
+    "core_suite_rerun": false,
+    "reason": "No Core implementation change; complete hosted Core lane passed on preceding release source.",
+    "unrelated_native_families_rerun": false,
+    "registration": "Installed37 main/cache/Finder registrations restored; installed extension listed, Debug absent. No app launch, signals or Finder restart."
+  },
+  "limits": [
+    "Together with preceding18-case checkpoint, all seven known terminal CI failures have local corrections and focused passes; complete hosted corrected-source run still required",
+    "Signed installed37 predates these and preceding native corrections; build38 not yet built or installed",
+    "Physical Finder first-use registration/cold Commit/badges remain unverified",
+    "Not complete dialog visual/accessibility/platform parity or public/App Store release certification"
+  ]
+}
