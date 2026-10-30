@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-30",
+  "created_utc": "2026-10-30T04:26:10.161298+00:00",
+  "status": "installed-build38-kept-closed",
+  "version": "0.1.0",
+  "source_commit": "da767b69855e71513e651f9876076616c9d9a7e8",
+  "source_input_sha256": "90108f3f626110410b93546d5343bed3e346f3094ed411884ddb6c88b816b48a",
+  "application_sha256": "13035caeaffb1c3c26df5ccd6b562265c21ccde086fd2a6505e8d39f45ef7d3f",
+  "includes": [
+    "Native Commit checkbox row/policy admission across focus changes",
+    "Completed file-progress live availability and independent Add/Resolve keyboard gates",
+    "First Start custom SSH same-path authority, attached selected URL capture and once-only reply admission",
+    "Working Log Blame actual no-follow leaf validation; dangling symbolic links and historical revisions preserved",
+    "Retained Finder cache/Settings publication, retirement archive reuse and accepted repository setup/transition outcomes from build37"
+  ],
+  "native_evidence": [
+    "native-file-interactions-2026-10-29.json",
+    "startup-bisect-blame-2026-10-30.json"
+  ],
+  "sealed_probe": {
+    "phases": [
+      "local-tools"
+    ],
+    "passed": true,
+    "public_core_and_packaged_git": true,
+    "packaged_core_sha256": "06298c38834b42ebe432edde8b7cfcb56bcf0173db1a0d7251a21a5ed9ae29f9",
+    "local_tools_app_group_entitled": false,
+    "native_ui_executed": false,
+    "outside_file_grants": false,
+    "shipping_gui_launched": false,
+    "private_container_cleaned": true,
+    "parent_pid": 51373,
+    "helper_pid": 51445,
+    "both_independently_absent": true
+  },
+  "package": {
+    "zip": "TurtleGit-for-Mac-0.1.0-build38-signed.zip",
+    "zip_bytes": 423301318,
+    "zip_sha256": "9fd6caba79937d84c137b70f34757cf889cbabbf57c069f88d79f7901e90f048",
+    "bundle_members": 6381,
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true,
+    "signature_preserved": true,
+    "re_signing_performed": false
+  },
+  "installation": {
+    "finished_utc": "2026-10-30T04:22:43.606099+00:00",
+    "atomic_swap": true,
+    "complete_inventory_equal": true,
+    "inventory_members": 6381,
+    "preserved_build37_inventory_equal": true,
+    "app_launched": false,
+    "signals_sent": false,
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "login_item_preferences_changed": false,
+    "service_preferences_changed": false
+  },
+  "registration_restoration": {
+    "metadata_operations_succeeded": true,
+    "original_helper_exit": 1,
+    "original_status": "restoration-needs-review",
+    "review": "All metadata restoration operations succeeded (unregistered candidate extension already absent). Only the OS-managed installed Finder extension PID changed during registration; original all-PID guard correctly records that difference. Finder itself stayed1881, no shipping main/user-owned app was present or signalled. Installed37 metadata restored and candidate38 absent from plugin listing. No registration rerun.",
+    "physical_finder_acceptance": false
+  },
+  "documentation_acceptance": {
+    "scope": "Bounded current-source/link consistency and published desktop browser observation; no universal manual/visual/mobile certification.",
+    "source_review": "README, homepage, Getting Started, dialog guide, requested imprint/credits and corresponding offline Help references. No concrete defect found.",
+    "homepage": "https://jfk-solutions.github.io/turtle-git-mac/",
+    "getting_started": "https://jfk-solutions.github.io/turtle-git-mac/manual/GETTING-STARTED.html",
+    "homepage_images_loaded": 10,
+    "homepage_image_scope": "Two logo instances and eight native screenshots; lazy images completed after navigation to gallery.",
+    "getting_started_images_loaded": 11,
+    "getting_started_image_scope": "Header logo and ten guide screenshots; staging screenshot visibly rendered in manual.",
+    "visual_views_observed": [
+      "Homepage hero and Log screenshot gallery",
+      "Getting Started staging screenshot with framed lists and compact selector"
+    ],
+    "native_screenshot_dates": "Commit October29; Log/Unified Diff October27; comparison October25. Functional changes since then do not change these layouts.",
+    "temporary_browser_tab_closed": true
+  },
+  "hosted_ci": {
+    "run": 41001587894,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41001587894",
+    "source": "da767b69855e71513e651f9876076616c9d9a7e8",
+    "status_at_checkpoint": "in_progress",
+    "complete_pass_claimed": false
+  },
+  "limits": [
+    "Physical Finder Add registration, cold Commit and actual badges remain unverified because native control could not access Finder; owner feedback requested after installation",
+    "Complete hosted corrected-source macOS CI and dialog visual/accessibility/platform acceptance remain open",
+    "Sealed probe exercises public Core and packaged Git in private sandbox parent, not shipping AppKit/Finder UI or outside file grants",
+    "No public binary upload, notarization or App Store submission; development signature for local testing only"
+  ],
+  "build_validation": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 294.79,
+        "log": "build/qa/signed38-build-2026-10-30.log"
+      }
+    ],
+    "exit": 0,
+    "source_inputs_unchanged": true,
+    "contradictory_exit_zero_diagnostics": 0,
+    "owned_universal_components": 8,
+    "required_architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "architecture_scope": "Universal structure; physical Intel/minimum macOS execution remains separate.",
+    "deep_strict_signature_exit": 0,
+    "team": "A49SCA5S8K",
+    "same_team_sandbox_and_application_group": true,
+    "inherited_runtime_representatives": [
+      "Git",
+      "LibGit2",
+      "Metafile"
+    ],
+    "packaged_help_source_equal": true,
+    "packaged_help_source_members": 95,
+    "generated_apple_help_index": true
+  },
+  "build": "38"
+}

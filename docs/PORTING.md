@@ -1,5 +1,27 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed local testing build38
+
+[Signed build38](qa/signed-consolidation-build38-2026-10-30.json), `0.1.0 (38)`,
+is installed from source `da767b69`. It consolidates Commit/progress admission,
+First Start SSH authority and working-file Log Blame validation with the preceding
+Finder/setup corrections. One clean signed universal build, strict seals, frozen
+inputs, public Core/packaged Git sandbox probe, bundled Help and ZIP round trip
+pass. All 6,381 installed inventory members match; build37 rollback copies remain.
+The app was left closed, without Finder/Dock restarts or login/service changes.
+
+The pre-install registration helper reported an all-PID preservation difference:
+macOS replaced the managed extension process during re-registration. The record
+retains that failure and its review; metadata restoration succeeded, Finder stayed
+running, and no app was signalled or deliberately launched. This is not physical
+Finder badge/cold-command acceptance.
+
+The published homepage and Getting Started guide display their current screenshots;
+source/offline Help image references and unobtrusive credits/imprint links agree.
+This is bounded desktop/source evidence. The corrected-source hosted CI run is
+active, and owner Finder feedback remains pending. No public binary upload,
+notarization or Store submission occurred.
+
 ## Working-file Blame and native startup/recovery continuation
 
 The [grouped continuation](qa/startup-bisect-blame-2026-10-30.json) fixes a real
@@ -20,8 +42,8 @@ and full Bisect recovery with system, 2.37.1, 2.39.5 and packaged Git. Initial
 failures and affected-only repairs are recorded; no Core or unrelated native
 family was rerun. Together with the preceding checkpoint, all seven known CI
 failures have local corrections and focused passes. A complete hosted pass on
-corrected source, signed build38 and physical Finder acceptance remain open.
-Installed build37 predates these production corrections.
+corrected source and physical Finder acceptance remain open. Signed build38 above
+now includes these corrections; the earlier build37 predates them.
 
 ## Native file interactions and standalone Open checkpoint
 
