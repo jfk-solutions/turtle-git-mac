@@ -2171,7 +2171,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)/Contents/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/TurtleGitHelp.helpindex",
+				"$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)/Contents/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/TurtleGitHelp.cshelpindex",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

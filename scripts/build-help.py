@@ -22,7 +22,7 @@ def generate():
     topics=definition['topics']; ids=[t['id'] for t in topics]
     if len(set(ids))!=len(ids): raise ValueError('Duplicate help topic')
     documents=sorted({t['document'] for t in topics}|set(definition['additional_guides']))
-    output={}; inputs={'docs/help-topics.json':hashlib.sha256((ROOT/'docs/help-topics.json').read_bytes()).hexdigest()}
+    output={}; inputs={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in ['docs/help-topics.json','scripts/build-help.py']}
     aliases={}; headings={}; titles={}; parsed={}; links=[]
     for name in documents:
         source=ROOT/'docs'/name
@@ -80,7 +80,7 @@ def generate():
     output[LOCALE/'index.html']=shell(definition['book_name'],'<a name="topic-home"></a><h1>TurtleGit for Mac Help</h1><p>Browse these Mac workflow guides offline, or use Help Viewer’s search. Dialog Help buttons open the relevant topic.</p><ul>'+listing+'</ul>',True)
     output[LOCALE/'help.css']=CSS.encode()
     output[LOCALE/'topics.json']=(json.dumps(definition,indent=2)+'\n').encode()
-    info={'CFBundleDevelopmentRegion':'en','CFBundleIdentifier':definition['bundle_id'],'CFBundleName':'TurtleGitHelp','CFBundlePackageType':'BNDL','CFBundleSignature':'hbwr','CFBundleInfoDictionaryVersion':'6.0','CFBundleShortVersionString':'1','CFBundleVersion':'1','HPDBookAccessPath':'index.html','HPDBookIndexPath':'TurtleGitHelp.helpindex','HPDBookTitle':definition['book_name'],'HPDBookType':'3'}
+    info={'CFBundleDevelopmentRegion':'en','CFBundleIdentifier':definition['bundle_id'],'CFBundleName':'TurtleGitHelp','CFBundlePackageType':'BNDL','CFBundleSignature':'hbwr','CFBundleInfoDictionaryVersion':'6.0','CFBundleShortVersionString':'1','CFBundleVersion':'1','HPDBookAccessPath':'index.html','HPDBookCSIndexPath':'TurtleGitHelp.cshelpindex','HPDBookTitle':definition['book_name'],'HPDBookType':'3'}
     digest=hashlib.sha256(json.dumps(inputs,sort_keys=True).encode()).hexdigest()
     info['CFBundleVersion']='1.'+str(int(digest[:7],16))
     output[Path('Contents/Info.plist')]=plistlib.dumps(info,sort_keys=True)

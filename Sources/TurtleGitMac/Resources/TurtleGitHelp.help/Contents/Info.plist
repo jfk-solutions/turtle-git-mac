@@ -17,11 +17,11 @@
 	<key>CFBundleSignature</key>
 	<string>hbwr</string>
 	<key>CFBundleVersion</key>
-	<string>1.152912911</string>
+	<string>1.83798413</string>
 	<key>HPDBookAccessPath</key>
 	<string>index.html</string>
-	<key>HPDBookIndexPath</key>
-	<string>TurtleGitHelp.helpindex</string>
+	<key>HPDBookCSIndexPath</key>
+	<string>TurtleGitHelp.cshelpindex</string>
 	<key>HPDBookTitle</key>
 	<string>TurtleGit for Mac Help</string>
 	<key>HPDBookType</key>

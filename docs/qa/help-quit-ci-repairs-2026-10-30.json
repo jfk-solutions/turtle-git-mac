@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-30",
+  "source_base": "4a9d4644d815f2bb20b16371b63151418c05ca74",
+  "scope": "Help indexing and native Quit fixture admission repair; no production app rebuild or installation.",
+  "help": {
+    "scope": "One real private CoreSpotlight generation and relocated-index inspection; native controller/route checks against private resources using current cached Debug module, not a rebuilt or installed app.",
+    "started_utc": "2026-10-30T17:27:01.304592+00:00",
+    "commands": [
+      {
+        "argv": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/index-help.py",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/turtlegit-modern-help-h4a9sw_w/PrivateHelp.app"
+        ],
+        "started_utc": "2026-10-30T17:27:01.584339+00:00",
+        "exit_code": 0,
+        "seconds": 1.57
+      },
+      {
+        "argv": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-help-book.py",
+          "--only",
+          "native",
+          "--app",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/turtlegit-modern-help-h4a9sw_w/PrivateHelp.app"
+        ],
+        "started_utc": "2026-10-30T17:27:03.152859+00:00",
+        "exit_code": 0,
+        "seconds": 4.04
+      }
+    ],
+    "installed_app_changed": false,
+    "help_viewer_launched": false,
+    "index_bytes": 271423,
+    "index_sha256": "db5483622f76b0d63464134af33675c8395b3066be2a0dea4965364c324910d5",
+    "help_info": {
+      "CFBundleDevelopmentRegion": "en",
+      "CFBundleIdentifier": "org.turtlegit.macos.help",
+      "CFBundleInfoDictionaryVersion": "6.0",
+      "CFBundleName": "TurtleGitHelp",
+      "CFBundlePackageType": "BNDL",
+      "CFBundleShortVersionString": "1",
+      "CFBundleSignature": "hbwr",
+      "CFBundleVersion": "1.83798413",
+      "HPDBookAccessPath": "index.html",
+      "HPDBookCSIndexPath": "TurtleGitHelp.cshelpindex",
+      "HPDBookTitle": "TurtleGit for Mac Help",
+      "HPDBookType": "3"
+    },
+    "source_files_unchanged": true,
+    "private_staging_clean": true,
+    "passed": true,
+    "private_app_resources_removed": true,
+    "finished_utc": "2026-10-30T17:27:07.276971+00:00"
+  },
+  "contracts": {
+    "passed": 15
+  },
+  "initial_failure": "First real modern index failed an overly strict alias URL-fragment assertion. Captured Apple index preserved all52 exact keys but28 aliases shared their chapter canonical first-anchor URL. Validator now requires exact key, chapter, requested named anchor and real canonical anchor in hash-validated HTML. Initial failed log retained.",
+  "quit": {
+    "failure": "Second Quit attempted while MessageEditorStylingSession.activeOperations remained1.",
+    "repair": "Wait for passive counters extracted from actual termination guard and owner/modal readiness; call real Quit once after admission.",
+    "passed_git_engines": [
+      "/usr/bin/git",
+      "bundled Git"
+    ],
+    "owned_receivers_reaped": [
+      81588,
+      81750
+    ],
+    "production_changed": false
+  },
+  "logs": {
+    "help-core-spotlight-contracts-repair-2026-10-30.log": {
+      "sha256": "87f2a0057295611f15e6659da9770b54f0fb2082b3687d755f6bf8d49d1d5c77"
+    },
+    "help-core-spotlight-private-repair-2026-10-30.log": {
+      "sha256": "c1e0ab459739fcbadc5538926ff3f6d35d85288d366e33f6dfdf46ff4867be72"
+    },
+    "help-core-spotlight-private-2026-10-30.log": {
+      "sha256": "0a113e5ddfeb4bbe089b0f306d9c865c5d8cd54b85590af2a877a871a027de27"
+    },
+    "workspace-retirement-readiness-2026-10-30.log": {
+      "sha256": "7a9e02a3003ee6005da17e759e9654f48760bcfcafafd62051e83979ec1e18c0"
+    },
+    "workspace-retirement-ci-diagnostic-2026-10-30.log": {
+      "sha256": "8f0511987bf631d242ad1283b93b205d189ea7a8089bacc96047b7cc0467d70d"
+    }
+  },
+  "limits": [
+    "Private Help resource bundle and current cached Debug native objects only.",
+    "No physical Help Viewer search/display acceptance.",
+    "No current full hosted CI pass; additional First Start SSH and Merge Patch failures under investigation.",
+    "Installed build39 unchanged."
+  ]
+}

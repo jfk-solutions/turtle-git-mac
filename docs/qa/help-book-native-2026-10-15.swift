@@ -51,6 +51,7 @@ import TurtleGitCore
         defer { preferences.removePersistentDomain(forName:suite) }
         let commit=CommitWindowController(repository:repository,access:nil,defaults:preferences)
         let fetch=FetchWindowController(repository:repository,access:nil,isPull:true,preferences:preferences)
+        for window in [commit.window,fetch.window].compactMap({$0}){window.alphaValue=0;window.setFrameOrigin(.init(x:-18000,y:-18000))}
         defer { commit.close(); fetch.close() }
         try require(TurtleGitHelp.context(commit.window) == .commit && TurtleGitHelp.context(fetch.window) == .pull,"Actual repository controller context")
         // Reformatting a title must retain its semantic topic; dynamic Rebase titles map too.
@@ -62,6 +63,7 @@ import TurtleGitCore
         try require(TurtleGitHelp.handleHelpKey(key(122)) && anchors.last?.hasSuffix("#topic-commit")==true,"F1 context dispatch")
         try require(!TurtleGitHelp.handleHelpKey(key(122,.option)) && anchors.count==count+1,"Modified F1 was consumed")
         let sheet=NSWindow(contentRect:.init(x:0,y:0,width:260,height:120),styleMask:[.titled],backing:.buffered,defer:false);sheet.isReleasedWhenClosed=false
+        sheet.alphaValue=0;sheet.setFrameOrigin(.init(x:-18000,y:-18000))
         window.beginSheet(sheet,completionHandler:{ (_: NSApplication.ModalResponse) in })
         try require(TurtleGitHelp.context(sheet) == .commit,"Owned sheet inherits repository context")
         TurtleGitHelp.attach(sheet,topic:.authentication);try require(TurtleGitHelp.context(sheet) == .authentication,"Sheet-specific topic overrides parent")
@@ -71,13 +73,15 @@ import TurtleGitCore
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false), appearance=AppAppearance(preferences:preferences)
         let navigation=SettingsNavigationController(workspace:workspace,appearance:appearance,globalOnly:true,preferences:preferences,initialPage:.savedData)
         let settings=NSWindow(contentRect:.init(x:0,y:0,width:1040,height:740),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
-        settings.isReleasedWhenClosed=false;settings.contentViewController=navigation;settings.alphaValue=0;settings.orderFront(nil)
+        settings.isReleasedWhenClosed=false;settings.contentViewController=navigation;settings.alphaValue=0;settings.setFrameOrigin(.init(x:-18000,y:-18000));settings.orderFront(nil)
         defer { navigation.invalidate();settings.close() }
         settings.contentView?.layoutSubtreeIfNeeded()
         guard let help=views(settings.contentView!).compactMap({$0 as? NSButton}).first(where:{$0.title=="Help"}) else { throw Failure(description:"Missing native Settings Help button") }
         try require(NSApp.sendAction(help.action!,to:help.target,from:help) && anchors.last?.hasSuffix("#topic-savedData")==true,"Settings Help topic dispatch")
-        let index=service.bookURL!.appendingPathComponent("Contents/Resources/en.lproj/TurtleGitHelp.helpindex")
-        try require((try Data(contentsOf:index)).count>0,"Missing built Apple Help search/anchor index")
+        let info=try PropertyListSerialization.propertyList(from:Data(contentsOf:book.appendingPathComponent("Contents/Info.plist")),format:nil) as? [String:Any]
+        try require(info?["HPDBookCSIndexPath"] as? String == "TurtleGitHelp.cshelpindex" && info?["HPDBookIndexPath"] == nil,"Help book does not declare its current CoreSpotlight index")
+        let index=book.appendingPathComponent("Contents/Resources/en.lproj/TurtleGitHelp.cshelpindex")
+        try require((try Data(contentsOf:index)).count>0,"Missing built CoreSpotlight Help search/anchor index")
         print("PASS: \(bundledIDs.count) bundled topics, \(nativeIDs.count) native routes, registration/anchor and offline fallback routing, real controller/Settings Help, F1/sheets/close lifetime, built index")
         let report:[String:Any] = ["bundledTopics":bundledIDs.sorted(),"nativeRoutes":nativeIDs.sorted()]
         print("HELP_BOOK_COMPLETED: "+String(data:try JSONSerialization.data(withJSONObject:report,options:.sortedKeys),encoding:.utf8)!)

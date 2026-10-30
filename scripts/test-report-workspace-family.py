@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import time
 from native_receiver import build_receiver, run_receiver
+from workspace_quit_admission import write_quit_admission_diagnostics
 
 
 def retire_owned_helpers(context, approved_images):
@@ -65,7 +66,8 @@ args = parser.parse_args()
 root = next(parent for parent in Path(__file__).resolve().parents if (parent / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/report-workspace-family-native-sources'
 generated.mkdir(parents=True, exist_ok=True)
-receiver = build_receiver(root, [root / 'docs/qa/report-workspace-family-native-2026-10-25.swift', root / 'docs/qa/workspace-owner-native-2026-10-25.swift'], generated)
+admission = write_quit_admission_diagnostics(root, generated)
+receiver = build_receiver(root, [root / 'docs/qa/report-workspace-family-native-2026-10-25.swift', root / 'docs/qa/workspace-owner-native-2026-10-25.swift', admission], generated)
 results = []
 for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
     git = git.absolute()

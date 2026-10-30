@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "a5d74a942e61eecb05bde61f3d68378d15afb98f21798931adb9ddbcca6d6866",
+    "Contents/Info.plist": "f33d93d0675a92ba39f5607dd4b8662e27ef7b8468cd3c09391611926278bf2d",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "536bb09c9dd659e499c144ba7ea37d8bda5adbf47ceb609ea845b5fbc27dd5ac",
@@ -185,6 +185,7 @@
     "docs/site/assets/notes-editor-dark.png": "454daede62a8d816ca6adea120cf9c69662287a17c64e5f4ceaf61e0135c6d15",
     "docs/site/assets/notes-editor-light.png": "39b802daa9cef4b46e952daaf54e48984d7d0c6a0c626f5c73a5c453e3db8717",
     "docs/site/assets/working-file-groups-language-de-dark.png": "788b2a4855a5003a051468054fe011dc5518814bd8e323b767a0fe27ad191699",
-    "docs/site/assets/working-file-groups-language-de-light.png": "7041de51d07539fb4e9efc4aa2f64357c821c64008a17387ea5f213452d055bc"
+    "docs/site/assets/working-file-groups-language-de-light.png": "7041de51d07539fb4e9efc4aa2f64357c821c64008a17387ea5f213452d055bc",
+    "scripts/build-help.py": "5fc94c86b6c5917833551840a7445d4cb85c2d94d45688a3c3f443ecd1f78cd9"
   }
 }

@@ -37,6 +37,7 @@ assert info['CFBundleIdentifier'] == 'org.turtlegit.macos'
 assert (app / 'Contents/MacOS' / info['CFBundleExecutable']).is_file()
 resources = app / 'Contents/Resources'
 assert (resources / 'LICENSE').is_file() and (resources / 'NOTICE').is_file()
+subprocess.run(['/usr/bin/python3', str(root / 'scripts/index-help.py'), '--verify', str(app)], check=True)
 localization = json.loads((resources / 'LocalizationManifest.json').read_text())
 assert localization['schema'] == 1 and localization['keys'] > 0
 assert (resources / 'LocalizationCredits.txt').is_file()

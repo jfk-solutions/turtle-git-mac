@@ -84,6 +84,22 @@ import TurtleGitCore
             for owner in owners { if let window = owner.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }; owner.close() }
             prefs.removePersistentDomain(forName: suite)
         }
+        func quitReadinessDiagnostic()->String {
+            let counters=quitWorkerCounters(),active=counters.filter{$0.1 != 0}.map{"\($0.0)=\($0.1)"}.joined(separator:",")
+            let windows=NSApp.windows.map{window in
+                let identity="window=\(window.windowNumber),visible=\(window.isVisible),sheet=\(window.attachedSheet != nil),delegate=\(String(describing:window.delegate.map{type(of:$0)}))"
+                guard let owner=window.delegate as? CommitWindowController else{return identity}
+                return identity+",reuse=\(owner.canReuse),busy=\(owner.model.busy),confirming=\(owner.model.confirmingQuit),identity=\(owner.model.commitIdentityPrepared),metadata=\(owner.model.loadingFileMetadata),focus=\(owner.model.messageFocusAvailable),picker=\(owner.hasMessagePicker),error=\(owner.model.error ?? "none")"
+            }.joined(separator:"; ")
+            return "counterInventory=\(counters.count),active=[\(active)],modal=\(String(describing:NSApp.modalWindow)),windows=[\(windows)]"
+        }
+        func waitForQuitReadiness(_ phase:String,_ ownersReady:()->Bool)async throws {
+            do {
+                try await wait {ownersReady() && NSApp.modalWindow==nil && quitWorkerCounters().allSatisfy{$0.1==0}}
+            } catch {
+                throw Failure(description:"Quit readiness \(phase) did not settle: \(quitReadinessDiagnostic())")
+            }
+        }
         @MainActor func makeOwner() async throws -> CommitWindowController {
             let owner = CommitWindowController(repository: repo, access: nil, defaults: prefs)
             owners.append(owner); owner.window?.isReleasedWhenClosed = false; owner.window?.alphaValue = 0; owner.window?.setFrameOrigin(.init(x: -24000, y: -24000)); owner.showWindow(nil)
@@ -103,6 +119,7 @@ import TurtleGitCore
         try require(NSApp.windows.contains { $0 === retiredWindow } && !retired.canReuse, "Retired Commit was not retained in actual NSApplication window inventory")
         let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []
         var replies: [Bool] = []; delegate.replyToTermination = { _, accepted in replies.append(accepted) }
+        try await waitForQuitReadiness("initial retired owner drain"){!retired.canReuse && !retiredWindow.isVisible && !retired.model.confirmingQuit}
         try require(delegate.applicationShouldTerminate(NSApp) == .terminateNow && !retiredWindow.isVisible && !retired.model.confirmingQuit, "Quit resurrected or waited for a retired Commit")
         prefs.set(false, forKey: "Commit.SkipCancelConfirmation")
         let live = try await makeOwner(), liveWindow = live.window!
@@ -113,7 +130,14 @@ import TurtleGitCore
         no?.performClick(nil)
         try await wait { replies == [false] && liveWindow.attachedSheet == nil && !live.model.confirmingQuit }
         try require(live.canReuse && live.model.message == "Retained workspace quit draft" && !retiredWindow.isVisible, "Declining Quit lost draft or revived retired owner")
-        try require(delegate.applicationShouldTerminate(NSApp) == .terminateLater, "Second Quit did not ask live Commit")
+        // No declines this Quit attempt, but the presentation-only draft styler
+        // may still own a worker. The application correctly refuses a new Quit
+        // until that real worker drains; sheet detachment is not admission.
+        try await waitForQuitReadiness("after declining first Quit"){
+            live.canReuse && liveWindow.isVisible && !live.model.busy && !live.model.confirmingQuit && liveWindow.attachedSheet==nil && live.model.message=="Retained workspace quit draft" && !retired.canReuse && !retiredWindow.isVisible
+        }
+        let beforeSecondQuit=quitReadinessDiagnostic(),secondReply=delegate.applicationShouldTerminate(NSApp)
+        try require(secondReply == .terminateLater,"Second Quit did not ask live Commit; reply=\(secondReply.rawValue),before=\(beforeSecondQuit),after=\(quitReadinessDiagnostic())")
         try await wait { liveWindow.attachedSheet != nil }
         let yes = buttons(liveWindow.attachedSheet?.contentView).first { $0.title == "Yes" }
         try require(yes != nil, "Actual Commit affirmative choice missing"); yes?.performClick(nil)
@@ -126,6 +150,7 @@ import TurtleGitCore
         try require(!pending.canReuse && CommitWindowModel.activeReloads > 0 && delegate.applicationShouldTerminate(NSApp) == .terminateCancel, "Retired Commit worker lost its real Quit fence")
         held?.resume(throwing: OperationCancellationFailure.cancelled); held = nil
         try await wait { CommitWindowModel.activeReloads == 0 && CommitWindowModel.activeMetadataOperations == 0 }
+        try await waitForQuitReadiness("final retired owner drain"){!retired.canReuse && !live.canReuse && !pending.canReuse}
         try require(delegate.applicationShouldTerminate(NSApp) == .terminateNow && !retiredWindow.isVisible, "Drained retired owners still blocked Quit")
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         try require(finalHead == head && (try Data(contentsOf: folder.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf: file)) == Data("working\n".utf8), "Ownership/quit checks mutated repository bytes")

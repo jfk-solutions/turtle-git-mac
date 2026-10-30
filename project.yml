@@ -157,7 +157,7 @@ targets:
       - name: Index bundled Mac help
         script: /usr/bin/python3 "$SRCROOT/scripts/index-help.py" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
         inputFiles: ["$(SRCROOT)/Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json", "$(SRCROOT)/scripts/index-help.py"]
-        outputFiles: ["$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)/Contents/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/TurtleGitHelp.helpindex"]
+        outputFiles: ["$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)/Contents/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/TurtleGitHelp.cshelpindex"]
       - name: Embed working copy revision utility
         script: |
           /usr/bin/python3 "$SRCROOT/scripts/embed-wcrev.py" "$BUILT_PRODUCTS_DIR/TurtleGitWCRev" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"

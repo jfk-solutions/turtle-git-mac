@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import time
 from native_receiver import build_receiver, run_receiver
+from workspace_quit_admission import write_quit_admission_diagnostics
 
 
 def retire_owned_helpers(context, approved_images):
@@ -70,7 +71,8 @@ generated.mkdir(parents=True, exist_ok=True)
 # callback receiver; cache fingerprints include their exact transformed bytes.
 consumer = generated / 'report-consumers.swift'
 consumer.write_text((root / 'docs/qa/report-workspace-family-native-2026-10-25.swift').read_text().replace('@MainActor @main enum', '@MainActor enum', 1))
-receiver = build_receiver(root, [root / 'docs/qa/native-list-interactions-native-2026-10-25.swift', consumer, root / 'docs/qa/workspace-owner-native-2026-10-25.swift'], generated)
+admission = write_quit_admission_diagnostics(root, generated)
+receiver = build_receiver(root, [root / 'docs/qa/native-list-interactions-native-2026-10-25.swift', consumer, root / 'docs/qa/workspace-owner-native-2026-10-25.swift', admission], generated)
 results = []
 for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
     git = git.absolute()

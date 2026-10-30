@@ -3,9 +3,9 @@
 Dialog Help buttons now use TurtleGit's Mac guides in a bundled Apple Help book.
 The application Help menu, Command-?, F1/Help key, First Start documentation link,
 Settings footer and Compare/Merge Help actions share the same service. The book
-now contains 26 guides and 47 stable topic anchors. It is generated from the Mac
-Markdown guides, includes no remote fonts/scripts, and occupies about 190 KB
-before Apple's search index is added. The LFS interaction continuation adds the 47th topic; the original checkpoint below records its original 46-topic scope.
+is generated from the Mac Markdown guides and bundled screenshots, with stable
+topic anchors and no remote fonts or scripts. Dated checkpoints below retain
+their original catalogue and validation scope.
 
 The installed bundle registers its help book and requests a topic anchor through
 NSHelpManager. The book's bundle identifier is separate from its displayed title.
@@ -13,6 +13,49 @@ Registration failure opens the same local HTML chapter in the default browser;
 a missing book falls back to the online Mac manual. The Xcode build verifies the
 copied resources and generates a local search/anchor index with hiutil before
 signing. SwiftPM copies the HTML book and retains the offline browser fallback.
+
+## CoreSpotlight search index — October 30, 2026
+
+The build now generates `TurtleGitHelp.cshelpindex` with
+`hiutil -I corespotlight` and declares it with `HPDBookCSIndexPath`. Apple's
+installed `hiutil(1)` manual requires Spotlight-format Help indices on macOS
+Mojave and later; TurtleGit supports macOS 13 and later. The installed Apple
+`/Library/Documentation/Help/Offline.help` uses the same metadata key and a
+`.cshelpindex` resource. The earlier LSM format and `HPDBookIndexPath` are not
+used for new TurtleGit bundles.
+
+Generation verifies every declared source resource hash, then creates a fresh
+index in private sibling staging outside the indexed HTML directory. One
+300-second deadline covers generation and read-only Apple index inspections;
+there is no automatic retry. The `-D` anchor dictionary must resolve every
+catalogue topic and the Help home anchor to its expected local chapter. The
+`-F` file inventory must match all bundled HTML chapters. Only a successful,
+nonempty, readable index is published with an atomic replacement. Failed
+generation or inspection preserves the previous index. A successful migration
+removes only the obsolete build-owned `TurtleGitHelp.helpindex` filename before
+publishing the new index; unrelated extra files remain an explicit failure.
+Start, success and failure messages report the deadline or elapsed time.
+
+CoreSpotlight preserves the exact topic key, including mixed-case IDs. Its
+anchor dictionary can associate several aliases with a chapter's canonical
+first-anchor URL. Validation therefore checks the exact requested key and
+intended chapter, verifies that the requested named anchor exists in that
+hash-validated HTML, and verifies that the reported canonical fragment is also
+a real named anchor of the same chapter. It does not case-fold IDs, accept a
+different chapter, or require every alias to replace the canonical URL fragment.
+
+Current distribution audits inspect the actual packaged CoreSpotlight index,
+metadata, chapter inventory and topic anchors. The Help family keeps its default
+resource source as the built app; an explicit `--app` path permits a private
+resource/controller check without implying a rebuilt or installed application.
+The generated book version includes the generator's source hash, so changes to
+index metadata also retire the previous Help book cache version. Historical
+build receipts are retained unchanged.
+
+These source and index checks do not by themselves establish physical Help
+Viewer search, display, registration or accessibility acceptance. The dated
+validation record must distinguish private resource/controller checks from a
+rebuilt signed deployment.
 
 A weak window binding records each repository/editor/settings context. Settings
 updates its binding when the selected page changes. Reformatting repository
