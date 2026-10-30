@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-30",
+  "recorded_utc": "2026-10-30T06:45:19.187253+00:00",
+  "installed_build": "0.1.0(38)",
+  "source_commit": "da767b69855e71513e651f9876076616c9d9a7e8",
+  "evidence_kind": "direct human owner report, not automated UI observation",
+  "question_scope": [
+    "Add to TurtleGit on ladybird enables Finder menus and badges",
+    "Commit opens promptly from Finder while TurtleGit is closed"
+  ],
+  "owner_reply": "yeah works good",
+  "accepted_scope": [
+    "Finder registration, menus and status badges",
+    "Cold Finder Commit launch and owner-perceived responsiveness"
+  ],
+  "limits": [
+    "No numeric latency, every menu/modifier, Intel/minimumOS or full signed grant certification inferred",
+    "Owner subsequently reported first-use permission picker opened parent and ClassicCommit tableheaders flickered during typing; both are current native correction batch, not accepted build38 fixes",
+    "Complete hosted CI still required; no Store or public binary release claimed"
+  ]
+}

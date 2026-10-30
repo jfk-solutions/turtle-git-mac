@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-finder-services-') as tempora
             private_tmp = context / 'temporary'; private_tmp.mkdir(mode=0o700)
             env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             env.update(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
-                       CFFIXED_USER_HOME=str(home), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp),
+                       HOME=str(home), CFFIXED_USER_HOME=str(home), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp)+'/',
                        DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'),
                        TURTLEGIT_FINDER_SERVICES_CASE=case)
             print('Checking Finder Services ' + case + ' with ' + str(git), flush=True)

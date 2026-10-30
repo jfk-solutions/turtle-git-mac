@@ -1,5 +1,12 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Repository folder access</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-folderAccess"></a><h1 id="repository-folder-access">Repository folder access</h1>
+<p>When no saved permission covers a repository, macOS asks you to allow folder
+access. Selecting a folder in Finder does not itself give the sandboxed app that
+permission. For <strong>Add to TurtleGit…</strong>, the access picker opens inside the folder
+you clicked. Choose <strong>Allow Access</strong> to approve that folder. Cancel leaves
+registration and any existing workspace unchanged.</p>
+<p>Valid saved access is reused without another picker. If access cannot be renewed,
+or you forget the saved repository, choose its folder again.</p>
 <p>A linked worktree or submodule can keep Git metadata outside its working folder.
 A shared clone can also read objects from another repository. In an App Store
 build, choosing the working folder alone does not grant access to those locations.</p>

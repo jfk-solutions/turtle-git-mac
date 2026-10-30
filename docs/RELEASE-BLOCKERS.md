@@ -18,8 +18,11 @@ missing source behavior, reported defect or failing check.
   The [partial build35 check](qa/installed35-workflows-2026-10-29.json) verified
   staging transfers, Log inspection and Remote selection. It found live cache
   contention. Build36 verified Settings OK/Cancel and Remote selection; Finder
-  cold launch remains open, and retirement still performed a costly warm-cache
-  rewrite. The private fixture permission was removed and test apps quit normally.
+  retirement still performed a costly warm-cache rewrite. The owner subsequently
+  [accepted build38 Finder registration, badges and cold Commit launch](qa/owner-acceptance-build38-2026-10-30.json).
+  The newly reported first-use permission-picker targeting and Classic Commit
+  typing/header refresh are the current correction batch. The private fixture
+  permission was removed and test apps quit normally.
 - [ ] Obtain a complete hosted macOS CI pass on the release source and repair
   concrete failures without repeatedly running unrelated local suites.
 - [ ] Close the explicit source/layout gaps in the family records and establish
@@ -33,8 +36,9 @@ missing source behavior, reported defect or failing check.
 
 The [current first-use Finder observation](qa/installed37-finder-first-use-2026-10-29.json)
 verified the intended unregistered-folder menu and reduced Services entry. The
-computer-control connection rejected invocation; cold Commit, registration and
-badges remain open. The [pending-control source review](qa/pending-control-source-review-2026-10-29.json)
+computer-control connection rejected invocation. Later build38 owner acceptance
+covers cold Commit, registration and badges on the tested repository; broader
+Finder command and grant acceptance remains scoped separately. The [pending-control source review](qa/pending-control-source-review-2026-10-29.json)
 found no additional missing workflow family among the85 pending occurrences;
 Windows-only or dormant controls must not be counted as missing Mac dialogs.
 This is static evidence, not full dialog or release certification.
@@ -46,6 +50,26 @@ authority and a PowerPoint fixture compiler repair. Build37 predates the product
 corrections. The terminal hosted run passed Core and SVN but failed seven native
 lanes; all seven now have local repairs and focused passes in the continuation
 below. A complete corrected-source pass is still required.
+
+## Finder permission and Classic Commit presentation continuation
+
+The [October30 focused batch](qa/commit-finder-presentation-2026-10-30.json)
+targets the clicked repository directly in the first-use permission picker and
+isolates the Classic Commit file table from message-only updates. Actual native
+column-visibility observations now detect transient changes during typing; both
+Git engines pass the report/column/typing family while real selection, checkbox,
+status, font, appearance and saved column changes remain active. The picker,
+Help, Services, Settings ownership, image blink, Merge Patch and affected Log
+checks have scoped passes. Installed build38 predates these changes; build39
+packaging and physical acceptance remain separate.
+
+Hosted run [41001587894](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41001587894)
+passed Core, SVN, the unsigned universal candidate audit, graph framework and
+bundled SSH checks, but failed seven native groups. The batch records their
+specific fixture lifecycle/publication repairs and focused results. A complete
+corrected-source hosted pass remains required; the local Debug driver also
+reported contradictory exit-zero diagnostics, preserved in the record rather
+than described as a clean build.
 
 ## Installed local testing build38
 
@@ -61,7 +85,10 @@ The pre-install registration helper reported an all-PID preservation difference:
 macOS replaced the managed extension process during re-registration. The record
 retains that failure and its review; metadata restoration succeeded, Finder stayed
 running, and no app was signalled or deliberately launched. This is not physical
-Finder badge/cold-command acceptance.
+Finder badge/cold-command acceptance by automation. The owner later replied
+“yeah works good” to the specific registration/badges and cold Finder Commit
+question; [the recorded report](qa/owner-acceptance-build38-2026-10-30.json)
+retains that scope without inferring numeric latency or every Finder action.
 
 The published homepage and Getting Started guide display their current screenshots;
 source/offline Help image references and unobtrusive credits/imprint links agree.

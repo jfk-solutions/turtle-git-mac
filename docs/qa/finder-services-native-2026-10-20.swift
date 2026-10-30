@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func finderServicesQAOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;setFrameOrigin(.init(x:-18000,y:-18000));finderServicesQAOrder(mode,relativeTo:number)
+    }
+}
 
 // This legacy workflow receiver injects its instrumented action owner through
 // makeStandaloneWorkspace. Distinct scene/action ownership is verified by the
@@ -42,6 +49,9 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
     }
     @MainActor static func main()async throws {
         NSApp.setActivationPolicy(.prohibited)
+        let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.finderServicesQAOrder(_:relativeTo:)))!
+        method_exchangeImplementations(original,hidden)
+        defer {for window in NSApp.windows {window.close()};method_exchangeImplementations(original,hidden)}
         switch ProcessInfo.processInfo.environment["TURTLEGIT_FINDER_SERVICES_CASE"] {
         case "provider":try await provider()
         case "routing":try await routing()
@@ -91,13 +101,24 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         // after startup, through the same ordered open-URL queue.
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false})
         let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=[];delegate.startupDirectory=directory.path
+        delegate.activateStandaloneApplication={}
+        var preparations=0,preparationReply:CheckedContinuation<Void,Never>?
+        delegate.prepareGitConfigurationReads={preparations += 1;await withCheckedContinuation {preparationReply=$0}}
+        defer {preparationReply?.resume();delegate.retireFinderServices();workspace.stopMonitoringForTermination();delegate.actionErrorController?.close()}
         var sequence:[String]=[];delegate.startupCommandHandler={_,_,_ in sequence.append("startup")}
         delegate.workspaceServiceHandler={model,request in if model === workspace {sequence.append(request.action.rawValue)};return true}
         try require(invoke(delegate.finderServicesProvider,modern,"log")==nil && sequence.isEmpty,"Cold service escaped startup queue")
         try require(invoke(delegate.finderServicesProvider,modern,"commit") != nil && delegate.pendingFinderServiceRequest?.action == .log,"Second cold service overwrote accepted request")
         delegate.startupDidFinishLaunching();try require(sequence.isEmpty,"Service dispatched before workspace ownership")
         delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace
+        try await wait("held cold Services configuration preparation") {preparationReply != nil}
+        try require(preparations==1 && sequence==["startup"] && delegate.pendingFinderServiceRequest?.action == .log,"Service escaped or duplicated configuration preparation")
+        try require(invoke(delegate.finderServicesProvider,modern,"commit") != nil && delegate.pendingFinderServiceRequest?.action == .log,"Pending configuration service was overwritten")
+        preparationReply?.resume();preparationReply=nil
+        try await wait("startup before exactly-once Services delivery") {delegate.gitConfigurationReadsReady && sequence==["startup",RepositoryAction.log.rawValue]}
+        delegate.startupDidFinishLaunching()
         try require(sequence==["startup",RepositoryAction.log.rawValue],"Startup did not precede once-only service delivery")
+        try require(preparations==1,"Warm startup repeated Services configuration preparation")
         try require(invoke(delegate.finderServicesProvider,modern,"commit")==nil && sequence.last==RepositoryAction.commit.rawValue,"Warm Services delivery failed")
         let envelope=try FinderServiceCommand.status.serviceURL(paths:[first])
         delegate.application(NSApp,open:[envelope])
@@ -111,11 +132,39 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         workspace.stopMonitoringForTermination()
         let queued=TurtleGitApplicationDelegate(),queuedWorkspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false})
         queued.makeStandaloneWorkspace={queuedWorkspace};queued.startupArguments=[];queued.startupCommandHandler={model,_,_ in model.busy=true}
+        queued.activateStandaloneApplication={}
+        var queuedPreparation:CheckedContinuation<Void,Never>?
+        queued.prepareGitConfigurationReads={await withCheckedContinuation {queuedPreparation=$0}}
+        defer {queuedPreparation?.resume();queued.retireFinderServices();queuedWorkspace.stopMonitoringForTermination();queued.actionErrorController?.close()}
         var queuedCalls=0;queued.workspaceServiceHandler={_,_ in queuedCalls += 1;return true}
         try require(invoke(queued.finderServicesProvider,modern,"log")==nil,"Cold queued request was refused")
         queued.repositoryModel=queuedWorkspace;queued.startupDidFinishLaunching()
+        try await wait("held later-busy Services preparation") {queuedPreparation != nil}
+        try require(queued.pendingFinderServiceRequest?.action == .log && queuedCalls==0,"Busy startup lost pending service before preparation settled")
+        queuedPreparation?.resume();queuedPreparation=nil
+        try await wait("later-busy queued Service explicit failure") {queued.gitConfigurationReadsReady && queued.pendingFinderServiceRequest==nil && queuedWorkspace.error != nil}
         try require(queuedCalls==0 && queued.pendingFinderServiceRequest==nil && queuedWorkspace.error != nil,"Later-busy startup silently dropped queued service")
         queued.retireFinderServices();queuedWorkspace.stopMonitoringForTermination()
+        // The shared configuration barrier must also preserve the whole URL
+        // cohort before delivering the separately accepted typed Service.
+        let fifo=TurtleGitApplicationDelegate(),fifoWorkspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false})
+        fifo.startupArguments=[];fifo.startupDirectory=directory.path;fifo.makeStandaloneWorkspace={fifoWorkspace};fifo.activateStandaloneApplication={}
+        var fifoEvents:[String]=[],fifoPreparations=0,fifoReply:CheckedContinuation<Void,Never>?,fifoOwnerCorrect=true
+        fifo.prepareGitConfigurationReads={fifoPreparations += 1;await withCheckedContinuation {fifoReply=$0}}
+        fifo.startupCommandHandler={_,_,_ in fifoEvents.append("startup")}
+        fifo.workspaceOpenHandler={model,url in fifoOwnerCorrect = fifoOwnerCorrect && model === fifoWorkspace;fifoEvents.append("url-"+(FinderRequest(url:url)?.action.rawValue ?? "invalid"))}
+        fifo.workspaceServiceHandler={model,request in fifoOwnerCorrect = fifoOwnerCorrect && model === fifoWorkspace;fifoEvents.append("service-"+request.action.rawValue);return true}
+        defer {fifoReply?.resume();fifo.retireFinderServices();fifoWorkspace.stopMonitoringForTermination();fifo.actionErrorController?.close()}
+        try require(invoke(fifo.finderServicesProvider,modern,"log")==nil,"Cold FIFO service was not accepted")
+        fifo.application(NSApp,open:[FinderRequest(action:.status,paths:[first]).url!,FinderRequest(action:.diff,paths:[first,second]).url!])
+        fifo.repositoryModel=fifoWorkspace;fifo.startupDidFinishLaunching()
+        try await wait("held startup URL cohort and Service") {fifoReply != nil}
+        try require(fifoEvents==["startup"] && fifo.pendingFinderServiceRequest?.action == .log,"URL cohort escaped the configuration barrier")
+        fifoReply?.resume();fifoReply=nil
+        let expectedFIFO=["startup","url-status","url-diff","service-log"]
+        try await wait("ordered URL cohort before once-only typed Service") {fifoEvents==expectedFIFO}
+        fifo.startupDidFinishLaunching();await Task.yield()
+        try require(fifoEvents==expectedFIFO && fifoPreparations==1 && fifoOwnerCorrect,"Startup replay duplicated/reordered delivery or changed its action owner")
         let previous=NSApp.servicesProvider,sentinel=NSObject(),registration=TurtleGitApplicationDelegate()
         NSApp.servicesProvider=sentinel;defer {NSApp.servicesProvider=previous;registration.retireFinderServices()}
         registration.installFinderServices();registration.installFinderServices()
@@ -168,7 +217,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         }
         workspace.logWindowPresentation={owner in owner.window?.alphaValue=0}
         workspace.open(b.root);try await wait("initial workspace B") {!workspace.busy && workspace.root?.path==b.root.path}
-        let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching();defer {delegate.retireFinderServices()}
+        let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.activateStandaloneApplication={};delegate.prepareGitConfigurationReads={};delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching();defer {delegate.retireFinderServices()}
         let files=[a.root.appendingPathComponent("second café.txt"),a.root.appendingPathComponent("first 雪\n.txt")],selection=board(files);defer {selection.releaseGlobally()}
         try require(invoke(delegate.finderServicesProvider,selection,"log")==nil,"Real Services Log request rejected")
         try await wait("real selected repo A Log") {!workspace.busy && workspace.root?.path==a.root.path && logs.count==1 && !logs[0].model.busy}

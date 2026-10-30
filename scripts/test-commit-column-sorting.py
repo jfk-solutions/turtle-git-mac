@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import platform
 import subprocess
+import sys
 import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -22,3 +23,9 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-commit-sorting-native-') as t
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)
         run_receiver([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, check=True)
+
+# Keep the related message-edit/header lifecycle regression in the existing
+# Commit report family checkpoint, including its hosted CI invocation.
+subprocess.run([sys.executable, str(root/'scripts/test-commit-report-typing.py'),
+                *[argument for git in args.git or [] for argument in ('--git', str(git))]],
+               cwd=root, check=True)

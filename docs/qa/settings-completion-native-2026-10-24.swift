@@ -141,10 +141,20 @@ extension NSWindow {
   try await wait{controls.canInteract && !manager.recoveryPending && manager.pendingOperations==0}
   try Data().write(to:hold)
   controls.chooseFolder={_,_,answer in answer(c.root)}
+  let cancel=try button("Cancel",owned)
   controls.chooseRoot(renew:false,context:controls.context)
-  try await wait{controls.hasPendingWork && manager.busy && FileManager.default.fileExists(atPath:started.path)}
-  try require(!owned.navigation.canDismiss && !(try button("Cancel",owned)).isEnabled,"Accepted Settings watch action did not retain its own completion")
-  let cancel=try button("Cancel",owned);_=NSApp.sendAction(cancel.action!,to:cancel.target,from:cancel)
+  try require(controls.hasPendingWork && !owned.navigation.canDismiss,"Accepted Settings watch action did not synchronously retain its own completion")
+  // Native footer rendering follows the existing readiness watcher. Its old
+  // enabled appearance must not bypass the synchronous model admission gate.
+  _=NSApp.sendAction(cancel.action!,to:cancel.target,from:cancel)
+  try require(c.results[ObjectIdentifier(owned)]?.isEmpty==true && owned.window?.sheetParent === c.host,"Stale-enabled Cancel bypassed accepted page-owned work")
+  do {try await wait{controls.hasPendingWork && manager.busy && FileManager.default.fileExists(atPath:started.path) && !owned.navigation.canDismiss && !cancel.isEnabled}}
+  catch {
+   print("Settings watch footer diagnostic: pagePending=\(controls.hasPendingWork), pageCount=\(controls.pendingOperations), managerBusy=\(manager.busy), managerCount=\(manager.pendingOperations), canDismiss=\(owned.navigation.canDismiss), cancelEnabled=\(cancel.isEnabled), ownerAttached=\(owned.window?.sheetParent === c.host), completion=\(String(describing:c.results[ObjectIdentifier(owned)]))")
+   throw error
+  }
+  try require(!owned.navigation.canDismiss && !cancel.isEnabled,"Accepted Settings watch action did not retain its own completion")
+  _=NSApp.sendAction(cancel.action!,to:cancel.target,from:cancel)
   try require(c.results[ObjectIdentifier(owned)]?.isEmpty==true && owned.window?.sheetParent === c.host,"Cancel bypassed accepted page-owned work")
   try Data().write(to:release);try await wait{!controls.hasPendingWork && !manager.busy && owned.navigation.canDismiss}
   try await click("Cancel",owned);try await c.closed(owned)

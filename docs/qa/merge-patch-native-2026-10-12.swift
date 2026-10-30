@@ -10,27 +10,40 @@ struct MergePatchNativeVerification {
         let suite = "TurtleGit.MergePatch." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
         let settings = SettingsTransaction()
+        let settingsModel=MergeEditorSettingsModel(defaults:prefs,commentProfileURL:root.appendingPathComponent("ignorecomments.txt"))
+        let unattachedRevision=settingsModel.revision
         let settingsWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 840), styleMask: [.titled], backing: .buffered, defer: false)
         settingsWindow.isReleasedWhenClosed = false
-        let host = NSHostingView(rootView: MergeEditorSettings(defaults: prefs, commentProfileURL: root.appendingPathComponent("ignorecomments.txt")).environment(\.settingsTransaction, settings))
+        let host = NSHostingView(rootView: MergeEditorSettings(defaults: prefs, commentProfileURL: root.appendingPathComponent("ignorecomments.txt"),model:settingsModel).environment(\.settingsTransaction, settings))
         settingsWindow.contentView = host; host.frame = settingsWindow.contentLayoutRect; host.layoutSubtreeIfNeeded()
         defer { settings.invalidate(); settingsWindow.contentView = nil; settingsWindow.close() }
         func findField(_ view: NSView) -> NSTextField? {
             if let field = view as? NSTextField, field.identifier?.rawValue == "MergePatchContext" { return field }
             return view.subviews.compactMap(findField).first
         }
-        try await TwoPaneEngineVerification.wait { findField(host) != nil }
+        func waitSettings(_ message:String,_ ready:()->Bool)async throws {
+            for _ in 0..<1000 {host.layoutSubtreeIfNeeded();if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
+            throw NSError(domain:"MergePatch",code:2,userInfo:[NSLocalizedDescriptionKey:"\(message); context=\(settingsModel.patchContext),validation=\(String(describing:settingsModel.validationError)),active=\(settingsModel.active),owner=\(settingsModel.window===settingsWindow),modified=\(settings.modified),busy=\(settings.busy),error=\(String(describing:settings.error)),field=\(findField(host)?.stringValue ?? "missing"),enabled=\(findField(host)?.isEnabled == true)"])
+        }
+        // Attaching the page rotates its input receipt and asynchronously
+        // publishes the activated revision. A field existing before that
+        // transition does not establish that its binding may accept edits.
+        try await waitSettings("Owned Merge Settings activation did not complete") {settingsModel.window===settingsWindow && settingsModel.active && settingsModel.revision != unattachedRevision && findField(host)?.isEnabled==true}
         let field = findField(host)!
         try check(field.stringValue == "-1", "Source default context is missing")
-        func edit(_ value: String) { field.stringValue = value; field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field)) }
-        edit("1001"); try await TwoPaneEngineVerification.wait { settings.modified }
-        settings.apply(closeAfter: false); try await TwoPaneEngineVerification.wait { !settings.busy && settings.error != nil }
+        func edit(_ value: String)async throws {
+            guard let current=findField(host),current.isEnabled,current.delegate != nil else {throw NSError(domain:"MergePatch native context control unavailable",code:3)}
+            current.stringValue=value;current.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:current))
+            try await waitSettings("Actual native context edit was not accepted: "+value) {settingsModel.patchContext==value}
+        }
+        try await edit("1001");try await waitSettings("Invalid context draft not registered") {settings.modified && settingsModel.validationError != nil}
+        settings.apply(closeAfter: false); try await waitSettings("Invalid context Apply did not report validation") { !settings.busy && settings.error != nil }
         try check(prefs.object(forKey: "TurtleGitMerge.ContextLines") == nil, "Invalid context was saved")
-        edit("0"); try await Task.sleep(nanoseconds: 30_000_000)
-        settings.apply(closeAfter: false); try await TwoPaneEngineVerification.wait { !settings.busy && prefs.object(forKey: "TurtleGitMerge.ContextLines") != nil }
+        try await edit("0");try await waitSettings("Valid context draft not registered") {settings.modified && settingsModel.validationError==nil}
+        settings.apply(closeAfter: false); try await waitSettings("Valid context Apply did not persist") { !settings.busy && prefs.object(forKey: "TurtleGitMerge.ContextLines") != nil }
         try check(MergeUnifiedPatch.contextLines(from: prefs) == 0 && !settings.modified, "Apply did not persist context")
-        edit("12"); try await TwoPaneEngineVerification.wait { settings.modified }; settings.cancel()
-        try await TwoPaneEngineVerification.wait { field.stringValue == "0" && !settings.modified }
+        try await edit("12"); try await waitSettings("Cancel draft not registered") { settings.modified }; settings.cancel()
+        try await waitSettings("Cancel did not restore accepted context") { findField(host)?.stringValue == "0" && settingsModel.patchContext=="0" && !settings.modified }
         func controls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(controls) }
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             host.appearance = NSAppearance(named: appearance); host.layoutSubtreeIfNeeded()

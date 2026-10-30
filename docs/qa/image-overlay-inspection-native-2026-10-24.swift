@@ -64,8 +64,25 @@ import TurtleGitCore
         func slider()throws->ImageComparisonAlphaSlider{guard let slider=controls().compactMap({$0 as? ImageComparisonAlphaSlider}).first else{throw Failure(message:"Native alpha slider missing")};return slider}
         func frameButtons()->[NSButton]{controls().compactMap{$0 as? NSButton}.filter{($0.accessibilityLabel() ?? "").hasPrefix("Next image") || ($0.accessibilityLabel() ?? "").hasPrefix("Play images")}}
         func canvas()throws->NSView{guard let value=controls().compactMap({$0 as? ImageComparisonScrollView}).first?.documentView else{throw Failure(message:"Overlay canvas missing")};return value}
-        func endpoint(_ component:Int)throws{
+        func endpoint(_ component:Int)async throws{
             guard let expected=endpointControls[component] else{throw Failure(message:"Missing independent native endpoint control")}
+            let target=component==0 ? 0.0:1.0
+            func displayedEndpoint()->Bool {
+                window.contentView?.layoutSubtreeIfNeeded()
+                guard model.alpha==target,model.overlay,model.blendAlpha,
+                      let scroll=controls().compactMap({$0 as? ImageComparisonScrollView}).first,
+                      scroll.overlay,scroll.blendAlpha,scroll.alpha==target,
+                      let first=model.currentImage(base:true),let second=model.currentImage(base:false) else{return false}
+                return scroll.image?.id==first.id && scroll.image?.frameIndex==first.frameIndex && scroll.second?.id==second.id && scroll.second?.frameIndex==second.frameIndex
+            }
+            // @Published alpha precedes updateNSView's actual canvas input
+            // publication. Wait for that real native endpoint, retaining the
+            // running one-second clock; sample in this same MainActor turn.
+            do {try await wait("Native overlay endpoint was not published"){displayedEndpoint()}}
+            catch {
+                let native=controls().compactMap({$0 as? ImageComparisonScrollView}).map{"alpha=\($0.alpha),overlay=\($0.overlay),blend=\($0.blendAlpha),first=\(String(describing:$0.image?.id))/\($0.image?.frameIndex ?? -1),second=\(String(describing:$0.second?.id))/\($0.second?.frameIndex ?? -1)"}
+                throw Failure(message:"Endpoint target=\(target),modelAlpha=\(model.alpha),blinking=\(model.alphaBlinking),native=\(native): \(error)")
+            }
             let color=ImageFramesVerification.pixel(try canvas()),channels=[color.redComponent,color.greenComponent,color.blueComponent],control=[expected.redComponent,expected.greenComponent,expected.blueComponent]
             try require(zip(channels,control).allSatisfy{abs($0-$1)<0.015},"Blink endpoint differs from its independently displayed source in the same native color profile: actual=\(channels), expected=\(control)")
         }
@@ -104,16 +121,16 @@ import TurtleGitCore
             try await wait("Slider did not publish live source percentage help"){window.contentView?.layoutSubtreeIfNeeded();return model.alpha==0.25 && channel.toolTip=="25% alpha" && (try? alphaButton().toolTip?.hasPrefix("25% alpha"))==true}
             button=try alphaButton();button.performClick(nil)
             try require(model.alpha==0 && !model.alphaBlinking,"Single click must stop and toggle nonzero alpha to zero")
-            try endpoint(0)
+            try await endpoint(0)
             let started=Date();try doubleClick(button)
             try require(model.alphaBlinking && model.alpha==0,"Double click must arm timer without an immediate second toggle")
             try await Task.sleep(nanoseconds:220_000_000)
             try require(model.alpha==0,"Automatic blend toggled before its one-second source interval")
             try await wait("Automatic alpha did not reach second image"){window.contentView?.layoutSubtreeIfNeeded();return model.alpha==1 && button.state == .on && button.isHighlighted}
             try require(Date().timeIntervalSince(started)>=0.8,"Blink clock ignored source interval")
-            try endpoint(2)
+            try await endpoint(2)
             try await wait("Automatic alpha did not return to first image"){window.contentView?.layoutSubtreeIfNeeded();return model.alpha==0}
-            try endpoint(0)
+            try await endpoint(0)
             channel.setAccessibilityValue(25)
             try require(model.alphaBlinking && model.alpha==0.25,"Source slider adjustment unexpectedly stopped its active blink")
             button.performClick(nil)

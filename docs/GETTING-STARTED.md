@@ -71,6 +71,8 @@ in its context menu. **Clone…** opens the clone form with that destination;
 choose **Add to TurtleGit…**. The app requests folder access when needed, validates
 the repository and saves it in Open Recent and Watched Repositories. Registration
 runs without opening a workspace and does not replace a repository already open there.
+When access is needed, the picker opens inside the selected folder; click
+**Allow Access** to approve it. Valid saved access avoids another picker.
 
 Registered repository folders retain their general Git commands when TurtleGit
 is closed. The app restores folder permission and validates the repository when

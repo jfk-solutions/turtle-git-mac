@@ -1910,15 +1910,36 @@ import TurtleGitCore
     for path in [first, second] { try Data("mine\n".utf8).write(to: root.appendingPathComponent(path)) }
     try await repo.stage([first, second]); _ = try await repo.commit(message: "mine")
     let head = try await repo.run(["rev-parse", "HEAD"]).stdout
-    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    struct WorkingConflictCheckFailure: Error, CustomStringConvertible {
+        let description: String
+    }
     var requests: [(RepositoryAction, [String])] = [], comparisons: [[String]] = []
-    log.onConflictAction = { requests.append(($0, $1)) }; log.onFileCompare = { _, _, paths in comparisons.append(paths) }
+    func makeLog() -> LogWindowModel {
+        let model = LogWindowModel(repository: repo, access: nil)
+        model.onConflictAction = { requests.append(($0, $1)) }
+        model.onFileCompare = { _, _, paths in comparisons.append(paths) }
+        return model
+    }
+    var log = makeLog(); defer { log.invalidate() }
+    func requireLog(_ condition: Bool, _ phase: String) throws {
+        guard condition else {
+            throw WorkingConflictCheckFailure(description: "Log working-conflict " + phase
+                + "; retired=\(log.isInvalidated), busy=\(log.busy), selected=\(log.selected), working=\(log.selectedWorkingTree)"
+                + ", conflicts=\(log.workingConflictPaths([first, second])), rebase=\(log.conflictRebase), requests=\(requests.count), error=\(String(describing: log.error))")
+        }
+    }
     func waitLog() async throws {
         let deadline = Date().addingTimeInterval(30)
         while log.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(!log.busy)
+        try requireLog(!log.busy, "operation did not drain")
     }
-    func refreshLog() async throws { log.reload(); try await waitLog(); precondition(log.error == nil); log.select([""]) }
+    func refreshLog() async throws {
+        try requireLog(!log.isInvalidated, "refresh requires a live owner")
+        log.reload(); try await waitLog()
+        try requireLog(log.error == nil, "refresh failed")
+        log.select([""])
+        try requireLog(log.selectedWorkingTree && !log.workingConflictPaths([first, second]).isEmpty, "working rows not accepted")
+    }
     for action in [RepositoryAction.editConflict, .resolveCurrent, .resolveMine, .resolveTheirs] { precondition(action.icon.contextImage() != nil) }
     for choice in [ResolveChoice.current, .mine, .theirs] {
         _ = try await repo.run(["reset", "--hard", "main"])
@@ -1947,12 +1968,20 @@ import TurtleGitCore
         let requestCount = requests.count
         log.busy = true; log.requestWorkingConflict(.editConflict, ids: [first]); precondition(requests.count == requestCount); log.busy = false
         log.requestWorkingConflict(.editConflict, ids: [first]); log.selected = [String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]; try await waitLog(); precondition(requests.count == requestCount)
-        log.select([""]); log.invalidate(); log.requestWorkingConflict(.resolveCurrent, ids: [first]); precondition(requests.count == requestCount)
+        log.select([""]); log.invalidate(); log.requestWorkingConflict(.resolveCurrent, ids: [first])
+        try requireLog(log.isInvalidated && requests.count == requestCount, "retired owner dispatched")
+        // Invalidation permanently retires a native owner. Reopening creates a
+        // fresh model; reload must never revive this retained, retired instance.
+        log.reload()
+        try requireLog(log.isInvalidated && !log.busy && requests.count == requestCount, "retired owner revived")
+        log = makeLog()
         try await refreshLog()
         log.bare = true; log.requestWorkingConflict(.resolveMine, ids: [first]); precondition(requests.count == requestCount); log.bare = false
         let marker = root.appendingPathComponent(".git/rebase-merge")
         try FileManager.default.createDirectory(at: marker, withIntermediateDirectories: true)
-        log.requestWorkingConflict(.resolveMine, ids: [first]); try await waitLog(); precondition(log.error != nil && requests.count == requestCount)
+        try requireLog(log.canWorkingConflict(.resolveMine, ids: [first]), "changed-rebase preflight not admitted")
+        log.requestWorkingConflict(.resolveMine, ids: [first]); try await waitLog()
+        try requireLog(log.error != nil && requests.count == requestCount, "changed-rebase preflight did not refuse")
         try FileManager.default.removeItem(at: marker); log.error = nil
         let guardedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(guardedIndex == index)
         if choice == .current { try Data("selected current\n".utf8).write(to: root.appendingPathComponent(first)) }

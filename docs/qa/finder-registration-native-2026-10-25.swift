@@ -43,6 +43,7 @@ private extension NSWindow {
         var commandLog:URL {root.appendingPathComponent("git-commands.tsv")}
         var other:GitRepository!,source:GitRepository!,third:GitRepository!
         var selected:URL?,permissionReply:((NSApplication.ModalResponse)->Void)?
+        var permissionDirectory:URL?,permissionTitle="",permissionMessage=""
         var hold:URL {root.appendingPathComponent("hold")};var release:URL {root.appendingPathComponent("release")};var started:URL {root.appendingPathComponent("started")}
         init()throws {
             prefs=UserDefaults(suiteName:suite)!;prefs.set(false,forKey:"UseLibgit2");prefs.set(0,forKey:"AutoCloseGitProgress");prefs.set(false,forKey:"EnableGravatar")
@@ -56,7 +57,9 @@ private extension NSWindow {
             parent=NSWindow(contentRect:.init(x:-24000,y:-24000,width:800,height:600),styleMask:[.titled,.closable],backing:.buffered,defer:false);parent.isReleasedWhenClosed=false;parent.alphaValue=0;workspace.workspaceWindow=parent;parent.orderFront(nil)
             workspace.selectedFinderServiceFolderURL={ [weak self] _ in self?.selected }
             workspace.presentFinderServiceFolderPanel={ [weak self] panel,owner,reply in
-                self?.panels += 1;self?.permissionReply=reply;owner?.beginSheet(panel,completionHandler:reply)
+                self?.panels += 1;self?.permissionReply=reply
+                self?.permissionDirectory=panel.directoryURL;self?.permissionTitle=panel.title;self?.permissionMessage=panel.message
+                owner?.beginSheet(panel,completionHandler:reply)
             }
         }
         func repo(_ name:String)async throws->GitRepository {
@@ -126,7 +129,10 @@ private extension NSWindow {
     }
     static func registration(_ c:Context)async throws {
         let original=c.watched.repositories[0]
-        try await c.submit(c.source.root);try require(c.permissionReply != nil && c.parent.attachedSheet != nil,"First use did not own actual folder sheet");c.answer(.cancel)
+        try await c.submit(c.source.root);try require(c.permissionReply != nil && c.parent.attachedSheet != nil,"First use did not own actual folder sheet")
+        try require(c.permissionDirectory.map{Data($0.path.utf8)}==Data(c.source.root.path.utf8),"Add permission picker opened a parent or unrelated folder")
+        try require(c.permissionTitle=="Add to TurtleGit" && c.permissionMessage.contains("status badges in Finder") && !c.permissionMessage.contains("Services"),"Add permission picker lost its action-specific explanation")
+        c.answer(.cancel)
         try await wait {!c.workspace.hasPendingFinderServiceWork};try require(c.watched.repositories.count==1 && c.recent.repositories.isEmpty,"Cancelled Add saved grants")
         try await c.submit(c.source.root);c.answer(.OK);try await wait {!c.workspace.hasPendingFinderServiceWork}
         try require(c.workspace.error==nil && c.workspace.root==nil,"Add failed or switched unrelated workspace: \(c.workspace.error ?? "")")

@@ -6,13 +6,13 @@ import TurtleGitCore
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
     @MainActor static func views(_ root: NSView?) -> [NSView] { guard let root else { return [] }; return [root] + root.subviews.flatMap { views($0) } }
-    @MainActor static func wait(_ window: NSWindow?, line: Int = #line, _ ready: () -> Bool) async throws {
+    @MainActor static func wait(_ window:NSWindow?,line:Int = #line,diagnostic:@autoclosure ()->String = "",_ ready:()->Bool)async throws {
         var settled = 0
         for _ in 0..<2000 {
             try await Task.sleep(nanoseconds: 10_000_000); window?.contentView?.layoutSubtreeIfNeeded()
             settled = ready() ? settled + 1 : 0; if settled == 2 { return }
         }
-        throw Failure(description: "Log identities timeout at \(line)")
+        throw Failure(description: "Log identities timeout at \(line); \(diagnostic())")
     }
     @MainActor static func main() async {
         NSApp.setActivationPolicy(.prohibited)
@@ -109,14 +109,23 @@ import TurtleGitCore
         // Real sheets remain owned through release, repeated cancellation and reuse.
         model.saveHistoricalFile([second.id]); try await wait(owner.window) { owner.filePanels.currentPanel?.sheetParent === owner.window }
         let picker = owner.filePanels.currentPanel!
-        try require(model.busy && !owner.windowShouldClose(owner.window!),"Log Save chooser did not block duplicate actions/close")
+        try require(model.busy && model.fileNavigationReadPending,"Log Save chooser did not own aggregate read/duplicate-action admission")
         owner.filePanels.receive(picker,response:.cancel); owner.filePanels.receive(picker,response:.OK)
         try await wait(owner.window) { !model.busy && owner.window?.attachedSheet == nil && owner.filePanels.currentPanel == nil }
         try require(model.error == nil,"Cancelled chooser published error")
-        model.chooseHistoricalExport([first.id,second.id]); try await wait(owner.window) { owner.filePanels.currentPanel?.sheetParent === owner.window }
+        // Historical file navigation now has an aggregate owned activity gate;
+        // panel detachment alone does not establish native modal readiness.
+        func exportReadiness()->String{"canInspect=\(model.canInspectHistory) busy=\(model.busy) pending=\(model.fileNavigationReadPending) invalid=\(model.isInvalidated) selected=\(model.selected.count) selectedFiles=\(model.selectedFiles.count) visibleFiles=\(model.visibleFiles.count) panel=\(owner.filePanels.currentPanel != nil) attached=\(owner.window?.attachedSheet != nil) modal=\(String(describing:NSApp.modalWindow)) error=\(model.error ?? "none")"}
+        try await wait(owner.window,diagnostic:exportReadiness()){model.canInspectHistory && owner.filePanels.currentPanel==nil}
+        let exportOwner=model.captureFileNavigationOwner(),exportOwnerAccepted=model.captureFileNavigationOwner()()
+        model.chooseHistoricalExport([first.id,second.id])
+        try await wait(owner.window,diagnostic:exportReadiness()+" initialOwner=\(exportOwnerAccepted) deferredOwner=\(exportOwner())"){owner.filePanels.currentPanel?.sheetParent === owner.window}
         let pending = owner.filePanels.currentPanel!, retired = model.fileMenuSnapshot(ids)
-        owner.close(); owner.filePanels.receive(pending,response:.OK)
-        try await wait(nil) { !model.busy && owner.filePanels.currentPanel == nil }
+        // windowShouldClose is an actual close request: it cancels the owned
+        // chooser and retires this owner after drain, rather than a pure query.
+        try require(model.busy && !owner.windowShouldClose(owner.window!),"Native Close failed to defer while Export chooser drained")
+        owner.filePanels.receive(pending,response:.OK)
+        try await wait(nil){!model.busy && owner.filePanels.currentPanel==nil && model.isInvalidated}
         model.withFileMenu(retired) { callbacks += 100 }; try require(callbacks == 1 && model.isInvalidated && model.error == nil,"Retired menu/chooser escaped owner")
         // Working flag confirmation must not mutate after an exact target changed away/back.
         prefs.set(true,forKey:"LogIncludeWorkingTreeChanges")

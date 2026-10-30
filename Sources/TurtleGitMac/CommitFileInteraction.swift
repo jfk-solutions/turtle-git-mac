@@ -306,9 +306,13 @@ struct CommitFileInteraction: NSViewRepresentable {
 
     @AppStorage("LogFontForFileListCtrl") private var useLogFont = false
     @AppStorage("ShowListBackgroundImage") private var showListBackground = true
+    @AppStorage("ShowAppContextMenuIcons") private var showMenuIcons=true
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     let rows: [StatusListRow]
+    /// Opt-in immutable content epoch for consumers whose text callbacks change
+    /// independently of rows (statistics, metadata and lock ownership).
+    var contentRevision:UUID?=nil
     var uniformRowGeometry:FileListUniformRowGeometry?=nil
     var leadingColumnCount = 1
     var selectionLabelInset:CGFloat = 24
@@ -346,7 +350,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
-        view.preferences=preferences
+        view.preferences=preferences;view.menuIconPreference=showMenuIcons
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         view.uniformRowGeometry=uniformRowGeometry
         view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled; view.keyboardCheckWithoutColumn = keyboardCheckWithoutColumn
@@ -357,7 +361,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.watermarkIcon = showListBackground ? watermarkIcon:nil
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
-        view.rows = rows; view.focusedPath = $focusedPath
+        view.rows=rows;view.contentRevision=contentRevision; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
         configureRefresh?(view)
         view.scheduleColumnConfiguration()
@@ -366,9 +370,34 @@ struct CommitFileInteraction: NSViewRepresentable {
 
     final class Probe: NSView, NSDraggingSource {
         var preferences:UserDefaults = .standard
+        var menuIconPreference=true
         var fileListFont: NSFont?
         var uniformRowGeometry:FileListUniformRowGeometry?
         var rows: [StatusListRow] = []
+        var contentRevision:UUID?
+        private(set) var configurationApplications=0
+        private func invalidateConfiguration(){appliedConfiguration=nil}
+        private struct ConfigurationState:Equatable{
+            let content:UUID?,rows:[StatusListRow],texts:[[StatusListColumn:String]]?,ids:[String]?
+            let columns:[StatusListColumn],visible:Set<StatusListColumn>,available:Set<StatusListColumn>,order:[StatusListColumn],widths:[StatusListColumn:Double]
+            let enabled:Bool,leading:Int,inset:CGFloat,fontName:String,fontSize:CGFloat,geometry:[CGFloat],groupFontName:String,preferences:ObjectIdentifier
+            let watermark:MenuIcon?
+        }
+        private var appliedConfiguration:ConfigurationState?
+        private struct HeaderMenuState:Equatable{
+            let columns:[StatusListColumn],visible:Set<StatusListColumn>,available:Set<StatusListColumn>,enabled:Bool,icons:Bool,preferences:ObjectIdentifier
+        }
+        private var appliedHeaderMenu:HeaderMenuState?
+        private var installedHeaderMenu:NSMenu?
+        private weak var configuredHeader:NSTableHeaderView?
+        private var adornmentBounds:NSRect?
+        private var adornmentViewport:NSRect?
+        private func updateAdornmentGeometry(_ table:NSTableView){
+            guard adornmentBounds != table.bounds || adornmentViewport != table.visibleRect else{return}
+            adornmentBounds=table.bounds;adornmentViewport=table.visibleRect
+            if let groupHeaders{if groupHeaders.frame != table.bounds{groupHeaders.frame=table.bounds};groupHeaders.needsDisplay=true}
+            if let watermark{if watermark.frame != table.bounds{watermark.frame=table.bounds};watermark.needsDisplay=true}
+        }
         var leadingColumnCount = 1
         var selectionLabelInset:CGFloat = 24
         var keyboardDeleteEnabled = true
@@ -496,7 +525,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         override func viewDidChangeEffectiveAppearance() {
-            super.viewDidChangeEffectiveAppearance(); scheduleColumnConfiguration()
+            super.viewDidChangeEffectiveAppearance();invalidateConfiguration();scheduleColumnConfiguration()
         }
         private func configureGroupHeadings(_ table: NSTableView) {
             guard rows.contains(where: { $0.group != nil }) else { groupHeaders?.removeFromSuperview(); groupHeaders = nil; return }
@@ -641,6 +670,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 groupHeaders?.removeFromSuperview(); groupHeaders = nil
                 watermark?.removeFromSuperview(); watermark = nil
                 configuredTable = table; originalColumns = table.tableColumns
+                invalidateConfiguration();appliedHeaderMenu=nil;installedHeaderMenu=nil;configuredHeader=nil;adornmentBounds=nil;adornmentViewport=nil
                 columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { column, fallback in
                     let named = FileListLabels.column(named:column.headerCell.stringValue)
                     return (ObjectIdentifier(column), named.flatMap { nativeColumns.contains($0) ? $0 : nil } ?? fallback)
@@ -659,6 +689,22 @@ struct CommitFileInteraction: NSViewRepresentable {
                     }
                 }
             }
+            let geometry=uniformRowGeometry
+            let state=ConfigurationState(content:contentRevision,rows:rows,texts:rowTexts,ids:itemIDs,columns:nativeColumns,visible:visibleColumns,available:availableColumns,order:savedOrder,widths:savedWidths,enabled:enabled,leading:leadingColumnCount,inset:selectionLabelInset,fontName:fileListFont?.fontName ?? "",fontSize:fileListFont?.pointSize ?? 0,geometry:geometry.map{[$0.font.pointSize,$0.groupFont.pointSize,$0.minimumContentHeight,$0.verticalPadding]} ?? [],groupFontName:geometry.map{$0.font.fontName+"/"+$0.groupFont.fontName} ?? "",preferences:ObjectIdentifier(preferences),watermark:watermarkIcon)
+            let menuState=HeaderMenuState(columns:nativeColumns,visible:visibleColumns,available:availableColumns,enabled:enabled,icons:MenuPresentationSettings.applicationContextIcons(defaults:preferences),preferences:ObjectIdentifier(preferences))
+            // Always refresh action closures in updateNSView, but avoid native
+            // decoration/header mutation for unrelated draft/caret publications.
+            let visibilityCurrent=table.tableColumns.allSatisfy{column in
+                guard let definition=columnDefinitions[ObjectIdentifier(column)] else{return true}
+                return column.isHidden == (!visibleColumns.contains(definition) && definition != .path)
+            }
+            if contentRevision != nil,appliedConfiguration==state,visibilityCurrent,configuredHeader === table.headerView,appliedHeaderMenu==menuState,NativeListSelection.usesFullRowSelection(in:table) != nil {
+                applyNativeColumnLayout()
+                updateAdornmentGeometry(table)
+                if let installedHeaderMenu,table.headerView?.menu !== installedHeaderMenu{table.headerView?.menu=installedHeaderMenu}
+                return
+            }
+            appliedConfiguration=state;configurationApplications += 1
             let byDefinition = Dictionary(uniqueKeysWithValues: originalColumns.dropFirst(leadingColumnCount).compactMap { column -> (StatusListColumn, NSTableColumn)? in
                 columnDefinitions[ObjectIdentifier(column)].map { ($0, column) }
             })
@@ -681,13 +727,19 @@ struct CommitFileInteraction: NSViewRepresentable {
             for (definition, width) in savedWidths {
                 if let column = byDefinition[definition] { desiredWidths[ObjectIdentifier(column)] = max(column.minWidth, min(column.maxWidth, CGFloat(width))) }
             }
-            table.allowsColumnReordering = enabled; table.allowsColumnResizing = enabled
-            table.columnAutoresizingStyle = .noColumnAutoresizing
+            if table.allowsColumnReordering != enabled{table.allowsColumnReordering=enabled}
+            if table.allowsColumnResizing != enabled{table.allowsColumnResizing=enabled}
+            if table.columnAutoresizingStyle != .noColumnAutoresizing{table.columnAutoresizingStyle = .noColumnAutoresizing}
             for column in table.tableColumns {
-                if let definition = columnDefinitions[ObjectIdentifier(column)] { column.isHidden = !visibleColumns.contains(definition) && definition != .path }
+                if let definition=columnDefinitions[ObjectIdentifier(column)] {
+                    let hidden = !visibleColumns.contains(definition) && definition != .path
+                    if column.isHidden != hidden{column.isHidden=hidden}
+                }
             }
             applyNativeColumnLayout()
-            table.headerView?.menu = columnMenu()
+            if configuredHeader !== table.headerView || appliedHeaderMenu != menuState || table.headerView?.menu == nil{
+                let menu=columnMenu();table.headerView?.menu=menu;installedHeaderMenu=menu;configuredHeader=table.headerView;appliedHeaderMenu=menuState
+            }
             configureGroupHeadings(table)
             if let watermarkIcon {
                 let layer = watermark ?? FileListWatermark(frame: table.bounds)
@@ -695,14 +747,17 @@ struct CommitFileInteraction: NSViewRepresentable {
                 layer.frame = table.bounds; layer.setIcon(watermarkIcon); layer.setAccessibilityElement(false)
                 table.addSubview(layer, positioned: .below, relativeTo: nil)
             } else { watermark?.removeFromSuperview(); watermark = nil }
+            updateAdornmentGeometry(table)
             if geometryObservers.isEmpty {
                 table.postsFrameChangedNotifications = true
-                var observations: [(Notification.Name, AnyObject)] = [(NSView.frameDidChangeNotification, table)]
+                var observations:[(Notification.Name,AnyObject)]=[(NSView.frameDidChangeNotification,table),(UserDefaults.didChangeNotification,preferences)]
                 if let clip = table.enclosingScrollView?.contentView { clip.postsBoundsChangedNotifications = true; observations.append((NSView.boundsDidChangeNotification, clip)) }
                 if let window { observations.append((NSWindow.didResizeNotification, window)) }
                 geometryObservers = observations.map { name, object in
                     NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
-                        guard let self, !self.adjustingLayout else { return }; self.scheduleColumnConfiguration()
+                        guard let self,!self.adjustingLayout else{return}
+                        if name == UserDefaults.didChangeNotification{self.invalidateConfiguration()}
+                        self.scheduleColumnConfiguration()
                     }
                 }
             }
@@ -782,6 +837,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             finishResetQuestion(false)
             if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false
+            invalidateConfiguration();appliedHeaderMenu=nil;installedHeaderMenu=nil;configuredHeader=nil;adornmentBounds=nil;adornmentViewport=nil
             workingDragPress=nil
             for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
             groupHeaders?.removeFromSuperview(); groupHeaders = nil

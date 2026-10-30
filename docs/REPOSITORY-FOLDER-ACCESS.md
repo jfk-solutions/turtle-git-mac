@@ -1,5 +1,14 @@
 # Repository folder access
 
+When no saved permission covers a repository, macOS asks you to allow folder
+access. Selecting a folder in Finder does not itself give the sandboxed app that
+permission. For **Add to TurtleGit…**, the access picker opens inside the folder
+you clicked. Choose **Allow Access** to approve that folder. Cancel leaves
+registration and any existing workspace unchanged.
+
+Valid saved access is reused without another picker. If access cannot be renewed,
+or you forget the saved repository, choose its folder again.
+
 A linked worktree or submodule can keep Git metadata outside its working folder.
 A shared clone can also read objects from another repository. In an App Store
 build, choosing the working folder alone does not grant access to those locations.

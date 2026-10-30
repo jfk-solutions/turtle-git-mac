@@ -843,15 +843,15 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     lazy var clientHooks = ClientHookSession(preferences: dialogDefaults)
     @Published var conflictRebase = false
-    @Published var entries: [StatusEntry] = [] { didSet { if entries != oldValue { fileMenuGeneration = UUID(); guiFileListGeneration = UUID(); providerDraftChanged() } } }
-    @Published var indexFlagFiles: [WorkingTreeFile] = []
-    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } }
+    @Published var entries: [StatusEntry] = [] { didSet {fileReportRevision=UUID(); if entries != oldValue { fileMenuGeneration = UUID(); guiFileListGeneration = UUID(); providerDraftChanged() } } }
+    @Published var indexFlagFiles:[WorkingTreeFile] = []{didSet{fileReportRevision=UUID()}}
+    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet {fileReportRevision=UUID(); fileMenuGeneration = UUID();guiFileListGeneration = UUID() } }
     var restoreWorkingCopy:((WorkingFileRestoreCopy,OperationCancellation?)async throws->Void)?
     enum RestoreChoice { case restore, keep, cancel }
     var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
     @Published var comparisonBase: String?
-    @Published var stagedStatistics: GitPathMap<CommitFile> = [:]
-    @Published var unstagedStatistics: GitPathMap<CommitFile> = [:]
+    @Published var stagedStatistics:GitPathMap<CommitFile> = [:]{didSet{fileReportRevision=UUID()}}
+    @Published var unstagedStatistics:GitPathMap<CommitFile> = [:]{didSet{fileReportRevision=UUID()}}
     @Published private(set) var gitGuiInterface = false
     @Published private(set) var guiStaged = false
     @Published private(set) var guiPatch: PatchWindowModel?
@@ -1116,7 +1116,8 @@ import TurtleGitCore
     // shipping dialogs share one bounded Core display read instead.
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry] {didSet{usesCapturedCommitRead=false}}
     var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> GitPathMap<CommitStagingState>
-    @Published var statistics: GitPathMap<CommitFile> = [:]
+    private(set) var fileReportRevision=UUID()
+    @Published var statistics:GitPathMap<CommitFile> = [:]{didSet{fileReportRevision=UUID()}}
     @Published var checked = GitPathSet() { didSet { if checked != oldValue { providerDraftChanged() } } }
     private var selectedPaths = GitPathSet()
     @Published var nativeFileSelection = Set<String>() {
@@ -1134,9 +1135,9 @@ import TurtleGitCore
         }
     }
 
-    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet { if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
+    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet {fileReportRevision=UUID(); if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
     @Published var hasLFS = false
-    @Published var lfsOwners: GitPathMap<String> = [:]
+    @Published var lfsOwners:GitPathMap<String> = [:]{didSet{fileReportRevision=UUID()}}
     @Published var lfsLockedPaths = GitPathSet()
     @Published var lfsOwnershipKnown = false
     private var lfsOwnerCancellation: OperationCancellation?
@@ -1166,7 +1167,7 @@ import TurtleGitCore
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID();refreshRequiredFileMetadata() } } }
     @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
-    @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
+    @Published var changelists = GitChangelists() { didSet {fileReportRevision=UUID(); if changelists != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
     @Published var changelistsLoaded = false
     @Published var keepChangelists = false { didSet { if keepChangelists != oldValue { providerDraftChanged() } } }
     @Published var creatingChangelist = false
@@ -1480,7 +1481,7 @@ import TurtleGitCore
         didSet { if messageOnly != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } }
     }
     @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{guiFileListGeneration=UUID();retireFormReceipts()}}}
-    @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
+    @Published var submodules = GitPathSet() { didSet {fileReportRevision=UUID(); if submodules != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
     @Published var setAuthor = false {didSet{if setAuthor != oldValue{formOptionValueChanged(.author)}}}
     @Published var author = "" { didSet { if !GitReferenceName.equal(author, oldValue) { providerDraftChanged() } } }
     @Published private(set) var loadingAuthorIdentity = false
@@ -1743,7 +1744,7 @@ import TurtleGitCore
     // m_stagingStatus changes independently. Do not replace the displayed rows
     // with porcelain records after each checkbox or partial patch operation.
     @Published private(set) var stagingStateNeedsRefresh = false
-    @Published private var stagingStates: GitPathMap<NSControl.StateValue>?
+    @Published private var stagingStates:GitPathMap<NSControl.StateValue>?{didSet{fileReportRevision=UUID()}}
     func stagingState(_ entry: StatusEntry) -> NSControl.StateValue {
         if let stagingStates { return stagingStates[entry.path] ?? .off }
         if entry.state == .conflicted {return .off}
@@ -1802,6 +1803,7 @@ import TurtleGitCore
     private(set) var pendingFileOperations=0
     var fileWorkPending:Bool {pendingFileOperations>0}
     private var fileMenuGeneration = UUID()
+    var fileReportMenuRevision:UUID {fileMenuGeneration}
     struct FileMenuSnapshot {
         let status: StatusFileMenuSnapshot
         let gitGui: Bool
@@ -3529,6 +3531,30 @@ struct CommitAuthorField: NSViewRepresentable {
     }
 }
 
+/// Keep message/caret publications outside SwiftUI's native Table update. A
+/// Table update can temporarily unhide columns even when its row values did
+/// not change; repairing those flags afterwards still repaints the header.
+private struct CommitStableFileReport<Content:View>:View,Equatable {
+    let key:CommitFileReportPresentation
+    let content:()->Content
+    init(key:CommitFileReportPresentation,@ViewBuilder content:@escaping ()->Content){self.key=key;self.content=content}
+    static func ==(lhs:Self,rhs:Self)->Bool{lhs.key==rhs.key}
+    var body:some View{content()}
+}
+
+private struct CommitFileReportPresentation:Equatable {
+    struct Sort:Equatable {let column:StatusListColumn;let forward:Bool}
+    let owner:ObjectIdentifier,preferences:ObjectIdentifier
+    let content:UUID,menu:UUID
+    let entries:[StatusEntry],staged:Bool?,checked:GitPathSet,selection:Set<String>,focus:GitReferenceName?
+    let receipt:CommitWindowModel.FileCheckReceipt
+    let sort:[Sort],columns:StatusListColumnSettings,available:Set<StatusListColumn>
+    let enabled:Bool,staging:Bool,hasHead:Bool,rebase:Bool,keepChangelists:Bool,lfsKnown:Bool,lfsLocked:GitPathSet
+    let font:NSFont,groupFont:NSFont,contentHeight:CGFloat,rowHeight:CGFloat
+    let colors:Int,abbreviateRenames:Bool,background:Bool,menuIcons:Bool
+    let locale:String,colorScheme:ColorScheme,layoutDirection:LayoutDirection
+}
+
 struct CommitDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: CommitWindowModel
@@ -3537,6 +3563,12 @@ struct CommitDialog: View {
     @AppStorage("LogFontForFileListCtrl") private var reportUsesLogFont=false
     @AppStorage("LogFontName") private var reportFontName=MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
+    @AppStorage("AbbreviateRenamings") private var reportAbbreviatesRenames=false
+    @AppStorage("ShowListBackgroundImage") private var reportShowsBackground=true
+    @AppStorage("ShowAppContextMenuIcons") private var reportShowsMenuIcons=true
+    @Environment(\.locale) private var reportLocale
+    @Environment(\.colorScheme) private var reportColorScheme
+    @Environment(\.layoutDirection) private var reportLayoutDirection
     private var reportGeometry:FileListUniformRowGeometry {
         let font=reportUsesLogFont ? MessageEditorFont.resolve(name:reportFontName,size:reportFontSize):NSFont.systemFont(ofSize:NSFont.systemFontSize)
         return FileListUniformRowGeometry(font:font,groupFont:NSFontManager.shared.convert(font,toHaveTrait:.boldFontMask))
@@ -3760,7 +3792,7 @@ struct CommitDialog: View {
         let key = staged ? "staged" : "unstaged"
         let focus = Binding<String?>(get: { model.focusedFiles[key] }, set: { model.focusedFiles[key] = $0 })
         let columns: Set<StatusListColumn> = [.path, .status]
-        return CommitFileInteraction(rows: entries.map(StatusListRow.file), uniformRowGeometry: reportGeometry,
+        return CommitFileInteraction(rows: entries.map(StatusListRow.file),contentRevision:model.fileReportRevision,uniformRowGeometry: reportGeometry,
             leadingColumnCount: 0, selectionLabelInset: 0, keyboardCheckWithoutColumn: true,
             captureWorkingDrag: { model.captureWorkingDrag($0) }, workingDragOrigin: model.workingDragOrigin,
             nativeColumns: [.path, .status],
@@ -3866,6 +3898,24 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
     }
     func fileTable(_ entries: [StatusEntry], staged: Bool?) -> some View {
         let geometry=reportGeometry
+        let focusKey=staged.map{$0 ? "staged":"unstaged"} ?? "checkbox"
+        let key=CommitFileReportPresentation(
+            owner:ObjectIdentifier(model),preferences:ObjectIdentifier(model.colorPreferences),
+            content:model.fileReportRevision,menu:model.fileReportMenuRevision,
+            entries:entries,staged:staged,checked:model.checked,selection:model.nativeFileSelection,
+            focus:model.focusedFiles[focusKey].map{GitReferenceName($0)},receipt:model.fileCheckReceipt,
+            sort:model.fileSortOrder.map{.init(column:$0.column,forward:$0.order == .forward)},
+            columns:model.fileColumns,available:model.availableFileColumns,enabled:model.fileListAvailable,
+            staging:model.stagingEnabled,hasHead:model.hasHead,rebase:model.conflictRebase,
+            keepChangelists:model.keepChangelists,lfsKnown:model.lfsOwnershipKnown,lfsLocked:model.lfsLockedPaths,
+            font:geometry.font,groupFont:geometry.groupFont,contentHeight:geometry.contentHeight,rowHeight:geometry.rowHeight,
+            colors:statusColorUpdates.revision,abbreviateRenames:reportAbbreviatesRenames,
+            background:reportShowsBackground,menuIcons:reportShowsMenuIcons,
+            locale:reportLocale.identifier,colorScheme:reportColorScheme,layoutDirection:reportLayoutDirection)
+        return CommitStableFileReport(key:key){fileTableContent(entries,staged:staged)}.equatable()
+    }
+    private func fileTableContent(_ entries:[StatusEntry],staged:Bool?)->some View {
+        let geometry=reportGeometry
         let statistics = model.statistics
         let entries = model.sortedFiles(entries, statistics: statistics)
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
@@ -3950,7 +4000,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows,uniformRowGeometry:geometry,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows,contentRevision:model.fileReportRevision,uniformRowGeometry:geometry,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: model.fileListAvailable, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)

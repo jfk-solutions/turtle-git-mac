@@ -5412,10 +5412,16 @@ private enum TransportBatchPresentationContext {
             }
         }
         let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
-        panel.title="Allow repository folder access";panel.prompt="Allow Access"
-        panel.message="Choose a folder containing every selected item. TurtleGit needs repository access to perform this Services command."
+        panel.title=registration ? "Add to TurtleGit":"Allow repository folder access";panel.prompt="Allow Access"
+        panel.message=registration
+            ? "Allow access to this repository folder to enable Git commands and status badges in Finder."
+            : "Choose a folder containing all selected items to allow this Git command."
         panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
-        panel.directoryURL=permissionTargets.first?.deletingLastPathComponent();panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+        // Finder registration already identifies a folder. Open that folder in
+        // the permission picker so Allow Access accepts it without searching
+        // its parent; the URL itself still grants no access before confirmation.
+        panel.directoryURL=registration ? request.paths[0]:permissionTargets.first?.deletingLastPathComponent()
+        panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
         finderServiceFolderChoice=choice;finderServiceWorkers += 1;busy=true
         choice.onFinished=CommandProgressContext.capture { [weak self,weak choice] selected in
             guard let self,let choice else{return}

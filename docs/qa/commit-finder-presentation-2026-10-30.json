@@ -1,0 +1,227 @@
+{
+  "date": "2026-10-30",
+  "recorded_utc": "2026-10-30T15:59:13.937342+00:00",
+  "status": "focused-native-batch-passed-not-whole-port-certification",
+  "source_parent_commit": "06e2c962ee970b374b439b4e2c98b8390cd04cb9",
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "9c38725891d46e3fe2ecb5602200111b9aa369356f447cbacf8e5f1d2375555c",
+    "Sources/TurtleGitMac/CommitWindow.swift": "d1fae09ed3a50218f75e230b71949cecb8e462f193dca4bfd1133f51e8205faf",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "3d08edf272e275e8f617e3eacb41f548fdc872fce37fa674f6eeb3638af3ccbd",
+    "docs/qa/commit-report-typing-native-2026-10-30.swift": "1b62e22fc39f7886d0e92614cc928dd8134ac23f3a7d49e3954271d9969438f0",
+    "docs/qa/finder-registration-native-2026-10-25.swift": "65193f7c7e5958e1cf40313fa0b182ba27b0c90046b36547ac7316420db2b393",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "2328f746609b7e095aeaa130c41b2961169bebd157e4ddeb4793f0d7dddca2bd"
+  },
+  "implementation": [
+    "First-use Add to TurtleGit permission panel opens the exact clicked folder, with registration-specific title/message. Explicit Allow Access, saved lease reuse, cancellation, containment and generation guards remain.",
+    "Classic Commit Table is isolated from unrelated message/caret publications by an explicit report presentation key. Native callbacks retain live owner/receipt checks.",
+    "Shared native report setup caches semantic configuration; geometry-only changes update existing adornment frames. Real status/statistics/metadata, row actions, column policy, fonts and appearance still update."
+  ],
+  "verification": [
+    {
+      "case": "registration",
+      "command": [
+        "python3",
+        "scripts/test-finder-registration.py",
+        "--only",
+        "registration"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-registration-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "help",
+      "command": [
+        "python3",
+        "scripts/test-help-book.py"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-help-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "services-provider",
+      "command": [
+        "python3",
+        "scripts/test-finder-services.py",
+        "--only",
+        "provider",
+        "--git",
+        "/usr/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-services-provider-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "services-routing",
+      "command": [
+        "python3",
+        "scripts/test-finder-services.py",
+        "--only",
+        "routing",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-services-routing-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "settings-ownership",
+      "command": [
+        "python3",
+        "scripts/test-settings-completion.py",
+        "--only",
+        "ownership",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-settings-ownership-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "image-overlay",
+      "command": [
+        "python3",
+        "scripts/test-image-command-family.py",
+        "--only",
+        "overlay",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-image-overlay-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "merge-patch",
+      "command": [
+        "python3",
+        "scripts/test-merge-editor-source.py",
+        "--only",
+        "patch"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-focused-merge-patch-2026-10-30.log",
+      "sdk": "27.0",
+      "scope": "private/offscreen native receiver; affected family only"
+    },
+    {
+      "case": "log-identities-after-close-contract-repair",
+      "command": [
+        "python3",
+        "scripts/test-log-file-identities.py",
+        "--git",
+        "/usr/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-log-identities-repair-2026-10-30.log",
+      "sdk": "27.0"
+    },
+    {
+      "case": "full-log-working-conflict-family-both-git",
+      "command": [
+        "python3",
+        "scripts/test-log-working-conflicts.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-log-working-conflicts-2026-10-30.log",
+      "sdk": "27.0"
+    },
+    {
+      "case": "commit-report-column-and-typing-family-both-git",
+      "command": [
+        "python3",
+        "scripts/test-commit-column-sorting.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "environment": {
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+        "SDKROOT": "macosx"
+      },
+      "exit_code": 0,
+      "log": "build/qa/commit-finder-stable-report-native-2026-10-30.log",
+      "sdk": "27.2"
+    }
+  ],
+  "typing_assertions": [
+    "Actual native text editor Unicode insertion",
+    "No transient NSTableColumn.isHidden KVO transitions, resize/move notifications, setup repeats, header/menu/table identity changes or final layout changes during typing",
+    "KVO observer positive control: real Hide command must produce visibility transitions",
+    "Native selection, checkbox inclusion, sorting, hide/show, user column order/width persistence, font/theme transitions, true status replacement and old checkbox refusal"
+  ],
+  "initial_failures_retained": [
+    "Initial cache-only typing repair failed because derived document geometry and then SwiftUI visibility resets still reapplied setup. Actual diagnostics isolated visibility=false with unchanged semantic data and zero resize/move; table isolation addresses the source.",
+    "Initial Log chooser fixture repair failed with invalidated owner. windowShouldClose is an actual deferred-close request. Cancel/reuse is separate from the retained final deferred-close/late-reply assertion.",
+    "First resumed native diagnostic could not locate stale inherited CommandLineTools SDKROOT; explicit current Xcode SDK then exposed old27.0-module/new27.2-SDK mismatch. One current-SDK rebuild was necessary; failed attempts occurred before receiver launch."
+  ],
+  "hosted_run": {
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41001587894",
+    "source": "da767b69855e71513e651f9876076616c9d9a7e8",
+    "conclusion": "failure",
+    "passed": [
+      "Core",
+      "SVN runtime",
+      "unsigned universal Store candidate audit",
+      "Debug/Store graph helper contracts",
+      "bundled SSH lookup and encrypted-key cleanup"
+    ],
+    "fixture_repairs": {
+      "Help": "51 bundled anchors and50 native routes require distinct exact completion inventory",
+      "Finder Services": "await actual async Git configuration startup barrier before FIFO once-only delivery",
+      "Settings completion": "assert immediate model-owned refusal, then await native footer update while operation is held",
+      "Image overlay": "await actual mounted canvas endpoint publication before pixel sampling with timer still running",
+      "Merge Patch": "await actual Settings owner/input receipt activation and native edit acceptance before Apply/Cancel",
+      "Log file identities": "preserve separate Cancel/reuse and deferred owner-close contracts",
+      "Log working conflicts": "permanently retired model cannot be reloaded; prove refusal then create fresh owner before next operation"
+    }
+  },
+  "debug_build": {
+    "log": "build/qa/commit-finder-stable-report-debug-2026-10-30.log",
+    "exit_code": 0,
+    "contradictory_exit_zero_no_output_diagnostics": 39,
+    "note": "Driver success is not described as clean diagnostics. Fresh-object/module checks and linked native receivers passed; previous build-history logs retained."
+  },
+  "resources": {
+    "localizations": {
+      "mode": "check",
+      "languages": 38,
+      "keys": 1326
+    },
+    "help": {
+      "mode": "check",
+      "documents": 61,
+      "topics": 51,
+      "files": 95
+    },
+    "dialog_coverage": "Reconciled; counts describe review coverage only."
+  },
+  "ownership": "All owned receivers reported reaping; report helper cleanup verified. Native windows private/offscreen; no user app termination or Finder/Dock restart.",
+  "owner_acceptance": "owner-acceptance-build38-2026-10-30.json",
+  "remaining": [
+    "Package and accept signed build39; installed38 predates this source batch.",
+    "Complete hosted CI on corrected source; focused local passes do not replace it.",
+    "Physical picker-target/typing acceptance, wider dialog/keyboard/accessibility and Intel/minimum-OS checks remain scoped separately.",
+    "WMF HALFTONE model work is separate; valid Windows controls do not yet constitute a renderer repair.",
+    "No public app download, App Store submission, notarization or whole-port completion claimed."
+  ]
+}

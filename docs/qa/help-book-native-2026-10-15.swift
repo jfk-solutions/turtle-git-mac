@@ -4,6 +4,10 @@ import TurtleGitCore
 
 @main struct HelpBookVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
+    struct Catalog:Decodable {
+        struct Topic:Decodable {let id:String;let document:String}
+        let topics:[Topic]
+    }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
     @MainActor static func wait(line: UInt = #line, _ condition: () -> Bool) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds:10_000_000) }
@@ -14,6 +18,17 @@ import TurtleGitCore
         _ = NSApplication.shared; NSApp.setActivationPolicy(.accessory)
         guard let bundle=Bundle(path:CommandLine.arguments[1]) else { throw Failure(description:"Missing built application bundle") }
         let service=TurtleGitHelpService(bundle:bundle)
+        guard let book=service.bookURL else {throw Failure(description:"Missing bundled Help book")}
+        let resources=book.appendingPathComponent("Contents/Resources/en.lproj")
+        let catalog=try JSONDecoder().decode(Catalog.self,from:Data(contentsOf:resources.appendingPathComponent("topics.json")))
+        let bundledIDs=catalog.topics.map(\.id),nativeIDs=TurtleGitHelpTopic.allCases.map(\.rawValue)
+        try require(!bundledIDs.isEmpty && Set(bundledIDs).count==bundledIDs.count && Set(nativeIDs).isSubset(of:Set(bundledIDs)),"Duplicate/missing bundled Help topic identity")
+        for topic in catalog.topics {
+            try require(!topic.document.contains("/") && topic.document.hasSuffix(".md"),"Invalid bundled Help document: "+topic.id)
+            let page=resources.appendingPathComponent(String(topic.document.dropLast(3))+".html")
+            let html=try String(contentsOf:page,encoding:.utf8)
+            try require(html.contains("name=\"topic-"+topic.id+"\""),"Missing bundled topic anchor: "+topic.id)
+        }
         try require(Set(service.topics.keys)==Set(TurtleGitHelpTopic.allCases.map(\.rawValue)),"Bundled topic catalogue differs from native routes")
         var registrations=0, anchors:[String]=[], urls:[URL]=[]
         service.registerBook={_ in registrations += 1; return true}; service.openAnchor={ anchor,book in anchors.append(book+"#"+anchor) }; service.openURL={ urls.append($0) }
@@ -63,6 +78,8 @@ import TurtleGitCore
         try require(NSApp.sendAction(help.action!,to:help.target,from:help) && anchors.last?.hasSuffix("#topic-savedData")==true,"Settings Help topic dispatch")
         let index=service.bookURL!.appendingPathComponent("Contents/Resources/en.lproj/TurtleGitHelp.helpindex")
         try require((try Data(contentsOf:index)).count>0,"Missing built Apple Help search/anchor index")
-        print("PASS: \(TurtleGitHelpTopic.allCases.count) bundled topics, registration/anchor and offline fallback routing, real controller/Settings Help, F1/sheets/close lifetime, built index")
+        print("PASS: \(bundledIDs.count) bundled topics, \(nativeIDs.count) native routes, registration/anchor and offline fallback routing, real controller/Settings Help, F1/sheets/close lifetime, built index")
+        let report:[String:Any] = ["bundledTopics":bundledIDs.sorted(),"nativeRoutes":nativeIDs.sorted()]
+        print("HELP_BOOK_COMPLETED: "+String(data:try JSONSerialization.data(withJSONObject:report,options:.sortedKeys),encoding:.utf8)!)
     }
 }
