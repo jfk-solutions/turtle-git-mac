@@ -1,11 +1,13 @@
 # First-use Finder comparison, patch and export delivery
 
-This family connects eight explicit macOS Services to existing native TurtleGit
+This family connects Finder command delivery to existing native TurtleGit
 workflows: Mark/Compare, Clear comparison mark, Export, Create Patch Serial,
 Apply Patch Serial, Review/apply single patch, Send Mail and Request Pull.
-They append to the previous forty-seven declarations, retaining their original
-order and contents. The installed bundle registers fifty-five entries: fifteen
-folder entries and forty selected-item entries.
+Use Finder’s **TurtleGit** submenu for these commands. The application advertises
+only **Open in TurtleGit** in the system Services menu; its typed command
+handlers remain internal compatibility routes. Earlier checkpoints in this
+family describe the expanded Services declarations used at that time, not the
+current public menu. See [Finder commands and the selected-file Service](FINDER-SERVICES.md).
 
 ## Source behavior and macOS selection
 
@@ -13,20 +15,20 @@ Pinned TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d` supplies the
 `TortoiseShell/MenuInfo.cpp` DiffLater, Export, FormatPatch, ImportPatch,
 ApplyPatch and Sendmail predicates. `ContextMenu.cpp` changes DiffLater from
 marking one file to comparing another with it; Control clears the mark and Shift
-chooses the alternate tool. The macOS Services menu has static captions, so it
-also provides an explicit Clear entry. Existing Finder Sync menus retain their
-dynamic marked-path captions and icons.
+chooses the alternate tool. Finder Sync menus retain dynamic marked-path
+captions and icons, with an explicit Clear comparison mark command. Internal
+compatibility requests also carry an explicit Clear action.
 
 Mark/Compare accepts one nonfolder without requiring a Git repository. Export
 accepts one Git folder or bare repository; Format Patch requires one Git folder.
 Import accepts selected patch files or one Git folder. Review accepts one patch,
 or an arbitrary nonfolder through the source extended-action clause; Send Mail
 accepts its ordered patch/file selection through the corresponding clause.
-Invoking a Services item is an explicit action, so it does not depend on a
-physical Explorer extended-menu modifier. Request Pull has no source Shell
-MenuInfo entry: its Services adaptation uses Export's repository-folder scopes
-and opens the existing Request Pull form. Services has no independent Explorer
-background folder, so ambiguous repository selections are not silently narrowed.
+An explicit typed request does not depend on a physical Explorer extended-menu
+modifier. Request Pull has no source Shell MenuInfo entry: its native adaptation
+uses Export's repository-folder scopes and opens the existing Request Pull form.
+The compatibility selection envelope has no independent Explorer background
+folder, so ambiguous repository selections are not silently narrowed.
 
 The source `ImportPatchCommand.cpp` chooses a repository for a patch outside a
 working tree. TurtleGit separately authorizes selected input files and chooses
@@ -80,7 +82,7 @@ Existing operation assertions remain in their own workflow families.
 The [dated checkpoint](qa/finder-delivery-services-2026-10-21.json) records actual
 executions, repairs and the precise remaining acceptance scope.
 
-This scope does not certify physical Services activation, signed sandbox file
+This scope does not certify physical Finder command or Open Service activation, signed sandbox file
 grants, every source dialog/control, Windows menu placement or App Store
 distribution. macOS controls Services ordering and does not provide Explorer's
 per-entry shell icons through this registration; native controls retain their

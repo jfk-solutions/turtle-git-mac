@@ -5462,7 +5462,7 @@ private enum TransportBatchPresentationContext {
     }
     func openPatchDocument(_ url: URL) {
         guard !confirmingQuit else { return }
-        guard url.isFileURL, ["patch", "diff"].contains(url.pathExtension.lowercased()) else {
+        guard WorkspaceOpenHandoff.acceptsPatchDocument(url) else {
             error = "Choose a .patch or .diff document to open in Unified Diff."; return
         }
         let file = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(url.path)), key = Data(file.path.utf8)

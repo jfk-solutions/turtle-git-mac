@@ -97,7 +97,18 @@ actor StatisticsExportWriteGate {
             try require(last==14 && count==Int(word(52)) && fills>1 && strokes>0 && rasters==0,"Export substituted a whole-graph bitmap for vector shapes/text")
             let decoded=try unwrap(MetafileImageDecoder.convert(data),"Actual helper did not decode graph")
             let image=try unwrap(ComparisonImage(bytes:decoded)?.pixels,"Actual helper SVG did not render EMF pixels")
-            if let size {try require(image.width==Int(size.width) && image.height==Int(size.height),"Metafile viewport changed")}
+            if let size {
+                let viewportWidth=Int(ceil(size.width)),viewportHeight=Int(ceil(size.height))
+                // Both source .wmf and .emf choices contain an enhanced metafile.
+                // Header.Bounds is inclusive; physical Frame and every drawing
+                // record retain the requested graph viewport. File-backed image
+                // allocation includes its final device pixel independently.
+                try require(word(4)==88 && word(8)==0 && word(12)==0 && Int(word(16))==viewportWidth-1 && Int(word(20))==viewportHeight-1,"Authored graph viewport bounds changed for "+format.fileExtension)
+                try require(word(24)==0 && word(28)==0 && Int(word(32))==Int((size.width*2540/96).rounded()) && Int(word(36))==Int((size.height*2540/96).rounded()),"Authored graph physical frame changed for "+format.fileExtension)
+                try require(word(72)==960 && word(76)==960 && word(80)==254 && word(84)==254,"Authored graph device profile changed for "+format.fileExtension)
+                let naturalWidth=Int((Double(word(32))*96/2540).rounded())+1,naturalHeight=Int((Double(word(36))*96/2540).rounded())+1
+                try require(image.width==naturalWidth && image.height==naturalHeight,"Metafile natural canvas \(image.width)x\(image.height), expected inclusive \(naturalWidth)x\(naturalHeight) for graph viewport \(viewportWidth)x\(viewportHeight) [\(format.fileExtension)]")
+            }
         } else {
             let source=try unwrap(CGImageSourceCreateWithData(data as CFData,nil),"Invalid raster graph")
             let image=try unwrap(CGImageSourceCreateImageAtIndex(source,0,nil),"Missing raster pixels")
@@ -125,12 +136,18 @@ actor StatisticsExportWriteGate {
         }
         let owner=try await c.owner(),graph=try unwrap(owner.model.graph,"No actual statistics graph")
         let size=CGSize(width:640,height:360)
+        var metafileBytes:[String:Data]=[:]
         for format in StatisticsGraphFormat.allCases {
             let bytes=try StatisticsGraphExport.data(graph:graph,metric:owner.model.metric,style:owner.model.style,size:size,dark:false,format:format)
             let target=c.base.appendingPathComponent("actual."+format.fileExtension)
             try await StatisticsGraphExport.write(data:bytes,to:target,cancellation:OperationCancellation())
-            try verify(Data(contentsOf:target),format:format,size:size)
+            let saved=try Data(contentsOf:target)
+            try require(saved==bytes,"Accepted graph writer changed encoded source bytes for "+format.fileExtension)
+            try verify(saved,format:format,size:size)
+            if format == .wmf || format == .emf {metafileBytes[format.fileExtension]=saved}
         }
+        let wmf=try unwrap(metafileBytes[StatisticsGraphFormat.wmf.fileExtension],"WMF choice was not exported"),emf=try unwrap(metafileBytes[StatisticsGraphFormat.emf.fileExtension],"EMF choice was not exported")
+        try require(wmf==emf,"Paired WMF/EMF filters changed the source enhanced-metafile encoding for the same graph/viewport")
         let sentinel=c.base.appendingPathComponent("cancel.png"),original=Data("sentinel".utf8);try original.write(to:sentinel)
         let token=OperationCancellation();token.cancel()
         do {try await StatisticsGraphExport.write(data:Data("replacement".utf8),to:sentinel,cancellation:token);throw Failure(description:"Cancelled writer published")}

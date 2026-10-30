@@ -162,7 +162,9 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the fifty-six `NSServices` declarations.
+At the historical expanded-menu checkpoint, `Configuration/App-Info.plist`
+supplied fifty-six `NSServices` declarations. The current plist supplies only
+**Open in TurtleGit**; command delivery remains in the provider and Finder submenu.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute

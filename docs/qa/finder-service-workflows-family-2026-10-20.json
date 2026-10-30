@@ -139,5 +139,87 @@
     "Separate primary-command batch still opens independent forms and stops on first invalid preparation; not fixed here",
     "Other first-use Services such as Add/Revert/Resolve/Blame remain outside these nineteen declarations",
     "Complete Finder/Explorer visual and application parity remain unproven"
+  ],
+  "continuations": [
+    {
+      "date": "2026-10-31",
+      "status": "provider-and-both-engine-routing-batch-passed-after-retained-gate-repair",
+      "reported_failure": {
+        "run": 41129980751,
+        "job": 124326671844,
+        "source": "87701028",
+        "case": "provider/system Git",
+        "assertion": "cold fetch was not delivered exactly once after startup"
+      },
+      "diagnosis": "Legacy workflow receiver asserted synchronous delivery immediately after startupDidFinishLaunching, before the actual asynchronous Git configuration readiness gate. Production Git-backed Services readiness is retained.",
+      "scope": [
+        "Held cold Fetch/Branch/StashList preparation, captured selection, startup-before-delivery, exactly-once and pending-clear checks.",
+        "Second pending request refusal, repeated startup, warm no-repeat preparation, busy and Quit admission refusal.",
+        "Provider retirement during held preparation clears the request and refuses late completion, fresh dispatch and error publication.",
+        "Routing and multi-repository cases use private preparation and activation callbacks while retaining actual dialogs, grants, child cancellation and helper-drain checks."
+      ],
+      "production_changes": "None in this fixture correction; review found asynchronous gating and captured command/path dispatch already implement the intended Mac lifecycle.",
+      "native_labels_changed": false,
+      "validation": {
+        "distinct_case_engine_pairs_cumulatively_passed": 5,
+        "initial_log": "build/qa/startup-documents-services-2026-10-31.log",
+        "affected_retry_log": "build/qa/startup-documents-services-batch-cli-repair-2026-10-31.log",
+        "passed": [
+          {
+            "case": "provider",
+            "git": "/usr/bin/git",
+            "owned_receiver_pid": 64696,
+            "result": "passed/reaped"
+          },
+          {
+            "case": "routing",
+            "git": "/usr/bin/git",
+            "owned_receiver_pid": 64705,
+            "result": "passed/reaped"
+          },
+          {
+            "case": "routing",
+            "git": "build/git-runtime/Git/bin/git",
+            "owned_receiver_pid": 65944,
+            "result": "passed/reaped"
+          },
+          {
+            "case": "batch",
+            "git": "/usr/bin/git",
+            "owned_receiver_pid": 67816,
+            "result": "passed/reaped"
+          },
+          {
+            "case": "batch",
+            "git": "build/git-runtime/Git/bin/git",
+            "owned_receiver_pid": 67953,
+            "result": "passed/reaped"
+          }
+        ],
+        "retained_failure": {
+          "case": "batch/system Git",
+          "owned_receiver_pid": 67199,
+          "receiver_reaped": true,
+          "private_helper_cleanup": "Runner finally released and drained only fixture-owned helpers after the failed assertion.",
+          "diagnostic": "Third child opened; workspace busy=false, pending=true, preparation reads=0. The default master libgit2 metadata route never entered the CLI wrapper gate."
+        },
+        "retry_scope": "Only batch with both Git engines after the explicit private CLI-policy fixture correction; passing provider/routing were not repeated.",
+        "production_or_label_changes": "None in this fixture correction; Git-backed readiness remains asynchronous.",
+        "warnings": "Repeated sandbox_extension_consume Operation not permitted diagnostics remain in the private mock-scope logs; assertions and owned cleanup passed.",
+        "limits": "Private provider/native dialog proof does not establish physical Finder/Services gestures, real signed grants, complete hosted CI, minimum macOS or Intel acceptance."
+      },
+      "help_book_changes": "This fixture correction requires no Help input change; broader startup/document work updates user guides separately.",
+      "validation_attempt": {
+        "log": "build/qa/startup-documents-services-2026-10-31.log",
+        "passed": [
+          "provider/system Git",
+          "routing/system Git",
+          "routing/bundled Git"
+        ],
+        "failure": "batch/system Git timed out waiting for an actual held metadata subprocess; third child opened but preparation reads had completed. Default master libgit2 metadata bypassed the CLI wrapper gate.",
+        "repair": "The private batch now explicitly selects CLI in its captured preferences and repository factory. It still requires a live recorded worker PID, held preparation, Quit refusal, owner-close drainage, no later-root publication and unchanged repositories.",
+        "retry_scope": "Only batch with system and bundled Git; provider and routing are not repeated."
+      }
+    }
   ]
 }

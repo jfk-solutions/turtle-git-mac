@@ -9,7 +9,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--only', action='append', choices=['stream', 'lifetime', 'failure', 'command', 'startup', 'dedicated'])
+parser.add_argument('--only', action='append', choices=['stream', 'lifetime', 'failure', 'command', 'startup', 'dedicated', 'admission'])
 args = parser.parse_args()
 root = next(p for p in Path(__file__).resolve().parents if (p / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/unified-diff-input-native-sources'
@@ -18,7 +18,7 @@ receiver = build_receiver(root, [root / 'docs/qa/unified-diff-input-native-2026-
 results = []
 # No Git executable or repository is used: the actual standalone controller is
 # intentionally initialized with only its private document directory.
-for case in args.only or ['stream', 'lifetime', 'failure', 'command', 'startup', 'dedicated']:
+for case in args.only or ['stream', 'lifetime', 'failure', 'command', 'startup', 'dedicated', 'admission']:
     with tempfile.TemporaryDirectory(prefix='turtlegit-unified-input-' + case + '-') as temporary:
         context = Path(temporary)
         for name in ['fixture', 'preferences', 'home', 'xdg', 'temporary']:

@@ -32,10 +32,19 @@ import TurtleGitCore
         }
     }
     var presentFailure: ((String, @escaping () -> Void) -> Void)?
+    /// Shared document classification for handoff, routing and the opener.
+    /// A patch URL requests only a local document read; Apply acquires its Git
+    /// configuration and repository authority separately when actually invoked.
+    static func acceptsPatchDocument(_ url:URL)->Bool {
+        // Foundation's filesystem .path can truncate an encoded NUL. Inspect
+        // the encoded path as well before granting the local-document bypass;
+        // a literal filename "%00" is encoded "%2500" and remains valid.
+        guard url.isFileURL,let parts=URLComponents(url:url,resolvingAgainstBaseURL:false),
+              !parts.percentEncodedPath.lowercased().contains("%00"),!url.path.contains("\0") else{return false}
+        return ["patch","diff"].contains(url.pathExtension.lowercased())
+    }
     static func accepts(_ url: URL) -> Bool {
-        if url.isFileURL {
-            return !url.path.contains("\0") && ["patch", "diff"].contains(url.pathExtension.lowercased())
-        }
+        if url.isFileURL {return acceptsPatchDocument(url)}
         if FinderActionDelivery(url: url) != nil { return true }
         return ["turtlegit://workspace","turtlegit://workspace?open=repository"].contains(url.absoluteString) || FinderRequest(url: url) != nil || (try? FinderServiceCommand.request(serviceURL:url)) != nil || (try? TurtleGitFinderServicesProvider.openSelection(from:url)) != nil
     }

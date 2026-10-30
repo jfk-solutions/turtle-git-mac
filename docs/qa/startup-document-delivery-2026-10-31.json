@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-31",
+  "kind": "StartupAndDocumentDeliveryBatch",
+  "source_commit_before_batch": "5eda418287912ce9ec5c4a7ecf20d2cfba201714",
+  "implementation": [
+    "Standalone Unified Diff avoids unrelated Git configuration restoration",
+    "Local patch document URL delivery avoids Git/saved-repository/watch initialization until a Git-backed request needs it",
+    "Shared typed patch URL classifier preserves literal percent names and rejects encoded NUL before Foundation path truncation",
+    "Git-backed FIFO, Services readiness, file permissions, dirty-owner reuse, worker cancellation and external tool handoff remain owned",
+    "Public and offline Finder documentation describes the single Open in TurtleGit Service and Finder command submenu"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "d5c3ed123041e5188da51a17adfa0b9c50101d6c7f8bcee1508934ed139fcb66",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "eb3acd0b6e6b62157da37a468d1aa23fed4143154578a2c7ad0c325a38341013",
+    "Sources/TurtleGitMac/WorkspaceOpenHandoff.swift": "7e7f02d141f62fe8168f703ebeed87a8d1ac62ef060fb93d057fdc2b245935fb"
+  },
+  "validation": {
+    "Debug_build": "passed; initial complete family build then affected encoded-NUL predicate rebuild",
+    "native_distinct_case_engine_pairs": 11,
+    "native_scope": [
+      "Unified Diff command/startup/dedicated/admission: four distinct repository-free cases cumulatively passed",
+      "Finder Services provider once and routing/batch on both system and bundled Git: five case/engine pairs cumulatively passed",
+      "Statistics export formats with both Git engines: two pairs passed"
+    ],
+    "Core_suite": "not repeated; no Core implementation changed",
+    "Help": "regenerated after public guide corrections; source check passed",
+    "site": "Final frozen-manual site build and two document checks passed; published deployment remains separate"
+  },
+  "failures_retained": [
+    {
+      "case": "Unified Diff admission",
+      "error": "Filesystem URL path hid encoded NUL",
+      "repair": "Inspect encoded path and use genuine encoded-NUL fixture; retain valid literal percent-name case",
+      "repeat": "affected Debug build and admission only"
+    },
+    {
+      "case": "Finder Services multi-root batch/system Git",
+      "error": "Default libgit2 metadata bypassed expected held CLI process",
+      "repair": "Explicit private CLI backend for actual subprocess lifetime test; preserve all worker/Quit/owner/repository assertions",
+      "repeat": "only multi-root batch, both Git engines"
+    }
+  ],
+  "receivers": {
+    "attempted_pids": [
+      64588,
+      64593,
+      64597,
+      64598,
+      67568,
+      64696,
+      64705,
+      65944,
+      67199,
+      67816,
+      67953,
+      67604,
+      67646
+    ],
+    "all_reported_reaped": true,
+    "independently_absent_after_checkpoint": true,
+    "windows": "invisible/offscreen; retired by owned receiver cleanup",
+    "helpers": "private fixture cleanup on success/failure; no unrelated user app terminated"
+  },
+  "logs": {
+    "debug": {
+      "path": "build/qa/startup-documents-debug-2026-10-31.log",
+      "sha256": "bf5972fc7dd9a39eee251c8ea4756cc88dd3fb7836be528c620b7306a3f037f6"
+    },
+    "debug-nul-repair": {
+      "path": "build/qa/startup-documents-debug-nul-repair-2026-10-31.log",
+      "sha256": "4dca0fa8dd0547875c35bd0f77a5978cee81a6b4e0b83f697f6d11a8b0255a6e"
+    },
+    "unified": {
+      "path": "build/qa/startup-documents-unified-2026-10-31.log",
+      "sha256": "2da73967ea8386474932c8a5858b3738671a360813e8041d76b589ba58e63ef3"
+    },
+    "unified-admission-nul-repair": {
+      "path": "build/qa/startup-documents-unified-admission-nul-repair-2026-10-31.log",
+      "sha256": "b30257580a3fbfb988203dc8ca299971f46449f69ff9fd757cb132a246bb62bb"
+    },
+    "services": {
+      "path": "build/qa/startup-documents-services-2026-10-31.log",
+      "sha256": "f4d7d33c090a6a7eb835d9750f7665a5ba17e85c1a57965694ae9611c5f115a6"
+    },
+    "services-batch-cli-repair": {
+      "path": "build/qa/startup-documents-services-batch-cli-repair-2026-10-31.log",
+      "sha256": "182bca07794a903143de661195799b6ca515296992dd6477205f6dce064659f5"
+    },
+    "statistics": {
+      "path": "build/qa/startup-documents-statistics-2026-10-31.log",
+      "sha256": "3acfffcfbbfcb30c85c8300391df16f787cfc95a270a1be6f5bd31d446a64000"
+    },
+    "site-build": {
+      "path": "build/qa/startup-documents-site-build-2026-10-31.log",
+      "sha256": "93d1c66287b1fbf60a2b227193b92ece09521981920e426149f959406766d695"
+    },
+    "site-check": {
+      "path": "build/qa/startup-documents-site-check-2026-10-31.log",
+      "sha256": "07dcc586a0ad29738749826c968bb0557d19797c3d38c0bde4c85170f76303c8"
+    },
+    "site-final-build": {
+      "path": "build/qa/startup-documents-site-final-build-2026-10-31.log",
+      "sha256": "93d1c66287b1fbf60a2b227193b92ece09521981920e426149f959406766d695"
+    },
+    "site-final-check": {
+      "path": "build/qa/startup-documents-site-final-check-2026-10-31.log",
+      "sha256": "cc871f5db351cded0c3dfc58e8ddebe6f9c1768e96f7660941dd602f64acb1cc"
+    }
+  },
+  "related_checkpoints": [
+    "local-document-startup-2026-10-31.json",
+    "finder-service-workflows-family-2026-10-20.json",
+    "statistics-export-family-2026-10-21.json",
+    "signed-consolidation-build42-2026-10-31.json"
+  ],
+  "installed_build": "42, unchanged by this source batch; no new shipping app launch",
+  "unproven": [
+    "Complete corrected-source hosted CI",
+    "Physical Finder and VoiceOver/current native gestures",
+    "Signed installed execution of this source continuation",
+    "Complete source/layout parity, minimum macOS and physical Intel acceptance",
+    "Later distribution signing, notarization and App Store/license terms review"
+  ],
+  "public_binary_release": false,
+  "App_Store_submission": false
+}

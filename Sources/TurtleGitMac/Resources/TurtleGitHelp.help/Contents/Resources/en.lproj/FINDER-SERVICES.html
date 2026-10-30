@@ -253,7 +253,9 @@ handoff receipt until Launch Services replies. Its private
 <code>turtlegit://service</code> envelope selects the owned Services route and conveys no
 permission.</p>
 <h2 id="registration-and-source-scope">Registration and source scope</h2>
-<p><code>Configuration/App-Info.plist</code> supplies the fifty-six <code>NSServices</code> declarations.
+<p>At the historical expanded-menu checkpoint, <code>Configuration/App-Info.plist</code>
+supplied fifty-six <code>NSServices</code> declarations. The current plist supplies only
+<strong>Open in TurtleGit</strong>; command delivery remains in the provider and Finder submenu.
 <code>ApplicationDelegate.swift</code> installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute

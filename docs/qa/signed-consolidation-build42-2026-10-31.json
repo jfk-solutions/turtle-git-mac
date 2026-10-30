@@ -1,0 +1,71 @@
+{
+  "schema": "TurtleGitSignedConsolidationCheckpoint",
+  "date": "2026-10-31",
+  "version": "0.1.0",
+  "build": {
+    "number": "42",
+    "configuration": "AppStore",
+    "signing": "Existing Apple Development identity for local testing",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 297.135,
+    "source_inputs_unchanged": true,
+    "superseded_baseline": "An earlier successful c5b71d87 build was not packaged or installed; it was superseded to include the reported Commit layout repair."
+  },
+  "source_commit": "5eda418287912ce9ec5c4a7ecf20d2cfba201714",
+  "source_input_sha256": "1c2e11a8028715f05d6a56ceee3cba502584c3642db9362bcec13360c66694fa",
+  "main_sha256": "af28e30b18ad916234b189e088d2ff48337e34255aba9f5442a37e20acd0ad50",
+  "installed": true,
+  "changes": [
+    "Reuse of locally written Finder live/restart snapshots and off-main saved authority resolution",
+    "Clicked-row activation across status-list workflows and Repository Browser; stable Browser footer",
+    "Prepared SSH identities borrowed by Synchronization Fetch/Pull options with owned child drain",
+    "Fixed toolbar feedback in both Commit presentations prevents asynchronous loading from shifting editor/list/header geometry"
+  ],
+  "verification": {
+    "strict_deep_seal": true,
+    "owned_code_components": 8,
+    "runtime_layout_entries": 206,
+    "packaged_help_source_members": 96,
+    "zip_and_installed_inventory_members": 6382,
+    "copied_extracted_and_installed_inventory_equal": true,
+    "signed_runtime_phases": [
+      "local-tools"
+    ],
+    "signed_runtime_passed": true,
+    "signed_runtime_scope": "Packaged local-tools public Core through a private sandbox parent; no shipping UI or physical Finder acceptance inferred."
+  },
+  "package": {
+    "archive": "TurtleGit-for-Mac-0.1.0-build42-signed.zip",
+    "archive_bytes": 423345426,
+    "archive_sha256": "b0bfbaa9a8640b55a802945bda192fe105bfb8cdcc075df432e0544930c8db19"
+  },
+  "installation": {
+    "previous_build": "41",
+    "rollback_retained": true,
+    "user_app_was_running": false,
+    "shipping_app_launched": false,
+    "Finder_or_Dock_restart": false
+  },
+  "related_checkpoints": [
+    "commit-feedback-layout-2026-10-31.json",
+    "file-activation-sync-options-2026-10-30.json",
+    "finder-startup-reuse-2026-10-30.json",
+    "metafile-wmf-text-background-2026-10-30.json"
+  ],
+  "physical_acceptance": "Earlier build41 private gestures and build38 owner Finder acceptance remain scoped to those builds. No additional physical UI acceptance of build42 was claimed.",
+  "remaining": [
+    "Complete corrected-source hosted CI pass",
+    "Current signed physical Finder/large-repository latency acceptance",
+    "Remaining source/layout/keyboard/accessibility family acceptance",
+    "Minimum OS and physical Intel acceptance",
+    "Later distribution signing/notarization and GPL/App Store terms review"
+  ],
+  "public_binary_upload": false,
+  "notarization": false,
+  "app_store_submission": false,
+  "build_number": "42"
+}

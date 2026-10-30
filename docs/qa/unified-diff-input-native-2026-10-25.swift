@@ -209,23 +209,27 @@ private extension NSWindow {
         }
     }
     static func startup(_ c:Context)async throws {
-        @MainActor func bootstrap()throws->(TurtleGitApplicationDelegate,RepositoryModel,PatchWindowController) {
+        @MainActor func bootstrap()async throws->(TurtleGitApplicationDelegate,RepositoryModel,PatchWindowController) {
             let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
             workspace.reviewPatchPreferences=c.preferences
             workspace.patchDocumentPresentation={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);c.owners.append(owner)}
             let delegate=TurtleGitApplicationDelegate()
             delegate.startupArguments=["--unified-diff"];delegate.startupDirectory=c.root.path
             delegate.makeStandaloneWorkspace={workspace};delegate.configureStandaloneServices={_,_ in};delegate.activateStandaloneApplication={};delegate.startupMergeToolExit={_ in}
+            var configurationReads=0
+            delegate.prepareGitConfigurationReads={configurationReads += 1}
             delegate.startupDidFinishLaunching()
             guard let owner=workspace.patchDocumentWindows.values.first else{throw Failure(description:"Actual standalone bootstrap omitted viewer")}
-            try require(delegate.standaloneWorkspace === workspace && workspace.root==nil && owner.model.canEditText,"Actual bootstrap initialized workspace or disabled empty editor")
+            try require(delegate.startupDelivered && delegate.standaloneWorkspace === workspace && workspace.root==nil && owner.model.canEditText,"Actual bootstrap initialized workspace or disabled empty editor")
+            await inputDeliveryTurn()
+            try require(configurationReads==0 && !delegate.gitConfigurationReadsReady,"Standalone empty editor restored unrelated Git configuration")
             return(delegate,workspace,owner)
         }
-        let(cleanDelegate,cleanWorkspace,clean)=try bootstrap()
+        let(cleanDelegate,cleanWorkspace,clean)=try await bootstrap()
         try require(cleanDelegate.applicationShouldTerminate(NSApp) == .terminateNow,"Clean actual Unified Diff startup entered endless Merge termination")
         clean.close();cleanWorkspace.stopMonitoringForTermination()
 
-        let(dirtyDelegate,dirtyWorkspace,dirty)=try bootstrap()
+        let(dirtyDelegate,dirtyWorkspace,dirty)=try await bootstrap()
         dirty.model.editDocument("unsaved startup draft\n")
         var questions=0,replies:[Bool]=[]
         dirty.documentSession.askChanges={_,reply in questions += 1;reply(.discard)}
@@ -235,7 +239,7 @@ private extension NSWindow {
         try require(questions==1 && replies==[true],"Dirty actual startup never completed ordinary document Quit pipeline")
         dirty.close();dirtyWorkspace.stopMonitoringForTermination()
 
-        let(busyDelegate,busyWorkspace,busy)=try bootstrap()
+        let(busyDelegate,busyWorkspace,busy)=try await bootstrap()
         let h=Held(),pipe=try c.stream();c.held.append(h)
         let input=c.session(read:{try h.read($0,$1)})
         try require(input.start(controller:busy,descriptor:pipe.input,title:"Startup busy"),"Actual bootstrap input refused")
@@ -377,16 +381,22 @@ private extension NSWindow {
         try require(applying.model.exportDocument.bytes==bytes,"Late Apply retirement changed original document")
 
         // Exercise the actual AppDelegate startup and normal dirty Quit pipeline.
-        @MainActor func bootstrap(_ path:String,configure:((PatchWindowController)->Void)?=nil,exit:@escaping(Int32)->Void)->(TurtleGitApplicationDelegate,RepositoryModel) {
+        @MainActor func bootstrap(_ path:String,configure:((PatchWindowController)->Void)?=nil,exit:@escaping(Int32)->Void)async throws->(TurtleGitApplicationDelegate,RepositoryModel) {
             let model=RepositoryModel(startMonitoring:false,initializePreferences:false);model.reviewPatchPreferences=c.preferences
             model.configurePatchDocument={owner in owner.documentSession.requiresFileScope=false;configure?(owner)}
             model.patchDocumentPresentation={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);c.owners.append(owner)}
             let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=["--unified-diff-tool","--patchfile",path];delegate.startupDirectory=c.root.path
             delegate.makeStandaloneWorkspace={model};delegate.configureStandaloneServices={_,_ in};delegate.activateStandaloneApplication={};delegate.startupMergeToolExit=exit
-            delegate.startupDidFinishLaunching();return(delegate,model)
+            var configurationReads=0
+            delegate.prepareGitConfigurationReads={configurationReads += 1}
+            delegate.startupDidFinishLaunching()
+            try require(delegate.startupDelivered && model.patchDocumentWindows.count==1,"Dedicated startup did not admit its exact input owner immediately")
+            await inputDeliveryTurn()
+            try require(configurationReads==0 && !delegate.gitConfigurationReadsReady,"Dedicated local input restored unrelated Git configuration")
+            return(delegate,model)
         }
         let quitHeld=Held();c.held.append(quitHeld);var busyExits:[Int32]=[],busyQuitReplies:[Bool]=[]
-        let(busyDelegate,busyModel)=bootstrap(file.path,configure:{owner in
+        let(busyDelegate,busyModel)=try await bootstrap(file.path,configure:{owner in
             owner.documentSession.readFile={_,token in try await Task.detached{try quitHeld.read(-1,token)}.value}
         },exit:{busyExits.append($0)})
         guard let busyOwner=busyModel.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated file Quit omitted input owner")}
@@ -409,7 +419,7 @@ private extension NSWindow {
         busyOwner.close();try require(busyExits==[1],"Dedicated file Quit and later close duplicated exit")
 
         var failureExits:[Int32]=[]
-        let(failureDelegate,failureModel)=bootstrap(c.root.appendingPathComponent("absent-startup.patch").path,exit:{failureExits.append($0)})
+        let(failureDelegate,failureModel)=try await bootstrap(c.root.appendingPathComponent("absent-startup.patch").path,exit:{failureExits.append($0)})
         guard let failureOwner=failureModel.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated delegate omitted input owner")}
         try await wait{PatchDocumentSession.activeOperations==0 && failureOwner.model.error != nil && failureOwner.window?.attachedSheet != nil}
         try require(failureExits.isEmpty && failureDelegate.applicationShouldTerminate(NSApp) == .terminateCancel,"Live input diagnostic did not retain its owned Quit fence")
@@ -421,7 +431,7 @@ private extension NSWindow {
         try await wait{failureExits==[1]};failureOwner.close()
 
         var exits:[Int32]=[],quitReplies:[Bool]=[]
-        let(delegate,model)=bootstrap(file.path,exit:{exits.append($0)})
+        let(delegate,model)=try await bootstrap(file.path,exit:{exits.append($0)})
         guard let owner=model.patchDocumentWindows.values.first else{throw Failure(description:"Dedicated startup missing actual editor")}
         try await wait{PatchDocumentSession.activeOperations==0 && owner.model.exportDocument.bytes==bytes}
         owner.model.editDocument(owner.model.document.text+"draft\n")
@@ -436,6 +446,105 @@ private extension NSWindow {
         try await wait{exits==[0]};owner.close()
         try require(exits==[0] && questions==2,"Granted Quit/close completed more than once")
     }
+    static func admission(_ c:Context)async throws {
+        let first=c.root.appendingPathComponent("local Café.patch"),second=c.root.appendingPathComponent("queued 雪.diff"),late=c.root.appendingPathComponent("retired.patch")
+        let bytes=Data("--- a/file\r\n+++ b/file\r\n@@ -1 +1 @@\r\n-old\r\n+new 🐢\r\n".utf8)
+        for file in [first,second,late]{try bytes.write(to:file)}
+        try require(WorkspaceOpenHandoff.acceptsPatchDocument(first) && WorkspaceOpenHandoff.acceptsPatchDocument(second),"Typed local patch classifier rejected supported inputs")
+        // Build the genuine encoded URL explicitly. fileURLWithPath may
+        // normalize a manufactured NUL before the router ever receives it.
+        let encodedNUL=URL(string:first.absoluteString+"%00ignored.diff")!
+        let literalPercent=c.root.appendingPathComponent("literal%00.patch")
+        try require(literalPercent.absoluteString.contains("%2500") && WorkspaceOpenHandoff.acceptsPatchDocument(literalPercent),"Literal percent filename was mistaken for an encoded NUL")
+        for invalid in [URL(string:"https://example.invalid/file.patch")!,c.root.appendingPathComponent("other.txt"),encodedNUL] {
+            let identity=" absolute="+invalid.absoluteString+" path="+String(reflecting:invalid.path)+" encoded="+(URLComponents(url:invalid,resolvingAgainstBaseURL:false)?.percentEncodedPath ?? "nil")
+            try require(!WorkspaceOpenHandoff.acceptsPatchDocument(invalid),"Typed patch bypass admitted a nonlocal, unrelated or NUL pathname"+identity)
+        }
+        // Seed only this receiver's private default archive so skipping saved
+        // access is observable even when the archive would otherwise be empty.
+        let archive=RepositoryAccessStore.defaultStorageURL
+        try require(RepositoryAccessLease.pathIsContained(archive,by:c.root.deletingLastPathComponent()),"Default routing archive escaped the private receiver HOME")
+        let archiveOwner=try RepositoryAccessStore(storageURL:archive,provider:Scope(allowed:true))
+        let saved=try archiveOwner.remember(c.root)
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        workspace.enableActionRoutingAccess();workspace.reviewPatchPreferences=c.preferences
+        var holdFileRead=false
+        let held=Held();c.held.append(held)
+        workspace.configurePatchDocument={owner in
+            owner.documentSession.requiresFileScope=false
+            if holdFileRead {owner.documentSession.readFile={_,token in try await Task.detached{try held.read(-1,token)}.value}}
+        }
+        workspace.patchDocumentPresentation={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);c.owners.append(owner)}
+        let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=["--turtlegit-action-only"];delegate.startupDirectory=c.root.path
+        delegate.makeStandaloneWorkspace={workspace};delegate.configureStandaloneServices={_,_ in};delegate.configureGeneralApplication={_ in};delegate.activateStandaloneApplication={}
+        var configurationReads=0,configurationReply:CheckedContinuation<Void,Never>?
+        var requested=[URL](),services=[RepositoryAction]()
+        delegate.prepareGitConfigurationReads={configurationReads += 1;await withCheckedContinuation{configurationReply=$0}}
+        delegate.workspaceOpenHandler={model,url in
+            requested.append(url)
+            if WorkspaceOpenHandoff.acceptsPatchDocument(url){model.handle(url)}
+        }
+        delegate.workspaceServiceHandler={_,request in services.append(request.action);return true}
+        defer {
+            let pending=configurationReply;configurationReply=nil;pending?.resume()
+            delegate.retireFinderServices();delegate.retireInboundURLBridge();delegate.workspaceOpenHandoff.retire();workspace.stopMonitoringForTermination()
+        }
+        delegate.startupDidFinishLaunching()
+        delegate.application(NSApp,open:[first])
+        guard let firstOwner=workspace.patchDocumentWindows.values.first else{throw Failure(description:"Local patch URL waited for unrelated Git readiness")}
+        try await wait{!firstOwner.model.busy && firstOwner.model.exportDocument.bytes==bytes}
+        try require(configurationReads==0 && !delegate.gitConfigurationReadsReady && firstOwner.model.repository==nil && workspace.root==nil && workspace.recentRepositories.isEmpty && workspace.finderWatches==nil,"Local document URL initialized Git configuration, saved repository authority or Finder watches")
+        firstOwner.model.editDocument(firstOwner.model.document.text+"draft\n")
+        let draft=firstOwner.model.document.text
+        delegate.application(NSApp,open:[first])
+        await inputDeliveryTurn()
+        try require(workspace.patchDocumentWindows.count==1 && workspace.patchDocumentWindows.values.first === firstOwner && firstOwner.model.documentDirty && firstOwner.model.document.text==draft,"Repeated local URL replaced its exact dirty document owner")
+
+        // A Git request owns its original FIFO position. A local document after
+        // it must not leapfrog that owner while configuration is still held.
+        guard let gitURL=FinderRequest(action:.log,paths:[c.root]).url else{throw Failure(description:"Private Git request URL unavailable")}
+        delegate.application(NSApp,open:[gitURL,second])
+        try await wait{configurationReply != nil}
+        try require(configurationReads==1 && requested==[first,first] && workspace.patchDocumentWindows.count==1,"Git-first URL cohort bypassed configuration ownership/FIFO")
+        try delegate.submitServiceRequest(.init(action:.status,paths:[c.root]))
+        try require(services.isEmpty && delegate.pendingFinderServiceRequest?.action == .status,"Repository Service bypassed its real Git configuration gate")
+        let release=configurationReply;configurationReply=nil;release?.resume()
+        try await wait{delegate.gitConfigurationReadsReady && requested==[first,first,gitURL,second] && services==[.status] && workspace.patchDocumentWindows.count==2}
+        guard let secondOwner=workspace.patchDocumentWindows.values.first(where:{$0 !== firstOwner}) else{throw Failure(description:"Released local document owner missing")}
+        try await wait{!secondOwner.model.busy && secondOwner.model.exportDocument.bytes==bytes}
+        try require(configurationReads==1 && firstOwner.model.document.text==draft && firstOwner.model.documentDirty,"Released Git/local FIFO redelivered work or discarded an earlier draft")
+        try require(workspace.recentRepositories.contains{$0.id==saved.id} && workspace.finderWatches != nil,"Later Git-backed request failed to initialize its real saved authority/watch owner")
+
+        // The same real URL opener retains its late-read and forced-close fence.
+        holdFileRead=true;delegate.application(NSApp,open:[late])
+        try await wait{held.started}
+        guard let retired=workspace.patchDocumentWindows.values.first(where:{$0 !== firstOwner && $0 !== secondOwner}) else{throw Failure(description:"Held URL read owner missing")}
+        retired.close()
+        try require(retired.model.retired && PatchDocumentSession.activeOperations>0,"URL close released its noncooperative input worker early")
+        held.release();try await wait{PatchDocumentSession.activeOperations==0}
+        try require(retired.model.exportDocument.bytes.isEmpty && retired.window?.isVisible==false && firstOwner.model.document.text==draft,"Retired URL input published late or changed another document")
+        firstOwner.model.editDocument(String(decoding:bytes,as:UTF8.self));firstOwner.close();secondOwner.close()
+
+        // Existing standalone tool hosts retain their separate-host handoff for
+        // external requests. A local patch is never consumed by the waiting
+        // tool, and forwarding does not start its unrelated Git preparation.
+        let toolWorkspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        toolWorkspace.reviewPatchPreferences=c.preferences
+        toolWorkspace.patchDocumentPresentation={owner in owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);c.owners.append(owner)}
+        let tool=TurtleGitApplicationDelegate();tool.startupArguments=["--unified-diff"];tool.startupDirectory=c.root.path
+        tool.makeStandaloneWorkspace={toolWorkspace};tool.configureStandaloneServices={_,_ in};tool.activateStandaloneApplication={};tool.startupMergeToolExit={_ in}
+        var toolReads=0,forwarded=[[URL]]()
+        tool.prepareGitConfigurationReads={toolReads += 1}
+        tool.workspaceOpenHandoff.launch={urls,_,_,reply in forwarded.append(urls);reply(nil)}
+        defer{tool.workspaceOpenHandoff.retire();tool.retireFinderServices();toolWorkspace.stopMonitoringForTermination()}
+        tool.startupDidFinishLaunching()
+        guard let original=toolWorkspace.patchDocumentWindows.values.first else{throw Failure(description:"Actual standalone tool editor missing")}
+        tool.application(NSApp,open:[second,gitURL])
+        await inputDeliveryTurn()
+        try require(forwarded==[[second,gitURL]] && toolReads==0 && !tool.gitConfigurationReadsReady && toolWorkspace.patchDocumentWindows.count==1 && toolWorkspace.patchDocumentWindows.values.first === original,"External document/Git handoff retargeted the waiting standalone editor or restored its Git configuration")
+        original.close()
+        for file in [first,second,late]{try require((try Data(contentsOf:file))==bytes,"Read-only URL admission changed disk bytes")}
+    }
     static func main()async {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let methods=[(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.diffInputFrame(_:to:)))),(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.diffInputOrder(_:relativeTo:))))]
@@ -443,7 +552,7 @@ private extension NSWindow {
         defer{for(a,b)in methods.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
         let c=Context();DialogGeometry.install(preferences:c.preferences)
         do {
-            switch CommandLine.arguments[3] {case "stream":try await stream(c);case "lifetime":try await lifetime(c);case "failure":try await failure(c);case "command":try await command(c);case "startup":try await startup(c);case "dedicated":try await dedicated(c);default:throw Failure(description:"Unknown input case")}
+            switch CommandLine.arguments[3] {case "stream":try await stream(c);case "lifetime":try await lifetime(c);case "failure":try await failure(c);case "command":try await command(c);case "startup":try await startup(c);case "dedicated":try await dedicated(c);case "admission":try await admission(c);default:throw Failure(description:"Unknown input case")}
             await c.clean();DialogGeometry.install(preferences:.standard)
             try require(UnifiedDiffInputSession.activeOperations==0 && PatchDocumentSession.activeStartupInputs==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Input workers/windows remained after cleanup")
             print("PASS: unified diff input "+CommandLine.arguments[3]);fflush(stdout)

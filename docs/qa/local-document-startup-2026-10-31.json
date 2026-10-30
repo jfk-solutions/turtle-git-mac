@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-31",
+  "status": "implemented-grouped-debug-and-scoped-native-passed-hosted-and-signed-open",
+  "family": "Unified Diff local input and typed document-URL startup readiness",
+  "source_parent": "5eda418287912ce9ec5c4a7ecf20d2cfba201714",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_anchor": "src/TortoiseUDiff/TortoiseUDiff.cpp:85-145 creates its editor and reads local file/stdin without repository configuration",
+  "implementation": [
+    "Standalone image/Unified Diff startup does not start unrelated Git configuration restoration; existing input grants and lazy Apply admission are preserved.",
+    "A shared acceptsPatchDocument classifier serves WorkspaceOpenHandoff, ApplicationDelegate and the actual RepositoryModel opener.",
+    "Typed local .patch/.diff URLs bypass Git configuration and new saved-repository/Finder-watch initialization; existing workspace ownership can still be shared.",
+    "A queued earlier Git request retains FIFO admission; repository Services still await real configuration readiness and later Git requests initialize their saved authority.",
+    "Raw and encoded NUL paths are refused before Foundation filesystem-path normalization; a literal %00 filename remains valid through %2500 encoding.",
+    "Repeated local URLs retain the existing dirty editor; read/close retirement, exact document bytes and separate-host external handoff from standalone tools are preserved."
+  ],
+  "hosted_failure": {
+    "run": 41129980751,
+    "source": "87701028c8b0e9cb8e6cf3fa96796cede5b950f7",
+    "job": 124326670618,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41129980751/job/124326670618",
+    "step": 142,
+    "step_name": "Standalone Unified Diff input, document admission and local appearance",
+    "passed_before_failure": [
+      "wrapper",
+      "stream",
+      "lifetime",
+      "failure",
+      "command"
+    ],
+    "failed_case": "startup",
+    "failure": "Actual standalone bootstrap omitted viewer",
+    "reaped_receiver_pid": 77736,
+    "diagnosis": "The actual delegate delayed the local editor behind asynchronous Git configuration restoration; the fixture immediately required its editor. The repair removes the unnecessary product dependency rather than weakening that requirement.",
+    "retrieval": "GitHub log connector repeatedly returned Transport closed; authenticated read-only job UI exposed the exact failed step. The owned browser tab was closed.",
+    "local_evidence": "build/qa/ci877-editors-failure-step142-2026-10-31.txt"
+  },
+  "validation": {
+    "core": "Not rerun: no Core implementation changed in this family.",
+    "debug": [
+      {
+        "log": "build/qa/startup-documents-debug-2026-10-31.log",
+        "exit": 0,
+        "result": "passed after complete family implementation"
+      },
+      {
+        "log": "build/qa/startup-documents-debug-nul-repair-2026-10-31.log",
+        "exit": 0,
+        "result": "affected incremental build passed after encoded-NUL repair"
+      }
+    ],
+    "native_initial": {
+      "log": "build/qa/startup-documents-unified-2026-10-31.log",
+      "passed": [
+        {
+          "case": "command",
+          "reaped_pid": 64588
+        },
+        {
+          "case": "startup",
+          "reaped_pid": 64593
+        },
+        {
+          "case": "dedicated",
+          "reaped_pid": 64597
+        }
+      ],
+      "retained_failure": {
+        "case": "admission",
+        "reaped_pid": 64598,
+        "failure": "Typed patch bypass admitted a nonlocal, unrelated or NUL pathname",
+        "repair": "Inspect URLComponents.percentEncodedPath for %00 before using URL.path; fixture uses a genuine encoded-NUL URL, exact URL diagnostics and a positive literal-percent filename assertion. No strict UTF8 decoding was added."
+      }
+    },
+    "native_affected_recheck": {
+      "log": "build/qa/startup-documents-unified-admission-nul-repair-2026-10-31.log",
+      "case": "admission",
+      "passed": true,
+      "reaped_pid": 67568
+    },
+    "cumulative_distinct_native_cases": 4,
+    "new_admission_scope": [
+      "actual local URL bytes and repeated dirty-owner reuse",
+      "private seeded archive proves saved access/watch initialization stays lazy",
+      "held configuration Git-first FIFO and repository Service admission",
+      "noncooperative URL input forced-close fence",
+      "standalone external document/Git URL separate-host handoff",
+      "unchanged disk bytes and owned offscreen window cleanup"
+    ],
+    "repeat_scope": "Only admission repeated after its actual failure; command/startup/dedicated and unchanged wrapper were not repeated.",
+    "ownership": "Five current-batch native receiver executions reaped; private HOME/preferences/files and invisible/offscreen windows. No user repository or app session was used."
+  },
+  "limits": [
+    "This record does not certify physical Launch Services, terminal interaction, signed external file grants, every editor state or a complete hosted CI pass.",
+    "Build42 source5eda4182 predates this working-tree repair; no signed build43, installation or release acceptance is established here.",
+    "Old-source hosted wrapper/input results remain scoped to that run; they are not a complete current-source hosted pass."
+  ]
+}

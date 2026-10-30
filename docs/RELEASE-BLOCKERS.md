@@ -30,8 +30,9 @@ missing source behavior, reported defect or failing check.
   counts alone do not complete this requirement.
 - [ ] Check the accepted build's README, license/source notices, manual, offline
   Help and screenshot website together; keep publisher credit unobtrusive.
-- [x] Deliver and install the [signed local testing build41](qa/signed-consolidation-build41-2026-10-30.json).
-  Build39 is preserved for rollback. Owner testing, public distribution and the
+- [x] Deliver and install the [signed local testing build42](qa/signed-consolidation-build42-2026-10-31.json).
+  Build41 is preserved for rollback. Build42 includes the later Finder/Sync/file
+  activation continuation and fixed Commit feedback geometry. Owner testing, public distribution and the
   later App Store submission remain separate, including distribution signing
   and the unresolved GPL/App Store terms gate.
 
@@ -73,9 +74,10 @@ adds clicked-row conflict/comparison behavior across four status-list dialogs,
 Browser activation and stable footer geometry, and borrowed private SSH identity
 ownership through full options and active/retired remote pickers. Its sixteen
 native case/engine pairs pass; no Core suite was repeated for app-only changes.
-Build41 remains installed and predates this source continuation.
+Installed build42 includes this source continuation; its physical acceptance
+remains separate from the earlier build41 gestures.
 
-Hosted run877 now reports two failures: the long HEAD radio-control check awaited
+Hosted run877 first reported two failures: the long HEAD radio-control check awaited
 model readiness before the native update (repaired locally with unchanged exact
 assertions), and WMF `textout-odd` differed from its Unicode EMF raster. The
 [later background checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)
@@ -83,6 +85,22 @@ proves identical text and a 159-pixel transparent/white edge difference, preserv
 production alpha and original wires, and passes the matched-background checks
 locally. Hosted confirmation remains open. Neither local batch establishes a
 full hosted or installed pass.
+
+## Current startup/document readiness continuation
+
+The [connected source batch](qa/startup-document-delivery-2026-10-31.json)
+opens standalone/local patch documents without unrelated Git configuration or
+saved-repository initialization. Git-first FIFO and repository Services retain
+actual readiness, authority and cancellation. The shared classifier rejects
+encoded NUL paths while keeping literal percent filenames valid.
+
+The older hosted first-use workflow and Statistics export failures exposed
+stale synchronous-startup and metafile-canvas expectations. Their fixtures now
+retain real readiness, source viewport/vector records and exact saved bytes.
+Eleven distinct native case/engine pairs pass cumulatively after the documented
+NUL and explicit-CLI held-process repairs. The manual and bundled Help describe
+the actual single Open Service. Installed build42 predates this continuation;
+physical/signed acceptance and a complete corrected-source hosted pass remain open.
 
 ## Installed local testing build39
 

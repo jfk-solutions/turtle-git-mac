@@ -210,3 +210,35 @@ confirmed absent. These focused checks do not establish signed grants, physical
 Terminal acceptance, full hosted CI or complete source visual parity.
 The image-effect implementation in the same worktree remains a separate
 unfinished batch and is not certified by a Unified Diff checkpoint.
+
+## Local document admission and Git readiness — October 31, 2026
+
+The pinned `TortoiseUDiff.cpp` creates its editor and reads the selected local
+file or stdin directly; opening a document does not read repository configuration.
+The native `--unified-diff` and `--unified-diff-tool` startup paths now likewise
+admit their input owner without starting the unrelated Git configuration-grant
+restoration. Their file scopes, raw-byte readers, loading cancellation, dirty
+drafts, initial outcome and ordinary Close/Quit ownership are unchanged. Git
+configuration and repository access remain lazy requirements of Apply.
+
+Launch Services `.patch`/`.diff` file URLs use one shared typed classifier in the
+handoff, router and actual opener. Supported local documents bypass Git readiness
+and do not initialize a new saved-repository archive or Finder watch manager.
+Existing workspace authority can still be shared. Nonlocal URLs, other file
+extensions and NUL paths receive no such bypass. A preceding Git request keeps
+its FIFO position: later local documents wait behind it until its configuration
+restoration returns. Repository Services keep their original gate, and standalone
+tool hosts retain the separate-host handoff for external URLs.
+
+The input receiver now checks immediate empty/file editor startup without a
+configuration callback, actual local URL reads and repeated dirty-owner reuse,
+held Git-first FIFO and Services admission, lazy saved-authority initialization,
+late-read close fencing and unchanged disk bytes. The
+[grouped checkpoint](qa/local-document-startup-2026-10-31.json) records four
+native cases passing cumulatively and two successful Debug builds. Its initial
+admission failure exposed Foundation's encoded-NUL path normalization; the
+shared classifier now refuses encoded NUL before using the filesystem path,
+while preserving literal percent filenames. Only that affected case repeated.
+All five current-batch receivers were reaped. Physical Launch Services, signed
+external file grants and complete hosted integration remain separate acceptance;
+this working-tree repair is newer than signed build42.

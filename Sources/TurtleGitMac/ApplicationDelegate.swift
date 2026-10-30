@@ -292,12 +292,16 @@ import TurtleGitCore
             if let action = actionRepositoryModel,
                action.busy || action.finderActionAuthorityPending { return }
             let workspaceRequest = ["turtlegit://workspace", "turtlegit://workspace?open=repository"].contains(url.absoluteString)
-            if !workspaceRequest { guard configurationReadsReady() else { return } }
+            // A typed local patch document retains its own file permission and
+            // read lifetime. It needs no Git configuration until Apply; an
+            // earlier queued Git request still owns FIFO admission before it.
+            let localPatchDocument=WorkspaceOpenHandoff.acceptsPatchDocument(url)
+            if !workspaceRequest && !localPatchDocument {guard configurationReadsReady() else{return}}
             if workspaceRequest {
                 pendingOpenURLs.removeFirst()
                 requestWorkspace(openRepository: url.query == "open=repository")
             } else if FinderRequest(url: url) != nil || url.isFileURL {
-                let target = actionRoutingModel()
+                let target = actionRoutingModel(loadSavedAccess:!localPatchDocument)
                 guard !target.busy, !target.finderActionAuthorityPending else { return }
                 pendingOpenURLs.removeFirst()
                 if FinderRequest(url: url)?.action != .registerRepository { activateStandaloneApplication() }
@@ -590,8 +594,10 @@ import TurtleGitCore
         guard startupReady, !startupDelivered, let repositoryModel,
               generalApplicationConfigured || startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
         // Empty/default workspace launch can present its native host first.
-        // Actual CLI/tool reads wait without blocking the application event loop.
-        if startupLaunchMode != .imageTool && !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
+        // Repository CLI/tool reads wait without blocking the application loop.
+        // Image and Unified Diff documents acquire their own input permissions;
+        // opening those editors must not restore unrelated Git configuration.
+        if startupLaunchMode != .imageTool && startupLaunchMode != .unifiedDiff && !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
             guard configurationReadsReady() else { return }
         }
         startupDelivered = true

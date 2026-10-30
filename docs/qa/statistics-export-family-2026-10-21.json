@@ -102,5 +102,44 @@
     "Signed file-only destination grant and replacement workspace acceptance on deployment volumes",
     "Complete current hosted integration and current installed distribution acceptance",
     "Whole Statistics/application parity"
+  ],
+  "continuations": [
+    {
+      "date": "2026-10-31",
+      "status": "focused-formats-both-engines-passed",
+      "reported_failure": {
+        "run": 41129980751,
+        "job": 124326670591,
+        "source": "87701028",
+        "case": "formats/system Git",
+        "assertion": "Metafile viewport changed at statistics-export-family-native-2026-10-21.swift:100"
+      },
+      "diagnosis": "This separate formats fixture retained a640x360 decoded-image expectation after the file-backed EMF natural-canvas contract changed to641x361. Production writer inclusive Header.Bounds correction and sibling viewport fixtures already exist.",
+      "repair": "Both .wmf/.emf export choices are verified as actual vector EMF. Independently assert captured graph Header.Bounds (ceil extent minus1), physical Frame and96DPI device profile, then calculate inclusive natural image allocation from the actual physical frame. All source vector/outlined-text, record framing, byte-for-byte saved payload, final filename/encoder, cancellation/destination and save ownership assertions remain. Paired WMF/EMF bytes must agree for the same graph. No crop, resize, matte or pixel tolerance added.",
+      "production_changes": "None",
+      "native_labels_changed": false,
+      "validation": {
+        "log": "build/qa/startup-documents-statistics-2026-10-31.log",
+        "distinct_case_engine_pairs_passed": 2,
+        "cases": [
+          {
+            "case": "formats",
+            "git": "/usr/bin/git",
+            "owned_receiver_pid": 67604,
+            "result": "passed/reaped"
+          },
+          {
+            "case": "formats",
+            "git": "build/git-runtime/Git/bin/git",
+            "owned_receiver_pid": 67646,
+            "result": "passed/reaped"
+          }
+        ],
+        "scope": "Actual save filter/final filename choices, all encoders, EMF authored viewport/physical frame/device profile versus inclusive natural canvas, paired WMF/EMF vector bytes and exact saved payloads, cancelled/failed destination preservation and private repository invariance.",
+        "affected_only": "Selection/ownership and unrelated native cases were not repeated; no Core rerun or app build for this fixture-only correction.",
+        "limits": "Focused local proof does not establish full hosted CI, physical Save-panel gestures, signed deployment, minimum macOS or Intel acceptance."
+      },
+      "focus_runner": "python3 scripts/test-statistics-export-family.py --only formats --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    }
   ]
 }

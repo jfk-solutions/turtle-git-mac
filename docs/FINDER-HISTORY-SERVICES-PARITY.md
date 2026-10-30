@@ -1,5 +1,10 @@
 # First-use history and reference Services
 
+The expanded public Services registration described below is historical.
+Current commands appear in Finder’s **TurtleGit** submenu; the system Services
+menu advertises only **Open in TurtleGit**. The typed handlers and eligibility
+checks below remain in use. See [current Finder delivery](FINDER-SERVICES.md).
+
 This batch connects five existing native workflows to selected-item macOS
 Services outside previously watched Finder roots. It does not certify their full
 dialog parity or physical Finder integration.

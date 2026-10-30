@@ -1,29 +1,31 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>First-use Finder comparison, patch and export delivery</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="first-use-finder-comparison-patch-and-export-delivery">First-use Finder comparison, patch and export delivery</h1>
-<p>This family connects eight explicit macOS Services to existing native TurtleGit
+<p>This family connects Finder command delivery to existing native TurtleGit
 workflows: Mark/Compare, Clear comparison mark, Export, Create Patch Serial,
 Apply Patch Serial, Review/apply single patch, Send Mail and Request Pull.
-They append to the previous forty-seven declarations, retaining their original
-order and contents. The installed bundle registers fifty-five entries: fifteen
-folder entries and forty selected-item entries.</p>
+Use Finder’s <strong>TurtleGit</strong> submenu for these commands. The application advertises
+only <strong>Open in TurtleGit</strong> in the system Services menu; its typed command
+handlers remain internal compatibility routes. Earlier checkpoints in this
+family describe the expanded Services declarations used at that time, not the
+current public menu. See <a href="FINDER-SERVICES.html">Finder commands and the selected-file Service</a>.</p>
 <h2 id="source-behavior-and-macos-selection">Source behavior and macOS selection</h2>
 <p>Pinned TortoiseGit <code>7338078f8ddd924b8cddee35f512f2286072136d</code> supplies the
 <code>TortoiseShell/MenuInfo.cpp</code> DiffLater, Export, FormatPatch, ImportPatch,
 ApplyPatch and Sendmail predicates. <code>ContextMenu.cpp</code> changes DiffLater from
 marking one file to comparing another with it; Control clears the mark and Shift
-chooses the alternate tool. The macOS Services menu has static captions, so it
-also provides an explicit Clear entry. Existing Finder Sync menus retain their
-dynamic marked-path captions and icons.</p>
+chooses the alternate tool. Finder Sync menus retain dynamic marked-path
+captions and icons, with an explicit Clear comparison mark command. Internal
+compatibility requests also carry an explicit Clear action.</p>
 <p>Mark/Compare accepts one nonfolder without requiring a Git repository. Export
 accepts one Git folder or bare repository; Format Patch requires one Git folder.
 Import accepts selected patch files or one Git folder. Review accepts one patch,
 or an arbitrary nonfolder through the source extended-action clause; Send Mail
 accepts its ordered patch/file selection through the corresponding clause.
-Invoking a Services item is an explicit action, so it does not depend on a
-physical Explorer extended-menu modifier. Request Pull has no source Shell
-MenuInfo entry: its Services adaptation uses Export's repository-folder scopes
-and opens the existing Request Pull form. Services has no independent Explorer
-background folder, so ambiguous repository selections are not silently narrowed.</p>
+An explicit typed request does not depend on a physical Explorer extended-menu
+modifier. Request Pull has no source Shell MenuInfo entry: its native adaptation
+uses Export's repository-folder scopes and opens the existing Request Pull form.
+The compatibility selection envelope has no independent Explorer background
+folder, so ambiguous repository selections are not silently narrowed.</p>
 <p>The source <code>ImportPatchCommand.cpp</code> chooses a repository for a patch outside a
 working tree. TurtleGit separately authorizes selected input files and chooses
 the destination repository before opening Apply Patch Serial. It does not infer
@@ -68,7 +70,7 @@ preferences and pasteboards, invisible windows and identified helper cleanup.
 Existing operation assertions remain in their own workflow families.
 The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/finder-delivery-services-2026-10-21.json">dated checkpoint</a> records actual
 executions, repairs and the precise remaining acceptance scope.</p>
-<p>This scope does not certify physical Services activation, signed sandbox file
+<p>This scope does not certify physical Finder command or Open Service activation, signed sandbox file
 grants, every source dialog/control, Windows menu placement or App Store
 distribution. macOS controls Services ordering and does not provide Explorer's
 per-entry shell icons through this registration; native controls retain their

@@ -1,5 +1,36 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed local testing build42
+
+[Signed build42](qa/signed-consolidation-build42-2026-10-31.json), `0.1.0 (42)`,
+is installed from clean source `5eda4182`. It consolidates the Finder snapshot/
+saved-permission, clicked-row activation, Browser footer and Sync SSH options
+continuations below. Commit now keeps asynchronous feedback in the existing
+fixed toolbar row; Amend, author/date reads and cancellable file operations no
+longer move the message editor, lists or headers. The
+[feedback checkpoint](qa/commit-feedback-layout-2026-10-31.json) records both
+presentations, actual geometry and its accessibility/physical limits.
+
+The signed universal build, strict seals, eight owned code components, 206 runtime
+layout entries, 96 Help source members, focused sandbox local-tools execution,
+and all 6,382 ZIP/install inventory members pass. Build41 is retained for rollback;
+no user app was terminated, no shipping UI was launched and Finder/Dock were not
+restarted. Earlier build41 physical checks remain scoped to that build. Current
+physical Finder/large-repository acceptance and a complete corrected-source
+hosted CI pass remain open. No public binary release, notarization or Store
+submission occurred.
+
+The [subsequent startup/document batch](qa/startup-document-delivery-2026-10-31.json)
+removes unrelated Git configuration and saved-repository initialization from local
+patch viewing. Git requests retain ordered readiness and authority. It also
+repairs the older hosted first-use Services and chart-export fixture expectations.
+Eleven distinct native case/engine pairs pass cumulatively after the recorded
+affected-only repairs. Public and bundled Finder documentation now agrees with
+the single Open Service. This continuation is source-only; installed build42
+predates it, and complete corrected-source hosted CI remains required.
+
+## Historical source continuations included in build42
+
 ## WMF text-control background continuation
 
 The [WMF text checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)

@@ -57,20 +57,55 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         try verifyPublicOpenService(services)
         for command in ["fetch", "branch", "stashList"] {
             let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, snapshotWriter: { _ in false })
-            let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []
-            var sequence: [String] = []
+            let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = [];delegate.activateStandaloneApplication={}
+            var sequence:[String]=[],preparations=0,reply:CheckedContinuation<Void,Never>?
+            delegate.prepareGitConfigurationReads={preparations += 1;await withCheckedContinuation{reply=$0}}
             delegate.startupCommandHandler = { _, _, _ in sequence.append("startup") }
             delegate.workspaceServiceHandler = { model, request in if model === workspace { sequence.append(request.action.rawValue) }; return true }
-            defer { delegate.retireFinderServices(); workspace.stopMonitoringForTermination() }
+            diagnostic={"command=\(command) sequence=\(sequence), preparations=\(preparations), ready=\(delegate.gitConfigurationReadsReady), pending=\(String(describing:delegate.pendingFinderServiceRequest?.action))"}
+            defer {reply?.resume();reply=nil;delegate.retireFinderServices();workspace.stopMonitoringForTermination();diagnostic={""}}
             try require(invoke(delegate.finderServicesProvider, selection, command) == nil && sequence.isEmpty, "cold \(command) escaped queue")
             delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
-            try require(sequence == ["startup", command] && delegate.pendingFinderServiceRequest == nil, "cold \(command) was not delivered exactly once after startup")
+            try await wait("cold \(command) reached real asynchronous configuration gate") {reply != nil}
+            try require(sequence==["startup"] && !delegate.gitConfigurationReadsReady && preparations==1 && delegate.pendingFinderServiceRequest?.action.rawValue==command && delegate.pendingFinderServiceRequest?.paths.map(\.path)==[root.path],"cold \(command) dispatched before readiness or changed captured selection")
+            try require(invoke(delegate.finderServicesProvider,selection,"commit") != nil && delegate.pendingFinderServiceRequest?.action.rawValue==command && sequence==["startup"],"second cold request replaced accepted \(command)")
+            try require(delegate.applicationShouldTerminate(NSApp) == .terminateCancel,"Quit ignored held cold \(command) request")
+            let resume=reply;reply=nil;resume?.resume()
+            try await wait("cold \(command) asynchronous configuration and queue drain") {delegate.gitConfigurationReadsReady && delegate.pendingFinderServiceRequest==nil}
+            try require(sequence == ["startup", command] && preparations==1, "cold \(command) was not delivered exactly once after startup")
+            delegate.startupDidFinishLaunching()
+            try require(sequence==["startup",command] && preparations==1 && delegate.pendingFinderServiceRequest==nil,"repeated startup duplicated \(command) or configuration preparation")
             workspace.busy = true
-            try require(invoke(delegate.finderServicesProvider, selection, command) != nil && sequence == ["startup", command], "busy \(command) queued unexpectedly")
+            try require(invoke(delegate.finderServicesProvider, selection, command) != nil && sequence == ["startup", command] && delegate.pendingFinderServiceRequest==nil, "busy \(command) queued unexpectedly")
+            workspace.busy=false;workspace.confirmingQuit=true
+            try require(invoke(delegate.finderServicesProvider, selection, command) != nil && sequence == ["startup", command] && delegate.pendingFinderServiceRequest==nil,"Quit-owned \(command) was delivered or queued")
+            workspace.confirmingQuit=false
+            try require(invoke(delegate.finderServicesProvider,selection,command)==nil && sequence==["startup",command,command] && preparations==1 && delegate.pendingFinderServiceRequest==nil,"warm \(command) repeated preparation or lost immediate exactly-once delivery")
+        }
+        // Retirement while preparation is held removes the captured request.
+        // A late completion can finish private configuration work but must not
+        // recreate a cancelled transport/reference/stash workflow or error UI.
+        for command in ["fetch","branch","stashList"] {
+            let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false})
+            let delegate=TurtleGitApplicationDelegate();delegate.startupArguments=[];delegate.activateStandaloneApplication={};delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace
+            var sequence:[String]=[],reply:CheckedContinuation<Void,Never>?
+            delegate.startupCommandHandler={_,_,_ in sequence.append("startup")}
+            delegate.workspaceServiceHandler={_,request in sequence.append(request.action.rawValue);return true}
+            delegate.prepareGitConfigurationReads={await withCheckedContinuation{reply=$0}}
+            defer{reply?.resume();reply=nil;delegate.retireFinderServices();workspace.stopMonitoringForTermination()}
+            try require(invoke(delegate.finderServicesProvider,selection,command)==nil,"retirement fixture did not accept cold \(command)")
+            delegate.startupDidFinishLaunching()
+            try await wait("held \(command) preparation before retirement") {reply != nil}
+            try require(sequence==["startup"] && delegate.pendingFinderServiceRequest?.action.rawValue==command,"retiring fixture escaped its held \(command) gate")
+            delegate.retireFinderServices()
+            try require(delegate.pendingFinderServiceRequest==nil && invoke(delegate.finderServicesProvider,selection,command) != nil,"retired provider retained or accepted \(command)")
+            let resume=reply;reply=nil;resume?.resume()
+            try await wait("retired \(command) private preparation drained") {delegate.gitConfigurationReadsReady}
+            try require(sequence==["startup"] && delegate.pendingFinderServiceRequest==nil && workspace.error==nil,"late preparation redelivered retired \(command) or published an error")
         }
         let base = root.appendingPathComponent("base"), mine = root.appendingPathComponent("mine")
         try Data("base\n".utf8).write(to: base); try Data("mine\n".utf8).write(to: mine)
-        let tool = TurtleGitApplicationDelegate(); tool.startupArguments = ["--merge-tool", "--base", base.path, "--mine", mine.path, "--readonly"]; tool.startupDirectory = root.path
+        let tool = TurtleGitApplicationDelegate();tool.activateStandaloneApplication={};tool.prepareGitConfigurationReads={}; tool.startupArguments = ["--merge-tool", "--base", base.path, "--mine", mine.path, "--readonly"]; tool.startupDirectory = root.path
         var handed: [URL] = [], completion: ((Error?) -> Void)?
         tool.workspaceOpenHandoff.launch = { urls, _, configuration, reply in
             handed = urls; completion = reply
@@ -83,7 +118,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         try require(tool.applicationShouldTerminate(NSApp) == .terminateCancel, "Quit ignored pending Push handoff")
         completion?(nil); completion = nil
         try require(!tool.workspaceOpenHandoff.hasPendingWork, "Push handoff receipt did not drain")
-        print("PASS: all13 new private-pasteboard commands/plist, cold transport/reference/stash dispatch, busy rejection and standalone Push receipt")
+        print("PASS: all13 private-pasteboard commands/single public Open Service; held cold Fetch/Branch/StashList startup-readiness/selection/exact-once, second-request refusal, repeated/warm startup, busy/Quit admission, retirement/late completion and standalone Push receipt")
     }
     @MainActor static func busy(_ controller: NSWindowController) -> Bool {
         switch controller {
@@ -140,14 +175,14 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         diagnostic = { "root=\(String(describing: workspace.root)), busy=\(workspace.busy), pending=\(workspace.hasPendingFinderServiceWork), error=\(String(describing: workspace.error)), opened=\(opened.map { $0.0.rawValue })" }
         defer { opened.forEach { $0.1.close() }; host.close(); workspace.stopMonitoringForTermination(); diagnostic = { "" } }
         workspace.open(b.root); try await wait("open initial B") { !workspace.busy && workspace.root?.path == b.root.path }
-        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = [];delegate.activateStandaloneApplication={};delegate.prepareGitConfigurationReads={}; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         defer { delegate.retireFinderServices() }
         func launch(_ name: String, path: URL, accepted: Bool = true) async throws -> NSWindowController? {
             try await wait("workspace idle before \(name)") { !workspace.busy && !workspace.hasPendingFinderServiceWork }
             let old = opened.count, selection = board([path]); defer { selection.releaseGlobally() }
             workspace.error = nil
             try require(invoke(delegate.finderServicesProvider, selection, name) == nil, "provider synchronous rejection \(name)")
-            try await wait("\(name) routing") { !workspace.busy && !workspace.hasPendingFinderServiceWork && (opened.count > old || workspace.error != nil) }
+            try await wait("\(name) routing") { delegate.gitConfigurationReadsReady && !workspace.busy && !workspace.hasPendingFinderServiceWork && (opened.count > old || workspace.error != nil) }
             if !accepted { try require(opened.count == old && workspace.error != nil, "ineligible \(name) presented dialog"); return nil }
             try require(opened.count == old + 1, "\(name) did not present exactly once: \(workspace.error ?? "")")
             let captured = opened[old]
@@ -284,8 +319,12 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         defer { try? Data().write(to: released) }
         let suite = "TurtleGit.FinderServices.Batch.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
+        // This case observes a real CLI subprocess owned by the cancellation
+        // path. The default master libgit2 metadata reader bypasses the wrapper's
+        // `git remote` gate entirely; choose CLI explicitly in private settings.
+        prefs.set(false,forKey:"UseLibgit2")
         let store = try RepositoryAccessStore(storageURL: directory.appendingPathComponent("batch-access.json"), provider: FinderWorkflowScopes()); try store.remember(a.root); try store.remember(b.root)
-        let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, repositoryFactory: { GitRepository(root: $0, executable: $0.path == a.root.path ? wrapper : git) }, snapshotWriter: { _ in false }, savedAccessStore: store, comparisonMarks: WorkingComparisonMarkStore(storageURL: directory.appendingPathComponent("batch-marks.json")))
+        let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, repositoryFactory: { GitRepository(root: $0, executable: $0.path == a.root.path ? wrapper : git,libgit2Configuration:.init(enabled:false)) }, snapshotWriter: { _ in false }, savedAccessStore: store, comparisonMarks: WorkingComparisonMarkStore(storageURL: directory.appendingPathComponent("batch-marks.json")))
         workspace.repositoryBookmarkProvider = FinderWorkflowScopes(); workspace.requiresRepositoryScope = true; workspace.fileComparisonPreferences = prefs
         let host = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 500, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         host.alphaValue = 0; host.isReleasedWhenClosed = false; host.orderFront(nil); workspace.workspaceWindow = host
@@ -301,7 +340,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
             panels.append(panel); reply = completion; panel.alphaValue = 0; panel.setFrameOrigin(NSPoint(x: -20000, y: -20000)); parent?.beginSheet(panel, completionHandler: nil)
         }
         workspace.selectedFinderServiceFolderURL = { _ in b.root }
-        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+        let delegate = TurtleGitApplicationDelegate(); delegate.startupArguments = [];delegate.activateStandaloneApplication={};delegate.prepareGitConfigurationReads={}; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         diagnostic = { "batch roots=\(roots), busy=\(workspace.busy), pending=\(workspace.hasPendingFinderServiceWork), reads=\(FetchWindowModel.activePreparationReads), error=\(String(describing: workspace.error)), panels=\(panels.count)" }
         defer {
             try? Data().write(to: released); reply?(.cancel)
@@ -310,7 +349,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
         }
         let selection = board([a.root, a.root.appendingPathComponent("nested"), b.root]); defer { selection.releaseGlobally() }
         try require(invoke(delegate.finderServicesProvider, selection, "fetch") == nil, "multi-root Fetch rejected")
-        try await wait("first ordered batch child") { children.count == 1 && !busy(children[0]) }
+        try await wait("first ordered batch child") { delegate.gitConfigurationReadsReady && children.count == 1 && !busy(children[0]) }
         try require(roots == [a.root.path] && panels.isEmpty && workspace.hasPendingFinderServiceWork, "batch advanced before first dialog closed")
         try require(delegate.applicationShouldTerminate(NSApp) == .terminateCancel, "Quit ignored retained batch dialog")
         children[0].model.cancel()
@@ -335,6 +374,7 @@ private struct FinderWorkflowScopes: RepositoryBookmarkProvider {
             heldPID = value; return true
         }
         guard let pid = heldPID else { throw Failure(description: "Held metadata subprocess did not publish its PID") }
+        try require(Darwin.kill(pid,0)==0 && children[old].model.settingsPreferences.bool(forKey:"UseLibgit2")==false,"Held CLI metadata worker is not live under the captured private backend policy")
         try require(delegate.applicationShouldTerminate(NSApp) == .terminateCancel, "Quit ignored held batch read")
         host.close()
         try await wait("owner-closed batch worker drain") { !workspace.hasPendingFinderServiceWork && !workspace.busy && FetchWindowModel.activePreparationReads == 0 }
